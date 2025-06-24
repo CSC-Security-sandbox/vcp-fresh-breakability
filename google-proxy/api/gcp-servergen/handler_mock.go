@@ -3401,6 +3401,65 @@ func (_c *MockHandler_V1betaInternalUpdateVolumeReplication_Call) RunAndReturn(r
 	return _c
 }
 
+// V1betaInternalmountVolumeReplication provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaInternalmountVolumeReplication(ctx context.Context, params V1betaInternalmountVolumeReplicationParams) (V1betaInternalmountVolumeReplicationRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaInternalmountVolumeReplication")
+	}
+
+	var r0 V1betaInternalmountVolumeReplicationRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalmountVolumeReplicationParams) (V1betaInternalmountVolumeReplicationRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaInternalmountVolumeReplicationParams) V1betaInternalmountVolumeReplicationRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaInternalmountVolumeReplicationRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaInternalmountVolumeReplicationParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaInternalmountVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaInternalmountVolumeReplication'
+type MockHandler_V1betaInternalmountVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// V1betaInternalmountVolumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaInternalmountVolumeReplicationParams
+func (_e *MockHandler_Expecter) V1betaInternalmountVolumeReplication(ctx interface{}, params interface{}) *MockHandler_V1betaInternalmountVolumeReplication_Call {
+	return &MockHandler_V1betaInternalmountVolumeReplication_Call{Call: _e.mock.On("V1betaInternalmountVolumeReplication", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaInternalmountVolumeReplication_Call) Run(run func(ctx context.Context, params V1betaInternalmountVolumeReplicationParams)) *MockHandler_V1betaInternalmountVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaInternalmountVolumeReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalmountVolumeReplication_Call) Return(_a0 V1betaInternalmountVolumeReplicationRes, _a1 error) *MockHandler_V1betaInternalmountVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaInternalmountVolumeReplication_Call) RunAndReturn(run func(context.Context, V1betaInternalmountVolumeReplicationParams) (V1betaInternalmountVolumeReplicationRes, error)) *MockHandler_V1betaInternalmountVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaListActiveDirectories provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1betaListActiveDirectories(ctx context.Context, params V1betaListActiveDirectoriesParams) (V1betaListActiveDirectoriesRes, error) {
 	ret := _m.Called(ctx, params)

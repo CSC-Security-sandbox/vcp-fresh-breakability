@@ -3,7 +3,7 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
-
+	
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -20,6 +20,7 @@ import (
 
 var (
 	getMultipleReplicationsInternal = _getMultipleReplicationsInternal
+	performMountCheck               = _performMountCheck
 )
 
 func (o *Orchestrator) GetMultipleReplicationsInternal(ctx context.Context, accountName string, replicationUUIDs []string) ([]*datamodel.VolumeReplication, error) {
@@ -81,4 +82,44 @@ func _getMultipleReplicationsInternal(ctx context.Context, se database.Storage, 
 	}
 
 	return replications, nil
+}
+
+func (o *Orchestrator) PerformMountCheck(ctx context.Context, replicationUUID string, accountName string) (*models.Job, error) {
+	return performMountCheck(ctx, o.storage, o.temporal, replicationUUID, accountName)
+}
+
+func _performMountCheck(ctx context.Context, se database.Storage, temporal client.Client, replicationUUID string, accountName string) (*models.Job, error) {
+	logger := util.GetLogger(ctx)
+	account, err := getAccountWithName(ctx, se, accountName)
+	if err != nil {
+		return nil, err
+	}
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeMountCheck),
+		State:        string(models.JobsStateNEW),
+		ResourceName: replicationUUID,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		replicationWorkflows.PerformMountCheckWorkflow,
+		replicationUUID,
+		accountName,
+	)
+	if err != nil {
+		logger.Error("Failed to start MountJob Workflow: ", "error", err)
+		return nil, err
+	}
+	return convertDatastoreOperationToModel(createdJob), nil
 }

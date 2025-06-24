@@ -62,6 +62,7 @@ const (
 	V1betaInternalResumeVolumeReplicationOperation    OperationName = "V1betaInternalResumeVolumeReplication"
 	V1betaInternalStopVolumeReplicationOperation      OperationName = "V1betaInternalStopVolumeReplication"
 	V1betaInternalUpdateVolumeReplicationOperation    OperationName = "V1betaInternalUpdateVolumeReplication"
+	V1betaInternalmountVolumeReplicationOperation     OperationName = "V1betaInternalmountVolumeReplication"
 	V1betaListActiveDirectoriesOperation              OperationName = "V1betaListActiveDirectories"
 	V1betaListBackupPoliciesOperation                 OperationName = "V1betaListBackupPolicies"
 	V1betaListBackupVaultsOperation                   OperationName = "V1betaListBackupVaults"

@@ -2242,6 +2242,66 @@ func (_c *MockOrchestratorFactory_ListVolumes_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// PerformMountCheck provides a mock function with given fields: ctx, replicationUUID, accountName
+func (_m *MockOrchestratorFactory) PerformMountCheck(ctx context.Context, replicationUUID string, accountName string) (*models.Job, error) {
+	ret := _m.Called(ctx, replicationUUID, accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PerformMountCheck")
+	}
+
+	var r0 *models.Job
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*models.Job, error)); ok {
+		return rf(ctx, replicationUUID, accountName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *models.Job); ok {
+		r0 = rf(ctx, replicationUUID, accountName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, replicationUUID, accountName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_PerformMountCheck_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PerformMountCheck'
+type MockOrchestratorFactory_PerformMountCheck_Call struct {
+	*mock.Call
+}
+
+// PerformMountCheck is a helper method to define mock.On call
+//   - ctx context.Context
+//   - replicationUUID string
+//   - accountName string
+func (_e *MockOrchestratorFactory_Expecter) PerformMountCheck(ctx interface{}, replicationUUID interface{}, accountName interface{}) *MockOrchestratorFactory_PerformMountCheck_Call {
+	return &MockOrchestratorFactory_PerformMountCheck_Call{Call: _e.mock.On("PerformMountCheck", ctx, replicationUUID, accountName)}
+}
+
+func (_c *MockOrchestratorFactory_PerformMountCheck_Call) Run(run func(ctx context.Context, replicationUUID string, accountName string)) *MockOrchestratorFactory_PerformMountCheck_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_PerformMountCheck_Call) Return(_a0 *models.Job, _a1 error) *MockOrchestratorFactory_PerformMountCheck_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_PerformMountCheck_Call) RunAndReturn(run func(context.Context, string, string) (*models.Job, error)) *MockOrchestratorFactory_PerformMountCheck_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateKmsConfig provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) UpdateKmsConfig(ctx context.Context, params *common.UpdateKmsConfigParams) (*models.KmsConfig, string, error) {
 	ret := _m.Called(ctx, params)

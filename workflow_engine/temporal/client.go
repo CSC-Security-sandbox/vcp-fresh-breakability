@@ -103,6 +103,7 @@ func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage
 	worker.RegisterWorkflow(replicationWorkflows.CreateVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.GetMultipleReplicationsInternalWorkflow)
 	worker.RegisterWorkflow(workflows.CreateBackupWorkflow)
+	worker.RegisterWorkflow(replicationWorkflows.PerformMountCheckWorkflow)
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
@@ -116,6 +117,7 @@ func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage
 	worker.RegisterActivity(&replicationActivities.VolumeReplicationCreateActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.BackupActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.ReplicationInternalGetMultipleActivity{SE: dbcon})
+	worker.RegisterActivity(&replicationActivities.MountJobActivity{SE: dbcon})
 }
 
 // CreateClientOptionsFromEnv creates a client.Options instance, configures

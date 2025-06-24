@@ -225,6 +225,10 @@ type V1betaInternalUpdateVolumeReplicationRes interface {
 	v1betaInternalUpdateVolumeReplicationRes()
 }
 
+type V1betaInternalmountVolumeReplicationRes interface {
+	v1betaInternalmountVolumeReplicationRes()
+}
+
 type V1betaListActiveDirectoriesRes interface {
 	v1betaListActiveDirectoriesRes()
 }

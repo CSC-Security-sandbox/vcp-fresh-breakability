@@ -34,8 +34,6 @@ type OrchestratorFactory interface {
 	GetMultipleVolumes(ctx context.Context, volumeIds []string, accountName string) ([]*models.Volume, error)
 	ListVolumes(ctx context.Context, accountName string) ([]*models.Volume, error)
 
-	AcceptClusterPeer(ctx context.Context, params *commonparams.ClusterPeerParams, poolID string) (*commonparams.ClusterPeerParams, *datamodel.Job, error)
-
 	GetJob(ctx context.Context, operationId string) (*models.Job, error)
 	GetReplicationJobs(ctx context.Context, projectName string, poolUUID string) ([]*models.Job, error)
 
@@ -50,6 +48,8 @@ type OrchestratorFactory interface {
 	CreateVolumeReplication(ctx context.Context, params *commonparams.CreateVolumeReplicationParams) (*models.VolumeReplication, string, error)
 	GetMultipleReplicationsInternal(ctx context.Context, accountName string, replicationUUIDs []string) ([]*datamodel.VolumeReplication, error)
 	GetMultipleReplications(ctx context.Context, params commonparams.GetMultipleReplicationsParams) ([]gcpserver.ReplicationV1beta, error)
+	AcceptClusterPeer(ctx context.Context, params *commonparams.ClusterPeerParams, poolID string) (*commonparams.ClusterPeerParams, *datamodel.Job, error)
+	PerformMountCheck(ctx context.Context, replicationUUID string, accountName string) (*models.Job, error)
 
 	// KMS Config related methods
 	KmsConfigInterface

@@ -7879,6 +7879,78 @@ func (s *V1betaInternalUpdateVolumeReplicationUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaInternalmountVolumeReplicationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalmountVolumeReplicationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalmountVolumeReplicationConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalmountVolumeReplicationConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalmountVolumeReplicationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalmountVolumeReplicationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalmountVolumeReplicationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalmountVolumeReplicationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalmountVolumeReplicationMethodNotAllowed) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalmountVolumeReplicationMethodNotAllowed(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalmountVolumeReplicationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalmountVolumeReplicationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalmountVolumeReplicationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalmountVolumeReplicationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalmountVolumeReplicationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalmountVolumeReplicationUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaListActiveDirectoriesBadRequest) SetFake() {
 	var unwrapped Error
 	{

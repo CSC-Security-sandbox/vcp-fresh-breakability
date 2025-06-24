@@ -357,6 +357,12 @@ type Handler interface {
 	//
 	// PUT /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
 	V1betaInternalUpdateVolumeReplication(ctx context.Context, req *VolumeReplicationUpdateInternalV1beta, params V1betaInternalUpdateVolumeReplicationParams) (V1betaInternalUpdateVolumeReplicationRes, error)
+	// V1betaInternalmountVolumeReplication implements v1beta_internalmountVolumeReplication operation.
+	//
+	// Mounts for a volume replications.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/mount
+	V1betaInternalmountVolumeReplication(ctx context.Context, params V1betaInternalmountVolumeReplicationParams) (V1betaInternalmountVolumeReplicationRes, error)
 	// V1betaListActiveDirectories implements v1beta_listActiveDirectories operation.
 	//
 	// Returns descriptions of all Active Directory credentials owned by the caller.

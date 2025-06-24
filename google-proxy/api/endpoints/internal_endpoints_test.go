@@ -419,3 +419,46 @@ func TestV1betaGetMultipleReplicationsInternal(t *testing.T) {
 		assert.Equal(tt, expectedResponse, resp)
 	})
 }
+
+func TestBetaInternalmountVolumeReplication(t *testing.T) {
+	t.Run("ReturnsInternalServerErrorWhenPerformMountCheckFails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.On("PerformMountCheck", mock.Anything, "volume-replication-id", "project-number").
+			Return(nil, errors.New("mount check failed"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaInternalmountVolumeReplicationParams{
+			VolumeReplicationId: "volume-replication-id",
+			ProjectNumber:       "project-number",
+		}
+		result, _ := handler.V1betaInternalmountVolumeReplication(context.Background(), params)
+		assert.IsType(tt, &gcpgenserver.V1betaInternalmountVolumeReplicationInternalServerError{Code: 500, Message: "mount check failed"}, result)
+		mockOrchestrator.AssertExpectations(tt)
+	})
+	t.Run("ReturnsVolumeReplicationInternalWhenMountCheckSucceeds", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockJob := &models.Job{
+			BaseModel: models.BaseModel{
+				UUID:      "job-uuid",
+				CreatedAt: time.Now(),
+			},
+			WorkflowID: "worker-id",
+			State:      "completed",
+		}
+		mockOrchestrator.On("PerformMountCheck", mock.Anything, "volume-replication-id", "project-number").
+			Return(mockJob, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaInternalmountVolumeReplicationParams{
+			VolumeReplicationId: "volume-replication-id",
+			ProjectNumber:       "project-number",
+		}
+		result, err := handler.V1betaInternalmountVolumeReplication(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.IsType(tt, &gcpgenserver.InternalJobV1beta{}, result)
+		volumeReplication := result.(*gcpgenserver.InternalJobV1beta)
+		assert.Equal(tt, "job-uuid", volumeReplication.JobUuid.Value)
+		mockOrchestrator.AssertExpectations(tt)
+	})
+}

@@ -530,6 +530,15 @@ func (UnimplementedHandler) V1betaInternalUpdateVolumeReplication(ctx context.Co
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaInternalmountVolumeReplication implements v1beta_internalmountVolumeReplication operation.
+//
+// Mounts for a volume replications.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/mount
+func (UnimplementedHandler) V1betaInternalmountVolumeReplication(ctx context.Context, params V1betaInternalmountVolumeReplicationParams) (r V1betaInternalmountVolumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaListActiveDirectories implements v1beta_listActiveDirectories operation.
 //
 // Returns descriptions of all Active Directory credentials owned by the caller.

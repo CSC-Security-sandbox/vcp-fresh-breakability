@@ -430,6 +430,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												break
 											}
 											switch elem[0] {
+											case 'm': // Prefix: "mount"
+
+												if l := len("mount"); len(elem) >= l && elem[0:l] == "mount" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "POST":
+														s.handleV1betaInternalmountVolumeReplicationRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "POST")
+													}
+
+													return
+												}
+
 											case 'r': // Prefix: "re"
 
 												if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
@@ -2388,6 +2412,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												break
 											}
 											switch elem[0] {
+											case 'm': // Prefix: "mount"
+
+												if l := len("mount"); len(elem) >= l && elem[0:l] == "mount" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "POST":
+														r.name = V1betaInternalmountVolumeReplicationOperation
+														r.summary = "Mount a volume replication"
+														r.operationID = "v1beta_internalmountVolumeReplication"
+														r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/mount"
+														r.args = args
+														r.count = 3
+														return r, true
+													default:
+														return
+													}
+												}
+
 											case 'r': // Prefix: "re"
 
 												if l := len("re"); len(elem) >= l && elem[0:l] == "re" {

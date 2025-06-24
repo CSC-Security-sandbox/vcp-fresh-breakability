@@ -4,12 +4,12 @@ package googleproxyclient
 
 import (
 	"fmt"
+	std "encoding/json"
+	"testing"
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
 	"github.com/ogen-go/ogen/validate"
-	std "encoding/json"
-	"testing"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,7 +50,8 @@ func TestActiveDirectoryV1beta_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestActiveDirectoryV1beta_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestActiveDirectoryV1beta_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"application/json\":{\"DNS\":\"100.101.102.103\",\"activeDirectoryId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryState\":\"READY\",\"activeDirectoryStateDetails\":\"Credentials saved and available for use\",\"aesEncryption\":true,\"backupOperators\":[\"Superman\",\"Batman\"],\"createdAt\":\"2017-01-29T09:10:32.212Z\",\"description\":\"My Active Directory description\",\"domain\":\"krypton.galaxy\",\"encryptDCConnections\":false,\"kdcHostName\":\"My Active Directory Machine\",\"ldapSigning\":true,\"netBIOS\":\"cvserver\",\"organizationalUnit\":\"CN=Computers\",\"password\":\"****************\",\"resourceId\":\"my-active-directory\",\"updatedAt\":\"2017-01-29T09:10:32.212Z\",\"username\":\"superman\"}}"},
@@ -89,7 +90,8 @@ func TestActiveDirectoryV1betaActiveDirectoryState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestActiveDirectoryV1betaActiveDirectoryState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestActiveDirectoryV1betaActiveDirectoryState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -188,7 +190,8 @@ func TestBackupPolicyDetailsV1betaState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestBackupPolicyDetailsV1betaState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestBackupPolicyDetailsV1betaState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -263,7 +266,8 @@ func TestBackupPolicyV1betaState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestBackupPolicyV1betaState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestBackupPolicyV1betaState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -362,7 +366,8 @@ func TestBackupV1betaState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestBackupV1betaState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestBackupV1betaState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -437,7 +442,8 @@ func TestBackupVaultV1beta_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestBackupVaultV1beta_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestBackupVaultV1beta_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"application/json\":{\"backupVaultId\":\"9760acf5-4638-11e7-9bdb-020073ca3333\",\"created\":\"2017-02-02T00:00:00.000Z\",\"description\":\"Dummy description\",\"resourceId\":\"backupVault1\",\"state\":\"READY\",\"stateDetails\":\"Available for use\"}}"},
@@ -488,7 +494,8 @@ func TestBackupVaultV1betaState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestBackupVaultV1betaState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestBackupVaultV1betaState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"available\""},
@@ -539,7 +546,8 @@ func TestBlockPropertiesV1betaOsType_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestBlockPropertiesV1betaOsType_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestBlockPropertiesV1betaOsType_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"LINUX\""},
@@ -614,7 +622,8 @@ func TestClusterPeerV1AuthenticationState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestClusterPeerV1AuthenticationState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestClusterPeerV1AuthenticationState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"pending\""},
@@ -653,7 +662,8 @@ func TestClusterPeerV1Availability_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestClusterPeerV1Availability_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestClusterPeerV1Availability_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"available\""},
@@ -716,7 +726,8 @@ func TestError_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestError_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestError_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"code\":1994,\"message\":\"Out of cheese error! Please reboot the Universe\"}"},
@@ -815,7 +826,8 @@ func TestFlexCacheV1betaCacheState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestFlexCacheV1betaCacheState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestFlexCacheV1betaCacheState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"PEERED\""},
@@ -854,7 +866,8 @@ func TestFlexCacheV1betaPreviousCacheState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestFlexCacheV1betaPreviousCacheState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestFlexCacheV1betaPreviousCacheState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"PEERED\""},
@@ -1001,7 +1014,8 @@ func TestHostGroupV1beta_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestHostGroupV1beta_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestHostGroupV1beta_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"created\":\"2024-01-24T13:54:14.374Z\",\"description\":\"HostGroup for storage access\",\"hostGroupId\":\"123e4567-e89b-12d3-a456-426614174000\",\"hosts\":[\"iqn.1998-01.com.vmware:example1\"],\"osType\":\"LINUX\",\"resourceId\":\"my-host-group\",\"state\":\"READY\",\"stateDetails\":\"avilable for use\",\"type\":\"ISCSI_INITIATOR\",\"updated\":\"2024-01-25T10:00:00.000Z\"}"},
@@ -1040,7 +1054,8 @@ func TestHostGroupV1betaOsType_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestHostGroupV1betaOsType_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestHostGroupV1betaOsType_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"LINUX\""},
@@ -1079,7 +1094,8 @@ func TestHostGroupV1betaState_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestHostGroupV1betaState_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestHostGroupV1betaState_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"READY\""},
@@ -1118,7 +1134,8 @@ func TestHostGroupV1betaType_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestHostGroupV1betaType_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestHostGroupV1betaType_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "\"ISCSI_INITIATOR\""},
@@ -1207,7 +1224,8 @@ func TestHybridReplicationParametersV1betaLabels_EncodeDecode(t *testing.T) {
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 
-func TestHybridReplicationParametersV1betaLabels_Examples(t *testing.T) {	for i, tc := range []struct {
+func TestHybridReplicationParametersV1betaLabels_Examples(t *testing.T) {
+	for i, tc := range []struct {
 		Input string
 	}{
 		{Input: "{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"}"},

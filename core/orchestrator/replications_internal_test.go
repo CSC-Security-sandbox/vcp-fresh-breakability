@@ -271,3 +271,44 @@ func TestGetMultipleReplicationsInternal(t *testing.T) {
 		assert.Nil(tt, resp)
 	})
 }
+
+func TestPerformMountCheck(t *testing.T) {
+	temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+	replicationUUID := "replication-uuid"
+	accountName := "testAccount"
+	t.Run("WhenGetAccountFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		store, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+		err = database.ClearInMemoryDB(store.DB())
+		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+		_, err = performMountCheck(ctx, store, temporal, replicationUUID, accountName)
+		assert.EqualError(tt, err, "account not found")
+	})
+	t.Run("WhenTemporalWorkflowFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		store, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+		err = database.ClearInMemoryDB(store.DB())
+		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("temporal error"))
+		_, err = performMountCheck(ctx, store, temporal, replicationUUID, accountName)
+		assert.EqualError(tt, err, "temporal error")
+	})
+}

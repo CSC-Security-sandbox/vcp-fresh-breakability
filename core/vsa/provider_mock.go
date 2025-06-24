@@ -1601,6 +1601,64 @@ func (_c *MockProvider_GetVolume_Call) RunAndReturn(run func(GetVolumeParams) (*
 	return _c
 }
 
+// GetVolumeReplication provides a mock function with given fields: replication
+func (_m *MockProvider) GetVolumeReplication(replication *VolumeReplication) (*VolumeReplication, error) {
+	ret := _m.Called(replication)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeReplication")
+	}
+
+	var r0 *VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) (*VolumeReplication, error)); ok {
+		return rf(replication)
+	}
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) *VolumeReplication); ok {
+		r0 = rf(replication)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*VolumeReplication) error); ok {
+		r1 = rf(replication)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeReplication'
+type MockProvider_GetVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// GetVolumeReplication is a helper method to define mock.On call
+//   - replication *VolumeReplication
+func (_e *MockProvider_Expecter) GetVolumeReplication(replication interface{}) *MockProvider_GetVolumeReplication_Call {
+	return &MockProvider_GetVolumeReplication_Call{Call: _e.mock.On("GetVolumeReplication", replication)}
+}
+
+func (_c *MockProvider_GetVolumeReplication_Call) Run(run func(replication *VolumeReplication)) *MockProvider_GetVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*VolumeReplication))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetVolumeReplication_Call) Return(_a0 *VolumeReplication, _a1 error) *MockProvider_GetVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetVolumeReplication_Call) RunAndReturn(run func(*VolumeReplication) (*VolumeReplication, error)) *MockProvider_GetVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IgroupCreate provides a mock function with given fields: params
 func (_m *MockProvider) IgroupCreate(params IgroupCreateParams) (string, error) {
 	ret := _m.Called(params)

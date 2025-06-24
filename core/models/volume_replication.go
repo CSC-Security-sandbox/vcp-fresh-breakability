@@ -16,6 +16,11 @@ const (
 	OntapBrokenOff                     = "broken-off"
 	SnapmirrorRelationshipIdle         = "idle"
 	SnapmirrorRelationshipTransferring = "transferring"
+	SnapmirrorRelationshipFailed       = "failed"
+	SnapmirrorRelationshipAborted      = "aborted"
+	SnapmirrorRelationshipQueued       = "queued"
+	SnapmirrorRelationshipHardAborted  = "hard_aborted"
+	SnapmirrorRelationshipSuccess      = "success"
 
 	DstEndpoint = "dst"
 	SrcEndpoint = "src"

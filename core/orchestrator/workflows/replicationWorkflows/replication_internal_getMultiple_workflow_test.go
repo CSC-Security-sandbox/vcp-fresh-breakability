@@ -162,7 +162,7 @@ func TestGetMultipleReplicationsInternalWorkflow(t *testing.T) {
 		env.OnActivity("GetReplicationsFromDB", mock.Anything, params).Return(params, nil)
 		env.OnActivity("GetNodesForPools", mock.Anything, params).Return(params, nil)
 		env.OnActivity("GetReplicationsFromOntap", mock.Anything, params).Return(nil, errors.New("failed to get replications from Ontap"))
-		// env.OnActivity("UpdateReplicationsInDB", mock.Anything, params).Return(nil)
+		env.OnActivity("UpdateReplicationsInDB", mock.Anything, params).Return(nil)
 		env.ExecuteWorkflow(GetMultipleReplicationsInternalWorkflow, params)
 
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")

@@ -322,7 +322,7 @@ func (c *Client) V1betaDescribePool(ctx context.Context, params V1betaDescribePo
 }
 
 func (c *Client) sendV1betaDescribePool(ctx context.Context, params V1betaDescribePoolParams) (res V1betaDescribePoolRes, err error) {
-    u := uri.Clone(c.requestURL(ctx))
+	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
 	{
@@ -531,7 +531,7 @@ func (c *Client) V1betaListPools(ctx context.Context, params V1betaListPoolsPara
 }
 
 func (c *Client) sendV1betaListPools(ctx context.Context, params V1betaListPoolsParams) (res V1betaListPoolsRes, err error) {
-    u := uri.Clone(c.requestURL(ctx))
+	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
 	{

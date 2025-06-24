@@ -2328,3 +2328,53 @@ func TestGetReplicationDetails(t *testing.T) {
 		assert.Nil(tt, res)
 	})
 }
+
+func TestGetVolumeReplication(t *testing.T) {
+	t.Run("ReturnsVolumeReplicationWhenSnapmirrorGetSucceeds", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		provider := &OntapRestProvider{}
+		replication := &VolumeReplication{ExternalUUID: "valid-uuid"}
+
+		expectedSnapmirror := &ontaprest.SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Policy:  &models.SnapmirrorRelationshipInlinePolicy{Name: nillable.ToPointer("policy")},
+				UUID:    nillable.ToPointer(strfmt.UUID("uuid")),
+				Healthy: nillable.GetBoolPtr(true),
+			},
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", &ontaprest.SnapmirrorRelationshipGetParams{UUID: replication.ExternalUUID}).Return(expectedSnapmirror, nil).Times(1)
+
+		result, err := provider.GetVolumeReplication(replication)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+	t.Run("ReturnsErrorWhenSnapmirrorGetFails", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		provider := &OntapRestProvider{}
+		replication := &VolumeReplication{ExternalUUID: "invalid-uuid"}
+
+		expectedError := errors.New("snapmirror get failed")
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", &ontaprest.SnapmirrorRelationshipGetParams{UUID: replication.ExternalUUID}).Return(nil, expectedError).Times(1)
+
+		result, err := provider.GetVolumeReplication(replication)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, expectedError, err)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+}

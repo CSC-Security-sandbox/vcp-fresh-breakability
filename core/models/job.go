@@ -38,8 +38,8 @@ const (
 	JobTypeReverseResumeVolumeReplication   JobType = "REVERSE_RESUME_VOLUME_REPLICATION"
 	JobTypeStopVolumeReplication            JobType = "STOP_VOLUME_REPLICATION"
 	JobTypeRefreshVolumeReplicationInternal JobType = "REFRESH_VOLUME_REPLICATION_INTERNAL"
-	JobTypeCreateBackup                    JobType = "CREATE_BACKUP"
-
+	JobTypeCreateBackup                     JobType = "CREATE_BACKUP"
+	JobTypeMountCheck                       JobType = "MOUNT_VOLUME_REPLICATION_INTERNAL"
 )
 
 // Job describes a job DB model

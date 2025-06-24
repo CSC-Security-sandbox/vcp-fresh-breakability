@@ -167,6 +167,17 @@ func (h Handler) V1betaInternalGetReplicationJobs(ctx context.Context, params gc
 	}, nil
 }
 
+func (h Handler) V1betaInternalmountVolumeReplication(ctx context.Context, params gcpgenserver.V1betaInternalmountVolumeReplicationParams) (gcpgenserver.V1betaInternalmountVolumeReplicationRes, error) {
+	logger := util.GetLogger(ctx)
+	job, err := h.Orchestrator.PerformMountCheck(ctx, params.VolumeReplicationId, params.ProjectNumber)
+	if err != nil {
+		logger.Error("Failed to PerformMountCheck", "error", err.Error())
+		return &gcpgenserver.V1betaInternalmountVolumeReplicationInternalServerError{Code: 500, Message: err.Error()}, nil
+	}
+	internalJob := convertJobToInternalJobV1Beta(job)
+	return &internalJob, nil
+}
+
 func convertJobToInternalJobV1Beta(job *models.Job) gcpgenserver.InternalJobV1beta {
 	return gcpgenserver.InternalJobV1beta{
 		JobUuid:       gcpgenserver.NewOptString(job.UUID),

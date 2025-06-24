@@ -834,3 +834,12 @@ func (rc *OntapRestProvider) GetReplicationDetails(volRep *VolumeReplication) (*
 
 	return volRep, nil
 }
+
+func (provider *OntapRestProvider) GetVolumeReplication(replication *VolumeReplication) (*VolumeReplication, error) {
+	client := getOntapClientFunc(provider.ClientParams)
+	snapmirror, err := client.Snapmirror().SnapmirrorRelationshipGet(&ontaprest.SnapmirrorRelationshipGetParams{UUID: replication.ExternalUUID})
+	if err != nil {
+		return nil, err
+	}
+	return convertSnapMirrorToVolumeReplication(*snapmirror, replication)
+}
