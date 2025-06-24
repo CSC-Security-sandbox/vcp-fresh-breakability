@@ -13,6 +13,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
+const metricsPath = "/metrics"
+
 var (
 	httputilDumpRequestOut = httputil.DumpRequestOut
 	httputilDumpRequest    = httputil.DumpRequest
@@ -71,6 +73,9 @@ func GetLoggingRoundTripper(callerInfo string, logger log.Logger, roundTripper h
 }
 
 func (c *requestResponseLogger) RoundTrip(r *http.Request) (*http.Response, error) {
+	if r.URL.Path == metricsPath {
+		return c.roundTripper.RoundTrip(r)
+	}
 	callerInfo := fmt.Sprintf("VCP -> %s", c.callerInfo)
 	ctxCallerInfo := r.Context().Value(middleware.CallerInfoContextKey)
 	if ctxCallerInfo != nil {
@@ -169,6 +174,10 @@ func (rw *bufferResponseWriter) WriteHeader(code int) {
 
 func LoggingHttpHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == metricsPath {
+			next.ServeHTTP(w, r)
+			return
+		}
 		callerInfo := r.URL.Path
 		xCorrID := r.Header.Get(log.RequestCorrelationID)
 		if xCorrID == "" {
