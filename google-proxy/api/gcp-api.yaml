@@ -1858,7 +1858,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
-  /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/getMultipleHostGroups:
+  /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleHostGroups:
     post:
       tags:
         - HostGroups

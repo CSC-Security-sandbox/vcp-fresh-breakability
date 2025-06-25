@@ -137,7 +137,11 @@ func (h Handler) V1betaDeleteHostGroup(ctx context.Context, params gcpgenserver.
 	_, err := h.Orchestrator.GetHostGroup(ctx, params.HostGroupId, params.ProjectNumber)
 	if err != nil {
 		if customerrors.IsNotFoundErr(err) {
-			return &gcpgenserver.V1betaDeleteHostGroupNoContent{}, nil
+			operationID := fmt.Sprintf(operationPathFormat, params.ProjectNumber, params.LocationId, uuid.UUID{}.String())
+			return &gcpgenserver.OperationV1beta{
+				Name: gcpgenserver.NewOptString(operationID),
+				Done: gcpgenserver.NewOptBool(true),
+			}, nil
 		}
 		logger.Error("Failed to delete hostgroup", "error", err.Error())
 		return &gcpgenserver.V1betaDeleteHostGroupInternalServerError{
@@ -160,7 +164,12 @@ func (h Handler) V1betaDeleteHostGroup(ctx context.Context, params gcpgenserver.
 			Message: "Internal server error",
 		}, err
 	}
-	return &gcpgenserver.V1betaDeleteHostGroupNoContent{}, nil
+
+	operationID := fmt.Sprintf(operationPathFormat, params.ProjectNumber, params.LocationId, uuid.UUID{}.String())
+	return &gcpgenserver.OperationV1beta{
+		Name: gcpgenserver.NewOptString(operationID),
+		Done: gcpgenserver.NewOptBool(true),
+	}, nil
 }
 
 func (h Handler) V1betaGetMultipleHostGroups(ctx context.Context, req *gcpgenserver.HostGroupIdListV1beta, params gcpgenserver.V1betaGetMultipleHostGroupsParams) (gcpgenserver.V1betaGetMultipleHostGroupsRes, error) {

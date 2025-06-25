@@ -237,7 +237,7 @@ type Handler interface {
 	//
 	// Returns descriptions of HostGroups that are listed in request body.
 	//
-	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/getMultipleHostGroups
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleHostGroups
 	V1betaGetMultipleHostGroups(ctx context.Context, req *HostGroupIdListV1beta, params V1betaGetMultipleHostGroupsParams) (V1betaGetMultipleHostGroupsRes, error)
 	// V1betaGetMultipleKmsConfigs implements v1beta_getMultipleKmsConfigs operation.
 	//

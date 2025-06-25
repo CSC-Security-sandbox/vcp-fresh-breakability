@@ -49,7 +49,7 @@ func (o *Orchestrator) CreateHostGroup(ctx context.Context, params *CreateHostGr
 }
 
 func _createHostGroup(ctx context.Context, storage database.Storage, params *CreateHostGroupParams) (*models.HostGroup, error) {
-	account, err := storage.GetAccount(ctx, params.AccountID)
+	account, err := getOrCreateAccount(ctx, storage, params.AccountID)
 	if err != nil {
 		return nil, err
 	}

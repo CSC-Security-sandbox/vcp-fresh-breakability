@@ -350,7 +350,7 @@ func (UnimplementedHandler) V1betaGetMultipleBackups(ctx context.Context, req *B
 //
 // Returns descriptions of HostGroups that are listed in request body.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/getMultipleHostGroups
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleHostGroups
 func (UnimplementedHandler) V1betaGetMultipleHostGroups(ctx context.Context, req *HostGroupIdListV1beta, params V1betaGetMultipleHostGroupsParams) (r V1betaGetMultipleHostGroupsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

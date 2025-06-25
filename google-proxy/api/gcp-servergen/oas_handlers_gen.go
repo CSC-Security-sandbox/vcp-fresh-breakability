@@ -6036,14 +6036,14 @@ func (s *Server) handleV1betaGetMultipleBackupsRequest(args [3]string, argsEscap
 //
 // Returns descriptions of HostGroups that are listed in request body.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/getMultipleHostGroups
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleHostGroups
 func (s *Server) handleV1betaGetMultipleHostGroupsRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1beta_getMultipleHostGroups"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/getMultipleHostGroups"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleHostGroups"),
 	}
 
 	// Start a span for this request.

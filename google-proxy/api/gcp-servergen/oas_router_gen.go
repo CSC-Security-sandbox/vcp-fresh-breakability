@@ -1080,6 +1080,29 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 									}
 
+								case 'H': // Prefix: "HostGroups"
+
+									if l := len("HostGroups"); len(elem) >= l && elem[0:l] == "HostGroups" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "POST":
+											s.handleV1betaGetMultipleHostGroupsRequest([2]string{
+												args[0],
+												args[1],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "POST")
+										}
+
+										return
+									}
+
 								case 'P': // Prefix: "Pools"
 
 									if l := len("Pools"); len(elem) >= l && elem[0:l] == "Pools" {
@@ -1163,35 +1186,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										break
 									}
 
-									if len(elem) == 0 {
-										break
-									}
-									switch elem[0] {
-									case 'g': // Prefix: "getMultipleHostGroups"
-										origElem := elem
-										if l := len("getMultipleHostGroups"); len(elem) >= l && elem[0:l] == "getMultipleHostGroups" {
-											elem = elem[l:]
-										} else {
-											break
-										}
-
-										if len(elem) == 0 {
-											// Leaf node.
-											switch r.Method {
-											case "POST":
-												s.handleV1betaGetMultipleHostGroupsRequest([2]string{
-													args[0],
-													args[1],
-												}, elemIsEscaped, w, r)
-											default:
-												s.notAllowed(w, r, "POST")
-											}
-
-											return
-										}
-
-										elem = origElem
-									}
 									// Param: "hostGroupId"
 									// Leaf parameter, slashes are prohibited
 									idx := strings.IndexByte(elem, '/')
@@ -3093,6 +3087,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 									}
 
+								case 'H': // Prefix: "HostGroups"
+
+									if l := len("HostGroups"); len(elem) >= l && elem[0:l] == "HostGroups" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "POST":
+											r.name = V1betaGetMultipleHostGroupsOperation
+											r.summary = "List specified HostGroups"
+											r.operationID = "v1beta_getMultipleHostGroups"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleHostGroups"
+											r.args = args
+											r.count = 2
+											return r, true
+										default:
+											return
+										}
+									}
+
 								case 'P': // Prefix: "Pools"
 
 									if l := len("Pools"); len(elem) >= l && elem[0:l] == "Pools" {
@@ -3182,36 +3200,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										break
 									}
 
-									if len(elem) == 0 {
-										break
-									}
-									switch elem[0] {
-									case 'g': // Prefix: "getMultipleHostGroups"
-										origElem := elem
-										if l := len("getMultipleHostGroups"); len(elem) >= l && elem[0:l] == "getMultipleHostGroups" {
-											elem = elem[l:]
-										} else {
-											break
-										}
-
-										if len(elem) == 0 {
-											// Leaf node.
-											switch method {
-											case "POST":
-												r.name = V1betaGetMultipleHostGroupsOperation
-												r.summary = "List specified HostGroups"
-												r.operationID = "v1beta_getMultipleHostGroups"
-												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/getMultipleHostGroups"
-												r.args = args
-												r.count = 2
-												return r, true
-											default:
-												return
-											}
-										}
-
-										elem = origElem
-									}
 									// Param: "hostGroupId"
 									// Leaf parameter, slashes are prohibited
 									idx := strings.IndexByte(elem, '/')
