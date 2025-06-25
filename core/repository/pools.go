@@ -201,6 +201,34 @@ func (d *DataStoreRepository) DeletingPool(ctx context.Context, pool *datamodel.
 	return nil
 }
 
+// ErroredPool updates the pool entry to Error state
+func (d *DataStoreRepository) ErroredPool(ctx context.Context, pool *datamodel.Pool, errMessage string) (*datamodel.Pool, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	pool.UpdatedAt = time.Now()
+	pool.State = models.LifeCycleStateError
+	pool.StateDetails = errMessage
+
+	// Ensure a WHERE clause by explicitly using the primary key
+	if err = tx.Model(&datamodel.Pool{}).
+		Where("uuid = ?", pool.UUID).
+		Updates(pool).Error; err != nil {
+		return nil, err
+	}
+	
+	updatedPoolView, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
+	if err != nil {
+		return nil, err
+	}
+	return ConvertPoolViewToPool(updatedPoolView), nil
+}
+
 func (d *DataStoreRepository) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error) {
 	return listPoolWithDetails(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
 }

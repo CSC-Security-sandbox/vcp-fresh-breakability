@@ -154,6 +154,18 @@ func TestDeletingPool(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestErroredPool(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	pool := &datamodel.Pool{Name: "erroredpool", Account: &datamodel.Account{}}
+	created, err := store.CreatingPool(ctx, pool)
+	assert.NoError(t, err)
+	_, err = store.ErroredPool(ctx, created, "errored pool")
+	assert.NoError(t, err)
+}
+
 func TestListPools(t *testing.T) {
 	logger := log.NewLogger()
 	store, _ := SetupStorageForTest(logger)

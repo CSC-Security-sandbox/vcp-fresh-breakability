@@ -108,6 +108,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}()
 
 	rollbackManager.Add(poolActivity.ErroredPool, dbPool)
+	rollbackManager.Add(poolActivity.DeletePoolResourcesOnRollback, dbPool)
 	secret := &hyperscaler_models.CustomSecret{}
 	if secretManagerEnabled {
 		err = workflow.ExecuteActivity(ctx, poolActivity.CreateSecret, params.Region, pool.SecretID).Get(ctx, secret)

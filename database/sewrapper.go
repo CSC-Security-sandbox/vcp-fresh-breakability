@@ -131,6 +131,26 @@ func (re *retryEngine) DeletingPool(ctx context.Context, pool *datamodel.Pool) e
 	return err
 }
 
+func (re *retryEngine) ErroredPool(ctx context.Context, pool *datamodel.Pool, errMessage string) (*datamodel.Pool, error) {
+	var var0 *datamodel.Pool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ErroredPool(ctx, pool, errMessage)
+		if err != nil {
+			re.logError("ErroredPool", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error) {
 	var var0 *datamodel.PoolView
 	err := retry.Do(func(attempt int) (bool, error) {

@@ -1641,6 +1641,66 @@ func (_c *MockDataStore_DeletingSnapshot_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// ErroredPool provides a mock function with given fields: ctx, pool, errMessage
+func (_m *MockDataStore) ErroredPool(ctx context.Context, pool *datamodel.Pool, errMessage string) (*datamodel.Pool, error) {
+	ret := _m.Called(ctx, pool, errMessage)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ErroredPool")
+	}
+
+	var r0 *datamodel.Pool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Pool, string) (*datamodel.Pool, error)); ok {
+		return rf(ctx, pool, errMessage)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Pool, string) *datamodel.Pool); ok {
+		r0 = rf(ctx, pool, errMessage)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Pool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Pool, string) error); ok {
+		r1 = rf(ctx, pool, errMessage)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ErroredPool_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ErroredPool'
+type MockDataStore_ErroredPool_Call struct {
+	*mock.Call
+}
+
+// ErroredPool is a helper method to define mock.On call
+//   - ctx context.Context
+//   - pool *datamodel.Pool
+//   - errMessage string
+func (_e *MockDataStore_Expecter) ErroredPool(ctx interface{}, pool interface{}, errMessage interface{}) *MockDataStore_ErroredPool_Call {
+	return &MockDataStore_ErroredPool_Call{Call: _e.mock.On("ErroredPool", ctx, pool, errMessage)}
+}
+
+func (_c *MockDataStore_ErroredPool_Call) Run(run func(ctx context.Context, pool *datamodel.Pool, errMessage string)) *MockDataStore_ErroredPool_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Pool), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ErroredPool_Call) Return(_a0 *datamodel.Pool, _a1 error) *MockDataStore_ErroredPool_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ErroredPool_Call) RunAndReturn(run func(context.Context, *datamodel.Pool, string) (*datamodel.Pool, error)) *MockDataStore_ErroredPool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // FinishBackup provides a mock function with given fields: ctx, backup
 func (_m *MockDataStore) FinishBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
 	ret := _m.Called(ctx, backup)

@@ -1124,13 +1124,12 @@ func Test_SaveVSANodeDetails_Success(t *testing.T) {
 	assert.Equal(t, "node1", node.Name)
 }
 
-func Test_ErroredPool_Success(t *testing.T) {
+func Test_DeletePoolResourcesOnRollback_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.PoolActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 
-	mockStorage.On("UpdatedPool", ctx, pool).Return(pool, nil)
 	deleteSVMS := activities.DeleteSVMs
 	deleteNodes := activities.DeleteNodes
 	deleteLIFs := activities.DeleteLIFs
@@ -1149,6 +1148,52 @@ func Test_ErroredPool_Success(t *testing.T) {
 	activities.DeleteNodes = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
 		return nil
 	}
+
+	err := activity.DeletePoolResourcesOnRollback(ctx, pool)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_DeletePoolResourcesOnRollback_Failure(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+	deleteSVMS := activities.DeleteSVMs
+	deleteNodes := activities.DeleteNodes
+	deleteLIFs := activities.DeleteLIFs
+	defer func() {
+		activities.DeleteSVMs = deleteSVMS
+		activities.DeleteNodes = deleteNodes
+		activities.DeleteLIFs = deleteLIFs
+	}()
+
+	activities.DeleteLIFs = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
+		return errors.New("failed to delete LIFs")
+	}
+	activities.DeleteSVMs = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
+		return nil
+	}
+	activities.DeleteNodes = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
+		return nil
+	}
+
+	err := activity.DeletePoolResourcesOnRollback(ctx, pool)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to delete LIFs")
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_ErroredPool_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+	mockStorage.On("ErroredPool", ctx, pool, "").Return(pool, nil)
 
 	result, err := activity.ErroredPool(ctx, pool, "")
 

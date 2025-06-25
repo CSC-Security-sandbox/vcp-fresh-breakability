@@ -129,25 +129,29 @@ func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool) (*
 func (j *PoolActivity) ErroredPool(ctx context.Context, pool *datamodel.Pool, errMessage string) (*datamodel.Pool, error) {
 	se := j.SE
 
+	// Update pool state as Errored
+	dbpool, err1 := se.ErroredPool(ctx, pool, errMessage)
+	return dbpool, err1
+}
+
+func (j *PoolActivity) DeletePoolResourcesOnRollback(ctx context.Context, pool *datamodel.Pool) error {
+	se := j.SE
+
 	// Delete LIFs
 	if err := DeleteLIFs(ctx, se, pool); err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	// Delete SVMs
 	if err := DeleteSVMs(ctx, se, pool); err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	// Delete nodes
 	if err := DeleteNodes(ctx, se, pool); err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-
-	pool.State = models.LifeCycleStateError
-	pool.StateDetails = errMessage
-	pool, err := se.UpdatedPool(ctx, pool)
-	return pool, err
+	return nil
 }
 
 func (j *PoolActivity) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {

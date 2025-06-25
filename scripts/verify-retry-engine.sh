@@ -6,10 +6,17 @@ source generate-util.sh
 
 FAILED=0
 
+generate_retry_engine_code_for_DB_operations(){
+  echo "starting to generate retry engine code for DB operations"
+  pushd ../cmd/retry-engine-generator > /dev/null
+  go run main.go
+  echo "successfully created retry engine code for DB operations"
+}
+
 verify_retryEngineWrapper() {
   echo "Verifying checksums for Retry Engine Wrapper ..."
 
-  pushd ../database &> /dev/null
+  pushd ../../database &> /dev/null
 
   generate_retryEngineWrapper_checksums
 
@@ -25,6 +32,7 @@ verify_retryEngineWrapper() {
   popd &> /dev/null
 }
 
+generate_retry_engine_code_for_DB_operations
 verify_retryEngineWrapper
 
 if [ "$FAILED" -ne "0" ]; then

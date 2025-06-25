@@ -400,6 +400,10 @@ func (s *PersistenceStore) DeletingPool(ctx context.Context, pool *datamodel.Poo
 	return s.dataStore.DeletingPool(ctx, pool)
 }
 
+func (s *PersistenceStore) ErroredPool(ctx context.Context, pool *datamodel.Pool, errMessage string) (*datamodel.Pool, error) {
+	return s.dataStore.ErroredPool(ctx, pool, errMessage)
+}
+
 func (s *PersistenceStore) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error) {
 	return s.dataStore.ListPools(ctx, conditions)
 }
