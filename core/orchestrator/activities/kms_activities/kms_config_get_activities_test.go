@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -43,6 +44,7 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 				Instructions:        instructions,
 			},
 		}
+		params := &common.CreateKmsConfigParams{LocationID: "location"}
 		mockClient.EXPECT().
 			V1betaDescribeKmsConfiguration(mock.Anything).
 			Return(mockResponse, nil)
@@ -52,14 +54,13 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 		createClient = func(logger log.Logger, JWT string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		mockSE.On("UpdateKmsConfigAttributes", mock.Anything, "uuid", mock.Anything).Return(kmsConfig, nil)
 
 		activity := &KmsConfigActivity{SE: mockSE}
-		result, err := activity.DescribeKmsConfigurationActivity(ctx, kmsConfig)
+		result, err := activity.DescribeKmsConfigurationActivity(ctx, kmsConfig, params)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-		if result != kmsConfig {
+		if result != mockResponse.Payload {
 			t.Errorf("expected returned config to match input")
 		}
 	})
@@ -73,6 +74,7 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 			KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: "external-uuid"},
 			Account:       &datamodel.Account{},
 		}
+		params := &common.CreateKmsConfigParams{LocationID: "location"}
 		mockClient := kms_configurations.NewMockClientService(t)
 		mockClient.EXPECT().
 			V1betaDescribeKmsConfiguration(mock.Anything).
@@ -84,7 +86,7 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 			return *cvpClient
 		}
 		activity := &KmsConfigActivity{SE: mockSE}
-		_, err := activity.DescribeKmsConfigurationActivity(ctx, kmsConfig)
+		_, err := activity.DescribeKmsConfigurationActivity(ctx, kmsConfig, params)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -99,6 +101,7 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 			KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: "external-uuid"},
 			Account:       &datamodel.Account{},
 		}
+		params := &common.CreateKmsConfigParams{LocationID: "location"}
 		mockClient := kms_configurations.NewMockClientService(t)
 		mockClient.EXPECT().
 			V1betaDescribeKmsConfiguration(mock.Anything).
@@ -110,48 +113,7 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 			return *cvpClient
 		}
 		activity := &KmsConfigActivity{SE: mockSE}
-		_, err := activity.DescribeKmsConfigurationActivity(ctx, kmsConfig)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-	})
-	t.Run("DescribeKmsConfigurationActivityReturnsErrorOnUpdateKmsConfigAttributesFailure", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		mockSE := database.NewMockStorage(t)
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel:     datamodel.BaseModel{UUID: "uuid"},
-			KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: "external-uuid"},
-			Account:       &datamodel.Account{},
-		}
-		mockClient := kms_configurations.NewMockClientService(t)
-		keyFullPath := "key-full-path"
-		resourceID := "resource-id"
-		uuid := "external-uuid"
-		serviceAccountEmail := "svc@account"
-		instructions := "instructions"
-		mockResponse := &kms_configurations.V1betaDescribeKmsConfigurationOK{
-			Payload: &models.KmsConfigV1beta{
-				UUID:                uuid,
-				KeyFullPath:         &keyFullPath,
-				ResourceID:          &resourceID,
-				ServiceAccountEmail: serviceAccountEmail,
-				Instructions:        instructions,
-			},
-		}
-		mockClient.EXPECT().
-			V1betaDescribeKmsConfiguration(mock.Anything).
-			Return(mockResponse, nil)
-		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
-		originalCreateClient := cvp.CreateClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, JWT string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		mockSE.On("UpdateKmsConfigAttributes", mock.Anything, "uuid", mock.Anything).Return(nil, errors.New("update attributes error"))
-		activity := &KmsConfigActivity{SE: mockSE}
-		_, err := activity.DescribeKmsConfigurationActivity(ctx, kmsConfig)
+		_, err := activity.DescribeKmsConfigurationActivity(ctx, kmsConfig, params)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}

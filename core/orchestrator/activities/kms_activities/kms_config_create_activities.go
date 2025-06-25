@@ -2,9 +2,11 @@ package kms_activities
 
 import (
 	"context"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	cvpClientModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -47,4 +49,10 @@ func (j *KmsConfigActivity) CreateKmsConfigSDEActivity(ctx context.Context, para
 		return nil, errors.New("unknown error during the create kms configuration")
 	}
 	return response, nil
+}
+
+func (j *KmsConfigActivity) UpdateKmsConfigAttributesActivity(ctx context.Context, kmsUuid string, kmsConfig *cvpClientModels.KmsConfigV1beta) (*datamodel.KmsConfig, error) {
+	return j.SE.UpdateKmsConfigAttributes(ctx, kmsUuid, &datamodel.KmsAttributes{SdeKmsConfigUUID: kmsConfig.UUID,
+		SdeServiceAccountEmail: kmsConfig.ServiceAccountEmail,
+		Instructions:           kmsConfig.Instructions})
 }

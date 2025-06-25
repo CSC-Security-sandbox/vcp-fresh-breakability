@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"google.golang.org/api/cloudresourcemanager/v1"
 )
@@ -67,6 +68,10 @@ func TestFilterPolicyForMember(t *testing.T) {
 func TestCreateCloudResourceManagerService(t *testing.T) {
 	t.Run("CreateCloudResourceManagerServiceReturnsServiceOnSuccess", func(tt *testing.T) {
 		ctx := context.Background()
+		MockMetaDataHost = "sample-server.com"
+		defer func() {
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+		}()
 		service, err := CreateCloudResourceManagerService(ctx)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)

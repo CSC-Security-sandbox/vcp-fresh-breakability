@@ -1,6 +1,7 @@
 package kms_workflows
 
 import (
+	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
@@ -125,12 +126,20 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 		return nil, err
 	}
 
-	// After the KMS configuration is created, we need to perform additional steps like creating service account keys and granting roles
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.DescribeKmsConfigurationActivity, kmsConfig).Get(ctx, kmsConfig)
+	var cvpKmsConfig models2.KmsConfigV1beta
+	// Describe KMS configurations to get the created KMS configuration, this must be called after polling the operation
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.DescribeKmsConfigurationActivity, kmsConfig, params).Get(ctx, &cvpKmsConfig)
 	if err != nil {
 		return nil, err
 	}
 
+	// Update the KMS configuration attributes in the database
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.UpdateKmsConfigAttributesActivity, kmsConfig.UUID, cvpKmsConfig).Get(ctx, kmsConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// After the KMS configuration is created, we need to perform additional steps like creating service account keys and granting roles
 	// Create the service account key for the KMS configuration
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateVSAKmsConfigSAKeyActivity, kmsConfig).Get(ctx, kmsConfig)
 	if err != nil {

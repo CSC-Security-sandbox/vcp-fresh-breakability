@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
@@ -120,7 +121,7 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateKmsConfigSDEActivity", mock.Anything, mock.Anything).Return(response, nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
+		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
 		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Execute workflow
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
@@ -155,11 +156,13 @@ func TestCreateKmsConfig(t *testing.T) {
 			AccountName: "test-account",
 		}
 		kmsConfig := &datamodel.KmsConfig{}
+		cvpKmsConfig := &models.KmsConfigV1beta{}
 		response := &kms_configurations.V1betaCreateKmsConfigurationAccepted{}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateKmsConfigSDEActivity", mock.Anything, mock.Anything).Return(response, nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
 		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -196,11 +199,13 @@ func TestCreateKmsConfig(t *testing.T) {
 			AccountName: "test-account",
 		}
 		kmsConfig := &datamodel.KmsConfig{}
+		cvpKmsConfig := &models.KmsConfigV1beta{}
 		response := &kms_configurations.V1betaCreateKmsConfigurationAccepted{}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateKmsConfigSDEActivity", mock.Anything, mock.Anything).Return(response, nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(errors.New("some error"))
 		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -237,11 +242,13 @@ func TestCreateKmsConfig(t *testing.T) {
 			AccountName: "test-account",
 		}
 		kmsConfig := &datamodel.KmsConfig{}
+		cvpKmsConfig := &models.KmsConfigV1beta{}
 		response := &kms_configurations.V1betaCreateKmsConfigurationAccepted{}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateKmsConfigSDEActivity", mock.Anything, mock.Anything).Return(response, nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreatedKmsConfigActivity", mock.Anything, mock.Anything).Return(errors.New("some error"))
@@ -279,11 +286,13 @@ func TestCreateKmsConfig(t *testing.T) {
 			AccountName: "test-account",
 		}
 		kmsConfig := &datamodel.KmsConfig{}
+		cvpKmsConfig := &models.KmsConfigV1beta{}
 		response := &kms_configurations.V1betaCreateKmsConfigurationAccepted{}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateKmsConfigSDEActivity", mock.Anything, mock.Anything).Return(response, nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreatedKmsConfigActivity", mock.Anything, mock.Anything).Return(nil)

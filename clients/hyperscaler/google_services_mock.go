@@ -301,6 +301,65 @@ func (_c *MockGoogleServices_CreateServiceAccount_Call) RunAndReturn(run func(*i
 	return _c
 }
 
+// CreateServiceAccountKey provides a mock function with given fields: ctx, email
+func (_m *MockGoogleServices) CreateServiceAccountKey(ctx context.Context, email string) (*iam.ServiceAccountKey, error) {
+	ret := _m.Called(ctx, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateServiceAccountKey")
+	}
+
+	var r0 *iam.ServiceAccountKey
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*iam.ServiceAccountKey, error)); ok {
+		return rf(ctx, email)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *iam.ServiceAccountKey); ok {
+		r0 = rf(ctx, email)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*iam.ServiceAccountKey)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, email)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_CreateServiceAccountKey_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateServiceAccountKey'
+type MockGoogleServices_CreateServiceAccountKey_Call struct {
+	*mock.Call
+}
+
+// CreateServiceAccountKey is a helper method to define mock.On call
+//   - ctx context.Context
+//   - email string
+func (_e *MockGoogleServices_Expecter) CreateServiceAccountKey(ctx interface{}, email interface{}) *MockGoogleServices_CreateServiceAccountKey_Call {
+	return &MockGoogleServices_CreateServiceAccountKey_Call{Call: _e.mock.On("CreateServiceAccountKey", ctx, email)}
+}
+
+func (_c *MockGoogleServices_CreateServiceAccountKey_Call) Run(run func(ctx context.Context, email string)) *MockGoogleServices_CreateServiceAccountKey_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateServiceAccountKey_Call) Return(_a0 *iam.ServiceAccountKey, _a1 error) *MockGoogleServices_CreateServiceAccountKey_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateServiceAccountKey_Call) RunAndReturn(run func(context.Context, string) (*iam.ServiceAccountKey, error)) *MockGoogleServices_CreateServiceAccountKey_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateSubnetwork provides a mock function with given fields: request
 func (_m *MockGoogleServices) CreateSubnetwork(request *models.Subnet) error {
 	ret := _m.Called(request)

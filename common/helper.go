@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	logger "golang.org/x/exp/slog"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudresourcemanager/v1"
@@ -17,6 +18,7 @@ var (
 	getIamPolicy                      = _getIamPolicy
 	setIamPolicy                      = SetIamPolicy
 	filterPolicyForMember             = _filterPolicyForMember
+	MockMetaDataHost                  = env.GetString("GCE_METADATA_HOST", "")
 )
 
 func Helper() string {
@@ -29,8 +31,9 @@ func CreateCloudResourceManagerService(ctx context.Context) (*cloudresourcemanag
 	opts := []option.ClientOption{scopesOption}
 	logger.Debug(fmt.Sprintf("opts: %#v", opts))
 
-	opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", cloudresourcemanager.CloudPlatformScope)))
-
+	if MockMetaDataHost != "" {
+		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", cloudresourcemanager.CloudPlatformScope)))
+	}
 	logger.Debug("creating newClient")
 	client, _, err := scopesHttp.NewClient(ctx, opts...)
 	if err != nil {

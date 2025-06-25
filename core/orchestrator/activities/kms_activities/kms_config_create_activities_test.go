@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -98,4 +99,32 @@ func TestCreateKmsConfigSDEActivity(t *testing.T) {
 			t.Fatal("expected error, got nil")
 		}
 	})
+}
+
+func TestUpdateKmsConfigAttributesActivity(t *testing.T) {
+	ctx := context.Background()
+	mockSE := database.NewMockStorage(t)
+	kmsConfig := &models.KmsConfigV1beta{
+		UUID:                "test-uuid",
+		ServiceAccountEmail: "test-sa@domain.com",
+		Instructions:        "test-instructions",
+	}
+	expectedResult := &datamodel.KmsConfig{}
+	mockSE.On("UpdateKmsConfigAttributes", ctx, "vcp-uuid", mock.Anything).Return(expectedResult, nil)
+
+	activity := &KmsConfigActivity{SE: mockSE}
+	result, err := activity.UpdateKmsConfigAttributesActivity(ctx, "vcp-uuid", kmsConfig)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if result != expectedResult {
+		t.Fatalf("expected %v, got %v", expectedResult, result)
+	}
+
+	// Test error case
+	mockSE.On("UpdateKmsConfigAttributes", ctx, "vcp-uuid1", mock.Anything).Return(nil, errors.New("update error"))
+	_, err = activity.UpdateKmsConfigAttributesActivity(ctx, "vcp-uuid1", kmsConfig)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
 }

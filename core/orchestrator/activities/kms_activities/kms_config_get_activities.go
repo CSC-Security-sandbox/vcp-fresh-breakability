@@ -4,15 +4,16 @@ import (
 	"context"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 // DescribeKmsConfigurationActivity retrieves the KMS configuration details for the given KMS configuration.
-func (j *KmsConfigActivity) DescribeKmsConfigurationActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig) (*datamodel.KmsConfig, error) {
-	se := j.SE
+func (j *KmsConfigActivity) DescribeKmsConfigurationActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.CreateKmsConfigParams) (*models.KmsConfigV1beta, error) {
 	logger := util.GetLogger(ctx)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
@@ -21,7 +22,7 @@ func (j *KmsConfigActivity) DescribeKmsConfigurationActivity(ctx context.Context
 	describeKmsConfigParams := kms_configurations.NewV1betaDescribeKmsConfigurationParams()
 	describeKmsConfigParams.KmsConfigID = kmsConfig.KmsAttributes.SdeKmsConfigUUID
 	describeKmsConfigParams.XCorrelationID = &xCorrelationID
-	describeKmsConfigParams.LocationID = kmsConfig.KeyRingLocation
+	describeKmsConfigParams.LocationID = params.LocationID
 	describeKmsConfigParams.ProjectNumber = kmsConfig.Account.Name
 	sdeKmsConfigResponse, err := cvpClient.KmsConfigurations.V1betaDescribeKmsConfiguration(describeKmsConfigParams)
 	if err != nil {
@@ -30,7 +31,5 @@ func (j *KmsConfigActivity) DescribeKmsConfigurationActivity(ctx context.Context
 	if sdeKmsConfigResponse == nil || sdeKmsConfigResponse.Payload == nil {
 		return nil, errors.New("unknown error during the get kms configuration")
 	}
-	return se.UpdateKmsConfigAttributes(ctx, kmsConfig.UUID, &datamodel.KmsAttributes{SdeKmsConfigUUID: sdeKmsConfigResponse.Payload.UUID,
-		SdeServiceAccountEmail: sdeKmsConfigResponse.Payload.ServiceAccountEmail,
-		Instructions:           sdeKmsConfigResponse.Payload.Instructions})
+	return sdeKmsConfigResponse.Payload, nil
 }
