@@ -5462,6 +5462,11 @@ components:
           enum:
             - idle
             - transferring
+            - aborted
+            - failed
+            - hard_aborted
+            - queued
+            - success
           readOnly: true
         totalProgress:
           title: totalProgress

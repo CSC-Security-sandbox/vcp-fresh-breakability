@@ -730,6 +730,59 @@ func (s *BackupConfigV1beta) SetBackupChainBytes(val OptNilInt64) {
 }
 
 // Merged schema.
+// Ref: #/components/schemas/BackupCreate_v1beta
+type BackupCreateV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId  string    `json:"resourceId"`
+	Description OptString `json:"description"`
+	// UUID v4 of the volume.
+	VolumeId string `json:"volumeId"`
+	// UUID v4 of the snapshot.
+	SnapshotId OptString `json:"SnapshotId"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BackupCreateV1beta) GetResourceId() string {
+	return s.ResourceId
+}
+
+// GetDescription returns the value of Description.
+func (s *BackupCreateV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *BackupCreateV1beta) GetVolumeId() string {
+	return s.VolumeId
+}
+
+// GetSnapshotId returns the value of SnapshotId.
+func (s *BackupCreateV1beta) GetSnapshotId() OptString {
+	return s.SnapshotId
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BackupCreateV1beta) SetResourceId(val string) {
+	s.ResourceId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BackupCreateV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *BackupCreateV1beta) SetVolumeId(val string) {
+	s.VolumeId = val
+}
+
+// SetSnapshotId sets the value of SnapshotId.
+func (s *BackupCreateV1beta) SetSnapshotId(val OptString) {
+	s.SnapshotId = val
+}
+
+// Merged schema.
 // Ref: #/components/schemas/BackupPolicyCreate_v1beta
 type BackupPolicyCreateV1beta struct {
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
@@ -1444,6 +1497,22 @@ func (s *BackupRetentionPolicyV1beta) SetManualBackupImmutable(val OptBool) {
 	s.ManualBackupImmutable = val
 }
 
+// Request object for updating backups.
+// Ref: #/components/schemas/BackupUpdate_v1beta
+type BackupUpdateV1beta struct {
+	Description string `json:"description"`
+}
+
+// GetDescription returns the value of Description.
+func (s *BackupUpdateV1beta) GetDescription() string {
+	return s.Description
+}
+
+// SetDescription sets the value of Description.
+func (s *BackupUpdateV1beta) SetDescription(val string) {
+	s.Description = val
+}
+
 // Ref: #/components/schemas/BackupUuidList_v1beta
 type BackupUuidListV1beta struct {
 	BackupUuids []string `json:"backupUuids"`
@@ -1678,6 +1747,10 @@ func (s *BackupV1beta) SetBackupRegion(val OptString) {
 func (s *BackupV1beta) SetAssetLocationMetadata(val OptAssetLocationMetadataV2) {
 	s.AssetLocationMetadata = val
 }
+
+func (*BackupV1beta) v1betaCreateBackupRes()                 {}
+func (*BackupV1beta) v1betaDeleteBackupUnderBackupVaultRes() {}
+func (*BackupV1beta) v1betaUpdateBackupRes()                 {}
 
 // Type of backup, manually created or created by a backup policy.
 type BackupV1betaBackupType string
@@ -4891,37 +4964,40 @@ func (s *OperationV1beta) SetResponse(val jx.Raw) {
 	s.Response = val
 }
 
-func (*OperationV1beta) v1betaCreateActiveDirectoryRes()       {}
-func (*OperationV1beta) v1betaCreateBackupPolicyRes()          {}
-func (*OperationV1beta) v1betaCreateBackupVaultRes()           {}
-func (*OperationV1beta) v1betaCreateKmsConfigurationRes()      {}
-func (*OperationV1beta) v1betaCreatePoolRes()                  {}
-func (*OperationV1beta) v1betaCreateReplicationRes()           {}
-func (*OperationV1beta) v1betaCreateSnapshotRes()              {}
-func (*OperationV1beta) v1betaCreateVolumeRes()                {}
-func (*OperationV1beta) v1betaDeleteActiveDirectoryRes()       {}
-func (*OperationV1beta) v1betaDeleteBackupPolicyRes()          {}
-func (*OperationV1beta) v1betaDeleteBackupVaultRes()           {}
-func (*OperationV1beta) v1betaDeleteHostGroupRes()             {}
-func (*OperationV1beta) v1betaDeleteKmsConfigurationRes()      {}
-func (*OperationV1beta) v1betaDeletePoolRes()                  {}
-func (*OperationV1beta) v1betaDeleteReplicationRes()           {}
-func (*OperationV1beta) v1betaDeleteSnapshotRes()              {}
-func (*OperationV1beta) v1betaDeleteVolumeRes()                {}
-func (*OperationV1beta) v1betaDescribeOperationRes()           {}
-func (*OperationV1beta) v1betaResumeReplicationRes()           {}
-func (*OperationV1beta) v1betaReverseAndResumeReplicationRes() {}
-func (*OperationV1beta) v1betaStopReplicationRes()             {}
-func (*OperationV1beta) v1betaSyncReplicationRes()             {}
-func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()       {}
-func (*OperationV1beta) v1betaUpdateBackupPolicyRes()          {}
-func (*OperationV1beta) v1betaUpdateBackupVaultRes()           {}
-func (*OperationV1beta) v1betaUpdateHostGroupRes()             {}
-func (*OperationV1beta) v1betaUpdateKmsConfigurationRes()      {}
-func (*OperationV1beta) v1betaUpdatePoolRes()                  {}
-func (*OperationV1beta) v1betaUpdateReplicationRes()           {}
-func (*OperationV1beta) v1betaUpdateSnapshotRes()              {}
-func (*OperationV1beta) v1betaUpdateVolumeRes()                {}
+func (*OperationV1beta) v1betaCreateActiveDirectoryRes()        {}
+func (*OperationV1beta) v1betaCreateBackupPolicyRes()           {}
+func (*OperationV1beta) v1betaCreateBackupRes()                 {}
+func (*OperationV1beta) v1betaCreateBackupVaultRes()            {}
+func (*OperationV1beta) v1betaCreateKmsConfigurationRes()       {}
+func (*OperationV1beta) v1betaCreatePoolRes()                   {}
+func (*OperationV1beta) v1betaCreateReplicationRes()            {}
+func (*OperationV1beta) v1betaCreateSnapshotRes()               {}
+func (*OperationV1beta) v1betaCreateVolumeRes()                 {}
+func (*OperationV1beta) v1betaDeleteActiveDirectoryRes()        {}
+func (*OperationV1beta) v1betaDeleteBackupPolicyRes()           {}
+func (*OperationV1beta) v1betaDeleteBackupUnderBackupVaultRes() {}
+func (*OperationV1beta) v1betaDeleteBackupVaultRes()            {}
+func (*OperationV1beta) v1betaDeleteHostGroupRes()              {}
+func (*OperationV1beta) v1betaDeleteKmsConfigurationRes()       {}
+func (*OperationV1beta) v1betaDeletePoolRes()                   {}
+func (*OperationV1beta) v1betaDeleteReplicationRes()            {}
+func (*OperationV1beta) v1betaDeleteSnapshotRes()               {}
+func (*OperationV1beta) v1betaDeleteVolumeRes()                 {}
+func (*OperationV1beta) v1betaDescribeOperationRes()            {}
+func (*OperationV1beta) v1betaResumeReplicationRes()            {}
+func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()  {}
+func (*OperationV1beta) v1betaStopReplicationRes()              {}
+func (*OperationV1beta) v1betaSyncReplicationRes()              {}
+func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()        {}
+func (*OperationV1beta) v1betaUpdateBackupPolicyRes()           {}
+func (*OperationV1beta) v1betaUpdateBackupRes()                 {}
+func (*OperationV1beta) v1betaUpdateBackupVaultRes()            {}
+func (*OperationV1beta) v1betaUpdateHostGroupRes()              {}
+func (*OperationV1beta) v1betaUpdateKmsConfigurationRes()       {}
+func (*OperationV1beta) v1betaUpdatePoolRes()                   {}
+func (*OperationV1beta) v1betaUpdateReplicationRes()            {}
+func (*OperationV1beta) v1betaUpdateSnapshotRes()               {}
+func (*OperationV1beta) v1betaUpdateVolumeRes()                 {}
 
 // NewOptActiveDirectoryV1betaActiveDirectoryState returns new OptActiveDirectoryV1betaActiveDirectoryState with value set to v.
 func NewOptActiveDirectoryV1betaActiveDirectoryState(v ActiveDirectoryV1betaActiveDirectoryState) OptActiveDirectoryV1betaActiveDirectoryState {
@@ -13805,6 +13881,26 @@ type V1betaCreateActiveDirectoryUnprocessableEntity Error
 
 func (*V1betaCreateActiveDirectoryUnprocessableEntity) v1betaCreateActiveDirectoryRes() {}
 
+type V1betaCreateBackupBadRequest Error
+
+func (*V1betaCreateBackupBadRequest) v1betaCreateBackupRes() {}
+
+type V1betaCreateBackupConflict Error
+
+func (*V1betaCreateBackupConflict) v1betaCreateBackupRes() {}
+
+type V1betaCreateBackupForbidden Error
+
+func (*V1betaCreateBackupForbidden) v1betaCreateBackupRes() {}
+
+type V1betaCreateBackupInternalServerError Error
+
+func (*V1betaCreateBackupInternalServerError) v1betaCreateBackupRes() {}
+
+type V1betaCreateBackupNotImplemented Error
+
+func (*V1betaCreateBackupNotImplemented) v1betaCreateBackupRes() {}
+
 type V1betaCreateBackupPolicyBadRequest Error
 
 func (*V1betaCreateBackupPolicyBadRequest) v1betaCreateBackupPolicyRes() {}
@@ -13836,6 +13932,18 @@ func (*V1betaCreateBackupPolicyUnauthorized) v1betaCreateBackupPolicyRes() {}
 type V1betaCreateBackupPolicyUnprocessableEntity Error
 
 func (*V1betaCreateBackupPolicyUnprocessableEntity) v1betaCreateBackupPolicyRes() {}
+
+type V1betaCreateBackupTooManyRequests Error
+
+func (*V1betaCreateBackupTooManyRequests) v1betaCreateBackupRes() {}
+
+type V1betaCreateBackupUnauthorized Error
+
+func (*V1betaCreateBackupUnauthorized) v1betaCreateBackupRes() {}
+
+type V1betaCreateBackupUnprocessableEntity Error
+
+func (*V1betaCreateBackupUnprocessableEntity) v1betaCreateBackupRes() {}
 
 type V1betaCreateBackupVaultBadRequest Error
 
@@ -14114,6 +14222,44 @@ type V1betaDeleteBackupPolicyUnprocessableEntity Error
 
 func (*V1betaDeleteBackupPolicyUnprocessableEntity) v1betaDeleteBackupPolicyRes() {}
 
+type V1betaDeleteBackupUnderBackupVaultBadRequest Error
+
+func (*V1betaDeleteBackupUnderBackupVaultBadRequest) v1betaDeleteBackupUnderBackupVaultRes() {}
+
+type V1betaDeleteBackupUnderBackupVaultConflict Error
+
+func (*V1betaDeleteBackupUnderBackupVaultConflict) v1betaDeleteBackupUnderBackupVaultRes() {}
+
+type V1betaDeleteBackupUnderBackupVaultForbidden Error
+
+func (*V1betaDeleteBackupUnderBackupVaultForbidden) v1betaDeleteBackupUnderBackupVaultRes() {}
+
+type V1betaDeleteBackupUnderBackupVaultInternalServerError Error
+
+func (*V1betaDeleteBackupUnderBackupVaultInternalServerError) v1betaDeleteBackupUnderBackupVaultRes() {
+}
+
+type V1betaDeleteBackupUnderBackupVaultNotFound Error
+
+func (*V1betaDeleteBackupUnderBackupVaultNotFound) v1betaDeleteBackupUnderBackupVaultRes() {}
+
+type V1betaDeleteBackupUnderBackupVaultNotImplemented Error
+
+func (*V1betaDeleteBackupUnderBackupVaultNotImplemented) v1betaDeleteBackupUnderBackupVaultRes() {}
+
+type V1betaDeleteBackupUnderBackupVaultTooManyRequests Error
+
+func (*V1betaDeleteBackupUnderBackupVaultTooManyRequests) v1betaDeleteBackupUnderBackupVaultRes() {}
+
+type V1betaDeleteBackupUnderBackupVaultUnauthorized Error
+
+func (*V1betaDeleteBackupUnderBackupVaultUnauthorized) v1betaDeleteBackupUnderBackupVaultRes() {}
+
+type V1betaDeleteBackupUnderBackupVaultUnprocessableEntity Error
+
+func (*V1betaDeleteBackupUnderBackupVaultUnprocessableEntity) v1betaDeleteBackupUnderBackupVaultRes() {
+}
+
 type V1betaDeleteBackupVaultBadRequest Error
 
 func (*V1betaDeleteBackupVaultBadRequest) v1betaDeleteBackupVaultRes() {}
@@ -14391,6 +14537,42 @@ type V1betaDescribeActiveDirectoryUnprocessableEntity Error
 
 func (*V1betaDescribeActiveDirectoryUnprocessableEntity) v1betaDescribeActiveDirectoryRes() {}
 
+type V1betaDescribeBackupBadRequest Error
+
+func (*V1betaDescribeBackupBadRequest) v1betaDescribeBackupRes() {}
+
+type V1betaDescribeBackupForbidden Error
+
+func (*V1betaDescribeBackupForbidden) v1betaDescribeBackupRes() {}
+
+type V1betaDescribeBackupInternalServerError Error
+
+func (*V1betaDescribeBackupInternalServerError) v1betaDescribeBackupRes() {}
+
+type V1betaDescribeBackupNotFound Error
+
+func (*V1betaDescribeBackupNotFound) v1betaDescribeBackupRes() {}
+
+type V1betaDescribeBackupNotImplemented Error
+
+func (*V1betaDescribeBackupNotImplemented) v1betaDescribeBackupRes() {}
+
+type V1betaDescribeBackupOK struct {
+	Backups []BackupV1beta `json:"backups"`
+}
+
+// GetBackups returns the value of Backups.
+func (s *V1betaDescribeBackupOK) GetBackups() []BackupV1beta {
+	return s.Backups
+}
+
+// SetBackups sets the value of Backups.
+func (s *V1betaDescribeBackupOK) SetBackups(val []BackupV1beta) {
+	s.Backups = val
+}
+
+func (*V1betaDescribeBackupOK) v1betaDescribeBackupRes() {}
+
 type V1betaDescribeBackupPolicyBadRequest Error
 
 func (*V1betaDescribeBackupPolicyBadRequest) v1betaDescribeBackupPolicyRes() {}
@@ -14426,6 +14608,14 @@ func (*V1betaDescribeBackupPolicyUnauthorized) v1betaDescribeBackupPolicyRes() {
 type V1betaDescribeBackupPolicyUnprocessableEntity Error
 
 func (*V1betaDescribeBackupPolicyUnprocessableEntity) v1betaDescribeBackupPolicyRes() {}
+
+type V1betaDescribeBackupTooManyRequests Error
+
+func (*V1betaDescribeBackupTooManyRequests) v1betaDescribeBackupRes() {}
+
+type V1betaDescribeBackupUnauthorized Error
+
+func (*V1betaDescribeBackupUnauthorized) v1betaDescribeBackupRes() {}
 
 type V1betaDescribeBackupVaultBadRequest Error
 
@@ -15739,6 +15929,46 @@ type V1betaListBackupVaultsUnauthorized Error
 
 func (*V1betaListBackupVaultsUnauthorized) v1betaListBackupVaultsRes() {}
 
+type V1betaListBackupsBadRequest Error
+
+func (*V1betaListBackupsBadRequest) v1betaListBackupsRes() {}
+
+type V1betaListBackupsForbidden Error
+
+func (*V1betaListBackupsForbidden) v1betaListBackupsRes() {}
+
+type V1betaListBackupsInternalServerError Error
+
+func (*V1betaListBackupsInternalServerError) v1betaListBackupsRes() {}
+
+type V1betaListBackupsNotFound Error
+
+func (*V1betaListBackupsNotFound) v1betaListBackupsRes() {}
+
+type V1betaListBackupsNotImplemented Error
+
+func (*V1betaListBackupsNotImplemented) v1betaListBackupsRes() {}
+
+type V1betaListBackupsOK struct {
+	Backups []BackupV1beta `json:"backups"`
+}
+
+// GetBackups returns the value of Backups.
+func (s *V1betaListBackupsOK) GetBackups() []BackupV1beta {
+	return s.Backups
+}
+
+// SetBackups sets the value of Backups.
+func (s *V1betaListBackupsOK) SetBackups(val []BackupV1beta) {
+	s.Backups = val
+}
+
+func (*V1betaListBackupsOK) v1betaListBackupsRes() {}
+
+type V1betaListBackupsUnauthorized Error
+
+func (*V1betaListBackupsUnauthorized) v1betaListBackupsRes() {}
+
 type V1betaListHostGroupsBadRequest Error
 
 func (*V1betaListHostGroupsBadRequest) v1betaListHostGroupsRes() {}
@@ -16143,6 +16373,31 @@ type V1betaUpdateActiveDirectoryUnprocessableEntity Error
 
 func (*V1betaUpdateActiveDirectoryUnprocessableEntity) v1betaUpdateActiveDirectoryRes() {}
 
+type V1betaUpdateBackupBadRequest Error
+
+func (*V1betaUpdateBackupBadRequest) v1betaUpdateBackupRes() {}
+
+type V1betaUpdateBackupForbidden Error
+
+func (*V1betaUpdateBackupForbidden) v1betaUpdateBackupRes() {}
+
+type V1betaUpdateBackupInternalServerError Error
+
+func (*V1betaUpdateBackupInternalServerError) v1betaUpdateBackupRes() {}
+
+// V1betaUpdateBackupNoContent is response for V1betaUpdateBackup operation.
+type V1betaUpdateBackupNoContent struct{}
+
+func (*V1betaUpdateBackupNoContent) v1betaUpdateBackupRes() {}
+
+type V1betaUpdateBackupNotFound Error
+
+func (*V1betaUpdateBackupNotFound) v1betaUpdateBackupRes() {}
+
+type V1betaUpdateBackupNotImplemented Error
+
+func (*V1betaUpdateBackupNotImplemented) v1betaUpdateBackupRes() {}
+
 type V1betaUpdateBackupPolicyBadRequest Error
 
 func (*V1betaUpdateBackupPolicyBadRequest) v1betaUpdateBackupPolicyRes() {}
@@ -16183,6 +16438,18 @@ func (*V1betaUpdateBackupPolicyUnauthorized) v1betaUpdateBackupPolicyRes() {}
 type V1betaUpdateBackupPolicyUnprocessableEntity Error
 
 func (*V1betaUpdateBackupPolicyUnprocessableEntity) v1betaUpdateBackupPolicyRes() {}
+
+type V1betaUpdateBackupTooManyRequests Error
+
+func (*V1betaUpdateBackupTooManyRequests) v1betaUpdateBackupRes() {}
+
+type V1betaUpdateBackupUnauthorized Error
+
+func (*V1betaUpdateBackupUnauthorized) v1betaUpdateBackupRes() {}
+
+type V1betaUpdateBackupUnprocessableEntity Error
+
+func (*V1betaUpdateBackupUnprocessableEntity) v1betaUpdateBackupRes() {}
 
 type V1betaUpdateBackupVaultBadRequest Error
 
@@ -17302,6 +17569,11 @@ type VolumeReplicationCreateInternalV1betaRelationshipStatus string
 const (
 	VolumeReplicationCreateInternalV1betaRelationshipStatusIdle         VolumeReplicationCreateInternalV1betaRelationshipStatus = "idle"
 	VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring VolumeReplicationCreateInternalV1betaRelationshipStatus = "transferring"
+	VolumeReplicationCreateInternalV1betaRelationshipStatusAborted      VolumeReplicationCreateInternalV1betaRelationshipStatus = "aborted"
+	VolumeReplicationCreateInternalV1betaRelationshipStatusFailed       VolumeReplicationCreateInternalV1betaRelationshipStatus = "failed"
+	VolumeReplicationCreateInternalV1betaRelationshipStatusHardAborted  VolumeReplicationCreateInternalV1betaRelationshipStatus = "hard_aborted"
+	VolumeReplicationCreateInternalV1betaRelationshipStatusQueued       VolumeReplicationCreateInternalV1betaRelationshipStatus = "queued"
+	VolumeReplicationCreateInternalV1betaRelationshipStatusSuccess      VolumeReplicationCreateInternalV1betaRelationshipStatus = "success"
 )
 
 // AllValues returns all VolumeReplicationCreateInternalV1betaRelationshipStatus values.
@@ -17309,6 +17581,11 @@ func (VolumeReplicationCreateInternalV1betaRelationshipStatus) AllValues() []Vol
 	return []VolumeReplicationCreateInternalV1betaRelationshipStatus{
 		VolumeReplicationCreateInternalV1betaRelationshipStatusIdle,
 		VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring,
+		VolumeReplicationCreateInternalV1betaRelationshipStatusAborted,
+		VolumeReplicationCreateInternalV1betaRelationshipStatusFailed,
+		VolumeReplicationCreateInternalV1betaRelationshipStatusHardAborted,
+		VolumeReplicationCreateInternalV1betaRelationshipStatusQueued,
+		VolumeReplicationCreateInternalV1betaRelationshipStatusSuccess,
 	}
 }
 
@@ -17318,6 +17595,16 @@ func (s VolumeReplicationCreateInternalV1betaRelationshipStatus) MarshalText() (
 	case VolumeReplicationCreateInternalV1betaRelationshipStatusIdle:
 		return []byte(s), nil
 	case VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusAborted:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusFailed:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusHardAborted:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusQueued:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusSuccess:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -17332,6 +17619,21 @@ func (s *VolumeReplicationCreateInternalV1betaRelationshipStatus) UnmarshalText(
 		return nil
 	case VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring:
 		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring
+		return nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusAborted:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusAborted
+		return nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusFailed:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusFailed
+		return nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusHardAborted:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusHardAborted
+		return nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusQueued:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusQueued
+		return nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusSuccess:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusSuccess
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -18218,6 +18520,11 @@ type VolumeReplicationInternalV1betaRelationshipStatus string
 const (
 	VolumeReplicationInternalV1betaRelationshipStatusIdle         VolumeReplicationInternalV1betaRelationshipStatus = "idle"
 	VolumeReplicationInternalV1betaRelationshipStatusTransferring VolumeReplicationInternalV1betaRelationshipStatus = "transferring"
+	VolumeReplicationInternalV1betaRelationshipStatusAborted      VolumeReplicationInternalV1betaRelationshipStatus = "aborted"
+	VolumeReplicationInternalV1betaRelationshipStatusFailed       VolumeReplicationInternalV1betaRelationshipStatus = "failed"
+	VolumeReplicationInternalV1betaRelationshipStatusHardAborted  VolumeReplicationInternalV1betaRelationshipStatus = "hard_aborted"
+	VolumeReplicationInternalV1betaRelationshipStatusQueued       VolumeReplicationInternalV1betaRelationshipStatus = "queued"
+	VolumeReplicationInternalV1betaRelationshipStatusSuccess      VolumeReplicationInternalV1betaRelationshipStatus = "success"
 )
 
 // AllValues returns all VolumeReplicationInternalV1betaRelationshipStatus values.
@@ -18225,6 +18532,11 @@ func (VolumeReplicationInternalV1betaRelationshipStatus) AllValues() []VolumeRep
 	return []VolumeReplicationInternalV1betaRelationshipStatus{
 		VolumeReplicationInternalV1betaRelationshipStatusIdle,
 		VolumeReplicationInternalV1betaRelationshipStatusTransferring,
+		VolumeReplicationInternalV1betaRelationshipStatusAborted,
+		VolumeReplicationInternalV1betaRelationshipStatusFailed,
+		VolumeReplicationInternalV1betaRelationshipStatusHardAborted,
+		VolumeReplicationInternalV1betaRelationshipStatusQueued,
+		VolumeReplicationInternalV1betaRelationshipStatusSuccess,
 	}
 }
 
@@ -18234,6 +18546,16 @@ func (s VolumeReplicationInternalV1betaRelationshipStatus) MarshalText() ([]byte
 	case VolumeReplicationInternalV1betaRelationshipStatusIdle:
 		return []byte(s), nil
 	case VolumeReplicationInternalV1betaRelationshipStatusTransferring:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaRelationshipStatusAborted:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaRelationshipStatusFailed:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaRelationshipStatusHardAborted:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaRelationshipStatusQueued:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaRelationshipStatusSuccess:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -18248,6 +18570,21 @@ func (s *VolumeReplicationInternalV1betaRelationshipStatus) UnmarshalText(data [
 		return nil
 	case VolumeReplicationInternalV1betaRelationshipStatusTransferring:
 		*s = VolumeReplicationInternalV1betaRelationshipStatusTransferring
+		return nil
+	case VolumeReplicationInternalV1betaRelationshipStatusAborted:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusAborted
+		return nil
+	case VolumeReplicationInternalV1betaRelationshipStatusFailed:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusFailed
+		return nil
+	case VolumeReplicationInternalV1betaRelationshipStatusHardAborted:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusHardAborted
+		return nil
+	case VolumeReplicationInternalV1betaRelationshipStatusQueued:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusQueued
+		return nil
+	case VolumeReplicationInternalV1betaRelationshipStatusSuccess:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusSuccess
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

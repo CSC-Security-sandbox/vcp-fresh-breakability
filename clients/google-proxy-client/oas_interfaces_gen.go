@@ -17,6 +17,10 @@ type V1betaCreateBackupPolicyRes interface {
 	v1betaCreateBackupPolicyRes()
 }
 
+type V1betaCreateBackupRes interface {
+	v1betaCreateBackupRes()
+}
+
 type V1betaCreateBackupVaultRes interface {
 	v1betaCreateBackupVaultRes()
 }
@@ -53,6 +57,10 @@ type V1betaDeleteBackupPolicyRes interface {
 	v1betaDeleteBackupPolicyRes()
 }
 
+type V1betaDeleteBackupUnderBackupVaultRes interface {
+	v1betaDeleteBackupUnderBackupVaultRes()
+}
+
 type V1betaDeleteBackupVaultRes interface {
 	v1betaDeleteBackupVaultRes()
 }
@@ -87,6 +95,10 @@ type V1betaDescribeActiveDirectoryRes interface {
 
 type V1betaDescribeBackupPolicyRes interface {
 	v1betaDescribeBackupPolicyRes()
+}
+
+type V1betaDescribeBackupRes interface {
+	v1betaDescribeBackupRes()
 }
 
 type V1betaDescribeBackupVaultRes interface {
@@ -225,6 +237,10 @@ type V1betaListBackupVaultsRes interface {
 	v1betaListBackupVaultsRes()
 }
 
+type V1betaListBackupsRes interface {
+	v1betaListBackupsRes()
+}
+
 type V1betaListHostGroupsRes interface {
 	v1betaListHostGroupsRes()
 }
@@ -271,6 +287,10 @@ type V1betaUpdateActiveDirectoryRes interface {
 
 type V1betaUpdateBackupPolicyRes interface {
 	v1betaUpdateBackupPolicyRes()
+}
+
+type V1betaUpdateBackupRes interface {
+	v1betaUpdateBackupRes()
 }
 
 type V1betaUpdateBackupVaultRes interface {

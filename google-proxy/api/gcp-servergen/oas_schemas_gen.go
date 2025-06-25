@@ -17606,6 +17606,11 @@ type VolumeReplicationCreateInternalV1betaRelationshipStatus string
 const (
 	VolumeReplicationCreateInternalV1betaRelationshipStatusIdle         VolumeReplicationCreateInternalV1betaRelationshipStatus = "idle"
 	VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring VolumeReplicationCreateInternalV1betaRelationshipStatus = "transferring"
+	VolumeReplicationCreateInternalV1betaRelationshipStatusAborted      VolumeReplicationCreateInternalV1betaRelationshipStatus = "aborted"
+	VolumeReplicationCreateInternalV1betaRelationshipStatusFailed       VolumeReplicationCreateInternalV1betaRelationshipStatus = "failed"
+	VolumeReplicationCreateInternalV1betaRelationshipStatusHardAborted  VolumeReplicationCreateInternalV1betaRelationshipStatus = "hard_aborted"
+	VolumeReplicationCreateInternalV1betaRelationshipStatusQueued       VolumeReplicationCreateInternalV1betaRelationshipStatus = "queued"
+	VolumeReplicationCreateInternalV1betaRelationshipStatusSuccess      VolumeReplicationCreateInternalV1betaRelationshipStatus = "success"
 )
 
 // AllValues returns all VolumeReplicationCreateInternalV1betaRelationshipStatus values.
@@ -17613,6 +17618,11 @@ func (VolumeReplicationCreateInternalV1betaRelationshipStatus) AllValues() []Vol
 	return []VolumeReplicationCreateInternalV1betaRelationshipStatus{
 		VolumeReplicationCreateInternalV1betaRelationshipStatusIdle,
 		VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring,
+		VolumeReplicationCreateInternalV1betaRelationshipStatusAborted,
+		VolumeReplicationCreateInternalV1betaRelationshipStatusFailed,
+		VolumeReplicationCreateInternalV1betaRelationshipStatusHardAborted,
+		VolumeReplicationCreateInternalV1betaRelationshipStatusQueued,
+		VolumeReplicationCreateInternalV1betaRelationshipStatusSuccess,
 	}
 }
 
@@ -17622,6 +17632,16 @@ func (s VolumeReplicationCreateInternalV1betaRelationshipStatus) MarshalText() (
 	case VolumeReplicationCreateInternalV1betaRelationshipStatusIdle:
 		return []byte(s), nil
 	case VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusAborted:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusFailed:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusHardAborted:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusQueued:
+		return []byte(s), nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusSuccess:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -17636,6 +17656,21 @@ func (s *VolumeReplicationCreateInternalV1betaRelationshipStatus) UnmarshalText(
 		return nil
 	case VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring:
 		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring
+		return nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusAborted:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusAborted
+		return nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusFailed:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusFailed
+		return nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusHardAborted:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusHardAborted
+		return nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusQueued:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusQueued
+		return nil
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusSuccess:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusSuccess
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -18522,6 +18557,11 @@ type VolumeReplicationInternalV1betaRelationshipStatus string
 const (
 	VolumeReplicationInternalV1betaRelationshipStatusIdle         VolumeReplicationInternalV1betaRelationshipStatus = "idle"
 	VolumeReplicationInternalV1betaRelationshipStatusTransferring VolumeReplicationInternalV1betaRelationshipStatus = "transferring"
+	VolumeReplicationInternalV1betaRelationshipStatusAborted      VolumeReplicationInternalV1betaRelationshipStatus = "aborted"
+	VolumeReplicationInternalV1betaRelationshipStatusFailed       VolumeReplicationInternalV1betaRelationshipStatus = "failed"
+	VolumeReplicationInternalV1betaRelationshipStatusHardAborted  VolumeReplicationInternalV1betaRelationshipStatus = "hard_aborted"
+	VolumeReplicationInternalV1betaRelationshipStatusQueued       VolumeReplicationInternalV1betaRelationshipStatus = "queued"
+	VolumeReplicationInternalV1betaRelationshipStatusSuccess      VolumeReplicationInternalV1betaRelationshipStatus = "success"
 )
 
 // AllValues returns all VolumeReplicationInternalV1betaRelationshipStatus values.
@@ -18529,6 +18569,11 @@ func (VolumeReplicationInternalV1betaRelationshipStatus) AllValues() []VolumeRep
 	return []VolumeReplicationInternalV1betaRelationshipStatus{
 		VolumeReplicationInternalV1betaRelationshipStatusIdle,
 		VolumeReplicationInternalV1betaRelationshipStatusTransferring,
+		VolumeReplicationInternalV1betaRelationshipStatusAborted,
+		VolumeReplicationInternalV1betaRelationshipStatusFailed,
+		VolumeReplicationInternalV1betaRelationshipStatusHardAborted,
+		VolumeReplicationInternalV1betaRelationshipStatusQueued,
+		VolumeReplicationInternalV1betaRelationshipStatusSuccess,
 	}
 }
 
@@ -18538,6 +18583,16 @@ func (s VolumeReplicationInternalV1betaRelationshipStatus) MarshalText() ([]byte
 	case VolumeReplicationInternalV1betaRelationshipStatusIdle:
 		return []byte(s), nil
 	case VolumeReplicationInternalV1betaRelationshipStatusTransferring:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaRelationshipStatusAborted:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaRelationshipStatusFailed:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaRelationshipStatusHardAborted:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaRelationshipStatusQueued:
+		return []byte(s), nil
+	case VolumeReplicationInternalV1betaRelationshipStatusSuccess:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -18552,6 +18607,21 @@ func (s *VolumeReplicationInternalV1betaRelationshipStatus) UnmarshalText(data [
 		return nil
 	case VolumeReplicationInternalV1betaRelationshipStatusTransferring:
 		*s = VolumeReplicationInternalV1betaRelationshipStatusTransferring
+		return nil
+	case VolumeReplicationInternalV1betaRelationshipStatusAborted:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusAborted
+		return nil
+	case VolumeReplicationInternalV1betaRelationshipStatusFailed:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusFailed
+		return nil
+	case VolumeReplicationInternalV1betaRelationshipStatusHardAborted:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusHardAborted
+		return nil
+	case VolumeReplicationInternalV1betaRelationshipStatusQueued:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusQueued
+		return nil
+	case VolumeReplicationInternalV1betaRelationshipStatusSuccess:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusSuccess
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

@@ -85,6 +85,11 @@ func TestMapRelationshipStatusToInternal(t *testing.T) {
 	}{
 		{"Idle", models.SnapmirrorRelationshipIdle, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle},
 		{"Transferring", models.SnapmirrorRelationshipTransferring, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusTransferring},
+		{"Queued", models.SnapmirrorRelationshipQueued, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusQueued},
+		{"Failed", models.SnapmirrorRelationshipFailed, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusFailed},
+		{"Aborted", models.SnapmirrorRelationshipAborted, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusAborted},
+		{"HardAborted", models.SnapmirrorRelationshipHardAborted, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusHardAborted},
+		{"Success", models.SnapmirrorRelationshipSuccess, gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle},
 		{"Unknown", "unknown", ""},
 	}
 

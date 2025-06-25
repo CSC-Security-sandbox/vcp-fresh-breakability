@@ -24,6 +24,18 @@ type V1betaCreateActiveDirectoryParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaCreateBackupParams is parameters of v1beta_createBackup operation.
+type V1betaCreateBackupParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Uuid v4 used to identify the backup vault.
+	BackupVaultId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaCreateBackupPolicyParams is parameters of v1beta_createBackupPolicy operation.
 type V1betaCreateBackupPolicyParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -132,6 +144,20 @@ type V1betaDeleteBackupPolicyParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaDeleteBackupUnderBackupVaultParams is parameters of v1beta_deleteBackupUnderBackupVault operation.
+type V1betaDeleteBackupUnderBackupVaultParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Uuid v4 used to identify the backup vault.
+	BackupVaultId string
+	// UUID v4 used to identify the backup.
+	BackupId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaDeleteBackupVaultParams is parameters of v1beta_deleteBackupVault operation.
 type V1betaDeleteBackupVaultParams struct {
 	// Uuid v4 used to identify the backup vault.
@@ -230,6 +256,22 @@ type V1betaDescribeActiveDirectoryParams struct {
 	XCorrelationID OptString
 	// Uuid v4 used to identify the Active Directory credentials.
 	ActiveDirectoryId string
+}
+
+// V1betaDescribeBackupParams is parameters of v1beta_describeBackup operation.
+type V1betaDescribeBackupParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Uuid v4 used to identify the backup vault.
+	BackupVaultId string
+	// UUID v4 used to identify the backup.
+	BackupId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Describe a backup under a backup vault.
+	VolumeId OptString
 }
 
 // V1betaDescribeBackupPolicyParams is parameters of v1beta_describeBackupPolicy operation.
@@ -638,6 +680,24 @@ type V1betaListBackupVaultsParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaListBackupsParams is parameters of v1beta_listBackups operation.
+type V1betaListBackupsParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Uuid v4 used to identify the backup vault.
+	BackupVaultId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// If true, response will include deleted backups.
+	IncludeDeleted OptBool
+	// Volume ID for which the backups are to be listed. If not present, all backups will be returned.
+	VolumeId OptString
+	// If true, response will include only orphaned backups under the mentioned project.
+	OnlyOrphanedBackups OptBool
+}
+
 // V1betaListHostGroupsParams is parameters of v1beta_listHostGroups operation.
 type V1betaListHostGroupsParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -776,6 +836,20 @@ type V1betaUpdateActiveDirectoryParams struct {
 	XCorrelationID OptString
 	// Uuid v4 used to identify the Active Directory credentials.
 	ActiveDirectoryId string
+}
+
+// V1betaUpdateBackupParams is parameters of v1beta_updateBackup operation.
+type V1betaUpdateBackupParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Uuid v4 used to identify the backup vault.
+	BackupVaultId string
+	// UUID v4 used to identify the backup.
+	BackupId string
+	// Correlation identifier.
+	XCorrelationID OptString
 }
 
 // V1betaUpdateBackupPolicyParams is parameters of v1beta_updateBackupPolicy operation.

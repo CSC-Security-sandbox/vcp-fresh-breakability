@@ -24,6 +24,20 @@ func encodeV1betaCreateActiveDirectoryRequest(
 	return nil
 }
 
+func encodeV1betaCreateBackupRequest(
+	req *BackupCreateV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeV1betaCreateBackupPolicyRequest(
 	req *BackupPolicyCreateV1beta,
 	r *http.Request,
@@ -410,6 +424,20 @@ func encodeV1betaStopReplicationRequest(
 
 func encodeV1betaUpdateActiveDirectoryRequest(
 	req *ActiveDirectoryUpdateV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeV1betaUpdateBackupRequest(
+	req *BackupUpdateV1beta,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

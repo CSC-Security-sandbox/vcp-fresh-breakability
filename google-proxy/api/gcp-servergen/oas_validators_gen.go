@@ -13059,6 +13059,16 @@ func (s VolumeReplicationCreateInternalV1betaRelationshipStatus) Validate() erro
 		return nil
 	case "transferring":
 		return nil
+	case "aborted":
+		return nil
+	case "failed":
+		return nil
+	case "hard_aborted":
+		return nil
+	case "queued":
+		return nil
+	case "success":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -13627,6 +13637,16 @@ func (s VolumeReplicationInternalV1betaRelationshipStatus) Validate() error {
 	case "idle":
 		return nil
 	case "transferring":
+		return nil
+	case "aborted":
+		return nil
+	case "failed":
+		return nil
+	case "hard_aborted":
+		return nil
+	case "queued":
+		return nil
+	case "success":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

@@ -44332,6 +44332,16 @@ func (s *VolumeReplicationCreateInternalV1betaRelationshipStatus) Decode(d *jx.D
 		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusIdle
 	case VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring:
 		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusTransferring
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusAborted:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusAborted
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusFailed:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusFailed
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusHardAborted:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusHardAborted
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusQueued:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusQueued
+	case VolumeReplicationCreateInternalV1betaRelationshipStatusSuccess:
+		*s = VolumeReplicationCreateInternalV1betaRelationshipStatusSuccess
 	default:
 		*s = VolumeReplicationCreateInternalV1betaRelationshipStatus(v)
 	}
@@ -45429,6 +45439,16 @@ func (s *VolumeReplicationInternalV1betaRelationshipStatus) Decode(d *jx.Decoder
 		*s = VolumeReplicationInternalV1betaRelationshipStatusIdle
 	case VolumeReplicationInternalV1betaRelationshipStatusTransferring:
 		*s = VolumeReplicationInternalV1betaRelationshipStatusTransferring
+	case VolumeReplicationInternalV1betaRelationshipStatusAborted:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusAborted
+	case VolumeReplicationInternalV1betaRelationshipStatusFailed:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusFailed
+	case VolumeReplicationInternalV1betaRelationshipStatusHardAborted:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusHardAborted
+	case VolumeReplicationInternalV1betaRelationshipStatusQueued:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusQueued
+	case VolumeReplicationInternalV1betaRelationshipStatusSuccess:
+		*s = VolumeReplicationInternalV1betaRelationshipStatusSuccess
 	default:
 		*s = VolumeReplicationInternalV1betaRelationshipStatus(v)
 	}

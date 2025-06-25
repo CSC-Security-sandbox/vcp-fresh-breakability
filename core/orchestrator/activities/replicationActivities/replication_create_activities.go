@@ -154,9 +154,11 @@ func (a *VolumeReplicationCreateActivity) CreateDestinationVolume(ctx context.Co
 }
 
 func (a *VolumeReplicationCreateActivity) HydrateDestinationVolume(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
-	err := volumeHydration(ctx, convertVolumeV1BetaToVolumeModel(*result.DstVolume, result.Event.DestinationLocationID), *result.DstProjectNumber)
-	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrHydrateVolumeCreate, err)
+	if hydrationEnabled {
+		err := volumeHydration(ctx, convertVolumeV1BetaToVolumeModel(*result.DstVolume, result.Event.DestinationLocationID), *result.DstProjectNumber)
+		if err != nil {
+			return nil, errors.NewVCPError(errors.ErrHydrateVolumeCreate, err)
+		}
 	}
 	return result, nil
 }

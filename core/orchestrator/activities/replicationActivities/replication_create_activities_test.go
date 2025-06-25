@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -1368,6 +1369,28 @@ func TestHydrateDestinationVolume(t *testing.T) {
 		// Assert
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
+	})
+	t.Run("WhenHydrationIsDisabled", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		defer func() { hydrationEnabled = env.GetBool("GCP_HYDRATE_ENABLED", true) }() // Restore hydrationEnabled after test
+		result := &replication.CreateReplicationResult{
+			DstVolume: &gcpserver.VolumeV1beta{},
+			Event: &replication.CreateReplicationEvent{
+				DestinationLocationID: "location-id",
+			},
+			DstProjectNumber: nillable.GetStringPtr("project-number"),
+		}
+		// Disable Hydration
+		hydrationEnabled = false
+		// Act
+		updatedResult, err := activity.HydrateDestinationVolume(ctx, result)
+
+		// Assert
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult)
 	})
 }
 

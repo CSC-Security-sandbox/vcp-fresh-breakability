@@ -38,6 +38,12 @@ type Invoker interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories
 	V1betaCreateActiveDirectory(ctx context.Context, request *ActiveDirectoryV1beta, params V1betaCreateActiveDirectoryParams) (V1betaCreateActiveDirectoryRes, error)
+	// V1betaCreateBackup invokes v1beta_createBackup operation.
+	//
+	// Creates an ad-hoc backup.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups
+	V1betaCreateBackup(ctx context.Context, request *BackupCreateV1beta, params V1betaCreateBackupParams) (V1betaCreateBackupRes, error)
 	// V1betaCreateBackupPolicy invokes v1beta_createBackupPolicy operation.
 	//
 	// Create a new backup policy.
@@ -101,6 +107,12 @@ type Invoker interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupPolicies/{backupPolicyId}
 	V1betaDeleteBackupPolicy(ctx context.Context, params V1betaDeleteBackupPolicyParams) (V1betaDeleteBackupPolicyRes, error)
+	// V1betaDeleteBackupUnderBackupVault invokes v1beta_deleteBackupUnderBackupVault operation.
+	//
+	// Delete a backup under backup vault.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+	V1betaDeleteBackupUnderBackupVault(ctx context.Context, params V1betaDeleteBackupUnderBackupVaultParams) (V1betaDeleteBackupUnderBackupVaultRes, error)
 	// V1betaDeleteBackupVault invokes v1beta_deleteBackupVault operation.
 	//
 	// Warning! This operation will permanently delete the backup vault.
@@ -155,6 +167,12 @@ type Invoker interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
 	V1betaDescribeActiveDirectory(ctx context.Context, params V1betaDescribeActiveDirectoryParams) (V1betaDescribeActiveDirectoryRes, error)
+	// V1betaDescribeBackup invokes v1beta_describeBackup operation.
+	//
+	// Describe a backup present under a backup vault.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+	V1betaDescribeBackup(ctx context.Context, params V1betaDescribeBackupParams) (V1betaDescribeBackupRes, error)
 	// V1betaDescribeBackupPolicy invokes v1beta_describeBackupPolicy operation.
 	//
 	// Returns the description of the specified backup policy by backup policy Id.
@@ -369,6 +387,12 @@ type Invoker interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults
 	V1betaListBackupVaults(ctx context.Context, params V1betaListBackupVaultsParams) (V1betaListBackupVaultsRes, error)
+	// V1betaListBackups invokes v1beta_listBackups operation.
+	//
+	// Returns descriptions of all backups for a backup vault.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups
+	V1betaListBackups(ctx context.Context, params V1betaListBackupsParams) (V1betaListBackupsRes, error)
 	// V1betaListHostGroups invokes v1beta_listHostGroups operation.
 	//
 	// Returns descriptions of all HostGroups owned by the caller.
@@ -435,6 +459,12 @@ type Invoker interface {
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/activeDirectories/{activeDirectoryId}
 	V1betaUpdateActiveDirectory(ctx context.Context, request *ActiveDirectoryUpdateV1beta, params V1betaUpdateActiveDirectoryParams) (V1betaUpdateActiveDirectoryRes, error)
+	// V1betaUpdateBackup invokes v1beta_updateBackup operation.
+	//
+	// Update the backup. Only the backup description can be updated.
+	//
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+	V1betaUpdateBackup(ctx context.Context, request *BackupUpdateV1beta, params V1betaUpdateBackupParams) (V1betaUpdateBackupRes, error)
 	// V1betaUpdateBackupPolicy invokes v1beta_updateBackupPolicy operation.
 	//
 	// Update the backup policy.
@@ -687,7 +717,6 @@ func (c *Client) sendV1betaCreateActiveDirectory(ctx context.Context, request *A
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -769,6 +798,126 @@ func (c *Client) sendV1betaCreateActiveDirectory(ctx context.Context, request *A
 	return result, nil
 }
 
+// V1betaCreateBackup invokes v1beta_createBackup operation.
+//
+// Creates an ad-hoc backup.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups
+func (c *Client) V1betaCreateBackup(ctx context.Context, request *BackupCreateV1beta, params V1betaCreateBackupParams) (V1betaCreateBackupRes, error) {
+	res, err := c.sendV1betaCreateBackup(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaCreateBackup(ctx context.Context, request *BackupCreateV1beta, params V1betaCreateBackupParams) (res V1betaCreateBackupRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/backupVaults/"
+	{
+		// Encode "backupVaultId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "backupVaultId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.BackupVaultId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/backups"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaCreateBackupRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaCreateBackupResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1betaCreateBackupPolicy invokes v1beta_createBackupPolicy operation.
 //
 // Create a new backup policy.
@@ -789,7 +938,6 @@ func (c *Client) sendV1betaCreateBackupPolicy(ctx context.Context, request *Back
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -891,7 +1039,6 @@ func (c *Client) sendV1betaCreateBackupVault(ctx context.Context, request *Backu
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -993,7 +1140,6 @@ func (c *Client) sendV1betaCreateHostGroup(ctx context.Context, request *HostGro
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1095,7 +1241,6 @@ func (c *Client) sendV1betaCreateKmsConfiguration(ctx context.Context, request *
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1197,7 +1342,6 @@ func (c *Client) sendV1betaCreatePool(ctx context.Context, request *PoolV1beta, 
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1299,7 +1443,6 @@ func (c *Client) sendV1betaCreateReplication(ctx context.Context, request *Repli
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1420,7 +1563,6 @@ func (c *Client) sendV1betaCreateSnapshot(ctx context.Context, request *VolumeSn
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1542,7 +1684,6 @@ func (c *Client) sendV1betaCreateVolume(ctx context.Context, request *VolumeCrea
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1833,6 +1974,132 @@ func (c *Client) sendV1betaDeleteBackupPolicy(ctx context.Context, params V1beta
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaDeleteBackupPolicyResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaDeleteBackupUnderBackupVault invokes v1beta_deleteBackupUnderBackupVault operation.
+//
+// Delete a backup under backup vault.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+func (c *Client) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params V1betaDeleteBackupUnderBackupVaultParams) (V1betaDeleteBackupUnderBackupVaultRes, error) {
+	res, err := c.sendV1betaDeleteBackupUnderBackupVault(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaDeleteBackupUnderBackupVault(ctx context.Context, params V1betaDeleteBackupUnderBackupVaultParams) (res V1betaDeleteBackupUnderBackupVaultRes, err error) {
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [8]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/backupVaults/"
+	{
+		// Encode "backupVaultId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "backupVaultId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.BackupVaultId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/backups/"
+	{
+		// Encode "backupId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "backupId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.BackupId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[7] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaDeleteBackupUnderBackupVaultResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -2290,7 +2557,6 @@ func (c *Client) sendV1betaDeleteReplication(ctx context.Context, request *Repli
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [8]string
 	pathParts[0] = "/v1beta/projects/"
@@ -2749,6 +3015,152 @@ func (c *Client) sendV1betaDescribeActiveDirectory(ctx context.Context, params V
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaDescribeActiveDirectoryResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaDescribeBackup invokes v1beta_describeBackup operation.
+//
+// Describe a backup present under a backup vault.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+func (c *Client) V1betaDescribeBackup(ctx context.Context, params V1betaDescribeBackupParams) (V1betaDescribeBackupRes, error) {
+	res, err := c.sendV1betaDescribeBackup(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaDescribeBackup(ctx context.Context, params V1betaDescribeBackupParams) (res V1betaDescribeBackupRes, err error) {
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [8]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/backupVaults/"
+	{
+		// Encode "backupVaultId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "backupVaultId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.BackupVaultId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/backups/"
+	{
+		// Encode "backupId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "backupId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.BackupId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[7] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "volumeId" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "volumeId",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.VolumeId.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaDescribeBackupResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -3671,7 +4083,6 @@ func (c *Client) sendV1betaGetMultipleActiveDirectories(ctx context.Context, req
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -3773,7 +4184,6 @@ func (c *Client) sendV1betaGetMultipleBackupPolicies(ctx context.Context, reques
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -3875,7 +4285,6 @@ func (c *Client) sendV1betaGetMultipleBackupVaults(ctx context.Context, request 
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -3977,7 +4386,6 @@ func (c *Client) sendV1betaGetMultipleBackups(ctx context.Context, request *Back
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4098,7 +4506,6 @@ func (c *Client) sendV1betaGetMultipleHostGroups(ctx context.Context, request *H
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4200,7 +4607,6 @@ func (c *Client) sendV1betaGetMultipleKmsConfigs(ctx context.Context, request *K
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4302,7 +4708,6 @@ func (c *Client) sendV1betaGetMultiplePools(ctx context.Context, request *PoolId
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4404,7 +4809,6 @@ func (c *Client) sendV1betaGetMultipleReplications(ctx context.Context, request 
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4525,7 +4929,6 @@ func (c *Client) sendV1betaGetMultipleReplicationsInternal(ctx context.Context, 
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -4627,7 +5030,6 @@ func (c *Client) sendV1betaGetMultipleSnapshots(ctx context.Context, request *Sn
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4748,7 +5150,6 @@ func (c *Client) sendV1betaGetMultipleVolumes(ctx context.Context, request *Volu
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -5154,7 +5555,6 @@ func (c *Client) sendV1betaInternalAcceptClusterPeer(ctx context.Context, reques
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -5256,7 +5656,6 @@ func (c *Client) sendV1betaInternalAuthorizeVolumeReplication(ctx context.Contex
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -5358,7 +5757,6 @@ func (c *Client) sendV1betaInternalCreateVolumeReplication(ctx context.Context, 
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -6294,7 +6692,6 @@ func (c *Client) sendV1betaInternalUpdateVolumeReplication(ctx context.Context, 
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -6674,6 +7071,168 @@ func (c *Client) sendV1betaListBackupVaults(ctx context.Context, params V1betaLi
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaListBackupVaultsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaListBackups invokes v1beta_listBackups operation.
+//
+// Returns descriptions of all backups for a backup vault.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups
+func (c *Client) V1betaListBackups(ctx context.Context, params V1betaListBackupsParams) (V1betaListBackupsRes, error) {
+	res, err := c.sendV1betaListBackups(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaListBackups(ctx context.Context, params V1betaListBackupsParams) (res V1betaListBackupsRes, err error) {
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/backupVaults/"
+	{
+		// Encode "backupVaultId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "backupVaultId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.BackupVaultId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/backups"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "includeDeleted" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "includeDeleted",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.IncludeDeleted.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "volumeId" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "volumeId",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.VolumeId.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "onlyOrphanedBackups" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "onlyOrphanedBackups",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.OnlyOrphanedBackups.Get(); ok {
+				return e.EncodeValue(conv.BoolToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaListBackupsResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -7856,7 +8415,6 @@ func (c *Client) sendV1betaUpdateActiveDirectory(ctx context.Context, request *A
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -7956,6 +8514,144 @@ func (c *Client) sendV1betaUpdateActiveDirectory(ctx context.Context, request *A
 	return result, nil
 }
 
+// V1betaUpdateBackup invokes v1beta_updateBackup operation.
+//
+// Update the backup. Only the backup description can be updated.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/backups/{backupId}
+func (c *Client) V1betaUpdateBackup(ctx context.Context, request *BackupUpdateV1beta, params V1betaUpdateBackupParams) (V1betaUpdateBackupRes, error) {
+	res, err := c.sendV1betaUpdateBackup(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaUpdateBackup(ctx context.Context, request *BackupUpdateV1beta, params V1betaUpdateBackupParams) (res V1betaUpdateBackupRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [8]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/backupVaults/"
+	{
+		// Encode "backupVaultId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "backupVaultId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.BackupVaultId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/backups/"
+	{
+		// Encode "backupId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "backupId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.BackupId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[7] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaUpdateBackupRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaUpdateBackupResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1betaUpdateBackupPolicy invokes v1beta_updateBackupPolicy operation.
 //
 // Update the backup policy.
@@ -7976,7 +8672,6 @@ func (c *Client) sendV1betaUpdateBackupPolicy(ctx context.Context, request *Back
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -8096,7 +8791,6 @@ func (c *Client) sendV1betaUpdateBackupVault(ctx context.Context, request *Backu
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -8326,7 +9020,6 @@ func (c *Client) sendV1betaUpdateKmsConfiguration(ctx context.Context, request *
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -8446,7 +9139,6 @@ func (c *Client) sendV1betaUpdatePool(ctx context.Context, request *PoolUpdateV1
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -8566,7 +9258,6 @@ func (c *Client) sendV1betaUpdateReplication(ctx context.Context, request *Repli
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [8]string
 	pathParts[0] = "/v1beta/projects/"
@@ -8705,7 +9396,6 @@ func (c *Client) sendV1betaUpdateSnapshot(ctx context.Context, request *VolumeSn
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [8]string
 	pathParts[0] = "/v1beta/projects/"
@@ -8844,7 +9534,6 @@ func (c *Client) sendV1betaUpdateVolume(ctx context.Context, request *VolumeUpda
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
-
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
