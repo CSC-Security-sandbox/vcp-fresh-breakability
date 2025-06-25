@@ -2,6 +2,12 @@
 
 package vmrs
 
+import (
+	"math"
+
+	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
+)
+
 // VMRS configuration object that holds performance limits for different hyperscalers.
 type VMRSConfig struct {
 	// The list of performance limits - one element in the list for each hyperscaler.
@@ -105,13 +111,26 @@ type CustomerRequestedPerformance struct {
 
 // Decision represents the list of VM identifiers that satisfy the CustomerRequestedPerformance based on the VMRS configuration that was input to the decision-making logic.
 type Decision struct {
-	// The list of VM identifiers that satisfy the customer requested performance.
-	VMIdentifiers []string // List of VM identifiers that satisfy the request
+	ChosenVMs []string // The list of VMs that satisfy the customer request
+	// Storage pool performance limits to request from VLM.
+	StoragePoolRequirements CustomerRequestedPerformance
 }
 
 // The DecisionMaker interface defines the method to make decisions based on the VMRS configuration and customer requested performance.
 type DecisionMaker interface {
 	// FindOptimalVMs takes the VMRS configuration and customer requested performance.
 	// It returns the list of VM identifiers that together satisfy the customer request performance thresholds, while optimizing for some cost function. The cost function that is optimized for depends on the implementation.
-	FindOptimalVMs(config *VMRSConfig, customerRequest CustomerRequestedPerformance) (*Decision, error)
+	FindOptimalVMs(config *VMRSConfig, customerRequest CustomerRequestedPerformance, currentConfig *vlmconfig.VLMConfig) (*Decision, error)
+}
+
+// Given CustomerRequestedPerformance, this function computes the result of the overheads specified in the VMRSConfig, and returns the scaled performance limits.
+func (config *VMRSConfig) ScaleCustomerRequestedPerformance(customerRequest CustomerRequestedPerformance, workloadOverheads PerfAmplificationFactors) CustomerRequestedPerformance {
+	iopsToProvision := int64(math.Ceil(float64(customerRequest.DesiredIOPS) * config.HyperscalerPerfLimits.OntapOverheads.AmplificationFactors.IOPS * workloadOverheads.IOPS * float64(config.HyperscalerPerfLimits.OntapOverheads.HotspotPreventionFactors.IOPS)))
+	throughputInMibpsToProvision := int64(math.Ceil(float64(customerRequest.DesiredThroughputInMiBs) * config.HyperscalerPerfLimits.OntapOverheads.AmplificationFactors.Throughput * workloadOverheads.Throughput * float64(config.HyperscalerPerfLimits.OntapOverheads.HotspotPreventionFactors.Throughput)))
+	capacityInGiBToProvision := int64(math.Ceil(float64(customerRequest.DesiredCapacityInGiB) * config.HyperscalerPerfLimits.OntapOverheads.AmplificationFactors.Capacity))
+	return CustomerRequestedPerformance{
+		DesiredIOPS:             iopsToProvision,
+		DesiredThroughputInMiBs: throughputInMibpsToProvision,
+		DesiredCapacityInGiB:    capacityInGiBToProvision,
+	}
 }

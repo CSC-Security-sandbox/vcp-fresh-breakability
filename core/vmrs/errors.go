@@ -25,3 +25,7 @@ type NoSuitableVMError struct {
 	// The customer requested performance that could not be satisfied.
 	CustomerRequest CustomerRequestedPerformance
 }
+
+func (e *NoSuitableVMError) Error() string {
+    return fmt.Sprintf("[vmrs] NoSuitableVMError: %s (customer request: %+v)", e.Message, e.CustomerRequest)
+}
