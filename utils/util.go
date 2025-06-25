@@ -24,6 +24,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 var (
@@ -577,4 +578,14 @@ func _parseProjectNumberFromURI(uri string) (string, error) {
 	}
 
 	return uriMap["projects"], nil
+}
+
+func GetEncryptionType(kmsConfigId *string) string {
+	var encryptionType string
+	if nillable.IsNilOrEmpty(kmsConfigId) {
+		encryptionType = "SERVICE_MANAGED"
+	} else {
+		encryptionType = "CLOUD_KMS"
+	}
+	return encryptionType
 }

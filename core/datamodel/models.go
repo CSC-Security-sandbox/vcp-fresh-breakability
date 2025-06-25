@@ -33,7 +33,7 @@ type Pool struct {
 	Password                string          `gorm:"column:password"`
 	AutoTierBucketName      string          `gorm:"column:auto_tier_bucket_name;type:text"`
 	ServiceAccountId        string          `gorm:"column:service_account_id;type:text"`
-	SecretID                string         `gorm:"column:secret_id"`
+	SecretID                string          `gorm:"column:secret_id"`
 }
 
 type PoolView struct {
@@ -119,6 +119,7 @@ type Volume struct {
 	VolumeAttributes *VolumeAttributes `gorm:"column:volume_attributes;type:jsonb"`
 	DataProtection   *DataProtection   `gorm:"column:data_protection;type:jsonb"`
 	SnapshotPolicy   *SnapshotPolicy   `gorm:"column:snapshot_policy;type:jsonb"`
+	UsedBytes        uint64            `gorm:"column:used_bytes"`
 }
 
 // JSONB is a custom type to handle JSONB columns in PostgreSQL

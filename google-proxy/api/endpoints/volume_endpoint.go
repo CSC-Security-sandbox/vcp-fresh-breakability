@@ -443,6 +443,11 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		StorageClass:       gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1betaSOFTWARE),
 		ServiceLevel:       gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevelFLEX),
 		IsDataProtection:   gcpgenserver.NewOptBool(volume.IsDataProtection),
+		EncryptionType:     gcpgenserver.NewOptVolumeV1betaEncryptionType(gcpgenserver.VolumeV1betaEncryptionType(volume.EncryptionType)),
+		SnapshotDirectory:  gcpgenserver.NewOptBool(false),
+		SnapReserve:        gcpgenserver.NewOptFloat64(0), // default value for now
+		Zone:               gcpgenserver.NewOptString(volume.Zone),
+		UsedBytes:          gcpgenserver.NewOptNilFloat64(float64(volume.UsedBytes)), // default value for now
 	}
 	if volume.DeletedAt != nil {
 		res.Deleted = gcpgenserver.OptNilDateTime{Value: *volume.DeletedAt}

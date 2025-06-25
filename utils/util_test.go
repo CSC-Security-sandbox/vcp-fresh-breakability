@@ -910,3 +910,18 @@ func TestParseProjectNumberFromURI(t *testing.T) {
 		})
 	}
 }
+
+func TestGetEncryptionType(t *testing.T) {
+	cloudKms := "kms-id"
+	servManaged := (*string)(nil)
+
+	got := GetEncryptionType(&cloudKms)
+	assert.Equal(t, "CLOUD_KMS", got)
+
+	got = GetEncryptionType(servManaged)
+	assert.Equal(t, "SERVICE_MANAGED", got)
+
+	empty := ""
+	got = GetEncryptionType(&empty)
+	assert.Equal(t, "SERVICE_MANAGED", got)
+}

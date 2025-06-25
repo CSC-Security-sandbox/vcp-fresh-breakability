@@ -22,6 +22,9 @@ type Volume struct {
 	SnapshotPolicy        *SnapshotPolicy
 	IPAddress             string
 	DataProtection        *DataProtection
+	Zone                  string
+	UsedBytes             uint64
+	EncryptionType        string
 }
 
 type BlockProperties struct {

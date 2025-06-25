@@ -295,6 +295,9 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 		LifeCycleState:        volume.State,
 		LifeCycleStateDetails: volume.StateDetails,
 		IsDataProtection:      volume.VolumeAttributes.IsDataProtection,
+		Zone:                  volume.Pool.PoolAttributes.PrimaryZone,
+		UsedBytes:             volume.UsedBytes,
+		EncryptionType:        utils.GetEncryptionType(nil), // pass volume.Pool.KmsConfigID when association is implemented
 	}
 	attributes := volume.VolumeAttributes
 	res.VendorSubnetID = attributes.VendorSubnetID

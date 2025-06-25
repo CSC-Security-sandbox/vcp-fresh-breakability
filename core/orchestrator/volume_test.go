@@ -74,6 +74,9 @@ func TestGetVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		err = store.DB().Create(pool).Error
@@ -411,6 +414,9 @@ func TestCreateVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		err = store.DB().Create(pool).Error
@@ -604,6 +610,9 @@ func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
 		AccountID: account.ID,
 		State:     models.LifeCycleStateREADY,
 		Network:   "somevpc",
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone: "us-west1-a",
+		},
 	}
 	err = store.DB().Create(pool).Error
 	if err != nil {
@@ -804,6 +813,9 @@ func TestDeleteVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		err = store.DB().Create(pool).Error
@@ -969,6 +981,9 @@ func TestGetMultipleVolumes(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
 		}
 
 		err = store.DB().Create(pool).Error
@@ -2420,7 +2435,7 @@ func TestUpdateVolume(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
 			SizeInBytes: 100,
 			Name:        "vol",
-			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
 				Name: "acc",
 			},
@@ -2456,7 +2471,7 @@ func TestUpdateVolume(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
 			SizeInBytes: 100,
 			Name:        "vol",
-			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
 				Name: "acc",
 			},
@@ -2491,7 +2506,7 @@ func TestUpdateVolume(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
 			SizeInBytes: 100,
 			Name:        "vol",
-			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
 				Name: "acc",
 			},
@@ -2594,7 +2609,7 @@ func TestUpdateVolume(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
 			SizeInBytes: 100,
 			Name:        "vol",
-			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			Account: &datamodel.Account{
 				Name: "acc",
 			},
@@ -2702,7 +2717,7 @@ func TestListVolumes(t *testing.T) {
 			Description: "test",
 			PoolID:      1,
 			SvmID:       1,
-			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"}},
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"}, PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				CreationToken:    "token1",
 				Protocols:        []string{"iscsi"},

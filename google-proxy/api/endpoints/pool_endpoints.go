@@ -452,7 +452,7 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(pool.EnableHotTierAutoResize),
 		AllocatedBytes:          gcpgenserver.NewOptNilFloat64(pool.PoolAttributes.AllocatedBytes),
 		NumberOfVolumes:         gcpgenserver.NewOptNilInt32(int32(pool.PoolAttributes.NumberOfVolumes)),
-		EncryptionType:          getEncryptionTypeForPool(nil), // pass pool.KmsConfigID
+		EncryptionType:          gcpgenserver.NewOptPoolV1betaEncryptionType(gcpgenserver.PoolV1betaEncryptionType(utils.GetEncryptionType(nil))), // pass pool.KmsConfigID
 		Zone:                    gcpgenserver.NewOptString(pool.PoolAttributes.PrimaryZone),
 		SecondaryZone:           gcpgenserver.NewOptString(pool.PoolAttributes.SecondaryZone),
 	}
@@ -465,16 +465,6 @@ func encodePoolV1(pool *gcpgenserver.PoolV1beta) (jx.Raw, error) {
 		return nil, err
 	}
 	return data, nil
-}
-
-func getEncryptionTypeForPool(kmsConfigId *string) gcpgenserver.OptPoolV1betaEncryptionType {
-	var encryptionType gcpgenserver.PoolV1betaEncryptionType
-	if !nillable.IsNilOrEmpty(kmsConfigId) {
-		encryptionType = gcpgenserver.PoolV1betaEncryptionTypeCLOUDKMS
-	} else {
-		encryptionType = gcpgenserver.PoolV1betaEncryptionTypeSERVICEMANAGED
-	}
-	return gcpgenserver.NewOptPoolV1betaEncryptionType(encryptionType)
 }
 
 func convertToPoolsV1beta(pools []*cvpmodels.PoolV1beta) []gcpgenserver.PoolV1beta {

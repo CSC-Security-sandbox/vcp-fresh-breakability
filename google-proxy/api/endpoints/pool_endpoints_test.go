@@ -916,21 +916,3 @@ func TestV1betaListPools(t *testing.T) {
 		assert.Equal(tt, "pool-uuid-2", successResult.Pools[1].PoolId.Value)
 	})
 }
-
-func TestGetEncryptionTypeForPool(t *testing.T) {
-	cloudKms := "kms-id"
-	servManaged := (*string)(nil)
-
-	// Test with non-nil, non-empty kmsConfigId
-	encType := getEncryptionTypeForPool(&cloudKms)
-	assert.Equal(t, gcpgenserver.PoolV1betaEncryptionTypeCLOUDKMS, encType.Value)
-
-	// Test with nil kmsConfigId
-	encType = getEncryptionTypeForPool(servManaged)
-	assert.Equal(t, gcpgenserver.PoolV1betaEncryptionTypeSERVICEMANAGED, encType.Value)
-
-	// Test with empty string pointer
-	empty := ""
-	encType = getEncryptionTypeForPool(&empty)
-	assert.Equal(t, gcpgenserver.PoolV1betaEncryptionTypeSERVICEMANAGED, encType.Value)
-}
