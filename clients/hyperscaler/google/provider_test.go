@@ -189,6 +189,44 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeStorageService = _initializeStorageService
 		initializeCloudProjectsService = _initializeCloudProjectsService
 	})
+	t.Run("WhenInitializeIamServiceFails", func(t *testing.T) {
+		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
+			return &serviceconsumermanagement.APIService{
+				BasePath: "",
+			}, nil
+		}
+		initializeNetworkingService = func(ctx context.Context) (*servicenetworking.APIService, error) {
+			return nil, nil
+		}
+		initializeComputeService = func(ctx context.Context) (*compute.Service, error) {
+			return &compute.Service{
+				BasePath: "",
+			}, nil
+		}
+		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
+			return &storage.Client{}, nil
+		}
+
+		initializeIamService = func(ctx context.Context) (*iam.Service, error) {
+			return nil, errors.New("initializeIamService failed")
+		}
+
+		res, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
+		if res != nil {
+			t.Error("unexpected result returned")
+		}
+		if err == nil {
+			t.Error("error was expected")
+		}
+		if err.Error() != "initializeIamService failed" {
+			t.Error("Incorrect error response")
+		}
+		initializeManagementService = _initializeManagementService
+		initializeNetworkingService = _initializeNetworkingService
+		initializeComputeService = _initializeComputeService
+		initializeStorageService = _initializeStorageService
+		initializeIamService = _initializeIamService
+	})
 	t.Run("WhenInitializeCloudProjectsServiceFails", func(t *testing.T) {
 		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
 			return &serviceconsumermanagement.APIService{
@@ -205,6 +243,12 @@ func TestNewGoogleClient(t *testing.T) {
 		}
 		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
 			return &storage.Client{}, nil
+		}
+
+		initializeIamService = func(ctx context.Context) (*iam.Service, error) {
+			return &iam.Service{
+				BasePath: "",
+			}, nil
 		}
 
 		initializeCloudProjectsService = func(ctx context.Context) (*cloudresourcemanager.Service, error) {
@@ -225,6 +269,7 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeNetworkingService = _initializeNetworkingService
 		initializeComputeService = _initializeComputeService
 		initializeStorageService = _initializeStorageService
+		initializeIamService = _initializeIamService
 		initializeCloudProjectsService = _initializeCloudProjectsService
 	})
 	t.Run("initializePrivateCaServiceFails", func(t *testing.T) {
@@ -247,6 +292,11 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
 			return nil, nil
 		}
+		initializeIamService = func(ctx context.Context) (*iam.Service, error) {
+			return &iam.Service{
+				BasePath: "",
+			}, nil
+		}
 		initializeCloudProjectsService = func(ctx context.Context) (*cloudresourcemanager.Service, error) { return nil, nil }
 		initializePrivateCaService = func(ctx context.Context) (*privateca.Service, error) {
 			return nil, fmt.Errorf("initializePrivateCaService failed")
@@ -266,6 +316,7 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeNetworkingService = _initializeNetworkingService
 		initializeComputeService = _initializeComputeService
 		initializeStorageService = _initializeStorageService
+		initializeIamService = _initializeIamService
 		initializeCloudProjectsService = _initializeCloudProjectsService
 		initializePrivateCaService = _initializePrivateCaService
 	})
@@ -284,6 +335,7 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
 			return nil, nil
 		}
+		initializeIamService = func(ctx context.Context) (*iam.Service, error) { return nil, nil }
 		initializeCloudProjectsService = func(ctx context.Context) (*cloudresourcemanager.Service, error) { return nil, nil }
 		initializePrivateCaService = func(ctx context.Context) (*privateca.Service, error) {
 			return nil, nil
@@ -305,6 +357,7 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeNetworkingService = _initializeNetworkingService
 		initializeComputeService = _initializeComputeService
 		initializeStorageService = _initializeStorageService
+		initializeIamService = _initializeIamService
 		initializeCloudProjectsService = _initializeCloudProjectsService
 		initializePrivateCaService = _initializePrivateCaService
 		initializeSecretManagerService = _initializeSecretManagerService

@@ -135,7 +135,14 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		return nil, err
 	}
 
-	cloudProjectservice, err := initializeCloudProjectsService(ctx)
+	log.Debug("Calling initializeIamService")
+	iamService, err := initializeIamService(ctx)
+	if err != nil {
+		log.Errorf("Error initializeIamService :%s", err.Error())
+		return nil, err
+	}
+
+	cloudProjectService, err := initializeCloudProjectsService(ctx)
 	if err != nil {
 		log.Error("Error initializeCloudProjectsService", err)
 		return nil, err
@@ -158,12 +165,6 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		return nil, err
 	}
 
-	iamService, err := initializeIamService(ctx)
-	if err != nil {
-		log.Error("Error initializeIamService", err)
-		return nil, err
-	}
-
 	gServices := AdminGCPService{
 		networkingService:    networkingService,
 		managementService:    managementService,
@@ -171,7 +172,7 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		storageService:       storageService,
 		iamService:           iamService,
 		secretManagerService: secretManagerService,
-		cloudProjectsService: cloudProjectservice,
+		cloudProjectsService: cloudProjectService,
 	}
 	if certificateBasedAuthEnabled {
 		gServices.privateCaService = privateCaService

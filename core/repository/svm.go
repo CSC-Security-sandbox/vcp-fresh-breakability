@@ -14,6 +14,10 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	getSvmsByKmsConfigID = _getSvmsByKmsConfigID
+)
+
 // GetSvmsByPoolID retrieves SVMs by its corresponding pool ID
 func (d *DataStoreRepository) GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Svm, error) {
 	var svms []*datamodel.Svm
@@ -26,10 +30,14 @@ func (d *DataStoreRepository) GetSvmsByPoolID(ctx context.Context, poolID int64)
 
 // GetSvmsByKmsConfigID retrieves SVMs by kms config id
 func (d *DataStoreRepository) GetSvmsByKmsConfigID(ctx context.Context, kmsConfigID int64) ([]*datamodel.Svm, error) {
+	return getSvmsByKmsConfigID(d.db.GORM().WithContext(ctx), kmsConfigID)
+}
+
+func _getSvmsByKmsConfigID(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Svm, error) {
 	var svms []*datamodel.Svm
-	err := d.db.GORM().WithContext(ctx).Where("cmek_config_id = ?", kmsConfigID).Find(&svms).Error
+	err := db.Where("cmek_config_id = ?", kmsConfigID).Find(&svms).Error
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return svms, nil
 }

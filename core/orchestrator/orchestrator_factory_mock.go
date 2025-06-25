@@ -98,6 +98,112 @@ func (_c *MockOrchestratorFactory_AcceptClusterPeer_Call) RunAndReturn(run func(
 	return _c
 }
 
+// AccessKmsCryptoKey provides a mock function with given fields: ctx, kmsConfig
+func (_m *MockOrchestratorFactory) AccessKmsCryptoKey(ctx context.Context, kmsConfig *models.KmsConfig) error {
+	ret := _m.Called(ctx, kmsConfig)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AccessKmsCryptoKey")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *models.KmsConfig) error); ok {
+		r0 = rf(ctx, kmsConfig)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockOrchestratorFactory_AccessKmsCryptoKey_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AccessKmsCryptoKey'
+type MockOrchestratorFactory_AccessKmsCryptoKey_Call struct {
+	*mock.Call
+}
+
+// AccessKmsCryptoKey is a helper method to define mock.On call
+//   - ctx context.Context
+//   - kmsConfig *models.KmsConfig
+func (_e *MockOrchestratorFactory_Expecter) AccessKmsCryptoKey(ctx interface{}, kmsConfig interface{}) *MockOrchestratorFactory_AccessKmsCryptoKey_Call {
+	return &MockOrchestratorFactory_AccessKmsCryptoKey_Call{Call: _e.mock.On("AccessKmsCryptoKey", ctx, kmsConfig)}
+}
+
+func (_c *MockOrchestratorFactory_AccessKmsCryptoKey_Call) Run(run func(ctx context.Context, kmsConfig *models.KmsConfig)) *MockOrchestratorFactory_AccessKmsCryptoKey_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*models.KmsConfig))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_AccessKmsCryptoKey_Call) Return(_a0 error) *MockOrchestratorFactory_AccessKmsCryptoKey_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_AccessKmsCryptoKey_Call) RunAndReturn(run func(context.Context, *models.KmsConfig) error) *MockOrchestratorFactory_AccessKmsCryptoKey_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CheckAndUpdateKmsConfigHealth provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) CheckAndUpdateKmsConfigHealth(ctx context.Context, params *models.KmsConfigCheck) (*models.KmsConfig, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CheckAndUpdateKmsConfigHealth")
+	}
+
+	var r0 *models.KmsConfig
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *models.KmsConfigCheck) (*models.KmsConfig, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *models.KmsConfigCheck) *models.KmsConfig); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.KmsConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *models.KmsConfigCheck) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_CheckAndUpdateKmsConfigHealth_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CheckAndUpdateKmsConfigHealth'
+type MockOrchestratorFactory_CheckAndUpdateKmsConfigHealth_Call struct {
+	*mock.Call
+}
+
+// CheckAndUpdateKmsConfigHealth is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *models.KmsConfigCheck
+func (_e *MockOrchestratorFactory_Expecter) CheckAndUpdateKmsConfigHealth(ctx interface{}, params interface{}) *MockOrchestratorFactory_CheckAndUpdateKmsConfigHealth_Call {
+	return &MockOrchestratorFactory_CheckAndUpdateKmsConfigHealth_Call{Call: _e.mock.On("CheckAndUpdateKmsConfigHealth", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_CheckAndUpdateKmsConfigHealth_Call) Run(run func(ctx context.Context, params *models.KmsConfigCheck)) *MockOrchestratorFactory_CheckAndUpdateKmsConfigHealth_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*models.KmsConfigCheck))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CheckAndUpdateKmsConfigHealth_Call) Return(_a0 *models.KmsConfig, _a1 error) *MockOrchestratorFactory_CheckAndUpdateKmsConfigHealth_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CheckAndUpdateKmsConfigHealth_Call) RunAndReturn(run func(context.Context, *models.KmsConfigCheck) (*models.KmsConfig, error)) *MockOrchestratorFactory_CheckAndUpdateKmsConfigHealth_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateBackup provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) CreateBackup(ctx context.Context, params *common.CreateBackupParams) (*models.Backup, string, error) {
 	ret := _m.Called(ctx, params)

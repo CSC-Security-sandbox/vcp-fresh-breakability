@@ -615,7 +615,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 	}
 	store.DB().Create(&kms)
 	kms.Name = "updatedpool"
-	_, err := store.UpdateKmsConfig(ctx, &kms)
+	_, err := store.UpdateKmsConfigState(ctx, kms.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 	assert.NoError(t, err)
 }
 

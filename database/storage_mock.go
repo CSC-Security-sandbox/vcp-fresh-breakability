@@ -4875,65 +4875,6 @@ func (_c *MockStorage_UpdateJob_Call) RunAndReturn(run func(context.Context, str
 	return _c
 }
 
-// UpdateKmsConfig provides a mock function with given fields: ctx, kmsConfig
-func (_m *MockStorage) UpdateKmsConfig(ctx context.Context, kmsConfig *datamodel.KmsConfig) (*datamodel.KmsConfig, error) {
-	ret := _m.Called(ctx, kmsConfig)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateKmsConfig")
-	}
-
-	var r0 *datamodel.KmsConfig
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.KmsConfig) (*datamodel.KmsConfig, error)); ok {
-		return rf(ctx, kmsConfig)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.KmsConfig) *datamodel.KmsConfig); ok {
-		r0 = rf(ctx, kmsConfig)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.KmsConfig)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.KmsConfig) error); ok {
-		r1 = rf(ctx, kmsConfig)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockStorage_UpdateKmsConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateKmsConfig'
-type MockStorage_UpdateKmsConfig_Call struct {
-	*mock.Call
-}
-
-// UpdateKmsConfig is a helper method to define mock.On call
-//   - ctx context.Context
-//   - kmsConfig *datamodel.KmsConfig
-func (_e *MockStorage_Expecter) UpdateKmsConfig(ctx interface{}, kmsConfig interface{}) *MockStorage_UpdateKmsConfig_Call {
-	return &MockStorage_UpdateKmsConfig_Call{Call: _e.mock.On("UpdateKmsConfig", ctx, kmsConfig)}
-}
-
-func (_c *MockStorage_UpdateKmsConfig_Call) Run(run func(ctx context.Context, kmsConfig *datamodel.KmsConfig)) *MockStorage_UpdateKmsConfig_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.KmsConfig))
-	})
-	return _c
-}
-
-func (_c *MockStorage_UpdateKmsConfig_Call) Return(_a0 *datamodel.KmsConfig, _a1 error) *MockStorage_UpdateKmsConfig_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockStorage_UpdateKmsConfig_Call) RunAndReturn(run func(context.Context, *datamodel.KmsConfig) (*datamodel.KmsConfig, error)) *MockStorage_UpdateKmsConfig_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // UpdateKmsConfigAttributes provides a mock function with given fields: ctx, uuid, attributes
 func (_m *MockStorage) UpdateKmsConfigAttributes(ctx context.Context, uuid string, attributes *datamodel.KmsAttributes) (*datamodel.KmsConfig, error) {
 	ret := _m.Called(ctx, uuid, attributes)

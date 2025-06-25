@@ -2,6 +2,7 @@ package kms_activities
 
 import (
 	"context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -49,7 +50,7 @@ func (a *KmsConfigActivity) UpdateKmsConfig(ctx context.Context, kmsConfig *data
 		kmsConfig.Description = *params.Description
 	}
 
-	_, err := se.UpdateKmsConfig(ctx, kmsConfig)
+	_, err := se.UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 	if err != nil {
 		return err
 	}

@@ -74,7 +74,7 @@ func TestUpdateKmsConfig_Success(t *testing.T) {
 		Description:     &description,
 	}
 	updatedkms := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "kms", KeyName: params.KeyName, KeyRing: params.KeyRing, KeyRingLocation: params.KeyRingLocation, Description: *params.Description}
-	mockStorage.On("UpdateKmsConfig", ctx, updatedkms).Return(updatedkms, nil)
+	mockStorage.On("UpdateKmsConfigState", ctx, updatedkms.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails).Return(kms, nil)
 
 	// Act
 	err := activity.UpdateKmsConfig(ctx, kms, params)
@@ -100,7 +100,7 @@ func TestUpdateKmsConfig_Error(t *testing.T) {
 		Description:     &description,
 	}
 	updatedkms := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "kms", KeyName: params.KeyName, KeyRing: params.KeyRing, KeyRingLocation: params.KeyRingLocation, Description: *params.Description}
-	mockStorage.On("UpdateKmsConfig", ctx, updatedkms).Return(nil, errors.New("some error"))
+	mockStorage.On("UpdateKmsConfigState", ctx, updatedkms.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails).Return(nil, errors.New("some error"))
 
 	// Act
 	err := activity.UpdateKmsConfig(ctx, kms, params)

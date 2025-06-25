@@ -24,6 +24,7 @@ const (
 	LifeCycleStateError      = "ERROR"
 	LifeCycleStateRetained   = "RETAINED"
 	LifeCycleStateCreated    = "CREATED"
+	LifeCycleStateUnknown    = "UNKNOWN" // Unknown state, used when the state is not decided yet
 
 	LifeCycleStateCreatingDetails      = "Creation in progress"
 	LifeCycleStateRevertingDetails     = "Revert in progress"
@@ -43,6 +44,7 @@ const (
 	LifeCycleStateDeletionErrorDetails = "Error in deleting"
 	LifeCycleStateReadyDetails         = "Ready for use"
 	LifeCycleStateCreatedDetails       = "Created successfully"
+	LifeCycleStateUnknownDetails       = "Unknown state" // Unknown state details, used when the state is not decided yet
 
 	AccountStateDisabled = "DISABLED"
 	AccountStateEnabled  = "ENABLED"

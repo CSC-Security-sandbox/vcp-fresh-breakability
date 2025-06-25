@@ -14,6 +14,7 @@ type CreateKmsConfigParams struct {
 	UUID                string
 	LocationID          string
 	ProjectNumber       string
+	XCorrelationID      string
 }
 
 // GetKmsConfigParams describes parameters supplied to CreateKmsConfigActivity
@@ -30,4 +31,11 @@ type GetKmsConfigParams struct {
 	UUID                string
 	LocationID          string
 	ProjectNumber       string
+}
+
+// CheckKmsConfigParams check kms config reachability
+type CheckKmsConfigParams struct {
+	KmsConfigUUID string
+	LocationID    string
+	ProjectNumber string
 }

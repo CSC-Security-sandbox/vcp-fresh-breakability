@@ -2,8 +2,8 @@ package orchestrator
 
 import (
 	"context"
-	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,7 +17,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	"go.temporal.io/sdk/client"
 )
 
 func TestGetMultipleKmsConfigs(t *testing.T) {
@@ -603,7 +605,7 @@ func TestCreateKmsConfig(t *testing.T) {
 		}
 		mockStorage.On("CreateKmsConfig", ctx, mock.Anything).Return(&datamodel.KmsConfig{BaseModel: datamodel.BaseModel{
 			UUID: "uuid"}, AccountID: 1, KeyName: "k", CustomerProjectID: "p", KeyRingLocation: "l", KeyRing: "r", ResourceID: "res-id",
-			KmsAttributes: &datamodel.KmsAttributes{}}, nil)
+			KmsAttributes: &datamodel.KmsAttributes{}, ServiceAccount: &datamodel.ServiceAccount{}}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{
 			UUID: "job-uuid"}, WorkflowID: "wf-id"}, nil)
 		temporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -654,4 +656,340 @@ func TestGetKmsConfigFails(t *testing.T) {
 	_, err := orch.GetKmsConfig(ctx, params)
 	assert.Error(t, err)
 	assert.Equal(t, "some error", err.Error())
+}
+
+func TestUpdateKmsConfigHealth(t *testing.T) {
+	t.Run("UpdateKmsConfigHealthUpdatesStateToReadyWhenInErrorStateAndDoNotUsedByAnySvms", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		orch := Orchestrator{storage: mockStorage}
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:     datamodel.BaseModel{UUID: "test-uuid"},
+			State:         models.LifeCycleStateError,
+			KeyName:       "key1",
+			KeyRing:       "ring1",
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		defer func() {
+			isKmsConfigInUse = _isKmsConfigInUse
+		}()
+		isKmsConfigInUse = func(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig) (bool, error) {
+			return false, nil
+		}
+		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(kmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, "test-uuid", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails).Return(kmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigAttributes", ctx, "test-uuid", kmsConfig.KmsAttributes).Return(kmsConfig, nil)
+		response := &models.KmsConfigCheck{
+			KmsConfig:   &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}},
+			IsHealthy:   true,
+			HealthError: "",
+		}
+		result, err := orch.CheckAndUpdateKmsConfigHealth(ctx, response)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	t.Run("UpdateKmsConfigHealthUpdatesStateToInUseWhenInErrorStateAndUsedBySvms", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		orch := Orchestrator{storage: mockStorage}
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:     datamodel.BaseModel{UUID: "test-uuid"},
+			State:         models.LifeCycleStateError,
+			KeyName:       "key1",
+			KeyRing:       "ring1",
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		defer func() {
+			isKmsConfigInUse = _isKmsConfigInUse
+		}()
+		isKmsConfigInUse = func(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig) (bool, error) {
+			return true, nil
+		}
+		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(kmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, "test-uuid", models.LifeCycleStateInUse, models.LifeCycleStateAvailableDetails).Return(kmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigAttributes", ctx, "test-uuid", kmsConfig.KmsAttributes).Return(kmsConfig, nil)
+		response := &models.KmsConfigCheck{
+			KmsConfig:   &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}},
+			IsHealthy:   true,
+			HealthError: "",
+		}
+		result, err := orch.CheckAndUpdateKmsConfigHealth(ctx, response)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	t.Run("UpdateKmsConfigHealthKeepsStateInUseWhenHealthyAndInUse", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		orch := Orchestrator{storage: mockStorage}
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:     datamodel.BaseModel{UUID: "test-uuid"},
+			State:         models.LifeCycleStateInUse,
+			KeyName:       "key1",
+			KeyRing:       "ring1",
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		defer func() {
+			isKmsConfigInUse = _isKmsConfigInUse
+		}()
+		isKmsConfigInUse = func(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig) (bool, error) {
+			return false, nil
+		}
+		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(kmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, "test-uuid", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails).Return(kmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigAttributes", ctx, "test-uuid", kmsConfig.KmsAttributes).Return(kmsConfig, nil)
+
+		response := &models.KmsConfigCheck{
+			KmsConfig:   &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}},
+			IsHealthy:   true,
+			HealthError: "",
+		}
+		result, err := orch.CheckAndUpdateKmsConfigHealth(ctx, response)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	t.Run("UpdateKmsConfigHealthSetsStateToErrorWhenUnhealthy", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		orch := Orchestrator{storage: mockStorage}
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:     datamodel.BaseModel{UUID: "test-uuid"},
+			State:         models.LifeCycleStateAvailable,
+			KeyName:       "key1",
+			KeyRing:       "ring1",
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		isKmsConfigInUse = func(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig) (bool, error) {
+			return true, nil
+		}
+		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(kmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, "test-uuid", models.LifeCycleStateError, "some error").Return(kmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigAttributes", ctx, "test-uuid", kmsConfig.KmsAttributes).Return(kmsConfig, nil)
+
+		response := &models.KmsConfigCheck{
+			KmsConfig:   &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}},
+			IsHealthy:   false,
+			HealthError: "some error",
+		}
+		result, err := orch.CheckAndUpdateKmsConfigHealth(ctx, response)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		isKmsConfigInUse = _isKmsConfigInUse
+	})
+	t.Run("UpdateKmsConfigHealthSetsStateToCreatedWhenHealthErrorMatchesKeyNotFound", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		orch := Orchestrator{storage: mockStorage}
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:     datamodel.BaseModel{UUID: "test-uuid"},
+			State:         models.LifeCycleStateCreated,
+			KeyName:       "key1",
+			KeyRing:       "ring1",
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		defer func() {
+			isKmsConfigInUse = _isKmsConfigInUse
+		}()
+		healthError := strings.Replace(strings.Replace(GcpKmsConfigHealthError, "<key_name>", "key1", 1), "<key_ring>", "ring1", 1)
+		isKmsConfigInUse = func(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig) (bool, error) {
+			return true, nil
+		}
+		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(kmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, "test-uuid", models.LifeCycleStateCreated, healthError).Return(kmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigAttributes", ctx, "test-uuid", kmsConfig.KmsAttributes).Return(kmsConfig, nil)
+
+		response := &models.KmsConfigCheck{
+			KmsConfig:   &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}},
+			IsHealthy:   false,
+			HealthError: healthError,
+		}
+		result, err := orch.CheckAndUpdateKmsConfigHealth(ctx, response)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	t.Run("UpdateKmsConfigHealthReturnsErrorWhenGetKmsConfigFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		orch := Orchestrator{storage: mockStorage}
+		ctx := context.Background()
+		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(nil, errors.New("some error"))
+		response := &models.KmsConfigCheck{
+			KmsConfig:   &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}},
+			IsHealthy:   true,
+			HealthError: "",
+		}
+		result, err := orch.CheckAndUpdateKmsConfigHealth(ctx, response)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+	t.Run("UpdateKmsConfigHealthReturnsErrorWhenIsKmsConfigInUseFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		orch := Orchestrator{storage: mockStorage}
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:     datamodel.BaseModel{UUID: "test-uuid"},
+			State:         models.LifeCycleStateAvailable,
+			KeyName:       "key1",
+			KeyRing:       "ring1",
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(kmsConfig, nil)
+		defer func() {
+			isKmsConfigInUse = _isKmsConfigInUse
+		}()
+		isKmsConfigInUse = func(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig) (bool, error) {
+			return false, errors.New("some error")
+		}
+
+		response := &models.KmsConfigCheck{
+			KmsConfig:   &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}},
+			IsHealthy:   true,
+			HealthError: "",
+		}
+		result, err := orch.CheckAndUpdateKmsConfigHealth(ctx, response)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+	t.Run("UpdateKmsConfigHealthReturnsErrorWhenUpdateKmsConfigStateFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		orch := Orchestrator{storage: mockStorage}
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+			State:     models.LifeCycleStateError,
+			KeyName:   "key1",
+			KeyRing:   "ring1",
+		}
+		isKmsConfigInUse = func(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig) (bool, error) {
+			return false, nil
+		}
+		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(kmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, "test-uuid", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails).Return(nil, errors.New("update error"))
+
+		response := &models.KmsConfigCheck{
+			KmsConfig:   &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}},
+			IsHealthy:   true,
+			HealthError: "",
+		}
+		result, err := orch.CheckAndUpdateKmsConfigHealth(ctx, response)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		isKmsConfigInUse = _isKmsConfigInUse
+	})
+	t.Run("UpdateKmsConfigHealthReturnsErrorUpdateKmsConfigAttributesFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		orch := Orchestrator{storage: mockStorage}
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:     datamodel.BaseModel{UUID: "test-uuid"},
+			State:         models.LifeCycleStateError,
+			KeyName:       "key1",
+			KeyRing:       "ring1",
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}
+		isKmsConfigInUse = func(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig) (bool, error) {
+			return false, nil
+		}
+		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(kmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, "test-uuid", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails).Return(kmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigAttributes", ctx, "test-uuid", kmsConfig.KmsAttributes).Return(nil, errors.New("some thing went wrong"))
+		response := &models.KmsConfigCheck{
+			KmsConfig:   &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}},
+			IsHealthy:   true,
+			HealthError: "",
+		}
+		result, err := orch.CheckAndUpdateKmsConfigHealth(ctx, response)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		isKmsConfigInUse = _isKmsConfigInUse
+	})
+}
+
+func TestAccessKmsCryptoKey(t *testing.T) {
+	t.Run("TestAccessKmsCryptoKeyReturnsErrorWhenDecryptPasswordFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		orch := Orchestrator{storage: mockStorage}
+		mockLogger := log.NewLogger()
+		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+		kmsConfig := &models.KmsConfig{
+			ServiceAccount: &models.ServiceAccount{ServiceAccountPasswordLocation: "mock-location"},
+			KmsAttributes:  &models.KmsAttributes{SdeServiceAccountEmail: "sde@project.iam.gserviceaccount.com"},
+		}
+		origDecryptPassword := utils.DecryptPassword
+		defer func() { utils.DecryptPassword = origDecryptPassword }()
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
+			return nil, errors.New("decrypt error")
+		}
+		mockStorage.On("UpdateKmsConfigState", ctx, kmsConfig.UUID, models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil)
+		err := orch.AccessKmsCryptoKey(ctx, kmsConfig)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "decrypt error")
+	})
+	t.Run("TestAccessKmsCryptoKeyReturnsErrorWhenBase64DecodeFails", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		orch := Orchestrator{storage: mockStorage}
+		kmsConfig := &models.KmsConfig{
+			ServiceAccount: &models.ServiceAccount{ServiceAccountPasswordLocation: "mock-location"},
+			KmsAttributes:  &models.KmsAttributes{SdeServiceAccountEmail: "sde@project.iam.gserviceaccount.com"},
+		}
+		origDecryptPassword := utils.DecryptPassword
+		defer func() { utils.DecryptPassword = origDecryptPassword }()
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
+			s := "not-base64"
+			return &s, nil
+		}
+		mockStorage.On("UpdateKmsConfigState", ctx, kmsConfig.UUID, models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil)
+		err := orch.AccessKmsCryptoKey(ctx, kmsConfig)
+		assert.Error(t, err)
+	})
+	t.Run("TestAccessKmsCryptoKeyRetryDoFail", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		orch := Orchestrator{storage: mockStorage}
+		kmsConfig := &models.KmsConfig{
+			ServiceAccount: &models.ServiceAccount{ServiceAccountPasswordLocation: "mock-location"},
+			KmsAttributes:  &models.KmsAttributes{SdeServiceAccountEmail: "sde@project.iam.gserviceaccount.com"},
+		}
+		origDecryptPassword := utils.DecryptPassword
+
+		defer func() {
+			utils.DecryptPassword = origDecryptPassword
+			retryDo = retry.RetryDoWithTimeout
+		}()
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
+			s := "ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAicGhhc2UzLWhvc3QiLAogICJlbXVsYXRpb24iOiAibG9jYWxob3N0OjkwMTEiCn0K"
+			return &s, nil
+		}
+
+		retryDo = func(ctx context.Context, timeout, wait time.Duration, caller string, fn retry.Retriable) error {
+			return errors.New("retry error")
+		}
+		mockStorage.On("UpdateKmsConfigState", ctx, kmsConfig.UUID, models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil)
+		err := orch.AccessKmsCryptoKey(ctx, kmsConfig)
+		assert.Error(t, err)
+	})
+	t.Run("TestAccessKmsCryptoKeyRetryCreateCryptoKey", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		orch := Orchestrator{storage: mockStorage}
+		kmsConfig := &models.KmsConfig{
+			ServiceAccount: &models.ServiceAccount{ServiceAccountPasswordLocation: "mock-location"},
+			KmsAttributes:  &models.KmsAttributes{SdeServiceAccountEmail: "sde@project.iam.gserviceaccount.com"},
+		}
+		origDecryptPassword := utils.DecryptPassword
+
+		defer func() {
+			utils.DecryptPassword = origDecryptPassword
+		}()
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
+			s := "ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAicGhhc2UzLWhvc3QiLAogICJlbXVsYXRpb24iOiAibG9jYWxob3N0OjkwMTEiCn0K"
+			return &s, nil
+		}
+
+		mockStorage.On("UpdateKmsConfigState", ctx, kmsConfig.UUID, models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil)
+		err := orch.AccessKmsCryptoKey(ctx, kmsConfig)
+		assert.Error(t, err)
+	})
 }

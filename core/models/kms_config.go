@@ -17,11 +17,21 @@ type KmsConfig struct {
 	KeyProjectID      string
 	ServiceAccountID  int64
 	ResourceID        string
-
-	KmsAttributes *KmsAttributes
+	KmsAttributes     *KmsAttributes
+	ServiceAccount    *ServiceAccount
 }
 type KmsAttributes struct {
-	SdeKmsConfigUUID       string
-	SdeServiceAccountEmail string
-	Instructions           string
+	SdeKmsConfigUUID        string
+	SdeServiceAccountEmail  string
+	Instructions            string
+	SdeKmsConfigIsHealthy   bool
+	SdeKmsConfigHealthError string
+}
+
+// KmsConfigCheck describes an gcp kms configuration check object in the cloud volumes model
+type KmsConfigCheck struct {
+	Email       string
+	IsHealthy   bool
+	HealthError string
+	KmsConfig   *KmsConfig
 }

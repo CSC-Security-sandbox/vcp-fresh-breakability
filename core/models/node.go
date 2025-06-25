@@ -7,7 +7,7 @@ type Node struct {
 	EndpointAddresses []string // for multiple host failover
 	Username          string
 	Password          string
-	SecretID        string
+	SecretID          string
 	InstanceType      string
 	ExternalUUID      string
 	Zone              string

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	goErrors "errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -30,85 +31,142 @@ var (
 const uriFormat = "^projects\\/[^\\/]+\\/locations\\/[^\\/]+\\/keyRings\\/[^\\/]+\\/cryptoKeys.+$"
 
 func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V1betaCheckKmsConfigParams) (gcpgenserver.V1betaCheckKmsConfigRes, error) {
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaCheckKmsConfigBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
+
+	getKmsConfigParams := &common.GetKmsConfigParams{
+		AccountName:   params.ProjectNumber,
+		UUID:          params.KmsConfigId,
+		LocationID:    params.LocationId,
+		ProjectNumber: params.ProjectNumber,
+	}
+	// Get the KMS configuration from the vsa DB if not found then try getting this from the SDE
+	kmsConfigUUID := params.KmsConfigId
+	kmsConfig, err := h.Orchestrator.GetKmsConfig(ctx, getKmsConfigParams)
+	if err != nil {
+		var notFoundErr *errors.NotFoundErr
+		if !goErrors.As(err, &notFoundErr) {
+			return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			}, nil
+		}
+	} else if kmsConfig != nil {
+		// If the KMS configuration is found in the vsa DB, use SDE UUID
+		kmsConfigUUID = kmsConfig.KmsAttributes.SdeKmsConfigUUID
+	}
+
 	checkKmsConfigParams := &kms_configurations.V1betaCheckKmsConfigParams{
-		KmsConfigID:    params.KmsConfigId,
+		KmsConfigID:    kmsConfigUUID,
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
 		XCorrelationID: &params.XCorrelationID.Value,
 	}
 	res, err := cvpClient.KmsConfigurations.V1betaCheckKmsConfig(checkKmsConfigParams)
 	if err != nil {
-		switch e := err.(type) {
-		case *kms_configurations.V1betaCheckKmsConfigConflict:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaCheckKmsConfigConflict{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *kms_configurations.V1betaCheckKmsConfigBadRequest:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaCheckKmsConfigBadRequest{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *kms_configurations.V1betaCheckKmsConfigUnprocessableEntity:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaCheckKmsConfigUnprocessableEntity{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *kms_configurations.V1betaCheckKmsConfigUnauthorized:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaCheckKmsConfigUnauthorized{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *kms_configurations.V1betaCheckKmsConfigForbidden:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaCheckKmsConfigForbidden{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *kms_configurations.V1betaCheckKmsConfigNotFound:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaCheckKmsConfigNotFound{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *kms_configurations.V1betaCheckKmsConfigTooManyRequests:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaCheckKmsConfigTooManyRequests{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *kms_configurations.V1betaCheckKmsConfigDefault:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
-				Code:    code,
-				Message: msg,
-			}, nil
-		}
+		return categorizeCvpClientErrorsForCheckKmsConfigs(err)
 	}
 	if res == nil || res.Payload == nil {
 		return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
-			Code:    500,
+			Code:    http.StatusInternalServerError,
 			Message: "unknown error during the check kms config",
 		}, nil
 	}
+
 	checkKmsConfigResponse := convertToKmsConfigCheckV1beta(res)
+	if kmsConfig != nil {
+		checkParams := &coremodel.KmsConfigCheck{
+			KmsConfig:   kmsConfig,
+			Email:       kmsConfig.ServiceAccount.ServiceAccountEmail,
+			IsHealthy:   checkKmsConfigResponse.KmsConfigHealthCheck.Value.IsHealthy,
+			HealthError: checkKmsConfigResponse.KmsConfigHealthCheck.Value.HealthError.Value,
+		}
+
+		// Access the KMS crypto key to ensure it is accessible using impersonation
+		err = h.Orchestrator.AccessKmsCryptoKey(ctx, kmsConfig)
+		if err != nil {
+			return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			}, nil
+		}
+
+		// Update the KMS config health in the vsa DB
+		_, err = h.Orchestrator.CheckAndUpdateKmsConfigHealth(ctx, checkParams)
+		if err != nil {
+			return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
+				Code:    http.StatusInternalServerError,
+				Message: "Failed to update KMS config health",
+			}, nil
+		}
+	}
 	return checkKmsConfigResponse, nil
+}
+
+func categorizeCvpClientErrorsForCheckKmsConfigs(cvpErr error) (gcpgenserver.V1betaCheckKmsConfigRes, error) {
+	getMsg := func(msg *string) string {
+		return nillable.GetString(msg, "")
+	}
+	getCode := func(floatVal *float64) float64 {
+		return nillable.GetFloat64(floatVal, 0)
+	}
+	switch e := cvpErr.(type) {
+	case *kms_configurations.V1betaCheckKmsConfigConflict:
+		return &gcpgenserver.V1betaCheckKmsConfigConflict{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	case *kms_configurations.V1betaCheckKmsConfigBadRequest:
+		return &gcpgenserver.V1betaCheckKmsConfigBadRequest{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	case *kms_configurations.V1betaCheckKmsConfigUnprocessableEntity:
+		return &gcpgenserver.V1betaCheckKmsConfigUnprocessableEntity{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	case *kms_configurations.V1betaCheckKmsConfigUnauthorized:
+		return &gcpgenserver.V1betaCheckKmsConfigUnauthorized{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	case *kms_configurations.V1betaCheckKmsConfigForbidden:
+		return &gcpgenserver.V1betaCheckKmsConfigForbidden{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	case *kms_configurations.V1betaCheckKmsConfigNotFound:
+		return &gcpgenserver.V1betaCheckKmsConfigNotFound{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	case *kms_configurations.V1betaCheckKmsConfigTooManyRequests:
+		return &gcpgenserver.V1betaCheckKmsConfigTooManyRequests{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	case *kms_configurations.V1betaCheckKmsConfigDefault:
+		return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	default:
+		return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: "unknown error during the check kms config",
+		}, nil
+	}
 }
 
 func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgenserver.KmsConfigV1beta, params gcpgenserver.V1betaCreateKmsConfigurationParams) (gcpgenserver.V1betaCreateKmsConfigurationRes, error) {
@@ -129,11 +187,12 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 	}
 
 	createKmsConfigParams := &common.CreateKmsConfigParams{
-		KeyFullPath:   req.KeyFullPath,
-		ResourceID:    req.ResourceId.Value,
-		AccountName:   params.ProjectNumber, // TODO:- Check diff btw account name and project number
-		LocationID:    params.LocationId,
-		ProjectNumber: params.ProjectNumber,
+		KeyFullPath:    req.KeyFullPath,
+		ResourceID:     req.ResourceId.Value,
+		AccountName:    params.ProjectNumber,
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: params.XCorrelationID.Value,
 	}
 	kmsConfig, operationID, err := h.Orchestrator.CreateKmsConfig(ctx, createKmsConfigParams)
 	if err != nil {
@@ -148,7 +207,7 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 			// Handle any other error types
 			return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
 				Message: "An unexpected error occurred",
-				Code:    500,
+				Code:    http.StatusInternalServerError,
 			}, nil
 		}
 	}
@@ -233,7 +292,7 @@ func (h Handler) V1betaDeleteKmsConfiguration(ctx context.Context, params gcpgen
 	}
 	if res == nil || res.Payload == nil {
 		return &gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError{
-			Code:    500,
+			Code:    http.StatusInternalServerError,
 			Message: "unknown error during the delete kms configuration",
 		}, nil
 	}
@@ -253,7 +312,7 @@ func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpg
 		}, nil
 	}
 	getKmsConfigParams := &common.GetKmsConfigParams{
-		AccountName:   params.ProjectNumber, // TODO:- Check diff btw account name and project number
+		AccountName:   params.ProjectNumber,
 		UUID:          params.KmsConfigId,
 		LocationID:    params.LocationId,
 		ProjectNumber: params.ProjectNumber,
@@ -332,7 +391,7 @@ func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpg
 			}
 			if res == nil || res.Payload == nil {
 				return &gcpgenserver.V1betaDescribeKmsConfigurationInternalServerError{
-					Code:    500,
+					Code:    http.StatusInternalServerError,
 					Message: "unknown error during the describe kms configuration",
 				}, nil
 			}
@@ -341,7 +400,7 @@ func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpg
 			// Handle any other error types
 			return &gcpgenserver.V1betaDescribeKmsConfigurationInternalServerError{
 				Message: "An unexpected error occurred",
-				Code:    500,
+				Code:    http.StatusInternalServerError,
 			}, nil
 		}
 	}
@@ -414,7 +473,7 @@ func (h Handler) V1betaListKmsConfigurations(ctx context.Context, params gcpgens
 	}
 	if res == nil || res.Payload == nil {
 		return &gcpgenserver.V1betaListKmsConfigurationsInternalServerError{
-			Code:    500,
+			Code:    http.StatusInternalServerError,
 			Message: "unknown error during the list kms configurations",
 		}, nil
 	}
@@ -475,7 +534,7 @@ func (h Handler) V1betaUpdateKmsConfiguration(ctx context.Context, req *gcpgense
 		}
 
 		logger.Error("Failed to update kms configuration", err.Error())
-		return &gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError{Code: 500, Message: err.Error()}, err
+		return &gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError{Code: http.StatusInternalServerError, Message: err.Error()}, err
 	}
 
 	var resp jx.Raw
@@ -510,7 +569,7 @@ func (h Handler) V1betaGetMultipleKmsConfigs(ctx context.Context, req *gcpgenser
 	if vsaErr != nil {
 		logger.Error("Get Multiple KMS Configurations API call failed with error", "Error", vsaErr.Error())
 		return &gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError{
-			Code:    500,
+			Code:    http.StatusInternalServerError,
 			Message: "Unknown error encountered during Get Multiple KMS configurations operation",
 		}, nil
 	}
@@ -545,7 +604,7 @@ func (h Handler) V1betaGetMultipleKmsConfigs(ctx context.Context, req *gcpgenser
 		}
 		if cvpResponse == nil {
 			return &gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError{
-				Code:    500,
+				Code:    http.StatusInternalServerError,
 				Message: "Unknown error encountered during Get Multiple KMS configurations operation",
 			}, nil
 		}
@@ -736,7 +795,7 @@ func categorizeCvpClientErrorsForGetMultipleKmsConfigs(cvpErr error, logger log.
 		}
 	default:
 		return &gcpgenserver.V1betaGetMultipleKmsConfigsInternalServerError{
-			Code:    500,
+			Code:    http.StatusInternalServerError,
 			Message: "Unknown error encountered during Get Multiple KMS configurations operation",
 		}
 	}

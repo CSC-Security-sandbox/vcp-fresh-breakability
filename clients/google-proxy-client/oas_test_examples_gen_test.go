@@ -3,8 +3,8 @@
 package googleproxyclient
 
 import (
-	"fmt"
 	std "encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/go-faster/errors"

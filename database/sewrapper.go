@@ -1397,26 +1397,6 @@ func (re *retryEngine) UpdateKmsConfigState(ctx context.Context, kmsConfigUUID s
 	return var0, err
 }
 
-func (re *retryEngine) UpdateKmsConfig(ctx context.Context, kmsConfig *datamodel.KmsConfig) (*datamodel.KmsConfig, error) {
-	var var0 *datamodel.KmsConfig
-	err := retry.Do(func(attempt int) (bool, error) {
-		var err error
-		var0, err = re.dataStore.UpdateKmsConfig(ctx, kmsConfig)
-		if err != nil {
-			re.logError("UpdateKmsConfig", err)
-			if !isTransientErr(err) {
-				return false, err
-			}
-		}
-		return true, err
-	})
-	if isTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
-	return var0, err
-}
-
 func (re *retryEngine) GetSvmsByKmsConfigID(ctx context.Context, kmsConfigID int64) ([]*datamodel.Svm, error) {
 	var var0 []*datamodel.Svm
 	err := retry.Do(func(attempt int) (bool, error) {
