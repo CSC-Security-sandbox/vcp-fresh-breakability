@@ -264,6 +264,16 @@ func _validateUpdatePoolParams(params *commonparams.UpdatePoolParams, pool *data
 		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size must be a multiple of %s", utils.FmtUint64Bytes(minSizeGranularity)))
 	}
 
+	if params.AllowAutoTiering {
+		if !pool.AllowAutoTiering && params.HotTierSizeInBytes < uint64(pool.SizeInBytes) {
+			return customerrors.NewUserInputValidationErr("Given hot tier size is not supported. Hot tier size cannot be less than existing pool size")
+		} else if pool.AllowAutoTiering && params.HotTierSizeInBytes < uint64(pool.HotTierSizeInBytes) {
+			return customerrors.NewUserInputValidationErr("Given hot tier size is not supported. Hot tier size must be greater than existing hot tier size")
+		}
+	} else if pool.AllowAutoTiering {
+		return customerrors.NewUserInputValidationErr("Auto tiering disable operation is not supported")
+	}
+
 	if !params.CustomPerformanceEnabled {
 		return customerrors.NewUserInputValidationErr("CustomPerformanceEnabled must be true for Unified Flex Storage Pool")
 	} else {

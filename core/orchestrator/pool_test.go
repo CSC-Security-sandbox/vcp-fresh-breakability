@@ -868,6 +868,74 @@ func TestValidateUpdatePoolParams(t *testing.T) {
 		err := _validateUpdatePoolParams(params, pool)
 		assert.NoError(tt, err)
 	})
+	t.Run("Fails when AllowAutoTiering is true and HotTierSizeInBytes is less than existing pool size", func(tt *testing.T) {
+		pool := &datamodel.Pool{
+			QosType:          QosTypeAuto,
+			AllowAutoTiering: false,
+			SizeInBytes:      int64(minQuotaInBytesPool * 2),
+		}
+		params := &common.UpdatePoolParams{
+			QosType:            QosTypeAuto,
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: minQuotaInBytesPool,
+			SizeInBytes:        minQuotaInBytesPool * 2,
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, "Given hot tier size is not supported. Hot tier size cannot be less than existing pool size")
+	})
+
+	t.Run("Fails when AllowAutoTiering is true and HotTierSizeInBytes is less than existing hot tier size", func(tt *testing.T) {
+		pool := &datamodel.Pool{
+			QosType:            QosTypeAuto,
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: int64(minQuotaInBytesPool * 2),
+			SizeInBytes:        int64(minQuotaInBytesPool * 3),
+		}
+		params := &common.UpdatePoolParams{
+			QosType:            QosTypeAuto,
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: minQuotaInBytesPool,
+			SizeInBytes:        minQuotaInBytesPool * 3,
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, "Given hot tier size is not supported. Hot tier size must be greater than existing hot tier size")
+	})
+
+	t.Run("Fails when AllowAutoTiering is false but pool has auto tiering enabled", func(tt *testing.T) {
+		pool := &datamodel.Pool{
+			QosType:            QosTypeAuto,
+			AllowAutoTiering:   true,
+			HotTierSizeInBytes: int64(minQuotaInBytesPool),
+			SizeInBytes:        int64(minQuotaInBytesPool * 2),
+		}
+		params := &common.UpdatePoolParams{
+			QosType:            QosTypeAuto,
+			AllowAutoTiering:   false,
+			HotTierSizeInBytes: minQuotaInBytesPool,
+			SizeInBytes:        minQuotaInBytesPool * 2,
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, "Auto tiering disable operation is not supported")
+	})
+
+	t.Run("Succeeds when AllowAutoTiering is true and HotTierSizeInBytes is valid", func(tt *testing.T) {
+		pool := &datamodel.Pool{
+			QosType:          QosTypeAuto,
+			AllowAutoTiering: false,
+			SizeInBytes:      int64(minQuotaInBytesPool),
+		}
+		params := &common.UpdatePoolParams{
+			QosType:                  QosTypeAuto,
+			AllowAutoTiering:         true,
+			HotTierSizeInBytes:       minQuotaInBytesPool,
+			SizeInBytes:              minQuotaInBytesPool,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput + 10),
+			TotalIops:                float64(minCustomIops + 100),
+		}
+		err := _validateUpdatePoolParams(params, pool)
+		assert.NoError(tt, err)
+	})
 }
 
 func TestDeletePool(t *testing.T) {

@@ -178,7 +178,7 @@ type UpdatePoolParams struct {
 	Zone                     string
 	Labels                   map[string]string
 	ActiveDirectoryConfigId  string
-	HotTierSizeInBytes       float64
+	HotTierSizeInBytes       uint64
 	EnableHotTierAutoResize  bool
 	CustomPerformanceEnabled bool
 	TotalThroughputMibps     float64

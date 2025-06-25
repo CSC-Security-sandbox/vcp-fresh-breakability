@@ -378,7 +378,7 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 		TotalIops:                req.TotalIops.Value,
 		AllowAutoTiering:         req.AllowAutoTiering.Value,
 		EnableHotTierAutoResize:  req.EnableHotTierAutoResize.Value,
-		HotTierSizeInBytes:       req.HotTierSizeInBytes.Value,
+		HotTierSizeInBytes:       uint64(req.HotTierSizeInBytes.Value),
 		Labels:                   req.Labels.Value,
 	}
 	updatedPool, operationID, err := h.Orchestrator.UpdatePool(ctx, param)
