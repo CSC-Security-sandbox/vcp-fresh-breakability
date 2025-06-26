@@ -1,19 +1,11 @@
 package workflow_engine
 
 import (
-	"context"
 	"crypto/tls"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -22,7 +14,6 @@ import (
 	"go.temporal.io/sdk/contrib/opentelemetry"
 	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/interceptor"
-	"go.temporal.io/sdk/worker"
 	"go.temporal.io/sdk/workflow"
 )
 
@@ -67,19 +58,6 @@ func (t *TemporalWorkflowEngine) InitializeClient(cfg workflow_engine.ClientConf
 	return err
 }
 
-func (t *TemporalWorkflowEngine) RunWorker(ctx context.Context, client client.Client, dbcon database.Storage) error {
-	w := worker.New(client, CustomerTaskQueue, worker.Options{
-		MaxConcurrentWorkflowTaskPollers: 10,
-		MaxConcurrentActivityTaskPollers: 10,
-	})
-
-	// Register the workflows and activities with the worker. Any new workflows and activities need to be registered below.
-	registerWorkflowsAndActivities(w, dbcon)
-
-	err := w.Run(worker.InterruptCh())
-	return err
-}
-
 func (t *TemporalWorkflowEngine) CloseClient(client client.Client) {
 	client.Close()
 }
@@ -87,37 +65,6 @@ func (t *TemporalWorkflowEngine) CloseClient(client client.Client) {
 // GetTemporalClient returns the temporal client instance.
 func (t *TemporalWorkflowEngine) GetTemporalClient() client.Client {
 	return t.temporalClient
-}
-
-func registerWorkflowsAndActivities(worker worker.Worker, dbcon database.Storage) {
-	worker.RegisterWorkflow(workflows.CreatePoolWorkflow)
-	worker.RegisterWorkflow(workflows.DeletePoolWorkflow)
-	worker.RegisterWorkflow(workflows.CreateVolumeWorkflow)
-	worker.RegisterWorkflow(workflows.DeleteVolumeWorkflow)
-	worker.RegisterWorkflow(workflows.CreateSnapshotWorkflow)
-	worker.RegisterWorkflow(workflows.DeleteSnapshotWorkflow)
-	worker.RegisterWorkflow(workflows.AcceptClusterPeerWorkflow)
-	worker.RegisterWorkflow(kms_workflows.UpdateKmsConfigWorkflow)
-	worker.RegisterWorkflow(kms_workflows.CreateKmsConfigWorkflow)
-	worker.RegisterWorkflow(replicationWorkflows.CreateInternalVolumeReplicationWorkflow)
-	worker.RegisterWorkflow(replicationWorkflows.CreateVolumeReplicationWorkflow)
-	worker.RegisterWorkflow(replicationWorkflows.GetMultipleReplicationsInternalWorkflow)
-	worker.RegisterWorkflow(workflows.CreateBackupWorkflow)
-	worker.RegisterWorkflow(replicationWorkflows.PerformMountCheckWorkflow)
-
-	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
-	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
-	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: dbcon})
-	worker.RegisterActivity(&activities.VolumeDeleteActivity{SE: dbcon})
-	worker.RegisterActivity(&activities.SnapshotCreateActivity{SE: dbcon})
-	worker.RegisterActivity(&activities.SnapshotDeleteActivity{SE: dbcon})
-	worker.RegisterActivity(&activities.ClusterPeerActivity{SE: dbcon})
-	worker.RegisterActivity(&kms_activities.KmsConfigActivity{SE: dbcon})
-	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationActivity{SE: dbcon})
-	worker.RegisterActivity(&replicationActivities.VolumeReplicationCreateActivity{SE: dbcon})
-	worker.RegisterActivity(&activities.BackupActivity{SE: dbcon})
-	worker.RegisterActivity(&replicationActivities.ReplicationInternalGetMultipleActivity{SE: dbcon})
-	worker.RegisterActivity(&replicationActivities.MountJobActivity{SE: dbcon})
 }
 
 // CreateClientOptionsFromEnv creates a client.Options instance, configures

@@ -9,12 +9,14 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/workflow"
 	"golang.org/x/net/context"
 )
 
@@ -414,6 +416,7 @@ func TestCreateVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "us-west1-a",
 			},
@@ -475,7 +478,14 @@ func TestCreateVolume(t *testing.T) {
 			validateCreateVolumeParams = _validateCreateVolumeParams
 		}()
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
 		volume, _, err := createVolume(ctx, store, temporal, params)
 		assert.NotNil(tt, volume, "Expected nil volume")
 		assert.NoError(tt, err, "error not found")
@@ -520,6 +530,7 @@ func TestCreateVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
 		}
 
 		err = store.DB().Create(pool).Error
@@ -571,11 +582,103 @@ func TestCreateVolume(t *testing.T) {
 			validateCreateVolumeParams = _validateCreateVolumeParams
 		}()
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error")).Once()
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return errors.New("workflow error")
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 
 		volume, _, err := createVolume(ctx, store, temporal, params)
 		assert.Nil(tt, volume, "Expected nil volume")
 		assert.EqualError(tt, err, "workflow error")
+	})
+	t.Run("WhenCreateVolumeFailsWithInvalidVendorID", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/", // Intentionally invalid VendorID
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			VendorID:      "test_vendor",
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+			return nil
+		}
+
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.Nil(tt, volume, "Expected nil volume")
+		assert.Contains(tt, err.Error(), "invalid vendor ID")
 	})
 }
 
@@ -610,6 +713,7 @@ func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
 		AccountID: account.ID,
 		State:     models.LifeCycleStateREADY,
 		Network:   "somevpc",
+		VendorID:  "/projects/project123/locations/location123/pools/pool123",
 		PoolAttributes: &datamodel.PoolAttributes{
 			PrimaryZone: "us-west1-a",
 		},
@@ -721,7 +825,14 @@ func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
 	}()
 
 	temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-	temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+	origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+	workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+		return nil
+	}
+	defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
 	volume, _, err := createVolume(ctx, store, temporal, params)
 	assert.NoError(tt, err)
 	assert.NotNil(tt, volume)
@@ -813,6 +924,7 @@ func TestDeleteVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone: "us-west1-a",
 			},
@@ -834,7 +946,13 @@ func TestDeleteVolume(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create volume")
 
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		temporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.AnythingOfType("func(internal.Context, *datamodel.Volume) (gcpserver.V1betaDescribeVolumeRes, error)"), mock.Anything).Return(nil, nil)
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 
 		volumeResp, _, err := deleteVolume(ctx, store, temporal, "test-volume-uuid")
 		assert.NoError(tt, err, "Failed to get volume")
@@ -893,7 +1011,7 @@ func TestDeleteVolume(t *testing.T) {
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 
 		volumeResp, _, err := deleteVolume(ctx, store, temporal, "test-volume-uuid")
-		assert.EqualError(tt, err, "volume is already in deleting state")
+		assert.Contains(tt, err.Error(), "volume is in transition state and cannot be deleted, state: DELETING")
 		assert.Nil(tt, volumeResp, "Expected nil volume")
 	})
 	t.Run("WhenVolumeAlreadyDeletingVolumeAndAsyncFlowFails", func(tt *testing.T) {
@@ -924,6 +1042,7 @@ func TestDeleteVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:      "test_pool",
 			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
 		}
 
 		err = store.DB().Create(pool).Error
@@ -944,7 +1063,13 @@ func TestDeleteVolume(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create volume")
 
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		temporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.AnythingOfType("func(internal.Context, *datamodel.Volume) (gcpserver.V1betaDescribeVolumeRes, error)"), mock.Anything).Return(nil, errors.New("some error"))
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return errors.New("some error")
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 
 		volumeResp, _, err := deleteVolume(ctx, store, temporal, "test-volume-uuid")
 		assert.EqualError(tt, err, "some error")
@@ -2631,6 +2756,19 @@ func TestUpdateVolume(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, volume)
 		assert.Equal(tt, "vol", volume.DisplayName)
+	})
+
+	t.Run("WhenUpdateVolumeFailsIfVolumeInTransitioningState", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200}
+		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol", State: models.LifeCycleStateUpdating}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.Contains(tt, err.Error(), "volume is not in a valid state for update")
+		assert.Nil(tt, volume)
 	})
 }
 

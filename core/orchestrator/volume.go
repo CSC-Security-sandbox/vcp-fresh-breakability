@@ -3,10 +3,11 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -19,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/workflow"
 )
 
 var (
@@ -121,17 +123,31 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	_, err = temporal.ExecuteWorkflow(ctx,
+	location, err := getLocationFromVendorID(dbVolume.Pool.VendorID)
+	if err != nil {
+		logger.Error("Failed to get location from vendor ID: ", "error", err)
+		return nil, "", err
+	}
+
+	// controlWorkflowID defines the workflow ID for the control workflow
+	// which runs all volume CREATE & DELETE operation calls for a specific pool sequentially.
+	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSeq, dbVolume.Account.ID, location, dbVolume.Pool.Name)
+	err = workflows.ExecuteWorkflowSequentially(
+		temporal,
+		ctx,
 		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			TaskQueue: workflowengine.CustomerTaskQueue,
+			ID:        controlWorkflowID,
 		},
 		workflows.CreateVolumeWorkflow,
+		workflow.ChildWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			WorkflowID:            createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
 		params,
 		dbVolume,
 	)
-
 	if err != nil {
 		logger.Error("Failed to start create volume workflow: ", "error", err)
 		return nil, "", err
@@ -344,8 +360,9 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	if volume != nil && volume.State == models.LifeCycleStateDeleting {
-		return nil, "", errors.New("volume is already in deleting state")
+	if utils.IsTransitionalState(volume.State) {
+		logger.Errorf("Volume %s cannot be deleted, while in transitioning state: %s", volume.Name, volume.State)
+		return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("volume is in transition state and cannot be deleted, state: "+volume.State))
 	}
 
 	job := &datamodel.Job{
@@ -362,13 +379,28 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	_, err = temporal.ExecuteWorkflow(ctx,
+	location, err := getLocationFromVendorID(volume.Pool.VendorID)
+	if err != nil {
+		logger.Error("Failed to get location from vendor ID: ", "error", err)
+		return nil, "", err
+	}
+
+	// controlWorkflowID defines the workflow ID for the control workflow
+	// which runs all volume CREATE & DELETE operation calls for a specific pool sequentially.
+	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSeq, volume.Account.ID, location, volume.Pool.Name)
+	err = workflows.ExecuteWorkflowSequentially(
+		temporal,
+		ctx,
 		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			TaskQueue: workflowengine.CustomerTaskQueue,
+			ID:        controlWorkflowID,
 		},
 		workflows.DeleteVolumeWorkflow,
+		workflow.ChildWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			WorkflowID:            createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
 		volume,
 	)
 	if err != nil {
@@ -418,14 +450,6 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	dbVolume, err := se.GetVolume(ctx, params.VolumeId)
 	if err != nil {
 		return nil, "", err
-	}
-
-	if dbVolume.State == models.LifeCycleStateUpdating {
-		job, err := se.GetJobByResourceUUID(ctx, dbVolume.UUID)
-		if err != nil {
-			return nil, "", err
-		}
-		return convertDatastoreVolumeToModel(dbVolume, nil), job.UUID, nil
 	}
 
 	if params.DataProtection != nil {
@@ -550,4 +574,15 @@ func convertToModelSnapshotPolicySchedule(schedules []*datamodel.SnapshotPolicyS
 		})
 	}
 	return dbSnapshotPolicySchedules
+}
+
+func getLocationFromVendorID(vendorID string) (string, error) {
+	// vendorID is in the format: "/projects/project123/locations/location123/pools/pool123"
+	parts := strings.Split(vendorID, "/")
+
+	if len(parts) != 7 {
+		return "", customerrors.NewUserInputValidationErr("invalid vendor ID, expected format: /projects/{project}/locations/{location}/pools/{pool}, found: " + vendorID)
+	}
+
+	return parts[len(parts)-3], nil
 }
