@@ -1327,6 +1327,85 @@ func TestListPools(t *testing.T) {
 	})
 }
 
+func TestListAllPools(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	// Create two pools, one deleted and one not deleted
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool1 := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid1"},
+		Name:           "test_pool_1",
+		AccountID:      account.ID,
+		PoolAttributes: &datamodel.PoolAttributes{},
+	}
+	pool2 := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid2", DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true}},
+		Name:           "test_pool_2",
+		AccountID:      account.ID,
+		PoolAttributes: &datamodel.PoolAttributes{},
+	}
+	err = store.DB().Create(pool1).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool1: %v", err)
+	}
+	err = store.DB().Create(pool2).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool2: %v", err)
+	}
+
+	orch := Orchestrator{storage: store}
+
+	pools, err := orch.ListAllPools(ctx)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if len(pools) != 1 {
+		t.Errorf("Expected 1 pool (non-deleted), got %d", len(pools))
+	}
+	if pools[0].Name != pool1.Name {
+		t.Errorf("Returned pool does not match expected pool")
+	}
+}
+
+func TestListAllPools_ErrorFromStorage(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+	mockStorage := new(database.MockStorage)
+
+	// Simulate error from ListPools
+	mockStorage.On("ListPools", ctx, [][]interface{}{{"deleted_at IS NULL"}}).Return(nil, errors.New("db error"))
+
+	orch := Orchestrator{storage: mockStorage}
+
+	pools, err := orch.ListAllPools(ctx)
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+	}
+	if pools != nil {
+		t.Errorf("Expected nil pools, got %v", pools)
+	}
+}
+
 func TestGetPoolByName(t *testing.T) {
 	queryDepthOne := 1
 	queryDepthZero := 0
@@ -1498,4 +1577,73 @@ func TestGetPoolByName(t *testing.T) {
 		_, err := GetPoolByName(ctx, mockStorage, "test-pool", "test-account", queryDepthZero)
 		assert.NoError(tt, err)
 	})
+}
+
+func TestConvertDatastorePoolsToModelWithoutAccountNameParam_ReturnsCorrectModels(t *testing.T) {
+	poolView1 := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:        1,
+				UUID:      "mock-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: nil,
+			},
+			Name:                    "mock-pool",
+			Description:             "Mock pool description",
+			State:                   "ACTIVE",
+			StateDetails:            "Mock state details",
+			VendorID:                "mock-vendor-id",
+			ServiceLevel:            "mock-service-level",
+			SizeInBytes:             1024 * 1024 * 1024, // 1 GiB
+			UsedBytes:               512 * 1024 * 1024,  // 512 MiB
+			Network:                 "mock-network",
+			AllowAutoTiering:        true,
+			HotTierSizeInBytes:      256 * 1024 * 1024, // 256 MiB
+			EnableHotTierAutoResize: false,
+			AccountID:               1,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "mock-account-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				Name:         "mock-account",
+				Description:  "Mock account description",
+				State:        "ACTIVE",
+				StateDetails: "Mock account state details",
+				Tags:         "mock-tags",
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 100,
+				Iops:            1000,
+				PrimaryZone:     "mock-primary-zone",
+				SecondaryZone:   "mock-secondary-zone",
+			},
+			ClusterDetails: datamodel.ClusterDetails{
+				ExternalName:          "mock-external-name",
+				OntapVersion:          "mock-ontap-version",
+				RegionalTenantProject: "mock-regional-tenant-project",
+				SnHostProject:         "mock-sn-host-project",
+				Network:               "mock-cluster-network",
+			},
+			QosType:            "mock-qos-type",
+			Username:           "mock-username",
+			Password:           "mock-password",
+			AutoTierBucketName: "mock-bucket-name",
+			ServiceAccountId:   "mock-service-account-id",
+			SecretID:           "mock-secret-id",
+		},
+		Throughput:   100.5,
+		QuotaInBytes: 2048 * 1024 * 1024, // 2 GiB
+		VolumeCount:  5,
+	}
+	pools := []*datamodel.PoolView{poolView1}
+
+	result := convertDatastorePoolsToModelWithoutAccountNameParam(pools)
+
+	assert.Len(t, result, 1)
+	assert.Equal(t, "mock-pool", result[0].Name)
+	assert.Equal(t, "mock-account", result[0].AccountName)
 }

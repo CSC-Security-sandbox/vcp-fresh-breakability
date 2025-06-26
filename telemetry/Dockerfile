@@ -11,6 +11,15 @@ COPY go.mod go.mod
 COPY go.sum go.sum
 COPY telemetry telemetry/
 COPY utils utils/
+COPY core core/
+COPY common common/
+COPY workflow_engine/util workflow_engine/util
+COPY workflow_engine/temporal workflow_engine/temporal
+COPY worker/db worker/db
+COPY clients clients/
+COPY database database/
+COPY google-proxy/api/gcp-servergen google-proxy/api/gcp-servergen
+COPY workflow_engine workflow_engine/
 
 RUN go mod download
 

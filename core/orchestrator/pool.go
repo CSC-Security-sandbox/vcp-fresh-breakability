@@ -372,6 +372,18 @@ func (o *Orchestrator) ListPools(ctx context.Context, accountName string) ([]*mo
 	return convertDatastorePoolsToModel(pools, account.Name), nil
 }
 
+// ListAllPools returns list of non-deleted pools
+func (o *Orchestrator) ListAllPools(ctx context.Context) ([]*models.Pool, error) {
+	se := o.storage
+
+	pools, err := se.ListPools(ctx, [][]interface{}{{"deleted_at IS NULL"}})
+	if err != nil {
+		return nil, err
+	}
+
+	return convertDatastorePoolsToModelWithoutAccountNameParam(pools), nil
+}
+
 // GetMultiplePools returns multiple pools with uuids belonging to the specified owner
 func (o *Orchestrator) GetMultiplePools(ctx context.Context, accountName string, poolUUIDs []string) ([]*models.Pool, error) {
 	se := o.storage
@@ -501,6 +513,16 @@ type CustomPerformanceParams struct {
 func convertDatastorePoolsToModel(pools []*datamodel.PoolView, accountName string) []*models.Pool {
 	var poolsList []*models.Pool
 	for _, pool := range pools {
+		p := convertDatastorePoolToModel(pool, accountName)
+		poolsList = append(poolsList, p)
+	}
+	return poolsList
+}
+
+func convertDatastorePoolsToModelWithoutAccountNameParam(pools []*datamodel.PoolView) []*models.Pool {
+	var poolsList []*models.Pool
+	for _, pool := range pools {
+		accountName := pool.Account.Name
 		p := convertDatastorePoolToModel(pool, accountName)
 		poolsList = append(poolsList, p)
 	}

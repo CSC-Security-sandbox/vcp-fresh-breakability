@@ -20,6 +20,7 @@ type OrchestratorFactory interface {
 	GetPoolByVendorID(ctx context.Context, vendorID string) (*models.Pool, error)
 	GetPoolByName(ctx context.Context, poolName string, accountName string, queryDepth int) (*models.Pool, error)
 	ListPools(ctx context.Context, accountName string) ([]*models.Pool, error)
+	ListAllPools(ctx context.Context) ([]*models.Pool, error)
 
 	CreateHostGroup(ctx context.Context, params *CreateHostGroupParams) (*models.HostGroup, error)
 	GetHostGroup(ctx context.Context, hostGroupUUID string, accountID string) (*models.HostGroup, error)
