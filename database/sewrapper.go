@@ -1856,6 +1856,85 @@ func (re *retryEngine) GetBackupsByBackupVault(ctx context.Context, backupVaultU
 	return var0, err
 }
 
+func (re *retryEngine) CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
+	var var0 *datamodel.AdminJobSpec
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateAdminJobSpec(ctx, jobSpec)
+		if err != nil {
+			re.logError("CreateAdminJobSpec", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error) {
+	var var0 *datamodel.AdminJobSpec
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetAdminJobSpecByJobType(ctx, jobType)
+		if err != nil {
+			re.logError("GetAdminJobSpecByJobType", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) UpdateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateAdminJobSpec(ctx, jobSpec)
+		if err != nil {
+			re.logError("UpdateAdminJobSpec", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
+func (re *retryEngine) GetAdminJobSpecsByState(ctx context.Context, state string) ([]*datamodel.AdminJobSpec, error) {
+	var var0 []*datamodel.AdminJobSpec
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetAdminJobSpecsByState(ctx, state)
+		if err != nil {
+			re.logError("GetAdminJobSpecsByState", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) ErroredResource(ctx context.Context, resource interface{}, errorMessage string) (interface{}, error) {
 	var var0 interface{}
 	err := retry.Do(func(attempt int) (bool, error) {

@@ -159,5 +159,10 @@ type DataStore interface {
 	IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error)
 	GetBackupsByBackupVault(ctx context.Context, backupVaultUUID string) ([]*datamodel.Backup, error)
 
+	CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)
+	GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error)
+	UpdateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) error
+	GetAdminJobSpecsByState(ctx context.Context, state string) ([]*datamodel.AdminJobSpec, error)
+
 	ErroredResource(ctx context.Context, resource interface{}, errorMessage string) (interface{}, error)
 }

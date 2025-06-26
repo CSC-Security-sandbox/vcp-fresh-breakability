@@ -21,6 +21,13 @@ var (
 	GetProviderByNode = _getProviderByNode
 )
 
+func (ca CommonActivities) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
+	logger := util.GetLogger(ctx)
+	se := ca.SE
+	logger.Infof("creating job: %s with status: %s", job.UUID, job.State)
+	return se.CreateJob(ctx, job)
+}
+
 // UpdateJobStatus updates the status of a job in the database.
 func (ca CommonActivities) UpdateJobStatus(ctx context.Context, job *datamodel.Job) error {
 	logger := util.GetLogger(ctx)

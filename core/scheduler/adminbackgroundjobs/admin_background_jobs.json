@@ -1,0 +1,22 @@
+{
+  "SYNC_VSA_CLUSTER_STATUS": {
+    "jobType": "SYNC_VSA_CLUSTER_STATUS",
+    "cronExpression": "0 */5 * * * *",
+    "state": "SCHEDULED"
+  },
+  "SYNC_VSA_VOLUME_STATUS": {
+    "jobType": "SYNC_VSA_VOLUME_STATUS",
+    "cronExpression": "0 */5 * * * *",
+    "state": "SCHEDULED"
+  },
+  "SYNC_VSA_SNAPSHOT_STATUS": {
+    "jobType": "SYNC_VSA_SNAPSHOT_STATUS",
+    "cronExpression": "0 */5 * * * *",
+    "state": "SCHEDULED"
+  },
+  "SYNC_VSA_BACKUP_STATUS": {
+    "jobType": "SYNC_VSA_BACKUP_STATUS",
+    "cronExpression": "0 */5 * * * *",
+    "state": "SCHEDULED"
+  }
+}

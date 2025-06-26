@@ -98,6 +98,7 @@ func SetupInMemoryDB() (*gorm.DB, error) {
 		&datamodel.ServiceAccount{},
 		&datamodel.KmsConfig{},
 		&datamodel.BackupVault{},
+		&datamodel.AdminJobSpec{},
 		&datamodel.Backup{},
 	)
 	if err != nil {
@@ -122,6 +123,7 @@ func ClearInMemoryDB(db *gorm.DB) error {
 		&datamodel.KmsConfig{},
 		&datamodel.ServiceAccount{},
 		&datamodel.BackupVault{},
+		&datamodel.AdminJobSpec{},
 		&datamodel.Backup{},
 	}
 
@@ -180,6 +182,7 @@ func (s *PersistenceStore) createConnection(isAdmin bool) (*gorm.DB, error) {
 		},
 		PrepareStmt:            true,
 		SkipDefaultTransaction: true,
+		TranslateError:         true,
 	}
 
 	var dialector gorm.Dialector
@@ -741,6 +744,22 @@ func (s *PersistenceStore) CreateBackupVaultEntryInVCP(ctx context.Context, back
 
 func (s *PersistenceStore) UpdateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault) error {
 	return s.dataStore.UpdateBackupVault(ctx, backupVault)
+}
+
+func (s *PersistenceStore) CreateAdminJobSpec(ctx context.Context, spec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
+	return s.dataStore.CreateAdminJobSpec(ctx, spec)
+}
+
+func (s *PersistenceStore) GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error) {
+	return s.dataStore.GetAdminJobSpecByJobType(ctx, jobType)
+}
+
+func (s *PersistenceStore) UpdateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) error {
+	return s.dataStore.UpdateAdminJobSpec(ctx, jobSpec)
+}
+
+func (s *PersistenceStore) GetAdminJobSpecsByState(ctx context.Context, state string) ([]*datamodel.AdminJobSpec, error) {
+	return s.dataStore.GetAdminJobSpecsByState(ctx, state)
 }
 
 func (s *PersistenceStore) ErroredResource(ctx context.Context, resource interface{}, errMessage string) (interface{}, error) {

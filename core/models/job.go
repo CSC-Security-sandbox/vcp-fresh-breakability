@@ -40,6 +40,7 @@ const (
 	JobTypeRefreshVolumeReplicationInternal JobType = "REFRESH_VOLUME_REPLICATION_INTERNAL"
 	JobTypeCreateBackup                     JobType = "CREATE_BACKUP"
 	JobTypeMountCheck                       JobType = "MOUNT_VOLUME_REPLICATION_INTERNAL"
+	JobTypeRefreshAdminJobSpecs             JobType = "REFRESH_ADMIN_JOB_SPECS"
 )
 
 // Job describes a job DB model

@@ -83,6 +83,65 @@ func (_c *MockDataStore_CreateAccount_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
+// CreateAdminJobSpec provides a mock function with given fields: ctx, jobSpec
+func (_m *MockDataStore) CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
+	ret := _m.Called(ctx, jobSpec)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateAdminJobSpec")
+	}
+
+	var r0 *datamodel.AdminJobSpec
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)); ok {
+		return rf(ctx, jobSpec)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AdminJobSpec) *datamodel.AdminJobSpec); ok {
+		r0 = rf(ctx, jobSpec)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AdminJobSpec)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.AdminJobSpec) error); ok {
+		r1 = rf(ctx, jobSpec)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_CreateAdminJobSpec_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateAdminJobSpec'
+type MockDataStore_CreateAdminJobSpec_Call struct {
+	*mock.Call
+}
+
+// CreateAdminJobSpec is a helper method to define mock.On call
+//   - ctx context.Context
+//   - jobSpec *datamodel.AdminJobSpec
+func (_e *MockDataStore_Expecter) CreateAdminJobSpec(ctx interface{}, jobSpec interface{}) *MockDataStore_CreateAdminJobSpec_Call {
+	return &MockDataStore_CreateAdminJobSpec_Call{Call: _e.mock.On("CreateAdminJobSpec", ctx, jobSpec)}
+}
+
+func (_c *MockDataStore_CreateAdminJobSpec_Call) Run(run func(ctx context.Context, jobSpec *datamodel.AdminJobSpec)) *MockDataStore_CreateAdminJobSpec_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.AdminJobSpec))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_CreateAdminJobSpec_Call) Return(_a0 *datamodel.AdminJobSpec, _a1 error) *MockDataStore_CreateAdminJobSpec_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_CreateAdminJobSpec_Call) RunAndReturn(run func(context.Context, *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)) *MockDataStore_CreateAdminJobSpec_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateBackup provides a mock function with given fields: ctx, backup
 func (_m *MockDataStore) CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
 	ret := _m.Called(ctx, backup)
@@ -1815,6 +1874,124 @@ func (_c *MockDataStore_GetAccount_Call) Return(_a0 *datamodel.Account, _a1 erro
 }
 
 func (_c *MockDataStore_GetAccount_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Account, error)) *MockDataStore_GetAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAdminJobSpecByJobType provides a mock function with given fields: ctx, jobType
+func (_m *MockDataStore) GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error) {
+	ret := _m.Called(ctx, jobType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAdminJobSpecByJobType")
+	}
+
+	var r0 *datamodel.AdminJobSpec
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.AdminJobSpec, error)); ok {
+		return rf(ctx, jobType)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AdminJobSpec); ok {
+		r0 = rf(ctx, jobType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AdminJobSpec)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, jobType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetAdminJobSpecByJobType_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAdminJobSpecByJobType'
+type MockDataStore_GetAdminJobSpecByJobType_Call struct {
+	*mock.Call
+}
+
+// GetAdminJobSpecByJobType is a helper method to define mock.On call
+//   - ctx context.Context
+//   - jobType string
+func (_e *MockDataStore_Expecter) GetAdminJobSpecByJobType(ctx interface{}, jobType interface{}) *MockDataStore_GetAdminJobSpecByJobType_Call {
+	return &MockDataStore_GetAdminJobSpecByJobType_Call{Call: _e.mock.On("GetAdminJobSpecByJobType", ctx, jobType)}
+}
+
+func (_c *MockDataStore_GetAdminJobSpecByJobType_Call) Run(run func(ctx context.Context, jobType string)) *MockDataStore_GetAdminJobSpecByJobType_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetAdminJobSpecByJobType_Call) Return(_a0 *datamodel.AdminJobSpec, _a1 error) *MockDataStore_GetAdminJobSpecByJobType_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetAdminJobSpecByJobType_Call) RunAndReturn(run func(context.Context, string) (*datamodel.AdminJobSpec, error)) *MockDataStore_GetAdminJobSpecByJobType_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAdminJobSpecsByState provides a mock function with given fields: ctx, state
+func (_m *MockDataStore) GetAdminJobSpecsByState(ctx context.Context, state string) ([]*datamodel.AdminJobSpec, error) {
+	ret := _m.Called(ctx, state)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAdminJobSpecsByState")
+	}
+
+	var r0 []*datamodel.AdminJobSpec
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*datamodel.AdminJobSpec, error)); ok {
+		return rf(ctx, state)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*datamodel.AdminJobSpec); ok {
+		r0 = rf(ctx, state)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.AdminJobSpec)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, state)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetAdminJobSpecsByState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAdminJobSpecsByState'
+type MockDataStore_GetAdminJobSpecsByState_Call struct {
+	*mock.Call
+}
+
+// GetAdminJobSpecsByState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - state string
+func (_e *MockDataStore_Expecter) GetAdminJobSpecsByState(ctx interface{}, state interface{}) *MockDataStore_GetAdminJobSpecsByState_Call {
+	return &MockDataStore_GetAdminJobSpecsByState_Call{Call: _e.mock.On("GetAdminJobSpecsByState", ctx, state)}
+}
+
+func (_c *MockDataStore_GetAdminJobSpecsByState_Call) Run(run func(ctx context.Context, state string)) *MockDataStore_GetAdminJobSpecsByState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetAdminJobSpecsByState_Call) Return(_a0 []*datamodel.AdminJobSpec, _a1 error) *MockDataStore_GetAdminJobSpecsByState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetAdminJobSpecsByState_Call) RunAndReturn(run func(context.Context, string) ([]*datamodel.AdminJobSpec, error)) *MockDataStore_GetAdminJobSpecsByState_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4283,6 +4460,53 @@ func (_c *MockDataStore_SavePoolWithVsaClusterDetails_Call) Return(_a0 error) *M
 }
 
 func (_c *MockDataStore_SavePoolWithVsaClusterDetails_Call) RunAndReturn(run func(context.Context, *datamodel.Pool, *datamodel.ClusterDetails) error) *MockDataStore_SavePoolWithVsaClusterDetails_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateAdminJobSpec provides a mock function with given fields: ctx, jobSpec
+func (_m *MockDataStore) UpdateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) error {
+	ret := _m.Called(ctx, jobSpec)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAdminJobSpec")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AdminJobSpec) error); ok {
+		r0 = rf(ctx, jobSpec)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateAdminJobSpec_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAdminJobSpec'
+type MockDataStore_UpdateAdminJobSpec_Call struct {
+	*mock.Call
+}
+
+// UpdateAdminJobSpec is a helper method to define mock.On call
+//   - ctx context.Context
+//   - jobSpec *datamodel.AdminJobSpec
+func (_e *MockDataStore_Expecter) UpdateAdminJobSpec(ctx interface{}, jobSpec interface{}) *MockDataStore_UpdateAdminJobSpec_Call {
+	return &MockDataStore_UpdateAdminJobSpec_Call{Call: _e.mock.On("UpdateAdminJobSpec", ctx, jobSpec)}
+}
+
+func (_c *MockDataStore_UpdateAdminJobSpec_Call) Run(run func(ctx context.Context, jobSpec *datamodel.AdminJobSpec)) *MockDataStore_UpdateAdminJobSpec_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.AdminJobSpec))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateAdminJobSpec_Call) Return(_a0 error) *MockDataStore_UpdateAdminJobSpec_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateAdminJobSpec_Call) RunAndReturn(run func(context.Context, *datamodel.AdminJobSpec) error) *MockDataStore_UpdateAdminJobSpec_Call {
 	_c.Call.Return(run)
 	return _c
 }

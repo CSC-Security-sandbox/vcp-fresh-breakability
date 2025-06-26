@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler/adminbackgroundjobs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/postgres"
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/endpoints"
@@ -25,6 +26,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflow_engine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+	"go.temporal.io/sdk/client"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -68,6 +70,12 @@ func main() {
 	}
 	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
 
+	err = refreshAdminJobSpecs(ctx, dbCon, workflowClient.GetTemporalClient(), logger)
+	if err != nil {
+		logger.Error("Failed to refresh admin job specs", "error", err.Error())
+		os.Exit(1)
+	}
+
 	// Create GCP proxy server and inject required dependencies
 	orch := orchestrator.GetNewOrchestrator(dbCon, workflowClient.GetTemporalClient())
 	newHandler := api.Handler{Orchestrator: orch} // inject the orchestrator into the handler
@@ -76,6 +84,7 @@ func main() {
 		logger.Error("Failed to create server", "error", err.Error())
 		os.Exit(1)
 	}
+
 	errorFilePath := "/errors.json"
 	// Check if the file exists
 	if _, err := os.Stat(errorFilePath); err == nil {
@@ -176,6 +185,30 @@ func initializeTemporalClient(logger log.Logger) (workflow_engine.TemporalWorkfl
 		return workflowClient, err
 	}
 	return workflowClient, nil
+}
+
+func refreshAdminJobSpecs(ctx context.Context, db database.Storage, temporal client.Client, logger log.Logger) error {
+	err := adminbackgroundjobs.LoadJobSpecs()
+	if err != nil {
+		logger.Errorf("Failed to load admin job specs: %v", err)
+		return err
+	}
+
+	shouldRefreshAdminJobSpecs, err := adminbackgroundjobs.IsJobSpecRefreshNeeded(ctx, db, logger)
+	if err != nil {
+		logger.Errorf("Failed to check if job specs refresh is needed: %v", err)
+		return err
+	}
+
+	if shouldRefreshAdminJobSpecs {
+		err = adminbackgroundjobs.LaunchJobManagerWorkflow(ctx, temporal, logger)
+		if err != nil {
+			return err
+		}
+		logger.Info("Admin job specs have been refreshed successfully")
+	}
+
+	return nil
 }
 
 func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {

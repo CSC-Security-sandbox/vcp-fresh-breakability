@@ -117,3 +117,21 @@ func TestGetNode(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func TestCreateJob_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := CommonActivities{SE: mockStorage}
+	ctx := context.Background()
+	job := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     "PROCESSING",
+	}
+
+	mockStorage.On("CreateJob", ctx, job).Return(job, nil)
+
+	result, err := activity.CreateJob(ctx, job)
+
+	assert.NoError(t, err)
+	assert.Equal(t, job, result)
+	mockStorage.AssertExpectations(t)
+}

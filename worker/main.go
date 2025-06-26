@@ -7,17 +7,21 @@ import (
 	"github.com/google/uuid"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/jobmanageractivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/db"
 	tManagerPkg "github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/temporalmanager"
 	workflowEngine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+	"go.temporal.io/sdk/client"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -81,6 +85,22 @@ func main() {
 		}
 		return nil
 	})
+
+	// Create Background job worker
+	backgrondjobsworker := tManagerPkg.NewWorker(temporalManager.GetClient(), workflowEngine.BackgroundTaskQueue)
+
+	logger.Info("registering background workflows and activities")
+	RegisterBackgroundWorkflowsAndActivities(*backgrondjobsworker, workflowClient.GetTemporalClient(), dbConn)
+
+	// Start the worker
+	eg.Go(func() error {
+		if err := backgrondjobsworker.Run(); err != nil {
+			logger.Error("Failed to run worker", "error", err.Error())
+			return err
+		}
+		return nil
+	})
+
 	// Wait for all goroutines to complete
 	if err := eg.Wait(); err != nil {
 		logger.Error("Error while running worker", "error", err.Error())
@@ -88,6 +108,13 @@ func main() {
 	}
 
 	logger.Info("All goroutines completed successfully")
+}
+
+func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage) {
+	worker.RegisterWorkflow(backgroundworkflows.JobManagerWorkflow)
+
+	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
+	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
 }
 
 // initializeTemporalClient initializes and returns a TemporalWorkflowEngine client.

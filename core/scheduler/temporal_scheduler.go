@@ -2,11 +2,13 @@ package scheduler
 
 import (
 	"context"
-	"go.temporal.io/sdk/client"
 
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/client"
 )
+
+var NewTemporalScheduler = _newTemporalScheduler
 
 // TemporalScheduler manages schedules using Temporal as the backend.
 // It implements the Scheduler interface.
@@ -36,11 +38,11 @@ type TemporalUpdateScheduleParams struct {
 // Currently empty, reserved for future use.
 type TemporalDeleteScheduleParams struct{}
 
-// NewTemporalScheduler creates a new TemporalScheduler using the provided ScheduleClient.
+// _newTemporalScheduler creates a new TemporalScheduler using the provided ScheduleClient.
 //
 // schedulerClient: The Temporal ScheduleClient used to manage schedules.
 // Returns a pointer to a TemporalScheduler.
-func NewTemporalScheduler(schedulerClient client.ScheduleClient) *TemporalScheduler {
+func _newTemporalScheduler(schedulerClient client.ScheduleClient) *TemporalScheduler {
 	return &TemporalScheduler{schedulerClient: schedulerClient}
 }
 
@@ -53,8 +55,9 @@ func (temporalScheduler TemporalScheduler) Create(ctx context.Context, params Cr
 	logger := util.GetLogger(ctx)
 	temporalArgs := params.TemporalScheduleOptions
 
+	// handle the maxRetries parameter
 	maxRetries := params.MaxRetries
-	if maxRetries <= 0 {
+	if maxRetries == 0 {
 		maxRetries = DefaultMaxRetries
 	}
 
@@ -98,7 +101,7 @@ func (temporalScheduler TemporalScheduler) Update(ctx context.Context, params Up
 	temporalArgs := params.TemporalScheduleOptions
 
 	maxRetries := params.MaxRetries
-	if maxRetries <= 0 {
+	if maxRetries == 0 {
 		maxRetries = DefaultMaxRetries
 	}
 	var lastErr error
@@ -139,7 +142,7 @@ func (temporalScheduler TemporalScheduler) Delete(ctx context.Context, params De
 	logger := util.GetLogger(ctx)
 
 	maxRetries := params.MaxRetries
-	if maxRetries <= 0 {
+	if maxRetries == 0 {
 		maxRetries = DefaultMaxRetries
 	}
 	var lastErr error

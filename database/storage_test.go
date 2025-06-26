@@ -782,6 +782,67 @@ func TestUpdateVolumeFields(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestCreateAdminJobSpec(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	jobSpec := &datamodel.AdminJobSpec{JobType: "TEST_JOB", CronExpression: "*/10 * * * *", State: "CREATING"}
+	created, err := store.CreateAdminJobSpec(ctx, jobSpec)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+}
+
+func TestGetAdminJobSpecByJobType(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	jobSpec := &datamodel.AdminJobSpec{JobType: "TEST_JOB", CronExpression: "*/10 * * * *", State: "CREATING"}
+	_, _ = store.CreateAdminJobSpec(ctx, jobSpec)
+
+	retrievedJobSpec, err := store.GetAdminJobSpecByJobType(ctx, jobSpec.JobType)
+	assert.NoError(t, err)
+	assert.Equal(t, "*/10 * * * *", retrievedJobSpec.CronExpression)
+}
+
+func TestUpdateAdminJobSpec(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	jobSpec := &datamodel.AdminJobSpec{JobType: "TEST_JOB", CronExpression: "*/10 * * * *", State: "CREATING"}
+	_, err := store.CreateAdminJobSpec(ctx, jobSpec)
+	assert.NoError(t, err)
+
+	jobSpec.State = "SCHEDULED"
+	err = store.UpdateAdminJobSpec(ctx, jobSpec)
+	assert.NoError(t, err)
+
+	retrievedJobSpec, err := store.GetAdminJobSpecByJobType(ctx, jobSpec.JobType)
+	assert.NoError(t, err)
+	assert.Equal(t, "SCHEDULED", retrievedJobSpec.State)
+}
+
+func TestGetAdminJobSpecsByState(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	jobSpec1 := &datamodel.AdminJobSpec{JobType: "TEST_JOB", CronExpression: "*/10 * * * *", State: "CREATING"}
+	_, err := store.CreateAdminJobSpec(ctx, jobSpec1)
+	assert.NoError(t, err)
+	jobSpec2 := &datamodel.AdminJobSpec{JobType: "TEST_JOB", CronExpression: "*/10 * * * *", State: "SCHEDULED"}
+	_, err = store.CreateAdminJobSpec(ctx, jobSpec2)
+	assert.NoError(t, err)
+
+	retrievedJobSpecs, err := store.GetAdminJobSpecsByState(ctx, "CREATING")
+	assert.NoError(t, err)
+	assert.Len(t, retrievedJobSpecs, 1)
+}
+
 // Test case for VerifyVolumeOwnership
 func TestVerifyVolumeOwnership(t *testing.T) {
 	logger := &log.MockLogger{}

@@ -539,3 +539,10 @@ func (b *BackupAttributes) Scan(value interface{}) error {
 func (b *BackupAttributes) Value() (driver.Value, error) {
 	return json.Marshal(b)
 }
+
+type AdminJobSpec struct {
+	BaseModel
+	JobType        string `gorm:"column:job_type;unique"`
+	CronExpression string `gorm:"column:cron_expression"`
+	State          string `gorm:"column:state"`
+}
