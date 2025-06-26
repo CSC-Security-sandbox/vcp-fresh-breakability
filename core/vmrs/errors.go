@@ -27,5 +27,15 @@ type NoSuitableVMError struct {
 }
 
 func (e *NoSuitableVMError) Error() string {
-    return fmt.Sprintf("[vmrs] NoSuitableVMError: %s (customer request: %+v)", e.Message, e.CustomerRequest)
+	return fmt.Sprintf("[vmrs] NoSuitableVMError: %s (customer request: %+v)", e.Message, e.CustomerRequest)
+}
+
+// This error is returned when the configuration is invalid or missing required fields.
+type InvalidConfigError struct {
+	// The error message.
+	Message string
+}
+
+func (e *InvalidConfigError) Error() string {
+	return fmt.Sprintf("[vmrs] InvalidConfigError: %s", e.Message)
 }

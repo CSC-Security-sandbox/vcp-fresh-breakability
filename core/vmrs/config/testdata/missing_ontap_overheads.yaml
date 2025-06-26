@@ -23,3 +23,4 @@ vmrs:
           capacity_in_gib: 13
         relative_cost: 8
   max_num_ha_pairs: 12
+  selection_strategy: "least_cost_single_vm"

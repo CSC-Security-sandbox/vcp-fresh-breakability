@@ -53,11 +53,6 @@ vmrs:
       throughput: 1
       capacity: 1.2
     num_disks_per_zone: 8
-    workload_headroom:
-      - workload: all
-        headroom:
-          iops: 0
-          throughput: 0
     hotspot_prevention_factors:
       iops: 1.1
       throughput: 1.1

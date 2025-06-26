@@ -29,3 +29,4 @@ vmrs:
       iops: 1.1
       throughput: 1.1
   max_num_ha_pairs: 12
+  selection_strategy: "least_cost_single_vm"

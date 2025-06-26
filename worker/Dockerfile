@@ -31,6 +31,7 @@ FROM $BASE
 COPY --from=builder /app /app
 COPY --from=builder /code/core/errors/errors.json /errors.json
 COPY --from=builder /code/common/vsa_config/vlm-config.json /common/vsa_config/vlm-config.json
+COPY --from=builder /code/config/vmrs_gcp.yaml /config/vmrs_gcp.yaml
 
 # Set ownership and permissions
 USER nonroot:nonroot

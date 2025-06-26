@@ -20,6 +20,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
+	vmrs_decision "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/decision"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -496,7 +498,15 @@ func Test_prepareVlmConfig_Success(t *testing.T) {
 		return []byte("{}"), nil
 	}
 
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
+	dsc := &vmrs.Decision{
+		ChosenVMs: []string{"c4-standard-4"},
+		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
+			DesiredIOPS:             1024,
+			DesiredThroughputInMiBs: 64,
+			DesiredCapacityInGiB:    1024,
+		},
+	}
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "password", "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.NoError(t, err)
 	assert.Equal(t, "test-deployment", cfg.Deployment.DeploymentID)
 	assert.Equal(t, "test-region", cfg.Deployment.Region)
@@ -511,7 +521,15 @@ func Test_prepareVlmConfig_Success(t *testing.T) {
 
 func Test_prepareVlmConfig_FileNotFound(t *testing.T) {
 	cfg := &vlmconfig.VLMConfig{}
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", 1024, 64, 2014, "test-tenant-project@xyz.com", "test-tenant-project")
+	dsc := &vmrs.Decision{
+		ChosenVMs: []string{"c4-standard-4"},
+		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
+			DesiredIOPS:             1024,
+			DesiredThroughputInMiBs: 64,
+			DesiredCapacityInGiB:    1024,
+		},
+	}
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "password", "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no such file or directory")
 }
@@ -524,7 +542,15 @@ func Test_prepareVlmConfig_InvalidJSON(t *testing.T) {
 	}
 
 	cfg := &vlmconfig.VLMConfig{}
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test=zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
+	dsc := &vmrs.Decision{
+		ChosenVMs: []string{"c4-standard-4"},
+		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
+			DesiredIOPS:             1024,
+			DesiredThroughputInMiBs: 64,
+			DesiredCapacityInGiB:    1024,
+		},
+	}
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test=zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "password", "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid character")
 }
@@ -542,7 +568,15 @@ func Test_prepareVlmConfig_EmptyDeploymentName(t *testing.T) {
 	activities.ReadFile = func(filename string) ([]byte, error) {
 		return []byte("{}"), nil
 	}
-	err := activities.PrepareVlmConfig(cfg, "", "test-region", "test-zone", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", 1099511627776, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
+	dsc := &vmrs.Decision{
+		ChosenVMs: []string{"c4-standard-4"},
+		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
+			DesiredIOPS:             1024,
+			DesiredThroughputInMiBs: 64,
+			DesiredCapacityInGiB:    1099511627776,
+		},
+	}
+	err := activities.PrepareVlmConfig(cfg, "", "test-region", "test-zone", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "password", "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.NoError(t, err)
 	assert.Equal(t, "", cfg.Deployment.DeploymentID)
 	assert.Equal(t, "test-region", cfg.Deployment.Region)
@@ -812,45 +846,19 @@ func Test_CreateVSACluster_Success(t *testing.T) {
 		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
 	}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, password string, sizeInGib int, throughputMibps, iops int64, saEmail string, autoTierBucket string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
 		return mockVlmClient
 	}
 	mockVlmClient.On("VSAClusterDeployCreate", ctx, cfg).Return(nil)
+	assert.NotNil(t, cfg)
 
-	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "poolSecretId", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
+	err := activity.CreateVSACluster(ctx, cfg)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, result)
 	mockVlmClient.AssertExpectations(t)
-}
-
-func Test_CreateVSACluster_FailsToPrepareConfig(t *testing.T) {
-	mockVlmClient := new(vlm.MockClientFactory)
-	cfg := &vlmconfig.VLMConfig{}
-	activity := activities.PoolActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	prepareVLMConfig := activities.PrepareVlmConfig
-	defer func() {
-		activities.PrepareVlmConfig = prepareVLMConfig
-	}()
-	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
-		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
-	}
-
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, password string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
-		return errors.New("failed to prepare VLM config")
-	}
-
-	mockVlmClient.On("VSAClusterDeployGet", ctx, cfg).Return(prepareVLMConfig, nil)
-
-	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "poolSecretId", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "failed to prepare VLM config")
 }
 
 func Test_CreateVSACluster_FailsToDeployCluster(t *testing.T) {
@@ -870,18 +878,18 @@ func Test_CreateVSACluster_FailsToDeployCluster(t *testing.T) {
 		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
 	}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject, password string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
 		return mockVlmClient
 	}
 	mockVlmClient.On("VSAClusterDeployCreate", ctx, cfg).Return(errors.New("failed to deploy VSA cluster"))
+	assert.NotNil(t, cfg)
 
-	result, err := activity.CreateVSACluster(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "poolSecretId", 1024, 64, 1024, "test-tenant-project@xyz.com", "test-tenant-project")
+	err := activity.CreateVSACluster(ctx, cfg)
 
 	assert.Error(t, err)
-	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "failed to deploy VSA cluster")
 	mockVlmClient.AssertExpectations(t)
 }
@@ -1811,7 +1819,7 @@ func Test_ReturnsErrorWhenVLMConfigPreparationFails(t *testing.T) {
 	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment"},
 		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 64, Iops: 1000, PrimaryZone: "zone1"}}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject, password string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
 		return errors.New("failed to prepare VLM config")
 	}
 
@@ -1842,7 +1850,7 @@ func Test_ReturnsErrorWhenVSAClusterDeletionFails(t *testing.T) {
 	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
 		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
 	}
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject, password string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
@@ -1878,7 +1886,7 @@ func Test_DeletesVSADeploymentSuccessfully(t *testing.T) {
 	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
 		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
 	}
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject, password string, sizeInGib int, throughPutMibps, iops int64, saEmail string, autoTierBucket string) error {
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
 		return nil
 	}
 	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
@@ -3254,4 +3262,119 @@ func Test_getPasswordFromCacheOrSecretManager(t *testing.T) {
 		password := activities.GetPasswordFromCacheOrSecretManager(ctx, secretID)
 		assert.Equal(tt, "", password)
 	})
+}
+
+func Test_IdentifyVMs_SuccessfullyPreparesConfig(t *testing.T) {
+	cfg := &vlmconfig.VLMConfig{}
+	activity := activities.PoolActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	prepareVLMConfig := activities.PrepareVlmConfig
+	defer func() {
+		activities.PrepareVlmConfig = prepareVLMConfig
+	}()
+	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
+		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
+	}
+
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
+		// return errors.New("failed to prepare VLM config")
+		return nil
+	}
+
+	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
+	err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+
+	assert.NoError(t, err)
+}
+
+func Test_IdentifyVMs_FailsToPrepareConfig(t *testing.T) {
+	cfg := &vlmconfig.VLMConfig{}
+	activity := activities.PoolActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	prepareVLMConfig := activities.PrepareVlmConfig
+	defer func() {
+		activities.PrepareVlmConfig = prepareVLMConfig
+	}()
+	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
+		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
+	}
+
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
+		return errors.New("failed to prepare VLM config")
+	}
+
+	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
+	err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to prepare VLM config")
+}
+
+func Test_IdentifyVMs_FailsToLoadConfig(t *testing.T) {
+	activity := activities.PoolActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	loadVMRSConfig := activities.LoadVMRSConfig
+	defer func() {
+		activities.LoadVMRSConfig = loadVMRSConfig
+	}()
+	activities.LoadVMRSConfig = func(filePath string) (*vmrs.VMRSConfig, error) {
+		return nil, errors.New("failed to load VMRS config from file")
+	}
+
+	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
+	err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, nil, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to load VMRS config from file")
+}
+
+func Test_IdentifyVMs_FailsToCreateDecisionMaker(t *testing.T) {
+	activity := activities.PoolActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	loadVMRSConfig := activities.LoadVMRSConfig
+	defer func() {
+		activities.LoadVMRSConfig = loadVMRSConfig
+	}()
+	activities.LoadVMRSConfig = func(filePath string) (*vmrs.VMRSConfig, error) {
+		return &vmrs.VMRSConfig{}, nil
+	}
+
+	createDecisionMaker := activities.CreateDecisionMaker
+	defer func() {
+		activities.CreateDecisionMaker = createDecisionMaker
+	}()
+	activities.CreateDecisionMaker = func(cfg *vmrs.VMRSConfig) (vmrs.DecisionMaker, error) {
+		return nil, errors.New("failed to create decision maker")
+	}
+
+	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
+	err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, nil, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create decision maker")
+}
+
+func Test_IdentifyVMs_FailsToFindOptimalVMs(t *testing.T) {
+	activity := activities.PoolActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	loadVMRSConfig := activities.LoadVMRSConfig
+	defer func() {
+		activities.LoadVMRSConfig = loadVMRSConfig
+	}()
+	activities.LoadVMRSConfig = func(filePath string) (*vmrs.VMRSConfig, error) {
+		return &vmrs.VMRSConfig{}, nil
+	}
+
+	mockDecisionMaker := vmrs_decision.NewDecisionMakerMock()
+	createDecisionMaker := activities.CreateDecisionMaker
+	defer func() {
+		activities.CreateDecisionMaker = createDecisionMaker
+	}()
+	activities.CreateDecisionMaker = func(cfg *vmrs.VMRSConfig) (vmrs.DecisionMaker, error) {
+		return mockDecisionMaker, nil
+	}
+	mockDecisionMaker.Mock.On("FindOptimalVMs", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to find optimal VMs foo"))
+
+	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
+	err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, nil, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to find optimal VMs")
 }

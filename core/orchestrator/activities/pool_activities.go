@@ -25,6 +25,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
+	vmrs_config "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/config"
+	vmrs_decision "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/decision"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -68,6 +71,8 @@ var (
 	GetPasswordForVSACluster                  = _getPasswordForVSACluster
 	GetPasswordFromCacheOrSecretManager       = _getPasswordFromCacheOrSecretManager
 	GenerateCSR                               = _generateCSR
+	LoadVMRSConfig                            = vmrs_config.LoadConfig
+	CreateDecisionMaker                       = vmrs_decision.NewDecisionMaker
 )
 
 type PoolActivity struct {
@@ -425,21 +430,50 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 	return nil
 }
 
-func (j *PoolActivity) CreateVSACluster(ctx context.Context, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, password string, sizeInGiB int, throughputMibps, iops int64, saEmail string, autoTierBucket string) (*vlmconfig.VLMConfig, error) {
+// The IdentifyVMs takes as input the VMRS configuration, the customer requested performance parameters, and the current VLM configuration to identify the optimal VMs to use for the VSA cluster.
+func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, currentConfig *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, vsaClusterPassword string, saEmail string, autoTierBucket string) error {
 	logger := util.GetLogger(ctx)
-	cfg := &vlmconfig.VLMConfig{}
-	err := PrepareVlmConfig(cfg, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, password, sizeInGiB, throughputMibps, iops, saEmail, autoTierBucket)
+	logger.Debug("Identifying VMs to use for VSA cluster")
+
+	// Parse VMRS config.
+	vmrsConfig, err := LoadVMRSConfig(vmrsConfigPath)
 	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+
+	// Identify the right VMs to use using the selection strategy defined in the VMRS config.
+	decisionMaker, err := CreateDecisionMaker(vmrsConfig)
+	if err != nil {
+		logger.Error("Failed to create decision maker", "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	decision, err := decisionMaker.FindOptimalVMs(vmrsConfig, customerRequest, currentConfig)
+	if err != nil {
+		logger.Error("Failed to identify optimal VMs", "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Convert the decision to a VLMConfig.
+	err = PrepareVlmConfig(currentConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, decision, vsaClusterPassword, saEmail, autoTierBucket)
+	if err != nil {
+		logger.Error("Failed to prepare VLM config", "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return nil
+}
+
+func (j *PoolActivity) CreateVSACluster(ctx context.Context, cfg *vlmconfig.VLMConfig) error {
+	logger := util.GetLogger(ctx)
 	vlmClient := GetVLMClient(ctx, logger, cfg)
 
-	err = vlmClient.VSAClusterDeployCreate(ctx, cfg)
+	err := vlmClient.VSAClusterDeployCreate(ctx, cfg)
 	if err != nil {
 		logger.Error("Failed to create VSA cluster", "error", err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return cfg, nil
+	return nil
 }
 
 func assignNetworkConfig(cfg *vlmconfig.VLMConfig, lifType vlmconfig.VSALIFType, vpc, subnet, subnetProjectID string) {
@@ -450,7 +484,7 @@ func assignNetworkConfig(cfg *vlmconfig.VLMConfig, lifType vlmconfig.VSALIFType,
 	}
 }
 
-func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, password string, sizeInGib int, throughputMibps, iops int64, saEmail string, autoTierBucket string) error {
+func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, decision *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
 	vlmContent, err := ReadFile("common/vsa_config/vlm-config.json")
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrFileReadError, err)
@@ -469,9 +503,10 @@ func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, primary
 	}
 	cfg.Deployment.Region = region
 
-	cfg.Deployment.SPConfig.Throughput = throughputMibps
-	cfg.Deployment.SPConfig.IOps = iops
-	cfg.Deployment.SPConfig.Size = fmt.Sprintf("%dGi", sizeInGib)
+	cfg.Deployment.SPConfig.Throughput = decision.StoragePoolRequirements.DesiredThroughputInMiBs
+	cfg.Deployment.SPConfig.IOps = decision.StoragePoolRequirements.DesiredIOPS
+	cfg.Deployment.SPConfig.Size = fmt.Sprintf("%dGi", decision.StoragePoolRequirements.DesiredCapacityInGiB)
+	cfg.Deployment.VSAInstanceType = decision.ChosenVMs[0] // VLM currently only supports a single VM type for VSA clusters (homogeneous clusters).
 
 	networkConfigs := map[vlmconfig.VSALIFType]struct {
 		VPC             string
@@ -524,8 +559,18 @@ func (j *PoolActivity) DeleteVSADeployment(ctx context.Context, pool *datamodel.
 	} else {
 		password = nodePassword
 	}
-	err := PrepareVlmConfig(cfg, deploymentName, localRegion, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, "vsa-"+localRegion, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, password,
-		int(pool.SizeInBytes), pool.PoolAttributes.ThroughputMibps, pool.PoolAttributes.Iops, saEmail, pool.AutoTierBucketName)
+
+	decision := &vmrs.Decision{
+		ChosenVMs: []string{}, // The value of this field doesn't matter for deletion.
+		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
+			DesiredIOPS:             pool.PoolAttributes.Iops,
+			DesiredThroughputInMiBs: pool.PoolAttributes.ThroughputMibps,
+			DesiredCapacityInGiB:    pool.SizeInBytes,
+		},
+	}
+
+	err := PrepareVlmConfig(cfg, deploymentName, localRegion, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, "vsa-"+localRegion, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, decision, password, saEmail, pool.AutoTierBucketName)
+
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}

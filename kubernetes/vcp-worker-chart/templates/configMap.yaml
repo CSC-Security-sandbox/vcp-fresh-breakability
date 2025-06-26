@@ -36,4 +36,5 @@ data:
   GCP_AUTH_SERVICE_ACCOUNT: "{{ index .Values "gcpAuthServiceAccount" }}"
   GCP_SERVICE_URL: "{{ index .Values "gcpServiceUrl" }}"
   LOGGER_LEVEL: "{{ index .Values "loggerLevel" }}"
+  VMRS_CONFIG_PATH: {{ .Values.workerConfig.vmrsConfigPath | quote }}
 

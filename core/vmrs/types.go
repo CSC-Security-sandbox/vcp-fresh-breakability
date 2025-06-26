@@ -8,6 +8,13 @@ import (
 	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
 
+type VMSelectionStrategy string
+
+const (
+	// DecisionMakerTypeLeastCostSingleVM is the type of the decision maker that selects the least cost single VM that satisfies the customer request.
+	LeastCostSingleVM VMSelectionStrategy = "least_cost_single_vm"
+)
+
 // VMRS configuration object that holds performance limits for different hyperscalers.
 type VMRSConfig struct {
 	// The list of performance limits - one element in the list for each hyperscaler.
@@ -16,6 +23,8 @@ type VMRSConfig struct {
 
 // HyperscalerPerfLimits represents the performance limits for a specific hyperscaler.
 type HyperscalerPerfLimits struct {
+	// DecisionMaker to use.
+	VMSelectionStrategy VMSelectionStrategy `yaml:"selection_strategy" validate:"required"`
 	// The max. number of HA-pairs that can be created in a single storage pool.
 	MaxNumHAPairs int64 `yaml:"max_num_ha_pairs" validate:"required"`
 	// Ontap constants provided by the perf team.
@@ -121,6 +130,11 @@ type DecisionMaker interface {
 	// FindOptimalVMs takes the VMRS configuration and customer requested performance.
 	// It returns the list of VM identifiers that together satisfy the customer request performance thresholds, while optimizing for some cost function. The cost function that is optimized for depends on the implementation.
 	FindOptimalVMs(config *VMRSConfig, customerRequest CustomerRequestedPerformance, currentConfig *vlmconfig.VLMConfig) (*Decision, error)
+}
+
+// A DecisionMakerFactory is responsible for creating instances of DecisionMaker based on the provided VMRSConfig.
+type DecisionMakerFactory interface {
+	NewDecisionMaker(config *VMRSConfig) (DecisionMaker, error)
 }
 
 // Given CustomerRequestedPerformance, this function computes the result of the overheads specified in the VMRSConfig, and returns the scaled performance limits.

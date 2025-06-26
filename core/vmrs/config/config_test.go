@@ -21,7 +21,8 @@ func TestParseConfig(t *testing.T) {
 			expectedError:  "",
 			expectedConfig: &vmrs.VMRSConfig{
 				HyperscalerPerfLimits: vmrs.HyperscalerPerfLimits{
-					MaxNumHAPairs: 12,
+					VMSelectionStrategy: vmrs.LeastCostSingleVM,
+					MaxNumHAPairs:       12,
 					OntapOverheads: vmrs.OntapOverheads{
 						AmplificationFactors: vmrs.AmplificationFactors{
 							PerfAmplificationFactors: vmrs.PerfAmplificationFactors{
@@ -154,6 +155,18 @@ Key: 'HyperscalerPerfLimits.OntapOverheads.HotspotPreventionFactors.Throughput' 
    3 |     amplification_factors:
    4 |       iops: 1.1
    5 |        (path: testdata/missing_max_num_ha_pairs.yaml)`,
+			expectedConfig: nil,
+		},
+		{
+			name:           "MissingVMSelectionStrategyField",
+			configFilename: "testdata/missing_vm_selection_strategy.yaml",
+			expectedError: `[vmrs] ConfigParseError: failed to parse config file due to error: [1:5] Key: 'HyperscalerPerfLimits.VMSelectionStrategy' Error:Field validation for 'VMSelectionStrategy' failed on the 'required' tag
+>  1 | vmrs:
+           ^
+   2 |   ontap_overheads:
+   3 |     amplification_factors:
+   4 |       iops: 1.1
+   5 |        (path: testdata/missing_vm_selection_strategy.yaml)`,
 			expectedConfig: nil,
 		},
 	}

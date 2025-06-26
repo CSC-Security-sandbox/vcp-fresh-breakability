@@ -86,3 +86,5 @@ spec:
               value: "storage.googleapis.com"
             - name: OBJECT_STORE_AUTH_TYPE
               value: "GCP_SA"
+            - name: VMRS_CONFIG_PATH
+              value: "config/vmrs_gcp.yaml"

@@ -52,6 +52,7 @@ workerConfig:
   gcpAuthServiceAccount: ""
   gcpServiceUrl: "https://cloudvolumesgcp-api.netapp.com"
   loggerLevel: "info"
+  vmrsConfigPath: "config/vmrs_gcp.yaml"
 
   # Database configuration
   database:

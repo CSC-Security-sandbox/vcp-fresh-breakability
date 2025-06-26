@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -22,6 +23,7 @@ import (
 var (
 	secretManagerEnabled    = env.GetBool("SECRET_MANAGER_ENABLED", false)
 	setupNwHeartbeatTimeout = env.GetUint64("SETUP_NW_HEARTBEAT_TIMEOUT_SEC", 300)
+	vmrsConfigPath          = env.GetString("VMRS_CONFIG_PATH", "config/vmrs_gcp.yaml")
 )
 
 type createPoolWorkflow struct {
@@ -145,7 +147,17 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	clusterName := params.Name + "-" + params.AccountName
 	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
-	cfg := &vlmconfig.VLMConfig{}
+
+	// Convert CustomPerformanceParams to CustomerRequestedPerformance.
+	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             params.CustomPerformanceParams.Iops,
+		DesiredThroughputInMiBs: params.CustomPerformanceParams.ThroughputMibps,
+		DesiredCapacityInGiB:    int64(sizeInGB),
+	}
+
+	// Find the optimal VMs based on the customer requested performance.
+	vlmConfig := &vlmconfig.VLMConfig{}
+
 	var vsaClusterPassword string
 	if secretManagerEnabled {
 		vsaClusterPassword = secret.SecretVersion.Value
@@ -161,13 +173,17 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		Network:               tenancyDetails.Network}
 	rollbackManager.Add(poolActivity.DeleteVSADeployment, poolWithClusterDetails)
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSACluster, clusterName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkName,
-		tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, vsaClusterPassword, sizeInGB, params.CustomPerformanceParams.ThroughputMibps, params.CustomPerformanceParams.Iops, serviceAccount.Email, pool.AutoTierBucketName).Get(ctx, cfg)
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, vlmConfig, clusterName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkName, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, vsaClusterPassword, serviceAccount.Email, pool.AutoTierBucketName).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, cfg).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSACluster, vlmConfig).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, vlmConfig).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +220,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSASVM, dbPool, cfg).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSASVM, dbPool, vlmConfig).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

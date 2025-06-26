@@ -1,4 +1,5 @@
 vmrs:
+  selection_strategy: "least_cost_single_vm"
   max_num_ha_pairs: 12
   ontap_overheads:
     num_disks_per_zone: 4
