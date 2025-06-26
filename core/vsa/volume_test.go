@@ -401,8 +401,9 @@ func TestUpdateVolume(t *testing.T) {
 	rc := &OntapRestProvider{}
 
 	params := UpdateVolumeParams{
-		UUID: "testUUID",
-		Size: 2048,
+		UUID:               "testUUID",
+		Size:               2048,
+		SnapshotPolicyName: "testSnapshot",
 	}
 
 	// Case 1: VolumeModify returns error

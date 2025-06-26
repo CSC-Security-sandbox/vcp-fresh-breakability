@@ -94,12 +94,12 @@ type CreateVolumeParams struct {
 }
 
 type UpdateVolumeParams struct {
-	UUID          string
-	VolumeName    string
-	SvmName       string
-	AggregateName string
-	Size          int64
-	SnapshotName  string
+	UUID               string
+	VolumeName         string
+	SvmName            string
+	AggregateName      string
+	Size               int64
+	SnapshotPolicyName string
 }
 
 type GetVolumeParams struct {

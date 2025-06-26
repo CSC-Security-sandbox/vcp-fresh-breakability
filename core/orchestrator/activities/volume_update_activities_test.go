@@ -42,9 +42,9 @@ func TestUpdateVolumeInONTAP_Success(t *testing.T) {
 	node := &models.Node{}
 
 	mockProvider.On("UpdateVolume", vsa.UpdateVolumeParams{
-		UUID:         volume.VolumeAttributes.ExternalUUID,
-		Size:         int64(params.QuotaInBytes),
-		SnapshotName: "default-snapshot-policy",
+		UUID:               volume.VolumeAttributes.ExternalUUID,
+		Size:               int64(params.QuotaInBytes),
+		SnapshotPolicyName: "default-snapshot-policy",
 	}).Return(nil)
 
 	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
@@ -76,9 +76,9 @@ func TestUpdateVolumeInONTAP_Failure(t *testing.T) {
 	expectedErr := errors.New("update failed")
 
 	mockProvider.On("UpdateVolume", vsa.UpdateVolumeParams{
-		UUID:         volume.VolumeAttributes.ExternalUUID,
-		Size:         int64(params.QuotaInBytes),
-		SnapshotName: SnapshotPolicyNone,
+		UUID:               volume.VolumeAttributes.ExternalUUID,
+		Size:               int64(params.QuotaInBytes),
+		SnapshotPolicyName: SnapshotPolicyNone,
 	}).Return(expectedErr)
 
 	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)

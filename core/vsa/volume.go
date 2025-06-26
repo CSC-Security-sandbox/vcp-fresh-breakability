@@ -93,8 +93,9 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 	client := getOntapClientFunc(rc.ClientParams)
 	success, job, err := client.Storage().VolumeModify(&ontapRest.VolumeModifyParams{
-		UUID: params.UUID,
-		Size: nillable.ToPointer(uint64(params.Size)),
+		UUID:               params.UUID,
+		Size:               nillable.ToPointer(uint64(params.Size)),
+		SnapshotPolicyName: nillable.GetStringPtr(params.SnapshotPolicyName),
 	})
 	if err != nil {
 		return err

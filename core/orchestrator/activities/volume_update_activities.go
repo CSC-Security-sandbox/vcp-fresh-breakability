@@ -30,9 +30,9 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 
 	err := provider.UpdateVolume(vsa.UpdateVolumeParams{
 		// Set the necessary parameters for updating the volume
-		UUID:         volume.VolumeAttributes.ExternalUUID,
-		Size:         params.QuotaInBytes,
-		SnapshotName: snapshotPolicyName,
+		UUID:               volume.VolumeAttributes.ExternalUUID,
+		Size:               params.QuotaInBytes,
+		SnapshotPolicyName: snapshotPolicyName,
 	})
 	if err != nil {
 		logger.Errorf("Failed to update volume %s in ontap: %v", volume.Name, err)
