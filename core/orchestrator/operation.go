@@ -75,6 +75,7 @@ func convertDatastoreOperationToModel(job *datamodel.Job) *models.Job {
 		Type:          models.JobType(job.Type),
 		State:         models.JobState(job.State),
 		JobAttributes: &models.JobAttributes{},
+		ResourceName:  job.ResourceName,
 	}
 
 	if job.JobAttributes != nil {

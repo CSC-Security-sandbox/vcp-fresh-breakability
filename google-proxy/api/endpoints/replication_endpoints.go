@@ -48,13 +48,13 @@ func (h Handler) V1betaCreateReplication(ctx context.Context, req *gcpgenserver.
 			}, nil
 		}
 
-		logger.Error("Failed to create volume", "error", err.Error())
-		return &gcpgenserver.V1betaCreateReplicationInternalServerError{Code: 500, Message: err.Error()}, err
+		logger.Error("Failed to create volume replication", "error", err.Error())
+		return &gcpgenserver.V1betaCreateReplicationInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
 	resp, err := encodeVolumeReplicationV1(convertModelToVCPVolumeReplication(volumeRep))
 	if err != nil {
-		return nil, err
+		return &gcpgenserver.V1betaCreateReplicationInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID

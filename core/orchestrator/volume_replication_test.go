@@ -330,8 +330,10 @@ func TestCreateVolumeReplication(t *testing.T) {
 				Name: "test-pool",
 			},
 		}
+		dbRep := &datamodel.VolumeReplication{Name: "rep-1"}
 		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("failed to create job"))
+		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
 
 		params := &commonparams.CreateVolumeReplicationParams{
 			AccountName:      "test-account",
@@ -372,7 +374,6 @@ func TestCreateVolumeReplication(t *testing.T) {
 		dbRep := &datamodel.VolumeReplication{Name: "rep-1"}
 
 		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
-		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{}, nil)
 		mockStorage.On("CreateVolumeReplication", ctx, dbRep).Return(nil, errors.New("failed to create volume replication in db"))
 
 		params := &commonparams.CreateVolumeReplicationParams{
@@ -415,7 +416,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 
 		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{WorkflowID: "workflow-id"}, nil)
-		mockStorage.On("CreateVolumeReplication", ctx, dbRep).Return(dbRep, nil)
+		mockStorage.On("CreateVolumeReplication", ctx, mock.Anything).Return(dbRep, nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
 
 		params := &commonparams.CreateVolumeReplicationParams{

@@ -121,7 +121,7 @@ func TestVolumeReplicationDeHydration(t *testing.T) {
 			return "", errors.New("some error")
 		}
 		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
-		err := VolumeReplicationDeHydration(ctx, *createReplicationResponse, "121")
+		err := DeHydrateVolumeReplication(ctx, *createReplicationResponse, "121")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 	})
@@ -142,7 +142,7 @@ func TestVolumeReplicationDeHydration(t *testing.T) {
 			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
 			hydrateReplicationDelete = originalHydrateReplicationDelete
 		}()
-		err := VolumeReplicationDeHydration(ctx, *createReplicationResponse, "121")
+		err := DeHydrateVolumeReplication(ctx, *createReplicationResponse, "121")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err.(*errs.CustomError).Unwrap())
 	})
@@ -160,7 +160,7 @@ func TestVolumeReplicationDeHydration(t *testing.T) {
 			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
 			hydrateReplicationDelete = originalHydrateReplicationDelete
 		}()
-		err := VolumeReplicationDeHydration(ctx, *createReplicationResponse, "121")
+		err := DeHydrateVolumeReplication(ctx, *createReplicationResponse, "121")
 		assert.NoError(tt, err)
 	})
 }
@@ -180,7 +180,7 @@ func TestVolumeHydration(t *testing.T) {
 			return "", errors.New("some error")
 		}
 		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
-		err := VolumeHydration(ctx, *destVolume, "121")
+		err := HydrateVolume(ctx, *destVolume, "121", "pool-resource-id")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 	})
@@ -201,7 +201,7 @@ func TestVolumeHydration(t *testing.T) {
 			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
 			hydrateVolumeCreate = originalhydrateVolumeCreate
 		}()
-		err := VolumeHydration(ctx, *destVolume, "121")
+		err := HydrateVolume(ctx, *destVolume, "121", "pool-resource-id")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err.(*errs.CustomError).Unwrap())
 	})
@@ -219,7 +219,7 @@ func TestVolumeHydration(t *testing.T) {
 			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
 			hydrateVolumeCreate = originalHydrateVolumeCreate
 		}()
-		err := VolumeHydration(ctx, *destVolume, "121")
+		err := HydrateVolume(ctx, *destVolume, "121", "pool-resource-id")
 		assert.NoError(tt, err)
 	})
 }
@@ -239,7 +239,7 @@ func TestVolumeDeHydration(t *testing.T) {
 			return "", errors.New("some error")
 		}
 		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
-		err := VolumeDeHydration(ctx, *destVolume, "121")
+		err := DeHydrateVolume(ctx, *destVolume, "121")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 	})
@@ -260,7 +260,7 @@ func TestVolumeDeHydration(t *testing.T) {
 			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
 			hydrateVolumeDelete = originalhydrateVolumeDelete
 		}()
-		err := VolumeDeHydration(ctx, *destVolume, "121")
+		err := DeHydrateVolume(ctx, *destVolume, "121")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err.(*errs.CustomError).Unwrap())
 	})
@@ -278,7 +278,7 @@ func TestVolumeDeHydration(t *testing.T) {
 			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
 			hydrateVolumeDelete = originalhydrateVolumeDelete
 		}()
-		err := VolumeDeHydration(ctx, *destVolume, "121")
+		err := DeHydrateVolume(ctx, *destVolume, "121")
 		assert.NoError(tt, err)
 	})
 }

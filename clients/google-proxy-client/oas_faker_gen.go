@@ -1619,6 +1619,11 @@ func (s *InternalJobV1beta) SetFake() {
 	}
 	{
 		{
+			s.ResourceName.SetFake()
+		}
+	}
+	{
+		{
 			s.ScheduledAt.SetFake()
 		}
 	}
@@ -7579,6 +7584,78 @@ func (s *V1betaInternalGetReplicationJobsUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaInternalGetReplicationJobsUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalMountVolumeReplicationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalMountVolumeReplicationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalMountVolumeReplicationConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalMountVolumeReplicationConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalMountVolumeReplicationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalMountVolumeReplicationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalMountVolumeReplicationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalMountVolumeReplicationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalMountVolumeReplicationMethodNotAllowed) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalMountVolumeReplicationMethodNotAllowed(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalMountVolumeReplicationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalMountVolumeReplicationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalMountVolumeReplicationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalMountVolumeReplicationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalMountVolumeReplicationUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalMountVolumeReplicationUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

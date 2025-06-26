@@ -21,7 +21,7 @@ import (
 var (
 	convertReplicationScheduleToInternalReplicationSchedule = _convertReplicationScheduleToInternalReplicationSchedule
 	convertVolumeReplicationCreateParams                    = _convertVolumeReplicationCreateParams
-	volumeHydration                                         = VolumeHydration
+	hydrateVolume                                           = HydrateVolume
 )
 
 type VolumeReplicationCreateActivity struct {
@@ -155,7 +155,7 @@ func (a *VolumeReplicationCreateActivity) CreateDestinationVolume(ctx context.Co
 
 func (a *VolumeReplicationCreateActivity) HydrateDestinationVolume(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	if hydrationEnabled {
-		err := volumeHydration(ctx, convertVolumeV1BetaToVolumeModel(*result.DstVolume, result.Event.DestinationLocationID), *result.DstProjectNumber)
+		err := hydrateVolume(ctx, convertVolumeV1BetaToVolumeModel(*result.DstVolume, result.Event.DestinationLocationID), *result.DstProjectNumber, result.DstPool.ResourceId)
 		if err != nil {
 			return nil, errors.NewVCPError(errors.ErrHydrateVolumeCreate, err)
 		}
@@ -281,56 +281,61 @@ func (a *VolumeReplicationCreateActivity) GetVolumeSVMNames(ctx context.Context,
 }
 
 func (a *VolumeReplicationCreateActivity) GetSrcBasePath(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
-	logger := util.GetLogger(ctx)
-	logger.Debugf("getSrcBasePath")
-	var srcBasePath string
-	srcBasePath, err := replication.InternalUtilGetPairedRegionURI(result.Event.LocationID)
+	srcBasePath, err := GetBasePath(ctx, result.Event.LocationID)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGetSrcBasePath, err)
 	}
-	result.SrcBasePath = &srcBasePath
+	result.SrcBasePath = srcBasePath
 	return result, nil
 }
 
 func (a *VolumeReplicationCreateActivity) GetDstBasePath(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
-	logger := util.GetLogger(ctx)
-	logger.Debugf("getDstBasePath")
-	var dstBasePath string
-	dstBasePath, err := replication.InternalUtilGetPairedRegionURI(result.Event.DestinationLocationID)
+	dstBasePath, err := GetBasePath(ctx, result.Event.DestinationLocationID)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGetDstBasePath, err)
 	}
-	result.DstBasePath = &dstBasePath
+	result.DstBasePath = dstBasePath
 	return result, nil
 }
 
 func (a *VolumeReplicationCreateActivity) GetSignedSrcToken(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
-	logger := util.GetLogger(ctx)
-	logger.Debugf("getSignedSrcToken")
-
-	jwt, err := replication.InternalUtilGetSignedToken(*result.SrcProjectNumber)
+	srcJwt, err := GetSignedToken(ctx, result.Event.SourceProjectNumber)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGetSignedToken, err)
 	}
-	result.SrcJwtToken = &jwt
+	result.SrcJwtToken = srcJwt
 	return result, nil
 }
 
 func (a *VolumeReplicationCreateActivity) GetSignedDstToken(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
-	logger := util.GetLogger(ctx)
-	logger.Debugf("getSignedDstToken")
-
-	jwt, err := replication.InternalUtilGetSignedToken(*result.DstProjectNumber)
+	dstJwt, err := GetSignedToken(ctx, *result.DstProjectNumber)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGetSignedToken, err)
 	}
-	result.DstJwtToken = &jwt
+	result.DstJwtToken = dstJwt
 	return result, nil
 }
 
 func (a *VolumeReplicationCreateActivity) MountReplication(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
-	// TODO: // Implement the logic to mount the replication
-	return result, nil
+	logger := util.GetLogger(ctx)
+	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
+
+	createVolumeParams := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+		ProjectNumber:       *result.DstProjectNumber,
+		LocationId:          result.Event.DestinationLocationID,
+		VolumeReplicationId: result.DstReplication.VolumeReplicationUuid.Value,
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaInternalMountVolumeReplication(ctx, *createVolumeParams)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrMountingVolumeReplication, err)
+	}
+	response, ok := res.(*googleproxyclient.InternalJobV1beta)
+	if ok {
+		result.JobId = &response.JobUuid.Value
+		return result, nil
+	}
+	return nil, nil
 }
 
 // DescribeRemoteJob gives the status of a remote job

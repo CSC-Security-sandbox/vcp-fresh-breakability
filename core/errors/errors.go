@@ -123,6 +123,10 @@ const (
 	ErrGoogleProxyInternalGetMultipleReplicationsUnauthorized        = 6050
 	ErrGoogleProxyInternalGetMultipleReplicationsForbidden           = 6051
 	ErrGoogleProxyInternalGetMultipleReplicationsUnknown             = 6052
+	ErrGetRemoteReplicationJobs                                      = 6053
+	ErrGetLocalReplicationJobs                                       = 6054
+	ErrorCvpReplicationJobAlreadyInProcess                           = 6055
+	ErrMountingVolumeReplication                                     = 6056
 )
 
 type Error interface {

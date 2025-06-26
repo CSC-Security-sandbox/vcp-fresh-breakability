@@ -107,7 +107,7 @@ func (wf *mountCheckWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, mountJobActivity.GetReplicationFromOntap, replication, node).Get(ctx, &replication)
+	err = workflow.ExecuteActivity(ctx, mountJobActivity.GetReplicationFromOntap, replication, node, accountName).Get(ctx, &replication)
 	if err != nil {
 		return nil, err
 	}

@@ -46,10 +46,10 @@ func (j *MountJobActivity) CheckMountJob(ctx context.Context, dbReplication *dat
 	}
 }
 
-func (j *MountJobActivity) GetReplicationFromOntap(ctx context.Context, dbReplication *datamodel.VolumeReplication, node *models.Node) (*datamodel.VolumeReplication, error) {
+func (j *MountJobActivity) GetReplicationFromOntap(ctx context.Context, dbReplication *datamodel.VolumeReplication, node *models.Node, accountName string) (*datamodel.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
 	provider := activitiesGetProviderByNode(ctx, node)
-	replicationParams := convertToSnapmirrorGetParams(dbReplication, dbReplication.Account.Name)
+	replicationParams := convertToSnapmirrorGetParams(dbReplication, accountName)
 	ontapRep, err := provider.GetReplicationDetails(replicationParams)
 	if err != nil {
 		logger.Errorf("Failed to get replication details from Ontap for replication %s: %v", dbReplication.UUID, err)

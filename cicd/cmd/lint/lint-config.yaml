@@ -33,3 +33,5 @@ run:
     - core/orchestrator/orchestrator_factory_mock.go
     - clients/hyperscaler/google_services_mock.go
     - database/data_store_mock.go
+    - clients/google-proxy-client/oas_client_gen.go
+    - clients/google-proxy-client/oas_test_examples_gen_test.go

@@ -743,9 +743,8 @@ func TestV1betaCreateReplication(t *testing.T) {
 
 		mockOrchestrator.On("CreateVolumeReplication", mock.Anything, mock.Anything).Return(nil, "", errors.New("some error"))
 
-		result, err := handler.V1betaCreateReplication(context.Background(), req, params)
+		result, _ := handler.V1betaCreateReplication(context.Background(), req, params)
 
-		assert.Error(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaCreateReplicationInternalServerError).Code)
 		assert.Equal(tt, "some error", result.(*gcpgenserver.V1betaCreateReplicationInternalServerError).Message)

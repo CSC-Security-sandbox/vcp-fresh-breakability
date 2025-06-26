@@ -8156,6 +8156,9 @@ components:
         ProjectNumber:
           title: ProjectNumber
           type: string
+        ResourceName:
+          title: ResourceName
+          type: string
         ScheduledAt:
           title: ScheduledAt
           type: string

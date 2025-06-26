@@ -7618,6 +7618,12 @@ func (s *InternalJobV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.ResourceName.Set {
+			e.FieldStart("ResourceName")
+			s.ResourceName.Encode(e)
+		}
+	}
+	{
 		if s.ScheduledAt.Set {
 			e.FieldStart("ScheduledAt")
 			s.ScheduledAt.Encode(e, json.EncodeDateTime)
@@ -7625,7 +7631,7 @@ func (s *InternalJobV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfInternalJobV1beta = [9]string{
+var jsonFieldsNameOfInternalJobV1beta = [10]string{
 	0: "JobUuid",
 	1: "CorrelationId",
 	2: "State",
@@ -7634,7 +7640,8 @@ var jsonFieldsNameOfInternalJobV1beta = [9]string{
 	5: "UpdatedAt",
 	6: "JobType",
 	7: "ProjectNumber",
-	8: "ScheduledAt",
+	8: "ResourceName",
+	9: "ScheduledAt",
 }
 
 // Decode decodes InternalJobV1beta from json.
@@ -7724,6 +7731,16 @@ func (s *InternalJobV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ProjectNumber\"")
+			}
+		case "ResourceName":
+			if err := func() error {
+				s.ResourceName.Reset()
+				if err := s.ResourceName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ResourceName\"")
 			}
 		case "ScheduledAt":
 			if err := func() error {

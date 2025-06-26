@@ -7617,6 +7617,12 @@ func (s *InternalJobV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.ResourceName.Set {
+			e.FieldStart("ResourceName")
+			s.ResourceName.Encode(e)
+		}
+	}
+	{
 		if s.ScheduledAt.Set {
 			e.FieldStart("ScheduledAt")
 			s.ScheduledAt.Encode(e, json.EncodeDateTime)
@@ -7624,7 +7630,7 @@ func (s *InternalJobV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfInternalJobV1beta = [9]string{
+var jsonFieldsNameOfInternalJobV1beta = [10]string{
 	0: "JobUuid",
 	1: "CorrelationId",
 	2: "State",
@@ -7633,7 +7639,8 @@ var jsonFieldsNameOfInternalJobV1beta = [9]string{
 	5: "UpdatedAt",
 	6: "JobType",
 	7: "ProjectNumber",
-	8: "ScheduledAt",
+	8: "ResourceName",
+	9: "ScheduledAt",
 }
 
 // Decode decodes InternalJobV1beta from json.
@@ -7723,6 +7730,16 @@ func (s *InternalJobV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ProjectNumber\"")
+			}
+		case "ResourceName":
+			if err := func() error {
+				s.ResourceName.Reset()
+				if err := s.ResourceName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ResourceName\"")
 			}
 		case "ScheduledAt":
 			if err := func() error {
@@ -34051,6 +34068,310 @@ func (s *V1betaInternalGetReplicationJobsUnprocessableEntity) MarshalJSON() ([]b
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaInternalGetReplicationJobsUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalMountVolumeReplicationBadRequest as json.
+func (s *V1betaInternalMountVolumeReplicationBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalMountVolumeReplicationBadRequest from json.
+func (s *V1betaInternalMountVolumeReplicationBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalMountVolumeReplicationBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalMountVolumeReplicationBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalMountVolumeReplicationBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalMountVolumeReplicationBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalMountVolumeReplicationConflict as json.
+func (s *V1betaInternalMountVolumeReplicationConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalMountVolumeReplicationConflict from json.
+func (s *V1betaInternalMountVolumeReplicationConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalMountVolumeReplicationConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalMountVolumeReplicationConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalMountVolumeReplicationConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalMountVolumeReplicationConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalMountVolumeReplicationForbidden as json.
+func (s *V1betaInternalMountVolumeReplicationForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalMountVolumeReplicationForbidden from json.
+func (s *V1betaInternalMountVolumeReplicationForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalMountVolumeReplicationForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalMountVolumeReplicationForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalMountVolumeReplicationForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalMountVolumeReplicationForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalMountVolumeReplicationInternalServerError as json.
+func (s *V1betaInternalMountVolumeReplicationInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalMountVolumeReplicationInternalServerError from json.
+func (s *V1betaInternalMountVolumeReplicationInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalMountVolumeReplicationInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalMountVolumeReplicationInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalMountVolumeReplicationInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalMountVolumeReplicationInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalMountVolumeReplicationMethodNotAllowed as json.
+func (s *V1betaInternalMountVolumeReplicationMethodNotAllowed) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalMountVolumeReplicationMethodNotAllowed from json.
+func (s *V1betaInternalMountVolumeReplicationMethodNotAllowed) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalMountVolumeReplicationMethodNotAllowed to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalMountVolumeReplicationMethodNotAllowed(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalMountVolumeReplicationMethodNotAllowed) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalMountVolumeReplicationMethodNotAllowed) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalMountVolumeReplicationNotFound as json.
+func (s *V1betaInternalMountVolumeReplicationNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalMountVolumeReplicationNotFound from json.
+func (s *V1betaInternalMountVolumeReplicationNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalMountVolumeReplicationNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalMountVolumeReplicationNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalMountVolumeReplicationNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalMountVolumeReplicationNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalMountVolumeReplicationUnauthorized as json.
+func (s *V1betaInternalMountVolumeReplicationUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalMountVolumeReplicationUnauthorized from json.
+func (s *V1betaInternalMountVolumeReplicationUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalMountVolumeReplicationUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalMountVolumeReplicationUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalMountVolumeReplicationUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalMountVolumeReplicationUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalMountVolumeReplicationUnprocessableEntity as json.
+func (s *V1betaInternalMountVolumeReplicationUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalMountVolumeReplicationUnprocessableEntity from json.
+func (s *V1betaInternalMountVolumeReplicationUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalMountVolumeReplicationUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalMountVolumeReplicationUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalMountVolumeReplicationUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalMountVolumeReplicationUnprocessableEntity) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

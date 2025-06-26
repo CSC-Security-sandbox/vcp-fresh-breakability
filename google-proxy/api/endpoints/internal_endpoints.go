@@ -189,5 +189,6 @@ func convertJobToInternalJobV1Beta(job *models.Job) gcpgenserver.InternalJobV1be
 		CreatedAt:     gcpgenserver.NewOptDateTime(job.CreatedAt),
 		UpdatedAt:     gcpgenserver.NewOptDateTime(job.UpdatedAt),
 		ScheduledAt:   gcpgenserver.NewOptDateTime(job.ScheduledAt),
+		ResourceName:  gcpgenserver.NewOptString(job.ResourceName),
 	}
 }

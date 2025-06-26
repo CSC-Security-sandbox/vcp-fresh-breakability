@@ -52,7 +52,7 @@ func TestPerformMountCheckWorkFlow(t *testing.T) {
 		env.OnActivity(mountJobActivity.GetReplication, mock.Anything, replicationUUID).Return(dbreplication, nil)
 		env.OnActivity(commonActivity.GetNode, mock.Anything, dbreplication.Volume.PoolID).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity(mountJobActivity.CheckMountJob, mock.Anything, dbreplication, mock.Anything, accountName).Return(nil)
-		env.OnActivity(mountJobActivity.GetReplicationFromOntap, mock.Anything, dbreplication, mock.Anything).Return(dbreplication, nil)
+		env.OnActivity(mountJobActivity.GetReplicationFromOntap, mock.Anything, dbreplication, mock.Anything, accountName).Return(dbreplication, nil)
 		env.OnActivity(mountJobActivity.UpdateReplicationInDB, mock.Anything, dbreplication).Return(nil)
 
 		// Execute workflow

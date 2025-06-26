@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-faster/errors"
+
 	"github.com/ogen-go/ogen/conv"
 	ht "github.com/ogen-go/ogen/http"
 	"github.com/ogen-go/ogen/uri"
@@ -249,7 +250,7 @@ type Invoker interface {
 	//
 	// Returns descriptions of HostGroups that are listed in request body.
 	//
-	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/getMultipleHostGroups
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleHostGroups
 	V1betaGetMultipleHostGroups(ctx context.Context, request *HostGroupIdListV1beta, params V1betaGetMultipleHostGroupsParams) (V1betaGetMultipleHostGroupsRes, error)
 	// V1betaGetMultipleKmsConfigs invokes v1beta_getMultipleKmsConfigs operation.
 	//
@@ -341,6 +342,12 @@ type Invoker interface {
 	//
 	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ReplicationJobs
 	V1betaInternalGetReplicationJobs(ctx context.Context, params V1betaInternalGetReplicationJobsParams) (V1betaInternalGetReplicationJobsRes, error)
+	// V1betaInternalMountVolumeReplication invokes v1beta_internalMountVolumeReplication operation.
+	//
+	// Mounts the DP volume once the baseline transfer is complete.
+	//
+	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/mount
+	V1betaInternalMountVolumeReplication(ctx context.Context, params V1betaInternalMountVolumeReplicationParams) (V1betaInternalMountVolumeReplicationRes, error)
 	// V1betaInternalReleaseVolumeReplication invokes v1beta_internalReleaseVolumeReplication operation.
 	//
 	// Release a volume replication on the source.
@@ -565,6 +572,7 @@ func (c *Client) GetHealth(ctx context.Context) (GetHealthRes, error) {
 }
 
 func (c *Client) sendGetHealth(ctx context.Context) (res GetHealthRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [1]string
 	pathParts[0] = "/health"
@@ -600,6 +608,7 @@ func (c *Client) V1betaCheckKmsConfig(ctx context.Context, params V1betaCheckKms
 }
 
 func (c *Client) sendV1betaCheckKmsConfig(ctx context.Context, params V1betaCheckKmsConfigParams) (res V1betaCheckKmsConfigRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/projects/"
@@ -717,6 +726,7 @@ func (c *Client) sendV1betaCreateActiveDirectory(ctx context.Context, request *A
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -818,6 +828,7 @@ func (c *Client) sendV1betaCreateBackup(ctx context.Context, request *BackupCrea
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/projects/"
@@ -938,6 +949,7 @@ func (c *Client) sendV1betaCreateBackupPolicy(ctx context.Context, request *Back
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1039,6 +1051,7 @@ func (c *Client) sendV1betaCreateBackupVault(ctx context.Context, request *Backu
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1140,6 +1153,7 @@ func (c *Client) sendV1betaCreateHostGroup(ctx context.Context, request *HostGro
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1241,6 +1255,7 @@ func (c *Client) sendV1betaCreateKmsConfiguration(ctx context.Context, request *
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1342,6 +1357,7 @@ func (c *Client) sendV1betaCreatePool(ctx context.Context, request *PoolV1beta, 
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1443,6 +1459,7 @@ func (c *Client) sendV1betaCreateReplication(ctx context.Context, request *Repli
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1563,6 +1580,7 @@ func (c *Client) sendV1betaCreateSnapshot(ctx context.Context, request *VolumeSn
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1684,6 +1702,7 @@ func (c *Client) sendV1betaCreateVolume(ctx context.Context, request *VolumeCrea
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1778,6 +1797,7 @@ func (c *Client) V1betaDeleteActiveDirectory(ctx context.Context, params V1betaD
 }
 
 func (c *Client) sendV1betaDeleteActiveDirectory(ctx context.Context, params V1betaDeleteActiveDirectoryParams) (res V1betaDeleteActiveDirectoryRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1885,6 +1905,7 @@ func (c *Client) V1betaDeleteBackupPolicy(ctx context.Context, params V1betaDele
 }
 
 func (c *Client) sendV1betaDeleteBackupPolicy(ctx context.Context, params V1betaDeleteBackupPolicyParams) (res V1betaDeleteBackupPolicyRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -1992,6 +2013,7 @@ func (c *Client) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params 
 }
 
 func (c *Client) sendV1betaDeleteBackupUnderBackupVault(ctx context.Context, params V1betaDeleteBackupUnderBackupVaultParams) (res V1betaDeleteBackupUnderBackupVaultRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [8]string
 	pathParts[0] = "/v1beta/projects/"
@@ -2118,6 +2140,7 @@ func (c *Client) V1betaDeleteBackupVault(ctx context.Context, params V1betaDelet
 }
 
 func (c *Client) sendV1betaDeleteBackupVault(ctx context.Context, params V1betaDeleteBackupVaultParams) (res V1betaDeleteBackupVaultRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -2225,6 +2248,7 @@ func (c *Client) V1betaDeleteHostGroup(ctx context.Context, params V1betaDeleteH
 }
 
 func (c *Client) sendV1betaDeleteHostGroup(ctx context.Context, params V1betaDeleteHostGroupParams) (res V1betaDeleteHostGroupRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -2332,6 +2356,7 @@ func (c *Client) V1betaDeleteKmsConfiguration(ctx context.Context, params V1beta
 }
 
 func (c *Client) sendV1betaDeleteKmsConfiguration(ctx context.Context, params V1betaDeleteKmsConfigurationParams) (res V1betaDeleteKmsConfigurationRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -2441,6 +2466,7 @@ func (c *Client) V1betaDeletePool(ctx context.Context, params V1betaDeletePoolPa
 }
 
 func (c *Client) sendV1betaDeletePool(ctx context.Context, params V1betaDeletePoolParams) (res V1betaDeletePoolRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -2557,6 +2583,7 @@ func (c *Client) sendV1betaDeleteReplication(ctx context.Context, request *Repli
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [8]string
 	pathParts[0] = "/v1beta/projects/"
@@ -2688,6 +2715,7 @@ func (c *Client) V1betaDeleteSnapshot(ctx context.Context, params V1betaDeleteSn
 }
 
 func (c *Client) sendV1betaDeleteSnapshot(ctx context.Context, params V1betaDeleteSnapshotParams) (res V1betaDeleteSnapshotRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [8]string
 	pathParts[0] = "/v1beta/projects/"
@@ -2816,6 +2844,7 @@ func (c *Client) V1betaDeleteVolume(ctx context.Context, request OptV1betaDelete
 }
 
 func (c *Client) sendV1betaDeleteVolume(ctx context.Context, request OptV1betaDeleteVolumeReq, params V1betaDeleteVolumeParams) (res V1betaDeleteVolumeRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -2926,6 +2955,7 @@ func (c *Client) V1betaDescribeActiveDirectory(ctx context.Context, params V1bet
 }
 
 func (c *Client) sendV1betaDescribeActiveDirectory(ctx context.Context, params V1betaDescribeActiveDirectoryParams) (res V1betaDescribeActiveDirectoryRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -3033,6 +3063,7 @@ func (c *Client) V1betaDescribeBackup(ctx context.Context, params V1betaDescribe
 }
 
 func (c *Client) sendV1betaDescribeBackup(ctx context.Context, params V1betaDescribeBackupParams) (res V1betaDescribeBackupRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [8]string
 	pathParts[0] = "/v1beta/projects/"
@@ -3179,6 +3210,7 @@ func (c *Client) V1betaDescribeBackupPolicy(ctx context.Context, params V1betaDe
 }
 
 func (c *Client) sendV1betaDescribeBackupPolicy(ctx context.Context, params V1betaDescribeBackupPolicyParams) (res V1betaDescribeBackupPolicyRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -3286,6 +3318,7 @@ func (c *Client) V1betaDescribeBackupVault(ctx context.Context, params V1betaDes
 }
 
 func (c *Client) sendV1betaDescribeBackupVault(ctx context.Context, params V1betaDescribeBackupVaultParams) (res V1betaDescribeBackupVaultRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -3413,6 +3446,7 @@ func (c *Client) V1betaDescribeHostGroup(ctx context.Context, params V1betaDescr
 }
 
 func (c *Client) sendV1betaDescribeHostGroup(ctx context.Context, params V1betaDescribeHostGroupParams) (res V1betaDescribeHostGroupRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -3520,6 +3554,7 @@ func (c *Client) V1betaDescribeKmsConfiguration(ctx context.Context, params V1be
 }
 
 func (c *Client) sendV1betaDescribeKmsConfiguration(ctx context.Context, params V1betaDescribeKmsConfigurationParams) (res V1betaDescribeKmsConfigurationRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -3627,6 +3662,7 @@ func (c *Client) V1betaDescribeOperation(ctx context.Context, params V1betaDescr
 }
 
 func (c *Client) sendV1betaDescribeOperation(ctx context.Context, params V1betaDescribeOperationParams) (res V1betaDescribeOperationRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -3734,6 +3770,7 @@ func (c *Client) V1betaDescribePool(ctx context.Context, params V1betaDescribePo
 }
 
 func (c *Client) sendV1betaDescribePool(ctx context.Context, params V1betaDescribePoolParams) (res V1betaDescribePoolRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -3841,6 +3878,7 @@ func (c *Client) V1betaDescribeSnapshot(ctx context.Context, params V1betaDescri
 }
 
 func (c *Client) sendV1betaDescribeSnapshot(ctx context.Context, params V1betaDescribeSnapshotParams) (res V1betaDescribeSnapshotRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [8]string
 	pathParts[0] = "/v1beta/projects/"
@@ -3967,6 +4005,7 @@ func (c *Client) V1betaDescribeVolume(ctx context.Context, params V1betaDescribe
 }
 
 func (c *Client) sendV1betaDescribeVolume(ctx context.Context, params V1betaDescribeVolumeParams) (res V1betaDescribeVolumeRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4083,6 +4122,7 @@ func (c *Client) sendV1betaGetMultipleActiveDirectories(ctx context.Context, req
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4184,6 +4224,7 @@ func (c *Client) sendV1betaGetMultipleBackupPolicies(ctx context.Context, reques
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4285,6 +4326,7 @@ func (c *Client) sendV1betaGetMultipleBackupVaults(ctx context.Context, request 
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4386,6 +4428,7 @@ func (c *Client) sendV1betaGetMultipleBackups(ctx context.Context, request *Back
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4490,7 +4533,7 @@ func (c *Client) sendV1betaGetMultipleBackups(ctx context.Context, request *Back
 //
 // Returns descriptions of HostGroups that are listed in request body.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/getMultipleHostGroups
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/getMultipleHostGroups
 func (c *Client) V1betaGetMultipleHostGroups(ctx context.Context, request *HostGroupIdListV1beta, params V1betaGetMultipleHostGroupsParams) (V1betaGetMultipleHostGroupsRes, error) {
 	res, err := c.sendV1betaGetMultipleHostGroups(ctx, request, params)
 	return res, err
@@ -4506,6 +4549,7 @@ func (c *Client) sendV1betaGetMultipleHostGroups(ctx context.Context, request *H
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4546,7 +4590,7 @@ func (c *Client) sendV1betaGetMultipleHostGroups(ctx context.Context, request *H
 		}
 		pathParts[3] = encoded
 	}
-	pathParts[4] = "/hostGroups/getMultipleHostGroups"
+	pathParts[4] = "/getMultipleHostGroups"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	r, err := ht.NewRequest(ctx, "POST", u)
@@ -4607,6 +4651,7 @@ func (c *Client) sendV1betaGetMultipleKmsConfigs(ctx context.Context, request *K
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4708,6 +4753,7 @@ func (c *Client) sendV1betaGetMultiplePools(ctx context.Context, request *PoolId
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4809,6 +4855,7 @@ func (c *Client) sendV1betaGetMultipleReplications(ctx context.Context, request 
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/projects/"
@@ -4929,6 +4976,7 @@ func (c *Client) sendV1betaGetMultipleReplicationsInternal(ctx context.Context, 
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -5030,6 +5078,7 @@ func (c *Client) sendV1betaGetMultipleSnapshots(ctx context.Context, request *Sn
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/projects/"
@@ -5150,6 +5199,7 @@ func (c *Client) sendV1betaGetMultipleVolumes(ctx context.Context, request *Volu
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -5242,6 +5292,7 @@ func (c *Client) V1betaGetReplicationCount(ctx context.Context, params V1betaGet
 }
 
 func (c *Client) sendV1betaGetReplicationCount(ctx context.Context, params V1betaGetReplicationCountParams) (res V1betaGetReplicationCountRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -5394,6 +5445,7 @@ func (c *Client) V1betaGetVolumeCount(ctx context.Context, params V1betaGetVolum
 }
 
 func (c *Client) sendV1betaGetVolumeCount(ctx context.Context, params V1betaGetVolumeCountParams) (res V1betaGetVolumeCountRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -5555,6 +5607,7 @@ func (c *Client) sendV1betaInternalAcceptClusterPeer(ctx context.Context, reques
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -5656,6 +5709,7 @@ func (c *Client) sendV1betaInternalAuthorizeVolumeReplication(ctx context.Contex
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -5757,6 +5811,7 @@ func (c *Client) sendV1betaInternalCreateVolumeReplication(ctx context.Context, 
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -5849,6 +5904,7 @@ func (c *Client) V1betaInternalDeleteVolumeReplication(ctx context.Context, para
 }
 
 func (c *Client) sendV1betaInternalDeleteVolumeReplication(ctx context.Context, params V1betaInternalDeleteVolumeReplicationParams) (res V1betaInternalDeleteVolumeReplicationRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -6010,6 +6066,7 @@ func (c *Client) V1betaInternalDescribePool(ctx context.Context, params V1betaIn
 }
 
 func (c *Client) sendV1betaInternalDescribePool(ctx context.Context, params V1betaInternalDescribePoolParams) (res V1betaInternalDescribePoolRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -6117,6 +6174,7 @@ func (c *Client) V1betaInternalDescribeVolumeReplication(ctx context.Context, pa
 }
 
 func (c *Client) sendV1betaInternalDescribeVolumeReplication(ctx context.Context, params V1betaInternalDescribeVolumeReplicationParams) (res V1betaInternalDescribeVolumeReplicationRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -6224,6 +6282,7 @@ func (c *Client) V1betaInternalGetReplicationJobs(ctx context.Context, params V1
 }
 
 func (c *Client) sendV1betaInternalGetReplicationJobs(ctx context.Context, params V1betaInternalGetReplicationJobsParams) (res V1betaInternalGetReplicationJobsRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -6321,6 +6380,115 @@ func (c *Client) sendV1betaInternalGetReplicationJobs(ctx context.Context, param
 	return result, nil
 }
 
+// V1betaInternalMountVolumeReplication invokes v1beta_internalMountVolumeReplication operation.
+//
+// Mounts the DP volume once the baseline transfer is complete.
+//
+// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/mount
+func (c *Client) V1betaInternalMountVolumeReplication(ctx context.Context, params V1betaInternalMountVolumeReplicationParams) (V1betaInternalMountVolumeReplicationRes, error) {
+	res, err := c.sendV1betaInternalMountVolumeReplication(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaInternalMountVolumeReplication(ctx context.Context, params V1betaInternalMountVolumeReplicationParams) (res V1betaInternalMountVolumeReplicationRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1beta/internal/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumeReplication/"
+	{
+		// Encode "volumeReplicationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeReplicationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeReplicationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/mount"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaInternalMountVolumeReplicationResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1betaInternalReleaseVolumeReplication invokes v1beta_internalReleaseVolumeReplication operation.
 //
 // Release a volume replication on the source.
@@ -6332,6 +6500,7 @@ func (c *Client) V1betaInternalReleaseVolumeReplication(ctx context.Context, par
 }
 
 func (c *Client) sendV1betaInternalReleaseVolumeReplication(ctx context.Context, params V1betaInternalReleaseVolumeReplicationParams) (res V1betaInternalReleaseVolumeReplicationRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -6442,6 +6611,7 @@ func (c *Client) V1betaInternalResumeVolumeReplication(ctx context.Context, para
 }
 
 func (c *Client) sendV1betaInternalResumeVolumeReplication(ctx context.Context, params V1betaInternalResumeVolumeReplicationParams) (res V1betaInternalResumeVolumeReplicationRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -6572,6 +6742,7 @@ func (c *Client) V1betaInternalStopVolumeReplication(ctx context.Context, reques
 }
 
 func (c *Client) sendV1betaInternalStopVolumeReplication(ctx context.Context, request *V1betaInternalStopVolumeReplicationReq, params V1betaInternalStopVolumeReplicationParams) (res V1betaInternalStopVolumeReplicationRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -6692,6 +6863,7 @@ func (c *Client) sendV1betaInternalUpdateVolumeReplication(ctx context.Context, 
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/internal/projects/"
@@ -6802,6 +6974,7 @@ func (c *Client) V1betaListActiveDirectories(ctx context.Context, params V1betaL
 }
 
 func (c *Client) sendV1betaListActiveDirectories(ctx context.Context, params V1betaListActiveDirectoriesParams) (res V1betaListActiveDirectoriesRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -6891,6 +7064,7 @@ func (c *Client) V1betaListBackupPolicies(ctx context.Context, params V1betaList
 }
 
 func (c *Client) sendV1betaListBackupPolicies(ctx context.Context, params V1betaListBackupPoliciesParams) (res V1betaListBackupPoliciesRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -6980,6 +7154,7 @@ func (c *Client) V1betaListBackupVaults(ctx context.Context, params V1betaListBa
 }
 
 func (c *Client) sendV1betaListBackupVaults(ctx context.Context, params V1betaListBackupVaultsParams) (res V1betaListBackupVaultsRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -7089,6 +7264,7 @@ func (c *Client) V1betaListBackups(ctx context.Context, params V1betaListBackups
 }
 
 func (c *Client) sendV1betaListBackups(ctx context.Context, params V1betaListBackupsParams) (res V1betaListBackupsRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/projects/"
@@ -7251,6 +7427,7 @@ func (c *Client) V1betaListHostGroups(ctx context.Context, params V1betaListHost
 }
 
 func (c *Client) sendV1betaListHostGroups(ctx context.Context, params V1betaListHostGroupsParams) (res V1betaListHostGroupsRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -7340,6 +7517,7 @@ func (c *Client) V1betaListKmsConfigurations(ctx context.Context, params V1betaL
 }
 
 func (c *Client) sendV1betaListKmsConfigurations(ctx context.Context, params V1betaListKmsConfigurationsParams) (res V1betaListKmsConfigurationsRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -7429,6 +7607,7 @@ func (c *Client) V1betaListPools(ctx context.Context, params V1betaListPoolsPara
 }
 
 func (c *Client) sendV1betaListPools(ctx context.Context, params V1betaListPoolsParams) (res V1betaListPoolsRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -7538,6 +7717,7 @@ func (c *Client) V1betaListReplications(ctx context.Context, params V1betaListRe
 }
 
 func (c *Client) sendV1betaListReplications(ctx context.Context, params V1betaListReplicationsParams) (res V1betaListReplicationsRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -7627,6 +7807,7 @@ func (c *Client) V1betaListSnapshot(ctx context.Context, params V1betaListSnapsh
 }
 
 func (c *Client) sendV1betaListSnapshot(ctx context.Context, params V1betaListSnapshotParams) (res V1betaListSnapshotRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
 	pathParts[0] = "/v1beta/projects/"
@@ -7735,6 +7916,7 @@ func (c *Client) V1betaListVolumes(ctx context.Context, params V1betaListVolumes
 }
 
 func (c *Client) sendV1betaListVolumes(ctx context.Context, params V1betaListVolumesParams) (res V1betaListVolumesRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [5]string
 	pathParts[0] = "/v1beta/projects/"
@@ -7895,6 +8077,7 @@ func (c *Client) V1betaResumeReplication(ctx context.Context, params V1betaResum
 }
 
 func (c *Client) sendV1betaResumeReplication(ctx context.Context, params V1betaResumeReplicationParams) (res V1betaResumeReplicationRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [9]string
 	pathParts[0] = "/v1beta/projects/"
@@ -8022,6 +8205,7 @@ func (c *Client) V1betaReverseAndResumeReplication(ctx context.Context, params V
 }
 
 func (c *Client) sendV1betaReverseAndResumeReplication(ctx context.Context, params V1betaReverseAndResumeReplicationParams) (res V1betaReverseAndResumeReplicationRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [9]string
 	pathParts[0] = "/v1beta/projects/"
@@ -8149,6 +8333,7 @@ func (c *Client) V1betaStopReplication(ctx context.Context, request *Replication
 }
 
 func (c *Client) sendV1betaStopReplication(ctx context.Context, request *ReplicationStopV1beta, params V1betaStopReplicationParams) (res V1betaStopReplicationRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [9]string
 	pathParts[0] = "/v1beta/projects/"
@@ -8279,6 +8464,7 @@ func (c *Client) V1betaSyncReplication(ctx context.Context, params V1betaSyncRep
 }
 
 func (c *Client) sendV1betaSyncReplication(ctx context.Context, params V1betaSyncReplicationParams) (res V1betaSyncReplicationRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [9]string
 	pathParts[0] = "/v1beta/projects/"
@@ -8415,6 +8601,7 @@ func (c *Client) sendV1betaUpdateActiveDirectory(ctx context.Context, request *A
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -8534,6 +8721,7 @@ func (c *Client) sendV1betaUpdateBackup(ctx context.Context, request *BackupUpda
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [8]string
 	pathParts[0] = "/v1beta/projects/"
@@ -8672,6 +8860,7 @@ func (c *Client) sendV1betaUpdateBackupPolicy(ctx context.Context, request *Back
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -8791,6 +8980,7 @@ func (c *Client) sendV1betaUpdateBackupVault(ctx context.Context, request *Backu
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -8901,6 +9091,7 @@ func (c *Client) V1betaUpdateHostGroup(ctx context.Context, request *HostGroupUp
 }
 
 func (c *Client) sendV1betaUpdateHostGroup(ctx context.Context, request *HostGroupUpdateV1beta, params V1betaUpdateHostGroupParams) (res V1betaUpdateHostGroupRes, err error) {
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -9020,6 +9211,7 @@ func (c *Client) sendV1betaUpdateKmsConfiguration(ctx context.Context, request *
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -9139,6 +9331,7 @@ func (c *Client) sendV1betaUpdatePool(ctx context.Context, request *PoolUpdateV1
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"
@@ -9258,6 +9451,7 @@ func (c *Client) sendV1betaUpdateReplication(ctx context.Context, request *Repli
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [8]string
 	pathParts[0] = "/v1beta/projects/"
@@ -9396,6 +9590,7 @@ func (c *Client) sendV1betaUpdateSnapshot(ctx context.Context, request *VolumeSn
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [8]string
 	pathParts[0] = "/v1beta/projects/"
@@ -9534,6 +9729,7 @@ func (c *Client) sendV1betaUpdateVolume(ctx context.Context, request *VolumeUpda
 	}(); err != nil {
 		return res, errors.Wrap(err, "validate")
 	}
+
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [6]string
 	pathParts[0] = "/v1beta/projects/"

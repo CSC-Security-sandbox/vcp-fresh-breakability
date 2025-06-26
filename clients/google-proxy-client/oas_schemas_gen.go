@@ -3964,6 +3964,7 @@ type InternalJobV1beta struct {
 	UpdatedAt     OptDateTime `json:"UpdatedAt"`
 	JobType       OptString   `json:"JobType"`
 	ProjectNumber OptString   `json:"ProjectNumber"`
+	ResourceName  OptString   `json:"ResourceName"`
 	// Scheduled run date of the resource.
 	ScheduledAt OptDateTime `json:"ScheduledAt"`
 }
@@ -4006,6 +4007,11 @@ func (s *InternalJobV1beta) GetJobType() OptString {
 // GetProjectNumber returns the value of ProjectNumber.
 func (s *InternalJobV1beta) GetProjectNumber() OptString {
 	return s.ProjectNumber
+}
+
+// GetResourceName returns the value of ResourceName.
+func (s *InternalJobV1beta) GetResourceName() OptString {
+	return s.ResourceName
 }
 
 // GetScheduledAt returns the value of ScheduledAt.
@@ -4053,10 +4059,17 @@ func (s *InternalJobV1beta) SetProjectNumber(val OptString) {
 	s.ProjectNumber = val
 }
 
+// SetResourceName sets the value of ResourceName.
+func (s *InternalJobV1beta) SetResourceName(val OptString) {
+	s.ResourceName = val
+}
+
 // SetScheduledAt sets the value of ScheduledAt.
 func (s *InternalJobV1beta) SetScheduledAt(val OptDateTime) {
 	s.ScheduledAt = val
 }
+
+func (*InternalJobV1beta) v1betaInternalMountVolumeReplicationRes() {}
 
 // Ref: #/components/schemas/Job_v1beta
 type JobV1beta struct {
@@ -15639,6 +15652,41 @@ func (*V1betaInternalGetReplicationJobsUnauthorized) v1betaInternalGetReplicatio
 type V1betaInternalGetReplicationJobsUnprocessableEntity Error
 
 func (*V1betaInternalGetReplicationJobsUnprocessableEntity) v1betaInternalGetReplicationJobsRes() {}
+
+type V1betaInternalMountVolumeReplicationBadRequest Error
+
+func (*V1betaInternalMountVolumeReplicationBadRequest) v1betaInternalMountVolumeReplicationRes() {}
+
+type V1betaInternalMountVolumeReplicationConflict Error
+
+func (*V1betaInternalMountVolumeReplicationConflict) v1betaInternalMountVolumeReplicationRes() {}
+
+type V1betaInternalMountVolumeReplicationForbidden Error
+
+func (*V1betaInternalMountVolumeReplicationForbidden) v1betaInternalMountVolumeReplicationRes() {}
+
+type V1betaInternalMountVolumeReplicationInternalServerError Error
+
+func (*V1betaInternalMountVolumeReplicationInternalServerError) v1betaInternalMountVolumeReplicationRes() {
+}
+
+type V1betaInternalMountVolumeReplicationMethodNotAllowed Error
+
+func (*V1betaInternalMountVolumeReplicationMethodNotAllowed) v1betaInternalMountVolumeReplicationRes() {
+}
+
+type V1betaInternalMountVolumeReplicationNotFound Error
+
+func (*V1betaInternalMountVolumeReplicationNotFound) v1betaInternalMountVolumeReplicationRes() {}
+
+type V1betaInternalMountVolumeReplicationUnauthorized Error
+
+func (*V1betaInternalMountVolumeReplicationUnauthorized) v1betaInternalMountVolumeReplicationRes() {}
+
+type V1betaInternalMountVolumeReplicationUnprocessableEntity Error
+
+func (*V1betaInternalMountVolumeReplicationUnprocessableEntity) v1betaInternalMountVolumeReplicationRes() {
+}
 
 type V1betaInternalReleaseVolumeReplicationBadRequest Error
 

@@ -239,24 +239,30 @@ func _createVolumeReplication(ctx context.Context, se database.Storage, temporal
 		return nil, "", err
 	}
 
-	job := &datamodel.Job{
-		Type:         string(models.JobTypeCreateVolumeReplication),
-		State:        string(models.JobsStateNEW),
-		ResourceName: dbRepl.Uri,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
-	}
-	createdJob, err := se.CreateJob(ctx, job)
-	if err != nil {
-		logger.Error("Failed to create job in database", "error", err)
-		return nil, "", err
-	}
-
 	dbRepl.AccountID = account.ID
 	dbRepl.VolumeID = srcVolume.ID
 	volumeRep, err := se.CreateVolumeReplication(ctx, dbRepl)
 	if err != nil {
 		return nil, "", err
 	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeCreateVolumeReplication),
+		State:        string(models.JobsStateNEW),
+		ResourceName: dbRepl.Uri,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: dbRepl.UUID,
+			PoolUUID:     srcVolume.Pool.UUID,
+		},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+	// Set the workflow ID for the job
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,

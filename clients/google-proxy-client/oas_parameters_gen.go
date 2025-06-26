@@ -603,6 +603,17 @@ type V1betaInternalGetReplicationJobsParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaInternalMountVolumeReplicationParams is parameters of v1beta_internalMountVolumeReplication operation.
+type V1betaInternalMountVolumeReplicationParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId          string
+	VolumeReplicationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaInternalReleaseVolumeReplicationParams is parameters of v1beta_internalReleaseVolumeReplication operation.
 type V1betaInternalReleaseVolumeReplicationParams struct {
 	// The project number of the GCP project owning the resource being acted upon.

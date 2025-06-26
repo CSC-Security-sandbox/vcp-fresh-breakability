@@ -157,7 +157,7 @@ func TestGetReplicationFromOntap(t *testing.T) {
 			ReplicationAttributes: &datamodel.ReplicationDetails{},
 		}
 
-		replication, err := activity.GetReplicationFromOntap(context.Background(), dbReplication, node)
+		replication, err := activity.GetReplicationFromOntap(context.Background(), dbReplication, node, "test-account")
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, replication)
@@ -178,7 +178,7 @@ func TestGetReplicationFromOntap(t *testing.T) {
 			ReplicationAttributes: &datamodel.ReplicationDetails{},
 		}
 
-		replication, err := activity.GetReplicationFromOntap(context.Background(), dbReplication, node)
+		replication, err := activity.GetReplicationFromOntap(context.Background(), dbReplication, node, "test-account")
 
 		assert.Error(tt, err)
 		assert.Nil(tt, replication)

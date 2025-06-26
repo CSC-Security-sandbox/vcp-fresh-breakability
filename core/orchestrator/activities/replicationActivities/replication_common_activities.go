@@ -5,6 +5,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -94,7 +95,7 @@ func _hydrateVolumeReplication(ctx context.Context, createReplicationResponse mo
 	return nil
 }
 
-func VolumeReplicationDeHydration(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
+func DeHydrateVolumeReplication(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
 	logger := util.GetLogger(ctx)
 	callbackToken, err := generateCallbackToken(ctx)
 	if err != nil {
@@ -110,14 +111,13 @@ func VolumeReplicationDeHydration(ctx context.Context, createReplicationResponse
 	return nil
 }
 
-func VolumeHydration(ctx context.Context, destVolume models.Volume, project string) error {
+func HydrateVolume(ctx context.Context, destVolume models.Volume, project string, poolResourceId string) error {
 	logger := util.GetLogger(ctx)
 	callbackToken, err := generateCallbackToken(ctx)
 	if err != nil {
 		logger.Error("Error when getting callback token", err)
 		return err
 	}
-	var poolResourceId string
 	// Hydrate Volume to CFFE
 	hydrateVolume := mapVolumeBetaToVolumeHydrateObject(destVolume, poolResourceId)
 	err = hydrateVolumeCreate(ctx, logger, hydrateVolume, destVolume.Region, project, callbackToken)
@@ -128,7 +128,7 @@ func VolumeHydration(ctx context.Context, destVolume models.Volume, project stri
 	return nil
 }
 
-func VolumeDeHydration(ctx context.Context, destVolume models.Volume, project string) error {
+func DeHydrateVolume(ctx context.Context, destVolume models.Volume, project string) error {
 	logger := util.GetLogger(ctx)
 	callbackToken, err := generateCallbackToken(ctx)
 	if err != nil {
@@ -193,4 +193,24 @@ func _mapReplicationLifeCycleStateBetaToReplicationHydrationState(state string) 
 	default:
 		return "STATE_UNSPECIFIED"
 	}
+}
+
+func GetBasePath(ctx context.Context, location string) (*string, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("getBasePath")
+	basePath, err := replication.InternalUtilGetPairedRegionURI(location)
+	if err != nil {
+		return nil, err
+	}
+	return &basePath, nil
+}
+
+func GetSignedToken(ctx context.Context, projectNumber string) (*string, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("getSignedToken")
+	jwt, err := replication.InternalUtilGetSignedToken(projectNumber)
+	if err != nil {
+		return nil, err
+	}
+	return &jwt, nil
 }

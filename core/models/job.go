@@ -58,6 +58,7 @@ type Job struct {
 	JobAttributes *JobAttributes
 	WorkflowID    string
 	ScheduledAt   time.Time
+	ResourceName  string
 }
 type JobAttributes struct {
 	ResourceUUID string

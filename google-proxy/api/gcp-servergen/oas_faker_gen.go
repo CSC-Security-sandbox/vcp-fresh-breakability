@@ -1619,6 +1619,11 @@ func (s *InternalJobV1beta) SetFake() {
 	}
 	{
 		{
+			s.ResourceName.SetFake()
+		}
+	}
+	{
+		{
 			s.ScheduledAt.SetFake()
 		}
 	}

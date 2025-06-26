@@ -3,13 +3,16 @@
 package googleproxyclient
 
 import (
-	std "encoding/json"
 	"fmt"
-	"testing"
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
+
 	"github.com/ogen-go/ogen/validate"
+
+	std "encoding/json"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,6 +54,7 @@ func TestActiveDirectoryV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestActiveDirectoryV1beta_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -91,6 +95,7 @@ func TestActiveDirectoryV1betaActiveDirectoryState_EncodeDecode(t *testing.T) {
 }
 
 func TestActiveDirectoryV1betaActiveDirectoryState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -203,6 +208,7 @@ func TestBackupPolicyDetailsV1betaState_EncodeDecode(t *testing.T) {
 }
 
 func TestBackupPolicyDetailsV1betaState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -279,6 +285,7 @@ func TestBackupPolicyV1betaState_EncodeDecode(t *testing.T) {
 }
 
 func TestBackupPolicyV1betaState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -391,6 +398,7 @@ func TestBackupV1betaState_EncodeDecode(t *testing.T) {
 }
 
 func TestBackupV1betaState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -467,6 +475,7 @@ func TestBackupVaultV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestBackupVaultV1beta_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -519,6 +528,7 @@ func TestBackupVaultV1betaState_EncodeDecode(t *testing.T) {
 }
 
 func TestBackupVaultV1betaState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -571,6 +581,7 @@ func TestBlockPropertiesV1betaOsType_EncodeDecode(t *testing.T) {
 }
 
 func TestBlockPropertiesV1betaOsType_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -647,6 +658,7 @@ func TestClusterPeerV1AuthenticationState_EncodeDecode(t *testing.T) {
 }
 
 func TestClusterPeerV1AuthenticationState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -687,6 +699,7 @@ func TestClusterPeerV1Availability_EncodeDecode(t *testing.T) {
 }
 
 func TestClusterPeerV1Availability_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -751,6 +764,7 @@ func TestError_EncodeDecode(t *testing.T) {
 }
 
 func TestError_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -851,6 +865,7 @@ func TestFlexCacheV1betaCacheState_EncodeDecode(t *testing.T) {
 }
 
 func TestFlexCacheV1betaCacheState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -891,6 +906,7 @@ func TestFlexCacheV1betaPreviousCacheState_EncodeDecode(t *testing.T) {
 }
 
 func TestFlexCacheV1betaPreviousCacheState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1039,6 +1055,7 @@ func TestHostGroupV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestHostGroupV1beta_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1079,6 +1096,7 @@ func TestHostGroupV1betaOsType_EncodeDecode(t *testing.T) {
 }
 
 func TestHostGroupV1betaOsType_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1119,6 +1137,7 @@ func TestHostGroupV1betaState_EncodeDecode(t *testing.T) {
 }
 
 func TestHostGroupV1betaState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1159,6 +1178,7 @@ func TestHostGroupV1betaType_EncodeDecode(t *testing.T) {
 }
 
 func TestHostGroupV1betaType_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1249,6 +1269,7 @@ func TestHybridReplicationParametersV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestHybridReplicationParametersV1betaLabels_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1339,6 +1360,7 @@ func TestJobV1betaAction_EncodeDecode(t *testing.T) {
 }
 
 func TestJobV1betaAction_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1379,6 +1401,7 @@ func TestJobV1betaObjectType_EncodeDecode(t *testing.T) {
 }
 
 func TestJobV1betaObjectType_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1419,6 +1442,7 @@ func TestJobV1betaState_EncodeDecode(t *testing.T) {
 }
 
 func TestJobV1betaState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1507,6 +1531,7 @@ func TestKmsConfigV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestKmsConfigV1beta_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1548,6 +1573,7 @@ func TestKmsConfigV1betaKmsState_EncodeDecode(t *testing.T) {
 }
 
 func TestKmsConfigV1betaKmsState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1612,6 +1638,7 @@ func TestOperationV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestOperationV1beta_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1727,6 +1754,7 @@ func TestPoolInternalV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolInternalV1betaLabels_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1769,6 +1797,7 @@ func TestPoolInternalV1betaServiceLevel_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolInternalV1betaServiceLevel_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1809,6 +1838,7 @@ func TestPoolInternalV1betaStoragePoolState_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolInternalV1betaStoragePoolState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1863,6 +1893,7 @@ func TestPoolUpdateV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolUpdateV1betaLabels_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1905,6 +1936,7 @@ func TestPoolV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1beta_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -1971,6 +2003,7 @@ func TestPoolV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1betaLabels_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2013,6 +2046,7 @@ func TestPoolV1betaServiceLevel_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1betaServiceLevel_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2053,6 +2087,7 @@ func TestPoolV1betaStoragePoolState_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1betaStoragePoolState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2093,6 +2128,7 @@ func TestProtocolsV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestProtocolsV1beta_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2147,6 +2183,7 @@ func TestReplicationCreateV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationCreateV1betaLabels_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2263,6 +2300,7 @@ func TestReplicationUpdateV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationUpdateV1betaLabels_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2329,6 +2367,7 @@ func TestReplicationV1betaHybridReplicationType_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationV1betaHybridReplicationType_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2371,6 +2410,7 @@ func TestReplicationV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationV1betaLabels_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2413,6 +2453,7 @@ func TestReplicationV1betaMirrorState_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationV1betaMirrorState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2453,6 +2494,7 @@ func TestReplicationV1betaReplicationSchedule_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationV1betaReplicationSchedule_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2493,6 +2535,7 @@ func TestReplicationV1betaRole_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationV1betaRole_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2533,6 +2576,7 @@ func TestReplicationV1betaState_EncodeDecode(t *testing.T) {
 }
 
 func TestReplicationV1betaState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2597,6 +2641,7 @@ func TestRestrictedActionsV1betaItem_EncodeDecode(t *testing.T) {
 }
 
 func TestRestrictedActionsV1betaItem_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2649,6 +2694,7 @@ func TestSMBSettingsV1betaItem_EncodeDecode(t *testing.T) {
 }
 
 func TestSMBSettingsV1betaItem_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2701,6 +2747,7 @@ func TestSimpleExportPolicyRuleV1betaAccessType_EncodeDecode(t *testing.T) {
 }
 
 func TestSimpleExportPolicyRuleV1betaAccessType_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2741,6 +2788,7 @@ func TestSimpleExportPolicyRuleV1betaHasRootAccess_EncodeDecode(t *testing.T) {
 }
 
 func TestSimpleExportPolicyRuleV1betaHasRootAccess_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2805,6 +2853,7 @@ func TestSnapshotV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestSnapshotV1beta_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -2845,6 +2894,7 @@ func TestSnapshotV1betaSnapshotState_EncodeDecode(t *testing.T) {
 }
 
 func TestSnapshotV1betaSnapshotState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -7587,6 +7637,102 @@ func TestV1betaInternalGetReplicationJobsUnprocessableEntity_EncodeDecode(t *tes
 	var typ2 V1betaInternalGetReplicationJobsUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaInternalMountVolumeReplicationBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalMountVolumeReplicationBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalMountVolumeReplicationBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalMountVolumeReplicationConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalMountVolumeReplicationConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalMountVolumeReplicationConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalMountVolumeReplicationForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalMountVolumeReplicationForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalMountVolumeReplicationForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalMountVolumeReplicationInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalMountVolumeReplicationInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalMountVolumeReplicationInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalMountVolumeReplicationMethodNotAllowed_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalMountVolumeReplicationMethodNotAllowed
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalMountVolumeReplicationMethodNotAllowed
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalMountVolumeReplicationNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalMountVolumeReplicationNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalMountVolumeReplicationNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalMountVolumeReplicationUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalMountVolumeReplicationUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalMountVolumeReplicationUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalMountVolumeReplicationUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalMountVolumeReplicationUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalMountVolumeReplicationUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaInternalReleaseVolumeReplicationBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1betaInternalReleaseVolumeReplicationBadRequest
 	typ.SetFake()
@@ -10241,6 +10387,7 @@ func TestVolumeReplicationCreateInternalV1betaEndpointType_EncodeDecode(t *testi
 }
 
 func TestVolumeReplicationCreateInternalV1betaEndpointType_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -10283,6 +10430,7 @@ func TestVolumeReplicationCreateInternalV1betaLabels_EncodeDecode(t *testing.T) 
 }
 
 func TestVolumeReplicationCreateInternalV1betaLabels_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -10325,6 +10473,7 @@ func TestVolumeReplicationCreateInternalV1betaLifeCycleState_EncodeDecode(t *tes
 }
 
 func TestVolumeReplicationCreateInternalV1betaLifeCycleState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -10413,6 +10562,7 @@ func TestVolumeReplicationCreateInternalV1betaReplicationType_EncodeDecode(t *te
 }
 
 func TestVolumeReplicationCreateInternalV1betaReplicationType_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -10465,6 +10615,7 @@ func TestVolumeReplicationInternalV1betaEndpointType_EncodeDecode(t *testing.T) 
 }
 
 func TestVolumeReplicationInternalV1betaEndpointType_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -10507,6 +10658,7 @@ func TestVolumeReplicationInternalV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeReplicationInternalV1betaLabels_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -10549,6 +10701,7 @@ func TestVolumeReplicationInternalV1betaLifeCycleState_EncodeDecode(t *testing.T
 }
 
 func TestVolumeReplicationInternalV1betaLifeCycleState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -10637,6 +10790,7 @@ func TestVolumeReplicationInternalV1betaReplicationType_EncodeDecode(t *testing.
 }
 
 func TestVolumeReplicationInternalV1betaReplicationType_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -10691,6 +10845,7 @@ func TestVolumeReplicationUpdateInternalV1betaLabels_EncodeDecode(t *testing.T) 
 }
 
 func TestVolumeReplicationUpdateInternalV1betaLabels_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -10783,6 +10938,7 @@ func TestVolumeUpdateV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeUpdateV1betaLabels_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -10825,6 +10981,7 @@ func TestVolumeV1beta_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeV1beta_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -10865,6 +11022,7 @@ func TestVolumeV1betaEncryptionType_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeV1betaEncryptionType_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -10907,6 +11065,7 @@ func TestVolumeV1betaLabels_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeV1betaLabels_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -10949,6 +11108,7 @@ func TestVolumeV1betaSecurityStyle_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeV1betaSecurityStyle_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -10989,6 +11149,7 @@ func TestVolumeV1betaServiceLevel_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeV1betaServiceLevel_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -11029,6 +11190,7 @@ func TestVolumeV1betaVolumeState_EncodeDecode(t *testing.T) {
 }
 
 func TestVolumeV1betaVolumeState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{

@@ -30,7 +30,6 @@ func TestError_EncodeDecode(t *testing.T) {
 }
 
 func TestError_Examples(t *testing.T) {
-
 	for i, tc := range []struct {
 		Input string
 	}{

@@ -10299,6 +10299,70 @@ func (s *V1betaInternalGetReplicationJobsUnprocessableEntity) Validate() error {
 	return nil
 }
 
+func (s *V1betaInternalMountVolumeReplicationBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaInternalMountVolumeReplicationConflict) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaInternalMountVolumeReplicationForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaInternalMountVolumeReplicationInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaInternalMountVolumeReplicationMethodNotAllowed) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaInternalMountVolumeReplicationNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaInternalMountVolumeReplicationUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaInternalMountVolumeReplicationUnprocessableEntity) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *V1betaInternalReleaseVolumeReplicationBadRequest) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {

@@ -35,6 +35,7 @@ var (
 	replicationJobInProcess     = _replicationJobInProcess
 	internalGetReplicationCount = _internalGetReplicationCount
 	internalGetVolumeCount      = _internalGetVolumeCount
+	getReplicationJobs          = _getReplicationJobs
 
 	InternalUtilGetCallbackToken   = auth.GetSignedAccessToken
 	InternalUtilGetSignedToken     = auth.GetSignedJwtToken
@@ -115,11 +116,6 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 
 	event.CCFEUri = internalUtilGetCCFEURI(event.SourceProjectNumber, event.LocationID, event.VolumeResourceID, *event.CreateReplicationParams.ResourceID)
 
-	err = replicationJobInProcess(ctx, event.SourceProjectNumber, event.DestinationProjectNumber, srcBasePath, destBasePath, event.LocationID, event.DestinationLocationID, token, dstToken, event.CCFEUri, "")
-	if err != nil {
-		return nil, err
-	}
-
 	err = validateReplicationResourceId(ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, se)
 	if err != nil {
 		logger.Error("Replication resourceId error", common.Error(err))
@@ -171,6 +167,11 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		typeErr := errors.NewVCPError(errors.ErrServiceLevelMismatch, errors.New("Service level on source volume and destination pool do not match"))
 		logger.Error("Service level on source volume and destination pool do not match", common.Error(typeErr))
 		return nil, typeErr
+	}
+
+	err = replicationJobInProcess(ctx, event.SourceProjectNumber, event.DestinationProjectNumber, srcBasePath, destBasePath, event.LocationID, event.DestinationLocationID, token, dstToken, event.CCFEUri, "", event.SourcePool.UUID, destPool.PoolId.Value, event.XCorrelationID)
+	if err != nil {
+		return nil, err
 	}
 
 	if hydrationEnabled {
@@ -355,6 +356,34 @@ func _getDestinationPool(ctx context.Context, destBasePath string, token string,
 	return nil, errors.NewVCPError(errors.ErrGetPoolNotFound, &pools.V1betaListPoolsNotFound{Payload: payloadError})
 }
 
+func _getReplicationJobs(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, poolId string) ([]googleproxyclient.InternalJobV1beta, error) {
+	logger := util.GetLogger(ctx)
+
+	logger.Debug(
+		"cvp getReplicationJobs",
+		common.String("destBasePath", basePath),
+		common.String("projectNumber", projectNumber),
+		common.String("locationID", locationID),
+		common.String("poolId", poolId),
+	)
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, token, logger)
+	params := googleproxyclient.V1betaInternalGetReplicationJobsParams{}
+	params.ProjectNumber = projectNumber
+	params.LocationId = locationID
+	params.PoolId = poolId
+	params.XCorrelationID = googleproxyclient.OptString{Value: *xCorrelationID, Set: true}
+
+	getReplicationJobsResponse, err := googleProxyClient.Invoker.V1betaInternalGetReplicationJobs(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	jobs := getReplicationJobsResponse.(*googleproxyclient.V1betaInternalGetReplicationJobsOK).Jobs
+
+	return jobs, nil
+}
+
 // Validates that account does not already have a replication with same resourceId
 func _validateReplicationResourceId(ctx context.Context, projectNumber string, paramReplicationResourceId string, paramsVolumeResourceId string, se database.Storage) error {
 	account, err := se.GetAccount(ctx, projectNumber)
@@ -445,8 +474,38 @@ func _validateLabels(labels map[string]string) error {
 	return nil
 }
 
-func _replicationJobInProcess(ctx context.Context, srcProjectNumber string, destProjectNumber string, srcBasePath string, destBasePath string, srcLocationID string, destLocationId, srcToken string, destToken string, ccfeUri string, remoteCcfeUri string) error {
-	// TODO: Implement the logic to check if a replication job is in process
+func _replicationJobInProcess(ctx context.Context, srcProjectNumber string, destProjectNumber string, srcBasePath string, destBasePath string, srcLocationID string, destLocationId, srcToken string, destToken string, ccfeUri string, remoteCcfeUri string, srcPoolId, dstPoolId string, correlationId *string) error {
+	logger := util.GetLogger(ctx)
+	if srcBasePath != "" {
+		srcJobs, err := getReplicationJobs(ctx, srcBasePath, srcToken, srcLocationID, srcProjectNumber, correlationId, srcPoolId)
+		if err != nil {
+			logger.Error("ListCvpReplicationJobsInProcessing source error", common.Error(err))
+			return err
+		}
+		if len(srcJobs) > 0 {
+			for _, j := range srcJobs {
+				if j.ResourceName.Value == ccfeUri || j.ResourceName.Value == remoteCcfeUri {
+					return errors.NewVCPError(errors.ErrorCvpReplicationJobAlreadyInProcess, errors.New("Another operation against this replication is in progress. Please wait until the operation has finished and try again later."))
+				}
+			}
+		}
+	}
+
+	if destBasePath != "" {
+		destJobs, err := getReplicationJobs(ctx, destBasePath, destToken, destLocationId, destProjectNumber, correlationId, dstPoolId)
+		if err != nil {
+			logger.Error("ListCvpReplicationJobsInProcessing destination error", common.Error(err))
+			return errors.NewVCPError(errors.ErrGetRemoteReplicationJobs, err)
+		}
+		if len(destJobs) > 0 {
+			for _, j := range destJobs {
+				// edge case during reverse resume when replicationEventBase.CCFEUri == ccfeUri while job is still in progress.
+				if j.ResourceName.Value == remoteCcfeUri || j.ResourceName.Value == ccfeUri {
+					return errors.NewVCPError(errors.ErrorCvpReplicationJobAlreadyInProcess, errors.New("Another operation against this replication is in progress. Please wait until the operation has finished and try again later."))
+				}
+			}
+		}
+	}
 	return nil
 }
 

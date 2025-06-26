@@ -1324,6 +1324,9 @@ func TestHydrateDestinationVolume(t *testing.T) {
 		mockStorage := &database.MockStorage{}
 		activity := VolumeReplicationCreateActivity{SE: mockStorage}
 		result := &replication.CreateReplicationResult{
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				ResourceId: "pool-resource-id",
+			},
 			DstVolume: &gcpserver.VolumeV1beta{},
 			Event: &replication.CreateReplicationEvent{
 				DestinationLocationID: "location-id",
@@ -1332,17 +1335,16 @@ func TestHydrateDestinationVolume(t *testing.T) {
 		}
 
 		// Mock the VolumeHydration function
-		volumeHydration = func(ctx context.Context, destVolume models.Volume, project string) error {
+		hydrateVolume = func(ctx context.Context, destVolume models.Volume, project string, poolResourceId string) error {
 			return nil
 		}
-
 		// Act
 		updatedResult, err := activity.HydrateDestinationVolume(ctx, result)
 
 		// Assert
 		assert.NoError(tt, err)
 		assert.NotNil(tt, updatedResult)
-		volumeHydration = VolumeHydration
+		hydrateVolume = HydrateVolume
 	})
 
 	t.Run("WhenError", func(tt *testing.T) {
@@ -1351,6 +1353,9 @@ func TestHydrateDestinationVolume(t *testing.T) {
 		mockStorage := &database.MockStorage{}
 		activity := VolumeReplicationCreateActivity{SE: mockStorage}
 		result := &replication.CreateReplicationResult{
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				ResourceId: "pool-resource-id",
+			},
 			DstVolume: &gcpserver.VolumeV1beta{},
 			Event: &replication.CreateReplicationEvent{
 				DestinationLocationID: "location-id",
@@ -1359,7 +1364,7 @@ func TestHydrateDestinationVolume(t *testing.T) {
 		}
 
 		// Mock the VolumeHydration function
-		volumeHydration = func(ctx context.Context, destVolume models.Volume, project string) error {
+		hydrateVolume = func(ctx context.Context, destVolume models.Volume, project string, poolResourceId string) error {
 			return errors.New("hydration error")
 		}
 
@@ -1369,6 +1374,7 @@ func TestHydrateDestinationVolume(t *testing.T) {
 		// Assert
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
+		hydrateVolume = HydrateVolume
 	})
 	t.Run("WhenHydrationIsDisabled", func(tt *testing.T) {
 		// Arrange
@@ -1594,5 +1600,90 @@ func TestDescribeRemoteJob(t *testing.T) {
 		err := activity.DescribeRemoteJob(ctx, result)
 
 		assert.Error(tt, err)
+	})
+}
+
+func TestMountReplication(t *testing.T) {
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationLocationID: "us-central1",
+			},
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid"),
+			},
+			DstProjectNumber: &dstProj,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		params := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+			ProjectNumber:       dstProj,
+			LocationId:          "us-central1",
+			VolumeReplicationId: replicationResult.DstReplication.VolumeReplicationUuid.Value,
+		}
+		res := &googleproxyclient.InternalJobV1beta{
+			JobUuid: googleproxyclient.NewOptString("job-uuid"),
+		}
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, *params).Return(res, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.MountReplication(ctx, replicationResult)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+	})
+
+	t.Run("WhenError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		dstProj := "projDst"
+		dstPath := "dstPath"
+		dstToken := "dstToken"
+		replicationResult := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationLocationID: "us-central1",
+			},
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid"),
+			},
+			DstProjectNumber: &dstProj,
+			DstBasePath:      &dstPath,
+			DstJwtToken:      &dstToken,
+		}
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		params := &googleproxyclient.V1betaInternalMountVolumeReplicationParams{
+			ProjectNumber:       dstProj,
+			LocationId:          "us-central1",
+			VolumeReplicationId: replicationResult.DstReplication.VolumeReplicationUuid.Value,
+		}
+		mockClient.EXPECT().V1betaInternalMountVolumeReplication(ctx, *params).Return(nil, errors.New("mount error"))
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+		result, err := activity.MountReplication(ctx, replicationResult)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
 	})
 }

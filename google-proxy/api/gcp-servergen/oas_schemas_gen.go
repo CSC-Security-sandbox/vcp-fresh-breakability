@@ -3964,6 +3964,7 @@ type InternalJobV1beta struct {
 	UpdatedAt     OptDateTime `json:"UpdatedAt"`
 	JobType       OptString   `json:"JobType"`
 	ProjectNumber OptString   `json:"ProjectNumber"`
+	ResourceName  OptString   `json:"ResourceName"`
 	// Scheduled run date of the resource.
 	ScheduledAt OptDateTime `json:"ScheduledAt"`
 }
@@ -4006,6 +4007,11 @@ func (s *InternalJobV1beta) GetJobType() OptString {
 // GetProjectNumber returns the value of ProjectNumber.
 func (s *InternalJobV1beta) GetProjectNumber() OptString {
 	return s.ProjectNumber
+}
+
+// GetResourceName returns the value of ResourceName.
+func (s *InternalJobV1beta) GetResourceName() OptString {
+	return s.ResourceName
 }
 
 // GetScheduledAt returns the value of ScheduledAt.
@@ -4051,6 +4057,11 @@ func (s *InternalJobV1beta) SetJobType(val OptString) {
 // SetProjectNumber sets the value of ProjectNumber.
 func (s *InternalJobV1beta) SetProjectNumber(val OptString) {
 	s.ProjectNumber = val
+}
+
+// SetResourceName sets the value of ResourceName.
+func (s *InternalJobV1beta) SetResourceName(val OptString) {
+	s.ResourceName = val
 }
 
 // SetScheduledAt sets the value of ScheduledAt.
