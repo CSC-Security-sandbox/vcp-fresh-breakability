@@ -130,6 +130,27 @@ func TestUpdatePool(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestErroredResource(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a pool first
+	pool := &datamodel.Pool{Name: "error-pool", Account: &datamodel.Account{}}
+	created, err := store.CreatingPool(ctx, pool)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+
+	// Mark pool as errored
+	errorMsg := "some error occurred"
+	erroredPool, err := store.ErroredResource(ctx, created, errorMsg)
+	assert.NoError(t, err)
+	assert.NotNil(t, erroredPool)
+	// Optionally, check if error message is set (if your model supports it)
+}
+
 func TestDeletePool(t *testing.T) {
 	logger := log.NewLogger()
 	store, _ := SetupStorageForTest(logger)
@@ -151,18 +172,6 @@ func TestDeletingPool(t *testing.T) {
 	created, err := store.CreatingPool(ctx, pool)
 	assert.NoError(t, err)
 	err = store.DeletingPool(ctx, created)
-	assert.NoError(t, err)
-}
-
-func TestErroredPool(t *testing.T) {
-	logger := log.NewLogger()
-	store, _ := SetupStorageForTest(logger)
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	pool := &datamodel.Pool{Name: "erroredpool", Account: &datamodel.Account{}}
-	created, err := store.CreatingPool(ctx, pool)
-	assert.NoError(t, err)
-	_, err = store.ErroredPool(ctx, created, "errored pool")
 	assert.NoError(t, err)
 }
 

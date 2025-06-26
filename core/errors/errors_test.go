@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -246,5 +247,39 @@ func TestWrapAsTemporalApplicationError(t *testing.T) {
 	result := WrapAsTemporalApplicationError(plainErr)
 	if result != plainErr {
 		t.Errorf("Expected original error to be returned unchanged")
+	}
+}
+
+func TestExtractUserFriendlyErrorMessage_TemporalApplicationError(t *testing.T) {
+	// Setup errorMap for test
+	ctx := context.TODO()
+	errorMap = map[int]ErrorMessage{
+		1001: {Message: "User error"},
+	}
+
+	// Create a temporal.ApplicationError with CustomErrorType and details
+	appErr := temporal.NewApplicationError("wrapped", CustomErrorType, 1001, "details")
+	msg := ExtractCustomerFacingErrorMessage(ctx, appErr)
+	if msg != "User error" {
+		t.Errorf("Expected 'User error', got %q", msg)
+	}
+}
+
+func TestExtractUserFriendlyErrorMessage_TemporalApplicationError_DetailsError(t *testing.T) {
+	// Create a temporal.ApplicationError with CustomErrorType but no details
+	ctx := context.TODO()
+	appErr := temporal.NewApplicationError("wrapped", CustomErrorType)
+	msg := ExtractCustomerFacingErrorMessage(ctx, appErr)
+	if msg != DefaultErrorMessage {
+		t.Errorf("Expected default message, got %q", msg)
+	}
+}
+
+func TestExtractUserFriendlyErrorMessage_NonTemporalError(t *testing.T) {
+	ctx := context.TODO()
+	err := New("plain error")
+	msg := ExtractCustomerFacingErrorMessage(ctx, err)
+	if msg != DefaultErrorMessage {
+		t.Errorf("Expected default message, got %q", msg)
 	}
 }

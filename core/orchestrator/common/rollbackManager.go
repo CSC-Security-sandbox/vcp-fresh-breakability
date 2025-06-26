@@ -1,6 +1,7 @@
 package common
 
 import (
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/workflow"
 )
@@ -37,7 +38,9 @@ func (rm *RollbackManager) ExecuteRollback(ctx workflow.Context, err error) {
 
 	for i := len(rm.rollbacks) - 1; i >= 0; i-- {
 		r := rm.rollbacks[i]
-		r.args = append(r.args, err.Error())
+
+		errorMessage := vsaerrors.ExtractCustomerFacingErrorMessage(ctx, err)
+		r.args = append(r.args, errorMessage)
 		fut := executeActivity(ctx, r.activity, r.args...)
 		if errComp := fut.Get(ctx, nil); errComp != nil {
 			err = errComp

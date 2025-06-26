@@ -5,7 +5,7 @@ import (
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
@@ -45,7 +45,7 @@ func DescribeJob(ctx context.Context, jobId, basepath, jwtToken, projectNumber, 
 
 	res, err := googleProxyClient.Invoker.V1betaDescribeOperation(ctx, describeOperationParams)
 	if err != nil {
-		return errors2.NewVCPError(errors2.ErrDescribingJob, err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrDescribingJob, err)
 	}
 	operation, ok := res.(*googleproxyclient.OperationV1beta)
 	if ok {
@@ -53,7 +53,7 @@ func DescribeJob(ctx context.Context, jobId, basepath, jwtToken, projectNumber, 
 			return nil
 		}
 	}
-	return errors2.NewVCPError(errors2.ErrJobNotFinished, errors.New("job not finished"))
+	return vsaerrors.NewVCPError(vsaerrors.ErrJobNotFinished, errors.New("job not finished"))
 }
 
 // GetNode retrieves the node associated with the given pool ID.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.uber.org/multierr"
 )
@@ -16,6 +17,9 @@ var (
 )
 
 const (
+	CustomErrorType     = "CustomError"
+	DefaultErrorMessage = "An internal error occurred"
+
 	ErrWorkflowConfigurationError = 1001
 	ErrBadRequest                 = 1002
 	ErrResourceNotFound           = 1003
@@ -246,4 +250,29 @@ func WrapAsTemporalApplicationError(err error) error {
 	}
 
 	return err
+}
+
+// ExtractCustomerFacingErrorMessage traverses the error chain and returns the most user-friendly error message
+// from a CustomError, if present. If no CustomError is found, it returns a generic internal error message.
+func ExtractCustomerFacingErrorMessage(ctx interface{}, err error) string {
+	logger := util.GetLogger(ctx)
+	errorMessage := DefaultErrorMessage
+	var applicationErr *temporal.ApplicationError
+
+	if As(err, &applicationErr) {
+		if applicationErr.Type() == CustomErrorType {
+			var (
+				trackingID   int
+				errorDetails string
+			)
+			err = applicationErr.Details(&trackingID, &errorDetails)
+			if err != nil {
+				logger.Warn("Could not extract trackingID from CustomError")
+			} else {
+				logger.Debugf("Extracted trackingID: %d and errorDetails: %s", trackingID, errorDetails)
+				errorMessage = GetErrorMessageByTrackingID(trackingID).Message
+			}
+		}
+	}
+	return errorMessage
 }

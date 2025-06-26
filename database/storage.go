@@ -400,10 +400,6 @@ func (s *PersistenceStore) DeletingPool(ctx context.Context, pool *datamodel.Poo
 	return s.dataStore.DeletingPool(ctx, pool)
 }
 
-func (s *PersistenceStore) ErroredPool(ctx context.Context, pool *datamodel.Pool, errMessage string) (*datamodel.Pool, error) {
-	return s.dataStore.ErroredPool(ctx, pool, errMessage)
-}
-
 func (s *PersistenceStore) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error) {
 	return s.dataStore.ListPools(ctx, conditions)
 }
@@ -745,4 +741,8 @@ func (s *PersistenceStore) CreateBackupVaultEntryInVCP(ctx context.Context, back
 
 func (s *PersistenceStore) UpdateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault) error {
 	return s.dataStore.UpdateBackupVault(ctx, backupVault)
+}
+
+func (s *PersistenceStore) ErroredResource(ctx context.Context, resource interface{}, errMessage string) (interface{}, error) {
+	return s.dataStore.ErroredResource(ctx, resource, errMessage)
 }

@@ -107,9 +107,7 @@ func (j *PoolActivity) CreatingPool(ctx context.Context, pool *datamodel.Pool) (
 
 func (j *PoolActivity) FailedPool(ctx context.Context, pool *datamodel.Pool, errMessage string) error {
 	se := j.SE
-	pool.State = models.LifeCycleStateError
-	pool.StateDetails = errMessage
-	_, err := se.UpdatedPool(ctx, pool)
+	_, err := se.ErroredResource(ctx, pool, errMessage)
 	if err != nil {
 		return err
 	}
@@ -129,9 +127,9 @@ func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool) (*
 func (j *PoolActivity) ErroredPool(ctx context.Context, pool *datamodel.Pool, errMessage string) (*datamodel.Pool, error) {
 	se := j.SE
 
-	// Update pool state as Errored
-	dbpool, err1 := se.ErroredPool(ctx, pool, errMessage)
-	return dbpool, err1
+	res, err := se.ErroredResource(ctx, pool, errMessage)
+	dbPool := res.(*datamodel.Pool)
+	return dbPool, err
 }
 
 func (j *PoolActivity) DeletePoolResourcesOnRollback(ctx context.Context, pool *datamodel.Pool) error {

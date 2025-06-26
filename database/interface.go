@@ -56,7 +56,6 @@ type DataStore interface {
 	UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
 	DeletePool(ctx context.Context, pool *datamodel.Pool) error
 	DeletingPool(ctx context.Context, pool *datamodel.Pool) error
-	ErroredPool(ctx context.Context, pool *datamodel.Pool, errMessage string) (*datamodel.Pool, error)
 	GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
 	ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error)
 	GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.PoolView, error)
@@ -159,4 +158,6 @@ type DataStore interface {
 	UpdateBackupState(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 	IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error)
 	GetBackupsByBackupVault(ctx context.Context, backupVaultUUID string) ([]*datamodel.Backup, error)
+
+	ErroredResource(ctx context.Context, resource interface{}, errorMessage string) (interface{}, error)
 }

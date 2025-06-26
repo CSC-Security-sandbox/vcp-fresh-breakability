@@ -1148,7 +1148,7 @@ func Test_DeletePoolResourcesOnRollback_Success(t *testing.T) {
 	activities.DeleteNodes = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
 		return nil
 	}
-
+	
 	err := activity.DeletePoolResourcesOnRollback(ctx, pool)
 
 	assert.NoError(t, err)
@@ -1193,7 +1193,7 @@ func Test_ErroredPool_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 
-	mockStorage.On("ErroredPool", ctx, pool, "").Return(pool, nil)
+	mockStorage.On("ErroredResource", ctx, pool, mock.Anything).Return(pool, nil)
 
 	result, err := activity.ErroredPool(ctx, pool, "")
 

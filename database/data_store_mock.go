@@ -1641,29 +1641,29 @@ func (_c *MockDataStore_DeletingSnapshot_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
-// ErroredPool provides a mock function with given fields: ctx, pool, errMessage
-func (_m *MockDataStore) ErroredPool(ctx context.Context, pool *datamodel.Pool, errMessage string) (*datamodel.Pool, error) {
-	ret := _m.Called(ctx, pool, errMessage)
+// ErroredResource provides a mock function with given fields: ctx, resource, errorMessage
+func (_m *MockDataStore) ErroredResource(ctx context.Context, resource interface{}, errorMessage string) (interface{}, error) {
+	ret := _m.Called(ctx, resource, errorMessage)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ErroredPool")
+		panic("no return value specified for ErroredResource")
 	}
 
-	var r0 *datamodel.Pool
+	var r0 interface{}
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Pool, string) (*datamodel.Pool, error)); ok {
-		return rf(ctx, pool, errMessage)
+	if rf, ok := ret.Get(0).(func(context.Context, interface{}, string) (interface{}, error)); ok {
+		return rf(ctx, resource, errorMessage)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Pool, string) *datamodel.Pool); ok {
-		r0 = rf(ctx, pool, errMessage)
+	if rf, ok := ret.Get(0).(func(context.Context, interface{}, string) interface{}); ok {
+		r0 = rf(ctx, resource, errorMessage)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.Pool)
+			r0 = ret.Get(0).(interface{})
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Pool, string) error); ok {
-		r1 = rf(ctx, pool, errMessage)
+	if rf, ok := ret.Get(1).(func(context.Context, interface{}, string) error); ok {
+		r1 = rf(ctx, resource, errorMessage)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1671,32 +1671,32 @@ func (_m *MockDataStore) ErroredPool(ctx context.Context, pool *datamodel.Pool, 
 	return r0, r1
 }
 
-// MockDataStore_ErroredPool_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ErroredPool'
-type MockDataStore_ErroredPool_Call struct {
+// MockDataStore_ErroredResource_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ErroredResource'
+type MockDataStore_ErroredResource_Call struct {
 	*mock.Call
 }
 
-// ErroredPool is a helper method to define mock.On call
+// ErroredResource is a helper method to define mock.On call
 //   - ctx context.Context
-//   - pool *datamodel.Pool
-//   - errMessage string
-func (_e *MockDataStore_Expecter) ErroredPool(ctx interface{}, pool interface{}, errMessage interface{}) *MockDataStore_ErroredPool_Call {
-	return &MockDataStore_ErroredPool_Call{Call: _e.mock.On("ErroredPool", ctx, pool, errMessage)}
+//   - resource interface{}
+//   - errorMessage string
+func (_e *MockDataStore_Expecter) ErroredResource(ctx interface{}, resource interface{}, errorMessage interface{}) *MockDataStore_ErroredResource_Call {
+	return &MockDataStore_ErroredResource_Call{Call: _e.mock.On("ErroredResource", ctx, resource, errorMessage)}
 }
 
-func (_c *MockDataStore_ErroredPool_Call) Run(run func(ctx context.Context, pool *datamodel.Pool, errMessage string)) *MockDataStore_ErroredPool_Call {
+func (_c *MockDataStore_ErroredResource_Call) Run(run func(ctx context.Context, resource interface{}, errorMessage string)) *MockDataStore_ErroredResource_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.Pool), args[2].(string))
+		run(args[0].(context.Context), args[1].(interface{}), args[2].(string))
 	})
 	return _c
 }
 
-func (_c *MockDataStore_ErroredPool_Call) Return(_a0 *datamodel.Pool, _a1 error) *MockDataStore_ErroredPool_Call {
+func (_c *MockDataStore_ErroredResource_Call) Return(_a0 interface{}, _a1 error) *MockDataStore_ErroredResource_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockDataStore_ErroredPool_Call) RunAndReturn(run func(context.Context, *datamodel.Pool, string) (*datamodel.Pool, error)) *MockDataStore_ErroredPool_Call {
+func (_c *MockDataStore_ErroredResource_Call) RunAndReturn(run func(context.Context, interface{}, string) (interface{}, error)) *MockDataStore_ErroredResource_Call {
 	_c.Call.Return(run)
 	return _c
 }
