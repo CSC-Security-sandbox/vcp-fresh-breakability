@@ -223,7 +223,7 @@ type Job struct {
 	TrackingID    int            `json:"trackingID"`
 	ErrorDetails  []byte         `json:"errorDetails" gorm:"type:bytea"`
 	AccountID     sql.NullInt64  `json:"-" gorm:"index"`
-	IsAdminJob    bool           `json:"-" gorm:"default:false"`
+	IsAdminJob    bool           `json:"isAdminJob" gorm:"default:false"`
 	WorkflowID    string         `json:"workflowID"`
 	ScheduledAt   time.Time      `json:"scheduledAt"`
 	ResourceName  string         `json:"resourceName"`

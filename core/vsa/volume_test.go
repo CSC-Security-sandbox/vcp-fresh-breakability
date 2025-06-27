@@ -436,6 +436,26 @@ func TestUpdateVolume(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+func TestGetVolumes(t *testing.T) {
+	t.Run("GetVolumesSuccess", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		mockStorage.On("VolumeCollectionGet", mock.Anything, mock.Anything).Return(nil)
+
+		_, err := rc.GetVolumes()
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+}
+
 func TestUpdateVolume_ForSplit(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)

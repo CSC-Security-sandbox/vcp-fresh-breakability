@@ -53,6 +53,9 @@ type Config struct {
 	DBAdminUser     string // Admin user for privileged operations.
 	DBAdminPassword string // Admin password (Avoid hardcoding, use secret management tools).
 	MSIDBUser       string // MSI user
+
+	// Admin job specifications configuration
+	RefreshAdminJobSpecs bool
 }
 
 func LoadConfig() *Config {
@@ -81,6 +84,7 @@ func LoadConfig() *Config {
 	dbAdminUser := env.GetString("DB_ADMIN_USER", "")
 	dbAdminPassword := env.GetString("DB_ADMIN_PASSWORD", "")
 	dbMSIUser := env.GetString("DB_MSI_USER", "")
+	refreshAdminJobSpecs := env.GetBool("REFRESH_ADMIN_JOB_SPECS", false)
 
 	location, err := time.LoadLocation(dbTimeZone)
 	if err != nil {
@@ -89,30 +93,31 @@ func LoadConfig() *Config {
 	}
 
 	return &Config{
-		GCPPort:             gcpPort,
-		GCPHost:             gcpHost,
-		CorePort:            corePort,
-		ReadTimeout:         readTimeout,
-		WriteTimeout:        writeTimeout,
-		IdleTimeout:         idleTimeout,
-		ReadHeaderTimeout:   readHeaderTimeout,
-		RunMigrationOnStart: runMigrationOnStart,
-		DBType:              dbType,
-		DBHost:              dbHost,
-		DBPort:              dbPort,
-		DBUser:              dbUser,
-		DBPassword:          dbPassword,
-		DBName:              dbName,
-		DBSSLMode:           dbSSLMode,
-		DBTimeZone:          location,
-		DBMaxOpenConns:      dbMaxOpenConns,
-		DBMaxIdleConns:      dbMaxIdleConns,
-		DBConnMaxLifetime:   dbConnMaxLifetime,
-		MigrationPath:       MigrationPath,
-		DBAdminUser:         dbAdminUser,
-		DBAdminPassword:     dbAdminPassword,
-		MSIEnabled:          msiEnabled,
-		MSIDBUser:           dbMSIUser,
+		GCPPort:              gcpPort,
+		GCPHost:              gcpHost,
+		CorePort:             corePort,
+		ReadTimeout:          readTimeout,
+		WriteTimeout:         writeTimeout,
+		IdleTimeout:          idleTimeout,
+		ReadHeaderTimeout:    readHeaderTimeout,
+		RunMigrationOnStart:  runMigrationOnStart,
+		DBType:               dbType,
+		DBHost:               dbHost,
+		DBPort:               dbPort,
+		DBUser:               dbUser,
+		DBPassword:           dbPassword,
+		DBName:               dbName,
+		DBSSLMode:            dbSSLMode,
+		DBTimeZone:           location,
+		DBMaxOpenConns:       dbMaxOpenConns,
+		DBMaxIdleConns:       dbMaxIdleConns,
+		DBConnMaxLifetime:    dbConnMaxLifetime,
+		MigrationPath:        MigrationPath,
+		DBAdminUser:          dbAdminUser,
+		DBAdminPassword:      dbAdminPassword,
+		MSIEnabled:           msiEnabled,
+		MSIDBUser:            dbMSIUser,
+		RefreshAdminJobSpecs: refreshAdminJobSpecs,
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -13,18 +14,12 @@ import (
 )
 
 const (
-	SyncVsaClusterStatusWorkflow  = "SYNC_VSA_CLUSTER_STATUS"
-	SyncVSAVolumeStatusWorkflow   = "SYNC_VSA_VOLUME_STATUS"
-	SyncVSASnapshotStatusWorkflow = "SYNC_VSA_SNAPSHOT_STATUS"
-	SyncVSABackupStatusWorkflow   = "SYNC_VSA_BACKUP_STATUS"
+	SyncVsaSnapshots = "SYNC_VSA_SNAPSHOTS"
 )
 
-// Example mapping of job types to workflow names for reference.
+// JobTypeToWorkflow maps job types to their corresponding workflow functions.
 var JobTypeToWorkflow = map[string]interface{}{
-	SyncVsaClusterStatusWorkflow:  "SyncVSAClusterStatusWorkflow",
-	SyncVSAVolumeStatusWorkflow:   "SyncVSAVolumeStatusWorkflow",
-	SyncVSASnapshotStatusWorkflow: "SyncVSASnapshotStatusWorkflow",
-	SyncVSABackupStatusWorkflow:   "SyncVSABackupStatusWorkflow",
+	SyncVsaSnapshots: backgroundworkflows.SyncVSASnapshotsWorkflow,
 }
 
 type JobManagerActivity struct {

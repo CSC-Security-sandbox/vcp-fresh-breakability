@@ -661,6 +661,26 @@ func TestDeleteSnapshot(t *testing.T) {
 	})
 }
 
+func TestGetSnapshots(t *testing.T) {
+	t.Run("GetSnapshotsSuccess", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		mockStorage.On("SnapshotCollectionGet", mock.Anything, mock.Anything).Return(nil)
+
+		_, err := rc.GetSnapshots("test-volume-uuid")
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+}
+
 func TestGenerateNameForSchedule(t *testing.T) {
 	t.Run("MonthlySchedule", func(t *testing.T) {
 		schedule := &Schedule{

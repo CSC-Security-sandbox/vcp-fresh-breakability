@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"errors"
-	"gorm.io/gorm"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,6 +13,7 @@ import (
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"gorm.io/gorm"
 )
 
 func TestCreatingSnapshot(t *testing.T) {
@@ -474,6 +474,80 @@ func TestDeletingSnapshot(t *testing.T) {
 	})
 }
 
+func TestBatchDeleteSnapshots(t *testing.T) {
+	t.Run("BatchDeleteSnapshotsSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		snapshot1 := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid-1"},
+			Name:         "test_snapshot-1",
+			VolumeID:     1,
+			AccountID:    account.ID,
+			Account:      account,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailable,
+		}
+		snapshot2 := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid-2"},
+			Name:         "test_snapshot-2",
+			VolumeID:     1,
+			AccountID:    account.ID,
+			Account:      account,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailable,
+		}
+
+		err = store.db.Create(snapshot1).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+		err = store.db.Create(snapshot2).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		deletedSnapshots, err := store.BatchDeleteSnapshots(context.Background(), []int64{snapshot1.ID, snapshot2.ID})
+		if err != nil {
+			tt.Fatalf("Failed to batch delete snapshots: %v", err)
+		}
+		assert.Len(tt, deletedSnapshots, 2)
+
+		updatedSnapshot1, err := store.GetSnapshotByUUID(context.Background(), snapshot1.UUID, 1, false)
+		if err != nil {
+			tt.Fatalf("Failed to fetch updated snapshot: %v", err)
+		}
+		updatedSnapshot2, err := store.GetSnapshotByUUID(context.Background(), snapshot2.UUID, 1, false)
+		if err != nil {
+			tt.Fatalf("Failed to fetch updated snapshot: %v", err)
+		}
+
+		assert.Equal(tt, models.LifeCycleStateDeleted, updatedSnapshot1.State)
+		assert.Equal(tt, models.LifeCycleStateDeleted, updatedSnapshot2.State)
+	})
+}
+
 func TestGetSnapshotsByVolumeID(t *testing.T) {
 	t.Run("WhenSnapshotsExistForVolume", func(tt *testing.T) {
 		db, err := SetupTestDB()
@@ -546,6 +620,66 @@ func TestGetSnapshotsByVolumeID(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.NotNil(tt, snapshots, "Expected non-nil snapshots slice")
 		assert.Equal(tt, 0, len(snapshots), "Expected 0 snapshots")
+	})
+}
+
+func TestGetSnapshotsByVolumeIDs(t *testing.T) {
+	t.Run("GetSnapshotsByVolumeIDsSuccessful", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		snapshot1 := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid-1"},
+			Name:         "test_snapshot-1",
+			VolumeID:     1,
+			AccountID:    account.ID,
+			Account:      account,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailable,
+		}
+		snapshot2 := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid-2"},
+			Name:         "test_snapshot-2",
+			VolumeID:     1,
+			AccountID:    account.ID,
+			Account:      account,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailable,
+		}
+
+		err = store.db.Create(snapshot1).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+		err = store.db.Create(snapshot2).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		snapshots, err := store.GetSnapshotsByVolumeIDs(context.Background(), []int64{snapshot1.ID, snapshot2.ID, 3})
+		assert.NoError(tt, err)
+		assert.Len(tt, snapshots, 2)
 	})
 }
 
@@ -638,5 +772,69 @@ func TestGetSnapshotsWithConditions(t *testing.T) {
 
 		_, err = store.GetSnapshotsWithCondition(context.Background(), *filter)
 		assert.Error(t, err)
+	})
+}
+
+func TestUnDeleteSnapshot(t *testing.T) {
+	t.Run("RestoresDeletedSnapshotSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid", DeletedAt: &gorm.DeletedAt{}},
+			VolumeID:     volume.ID,
+			State:        models.LifeCycleStateDeleted,
+			StateDetails: models.LifeCycleStateDeletedDetails,
+		}
+		err = store.db.Create(snapshot).Error()
+		assert.NoError(tt, err, "Failed to create snapshot")
+
+		err = store.UnDeleteSnapshot(context.Background(), snapshot)
+		assert.NoError(tt, err)
+
+		updated := &datamodel.Snapshot{}
+		err = store.db.GORM().First(updated, "uuid = ?", snapshot.UUID).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateREADY, updated.State)
+		assert.Equal(tt, models.LifeCycleStateReadyDetails, updated.StateDetails)
+		assert.True(tt, updated.DeletedAt == nil || !updated.DeletedAt.Valid)
+	})
+
+	t.Run("ReturnsErrorWhenSnapshotIsNil", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		err = store.UnDeleteSnapshot(context.Background(), nil)
+		assert.Error(tt, err)
+	})
+}
+
+func TestGetWronglyDeletedSnapshot(t *testing.T) {
+	t.Run("ReturnsErrorWhenNoMatch", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		result, err := store.GetWronglyDeletedSnapshot(context.Background(), "non-existent-external-uuid")
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
 	})
 }

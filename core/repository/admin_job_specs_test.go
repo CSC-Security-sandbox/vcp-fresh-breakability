@@ -224,14 +224,7 @@ func TestGetAdminJobSpecsByState(t *testing.T) {
 		}
 
 		retrievedJobSpecs, err := store.GetAdminJobSpecsByState(tt.Context(), "NON_EXISTENT_STATE")
-		assert.Error(tt, err)
-		assert.Nil(tt, retrievedJobSpecs)
-
-		var customErr *vsaerrors.CustomError
-		if vsaerrors.As(err, &customErr) {
-			assert.Equal(tt, gorm.ErrRecordNotFound, customErr.OriginalErr)
-		} else {
-			tt.Fatalf("Expected a CustomError with RecordNotFound, got: %v", err)
-		}
+		assert.NoError(tt, err)
+		assert.Len(tt, retrievedJobSpecs, 0)
 	})
 }

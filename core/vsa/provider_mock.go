@@ -1543,6 +1543,64 @@ func (_c *MockProvider_GetSVMPeer_Call) RunAndReturn(run func(*string, *string) 
 	return _c
 }
 
+// GetSnapshots provides a mock function with given fields: volumeUUID
+func (_m *MockProvider) GetSnapshots(volumeUUID string) ([]*Snapshot, error) {
+	ret := _m.Called(volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSnapshots")
+	}
+
+	var r0 []*Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) ([]*Snapshot, error)); ok {
+		return rf(volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(string) []*Snapshot); ok {
+		r0 = rf(volumeUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetSnapshots_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSnapshots'
+type MockProvider_GetSnapshots_Call struct {
+	*mock.Call
+}
+
+// GetSnapshots is a helper method to define mock.On call
+//   - volumeUUID string
+func (_e *MockProvider_Expecter) GetSnapshots(volumeUUID interface{}) *MockProvider_GetSnapshots_Call {
+	return &MockProvider_GetSnapshots_Call{Call: _e.mock.On("GetSnapshots", volumeUUID)}
+}
+
+func (_c *MockProvider_GetSnapshots_Call) Run(run func(volumeUUID string)) *MockProvider_GetSnapshots_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetSnapshots_Call) Return(_a0 []*Snapshot, _a1 error) *MockProvider_GetSnapshots_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetSnapshots_Call) RunAndReturn(run func(string) ([]*Snapshot, error)) *MockProvider_GetSnapshots_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolume provides a mock function with given fields: params
 func (_m *MockProvider) GetVolume(params GetVolumeParams) (*VolumeResponse, error) {
 	ret := _m.Called(params)
@@ -1655,6 +1713,63 @@ func (_c *MockProvider_GetVolumeReplication_Call) Return(_a0 *VolumeReplication,
 }
 
 func (_c *MockProvider_GetVolumeReplication_Call) RunAndReturn(run func(*VolumeReplication) (*VolumeReplication, error)) *MockProvider_GetVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetVolumes provides a mock function with no fields
+func (_m *MockProvider) GetVolumes() ([]*Volume, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumes")
+	}
+
+	var r0 []*Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func() ([]*Volume, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() []*Volume); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetVolumes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumes'
+type MockProvider_GetVolumes_Call struct {
+	*mock.Call
+}
+
+// GetVolumes is a helper method to define mock.On call
+func (_e *MockProvider_Expecter) GetVolumes() *MockProvider_GetVolumes_Call {
+	return &MockProvider_GetVolumes_Call{Call: _e.mock.On("GetVolumes")}
+}
+
+func (_c *MockProvider_GetVolumes_Call) Run(run func()) *MockProvider_GetVolumes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetVolumes_Call) Return(_a0 []*Volume, _a1 error) *MockProvider_GetVolumes_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetVolumes_Call) RunAndReturn(run func() ([]*Volume, error)) *MockProvider_GetVolumes_Call {
 	_c.Call.Return(run)
 	return _c
 }

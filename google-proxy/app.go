@@ -70,9 +70,9 @@ func main() {
 	}
 	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
 
-	err = refreshAdminJobSpecs(ctx, dbCon, workflowClient.GetTemporalClient(), logger)
+	err = refreshAdminJobSpecs(ctx, cfg, dbCon, workflowClient.GetTemporalClient(), logger)
 	if err != nil {
-		logger.Error("Failed to refresh admin job specs", "error", err.Error())
+		logger.Errorf("Failed to refresh admin job specs: %v", err)
 		os.Exit(1)
 	}
 
@@ -187,27 +187,28 @@ func initializeTemporalClient(logger log.Logger) (workflow_engine.TemporalWorkfl
 	return workflowClient, nil
 }
 
-func refreshAdminJobSpecs(ctx context.Context, db database.Storage, temporal client.Client, logger log.Logger) error {
-	err := adminbackgroundjobs.LoadJobSpecs()
-	if err != nil {
-		logger.Errorf("Failed to load admin job specs: %v", err)
-		return err
-	}
-
-	shouldRefreshAdminJobSpecs, err := adminbackgroundjobs.IsJobSpecRefreshNeeded(ctx, db, logger)
-	if err != nil {
-		logger.Errorf("Failed to check if job specs refresh is needed: %v", err)
-		return err
-	}
-
-	if shouldRefreshAdminJobSpecs {
-		err = adminbackgroundjobs.LaunchJobManagerWorkflow(ctx, temporal, logger)
+func refreshAdminJobSpecs(ctx context.Context, cfg *common.Config, db database.Storage, temporal client.Client, logger log.Logger) error {
+	if cfg.RefreshAdminJobSpecs {
+		err := adminbackgroundjobs.LoadJobSpecs()
 		if err != nil {
+			logger.Errorf("Failed to load admin job specs: %v", err)
 			return err
 		}
-		logger.Info("Admin job specs have been refreshed successfully")
-	}
 
+		shouldRefreshAdminJobSpecs, err := adminbackgroundjobs.IsJobSpecRefreshNeeded(ctx, db, logger)
+		if err != nil {
+			logger.Errorf("Failed to check if job specs refresh is needed: %v", err)
+			return err
+		}
+
+		if shouldRefreshAdminJobSpecs {
+			err = adminbackgroundjobs.LaunchJobManagerWorkflow(ctx, temporal, logger)
+			if err != nil {
+				return err
+			}
+			logger.Info("Admin job specs have been refreshed successfully")
+		}
+	}
 	return nil
 }
 

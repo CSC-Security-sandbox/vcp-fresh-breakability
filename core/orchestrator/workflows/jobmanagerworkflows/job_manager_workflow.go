@@ -1,4 +1,4 @@
-package backgroundworkflows
+package jobmanagerworkflows
 
 import (
 	"time"
@@ -25,16 +25,16 @@ var _ workflows.WorkflowInterface = &jobManagerWorkflow{}
 // It sets up the workflow, creates a job, and runs the main job management logic.
 func JobManagerWorkflow(ctx workflow.Context) error {
 	jobManagerWF := new(jobManagerWorkflow)
-	err := jobManagerWF.Setup(ctx, nil)
+	createdJob, err := jobManagerWF.CreateJob(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = jobManagerWF.Setup(ctx, createdJob)
 	if err != nil {
 		return err
 	}
 	jobManagerWF.Status = workflows.WorkflowStatusRunning
-
-	err = jobManagerWF.CreateJob(ctx)
-	if err != nil {
-		return err
-	}
 
 	_, err = jobManagerWF.Run(ctx)
 	if err != nil {
@@ -49,9 +49,9 @@ func JobManagerWorkflow(ctx workflow.Context) error {
 
 // Setup initializes the workflow context, logger, and query handlers.
 // It must be called before running the workflow logic.
-func (wf *jobManagerWorkflow) Setup(ctx workflow.Context, _ interface{}) error {
-	info := workflow.GetInfo(ctx)
-	wf.ID = info.WorkflowExecution.RunID
+func (wf *jobManagerWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+	job := input.(*datamodel.Job)
+	wf.ID = job.UUID
 	wf.Status = workflows.WorkflowStatusCreated
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID})
 	logger := util.GetLogger(ctx)
@@ -66,18 +66,14 @@ func (wf *jobManagerWorkflow) Setup(ctx workflow.Context, _ interface{}) error {
 }
 
 // CreateJob creates a new admin job in the database and sets its initial state to PROCESSING.
-func (wf *jobManagerWorkflow) CreateJob(ctx workflow.Context) error {
-	info := workflow.GetInfo(ctx)
+func (wf *jobManagerWorkflow) CreateJob(ctx workflow.Context) (*datamodel.Job, error) {
+	logger := util.GetLogger(ctx)
 
 	// The job state is set to PROCESSING here because the workflow itself is creating the job
 	job := &datamodel.Job{
-		BaseModel: datamodel.BaseModel{
-			UUID: wf.ID,
-		},
 		Type:       string(models.JobTypeRefreshAdminJobSpecs),
 		State:      string(models.JobsStatePROCESSING),
 		IsAdminJob: true,
-		WorkflowID: info.WorkflowExecution.ID,
 	}
 
 	commonActivities := activities.CommonActivities{}
@@ -88,9 +84,10 @@ func (wf *jobManagerWorkflow) CreateJob(ctx workflow.Context) error {
 	var createdJob *datamodel.Job
 	err := workflow.ExecuteActivity(ctx, commonActivities.CreateJob, job).Get(ctx, &createdJob)
 	if err != nil {
-		return err
+		logger.Errorf("Failed to create job: %v", err)
+		return nil, err
 	}
-	return nil
+	return createdJob, nil
 }
 
 // Run executes the main job management activities: create, update, and delete schedule activities.

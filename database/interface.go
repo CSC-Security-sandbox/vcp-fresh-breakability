@@ -122,10 +122,14 @@ type DataStore interface {
 	UpdateSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error)
 	GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, isParentSnapshot bool) (*datamodel.Snapshot, error)
 	GetSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error)
+	GetWronglyDeletedSnapshot(ctx context.Context, snapshotExternalUUID string) (*datamodel.Snapshot, error)
+	UnDeleteSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error
+	GetSnapshotsByVolumeIDs(ctx context.Context, volumeID []int64) ([]*datamodel.Snapshot, error)
 	GetSnapshotsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Snapshot, error)
 	GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error)
 	DeleteSnapshot(ctx context.Context, id string) (*datamodel.Snapshot, error)
 	DeletingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error
+	BatchDeleteSnapshots(ctx context.Context, snapshotIDs []int64) ([]*datamodel.Snapshot, error)
 
 	GetMultipleKmsConfigs(ctx context.Context, conditions [][]interface{}) ([]*datamodel.KmsConfig, error)
 	GetKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error)

@@ -600,6 +600,78 @@ func TestGetSnapshotsByVolumeID(t *testing.T) {
 	assert.True(t, foundSnap6)
 }
 
+func TestGetSnapshotsByVolumeIDs(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create account and volume for association
+	acc := &datamodel.Account{Name: "test-account"}
+	createdAcc, err := store.CreateAccount(ctx, acc)
+	assert.NoError(t, err)
+	vol1 := &datamodel.Volume{Name: "test-volume-1", AccountID: createdAcc.ID}
+	createdVol1, err := store.CreateVolume(ctx, vol1)
+	assert.NoError(t, err)
+	vol2 := &datamodel.Volume{Name: "test-volume-2", AccountID: createdAcc.ID}
+	createdVol2, err := store.CreateVolume(ctx, vol2)
+	assert.NoError(t, err)
+
+	// Create two snapshots for the volume
+	snap1 := &datamodel.Snapshot{Name: "test-snap-1", AccountID: createdAcc.ID, VolumeID: createdVol1.ID, State: models.LifeCycleStateREADY}
+	snap2 := &datamodel.Snapshot{Name: "test-snap-2", AccountID: createdAcc.ID, VolumeID: createdVol2.ID, State: models.LifeCycleStateREADY}
+	_, err = store.CreatingSnapshot(ctx, snap1)
+	assert.NoError(t, err)
+	_, err = store.CreatingSnapshot(ctx, snap2)
+	assert.NoError(t, err)
+
+	snap1.State = models.LifeCycleStateREADY
+	_, err = store.UpdateSnapshot(ctx, snap1)
+	assert.NoError(t, err)
+	snap2.State = models.LifeCycleStateREADY
+	_, err = store.UpdateSnapshot(ctx, snap2)
+	assert.NoError(t, err)
+
+	snapshots, err := store.GetSnapshotsByVolumeIDs(ctx, []int64{vol1.ID, vol2.ID})
+	assert.NoError(t, err)
+	assert.Len(t, snapshots, 2)
+}
+
+func TestBatchDeleteSnapshots(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create account and volume for association
+	acc := &datamodel.Account{Name: "test-account"}
+	createdAcc, err := store.CreateAccount(ctx, acc)
+	assert.NoError(t, err)
+	vol := &datamodel.Volume{Name: "test-volume", AccountID: createdAcc.ID}
+	createdVol, err := store.CreateVolume(ctx, vol)
+	assert.NoError(t, err)
+
+	// Create two snapshots for the volume
+	snap1 := &datamodel.Snapshot{Name: "test-snap-1", AccountID: createdAcc.ID, VolumeID: createdVol.ID}
+	snap2 := &datamodel.Snapshot{Name: "test-snap-2", AccountID: createdAcc.ID, VolumeID: createdVol.ID}
+	_, err = store.CreatingSnapshot(ctx, snap1)
+	assert.NoError(t, err)
+	_, err = store.CreatingSnapshot(ctx, snap2)
+	assert.NoError(t, err)
+
+	deletedSnapshots, err := store.BatchDeleteSnapshots(ctx, []int64{snap1.ID, snap2.ID})
+	assert.NoError(t, err)
+	assert.Len(t, deletedSnapshots, 2)
+
+	snap1, err = store.GetSnapshotByUUID(ctx, snap1.UUID, createdAcc.ID, false)
+	assert.NoError(t, err)
+	snap2, err = store.GetSnapshotByUUID(ctx, snap2.UUID, createdAcc.ID, false)
+	assert.NoError(t, err)
+
+	assert.Equal(t, models.LifeCycleStateDeleted, snap1.State)
+	assert.Equal(t, models.LifeCycleStateDeleted, snap2.State)
+}
+
 func TestGetKms(t *testing.T) {
 	logger := log.NewLogger()
 	store, _ := SetupStorageForTest(logger)

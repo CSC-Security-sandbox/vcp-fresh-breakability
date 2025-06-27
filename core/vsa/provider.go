@@ -26,6 +26,7 @@ type Provider interface {
 	CreateVolume(params CreateVolumeParams) (*VolumeResponse, error)
 	DeleteVolume(volumeUUID, volumeName string) error
 	GetVolume(params GetVolumeParams) (*VolumeResponse, error)
+	GetVolumes() ([]*Volume, error)
 	UpdateVolume(params UpdateVolumeParams) error
 	IgroupCreate(params IgroupCreateParams) (string, error)
 	IgroupGet(name, svm string) (*ontapRest.Igroup, error)
@@ -55,6 +56,7 @@ type Provider interface {
 	GetVolumeReplication(replication *VolumeReplication) (*VolumeReplication, error)
 	CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error)
 	DeleteSnapshot(snapshotUUID string, volumeUUID string) error
+	GetSnapshots(volumeUUID string) ([]*Snapshot, error)
 	CreateSnapshotPolicy(sp *SnapshotPolicy) error
 	UpdateSnapshotPolicy(ctx context.Context, params *UpdateSnapshotPolicyParams) error
 	CloudTargetGet(name *string) (*ontapRest.CloudTarget, error)

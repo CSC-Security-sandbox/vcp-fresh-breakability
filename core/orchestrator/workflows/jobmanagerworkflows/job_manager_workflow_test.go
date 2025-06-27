@@ -1,4 +1,4 @@
-package backgroundworkflows
+package jobmanagerworkflows
 
 import (
 	"testing"

@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -460,6 +461,34 @@ func ConvertJsonToModel(jsonb []byte, model any) error {
 	return nil
 }
 
+// SplitIntSliceIntoChunks splits the given slice into multiple slices of length lim
+func SplitIntSliceIntoChunks(buf []int64, lim int) [][]int64 {
+	var chunk []int64
+	chunks := make([][]int64, 0, (len(buf)/lim)+1)
+	for len(buf) >= lim {
+		chunk, buf = buf[:lim], buf[lim:]
+		chunks = append(chunks, chunk)
+	}
+	if len(buf) > 0 {
+		chunks = append(chunks, buf[:])
+	}
+	return chunks
+}
+
+// SplitStringSliceIntoChunks splits the given slice into multiple slices of length lim
+func SplitStringSliceIntoChunks(buf []string, lim int) [][]string {
+	var chunk []string
+	chunks := make([][]string, 0, (len(buf)/lim)+1)
+	for len(buf) >= lim {
+		chunk, buf = buf[:lim], buf[lim:]
+		chunks = append(chunks, chunk)
+	}
+	if len(buf) > 0 {
+		chunks = append(chunks, buf[:])
+	}
+	return chunks
+}
+
 func GetRequestIDFromContext(ctx context.Context) string {
 	if fields, ok := ctx.Value(middleware.TemporalSLoggerKey).(log.Fields); ok {
 		if requestID, ok := fields[string(middleware.RequestID)]; ok {
@@ -578,6 +607,26 @@ func _parseProjectNumberFromURI(uri string) (string, error) {
 	}
 
 	return uriMap["projects"], nil
+}
+
+// LoadJsonFromFile reads a JSON file from the given path and unmarshals its contents into the provided variable v.
+// The generic type T allows unmarshalling into any Go type.
+// Returns an error if the file does not exist, cannot be read, or if unmarshalling fails.
+func LoadJsonFromFile[T any](path string, v *T) error {
+	_, err := os.Stat(path)
+	if !os.IsNotExist(err) {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(data, &v)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	return err
 }
 
 func GetEncryptionType(kmsConfigId *string) string {

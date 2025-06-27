@@ -3,6 +3,8 @@ package vsa
 import (
 	"strings"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -100,6 +102,39 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 		Size:           *vol.Space.Size,
 		State:          *vol.State,
 	}, nil
+}
+
+func (rc *OntapRestProvider) GetVolumes() ([]*Volume, error) {
+	var resultVolumes []*Volume
+
+	client := getOntapClientFunc(rc.ClientParams)
+	ucbf := func(volumes []*ontapRest.Volume) error {
+		for _, volume := range volumes {
+			vol := &Volume{
+				Volume: models.Volume{
+					Name:      volume.Name,
+					UUID:      volume.UUID,
+					Svm:       volume.Svm,
+					IsSvmRoot: volume.IsSvmRoot,
+					Style:     volume.Style,
+				},
+				ExternalUUID: *volume.UUID,
+			}
+			resultVolumes = append(resultVolumes, vol)
+		}
+		return nil
+	}
+
+	err := client.Storage().VolumeCollectionGet(&ontapRest.VolumeCollectionGetParams{
+		BaseParams: ontapRest.BaseParams{
+			Fields: []string{"uuid", "name", "svm", "is_svm_root", "style"},
+		},
+	}, ucbf)
+
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+	}
+	return resultVolumes, nil
 }
 
 func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {

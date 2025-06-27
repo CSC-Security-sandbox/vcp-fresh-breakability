@@ -75,9 +75,6 @@ func (d *DataStoreRepository) GetAdminJobSpecsByState(ctx context.Context, state
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
-	if len(adminJobSpecs) == 0 {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, gorm.ErrRecordNotFound)
-	}
 
 	return adminJobSpecs, nil
 }

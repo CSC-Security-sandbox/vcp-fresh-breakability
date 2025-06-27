@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -909,6 +910,164 @@ func TestParseProjectNumberFromURI(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "Expected project number to match")
 		})
 	}
+}
+
+func TestSplitIntSliceIntoChunks(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []int64
+		lim      int
+		expected [][]int64
+	}{
+		{
+			name:     "ExactChunks",
+			input:    []int64{1, 2, 3, 4, 5, 6},
+			lim:      2,
+			expected: [][]int64{{1, 2}, {3, 4}, {5, 6}},
+		},
+		{
+			name:     "LastChunkSmaller",
+			input:    []int64{1, 2, 3, 4, 5},
+			lim:      2,
+			expected: [][]int64{{1, 2}, {3, 4}, {5}},
+		},
+		{
+			name:     "SingleChunk",
+			input:    []int64{1, 2},
+			lim:      5,
+			expected: [][]int64{{1, 2}},
+		},
+		{
+			name:     "EmptyInput",
+			input:    []int64{},
+			lim:      3,
+			expected: [][]int64{},
+		},
+		{
+			name:     "LimitIsOne",
+			input:    []int64{1, 2, 3},
+			lim:      1,
+			expected: [][]int64{{1}, {2}, {3}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SplitIntSliceIntoChunks(tt.input, tt.lim)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestSplitStringSliceIntoChunks(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		lim      int
+		expected [][]string
+	}{
+		{
+			name:     "ExactChunks",
+			input:    []string{"a", "b", "c", "d", "e", "f"},
+			lim:      2,
+			expected: [][]string{{"a", "b"}, {"c", "d"}, {"e", "f"}},
+		},
+		{
+			name:     "LastChunkSmaller",
+			input:    []string{"a", "b", "c", "d", "e"},
+			lim:      2,
+			expected: [][]string{{"a", "b"}, {"c", "d"}, {"e"}},
+		},
+		{
+			name:     "SingleChunk",
+			input:    []string{"a", "b"},
+			lim:      5,
+			expected: [][]string{{"a", "b"}},
+		},
+		{
+			name:     "EmptyInput",
+			input:    []string{},
+			lim:      3,
+			expected: [][]string{},
+		},
+		{
+			name:     "LimitIsOne",
+			input:    []string{"a", "b", "c"},
+			lim:      1,
+			expected: [][]string{{"a"}, {"b"}, {"c"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SplitStringSliceIntoChunks(tt.input, tt.lim)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestLoadJsonFromFile(t *testing.T) {
+	t.Run("WhenFileExistsAndHasValidJSON", func(tt *testing.T) {
+		tmpFile, err := os.CreateTemp("", "employee*.json")
+		if err != nil {
+			tt.Fatalf("Failed to create temp file: %v", err)
+		}
+		defer func(name string) {
+			err := os.Remove(name)
+			if err != nil {
+				return
+			}
+		}(tmpFile.Name())
+
+		validJSON := `{"name": "John Doe", "age": "30", "position": "Software Engineer"}`
+		if _, err := tmpFile.Write([]byte(validJSON)); err != nil {
+			tt.Fatalf("Failed to write to temp file: %v", err)
+		}
+		err = tmpFile.Close()
+		if err != nil {
+			return
+		}
+
+		var employee map[string]string
+		err = LoadJsonFromFile(tmpFile.Name(), &employee)
+		if err != nil {
+			tt.Errorf("Expected no error, got %v", err)
+		}
+	})
+	t.Run("WhenFileDoesNotExist", func(tt *testing.T) {
+		var employee map[string]string
+		err := LoadJsonFromFile("nonexistent.json", &employee)
+		if err == nil {
+			tt.Errorf("Expected error for non-existent file, got nil")
+		}
+	})
+	t.Run("WhenFileExistsAndHasInvalidJSON", func(tt *testing.T) {
+		invalidJSON := `{"name": "John Doe", "age": 30, "position": "Software Engineer"}`
+		tmpFile, err := os.CreateTemp("", "admin_background_jobs*.json")
+		if err != nil {
+			tt.Fatalf("Failed to create temp file: %v", err)
+		}
+		defer func(name string) {
+			err := os.Remove(name)
+			if err != nil {
+				return
+			}
+		}(tmpFile.Name())
+
+		if _, err := tmpFile.Write([]byte(invalidJSON)); err != nil {
+			tt.Fatalf("Failed to write to temp file: %v", err)
+		}
+		err = tmpFile.Close()
+		if err != nil {
+			return
+		}
+
+		var employee map[string]string
+		err = LoadJsonFromFile(tmpFile.Name(), &employee)
+		if err == nil {
+			tt.Errorf("Expected error for invalid JSON, got nil")
+		}
+	})
 }
 
 func TestGetEncryptionType(t *testing.T) {

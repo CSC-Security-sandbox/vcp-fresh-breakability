@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/jobmanagerworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -117,7 +117,7 @@ func LaunchJobManagerWorkflow(ctx context.Context, temporalClient client.Client,
 			ID:                       scheduler.JobManagerWorkflowID,
 			WorkflowIDConflictPolicy: enums.WORKFLOW_ID_CONFLICT_POLICY_FAIL,
 		},
-		backgroundworkflows.JobManagerWorkflow,
+		jobmanagerworkflows.JobManagerWorkflow,
 	)
 	if err != nil {
 		logger.Errorf("Failed to start background job manager workflow: %v", err)

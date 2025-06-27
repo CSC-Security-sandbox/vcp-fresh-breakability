@@ -623,6 +623,14 @@ func (s *PersistenceStore) GetSnapshotsWithCondition(ctx context.Context, filter
 	return s.dataStore.GetSnapshotsWithCondition(ctx, filter)
 }
 
+func (s *PersistenceStore) GetWronglyDeletedSnapshot(ctx context.Context, snapshotExternalUUID string) (*datamodel.Snapshot, error) {
+	return s.dataStore.GetWronglyDeletedSnapshot(ctx, snapshotExternalUUID)
+}
+
+func (s *PersistenceStore) UnDeleteSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error {
+	return s.dataStore.UnDeleteSnapshot(ctx, snapshot)
+}
+
 func (s *PersistenceStore) DeletingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error {
 	return s.dataStore.DeletingSnapshot(ctx, snapshot)
 }
@@ -631,12 +639,20 @@ func (s *PersistenceStore) DeleteSnapshot(ctx context.Context, id string) (*data
 	return s.dataStore.DeleteSnapshot(ctx, id)
 }
 
+func (s *PersistenceStore) BatchDeleteSnapshots(ctx context.Context, snapshotIDs []int64) ([]*datamodel.Snapshot, error) {
+	return s.dataStore.BatchDeleteSnapshots(ctx, snapshotIDs)
+}
+
 func (s *PersistenceStore) GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error) {
 	return s.dataStore.GetAppConsistentSnapshotsForVolume(ctx, accountID, volumeID)
 }
 
 func (s *PersistenceStore) GetSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error) {
 	return s.dataStore.GetSnapshotsByVolumeID(ctx, volumeID)
+}
+
+func (s *PersistenceStore) GetSnapshotsByVolumeIDs(ctx context.Context, volumeIDs []int64) ([]*datamodel.Snapshot, error) {
+	return s.dataStore.GetSnapshotsByVolumeIDs(ctx, volumeIDs)
 }
 
 func (s *PersistenceStore) GetMultipleKmsConfigs(ctx context.Context, conditions [][]interface{}) ([]*datamodel.KmsConfig, error) {

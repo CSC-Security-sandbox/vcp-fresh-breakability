@@ -1238,6 +1238,65 @@ func (re *retryEngine) GetSnapshotsByVolumeID(ctx context.Context, volumeID int6
 	return var0, err
 }
 
+func (re *retryEngine) GetWronglyDeletedSnapshot(ctx context.Context, snapshotExternalUUID string) (*datamodel.Snapshot, error) {
+	var var0 *datamodel.Snapshot
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetWronglyDeletedSnapshot(ctx, snapshotExternalUUID)
+		if err != nil {
+			re.logError("GetWronglyDeletedSnapshot", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) UnDeleteSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UnDeleteSnapshot(ctx, snapshot)
+		if err != nil {
+			re.logError("UnDeleteSnapshot", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
+func (re *retryEngine) GetSnapshotsByVolumeIDs(ctx context.Context, volumeID []int64) ([]*datamodel.Snapshot, error) {
+	var var0 []*datamodel.Snapshot
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetSnapshotsByVolumeIDs(ctx, volumeID)
+		if err != nil {
+			re.logError("GetSnapshotsByVolumeIDs", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetSnapshotsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Snapshot, error) {
 	var var0 []*datamodel.Snapshot
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -1315,6 +1374,26 @@ func (re *retryEngine) DeletingSnapshot(ctx context.Context, snapshot *datamodel
 	}
 
 	return err
+}
+
+func (re *retryEngine) BatchDeleteSnapshots(ctx context.Context, snapshotIDs []int64) ([]*datamodel.Snapshot, error) {
+	var var0 []*datamodel.Snapshot
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.BatchDeleteSnapshots(ctx, snapshotIDs)
+		if err != nil {
+			re.logError("BatchDeleteSnapshots", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
 }
 
 func (re *retryEngine) GetMultipleKmsConfigs(ctx context.Context, conditions [][]interface{}) ([]*datamodel.KmsConfig, error) {

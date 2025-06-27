@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	ontaprestmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -157,6 +158,47 @@ func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID stri
 	}
 
 	return nil
+}
+
+func (rc *OntapRestProvider) GetSnapshots(volumeUUID string) ([]*Snapshot, error) {
+	var resultSnapshots []*Snapshot
+
+	client := getOntapClientFunc(rc.ClientParams)
+	// TODO: CVS fetches "afs-used" attribute of the snapshot and uses it to identify if the snapshot is updated or not.
+	//  VSA's ONTAP REST API does not support this attribute. We need to check if this attribute is necessary for VSA's snapshot management.
+	ucbf := func(snapshots []*ontapRest.Snapshot) error {
+		for _, ss := range snapshots {
+			snapshot := &Snapshot{
+				Snapshot: ontaprestmodel.Snapshot{
+					Name:             ss.Name,
+					ProvenanceVolume: ss.ProvenanceVolume,
+					Volume:           ss.Volume,
+					Svm:              ss.Svm,
+					SnapmirrorLabel:  ss.SnapmirrorLabel,
+				},
+				ExternalUUID:           *ss.UUID,
+				ExternalVersionUUID:    *ss.VersionUUID,
+				SizeInBytes:            *ss.Size,
+				LogicalSizeUsedInBytes: *ss.LogicalSize,
+				CreationTime:           ss.CreateTime,
+			}
+
+			resultSnapshots = append(resultSnapshots, snapshot)
+		}
+		return nil
+	}
+
+	err := client.Storage().SnapshotCollectionGet(&ontapRest.SnapshotCollectionGetParams{
+		BaseParams: ontapRest.BaseParams{
+			Fields: []string{"uuid", "version_uuid", "name", "size", "create_time", "snapmirror_label", "provenance_volume", "volume", "svm", "logical_size"},
+		},
+		VolumeUUID: volumeUUID,
+	}, ucbf)
+
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+	}
+	return resultSnapshots, nil
 }
 
 func (rc *OntapRestProvider) CreateSnapshotPolicy(sp *SnapshotPolicy) error {

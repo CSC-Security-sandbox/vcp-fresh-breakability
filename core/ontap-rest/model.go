@@ -1121,6 +1121,7 @@ func snapshotCollectionGetParamsToONTAP(params *SnapshotCollectionGetParams) *st
 	}
 
 	otParams.SetFields(params.Fields)
+	otParams.SetUUID(params.UUID)
 	otParams.SetMaxRecords(nillable.ToStringPtr(params.MaxRecords))
 	otParams.SetSnapmirrorLabel(params.SnapmirrorLabel)
 	otParams.SetVolumeUUID(params.VolumeUUID)

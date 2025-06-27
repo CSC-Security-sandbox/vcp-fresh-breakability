@@ -7,11 +7,13 @@ import (
 	"github.com/google/uuid"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/jobmanageractivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/jobmanagerworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
@@ -89,6 +91,7 @@ func main() {
 	// Create Background job worker
 	backgrondjobsworker := tManagerPkg.NewWorker(temporalManager.GetClient(), workflowEngine.BackgroundTaskQueue)
 
+	workflowClient.GetTemporalClient().ScheduleClient()
 	logger.Info("registering background workflows and activities")
 	RegisterBackgroundWorkflowsAndActivities(*backgrondjobsworker, workflowClient.GetTemporalClient(), dbConn)
 
@@ -111,10 +114,13 @@ func main() {
 }
 
 func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage) {
-	worker.RegisterWorkflow(backgroundworkflows.JobManagerWorkflow)
+	worker.RegisterWorkflow(jobmanagerworkflows.JobManagerWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.SyncVSASnapshotsWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
+	worker.RegisterActivity(&activities.CommonActivities{SE: conn})
+	worker.RegisterActivity(&backgroundactivities.SyncSnapshotActivity{SE: conn})
 }
 
 // initializeTemporalClient initializes and returns a TemporalWorkflowEngine client.

@@ -2,6 +2,8 @@ package jobmanageractivities
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -9,7 +11,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"go.temporal.io/sdk/mocks"
 	"go.temporal.io/sdk/testsuite"
-	"testing"
 )
 
 func TestCreateScheduleActivity_Success(t *testing.T) {
@@ -27,7 +28,7 @@ func TestCreateScheduleActivity_Success(t *testing.T) {
 	jobs := []*datamodel.AdminJobSpec{
 		{
 			BaseModel:      datamodel.BaseModel{UUID: "job-1"},
-			JobType:        "SYNC_VSA_CLUSTER_STATUS",
+			JobType:        "SYNC_VSA_SNAPSHOTS",
 			CronExpression: "* * * * *",
 			State:          scheduler.JobStatusCreating,
 		},
@@ -60,7 +61,7 @@ func TestUpdateScheduleActivity_Success(t *testing.T) {
 	jobs := []*datamodel.AdminJobSpec{
 		{
 			BaseModel:      datamodel.BaseModel{UUID: "job-2"},
-			JobType:        "SYNC_VSA_VOLUME_STATUS",
+			JobType:        "SYNC_VSA_SNAPSHOTS",
 			CronExpression: "*/5 * * * *",
 			State:          scheduler.JobStatusUpdating,
 		},
@@ -95,7 +96,7 @@ func TestDeleteScheduleActivity_Success(t *testing.T) {
 	jobs := []*datamodel.AdminJobSpec{
 		{
 			BaseModel:      datamodel.BaseModel{UUID: "job-3"},
-			JobType:        "SYNC_VSA_SNAPSHOT_STATUS",
+			JobType:        "SYNC_VSA_SNAPSHOTS",
 			CronExpression: "0 0 * * *",
 			State:          scheduler.JobStatusDeleting,
 		},
@@ -146,7 +147,7 @@ func TestDeleteScheduleActivity_SchedulerDeleteError(t *testing.T) {
 	jobs := []*datamodel.AdminJobSpec{
 		{
 			BaseModel:      datamodel.BaseModel{UUID: "job-3"},
-			JobType:        "SYNC_VSA_SNAPSHOT_STATUS",
+			JobType:        "SYNC_VSA_SNAPSHOTS",
 			CronExpression: "0 0 * * *",
 			State:          scheduler.JobStatusDeleting,
 		},
@@ -176,7 +177,7 @@ func TestDeleteScheduleActivity_UpdateAdminJobSpecError(t *testing.T) {
 	jobs := []*datamodel.AdminJobSpec{
 		{
 			BaseModel:      datamodel.BaseModel{UUID: "job-3"},
-			JobType:        "SYNC_VSA_SNAPSHOT_STATUS",
+			JobType:        "SYNC_VSA_SNAPSHOTS",
 			CronExpression: "0 0 * * *",
 			State:          scheduler.JobStatusDeleting,
 		},

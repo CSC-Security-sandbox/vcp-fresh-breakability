@@ -286,6 +286,17 @@ type InterclusterLif struct {
 	UUID     string
 }
 
+type Snapshot struct {
+	ontaprestmodel.Snapshot
+	ExternalUUID           string
+	ExternalVersionUUID    string
+	ExternalVolumeUUID     string
+	SizeInBytes            int64
+	LogicalSizeUsedInBytes int64
+	CreationTime           *strfmt.DateTime
+	Type                   string
+}
+
 type CreateSnapshotParams struct {
 	VolumeUUID string
 	Name       string

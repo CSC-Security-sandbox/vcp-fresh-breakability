@@ -24,6 +24,65 @@ func (_m *MockDataStore) EXPECT() *MockDataStore_Expecter {
 	return &MockDataStore_Expecter{mock: &_m.Mock}
 }
 
+// BatchDeleteSnapshots provides a mock function with given fields: ctx, snapshotIDs
+func (_m *MockDataStore) BatchDeleteSnapshots(ctx context.Context, snapshotIDs []int64) ([]*datamodel.Snapshot, error) {
+	ret := _m.Called(ctx, snapshotIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BatchDeleteSnapshots")
+	}
+
+	var r0 []*datamodel.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []int64) ([]*datamodel.Snapshot, error)); ok {
+		return rf(ctx, snapshotIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []int64) []*datamodel.Snapshot); ok {
+		r0 = rf(ctx, snapshotIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []int64) error); ok {
+		r1 = rf(ctx, snapshotIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_BatchDeleteSnapshots_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BatchDeleteSnapshots'
+type MockDataStore_BatchDeleteSnapshots_Call struct {
+	*mock.Call
+}
+
+// BatchDeleteSnapshots is a helper method to define mock.On call
+//   - ctx context.Context
+//   - snapshotIDs []int64
+func (_e *MockDataStore_Expecter) BatchDeleteSnapshots(ctx interface{}, snapshotIDs interface{}) *MockDataStore_BatchDeleteSnapshots_Call {
+	return &MockDataStore_BatchDeleteSnapshots_Call{Call: _e.mock.On("BatchDeleteSnapshots", ctx, snapshotIDs)}
+}
+
+func (_c *MockDataStore_BatchDeleteSnapshots_Call) Run(run func(ctx context.Context, snapshotIDs []int64)) *MockDataStore_BatchDeleteSnapshots_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_BatchDeleteSnapshots_Call) Return(_a0 []*datamodel.Snapshot, _a1 error) *MockDataStore_BatchDeleteSnapshots_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_BatchDeleteSnapshots_Call) RunAndReturn(run func(context.Context, []int64) ([]*datamodel.Snapshot, error)) *MockDataStore_BatchDeleteSnapshots_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateAccount provides a mock function with given fields: ctx, account
 func (_m *MockDataStore) CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error) {
 	ret := _m.Called(ctx, account)
@@ -3245,9 +3304,9 @@ func (_c *MockDataStore_GetPoolByVendorID_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
-// GetSnapshotByUUID provides a mock function with given fields: ctx, uuid
+// GetSnapshotByUUID provides a mock function with given fields: ctx, uuid, accountID, isParentSnapshot
 func (_m *MockDataStore) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
-	ret := _m.Called(ctx, uuid)
+	ret := _m.Called(ctx, uuid, accountID, isParentSnapshot)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetSnapshotByUUID")
@@ -3255,19 +3314,19 @@ func (_m *MockDataStore) GetSnapshotByUUID(ctx context.Context, uuid string, acc
 
 	var r0 *datamodel.Snapshot
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Snapshot, error)); ok {
-		return rf(ctx, uuid)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, bool) (*datamodel.Snapshot, error)); ok {
+		return rf(ctx, uuid, accountID, isParentSnapshot)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Snapshot); ok {
-		r0 = rf(ctx, uuid)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, bool) *datamodel.Snapshot); ok {
+		r0 = rf(ctx, uuid, accountID, isParentSnapshot)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.Snapshot)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, uuid)
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64, bool) error); ok {
+		r1 = rf(ctx, uuid, accountID, isParentSnapshot)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3283,13 +3342,15 @@ type MockDataStore_GetSnapshotByUUID_Call struct {
 // GetSnapshotByUUID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - uuid string
-func (_e *MockDataStore_Expecter) GetSnapshotByUUID(ctx interface{}, uuid interface{}) *MockDataStore_GetSnapshotByUUID_Call {
-	return &MockDataStore_GetSnapshotByUUID_Call{Call: _e.mock.On("GetSnapshotByUUID", ctx, uuid)}
+//   - accountID int64
+//   - isParentSnapshot bool
+func (_e *MockDataStore_Expecter) GetSnapshotByUUID(ctx interface{}, uuid interface{}, accountID interface{}, isParentSnapshot interface{}) *MockDataStore_GetSnapshotByUUID_Call {
+	return &MockDataStore_GetSnapshotByUUID_Call{Call: _e.mock.On("GetSnapshotByUUID", ctx, uuid, accountID, isParentSnapshot)}
 }
 
-func (_c *MockDataStore_GetSnapshotByUUID_Call) Run(run func(ctx context.Context, uuid string)) *MockDataStore_GetSnapshotByUUID_Call {
+func (_c *MockDataStore_GetSnapshotByUUID_Call) Run(run func(ctx context.Context, uuid string, accountID int64, isParentSnapshot bool)) *MockDataStore_GetSnapshotByUUID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(bool))
 	})
 	return _c
 }
@@ -3299,7 +3360,7 @@ func (_c *MockDataStore_GetSnapshotByUUID_Call) Return(_a0 *datamodel.Snapshot, 
 	return _c
 }
 
-func (_c *MockDataStore_GetSnapshotByUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Snapshot, error)) *MockDataStore_GetSnapshotByUUID_Call {
+func (_c *MockDataStore_GetSnapshotByUUID_Call) RunAndReturn(run func(context.Context, string, int64, bool) (*datamodel.Snapshot, error)) *MockDataStore_GetSnapshotByUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3359,6 +3420,65 @@ func (_c *MockDataStore_GetSnapshotsByVolumeID_Call) Return(_a0 []*datamodel.Sna
 }
 
 func (_c *MockDataStore_GetSnapshotsByVolumeID_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.Snapshot, error)) *MockDataStore_GetSnapshotsByVolumeID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSnapshotsByVolumeIDs provides a mock function with given fields: ctx, volumeID
+func (_m *MockDataStore) GetSnapshotsByVolumeIDs(ctx context.Context, volumeID []int64) ([]*datamodel.Snapshot, error) {
+	ret := _m.Called(ctx, volumeID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSnapshotsByVolumeIDs")
+	}
+
+	var r0 []*datamodel.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []int64) ([]*datamodel.Snapshot, error)); ok {
+		return rf(ctx, volumeID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []int64) []*datamodel.Snapshot); ok {
+		r0 = rf(ctx, volumeID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []int64) error); ok {
+		r1 = rf(ctx, volumeID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetSnapshotsByVolumeIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSnapshotsByVolumeIDs'
+type MockDataStore_GetSnapshotsByVolumeIDs_Call struct {
+	*mock.Call
+}
+
+// GetSnapshotsByVolumeIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeID []int64
+func (_e *MockDataStore_Expecter) GetSnapshotsByVolumeIDs(ctx interface{}, volumeID interface{}) *MockDataStore_GetSnapshotsByVolumeIDs_Call {
+	return &MockDataStore_GetSnapshotsByVolumeIDs_Call{Call: _e.mock.On("GetSnapshotsByVolumeIDs", ctx, volumeID)}
+}
+
+func (_c *MockDataStore_GetSnapshotsByVolumeIDs_Call) Run(run func(ctx context.Context, volumeID []int64)) *MockDataStore_GetSnapshotsByVolumeIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetSnapshotsByVolumeIDs_Call) Return(_a0 []*datamodel.Snapshot, _a1 error) *MockDataStore_GetSnapshotsByVolumeIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetSnapshotsByVolumeIDs_Call) RunAndReturn(run func(context.Context, []int64) ([]*datamodel.Snapshot, error)) *MockDataStore_GetSnapshotsByVolumeIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4125,6 +4245,65 @@ func (_c *MockDataStore_GetVolumesByPoolID_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// GetWronglyDeletedSnapshot provides a mock function with given fields: ctx, snapshotExternalUUID
+func (_m *MockDataStore) GetWronglyDeletedSnapshot(ctx context.Context, snapshotExternalUUID string) (*datamodel.Snapshot, error) {
+	ret := _m.Called(ctx, snapshotExternalUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetWronglyDeletedSnapshot")
+	}
+
+	var r0 *datamodel.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Snapshot, error)); ok {
+		return rf(ctx, snapshotExternalUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Snapshot); ok {
+		r0 = rf(ctx, snapshotExternalUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, snapshotExternalUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetWronglyDeletedSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetWronglyDeletedSnapshot'
+type MockDataStore_GetWronglyDeletedSnapshot_Call struct {
+	*mock.Call
+}
+
+// GetWronglyDeletedSnapshot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - snapshotExternalUUID string
+func (_e *MockDataStore_Expecter) GetWronglyDeletedSnapshot(ctx interface{}, snapshotExternalUUID interface{}) *MockDataStore_GetWronglyDeletedSnapshot_Call {
+	return &MockDataStore_GetWronglyDeletedSnapshot_Call{Call: _e.mock.On("GetWronglyDeletedSnapshot", ctx, snapshotExternalUUID)}
+}
+
+func (_c *MockDataStore_GetWronglyDeletedSnapshot_Call) Run(run func(ctx context.Context, snapshotExternalUUID string)) *MockDataStore_GetWronglyDeletedSnapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetWronglyDeletedSnapshot_Call) Return(_a0 *datamodel.Snapshot, _a1 error) *MockDataStore_GetWronglyDeletedSnapshot_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetWronglyDeletedSnapshot_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Snapshot, error)) *MockDataStore_GetWronglyDeletedSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IsBackupInCreatingorDeletingStateByVolume provides a mock function with given fields: ctx, volumeUUID
 func (_m *MockDataStore) IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error) {
 	ret := _m.Called(ctx, volumeUUID)
@@ -4462,6 +4641,53 @@ func (_c *MockDataStore_SavePoolWithVsaClusterDetails_Call) Return(_a0 error) *M
 }
 
 func (_c *MockDataStore_SavePoolWithVsaClusterDetails_Call) RunAndReturn(run func(context.Context, *datamodel.Pool, *datamodel.ClusterDetails) error) *MockDataStore_SavePoolWithVsaClusterDetails_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UnDeleteSnapshot provides a mock function with given fields: ctx, snapshot
+func (_m *MockDataStore) UnDeleteSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error {
+	ret := _m.Called(ctx, snapshot)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnDeleteSnapshot")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Snapshot) error); ok {
+		r0 = rf(ctx, snapshot)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UnDeleteSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnDeleteSnapshot'
+type MockDataStore_UnDeleteSnapshot_Call struct {
+	*mock.Call
+}
+
+// UnDeleteSnapshot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - snapshot *datamodel.Snapshot
+func (_e *MockDataStore_Expecter) UnDeleteSnapshot(ctx interface{}, snapshot interface{}) *MockDataStore_UnDeleteSnapshot_Call {
+	return &MockDataStore_UnDeleteSnapshot_Call{Call: _e.mock.On("UnDeleteSnapshot", ctx, snapshot)}
+}
+
+func (_c *MockDataStore_UnDeleteSnapshot_Call) Run(run func(ctx context.Context, snapshot *datamodel.Snapshot)) *MockDataStore_UnDeleteSnapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Snapshot))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UnDeleteSnapshot_Call) Return(_a0 error) *MockDataStore_UnDeleteSnapshot_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UnDeleteSnapshot_Call) RunAndReturn(run func(context.Context, *datamodel.Snapshot) error) *MockDataStore_UnDeleteSnapshot_Call {
 	_c.Call.Return(run)
 	return _c
 }
