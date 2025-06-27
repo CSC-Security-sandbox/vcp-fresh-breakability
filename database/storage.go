@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"gorm.io/gorm"
 	"net/url"
 	"strconv"
 	"sync"
@@ -21,7 +22,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
@@ -780,4 +780,12 @@ func (s *PersistenceStore) GetAdminJobSpecsByState(ctx context.Context, state st
 
 func (s *PersistenceStore) ErroredResource(ctx context.Context, resource interface{}, errMessage string) (interface{}, error) {
 	return s.dataStore.ErroredResource(ctx, resource, errMessage)
+}
+
+func (s *PersistenceStore) GetAllVolumesForHG(ctx context.Context, hostGroupUUID string, accountID int64) ([]*datamodel.Volume, error) {
+	return s.dataStore.GetAllVolumesForHG(ctx, hostGroupUUID, accountID)
+}
+
+func (s *PersistenceStore) UpdateHostGroup(ctx context.Context, hostGroupUUID string, accountID int64, description *string, Hosts *[]string) (*datamodel.HostGroup, error) {
+	return s.dataStore.UpdateHostGroup(ctx, hostGroupUUID, accountID, description, Hosts)
 }

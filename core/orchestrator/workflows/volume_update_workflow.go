@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -111,7 +112,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, err
 	}
 
-	node := CreateNodeForProviderWithPool(dbNodes, volume.Pool)
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: volume.Pool.Username, Password: volume.Pool.Password})
 
 	// Update the snapshot policy if it is provided in the params
 	if params.SnapshotPolicy != nil && params.SnapshotPolicy.Name != "" {
@@ -170,6 +171,28 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		// No rollback for LUN because we cannot decrease the size of a LUN in ONTAP.
 	}
 
+	if params.BlockProperties != nil {
+		volumeAttachedHG := utils.GetHgUUIDs(volume.VolumeAttributes.BlockProperties.HostGroupDetails)
+		if !utils.IsSliceEqual(params.BlockProperties.HostGroupUUIDs, volumeAttachedHG) {
+			toCreate, toDelete := activities.HostGroupsUpdateDiffForVolume(utils.GetHgUUIDs(volume.VolumeAttributes.BlockProperties.HostGroupDetails), params.BlockProperties.HostGroupUUIDs)
+
+			if len(toCreate) > 0 {
+				err = workflow.ExecuteActivity(ctx, updateActivity.EnsureHostGroupsExistsAndMapDisk, &volume, toCreate, &node).Get(ctx, nil)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			// Ensure the lun iGroup maps to delete  created
+			if len(toDelete) > 0 {
+				err = workflow.ExecuteActivity(ctx, updateActivity.UnmapHostGroupFromDisk, &volume, toDelete, &node).Get(ctx, nil)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
 	if volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" {
 		tenancyDetails := &common.TenancyInfo{}
 		err = workflow.ExecuteActivity(ctx, updateActivity.FindTenancyDetails, volume.VolumeAttributes.VendorSubnetID, volume.Account.Name, &params.Region).Get(ctx, &tenancyDetails)
@@ -210,10 +233,6 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if err != nil {
 		return nil, err
 	}
-
-	// ToDo: Update HostGroup Activity,
-	// Need to find the delta from the existing host groups in volume and the new host groups from params
-	// Then Find out which host groups to add and which to remove
 
 	return nil, err
 }

@@ -129,21 +129,6 @@ func (rc *OntapRestProvider) LunUpdate(params LunUpdateParams) error {
 	return client.Poll(job.JobUUID)
 }
 
-// IgroupCreate creates an initiator group by calling the ONTAP REST Client
-func (rc *OntapRestProvider) IgroupCreate(params IgroupCreateParams) (string, error) {
-	client := getOntapClientFunc(rc.ClientParams)
-	iGroupName, err := client.SAN().IGroupCreate(&ontapRest.IgroupCreateParams{
-		Name:       params.IgroupName,
-		SvmName:    params.SvmName,
-		OsType:     params.OsType,
-		Initiators: params.Initiator,
-	})
-	if err != nil {
-		return "", err
-	}
-	return iGroupName, nil
-}
-
 // LunMapCreate creates a LUN mapping by calling the ONTAP REST Client
 func (rc *OntapRestProvider) LunMapCreate(params LunMapCreateParams) error {
 	for i := 0; i < len(params.IGroupName); i++ {
@@ -152,42 +137,23 @@ func (rc *OntapRestProvider) LunMapCreate(params LunMapCreateParams) error {
 			LunName:    params.LunName,
 			SvmName:    params.SvmName,
 			IGroupName: params.IGroupName[i],
-		}); err != nil {
-			if strings.Contains(err.Error(), "LUN already mapped to this group") {
-				return errors.NewConflictErr(fmt.Sprintf("LUN %s is already mapped to initiator group %s", params.LunName, params.IGroupName[i]))
-			}
+		}); err != nil && !strings.Contains(err.Error(), "LUN already mapped to this group") {
 			return err
 		}
 	}
 	return nil
 }
 
-// IgroupGet creates an initiator group by calling the ONTAP REST Client
-func (rc *OntapRestProvider) IgroupGet(name, svmName string) (*ontapRest.Igroup, error) {
+// LunMapDelete deletes a LUN mapping by calling the ONTAP REST Client
+func (rc *OntapRestProvider) LunMapDelete(params LunMapDeleteParams) error {
 	client := getOntapClientFunc(rc.ClientParams)
-	iGroup, err := client.SAN().IGroupGet(&ontapRest.IgroupGetParams{
-		Name:    &name,
-		SvmName: svmName,
-	})
-	if err != nil {
-		return nil, err
+	if err := client.SAN().LunMapDelete(&ontapRest.LunMapDeleteParams{
+		LunUUID:    params.LunUUID,
+		IGroupUUID: params.IGroupUUID,
+	}); err != nil && !strings.Contains(err.Error(), "does not contain") {
+		return err
 	}
-	return iGroup, nil
-}
-
-func (rc *OntapRestProvider) IgroupExists(name, svm string) (bool, error) {
-	res, err := rc.IgroupGet(name, svm)
-	if err != nil {
-		if errors.IsNotFoundErr(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	if res == nil {
-		return false, nil
-	}
-
-	return true, nil
+	return nil
 }
 
 // IscsiServiceCreate creates an iSCSI service by calling the ONTAP REST Client

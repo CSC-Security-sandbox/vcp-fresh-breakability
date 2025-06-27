@@ -158,6 +158,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(replicationWorkflows.PerformMountCheckWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ResumeInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ResumeReplicationWorkflow)
+	worker.RegisterWorkflow(workflows.UpdateHostGroupWorkflow)
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
@@ -174,6 +175,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&activities.BackupActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.ReplicationInternalGetMultipleActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.MountJobActivity{SE: dbcon})
+	worker.RegisterActivity(&activities.HostGroupUpdateActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationResumeActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.ResumeVolumeReplicationActivity{SE: dbcon})
 }

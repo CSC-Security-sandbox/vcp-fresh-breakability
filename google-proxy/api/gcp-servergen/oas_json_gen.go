@@ -4208,6 +4208,16 @@ func (s *BlockPropertiesV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.HostGroupDetails != nil {
+			e.FieldStart("hostGroupDetails")
+			e.ArrStart()
+			for _, elem := range s.HostGroupDetails {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		if s.LunSerialNumber.Set {
 			e.FieldStart("lunSerialNumber")
 			s.LunSerialNumber.Encode(e)
@@ -4215,10 +4225,11 @@ func (s *BlockPropertiesV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfBlockPropertiesV1beta = [3]string{
+var jsonFieldsNameOfBlockPropertiesV1beta = [4]string{
 	0: "osType",
 	1: "hostGroupIds",
-	2: "lunSerialNumber",
+	2: "hostGroupDetails",
+	3: "lunSerialNumber",
 }
 
 // Decode decodes BlockPropertiesV1beta from json.
@@ -4257,6 +4268,23 @@ func (s *BlockPropertiesV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"hostGroupIds\"")
+			}
+		case "hostGroupDetails":
+			if err := func() error {
+				s.HostGroupDetails = make([]HostGroupDetail, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem HostGroupDetail
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.HostGroupDetails = append(s.HostGroupDetails, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hostGroupDetails\"")
 			}
 		case "lunSerialNumber":
 			if err := func() error {
@@ -6186,6 +6214,99 @@ func (s *Health) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *Health) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *HostGroupDetail) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *HostGroupDetail) encodeFields(e *jx.Encoder) {
+	{
+		if s.HostGroupId.Set {
+			e.FieldStart("hostGroupId")
+			s.HostGroupId.Encode(e)
+		}
+	}
+	{
+		if s.Hosts != nil {
+			e.FieldStart("hosts")
+			e.ArrStart()
+			for _, elem := range s.Hosts {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfHostGroupDetail = [2]string{
+	0: "hostGroupId",
+	1: "hosts",
+}
+
+// Decode decodes HostGroupDetail from json.
+func (s *HostGroupDetail) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode HostGroupDetail to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "hostGroupId":
+			if err := func() error {
+				s.HostGroupId.Reset()
+				if err := s.HostGroupId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hostGroupId\"")
+			}
+		case "hosts":
+			if err := func() error {
+				s.Hosts = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Hosts = append(s.Hosts, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hosts\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode HostGroupDetail")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *HostGroupDetail) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *HostGroupDetail) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

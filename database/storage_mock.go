@@ -2195,6 +2195,66 @@ func (_c *MockStorage_GetAdminJobSpecsByState_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// GetAllVolumesForHG provides a mock function with given fields: ctx, hostGroupUUID, accountID
+func (_m *MockStorage) GetAllVolumesForHG(ctx context.Context, hostGroupUUID string, accountID int64) ([]*datamodel.Volume, error) {
+	ret := _m.Called(ctx, hostGroupUUID, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllVolumesForHG")
+	}
+
+	var r0 []*datamodel.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) ([]*datamodel.Volume, error)); ok {
+		return rf(ctx, hostGroupUUID, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) []*datamodel.Volume); ok {
+		r0 = rf(ctx, hostGroupUUID, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, hostGroupUUID, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetAllVolumesForHG_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllVolumesForHG'
+type MockStorage_GetAllVolumesForHG_Call struct {
+	*mock.Call
+}
+
+// GetAllVolumesForHG is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hostGroupUUID string
+//   - accountID int64
+func (_e *MockStorage_Expecter) GetAllVolumesForHG(ctx interface{}, hostGroupUUID interface{}, accountID interface{}) *MockStorage_GetAllVolumesForHG_Call {
+	return &MockStorage_GetAllVolumesForHG_Call{Call: _e.mock.On("GetAllVolumesForHG", ctx, hostGroupUUID, accountID)}
+}
+
+func (_c *MockStorage_GetAllVolumesForHG_Call) Run(run func(ctx context.Context, hostGroupUUID string, accountID int64)) *MockStorage_GetAllVolumesForHG_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetAllVolumesForHG_Call) Return(_a0 []*datamodel.Volume, _a1 error) *MockStorage_GetAllVolumesForHG_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetAllVolumesForHG_Call) RunAndReturn(run func(context.Context, string, int64) ([]*datamodel.Volume, error)) *MockStorage_GetAllVolumesForHG_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAppConsistentSnapshotsForVolume provides a mock function with given fields: ctx, accountID, volumeID
 func (_m *MockStorage) GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID int64, volumeID int64) ([]*datamodel.Snapshot, error) {
 	ret := _m.Called(ctx, accountID, volumeID)
@@ -5223,6 +5283,68 @@ func (_c *MockStorage_UpdateBackupVault_Call) Return(_a0 error) *MockStorage_Upd
 }
 
 func (_c *MockStorage_UpdateBackupVault_Call) RunAndReturn(run func(context.Context, *datamodel.BackupVault) error) *MockStorage_UpdateBackupVault_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateHostGroup provides a mock function with given fields: ctx, hostGroupUUID, accountID, description, Hosts
+func (_m *MockStorage) UpdateHostGroup(ctx context.Context, hostGroupUUID string, accountID int64, description *string, Hosts *[]string) (*datamodel.HostGroup, error) {
+	ret := _m.Called(ctx, hostGroupUUID, accountID, description, Hosts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateHostGroup")
+	}
+
+	var r0 *datamodel.HostGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, *string, *[]string) (*datamodel.HostGroup, error)); ok {
+		return rf(ctx, hostGroupUUID, accountID, description, Hosts)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, *string, *[]string) *datamodel.HostGroup); ok {
+		r0 = rf(ctx, hostGroupUUID, accountID, description, Hosts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.HostGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64, *string, *[]string) error); ok {
+		r1 = rf(ctx, hostGroupUUID, accountID, description, Hosts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UpdateHostGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateHostGroup'
+type MockStorage_UpdateHostGroup_Call struct {
+	*mock.Call
+}
+
+// UpdateHostGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hostGroupUUID string
+//   - accountID int64
+//   - description *string
+//   - Hosts *[]string
+func (_e *MockStorage_Expecter) UpdateHostGroup(ctx interface{}, hostGroupUUID interface{}, accountID interface{}, description interface{}, Hosts interface{}) *MockStorage_UpdateHostGroup_Call {
+	return &MockStorage_UpdateHostGroup_Call{Call: _e.mock.On("UpdateHostGroup", ctx, hostGroupUUID, accountID, description, Hosts)}
+}
+
+func (_c *MockStorage_UpdateHostGroup_Call) Run(run func(ctx context.Context, hostGroupUUID string, accountID int64, description *string, Hosts *[]string)) *MockStorage_UpdateHostGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(*string), args[4].(*[]string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateHostGroup_Call) Return(_a0 *datamodel.HostGroup, _a1 error) *MockStorage_UpdateHostGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UpdateHostGroup_Call) RunAndReturn(run func(context.Context, string, int64, *string, *[]string) (*datamodel.HostGroup, error)) *MockStorage_UpdateHostGroup_Call {
 	_c.Call.Return(run)
 	return _c
 }

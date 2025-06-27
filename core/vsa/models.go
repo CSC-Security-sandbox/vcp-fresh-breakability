@@ -127,6 +127,22 @@ type IgroupCreateParams struct {
 	Initiator  []string
 }
 
+type IgroupModifyParams struct {
+	IgroupName string
+	SvmName    string
+	Initiator  []string
+}
+
+type IgroupAddInitiator struct {
+	Initiator  []string
+	IgroupUUID string
+}
+
+type IgroupDeleteInitiator struct {
+	InitiatorName string
+	IgroupUUID    string
+}
+
 type LunCreateParams struct {
 	LunName    string
 	SvmName    string
@@ -153,6 +169,11 @@ type LunMapCreateParams struct {
 	LunName    string
 	SvmName    string
 	IGroupName []string
+}
+
+type LunMapDeleteParams struct {
+	LunUUID    string
+	IGroupUUID string
 }
 
 // CreateVolumeReplicationParams describes parameters supplied to Provider.CreateVolumeReplication

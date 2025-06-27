@@ -354,3 +354,41 @@ func TestLunUpdate(t *testing.T) {
 		assert.Equal(tt, jobUUID, job.JobUUID)
 	})
 }
+
+func TestIGroupAddInitiator(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		sanAPI := san.New(transport, nil)
+		client := &sanClient{api: sanAPI}
+		err := client.IGroupAddInitiator(&IgroupAddInitiatorParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+	t.Run("WhenAcceptedResponse_ThenReturnJobAccepted", func(tt *testing.T) {
+		transport := &mockTransport{
+			response: &san.IgroupInitiatorCreateCreated{},
+		}
+		sanAPI := san.New(transport, nil)
+		client := &sanClient{api: sanAPI}
+		err := client.IGroupAddInitiator(&IgroupAddInitiatorParams{})
+		assert.Nil(tt, err)
+	})
+}
+
+func TestIGroupDeleteInitiator(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		sanAPI := san.New(transport, nil)
+		client := &sanClient{api: sanAPI}
+		err := client.IGroupDeleteInitiator(&IgroupDeleteInitiatorParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+	t.Run("WhenAcceptedResponse_ThenReturnJobAccepted", func(tt *testing.T) {
+		transport := &mockTransport{
+			response: &san.IgroupInitiatorDeleteOK{},
+		}
+		sanAPI := san.New(transport, nil)
+		client := &sanClient{api: sanAPI}
+		err := client.IGroupDeleteInitiator(&IgroupDeleteInitiatorParams{})
+		assert.Nil(tt, err)
+	})
+}

@@ -2257,6 +2257,9 @@ type BlockPropertiesV1beta struct {
 	// List of Uuid v4 used to identify the HostGroups. A volume can be mapped to multiple HostGroups as
 	// long as each HostGroup has a distinct set of hosts.
 	HostGroupIds []string `json:"hostGroupIds"`
+	// List of HostGroup details. A volume can be mapped to multiple HostGroups as long as each HostGroup
+	// has a distinct set of hosts.
+	HostGroupDetails []HostGroupDetail `json:"hostGroupDetails"`
 	// LUN Serial Number of the Block Volume.
 	LunSerialNumber OptString `json:"lunSerialNumber"`
 }
@@ -2269,6 +2272,11 @@ func (s *BlockPropertiesV1beta) GetOsType() OptBlockPropertiesV1betaOsType {
 // GetHostGroupIds returns the value of HostGroupIds.
 func (s *BlockPropertiesV1beta) GetHostGroupIds() []string {
 	return s.HostGroupIds
+}
+
+// GetHostGroupDetails returns the value of HostGroupDetails.
+func (s *BlockPropertiesV1beta) GetHostGroupDetails() []HostGroupDetail {
+	return s.HostGroupDetails
 }
 
 // GetLunSerialNumber returns the value of LunSerialNumber.
@@ -2284,6 +2292,11 @@ func (s *BlockPropertiesV1beta) SetOsType(val OptBlockPropertiesV1betaOsType) {
 // SetHostGroupIds sets the value of HostGroupIds.
 func (s *BlockPropertiesV1beta) SetHostGroupIds(val []string) {
 	s.HostGroupIds = val
+}
+
+// SetHostGroupDetails sets the value of HostGroupDetails.
+func (s *BlockPropertiesV1beta) SetHostGroupDetails(val []HostGroupDetail) {
+	s.HostGroupDetails = val
 }
 
 // SetLunSerialNumber sets the value of LunSerialNumber.
@@ -3204,6 +3217,34 @@ func (s *Health) SetStatus(val OptString) {
 }
 
 func (*Health) getHealthRes() {}
+
+// Ref: #/components/schemas/HostGroupDetail
+type HostGroupDetail struct {
+	// Uuid v4 used to identify the HostGroup.
+	HostGroupId OptString `json:"hostGroupId"`
+	// List of iSCSI Qualified Names associated with this HostGroup.
+	Hosts []string `json:"hosts"`
+}
+
+// GetHostGroupId returns the value of HostGroupId.
+func (s *HostGroupDetail) GetHostGroupId() OptString {
+	return s.HostGroupId
+}
+
+// GetHosts returns the value of Hosts.
+func (s *HostGroupDetail) GetHosts() []string {
+	return s.Hosts
+}
+
+// SetHostGroupId sets the value of HostGroupId.
+func (s *HostGroupDetail) SetHostGroupId(val OptString) {
+	s.HostGroupId = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *HostGroupDetail) SetHosts(val []string) {
+	s.Hosts = val
+}
 
 // Ref: #/components/schemas/hostGroupIdList_v1beta
 type HostGroupIdListV1beta struct {

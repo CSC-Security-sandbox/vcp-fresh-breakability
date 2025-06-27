@@ -324,6 +324,38 @@ func TestMockClientServiceIgroupDelete(t *testing.T) {
 	mockClientService.AssertMockClientServiceDone()
 }
 
+func TestMockClientServiceIgroupInitiatorCreate(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *IgroupInitiatorCreateParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *IgroupInitiatorCreateCreated
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.IgroupInitiatorCreate(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertIgroupInitiatorCreate(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceIgroupInitiatorDelete(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *IgroupInitiatorDeleteParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *IgroupInitiatorDeleteOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.IgroupInitiatorDelete(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertIgroupInitiatorDelete(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
 func TestMockClientServiceIgroupModify(t *testing.T) {
 	mockClientService := NewMockClientService(t)
 	var params *IgroupModifyParams

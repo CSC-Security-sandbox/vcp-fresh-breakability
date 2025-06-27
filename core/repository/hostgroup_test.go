@@ -524,11 +524,11 @@ func TestIsHostGroupInUse(t *testing.T) {
 			tt.Fatalf("Failed to create hg: %v", err)
 		}
 
-		volumeWithHG = func(db *gorm.DB, hostGroupUUID string, accountID int64) error {
-			return gorm.ErrRecordNotFound
+		volumesWithHG = func(db *gorm.DB, hostGroupUUID string, accountID int64) ([]*datamodel.Volume, error) {
+			return []*datamodel.Volume{}, nil
 		}
 
-		defer func() { volumeWithHG = _volumeWithHG }()
+		defer func() { volumesWithHG = _volumesWithHG }()
 		inUse, err := isHostGroupInUse(store.db.GORM(), hg1.UUID, hg1.AccountID)
 		assert.NoError(tt, err, "Failed to get host group")
 		assert.False(tt, inUse, "Expected host group to not be in use")
@@ -556,11 +556,11 @@ func TestIsHostGroupInUse(t *testing.T) {
 			tt.Fatalf("Failed to create hg: %v", err)
 		}
 
-		volumeWithHG = func(db *gorm.DB, hostGroupUUID string, accountID int64) error {
-			return nil
+		volumesWithHG = func(db *gorm.DB, hostGroupUUID string, accountID int64) ([]*datamodel.Volume, error) {
+			return []*datamodel.Volume{{Name: "123"}}, nil
 		}
 
-		defer func() { volumeWithHG = _volumeWithHG }()
+		defer func() { volumesWithHG = _volumesWithHG }()
 		inUse, err := isHostGroupInUse(store.db.GORM(), hg1.UUID, hg1.AccountID)
 		assert.NoError(tt, err, "Failed to get host group")
 		assert.True(tt, inUse, "Expected host group to not be in use")
@@ -588,13 +588,81 @@ func TestIsHostGroupInUse(t *testing.T) {
 			tt.Fatalf("Failed to create hg: %v", err)
 		}
 
-		volumeWithHG = func(db *gorm.DB, hostGroupUUID string, accountID int64) error {
-			return errors.New("some error occurred")
+		volumesWithHG = func(db *gorm.DB, hostGroupUUID string, accountID int64) ([]*datamodel.Volume, error) {
+			return nil, errors.New("some error occurred")
 		}
 
-		defer func() { volumeWithHG = _volumeWithHG }()
+		defer func() { volumesWithHG = _volumesWithHG }()
 		inUse, err := isHostGroupInUse(store.db.GORM(), hg1.UUID, hg1.AccountID)
 		assert.EqualError(tt, err, "some error occurred")
 		assert.True(tt, inUse, "Expected host group to not be in use")
+	})
+}
+
+func TestUpdateHostGroup(t *testing.T) {
+	t.Run("WhenUpdateHostGroupSucceeds", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		hg1 := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-hg1",
+			},
+			Name:        "test_hg",
+			AccountID:   1,
+			Description: "Old description",
+			Hosts:       datamodel.Hosts{Hosts: []string{"host1"}},
+			State:       models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(hg1).Error()
+		assert.NoError(tt, err, "Failed to create host group")
+
+		newDescription := "Updated description"
+		newHosts := []string{"host2", "host3"}
+
+		startTransaction = func(db1 *gorm.DB) (*gorm.DB, error) {
+			return db, nil
+		}
+		commitOrRollbackOnError = func(log slogger.Logger, tx *gorm.DB, err *error) {}
+		defer func() {
+			startTransaction = _startTransaction
+			commitOrRollbackOnError = _commitOrRollbackOnError
+			getHostGroupWithDetails = _getHostGroupWithDetails
+		}()
+
+		getHostGroupWithDetails = func(db *gorm.DB, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error) {
+			return hg1, nil
+		}
+
+		updatedHostGroup, err := store.UpdateHostGroup(context.Background(), hg1.UUID, hg1.AccountID, &newDescription, &newHosts)
+		assert.NoError(tt, err, "Failed to update host group")
+		assert.Equal(tt, newDescription, updatedHostGroup.Description, "Description did not update correctly")
+		assert.Equal(tt, newHosts, updatedHostGroup.Hosts.Hosts, "Hosts did not update correctly")
+	})
+	t.Run("WhenUpdateHostGroupFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		startTransaction = func(db1 *gorm.DB) (*gorm.DB, error) {
+			return nil, errors.New("transaction error")
+		}
+		defer func() { startTransaction = _startTransaction }()
+
+		newDescription := "Updated description"
+		newHosts := []string{"host2", "host3"}
+
+		_, err = store.UpdateHostGroup(context.Background(), "non-existent-uuid", 1, &newDescription, &newHosts)
+		assert.EqualError(tt, err, "transaction error", "Expected transaction error")
 	})
 }

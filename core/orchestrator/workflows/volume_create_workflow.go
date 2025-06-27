@@ -112,8 +112,8 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if err != nil {
 		return nil, err
 	}
-	node := CreateNodeForProviderWithPool(dbNodes, dbVolume.Pool)
 
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: dbVolume.Pool.Username, Password: dbVolume.Pool.Password})
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateSnapshotPolicyInONTAP, &dbVolume, &node).Get(ctx, nil)
 	if err != nil {
 		return nil, err

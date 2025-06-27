@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/go-openapi/strfmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -100,6 +101,18 @@ func ContainsFloat64(arr []float64, elem float64) bool {
 		}
 	}
 	return false
+}
+
+func IsSliceEqual(slice1 []string, slice2 []string) bool {
+	if len(slice1) != len(slice2) {
+		return false
+	}
+	for _, elem := range slice1 {
+		if !ContainsString(slice2, elem) {
+			return false
+		}
+	}
+	return true
 }
 
 // IsDuplicateUUID checks if uuid exists in the map.
@@ -637,4 +650,29 @@ func GetEncryptionType(kmsConfigId *string) string {
 		encryptionType = "CLOUD_KMS"
 	}
 	return encryptionType
+}
+
+func GetHgUUIDs(hgDetails []datamodel.HostGroupDetail) []string {
+	var uuids []string
+	for _, detail := range hgDetails {
+		uuids = append(uuids, detail.HostGroupUUID)
+	}
+	return uuids
+}
+
+func GetArrayDiff(existingList []string, newList []string) ([]string, []string) {
+	toCreate := make([]string, 0)
+	toDelete := make([]string, 0)
+	for _, newItem := range newList {
+		if !ContainsString(existingList, newItem) {
+			toCreate = append(toCreate, newItem)
+		}
+	}
+
+	for _, existingItem := range existingList {
+		if !ContainsString(newList, existingItem) {
+			toDelete = append(toDelete, existingItem)
+		}
+	}
+	return toCreate, toDelete
 }

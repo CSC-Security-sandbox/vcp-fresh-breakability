@@ -102,7 +102,7 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if err != nil {
 		return nil, err
 	}
-	node := CreateNodeForProviderWithPool(dbNodes, volume.Pool)
+	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: dbNodes, Username: volume.Pool.Username, Password: volume.Pool.Password})
 	objStore := &commonparams.CloudTarget{}
 	objStoreName, err := getObjStoreName(backupVault, volume)
 	if err != nil {
@@ -191,7 +191,7 @@ func (wf *BackupCreateWorkflow) Revert(ctx workflow.Context, backup *datamodel.B
 		if err != nil {
 			return err
 		}
-		node := CreateNodeForProviderWithPool(dbNodes, volume.Pool)
+		node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: dbNodes, Username: volume.Pool.Username, Password: volume.Pool.Password})
 		err = workflow.ExecuteActivity(ctx, backupActivity.DeleteBackupSnapshot, node, backup.Attributes.SnapshotID, volume.VolumeAttributes.ExternalUUID).Get(ctx, nil)
 		if err != nil {
 			return err

@@ -263,14 +263,18 @@
 2722873762 5023 ./client/object_store/s3_user_delete_responses.go
 3581546943 7123 ./client/object_store/s3_user_modify_parameters.go
 3997787606 7644 ./client/object_store/s3_user_modify_responses.go
-2700300359 16367 ./client/s_a_n/client_service_mock.go
-4201702259 15420 ./client/s_a_n/client_service_mock_test.go
+2951918555 18298 ./client/s_a_n/client_service_mock.go
+2653177693 16525 ./client/s_a_n/client_service_mock_test.go
 2183778934 63748 ./client/s_a_n/igroup_collection_get_parameters.go
 431728250 5684 ./client/s_a_n/igroup_collection_get_responses.go
 1465374368 5310 ./client/s_a_n/igroup_create_parameters.go
 1021421782 10485 ./client/s_a_n/igroup_create_responses.go
 4262671019 5714 ./client/s_a_n/igroup_delete_parameters.go
 2375248829 5468 ./client/s_a_n/igroup_delete_responses.go
+1142090958 6463 ./client/s_a_n/igroup_initiator_create_parameters.go
+1902866805 9132 ./client/s_a_n/igroup_initiator_create_responses.go
+4026374719 6825 ./client/s_a_n/igroup_initiator_delete_parameters.go
+339679135 6257 ./client/s_a_n/igroup_initiator_delete_responses.go
 4286018393 4706 ./client/s_a_n/igroup_modify_parameters.go
 694984823 7565 ./client/s_a_n/igroup_modify_responses.go
 630063366 42695 ./client/s_a_n/iscsi_service_collection_get_parameters.go
@@ -291,7 +295,7 @@
 3049035346 5570 ./client/s_a_n/lun_map_get_responses.go
 2032894709 8155 ./client/s_a_n/lun_modify_parameters.go
 1344198027 10291 ./client/s_a_n/lun_modify_responses.go
-2014940126 30220 ./client/s_a_n/san_client.go
+3918829906 34060 ./client/s_a_n/san_client.go
 3393929783 16588 ./client/security/anti_ransomware_suspect_collection_get_parameters.go
 2501679965 6648 ./client/security/anti_ransomware_suspect_collection_get_responses.go
 2708439586 8060 ./client/security/azure_key_vault_create_parameters.go
@@ -596,6 +600,8 @@
 1172463823 1506 ./models/href.go
 2872375896 142806 ./models/igroup.go
 676176414 8103 ./models/igroup_child.go
+652346106 95836 ./models/igroup_initiator.go
+96869134 8204 ./models/igroup_initiator_response.go
 1599492435 8943 ./models/igroup_parent.go
 3465742468 7772 ./models/igroup_response.go
 411483193 654 ./models/ip_address.go
@@ -811,4 +817,4 @@
 4173203049 6726 ./models/zapp_s3_bucket_application_components_access_policies.go
 290990735 3069 ./models/zapp_s3_bucket_application_components_access_policies_conditions.go
 3407305603 24004610 swagger.yaml
-3238613420 5255 swagger_operations.txt
+639929949 5303 swagger_operations.txt

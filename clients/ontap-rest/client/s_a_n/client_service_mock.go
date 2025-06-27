@@ -182,6 +182,32 @@ func (mock *MockClientService) AssertIgroupDelete(params *IgroupDeleteParams, au
 	mock.returns <- []interface{}{&ret0, &ret1}
 }
 
+// IgroupInitiatorCreate mocks a call to ClientService.IgroupInitiatorCreate
+func (mock *MockClientService) IgroupInitiatorCreate(params *IgroupInitiatorCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*IgroupInitiatorCreateCreated, error) {
+	mock.calls <- &mockClientServiceCall{name: "IgroupInitiatorCreate", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**IgroupInitiatorCreateCreated), *ret[1].(*error)
+}
+
+// AssertIgroupInitiatorCreate verifies that IgroupInitiatorCreate has been invoked
+func (mock *MockClientService) AssertIgroupInitiatorCreate(params *IgroupInitiatorCreateParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *IgroupInitiatorCreateCreated, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "IgroupInitiatorCreate", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
+// IgroupInitiatorDelete mocks a call to ClientService.IgroupInitiatorDelete
+func (mock *MockClientService) IgroupInitiatorDelete(params *IgroupInitiatorDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*IgroupInitiatorDeleteOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "IgroupInitiatorDelete", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**IgroupInitiatorDeleteOK), *ret[1].(*error)
+}
+
+// AssertIgroupInitiatorDelete verifies that IgroupInitiatorDelete has been invoked
+func (mock *MockClientService) AssertIgroupInitiatorDelete(params *IgroupInitiatorDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *IgroupInitiatorDeleteOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "IgroupInitiatorDelete", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
 // IgroupModify mocks a call to ClientService.IgroupModify
 func (mock *MockClientService) IgroupModify(params *IgroupModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*IgroupModifyOK, error) {
 	mock.calls <- &mockClientServiceCall{name: "IgroupModify", params: []interface{}{&params, &authInfo, &opts}}

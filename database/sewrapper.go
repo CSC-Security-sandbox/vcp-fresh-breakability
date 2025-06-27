@@ -508,6 +508,26 @@ func (re *retryEngine) VerifyVolumeOwnership(ctx context.Context, volumeID strin
 	return var0, err
 }
 
+func (re *retryEngine) GetAllVolumesForHG(ctx context.Context, hostGroupUUID string, accountID int64) ([]*datamodel.Volume, error) {
+	var var0 []*datamodel.Volume
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetAllVolumesForHG(ctx, hostGroupUUID, accountID)
+		if err != nil {
+			re.logError("GetAllVolumesForHG", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) CreateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error) {
 	var var0 *datamodel.VolumeReplication
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -1041,6 +1061,26 @@ func (re *retryEngine) UpdateHostGroupsState(ctx context.Context, hostGroupUUID 
 	}
 
 	return err
+}
+
+func (re *retryEngine) UpdateHostGroup(ctx context.Context, hostGroupUUID string, accountID int64, description *string, Hosts *[]string) (*datamodel.HostGroup, error) {
+	var var0 *datamodel.HostGroup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateHostGroup(ctx, hostGroupUUID, accountID, description, Hosts)
+		if err != nil {
+			re.logError("UpdateHostGroup", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
 }
 
 func (re *retryEngine) GetLifByNodeID(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error) {

@@ -108,7 +108,7 @@ func (a VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamode
 	provider := GetProviderByNode(ctx, node)
 	// FixMe: What if a new host is added to the host group?
 	for _, host := range hostParams {
-		igroupExists, err := provider.IgroupExists(host.HostName, volume.Svm.Name)
+		igroupExists, _, err := provider.IgroupExists(host.HostName, &volume.Svm.Name)
 		if err != nil {
 			return err
 		}
@@ -231,7 +231,7 @@ func (a VolumeCreateActivity) GetHosts(ctx context.Context, volume *datamodel.Vo
 		return nil, errors.New("block properties not found")
 	}
 
-	uuids := volume.VolumeAttributes.BlockProperties.HostGroupUUIDs
+	uuids := utils.GetHgUUIDs(volume.VolumeAttributes.BlockProperties.HostGroupDetails)
 
 	dbHostGroups, err := se.GetMultipleHostGroups(ctx, uuids, volume.AccountID)
 	if err != nil {

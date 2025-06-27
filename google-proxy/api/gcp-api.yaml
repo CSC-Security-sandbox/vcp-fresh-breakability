@@ -5857,11 +5857,38 @@ components:
             pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
             description: Uuid v4 used to identify the HostGroup
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
+        hostGroupDetails:
+          title: hostGroupDetails
+          type: array
+          description: List of HostGroup details. A volume can be mapped to multiple HostGroups as long as each HostGroup has a distinct set of hosts.
+          readOnly: true
+          items:
+              $ref: '#/components/schemas/HostGroupDetail'
         lunSerialNumber:
           readOnly: true
           type: string
           description: LUN Serial Number of the Block Volume.
           example: 6c5738423724595454686164
+    HostGroupDetail:
+      type: object
+      properties:
+        hostGroupId:
+          title: hostGroupId
+          type: string
+          description: Uuid v4 used to identify the HostGroup
+          readOnly: true
+          example: 123e4567-e89b-12d3-a456-426614174000
+        hosts:
+          title: hosts
+          type: array
+          description: List of iSCSI Qualified Names associated with this HostGroup
+          items:
+            type: string
+          example:
+            - iqn.1998-01.com.vmware:example1
+            - iqn.1998-01.com.vmware:example2
+    HostGroupDetails_v1beta:
+      title: HostGroupDetails
     OSType_v1beta:
       title: OSType
       type: string

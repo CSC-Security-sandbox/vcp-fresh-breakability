@@ -109,6 +109,10 @@ type ClientService interface {
 
 	IgroupDelete(params *IgroupDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*IgroupDeleteOK, error)
 
+	IgroupInitiatorCreate(params *IgroupInitiatorCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*IgroupInitiatorCreateCreated, error)
+
+	IgroupInitiatorDelete(params *IgroupInitiatorDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*IgroupInitiatorDeleteOK, error)
+
 	IgroupModify(params *IgroupModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*IgroupModifyOK, error)
 
 	IscsiServiceCollectionGet(params *IscsiServiceCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*IscsiServiceCollectionGetOK, error)
@@ -275,6 +279,96 @@ func (a *Client) IgroupDelete(params *IgroupDeleteParams, authInfo runtime.Clien
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*IgroupDeleteDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	IgroupInitiatorCreate Adds one or more initiators to an initiator group.<br/>
+
+This API does not support adding initiators to an initiator group that already contains nested initiator groups.
+### Required properties
+* `name` or `records.name` - Initiator name(s) to add to the initiator group.
+### Related ONTAP commands
+* `lun igroup add`
+### Learn more
+* [`DOC /protocols/san/igroups`](#docs-SAN-protocols_san_igroups)
+*/
+func (a *Client) IgroupInitiatorCreate(params *IgroupInitiatorCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*IgroupInitiatorCreateCreated, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewIgroupInitiatorCreateParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "igroup_initiator_create",
+		Method:             "POST",
+		PathPattern:        "/protocols/san/igroups/{igroup.uuid}/initiators",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &IgroupInitiatorCreateReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*IgroupInitiatorCreateCreated)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*IgroupInitiatorCreateDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	IgroupInitiatorDelete Deletes an initiator from an initiator group.<br/>
+
+This API only supports removal of initiators owned directly by the initiator group. Initiators of nested initiator groups must be removed on the initiator group that directly owns the initiator.
+### Related ONTAP commands
+* `lun igroup remove`
+### Learn more
+* [`DOC /protocols/san/igroups`](#docs-SAN-protocols_san_igroups)
+*/
+func (a *Client) IgroupInitiatorDelete(params *IgroupInitiatorDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*IgroupInitiatorDeleteOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewIgroupInitiatorDeleteParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "igroup_initiator_delete",
+		Method:             "DELETE",
+		PathPattern:        "/protocols/san/igroups/{igroup.uuid}/initiators/{name}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &IgroupInitiatorDeleteReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*IgroupInitiatorDeleteOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*IgroupInitiatorDeleteDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

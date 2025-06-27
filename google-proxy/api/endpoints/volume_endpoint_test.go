@@ -63,7 +63,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			PoolID:           "test-pool",
 			QuotaInBytes:     1024,
 			IsDataProtection: true,
-			BlockProperties: &models.BlockProperties{
+			BlockProperties: &common.BlockPropertiesRequest{
 				OSType: "LINUX",
 			},
 			Protocols: []string{
@@ -120,7 +120,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			PoolID:           "test-pool",
 			QuotaInBytes:     1024,
 			IsDataProtection: true,
-			BlockProperties: &models.BlockProperties{
+			BlockProperties: &common.BlockPropertiesRequest{
 				OSType: "LINUX",
 			},
 			Protocols: []string{
@@ -1057,7 +1057,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		}
 		out, err := _prepareUpdateVolumeParams(req, params, region)
 		assert.NoError(t, err)
-		assert.Nil(t, out.BlockProperties)
+		assert.NotNil(t, out.BlockProperties)
 	})
 
 	t.Run("WhenLabelsContainEmptyKey_ThenLabelIsSkipped", func(t *testing.T) {

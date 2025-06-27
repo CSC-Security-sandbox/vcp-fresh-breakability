@@ -192,7 +192,8 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if err != nil {
 		return nil, err
 	}
-	node := CreateNodeForProviderWithPool(dbNodes, pool)
+
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: pool.Username, Password: pool.Password})
 
 	node.Username = pool.Username
 	if secretManagerEnabled {

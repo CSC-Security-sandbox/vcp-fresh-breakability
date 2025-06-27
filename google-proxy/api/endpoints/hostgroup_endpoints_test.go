@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -289,7 +291,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		createHGParams := &orchestrator.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: "test description", Hosts: []string(nil), OSType: "LINUX", AccountID: "project-number"}
+		createHGParams := &common.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: "test description", Hosts: []string(nil), OSType: "LINUX", AccountName: "project-number"}
 		mockOrchestrator.EXPECT().CreateHostGroup(mock.Anything, createHGParams).Return(nil, errors.NewConflictErr("Host group already exists"))
 
 		result, err := handler.V1betaCreateHostGroup(context.Background(), req, params)
@@ -323,7 +325,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		createHGParams := &orchestrator.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: "test description", Hosts: []string(nil), OSType: "LINUX", AccountID: "project-number"}
+		createHGParams := &common.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: "test description", Hosts: []string(nil), OSType: "LINUX", AccountName: "project-number"}
 		mockOrchestrator.EXPECT().CreateHostGroup(mock.Anything, createHGParams).Return(nil, errors.New("some error"))
 
 		result, err := handler.V1betaCreateHostGroup(context.Background(), req, params)
@@ -357,7 +359,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		createHGParams := &orchestrator.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: "test description", Hosts: []string(nil), OSType: "LINUX", AccountID: "project-number"}
+		createHGParams := &common.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: "test description", Hosts: []string(nil), OSType: "LINUX", AccountName: "project-number"}
 		mockOrchestrator.EXPECT().CreateHostGroup(mock.Anything, createHGParams).Return(&models.HostGroup{
 			BaseModel:     models.BaseModel{},
 			Name:          "abcd",
@@ -376,5 +378,285 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, true, result.(*gcpgenserver.V1betaCreateHostGroupOK).Done.Value)
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/invalid-location-id/operations/00000000-0000-0000-0000-000000000000", result.(*gcpgenserver.V1betaCreateHostGroupOK).Name.Value)
+	})
+}
+
+func TestV1betaUpdateHostGroup(t *testing.T) {
+	t.Run("WhenParseAndValidateRegionAndZoneFails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdateHostGroupParams{
+			LocationId:    "invalid-location-id",
+			ProjectNumber: "project-number",
+			HostGroupId:   "non-existent-host-group-id",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", &gcpgenserver.Error{Message: "some error", Code: 400}
+		}
+
+		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
+
+		req := &gcpgenserver.HostGroupUpdateV1beta{
+			Description: gcpgenserver.NewOptString("updated description"),
+			Hosts:       []string{"host1", "host2"},
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handler.V1betaUpdateHostGroup(context.Background(), req, params)
+
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaUpdateHostGroupBadRequest).Code)
+		assert.Equal(tt, "some error", result.(*gcpgenserver.V1betaUpdateHostGroupBadRequest).Message)
+	})
+	t.Run("WhenGetHostGroupFailsWithNotFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdateHostGroupParams{
+			LocationId:    "invalid-location-id",
+			ProjectNumber: "project-number",
+			HostGroupId:   "non-existent-host-group-id",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", nil
+		}
+
+		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
+
+		req := &gcpgenserver.HostGroupUpdateV1beta{
+			Description: gcpgenserver.NewOptString("updated description"),
+			Hosts:       []string{"host1", "host2"},
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().GetHostGroup(mock.Anything, params.HostGroupId, params.ProjectNumber).Return(nil, errors.NewNotFoundErr("host group not found", nil))
+
+		result, err := handler.V1betaUpdateHostGroup(context.Background(), req, params)
+
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(404), result.(*gcpgenserver.V1betaUpdateHostGroupNotFound).Code)
+		assert.Equal(tt, "host group not found", result.(*gcpgenserver.V1betaUpdateHostGroupNotFound).Message)
+	})
+	t.Run("WhenGetHostGroupFails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdateHostGroupParams{
+			LocationId:    "invalid-location-id",
+			ProjectNumber: "project-number",
+			HostGroupId:   "non-existent-host-group-id",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", nil
+		}
+
+		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
+
+		req := &gcpgenserver.HostGroupUpdateV1beta{
+			Description: gcpgenserver.NewOptString("updated description"),
+			Hosts:       []string{"host1", "host2"},
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().GetHostGroup(mock.Anything, params.HostGroupId, params.ProjectNumber).Return(nil, errors.New("some error"))
+
+		result, err := handler.V1betaUpdateHostGroup(context.Background(), req, params)
+
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaUpdateHostGroupInternalServerError).Code)
+		assert.Equal(tt, "Internal server error", result.(*gcpgenserver.V1betaUpdateHostGroupInternalServerError).Message)
+	})
+	t.Run("WhenUpdateHostGroupFailsWithValidationError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdateHostGroupParams{
+			LocationId:    "invalid-location-id",
+			ProjectNumber: "project-number",
+			HostGroupId:   "host-group-id",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", nil
+		}
+
+		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
+
+		req := &gcpgenserver.HostGroupUpdateV1beta{
+			Description: gcpgenserver.NewOptString("updated description"),
+			Hosts:       []string{"host1", "host2"},
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().GetHostGroup(mock.Anything, params.HostGroupId, params.ProjectNumber).Return(&models.HostGroup{}, nil)
+		mockOrchestrator.EXPECT().UpdateHostGroup(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("invalid input"))
+
+		result, err := handler.V1betaUpdateHostGroup(context.Background(), req, params)
+
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaUpdateHostGroupBadRequest).Code)
+		assert.Equal(tt, "invalid input", result.(*gcpgenserver.V1betaUpdateHostGroupBadRequest).Message)
+	})
+	t.Run("WhenUpdateHostGroupFailsWithError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdateHostGroupParams{
+			LocationId:    "invalid-location-id",
+			ProjectNumber: "project-number",
+			HostGroupId:   "host-group-id",
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", nil
+		}
+
+		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
+
+		req := &gcpgenserver.HostGroupUpdateV1beta{
+			Description: gcpgenserver.NewOptString("updated description"),
+			Hosts:       []string{"host1", "host2"},
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().GetHostGroup(mock.Anything, params.HostGroupId, params.ProjectNumber).Return(&models.HostGroup{}, nil)
+		mockOrchestrator.EXPECT().UpdateHostGroup(mock.Anything, mock.Anything).Return(nil, "", errors.Errorf("invalid input"))
+
+		result, err := handler.V1betaUpdateHostGroup(context.Background(), req, params)
+
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaUpdateHostGroupInternalServerError).Code)
+		assert.Equal(tt, "Internal server error", result.(*gcpgenserver.V1betaUpdateHostGroupInternalServerError).Message)
+	})
+	t.Run("WhenUpdateHostGroupSucceeds", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdateHostGroupParams{
+			LocationId:    "valid-location-id",
+			ProjectNumber: "project-number",
+			HostGroupId:   "host-group-id",
+		}
+
+		req := &gcpgenserver.HostGroupUpdateV1beta{
+			Description: gcpgenserver.NewOptString("updated description"),
+			Hosts:       []string{"host1", "host2"},
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", nil
+		}
+
+		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().GetHostGroup(mock.Anything, params.HostGroupId, params.ProjectNumber).Return(&models.HostGroup{}, nil)
+		mockOrchestrator.EXPECT().UpdateHostGroup(mock.Anything, mock.Anything).Return(&models.HostGroup{}, "job-id", nil)
+
+		result, err := handler.V1betaUpdateHostGroup(context.Background(), req, params)
+
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/valid-location-id/operations/job-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
+		assert.Equal(tt, false, result.(*gcpgenserver.OperationV1beta).Done.Value)
+	})
+}
+
+// File: google-proxy/api/endpoints/hostgroup_endpoints_test.go
+
+func TestV1betaDescribeHostGroup(t *testing.T) {
+	t.Run("WhenHostGroupNotFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaDescribeHostGroupParams{
+			LocationId:    "valid-location-id",
+			ProjectNumber: "project-number",
+			HostGroupId:   "non-existent-host-group-id",
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().GetHostGroup(mock.Anything, params.HostGroupId, params.ProjectNumber).Return(nil, errors.NewNotFoundErr("host group not found", nil))
+
+		result, err := handler.V1betaDescribeHostGroup(context.Background(), params)
+
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(404), result.(*gcpgenserver.V1betaDescribeHostGroupNotFound).Code)
+		assert.Equal(tt, "host group not found", result.(*gcpgenserver.V1betaDescribeHostGroupNotFound).Message)
+	})
+
+	t.Run("WhenGetHostGroupFails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaDescribeHostGroupParams{
+			LocationId:    "valid-location-id",
+			ProjectNumber: "project-number",
+			HostGroupId:   "host-group-id",
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().GetHostGroup(mock.Anything, params.HostGroupId, params.ProjectNumber).Return(nil, errors.New("some error"))
+
+		result, err := handler.V1betaDescribeHostGroup(context.Background(), params)
+
+		assert.Error(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaDescribeHostGroupInternalServerError).Code)
+	})
+
+	t.Run("WhenHostGroupFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaDescribeHostGroupParams{
+			LocationId:    "valid-location-id",
+			ProjectNumber: "project-number",
+			HostGroupId:   "host-group-id",
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		hostGroup := &models.HostGroup{
+			BaseModel: models.BaseModel{
+				ID:        1,
+				UUID:      "host-group-id",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:         "test-host-group",
+			State:        "Ready",
+			StateDetails: "Available",
+			Description:  "Test host group",
+			Hosts:        []string{"host1", "host2"},
+			OSType:       "LINUX",
+		}
+
+		mockOrchestrator.EXPECT().GetHostGroup(mock.Anything, params.HostGroupId, params.ProjectNumber).Return(hostGroup, nil)
+
+		result, err := handler.V1betaDescribeHostGroup(context.Background(), params)
+
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "host-group-id", result.(*gcpgenserver.HostGroupV1beta).HostGroupId.Value)
+		assert.Equal(tt, "Test host group", result.(*gcpgenserver.HostGroupV1beta).Description.Value)
 	})
 }

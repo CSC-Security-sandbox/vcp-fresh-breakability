@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -18,9 +17,9 @@ var (
 	deleteHostGroup         = _deleteHostGroup
 	getMultipleHostGroups   = _getMultipleHostGroups
 	updateHostGroupsState   = _updateHostGroupsState
+	updateHostGroup         = _updateHostGroup
 	getHostGroupWithDetails = _getHostGroupWithDetails
 	isHostGroupInUse        = _isHostGroupInUse
-	volumeWithHG            = _volumeWithHG
 )
 
 func (d *DataStoreRepository) GetHostGroup(ctx context.Context, hostGroupUUID string, accountID int64) (*datamodel.HostGroup, error) {
@@ -152,17 +151,47 @@ func _updateHostGroupsState(ctx context.Context, db *gorm.DB, hostGroupUUIDs []s
 	return nil
 }
 
-func _volumeWithHG(db *gorm.DB, hostGroupUUID string, accountID int64) error {
-	var volume datamodel.Volume
-	return db.Model(&datamodel.Volume{}).Where("account_id = ?", accountID).Where("volume_attributes::jsonb->'block_properties' IS NOT NULL AND (volume_attributes::jsonb->'block_properties'->>'HostGroupUUIDs')::jsonb @> ?", fmt.Sprintf(`"%s"`, hostGroupUUID)).Take(&volume).Error
-}
-
 func _isHostGroupInUse(db *gorm.DB, hostGroupUUID string, accountID int64) (bool, error) {
-	if err := volumeWithHG(db, hostGroupUUID, accountID); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return false, nil
-		}
+	volumes, err := volumesWithHG(db, hostGroupUUID, accountID)
+	if err != nil {
 		return true, err
 	}
+	if len(volumes) == 0 {
+		return false, nil
+	}
 	return true, nil
+}
+
+func (d *DataStoreRepository) UpdateHostGroup(ctx context.Context, hostGroupUUID string, accountID int64, description *string, Hosts *[]string) (*datamodel.HostGroup, error) {
+	return updateHostGroup(ctx, d.db.GORM().WithContext(ctx), hostGroupUUID, accountID, description, Hosts)
+}
+
+func _updateHostGroup(ctx context.Context, db *gorm.DB, hostGroupUUID string, accountID int64, description *string, Hosts *[]string) (*datamodel.HostGroup, error) {
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
+
+	hostGroup, err := getHostGroupWithDetails(tx, &datamodel.HostGroup{BaseModel: datamodel.BaseModel{UUID: hostGroupUUID}, AccountID: accountID})
+	if err != nil {
+		return nil, err
+	}
+
+	if description != nil {
+		hostGroup.Description = *description
+	}
+
+	if Hosts != nil {
+		hostGroup.Hosts = datamodel.Hosts{Hosts: *Hosts}
+	}
+
+	hostGroup.UpdatedAt = time.Now()
+
+	err = tx.Save(hostGroup).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return hostGroup, nil
 }

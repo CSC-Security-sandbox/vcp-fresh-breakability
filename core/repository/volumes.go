@@ -17,6 +17,7 @@ var (
 	updateVolumeState      = _updateVolumeState
 	deleteVolume           = _deleteVolume
 	getMultipleVolumes     = _getMultipleVolumes
+	volumesWithHG          = _volumesWithHG
 	listVolumesWithDetails = _listVolumesWithDetails
 )
 
@@ -242,4 +243,21 @@ func (d *DataStoreRepository) GetVolumeCount(ctx context.Context, accountName st
 		return 0, err
 	}
 	return count, nil
+}
+
+func (d *DataStoreRepository) GetAllVolumesForHG(ctx context.Context, hostGroupUUID string, accountID int64) ([]*datamodel.Volume, error) {
+	return volumesWithHG(d.db.GORM().WithContext(ctx), hostGroupUUID, accountID)
+}
+
+func _volumesWithHG(db *gorm.DB, hostGroupUUID string, accountID int64) ([]*datamodel.Volume, error) {
+	var volumes []*datamodel.Volume
+	err := db.Model(&datamodel.Volume{}).
+		Preload("Account").
+		Preload("Pool").
+		Preload("Svm").
+		Where("account_id = ?", accountID).
+		Where("volume_attributes::jsonb->'block_properties' IS NOT NULL AND EXISTS (SELECT 1 FROM jsonb_array_elements(volume_attributes::jsonb->'block_properties'->'host_group_details') AS elem WHERE elem->>'host_group_uuid' = ?)", hostGroupUUID).
+		Find(&volumes).Error
+
+	return volumes, err
 }

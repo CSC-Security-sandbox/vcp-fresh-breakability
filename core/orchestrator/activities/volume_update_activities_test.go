@@ -2,7 +2,11 @@ package activities
 
 import (
 	"context"
-	"errors"
+	"github.com/stretchr/testify/mock"
+	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,7 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
-	error "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -171,19 +175,37 @@ func TestUpdateVolumeInDB_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"}, Name: "test-volume"}
 	params := &common.UpdateVolumeParams{QuotaInBytes: 4096}
-	updatedFields := map[string]interface{}{"size": int64(4096), "state_details": models.LifeCycleStateAvailableDetails}
-
-	// Patch prepareFieldsForUpdate to return our expected map
-	originalGetUpdatedFields := prepareFieldsForUpdate
-	prepareFieldsForUpdate = func(volume *datamodel.Volume, p *common.UpdateVolumeParams) map[string]interface{} {
-		return updatedFields
+	updatedFields := map[string]interface{}{
+		"size":          int64(4096),
+		"state_details": models.LifeCycleStateAvailableDetails,
 	}
-	defer func() { prepareFieldsForUpdate = originalGetUpdatedFields }()
+
+	prepareFieldsForUpdate = func(ctx context.Context, se database.Storage, volume *datamodel.Volume, params *common.UpdateVolumeParams) (map[string]interface{}, error) {
+		return updatedFields, nil
+	}
+	defer func() { prepareFieldsForUpdate = getUpdatedFieldsFromParams }()
 
 	mockStorage.On("UpdateVolumeFields", ctx, volume.UUID, updatedFields).Return(nil)
 
 	err := activity.UpdateVolumeInDB(ctx, volume, params)
 	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeInDB_FailureWithPrepareField(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeUpdateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"}, Name: "test-volume"}
+	params := &common.UpdateVolumeParams{QuotaInBytes: 4096}
+
+	prepareFieldsForUpdate = func(ctx context.Context, se database.Storage, volume *datamodel.Volume, params *common.UpdateVolumeParams) (map[string]interface{}, error) {
+		return nil, errors.New("failed to prepare fields for update")
+	}
+	defer func() { prepareFieldsForUpdate = getUpdatedFieldsFromParams }()
+
+	err := activity.UpdateVolumeInDB(ctx, volume, params)
+	assert.EqualError(t, err, "failed to prepare fields for update")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -212,7 +234,7 @@ func TestUpdateLun_ConflictError(t *testing.T) {
 	}
 	node := &models.Node{}
 
-	conflictErr := error.NewConflictErr("conflict")
+	conflictErr := errors.NewConflictErr("conflict")
 
 	mockProvider.On("LunUpdate", vsa.LunUpdateParams{
 		UUID:       "lun-uuid-123",
@@ -238,8 +260,8 @@ func TestUpdateVolumeInDB_Failure(t *testing.T) {
 
 	// Patch prepareFieldsForUpdate to return our expected map
 	originalGetUpdatedFields := prepareFieldsForUpdate
-	prepareFieldsForUpdate = func(volume *datamodel.Volume, p *common.UpdateVolumeParams) map[string]interface{} {
-		return updatedFields
+	prepareFieldsForUpdate = func(ctx context.Context, se database.Storage, volume *datamodel.Volume, params *common.UpdateVolumeParams) (map[string]interface{}, error) {
+		return updatedFields, nil
 	}
 	defer func() { prepareFieldsForUpdate = originalGetUpdatedFields }()
 
@@ -253,10 +275,13 @@ func TestUpdateVolumeInDB_Failure(t *testing.T) {
 
 func TestGetUpdatedFieldsFromParams(t *testing.T) {
 	tests := []struct {
-		name   string
-		volume *datamodel.Volume
-		params *common.UpdateVolumeParams
-		check  func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume)
+		name           string
+		ctx            context.Context
+		volume         *datamodel.Volume
+		se             database.Storage
+		params         *common.UpdateVolumeParams
+		dbCallRequired bool
+		check          func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume, se database.Storage)
 	}{
 		{
 			name: "AllFields",
@@ -272,7 +297,7 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 					BackupVaultID: "vault-123",
 				},
 			},
-			check: func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume) {
+			check: func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume, se database.Storage) {
 				assert.Equal(t, "desc", fields["description"])
 				assert.Equal(t, int64(12345), fields["size_in_bytes"])
 				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
@@ -283,6 +308,7 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				assert.Equal(t, "prod", (*va.Labels)["env"])
 				assert.Equal(t, "devops", (*va.Labels)["team"])
 			},
+			dbCallRequired: false,
 		},
 		{
 			name: "OnlyDescription",
@@ -297,15 +323,16 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 					BackupVaultID: "vault-123",
 				},
 			},
-			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume) {
+			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, se database.Storage) {
 				assert.Equal(t, "desc", fields["description"])
 				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
 				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
 				_, hasSize := fields["size_in_bytes"]
 				assert.False(t, hasSize)
 				_, hasVA := fields["volume_attributes"]
-				assert.False(t, hasVA)
+				assert.True(t, hasVA)
 			},
+			dbCallRequired: false,
 		},
 		{
 			name: "OnlyQuota",
@@ -319,15 +346,16 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 					BackupVaultID: "vault-123",
 				},
 			},
-			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume) {
+			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, se database.Storage) {
 				assert.Equal(t, int64(999), fields["size_in_bytes"])
 				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
 				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
 				_, hasDesc := fields["description"]
 				assert.False(t, hasDesc)
 				_, hasVA := fields["volume_attributes"]
-				assert.False(t, hasVA)
+				assert.True(t, hasVA)
 			},
+			dbCallRequired: false,
 		},
 		{
 			name: "OnlyLabels",
@@ -341,7 +369,7 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 					BackupVaultID: "vault-123",
 				},
 			},
-			check: func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume) {
+			check: func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume, se database.Storage) {
 				va, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
 				assert.True(t, ok)
 				assert.NotNil(t, va.Labels)
@@ -353,6 +381,7 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				_, hasSize := fields["size_in_bytes"]
 				assert.False(t, hasSize)
 			},
+			dbCallRequired: false,
 		},
 		{
 			name: "EmptyParams",
@@ -365,7 +394,7 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 					BackupVaultID: "",
 				},
 			},
-			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume) {
+			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, se database.Storage) {
 				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
 				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
 				_, hasDesc := fields["description"]
@@ -373,8 +402,9 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				_, hasSize := fields["size_in_bytes"]
 				assert.False(t, hasSize)
 				_, hasVA := fields["volume_attributes"]
-				assert.False(t, hasVA)
+				assert.True(t, hasVA)
 			},
+			dbCallRequired: false,
 		},
 		{
 			name: "LabelsWithNilVolumeAttributes",
@@ -388,7 +418,7 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 					BackupVaultID: "vault-123",
 				},
 			},
-			check: func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume) {
+			check: func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume, se database.Storage) {
 				va, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
 				assert.True(t, ok)
 				assert.NotNil(t, va.Labels)
@@ -398,15 +428,391 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				// Ensure VolumeAttributes was initialized
 				assert.NotNil(t, volume.VolumeAttributes)
 			},
+			dbCallRequired: false,
+		},
+		{
+			name: "WhenBlockProperties",
+			volume: &datamodel.Volume{
+				VolumeAttributes: nil,
+				AccountID:        1,
+			},
+			params: &common.UpdateVolumeParams{
+				BlockProperties: &common.BlockPropertiesRequest{
+					HostGroupUUIDs: []string{"abcd", "xyz"},
+				},
+			},
+			check: func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume, se database.Storage) {
+				va, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
+				assert.True(t, ok)
+				assert.Equal(t, va.BlockProperties.HostGroupDetails[0].HostGroupUUID, "abcd")
+				assert.Equal(t, va.BlockProperties.HostGroupDetails[1].HostGroupUUID, "xyz")
+				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+				assert.NotNil(t, volume.VolumeAttributes)
+			},
+			dbCallRequired: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStorage := database.NewMockStorage(t)
+			if tt.dbCallRequired {
+				hg := &datamodel.HostGroup{
+					Name: "abcd",
+					Hosts: datamodel.Hosts{
+						Hosts: []string{"iqn.1994-05.com.redhat:abcd", "iqn.1994-05.com.redhat:xyz"},
+					},
+				}
+				getHostGroup = func(se database.Storage, ctx context.Context, uuid string, accountId int64) (*datamodel.HostGroup, error) {
+					return hg, nil
+				}
+				defer func() { getHostGroup = _getHostGroup }()
+			}
+			fields, _ := getUpdatedFieldsFromParams(tt.ctx, tt.se, tt.volume, tt.params)
+
+			tt.check(t, fields, tt.volume, mockStorage)
+		})
+	}
+}
+
+func TestDeleteLunIGroupMap(t *testing.T) {
+	tests := []struct {
+		name          string
+		volume        *datamodel.Volume
+		iGroupUUIDs   []string
+		mockSetup     func(mockStorage *database.MockStorage, mockProvider *vsa.MockProvider)
+		expectedError bool
+	}{
+		{
+			name: "SuccessfulDeletion",
+			volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					BlockProperties: &datamodel.BlockProperties{
+						LunUUID: "lun-uuid",
+					},
+				},
+				AccountID: 1,
+				Svm:       &datamodel.Svm{Name: "svm-name"},
+			},
+			iGroupUUIDs: []string{"igroup-uuid-1", "igroup-uuid-2"},
+			mockSetup: func(mockStorage *database.MockStorage, mockProvider *vsa.MockProvider) {
+				mockStorage.On("GetHostGroup", mock.Anything, mock.Anything, int64(1)).Return(&datamodel.HostGroup{Name: "igroup-1"}, nil).Times(2)
+
+				mockProvider.On("IgroupGet", mock.Anything, mock.Anything).Return(&ontap_rest.Igroup{Igroup: ontapModels.Igroup{
+					UUID: nillable.GetStringPtr("ontap-uuid-1")}}, nil).Times(2)
+
+				mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
+					LunUUID:    "lun-uuid",
+					IGroupUUID: "ontap-uuid-1",
+				}).Return(nil).Times(2)
+			},
+			expectedError: false,
+		},
+		{
+			name: "HostGroupNotFound",
+			volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					BlockProperties: &datamodel.BlockProperties{
+						LunUUID: "lun-uuid",
+					},
+				},
+				AccountID: 1,
+				Svm:       &datamodel.Svm{Name: "svm-name"},
+			},
+			iGroupUUIDs: []string{"invalid-uuid"},
+			mockSetup: func(mockStorage *database.MockStorage, mockProvider *vsa.MockProvider) {
+				mockStorage.On("GetHostGroup", mock.Anything, "invalid-uuid", int64(1)).Return(nil, errors.New("host group not found"))
+			},
+			expectedError: true,
+		},
+		{
+			name: "LunMapDeleteFails",
+			volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					BlockProperties: &datamodel.BlockProperties{
+						LunUUID: "lun-uuid",
+					},
+				},
+				AccountID: 1,
+				Svm:       &datamodel.Svm{Name: "svm-name"},
+			},
+			iGroupUUIDs: []string{"igroup-uuid"},
+			mockSetup: func(mockStorage *database.MockStorage, mockProvider *vsa.MockProvider) {
+				mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid", int64(1)).Return(&datamodel.HostGroup{Name: "igroup"}, nil)
+
+				mockProvider.On("IgroupGet", mock.Anything, mock.Anything).Return(&ontap_rest.Igroup{Igroup: ontapModels.Igroup{
+					UUID: nillable.GetStringPtr("ontap-uuid")}}, nil)
+				mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
+					LunUUID:    "lun-uuid",
+					IGroupUUID: "ontap-uuid",
+				}).Return(errors.New("some error occurred"))
+			},
+			expectedError: true,
+		},
+		{
+			name: "WhenIgroupGetFails",
+			volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					BlockProperties: &datamodel.BlockProperties{
+						LunUUID: "lun-uuid",
+					},
+				},
+				AccountID: 1,
+				Svm:       &datamodel.Svm{Name: "svm-name"},
+			},
+			iGroupUUIDs: []string{"igroup-uuid"},
+			mockSetup: func(mockStorage *database.MockStorage, mockProvider *vsa.MockProvider) {
+				mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid", int64(1)).Return(&datamodel.HostGroup{Name: "igroup"}, nil)
+
+				mockProvider.On("IgroupGet", mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
+			},
+			expectedError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fields := getUpdatedFieldsFromParams(tt.volume, tt.params)
-			tt.check(t, fields, tt.volume)
+			mockStorage := database.NewMockStorage(t)
+			mockProvider := vsa.NewMockProvider(t)
+
+			originalGetProviderByNode := GetProviderByNode
+			defer func() { GetProviderByNode = originalGetProviderByNode }()
+
+			GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+				return mockProvider
+			}
+
+			tt.mockSetup(mockStorage, mockProvider)
+
+			activity := &VolumeUpdateActivity{
+				SE: mockStorage,
+			}
+
+			err := activity.UnmapHostGroupFromDisk(context.Background(), tt.volume, tt.iGroupUUIDs, &models.Node{})
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			mockStorage.AssertExpectations(t)
+			mockProvider.AssertExpectations(t)
 		})
 	}
+}
+
+// TestEnsureIGroupsExistsAndMapLun tests the EnsureHostGroupsExistsAndMapLun function
+func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
+	mockNode := &models.Node{}
+	volume := &datamodel.Volume{
+		Name:      "test-volume",
+		AccountID: 12345,
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+	}
+	iGroups := []string{"igroup1", "igroup2"}
+	hostGroups := []*datamodel.HostGroup{
+		{
+			Name:   "igroup1",
+			OSType: "linux",
+			Hosts: datamodel.Hosts{
+				Hosts: []string{"iqn.1993-08.org.debian:01:123456789"},
+			},
+		},
+		{
+			Name:   "igroup2",
+			OSType: "windows",
+			Hosts: datamodel.Hosts{
+				Hosts: []string{"iqn.1993-08.org.debian:01:987654321"},
+			},
+		},
+	}
+
+	t.Run("successfully ensures iGroups and maps LUN", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		defer func() { GetProviderByNode = _getProviderByNode }()
+
+		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(false, nil, nil)
+		mockProvider.On("IgroupCreate", vsa.IgroupCreateParams{
+			IgroupName: "igroup1",
+			SvmName:    "test-svm",
+			OsType:     "linux",
+			Initiator:  []string{"iqn.1993-08.org.debian:01:123456789"},
+		}).Return("", nil)
+		mockProvider.On("IgroupExists", "igroup2", nillable.GetStringPtr("test-svm")).Return(true, nil, nil)
+
+		mockProvider.On("LunMapCreate", vsa.LunMapCreateParams{
+			LunName:    "/vol/" + volume.Name + "/" + utils.GetLunName(volume.Name),
+			SvmName:    "test-svm",
+			IGroupName: []string{"igroup1", "igroup2"},
+		}).Return(nil)
+
+		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+	t.Run("successfully all igroups are created prev", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		defer func() { GetProviderByNode = _getProviderByNode }()
+		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(true, nil, nil)
+		mockProvider.On("IgroupExists", "igroup2", nillable.GetStringPtr("test-svm")).Return(true, nil, nil)
+
+		mockProvider.On("LunMapCreate", vsa.LunMapCreateParams{
+			LunName:    "/vol/" + volume.Name + "/" + utils.GetLunName(volume.Name),
+			SvmName:    "test-svm",
+			IGroupName: []string{"igroup1", "igroup2"},
+		}).Return(nil)
+
+		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+	t.Run("returns error when GetMultipleHostGroups fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(nil, errors.New("failed to fetch host groups"))
+
+		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		assert.EqualError(t, err, "failed to fetch host groups")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("returns error when IgroupExists fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		defer func() { GetProviderByNode = _getProviderByNode }()
+		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(false, nil, errors.New("failed to check igroup existence"))
+
+		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		assert.EqualError(t, err, "failed to check igroup existence")
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("returns error when IgroupCreate fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		defer func() { GetProviderByNode = _getProviderByNode }()
+		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(false, nil, nil)
+		mockProvider.On("IgroupCreate", vsa.IgroupCreateParams{
+			IgroupName: "igroup1",
+			SvmName:    "test-svm",
+			OsType:     "linux",
+			Initiator:  []string{"iqn.1993-08.org.debian:01:123456789"},
+		}).Return("", errors.New("failed to create igroup"))
+
+		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		assert.Error(t, err, "failed to create igroup")
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+	t.Run("returns error when LunMapCreate fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		defer func() { GetProviderByNode = _getProviderByNode }()
+		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(true, nil, nil)
+		mockProvider.On("IgroupExists", "igroup2", nillable.GetStringPtr("test-svm")).Return(true, nil, nil)
+		mockProvider.On("LunMapCreate", vsa.LunMapCreateParams{
+			LunName:    "/vol/" + volume.Name + "/" + utils.GetLunName(volume.Name),
+			SvmName:    "test-svm",
+			IGroupName: []string{"igroup1", "igroup2"},
+		}).Return(errors.New("failed to map lun"))
+
+		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		assert.EqualError(t, err, "failed to map lun")
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+	t.Run("returns error when LunMapCreate fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		defer func() { GetProviderByNode = _getProviderByNode }()
+		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return([]*datamodel.HostGroup{}, nil)
+
+		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+}
+
+// TestGetHostGroup tests the GetHostGroup function
+func TestGetHostGroup(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+		mockStorage.On("GetHostGroup", ctx, "test-uuid", int64(1)).Return(&datamodel.HostGroup{Name: "1"}, nil)
+		hg, err := getHostGroup(mockStorage, ctx, "test-uuid", 1)
+		assert.Equal(t, hg.Name, "1")
+		assert.NoError(t, err)
+	})
+	t.Run("Failure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		ctx := context.Background()
+		mockStorage.On("GetHostGroup", ctx, "test-uuid", int64(1)).Return(nil, errors.New("host group not found"))
+		hg, err := getHostGroup(mockStorage, ctx, "test-uuid", 1)
+		assert.Nil(t, hg)
+		assert.EqualError(t, err, "host group not found")
+	})
 }
 
 func TestGetVolumeFromONTAP_Success(t *testing.T) {

@@ -566,6 +566,148 @@ func TestCreateVolume(t *testing.T) {
 		assert.Nil(tt, volume, "Expected nil volume")
 		assert.EqualError(tt, err, "Parent snapshot is not in a valid state for volume creation. Please wait for the snapshot to be ready and retry again.")
 	})
+	t.Run("WhenCreateVolumeSuccessWithBP", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		hg1 := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-hg-uuid1"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			Hosts: datamodel.Hosts{
+				Hosts: []string{"host1.example.com", "host2.example.com"},
+			},
+		}
+
+		err = store.DB().Create(hg1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create hg1: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			VendorID:      "test_vendor",
+			QuotaInBytes:  minQuotaInBytesPool,
+			Protocols:     []string{"NFS"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: &[]bool{true}[0],
+				BackupVaultID:          "test-backup-vault-id",
+				BackupPolicyId:         "test-backup-policy-id",
+				BackupChainBytes:       &[]int64{1000}[0],
+				PolicyEnforced:         &[]bool{true}[0],
+			},
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType:         "linux",
+				HostGroupUUIDs: []string{"test-hg-uuid1"},
+			},
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+			return nil
+		}
+
+		getMultipleHostGroup = func(ctx context.Context, storage database.Storage, hostGroupUUIDs []string, accountID string) ([]*models.HostGroup, error) {
+			return []*models.HostGroup{{
+				BaseModel: models.BaseModel{UUID: "host-group-uuid"},
+				Hosts:     []string{"a", "b"},
+			}}, nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+			getMultipleHostGroup = _getMultipleHostGroup
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+		volume, _, err := createVolume(ctx, store, temporal, params)
+
+		assert.NotNil(tt, volume, "Expected nil volume")
+		assert.NoError(tt, err, "error not found")
+		assert.Equal(tt, volume.DisplayName, "test_volume")
+		assert.Equal(tt, volume.AccountName, "test_account")
+		assert.Equal(tt, volume.PoolID, "test-pool-uuid")
+		assert.Equal(tt, volume.PoolName, "test_pool")
+		assert.Equal(tt, volume.VendorID, "")
+		assert.Equal(tt, volume.CreationToken, "test-creation-token")
+		assert.Equal(tt, volume.Description, "Some description")
+		assert.Equal(tt, volume.ProtocolTypes, []string{"NFS"})
+		assert.Equal(tt, volume.QuotaInBytes, minQuotaInBytesPool)
+		assert.Equal(tt, volume.LifeCycleState, "CREATING")
+		assert.Equal(tt, volume.LifeCycleStateDetails, "Creation in progress")
+		assert.Equal(tt, volume.BlockProperties.HostGroupDetail[0].HostGroupID, "host-group-uuid")
+		assert.Equal(tt, volume.BlockProperties.OSType, "linux")
+		assert.Equal(tt, volume.BlockProperties.LunSerialNumber, "")
+	})
 	t.Run("WhenCreateVolumeSuccess", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -2323,7 +2465,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:         "dummy-name",
 			PoolID:       pool.UUID,
 			QuotaInBytes: minQuotaInBytesVolume + 1,
-			BlockProperties: &models.BlockProperties{
+			BlockProperties: &common.BlockPropertiesRequest{
 				OSType: "linux",
 			},
 		}
@@ -2426,7 +2568,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:         "dummy-name",
 			PoolID:       pool.UUID,
 			QuotaInBytes: minQuotaInBytesVolume + 1,
-			BlockProperties: &models.BlockProperties{
+			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"1"},
 			},
@@ -2539,7 +2681,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:         "dummy-name",
 			PoolID:       pool.UUID,
 			QuotaInBytes: minQuotaInBytesVolume + 1,
-			BlockProperties: &models.BlockProperties{
+			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"testhg"},
 			},
@@ -2652,7 +2794,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:         "dummy-name",
 			PoolID:       pool.UUID,
 			QuotaInBytes: minQuotaInBytesVolume + 1,
-			BlockProperties: &models.BlockProperties{
+			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"test-volume-uuid2"},
 			},
@@ -2736,6 +2878,183 @@ func TestUpdateVolume(t *testing.T) {
 		assert.Nil(tt, volume)
 	})
 
+	t.Run("WhenUpdateVolumeSuccessWithBlockPropertiesNoHGUUIDs", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType:         "linux",
+				HostGroupUUIDs: []string{},
+			},
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
+			Account: &datamodel.Account{
+				Name: "acc",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "vault-2",
+			},
+			State: "READY",
+		}
+
+		job := &datamodel.Job{WorkflowID: "wid"}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-2", mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Equal(tt, "vol", volume.DisplayName)
+	})
+	t.Run("WhenUpdateVolumeFailsWithBlockPropertiesWithUnavailableHgs", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType:         "linux",
+				HostGroupUUIDs: []string{"hg1"},
+			},
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
+			Account: &datamodel.Account{
+				Name: "acc",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "vault-2",
+			},
+			State: "READY",
+		}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetMultipleHostGroups", ctx, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.EqualError(tt, err, "could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
+		assert.Nil(tt, volume)
+	})
+	t.Run("WhenUpdateVolumeFailsWithBlockPropertiesWhereSomeHgsUnavailable", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType:         "linux",
+				HostGroupUUIDs: []string{"hg1", "hg2"},
+			},
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
+			Account: &datamodel.Account{
+				Name: "acc",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "vault-2",
+			},
+			State: "READY",
+		}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetMultipleHostGroups", ctx, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
+			BaseModel: datamodel.BaseModel{UUID: "hg2"},
+		}}, nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.EqualError(tt, err, "could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
+		assert.Nil(tt, volume)
+	})
+	t.Run("WhenUpdateVolumeFailsWithBlockPropertiesWhereHGStateNotReady", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType:         "linux",
+				HostGroupUUIDs: []string{"hg1", "hg2"},
+			},
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
+			Account: &datamodel.Account{
+				Name: "acc",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "vault-2",
+			},
+			State: "READY",
+		}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetMultipleHostGroups", ctx, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
+			BaseModel: datamodel.BaseModel{UUID: "hg1"}, Name: "hg1", State: models.LifeCycleStateError,
+		}, {BaseModel: datamodel.BaseModel{UUID: "hg2"}, State: models.LifeCycleStateREADY}}, nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.EqualError(tt, err, "host group hg1 is not available")
+		assert.Nil(tt, volume)
+	})
+	t.Run("WhenUpdateVolumeFailsWithBlockPropertiesWhereHGStateNotUnique", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType:         "linux",
+				HostGroupUUIDs: []string{"hg1", "hg2"},
+			},
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
+			Account: &datamodel.Account{
+				Name: "acc",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "vault-2",
+			},
+			State: "READY",
+		}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetMultipleHostGroups", ctx, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
+			BaseModel: datamodel.BaseModel{UUID: "hg1"}, Hosts: datamodel.Hosts{Hosts: []string{"a", "b"}}, State: models.LifeCycleStateREADY,
+		}, {BaseModel: datamodel.BaseModel{UUID: "hg2"}, Hosts: datamodel.Hosts{Hosts: []string{"a"}}, State: models.LifeCycleStateREADY}}, nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.EqualError(tt, err, "host : a is present in multiple host groups")
+		assert.Nil(tt, volume)
+	})
 	t.Run("WhenUpdateVolumeSuccess", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}

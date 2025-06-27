@@ -8,7 +8,7 @@ import (
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -29,7 +29,8 @@ func (h Handler) V1betaDescribeHostGroup(ctx context.Context, params gcpgenserve
 			}, nil
 		}
 		logger.Error("Failed to describe hostgroup", "error", err.Error())
-		return &gcpgenserver.V1betaDescribeHostGroupInternalServerError{}, err
+		return &gcpgenserver.V1betaDescribeHostGroupInternalServerError{Code: 500,
+			Message: "Internal server error"}, err
 	}
 	return convertToHostGroupV1Beta(hostGroup), nil
 }
@@ -46,10 +47,10 @@ func (h Handler) V1betaCreateHostGroup(ctx context.Context, req *gcpgenserver.Ho
 		}, nil
 	}
 
-	createParams := &orchestrator.CreateHostGroupParams{
-		Name:      req.ResourceId,
-		Hosts:     req.Hosts,
-		AccountID: params.ProjectNumber,
+	createParams := &common.CreateHostGroupParams{
+		Name:        req.ResourceId,
+		Hosts:       req.Hosts,
+		AccountName: params.ProjectNumber,
 	}
 
 	if req.Type.IsSet() {
@@ -189,4 +190,68 @@ func (h Handler) V1betaGetMultipleHostGroups(ctx context.Context, req *gcpgenser
 		resp.HostGroups = append(resp.HostGroups, *convertToHostGroupV1Beta(hostGroup))
 	}
 	return resp, nil
+}
+
+func (h Handler) V1betaUpdateHostGroup(ctx context.Context, req *gcpgenserver.HostGroupUpdateV1beta, params gcpgenserver.V1betaUpdateHostGroupParams) (r gcpgenserver.V1betaUpdateHostGroupRes, _ error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	// Validate the location
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaUpdateHostGroupBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	_, err := h.Orchestrator.GetHostGroup(ctx, params.HostGroupId, params.ProjectNumber)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaUpdateHostGroupNotFound{
+				Code:    404,
+				Message: "host group not found",
+			}, nil
+		}
+		logger.Error("Failed to update hostgroup", "error", err.Error())
+		return &gcpgenserver.V1betaUpdateHostGroupInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}, nil
+	}
+
+	updateParams := &common.UpdateHostGroupParams{
+		Hosts:         req.Hosts,
+		AccountName:   params.ProjectNumber,
+		HostGroupUUID: params.HostGroupId,
+	}
+	if req.Description.IsSet() {
+		updateParams.Description = &req.Description.Value
+	}
+
+	updateHG, jobId, err := h.Orchestrator.UpdateHostGroup(ctx, updateParams)
+	if err != nil {
+		if customerrors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaUpdateHostGroupBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to update hostgroup", "error", err.Error())
+		return &gcpgenserver.V1betaUpdateHostGroupInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}, nil
+	}
+
+	resp, err := encodeHostGroupV1(convertToHostGroupV1Beta(updateHG))
+	if err != nil {
+		return nil, err
+	}
+
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(common.PrepareOperationID(params.ProjectNumber, params.LocationId, jobId)),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(false),
+	}, nil
 }

@@ -192,7 +192,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		reqBlockProperties, _ := req.Volume.BlockProperties.Get()
 		if reqBlockProperties.OsType.IsSet() {
 			osType := reqBlockProperties.GetOsType()
-			param.BlockProperties = &models.BlockProperties{
+			param.BlockProperties = &common.BlockPropertiesRequest{
 				OSType:         string(osType.Value),
 				HostGroupUUIDs: reqBlockProperties.GetHostGroupIds(),
 			}
@@ -313,12 +313,12 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 
 	if req.BlockProperties.IsSet() {
 		reqBlockProperties, _ := req.BlockProperties.Get()
+		param.BlockProperties = &common.BlockPropertiesRequest{
+			HostGroupUUIDs: reqBlockProperties.HostGroupIds,
+		}
 		if reqBlockProperties.OsType.IsSet() {
-			osType := reqBlockProperties.GetOsType()
-			param.BlockProperties = &models.BlockProperties{
-				OSType:         string(osType.Value),
-				HostGroupUUIDs: reqBlockProperties.GetHostGroupIds(),
-			}
+			osType := reqBlockProperties.GetOsType().Value
+			param.BlockProperties.OSType = string(osType)
 		}
 	}
 
@@ -467,13 +467,18 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 	}
 
 	if volume.BlockProperties != nil {
-		res.BlockProperties = gcpgenserver.NewOptBlockPropertiesV1beta(
-			gcpgenserver.BlockPropertiesV1beta{
-				OsType:          gcpgenserver.NewOptBlockPropertiesV1betaOsType(gcpgenserver.BlockPropertiesV1betaOsType(volume.BlockProperties.OSType)),
-				HostGroupIds:    volume.BlockProperties.HostGroupUUIDs,
-				LunSerialNumber: gcpgenserver.NewOptString(volume.BlockProperties.LunSerialNumber),
+		blockPropertiesV1beta := gcpgenserver.BlockPropertiesV1beta{
+			OsType:          gcpgenserver.NewOptBlockPropertiesV1betaOsType(gcpgenserver.BlockPropertiesV1betaOsType(volume.BlockProperties.OSType)),
+			LunSerialNumber: gcpgenserver.NewOptString(volume.BlockProperties.LunSerialNumber),
+		}
+		for _, hostGroup := range volume.BlockProperties.HostGroupDetail {
+			blockPropertiesV1beta.HostGroupDetails = append(blockPropertiesV1beta.HostGroupDetails, gcpgenserver.HostGroupDetail{
+				Hosts:       hostGroup.Hosts,
+				HostGroupId: gcpgenserver.NewOptString(hostGroup.HostGroupID),
 			})
-
+			blockPropertiesV1beta.HostGroupIds = append(blockPropertiesV1beta.HostGroupIds, hostGroup.HostGroupID)
+		}
+		res.BlockProperties = gcpgenserver.NewOptBlockPropertiesV1beta(blockPropertiesV1beta)
 		if volume.LifeCycleState == string(gcpgenserver.VolumeV1betaVolumeStateREADY) {
 			res.MountPoints = make([]gcpgenserver.MountPointV1beta, 0)
 			res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{

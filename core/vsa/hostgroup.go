@@ -1,0 +1,82 @@
+package vsa
+
+import (
+	"strings"
+
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+)
+
+// IgroupCreate creates an initiator group by calling the ONTAP REST Client
+func (rc *OntapRestProvider) IgroupCreate(params IgroupCreateParams) (string, error) {
+	client := getOntapClientFunc(rc.ClientParams)
+	iGroupName, err := client.SAN().IGroupCreate(&ontapRest.IgroupCreateParams{
+		Name:       params.IgroupName,
+		SvmName:    params.SvmName,
+		OsType:     params.OsType,
+		Initiators: params.Initiator,
+	})
+	if err != nil {
+		return "", err
+	}
+	return iGroupName, nil
+}
+
+// IgroupGet creates an initiator group by calling the ONTAP REST Client
+func (rc *OntapRestProvider) IgroupGet(name, svmName *string) (*ontapRest.Igroup, error) {
+	client := getOntapClientFunc(rc.ClientParams)
+	iGroup, err := client.SAN().IGroupGet(&ontapRest.IgroupGetParams{
+		BaseParams: ontapRest.BaseParams{
+			Fields: []string{"initiators"},
+		},
+		Name:    name,
+		SvmName: svmName,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return iGroup, nil
+}
+
+func (rc *OntapRestProvider) IgroupExists(name string, svm *string) (bool, *ontapRest.Igroup, error) {
+	res, err := rc.IgroupGet(&name, svm)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return false, nil, nil
+		}
+		return false, nil, err
+	}
+	if res == nil {
+		return false, nil, nil
+	}
+
+	return true, res, nil
+}
+
+func (rc *OntapRestProvider) IgroupAddInitiator(params IgroupAddInitiator) error {
+	client := getOntapClientFunc(rc.ClientParams)
+	err := client.SAN().IGroupAddInitiator(&ontapRest.IgroupAddInitiatorParams{
+		InitiatorQNs: params.Initiator,
+		IgroupUUID:   params.IgroupUUID,
+	})
+
+	if err != nil && !strings.Contains(err.Error(), "already contains initiator") {
+		return err
+	}
+
+	return nil
+}
+
+func (rc *OntapRestProvider) IgroupDeleteInitiator(params IgroupDeleteInitiator) error {
+	client := getOntapClientFunc(rc.ClientParams)
+	err := client.SAN().IGroupDeleteInitiator(&ontapRest.IgroupDeleteInitiatorParams{
+		InitiatorIQNName: params.InitiatorName,
+		IgroupUUID:       params.IgroupUUID,
+	})
+
+	if err != nil && !strings.Contains(err.Error(), "does not contain initiator") {
+		return err
+	}
+
+	return nil
+}

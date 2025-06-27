@@ -108,8 +108,18 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	if params.BlockProperties != nil {
 		volumeObj.VolumeAttributes.BlockProperties = &datamodel.BlockProperties{
-			OSType:         params.BlockProperties.OSType,
-			HostGroupUUIDs: params.BlockProperties.HostGroupUUIDs,
+			OSType: params.BlockProperties.OSType,
+		}
+		hgs, err := getMultipleHostGroup(ctx, se, params.BlockProperties.HostGroupUUIDs, account.Name)
+		if err != nil {
+			return nil, "", err
+		}
+		for _, hg := range hgs {
+			volumeObj.VolumeAttributes.BlockProperties.HostGroupDetails = append(
+				volumeObj.VolumeAttributes.BlockProperties.HostGroupDetails, datamodel.HostGroupDetail{
+					HostGroupUUID: hg.UUID,
+					HostQNs:       hg.Hosts,
+				})
 		}
 	}
 
@@ -288,19 +298,9 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 
 	if params.BlockProperties != nil {
 		hostGroupUUIDs := params.BlockProperties.HostGroupUUIDs
-		if len(hostGroupUUIDs) > 0 {
-			hostGroups, err := se.GetMultipleHostGroups(ctx, params.BlockProperties.HostGroupUUIDs, pool.Account.ID)
-			if err != nil {
-				return err
-			}
-			if len(params.BlockProperties.HostGroupUUIDs) != len(hostGroups) {
-				return customerrors.NewUserInputValidationErr("could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
-			}
-			for _, hostGroup := range hostGroups {
-				if hostGroup.State != models.LifeCycleStateREADY {
-					return customerrors.NewUserInputValidationErr(fmt.Sprintf("host group %s is not available", hostGroup.Name))
-				}
-			}
+		err = validateBlockProperties(ctx, se, hostGroupUUIDs, pool.Account.ID)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -336,8 +336,8 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 	if attributes.BlockProperties != nil {
 		res.BlockProperties = &models.BlockProperties{
 			OSType:          attributes.BlockProperties.OSType,
-			HostGroupUUIDs:  attributes.BlockProperties.HostGroupUUIDs,
 			LunSerialNumber: attributes.BlockProperties.LunSerialNumber,
+			HostGroupDetail: convertHostGroupDetails(attributes.BlockProperties.HostGroupDetails),
 		}
 	}
 	if volume.DataProtection != nil {
@@ -359,6 +359,17 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 		}
 	}
 	return res
+}
+
+func convertHostGroupDetails(hgs []datamodel.HostGroupDetail) []models.HostGroupDetails {
+	resp := make([]models.HostGroupDetails, 0)
+	for _, hg := range hgs {
+		resp = append(resp, models.HostGroupDetails{
+			Hosts:       hg.HostQNs,
+			HostGroupID: hg.HostGroupUUID,
+		})
+	}
+	return resp
 }
 
 func (o *Orchestrator) DeleteVolume(ctx context.Context, volumeId string) (*models.Volume, string, error) {
@@ -484,7 +495,7 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 	}
 
-	err = validateUpdateVolumeRequest(dbVolume, params)
+	err = validateUpdateVolumeRequest(ctx, se, dbVolume, params)
 	if err != nil {
 		return nil, "", err
 	}
@@ -545,7 +556,7 @@ func updateVolumeStatus(ctx context.Context, se database.Storage, dbVolume *data
 	return dbVolume, err
 }
 
-func validateUpdateVolumeRequest(volume *datamodel.Volume, params *common.UpdateVolumeParams) error {
+func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volume *datamodel.Volume, params *common.UpdateVolumeParams) error {
 	if utils.IsTransitionalState(volume.State) {
 		return customerrors.NewUserInputValidationErr("volume is not in a valid state for update")
 	}
@@ -553,6 +564,40 @@ func validateUpdateVolumeRequest(volume *datamodel.Volume, params *common.Update
 	if params.QuotaInBytes < volume.SizeInBytes {
 		return customerrors.NewUserInputValidationErr("volume size cannot be reduced")
 	}
+
+	if params.BlockProperties != nil {
+		hostGroupUUIDs := params.BlockProperties.HostGroupUUIDs
+		err := validateBlockProperties(ctx, se, hostGroupUUIDs, volume.Account.ID)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateBlockProperties(ctx context.Context, se database.Storage, hostGroupUUIDs []string, accountID int64) error {
+	if len(hostGroupUUIDs) > 0 {
+		hostGroups, err := se.GetMultipleHostGroups(ctx, hostGroupUUIDs, accountID)
+		if err != nil {
+			return err
+		}
+		if len(hostGroupUUIDs) != len(hostGroups) {
+			return customerrors.NewUserInputValidationErr("could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
+		}
+		uniqueHostSet := make(map[string]bool)
+		for _, hostGroup := range hostGroups {
+			if hostGroup.State != models.LifeCycleStateREADY {
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf("host group %s is not available", hostGroup.Name))
+			}
+			for _, host := range hostGroup.Hosts.Hosts {
+				if _, exists := uniqueHostSet[host]; exists {
+					return customerrors.NewUserInputValidationErr(fmt.Sprintf("host : %s is present in multiple host groups", host))
+				}
+				uniqueHostSet[host] = true
+			}
+		}
+	}
+
 	return nil
 }
 

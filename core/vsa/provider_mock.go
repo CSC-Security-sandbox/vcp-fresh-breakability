@@ -1774,6 +1774,52 @@ func (_c *MockProvider_GetVolumes_Call) RunAndReturn(run func() ([]*Volume, erro
 	return _c
 }
 
+// IgroupAddInitiator provides a mock function with given fields: params
+func (_m *MockProvider) IgroupAddInitiator(params IgroupAddInitiator) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IgroupAddInitiator")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(IgroupAddInitiator) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_IgroupAddInitiator_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IgroupAddInitiator'
+type MockProvider_IgroupAddInitiator_Call struct {
+	*mock.Call
+}
+
+// IgroupAddInitiator is a helper method to define mock.On call
+//   - params IgroupAddInitiator
+func (_e *MockProvider_Expecter) IgroupAddInitiator(params interface{}) *MockProvider_IgroupAddInitiator_Call {
+	return &MockProvider_IgroupAddInitiator_Call{Call: _e.mock.On("IgroupAddInitiator", params)}
+}
+
+func (_c *MockProvider_IgroupAddInitiator_Call) Run(run func(params IgroupAddInitiator)) *MockProvider_IgroupAddInitiator_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(IgroupAddInitiator))
+	})
+	return _c
+}
+
+func (_c *MockProvider_IgroupAddInitiator_Call) Return(_a0 error) *MockProvider_IgroupAddInitiator_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_IgroupAddInitiator_Call) RunAndReturn(run func(IgroupAddInitiator) error) *MockProvider_IgroupAddInitiator_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IgroupCreate provides a mock function with given fields: params
 func (_m *MockProvider) IgroupCreate(params IgroupCreateParams) (string, error) {
 	ret := _m.Called(params)
@@ -1830,8 +1876,54 @@ func (_c *MockProvider_IgroupCreate_Call) RunAndReturn(run func(IgroupCreatePara
 	return _c
 }
 
+// IgroupDeleteInitiator provides a mock function with given fields: params
+func (_m *MockProvider) IgroupDeleteInitiator(params IgroupDeleteInitiator) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IgroupDeleteInitiator")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(IgroupDeleteInitiator) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_IgroupDeleteInitiator_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IgroupDeleteInitiator'
+type MockProvider_IgroupDeleteInitiator_Call struct {
+	*mock.Call
+}
+
+// IgroupDeleteInitiator is a helper method to define mock.On call
+//   - params IgroupDeleteInitiator
+func (_e *MockProvider_Expecter) IgroupDeleteInitiator(params interface{}) *MockProvider_IgroupDeleteInitiator_Call {
+	return &MockProvider_IgroupDeleteInitiator_Call{Call: _e.mock.On("IgroupDeleteInitiator", params)}
+}
+
+func (_c *MockProvider_IgroupDeleteInitiator_Call) Run(run func(params IgroupDeleteInitiator)) *MockProvider_IgroupDeleteInitiator_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(IgroupDeleteInitiator))
+	})
+	return _c
+}
+
+func (_c *MockProvider_IgroupDeleteInitiator_Call) Return(_a0 error) *MockProvider_IgroupDeleteInitiator_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_IgroupDeleteInitiator_Call) RunAndReturn(run func(IgroupDeleteInitiator) error) *MockProvider_IgroupDeleteInitiator_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IgroupExists provides a mock function with given fields: name, svm
-func (_m *MockProvider) IgroupExists(name string, svm string) (bool, error) {
+func (_m *MockProvider) IgroupExists(name string, svm *string) (bool, *ontap_rest.Igroup, error) {
 	ret := _m.Called(name, svm)
 
 	if len(ret) == 0 {
@@ -1839,23 +1931,32 @@ func (_m *MockProvider) IgroupExists(name string, svm string) (bool, error) {
 	}
 
 	var r0 bool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(string, string) (bool, error)); ok {
+	var r1 *ontap_rest.Igroup
+	var r2 error
+	if rf, ok := ret.Get(0).(func(string, *string) (bool, *ontap_rest.Igroup, error)); ok {
 		return rf(name, svm)
 	}
-	if rf, ok := ret.Get(0).(func(string, string) bool); ok {
+	if rf, ok := ret.Get(0).(func(string, *string) bool); ok {
 		r0 = rf(name, svm)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+	if rf, ok := ret.Get(1).(func(string, *string) *ontap_rest.Igroup); ok {
 		r1 = rf(name, svm)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*ontap_rest.Igroup)
+		}
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(string, *string) error); ok {
+		r2 = rf(name, svm)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // MockProvider_IgroupExists_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IgroupExists'
@@ -1865,30 +1966,30 @@ type MockProvider_IgroupExists_Call struct {
 
 // IgroupExists is a helper method to define mock.On call
 //   - name string
-//   - svm string
+//   - svm *string
 func (_e *MockProvider_Expecter) IgroupExists(name interface{}, svm interface{}) *MockProvider_IgroupExists_Call {
 	return &MockProvider_IgroupExists_Call{Call: _e.mock.On("IgroupExists", name, svm)}
 }
 
-func (_c *MockProvider_IgroupExists_Call) Run(run func(name string, svm string)) *MockProvider_IgroupExists_Call {
+func (_c *MockProvider_IgroupExists_Call) Run(run func(name string, svm *string)) *MockProvider_IgroupExists_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
+		run(args[0].(string), args[1].(*string))
 	})
 	return _c
 }
 
-func (_c *MockProvider_IgroupExists_Call) Return(_a0 bool, _a1 error) *MockProvider_IgroupExists_Call {
-	_c.Call.Return(_a0, _a1)
+func (_c *MockProvider_IgroupExists_Call) Return(_a0 bool, _a1 *ontap_rest.Igroup, _a2 error) *MockProvider_IgroupExists_Call {
+	_c.Call.Return(_a0, _a1, _a2)
 	return _c
 }
 
-func (_c *MockProvider_IgroupExists_Call) RunAndReturn(run func(string, string) (bool, error)) *MockProvider_IgroupExists_Call {
+func (_c *MockProvider_IgroupExists_Call) RunAndReturn(run func(string, *string) (bool, *ontap_rest.Igroup, error)) *MockProvider_IgroupExists_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IgroupGet provides a mock function with given fields: name, svm
-func (_m *MockProvider) IgroupGet(name string, svm string) (*ontap_rest.Igroup, error) {
+func (_m *MockProvider) IgroupGet(name *string, svm *string) (*ontap_rest.Igroup, error) {
 	ret := _m.Called(name, svm)
 
 	if len(ret) == 0 {
@@ -1897,10 +1998,10 @@ func (_m *MockProvider) IgroupGet(name string, svm string) (*ontap_rest.Igroup, 
 
 	var r0 *ontap_rest.Igroup
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, string) (*ontap_rest.Igroup, error)); ok {
+	if rf, ok := ret.Get(0).(func(*string, *string) (*ontap_rest.Igroup, error)); ok {
 		return rf(name, svm)
 	}
-	if rf, ok := ret.Get(0).(func(string, string) *ontap_rest.Igroup); ok {
+	if rf, ok := ret.Get(0).(func(*string, *string) *ontap_rest.Igroup); ok {
 		r0 = rf(name, svm)
 	} else {
 		if ret.Get(0) != nil {
@@ -1908,7 +2009,7 @@ func (_m *MockProvider) IgroupGet(name string, svm string) (*ontap_rest.Igroup, 
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+	if rf, ok := ret.Get(1).(func(*string, *string) error); ok {
 		r1 = rf(name, svm)
 	} else {
 		r1 = ret.Error(1)
@@ -1923,15 +2024,15 @@ type MockProvider_IgroupGet_Call struct {
 }
 
 // IgroupGet is a helper method to define mock.On call
-//   - name string
-//   - svm string
+//   - name *string
+//   - svm *string
 func (_e *MockProvider_Expecter) IgroupGet(name interface{}, svm interface{}) *MockProvider_IgroupGet_Call {
 	return &MockProvider_IgroupGet_Call{Call: _e.mock.On("IgroupGet", name, svm)}
 }
 
-func (_c *MockProvider_IgroupGet_Call) Run(run func(name string, svm string)) *MockProvider_IgroupGet_Call {
+func (_c *MockProvider_IgroupGet_Call) Run(run func(name *string, svm *string)) *MockProvider_IgroupGet_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
+		run(args[0].(*string), args[1].(*string))
 	})
 	return _c
 }
@@ -1941,7 +2042,7 @@ func (_c *MockProvider_IgroupGet_Call) Return(_a0 *ontap_rest.Igroup, _a1 error)
 	return _c
 }
 
-func (_c *MockProvider_IgroupGet_Call) RunAndReturn(run func(string, string) (*ontap_rest.Igroup, error)) *MockProvider_IgroupGet_Call {
+func (_c *MockProvider_IgroupGet_Call) RunAndReturn(run func(*string, *string) (*ontap_rest.Igroup, error)) *MockProvider_IgroupGet_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2263,6 +2364,52 @@ func (_c *MockProvider_LunMapCreate_Call) Return(_a0 error) *MockProvider_LunMap
 }
 
 func (_c *MockProvider_LunMapCreate_Call) RunAndReturn(run func(LunMapCreateParams) error) *MockProvider_LunMapCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// LunMapDelete provides a mock function with given fields: params
+func (_m *MockProvider) LunMapDelete(params LunMapDeleteParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LunMapDelete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(LunMapDeleteParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_LunMapDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LunMapDelete'
+type MockProvider_LunMapDelete_Call struct {
+	*mock.Call
+}
+
+// LunMapDelete is a helper method to define mock.On call
+//   - params LunMapDeleteParams
+func (_e *MockProvider_Expecter) LunMapDelete(params interface{}) *MockProvider_LunMapDelete_Call {
+	return &MockProvider_LunMapDelete_Call{Call: _e.mock.On("LunMapDelete", params)}
+}
+
+func (_c *MockProvider_LunMapDelete_Call) Run(run func(params LunMapDeleteParams)) *MockProvider_LunMapDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(LunMapDeleteParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_LunMapDelete_Call) Return(_a0 error) *MockProvider_LunMapDelete_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_LunMapDelete_Call) RunAndReturn(run func(LunMapDeleteParams) error) *MockProvider_LunMapDelete_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -2297,6 +2297,12 @@ type LunMapCreateParams struct {
 	SvmName    string
 }
 
+// LunMapDeleteParams is the input parameter for deleting a LunMap
+type LunMapDeleteParams struct {
+	IGroupUUID string
+	LunUUID    string
+}
+
 // lunMapCreateParamsToONTAP converts LunMapCreateParams to ONTAP API parameters.
 func lunMapCreateParamsToONTAP(params *LunMapCreateParams) *san.LunMapCreateParams {
 	otParams := san.NewLunMapCreateParams()
@@ -2315,6 +2321,19 @@ func lunMapCreateParamsToONTAP(params *LunMapCreateParams) *san.LunMapCreatePara
 			Name: &params.SvmName,
 		},
 	})
+	return otParams
+}
+
+// lunMapDeleteParamsToONTAP converts LunMapDeleteParams to ONTAP API parameters.
+func lunMapDeleteParamsToONTAP(params *LunMapDeleteParams) *san.LunMapDeleteParams {
+	otParams := san.NewLunMapDeleteParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetLunUUID(params.LunUUID)
+	otParams.SetIgroupUUID(params.IGroupUUID)
+
 	return otParams
 }
 
@@ -2389,14 +2408,63 @@ func igroupCreateParamsToONTAP(params *IgroupCreateParams) *san.IgroupCreatePara
 		Protocol:               nillable.ToPointer(models.IgroupProtocolIscsi),
 		Svm:                    &models.IgroupInlineSvm{Name: &params.SvmName},
 	})
+
 	otParams.SetReturnRecords(nillable.ToPointer("true"))
+	return otParams
+}
+
+// IgroupAddInitiatorParams is the input parameter for modifying an IgroupInitiators
+type IgroupAddInitiatorParams struct {
+	Name         string
+	InitiatorQNs []string
+	IgroupUUID   string
+}
+
+// IgroupDeleteInitiatorParams is the input parameter for deleting an IgroupInitiator
+type IgroupDeleteInitiatorParams struct {
+	InitiatorIQNName string
+	IgroupUUID       string
+}
+
+// igroupAddInitiatorParamsToONTAP converts IgroupAddInitiatorParams to ONTAP API parameters.
+func igroupAddInitiatorParamsToONTAP(params *IgroupAddInitiatorParams) *san.IgroupInitiatorCreateParams {
+	otParams := san.NewIgroupInitiatorCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	initiators := make([]*models.IgroupInitiatorInlineRecordsInlineArrayItem, len(params.InitiatorQNs))
+	for i := range params.InitiatorQNs {
+		initiators[i] = &models.IgroupInitiatorInlineRecordsInlineArrayItem{
+			Name: &params.InitiatorQNs[i],
+		}
+	}
+
+	otParams.SetInfo(&models.IgroupInitiator{
+		IgroupInitiatorInlineRecords: initiators,
+	})
+	otParams.SetIgroupUUID(params.IgroupUUID)
+	return otParams
+}
+
+// igroupDeleteInitiatorParamsToONTAP converts IgroupAddInitiatorParams to ONTAP API parameters.
+func igroupDeleteInitiatorParamsToONTAP(params *IgroupDeleteInitiatorParams) *san.IgroupInitiatorDeleteParams {
+	otParams := san.NewIgroupInitiatorDeleteParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetAllowDeleteWhileMapped(nillable.GetStringPtr("true"))
+	otParams.SetIgroupUUID(params.IgroupUUID)
+	otParams.SetName(params.InitiatorIQNName)
+
+	otParams.SetIgroupUUID(params.IgroupUUID)
 	return otParams
 }
 
 // IgroupGetParams is the input parameter for getting Igroups
 type IgroupGetParams struct {
 	BaseParams
-	SvmName string
+	SvmName *string
 	Name    *string
 }
 
@@ -2408,9 +2476,9 @@ func igroupGetParamsToONTAP(params *IgroupGetParams) *san.IgroupCollectionGetPar
 	}
 
 	otParams.SetName(params.Name)
-	otParams.SetSvmName(&params.SvmName)
+	otParams.SetSvmName(params.SvmName)
 	otParams.SetMaxRecords(getConstrainedMaxRecords(params.MaxRecords))
-
+	otParams.SetFields(params.Fields)
 	// MD: It's a GET call why is there return_timeout ??
 	otParams.SetReturnTimeout(returnTimeoutNoJob)
 	return otParams

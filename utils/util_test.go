@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -1070,6 +1071,77 @@ func TestLoadJsonFromFile(t *testing.T) {
 	})
 }
 
+func TestGetArrayDiff(t *testing.T) {
+	tests := []struct {
+		name             string
+		existingList     []string
+		newList          []string
+		expectedToCreate []string
+		expectedToDelete []string
+	}{
+		{
+			name:             "NoDifference",
+			existingList:     []string{"a", "b", "c"},
+			newList:          []string{"a", "b", "c"},
+			expectedToCreate: []string{},
+			expectedToDelete: []string{},
+		},
+		{
+			name:             "AllNewItems",
+			existingList:     []string{},
+			newList:          []string{"a", "b", "c"},
+			expectedToCreate: []string{"a", "b", "c"},
+			expectedToDelete: []string{},
+		},
+		{
+			name:             "AllItemsRemoved",
+			existingList:     []string{"a", "b", "c"},
+			newList:          []string{},
+			expectedToCreate: []string{},
+			expectedToDelete: []string{"a", "b", "c"},
+		},
+		{
+			name:             "SomeItemsAddedAndRemoved",
+			existingList:     []string{"a", "b", "c"},
+			newList:          []string{"b", "c", "d"},
+			expectedToCreate: []string{"d"},
+			expectedToDelete: []string{"a"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			toCreate, toDelete := GetArrayDiff(tt.existingList, tt.newList)
+			assert.ElementsMatch(t, tt.expectedToCreate, toCreate, "toCreate does not match expected")
+			assert.ElementsMatch(t, tt.expectedToDelete, toDelete, "toDelete does not match expected")
+		})
+	}
+}
+
+func TestIsSliceEqual(t *testing.T) {
+	tests := []struct {
+		name   string
+		slice1 []string
+		slice2 []string
+		want   bool
+	}{
+		{"EqualSlices", []string{"a", "b", "c"}, []string{"a", "b", "c"}, true},
+		{"DifferentLengths", []string{"a", "b"}, []string{"a", "b", "c"}, false},
+		{"DifferentElements", []string{"a", "b", "c"}, []string{"a", "b", "d"}, false},
+		{"EmptySlices", []string{}, []string{}, true},
+		{"OneEmptySlice", []string{"a", "b", "c"}, []string{}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsSliceEqual(tt.slice1, tt.slice2)
+			if got != tt.want {
+				t.Errorf("IsSliceEqual(%v, %v) = %v, want %v", tt.slice1, tt.slice2, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestGetEncryptionType(t *testing.T) {
 	cloudKms := "kms-id"
 	servManaged := (*string)(nil)
@@ -1083,4 +1155,36 @@ func TestGetEncryptionType(t *testing.T) {
 	empty := ""
 	got = GetEncryptionType(&empty)
 	assert.Equal(t, "SERVICE_MANAGED", got)
+}
+
+func TestGetHgUUIDs(t *testing.T) {
+	tests := []struct {
+		name      string
+		hgDetails []datamodel.HostGroupDetail
+		want      []string
+	}{
+		{
+			name: "ValidHostGroupDetails",
+			hgDetails: []datamodel.HostGroupDetail{
+				{HostGroupUUID: "uuid1"},
+				{HostGroupUUID: "uuid2"},
+				{HostGroupUUID: "uuid3"},
+			},
+			want: []string{"uuid1", "uuid2", "uuid3"},
+		},
+		{
+			name:      "EmptyHostGroupDetails",
+			hgDetails: []datamodel.HostGroupDetail{},
+			want:      []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetHgUUIDs(tt.hgDetails)
+			if !assert.ElementsMatch(t, tt.want, got) {
+				t.Errorf("GetHgUUIDs() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

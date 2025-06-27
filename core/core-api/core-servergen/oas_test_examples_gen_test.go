@@ -66,6 +66,7 @@ func TestError_EncodeDecode(t *testing.T) {
 }
 
 func TestError_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -118,6 +119,7 @@ func TestOperationV1_EncodeDecode(t *testing.T) {
 }
 
 func TestOperationV1_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -186,6 +188,7 @@ func TestPoolUpdateV1Labels_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolUpdateV1Labels_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -228,6 +231,7 @@ func TestPoolUpdateV1QosType_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolUpdateV1QosType_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -268,6 +272,7 @@ func TestPoolV1_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -334,6 +339,7 @@ func TestPoolV1Labels_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1Labels_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -376,6 +382,7 @@ func TestPoolV1QosType_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1QosType_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -416,6 +423,7 @@ func TestPoolV1ServiceLevel_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1ServiceLevel_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{
@@ -456,6 +464,7 @@ func TestPoolV1StoragePoolState_EncodeDecode(t *testing.T) {
 }
 
 func TestPoolV1StoragePoolState_Examples(t *testing.T) {
+
 	for i, tc := range []struct {
 		Input string
 	}{

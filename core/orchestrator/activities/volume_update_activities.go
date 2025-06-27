@@ -2,6 +2,7 @@ package activities
 
 import (
 	"context"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -13,7 +14,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-var prepareFieldsForUpdate = getUpdatedFieldsFromParams
+var (
+	prepareFieldsForUpdate        = getUpdatedFieldsFromParams
+	HostGroupsUpdateDiffForVolume = _hostGroupsUpdateDiffForVolume
+	getHostGroup                  = _getHostGroup
+)
 
 type VolumeUpdateActivity struct {
 	SE database.Storage
@@ -95,13 +100,112 @@ func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.
 	return nil
 }
 
+func (a *VolumeUpdateActivity) EnsureHostGroupsExistsAndMapDisk(ctx context.Context, volume *datamodel.Volume, iGroups []string, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	provider := GetProviderByNode(ctx, node)
+
+	hgs, err := a.SE.GetMultipleHostGroups(ctx, iGroups, volume.AccountID)
+	if err != nil {
+		return err
+	}
+	if len(hgs) == 0 {
+		logger.Debugf("No host groups to map for volume %s", volume.Name)
+		return nil
+	}
+
+	hgNames := make([]string, 0)
+	for _, hg := range hgs {
+		hgNames = append(hgNames, hg.Name)
+	}
+
+	for _, hostGroup := range hgs {
+		// Check if the hostGroup already exists
+		exists, _, err := provider.IgroupExists(hostGroup.Name, &volume.Svm.Name)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			// Create the hostGroup if it doesn't exist
+			if _, err = provider.IgroupCreate(vsa.IgroupCreateParams{
+				IgroupName: hostGroup.Name,
+				SvmName:    volume.Svm.Name,
+				OsType:     hostGroup.OSType,
+				Initiator:  hostGroup.Hosts.Hosts,
+			}); err != nil {
+				logger.Errorf("Failed to create igroup %s: %v", hostGroup.Name, err)
+				return err
+			}
+		}
+	}
+
+	err = provider.LunMapCreate(vsa.LunMapCreateParams{
+		LunName:    "/vol/" + volume.Name + "/" + utils.GetLunName(volume.Name),
+		SvmName:    volume.Svm.Name,
+		IGroupName: hgNames,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UnmapHostGroupFromDisk deletes the Disk HostGroup map
+func (a *VolumeUpdateActivity) UnmapHostGroupFromDisk(ctx context.Context, volume *datamodel.Volume, iGroupUUIDs []string, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	provider := GetProviderByNode(ctx, node)
+
+	for _, iGroupUUID := range iGroupUUIDs {
+		hgMapsToDelete, err := a.SE.GetHostGroup(ctx, iGroupUUID, volume.AccountID)
+		if err != nil {
+			return err
+		}
+
+		// Fetch iGroups uuid to delete the map
+		iGroupOntap, err := provider.IgroupGet(&hgMapsToDelete.Name, &volume.Svm.Name)
+		if err != nil {
+			return err
+		}
+		err = provider.LunMapDelete(vsa.LunMapDeleteParams{
+			LunUUID:    volume.VolumeAttributes.BlockProperties.LunUUID,
+			IGroupUUID: *iGroupOntap.UUID,
+		})
+		if err != nil {
+			logger.Errorf("Failed to delete lun map for igroup %s: %v", iGroupUUID, err)
+			return err
+		}
+	}
+	return nil
+}
+
+func _hostGroupsUpdateDiffForVolume(existingIGroups []string, newIGroups []string) ([]string, []string) {
+	toCreate := make([]string, 0)
+	toDelete := make([]string, 0)
+	for _, newIGroup := range newIGroups {
+		if !utils.ContainsString(existingIGroups, newIGroup) {
+			toCreate = append(toCreate, newIGroup)
+		}
+	}
+
+	for _, existingIGroup := range existingIGroups {
+		if !utils.ContainsString(newIGroups, existingIGroup) {
+			toDelete = append(toDelete, existingIGroup)
+		}
+	}
+	return toCreate, toDelete
+}
+
 // UpdateVolumeInDB updates the volume in the database with the new parameters
 func (a *VolumeUpdateActivity) UpdateVolumeInDB(ctx context.Context, volume *datamodel.Volume, params *common.UpdateVolumeParams) error {
 	logger := util.GetLogger(ctx)
 
-	updatedFields := prepareFieldsForUpdate(volume, params)
+	updatedFields, err := prepareFieldsForUpdate(ctx, a.SE, volume, params)
+	if err != nil {
+		logger.Errorf("Failed to update volume %s in the database: %v", volume.Name, err)
+		return err
+	}
 	// Update the volume in the database
-	err := a.SE.UpdateVolumeFields(ctx, volume.UUID, updatedFields)
+	err = a.SE.UpdateVolumeFields(ctx, volume.UUID, updatedFields)
 	if err != nil {
 		logger.Errorf("Failed to update volume %s in the database: %v", volume.Name, err)
 		return err
@@ -112,7 +216,7 @@ func (a *VolumeUpdateActivity) UpdateVolumeInDB(ctx context.Context, volume *dat
 }
 
 // getUpdatedFieldsFromParams prepares the fields to be updated in the database
-func getUpdatedFieldsFromParams(volume *datamodel.Volume, params *common.UpdateVolumeParams) map[string]interface{} {
+func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume *datamodel.Volume, params *common.UpdateVolumeParams) (map[string]interface{}, error) {
 	updates := make(map[string]interface{})
 	if params.Description != "" {
 		updates["description"] = params.Description
@@ -122,16 +226,16 @@ func getUpdatedFieldsFromParams(volume *datamodel.Volume, params *common.UpdateV
 		updates["size_in_bytes"] = params.QuotaInBytes
 	}
 
+	if volume.VolumeAttributes == nil {
+		volume.VolumeAttributes = &datamodel.VolumeAttributes{}
+	}
+
 	if params.Labels != nil {
 		jsonbLabels := make(datamodel.JSONB)
 		for k, v := range params.Labels {
 			jsonbLabels[k] = v
 		}
-		if volume.VolumeAttributes == nil {
-			volume.VolumeAttributes = &datamodel.VolumeAttributes{}
-		}
 		volume.VolumeAttributes.Labels = &jsonbLabels
-		updates["volume_attributes"] = volume.VolumeAttributes
 	}
 
 	if params.SnapshotPolicy != nil {
@@ -146,10 +250,38 @@ func getUpdatedFieldsFromParams(volume *datamodel.Volume, params *common.UpdateV
 		updates["data_protection"] = volume.DataProtection
 	}
 
+	if params.BlockProperties != nil {
+		if volume.VolumeAttributes.BlockProperties == nil {
+			volume.VolumeAttributes.BlockProperties = &datamodel.BlockProperties{}
+		}
+		hgDetails := make([]datamodel.HostGroupDetail, 0)
+		for _, uuid := range params.BlockProperties.HostGroupUUIDs {
+			hg, err := getHostGroup(se, ctx, uuid, volume.AccountID)
+			if err != nil {
+				return nil, err
+			}
+			hgDetail := datamodel.HostGroupDetail{
+				HostGroupUUID: uuid,
+				HostQNs:       hg.Hosts.Hosts,
+			}
+			hgDetails = append(hgDetails, hgDetail)
+		}
+		volume.VolumeAttributes.BlockProperties.HostGroupDetails = hgDetails
+	}
+
+	updates["volume_attributes"] = volume.VolumeAttributes
 	updates["state"] = models.LifeCycleStateREADY
 	updates["state_details"] = models.LifeCycleStateAvailableDetails
 
-	return updates
+	return updates, nil
+}
+
+func _getHostGroup(se database.Storage, ctx context.Context, uuid string, accountId int64) (*datamodel.HostGroup, error) {
+	hg, err := se.GetHostGroup(ctx, uuid, accountId)
+	if err != nil {
+		return nil, err
+	}
+	return hg, nil
 }
 
 // UpdateSnapshotPolicyInOntap updates the snapshot policy for the given volume in ONTAP.

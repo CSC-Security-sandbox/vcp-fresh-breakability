@@ -1017,6 +1017,18 @@ func TestHealth_EncodeDecode(t *testing.T) {
 	var typ2 Health
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestHostGroupDetail_EncodeDecode(t *testing.T) {
+	var typ HostGroupDetail
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 HostGroupDetail
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestHostGroupIdListV1beta_EncodeDecode(t *testing.T) {
 	var typ HostGroupIdListV1beta
 	typ.SetFake()

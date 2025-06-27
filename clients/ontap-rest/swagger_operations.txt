@@ -66,6 +66,8 @@ host_record_get
 igroup_collection_get
 igroup_create
 igroup_delete
+igroup_initiator_create
+igroup_initiator_delete
 igroup_modify
 ip_service_policy_create
 ip_service_policy_modify

@@ -19,6 +19,7 @@ import (
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/iam/v1"
 )
@@ -185,7 +186,7 @@ func TestCreateIgroup_Success(t *testing.T) {
 	}
 
 	// Mock IgroupExists and IgroupCreate methods
-	mockProvider.On("IgroupExists", "host1", "test-svm").Return(false, nil)
+	mockProvider.On("IgroupExists", "host1", nillable.GetStringPtr("test-svm")).Return(false, nil, nil)
 	mockProvider.On("IgroupCreate", vsa.IgroupCreateParams{
 		IgroupName: "host1",
 		SvmName:    "test-svm",
@@ -222,7 +223,7 @@ func TestCreateIgroup_Exists(t *testing.T) {
 	}
 
 	// Mock IgroupExists method
-	mockProvider.On("IgroupExists", "host1", "test-svm").Return(true, nil)
+	mockProvider.On("IgroupExists", "host1", nillable.GetStringPtr("test-svm")).Return(true, nil, nil)
 
 	// Act
 	err := activity.CreateIgroup(ctx, volume, hostParams, node)
@@ -253,7 +254,7 @@ func TestCreateIgroup_Failure_IgroupExists(t *testing.T) {
 	}
 
 	// Mock IgroupExists method to return an error
-	mockProvider.On("IgroupExists", "host1", "test-svm").Return(false, errors.New("failed to check igroup existence"))
+	mockProvider.On("IgroupExists", "host1", nillable.GetStringPtr("test-svm")).Return(false, nil, errors.New("failed to check igroup existence"))
 
 	// Act
 	err := activity.CreateIgroup(ctx, volume, hostParams, node)
@@ -284,7 +285,7 @@ func TestCreateIgroup_Failure_IgroupCreate(t *testing.T) {
 	}
 
 	// Mock IgroupExists and IgroupCreate methods
-	mockProvider.On("IgroupExists", "host1", "test-svm").Return(false, nil)
+	mockProvider.On("IgroupExists", "host1", nillable.GetStringPtr("test-svm")).Return(false, nil, nil)
 	mockProvider.On("IgroupCreate", vsa.IgroupCreateParams{
 		IgroupName: "host1",
 		SvmName:    "test-svm",
@@ -673,7 +674,14 @@ func TestGetHosts_Success(t *testing.T) {
 	volume := &datamodel.Volume{
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			BlockProperties: &datamodel.BlockProperties{
-				HostGroupUUIDs: []string{"uuid1", "uuid2"},
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{
+						HostGroupUUID: "uuid1",
+					},
+					{
+						HostGroupUUID: "uuid2",
+					},
+				},
 			},
 		},
 		AccountID: 123,
@@ -722,7 +730,14 @@ func TestGetHosts_Failure_HostGroupsNotFound(t *testing.T) {
 	volume := &datamodel.Volume{
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			BlockProperties: &datamodel.BlockProperties{
-				HostGroupUUIDs: []string{"uuid1", "uuid2"},
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{
+						HostGroupUUID: "uuid1",
+					},
+					{
+						HostGroupUUID: "uuid2",
+					},
+				},
 			},
 		},
 		AccountID: 123,
@@ -749,7 +764,14 @@ func TestGetHosts_Failure_GetMultipleHostGroupsError(t *testing.T) {
 	volume := &datamodel.Volume{
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			BlockProperties: &datamodel.BlockProperties{
-				HostGroupUUIDs: []string{"uuid1", "uuid2"},
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{
+						HostGroupUUID: "uuid1",
+					},
+					{
+						HostGroupUUID: "uuid2",
+					},
+				},
 			},
 		},
 		AccountID: 123,

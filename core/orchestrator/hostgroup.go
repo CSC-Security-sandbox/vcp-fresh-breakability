@@ -2,10 +2,17 @@ package orchestrator
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/client"
 )
 
 var (
@@ -14,15 +21,6 @@ var (
 	deleteHostGroup      = _deleteHostGroup
 	getMultipleHostGroup = _getMultipleHostGroup
 )
-
-type CreateHostGroupParams struct {
-	Name          string
-	Description   string
-	HostGroupType string
-	Hosts         []string
-	OSType        string
-	AccountID     string
-}
 
 // GetHostGroup retrieves the specified host group and returns it
 func (o *Orchestrator) GetHostGroup(ctx context.Context, hostGroupUUID string, accountID string) (*models.HostGroup, error) {
@@ -44,12 +42,12 @@ func _getHostGroup(ctx context.Context, storage database.Storage, hostGroupUUID 
 }
 
 // CreateHostGroup creates the specified host group and adds it to the list of host group belonging to the specified owner
-func (o *Orchestrator) CreateHostGroup(ctx context.Context, params *CreateHostGroupParams) (*models.HostGroup, error) {
+func (o *Orchestrator) CreateHostGroup(ctx context.Context, params *common.CreateHostGroupParams) (*models.HostGroup, error) {
 	return createHostGroup(ctx, o.storage, params)
 }
 
-func _createHostGroup(ctx context.Context, storage database.Storage, params *CreateHostGroupParams) (*models.HostGroup, error) {
-	account, err := getOrCreateAccount(ctx, storage, params.AccountID)
+func _createHostGroup(ctx context.Context, storage database.Storage, params *common.CreateHostGroupParams) (*models.HostGroup, error) {
+	account, err := getOrCreateAccount(ctx, storage, params.AccountName)
 	if err != nil {
 		return nil, err
 	}
@@ -133,4 +131,45 @@ func _getMultipleHostGroup(ctx context.Context, storage database.Storage, hostGr
 	}
 
 	return convHostGroups, nil
+}
+
+func (o *Orchestrator) UpdateHostGroup(ctx context.Context, params *common.UpdateHostGroupParams) (*models.HostGroup, string, error) {
+	logger := util.GetLogger(ctx)
+	account, err := o.storage.GetAccount(ctx, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	hg, err := o.storage.UpdateHostGroup(ctx, params.HostGroupUUID, account.ID, params.Description, &params.Hosts)
+	if err != nil {
+		return nil, "", err
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeUpdateHostGroup),
+		State:        string(models.JobsStateNEW),
+		ResourceName: hg.Name,
+		AccountID:    sql.NullInt64{Int64: hg.Account.ID, Valid: true},
+	}
+	createdJob, err := o.storage.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create hostgroup update job", "error", err)
+		return nil, "", err
+	}
+
+	_, err = o.temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		workflows.UpdateHostGroupWorkflow,
+		hg,
+	)
+	if err != nil {
+		logger.Error("Failed to start update hostgroup workflow: ", "error", err)
+		return nil, "", err
+	}
+
+	return convertDatastoreHostGroupToModel(hg, account.Name), createdJob.UUID, nil
 }

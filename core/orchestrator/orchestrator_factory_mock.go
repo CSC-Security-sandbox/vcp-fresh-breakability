@@ -271,7 +271,7 @@ func (_c *MockOrchestratorFactory_CreateBackup_Call) RunAndReturn(run func(conte
 }
 
 // CreateHostGroup provides a mock function with given fields: ctx, params
-func (_m *MockOrchestratorFactory) CreateHostGroup(ctx context.Context, params *CreateHostGroupParams) (*models.HostGroup, error) {
+func (_m *MockOrchestratorFactory) CreateHostGroup(ctx context.Context, params *common.CreateHostGroupParams) (*models.HostGroup, error) {
 	ret := _m.Called(ctx, params)
 
 	if len(ret) == 0 {
@@ -280,10 +280,10 @@ func (_m *MockOrchestratorFactory) CreateHostGroup(ctx context.Context, params *
 
 	var r0 *models.HostGroup
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *CreateHostGroupParams) (*models.HostGroup, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateHostGroupParams) (*models.HostGroup, error)); ok {
 		return rf(ctx, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *CreateHostGroupParams) *models.HostGroup); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateHostGroupParams) *models.HostGroup); ok {
 		r0 = rf(ctx, params)
 	} else {
 		if ret.Get(0) != nil {
@@ -291,7 +291,7 @@ func (_m *MockOrchestratorFactory) CreateHostGroup(ctx context.Context, params *
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *CreateHostGroupParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *common.CreateHostGroupParams) error); ok {
 		r1 = rf(ctx, params)
 	} else {
 		r1 = ret.Error(1)
@@ -307,14 +307,14 @@ type MockOrchestratorFactory_CreateHostGroup_Call struct {
 
 // CreateHostGroup is a helper method to define mock.On call
 //   - ctx context.Context
-//   - params *CreateHostGroupParams
+//   - params *common.CreateHostGroupParams
 func (_e *MockOrchestratorFactory_Expecter) CreateHostGroup(ctx interface{}, params interface{}) *MockOrchestratorFactory_CreateHostGroup_Call {
 	return &MockOrchestratorFactory_CreateHostGroup_Call{Call: _e.mock.On("CreateHostGroup", ctx, params)}
 }
 
-func (_c *MockOrchestratorFactory_CreateHostGroup_Call) Run(run func(ctx context.Context, params *CreateHostGroupParams)) *MockOrchestratorFactory_CreateHostGroup_Call {
+func (_c *MockOrchestratorFactory_CreateHostGroup_Call) Run(run func(ctx context.Context, params *common.CreateHostGroupParams)) *MockOrchestratorFactory_CreateHostGroup_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*CreateHostGroupParams))
+		run(args[0].(context.Context), args[1].(*common.CreateHostGroupParams))
 	})
 	return _c
 }
@@ -324,7 +324,7 @@ func (_c *MockOrchestratorFactory_CreateHostGroup_Call) Return(_a0 *models.HostG
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_CreateHostGroup_Call) RunAndReturn(run func(context.Context, *CreateHostGroupParams) (*models.HostGroup, error)) *MockOrchestratorFactory_CreateHostGroup_Call {
+func (_c *MockOrchestratorFactory_CreateHostGroup_Call) RunAndReturn(run func(context.Context, *common.CreateHostGroupParams) (*models.HostGroup, error)) *MockOrchestratorFactory_CreateHostGroup_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2660,6 +2660,72 @@ func (_c *MockOrchestratorFactory_ResumeReplicationInternal_Call) Return(_a0 *mo
 }
 
 func (_c *MockOrchestratorFactory_ResumeReplicationInternal_Call) RunAndReturn(run func(context.Context, string, string, bool) (*models.VolumeReplication, *datamodel.Job, error)) *MockOrchestratorFactory_ResumeReplicationInternal_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateHostGroup provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpdateHostGroup(ctx context.Context, params *common.UpdateHostGroupParams) (*models.HostGroup, string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateHostGroup")
+	}
+
+	var r0 *models.HostGroup
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateHostGroupParams) (*models.HostGroup, string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateHostGroupParams) *models.HostGroup); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.HostGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.UpdateHostGroupParams) string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.UpdateHostGroupParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_UpdateHostGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateHostGroup'
+type MockOrchestratorFactory_UpdateHostGroup_Call struct {
+	*mock.Call
+}
+
+// UpdateHostGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.UpdateHostGroupParams
+func (_e *MockOrchestratorFactory_Expecter) UpdateHostGroup(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpdateHostGroup_Call {
+	return &MockOrchestratorFactory_UpdateHostGroup_Call{Call: _e.mock.On("UpdateHostGroup", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateHostGroup_Call) Run(run func(ctx context.Context, params *common.UpdateHostGroupParams)) *MockOrchestratorFactory_UpdateHostGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.UpdateHostGroupParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateHostGroup_Call) Return(_a0 *models.HostGroup, _a1 string, _a2 error) *MockOrchestratorFactory_UpdateHostGroup_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateHostGroup_Call) RunAndReturn(run func(context.Context, *common.UpdateHostGroupParams) (*models.HostGroup, string, error)) *MockOrchestratorFactory_UpdateHostGroup_Call {
 	_c.Call.Return(run)
 	return _c
 }

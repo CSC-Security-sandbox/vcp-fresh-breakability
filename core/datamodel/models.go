@@ -154,10 +154,15 @@ type VolumeAttributes struct {
 }
 
 type BlockProperties struct {
-	OSType          string   `json:"os_type"`
-	HostGroupUUIDs  []string `json:"host_group_uuids"`
-	LunSerialNumber string   `json:"serial_number"`
-	LunUUID         string   `json:"lun_uuid"`
+	OSType           string            `json:"os_type"`
+	HostGroupDetails []HostGroupDetail `json:"host_group_details"`
+	LunSerialNumber  string            `json:"serial_number"`
+	LunUUID          string            `json:"lun_uuid"`
+}
+
+type HostGroupDetail struct {
+	HostGroupUUID string   `json:"host_group_uuid"`
+	HostQNs       []string `json:"host_qns"`
 }
 
 func (v *VolumeAttributes) Scan(value interface{}) error {

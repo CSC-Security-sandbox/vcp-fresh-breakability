@@ -4,13 +4,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"golang.org/x/net/context"
 )
 
@@ -237,5 +241,190 @@ func TestDeleteHostGroups(t *testing.T) {
 		}
 		_, err = orch.DeleteHostGroup(ctx, account.Name, "non-existent-uuid")
 		assert.EqualError(tt, err, "host group not found")
+	})
+}
+
+func TestUpdateHostGroup(t *testing.T) {
+	t.Run("WhenUpdateHostGroupAccountNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.UpdateHostGroupParams{
+			AccountName:   "non-existent-account",
+			HostGroupUUID: "test-hg-uuid",
+			Description:   nillable.GetStringPtr("Updated description"),
+			Hosts:         []string{"a", "b"},
+		}
+
+		_, _, err = orch.UpdateHostGroup(ctx, params)
+		assert.Error(tt, err, "Expected error when account is not found")
+	})
+	t.Run("WhenUpdateHostGroupWorkflowFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-hg-uuid"},
+			Name:      "test_hg",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(hg).Error
+		assert.NoError(tt, err, "Failed to create host group")
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, vsaerrors.New("some error")).Once()
+
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+
+		params := &common.UpdateHostGroupParams{
+			AccountName:   account.Name,
+			HostGroupUUID: hg.UUID,
+			Description:   nillable.GetStringPtr("Updated description"),
+			Hosts:         []string{"a", "b"},
+		}
+
+		hgResp, jobUUID, err := orch.UpdateHostGroup(ctx, params)
+		assert.EqualError(tt, err, "some error", "Expected error when workflow execution fails")
+		assert.Nil(tt, hgResp, "Host group response should be nil")
+		assert.Emptyf(tt, jobUUID, "Job UUID should be empty when workflow execution fails")
+	})
+	t.Run("WhenUpdateHostGroupDBFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-hg-uuid"},
+			Name:      "test_hg",
+			AccountID: account.ID,
+		}
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+
+		params := &common.UpdateHostGroupParams{
+			AccountName:   account.Name,
+			HostGroupUUID: hg.UUID,
+			Description:   nillable.GetStringPtr("Updated description"),
+			Hosts:         []string{"a", "b"},
+		}
+
+		hgResp, jobUUID, err := orch.UpdateHostGroup(ctx, params)
+		assert.EqualError(tt, err, "host group not found", "Expected error when workflow execution fails")
+		assert.Nil(tt, hgResp, "Host group response should be nil")
+		assert.Emptyf(tt, jobUUID, "Job UUID should be empty when workflow execution fails")
+	})
+
+	t.Run("WhenUpdateHostGroupSuccess", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-hg-uuid"},
+			Name:      "test_hg",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(hg).Error
+		assert.NoError(tt, err, "Failed to create host group")
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+
+		params := &common.UpdateHostGroupParams{
+			AccountName:   account.Name,
+			HostGroupUUID: hg.UUID,
+			Description:   nillable.GetStringPtr("Updated description"),
+			Hosts:         []string{"a", "b"},
+		}
+
+		hgResp, jobUUID, err := orch.UpdateHostGroup(ctx, params)
+		assert.NoError(tt, err, "Failed to update host group")
+		assert.NotNil(tt, hgResp, "Host group response should not be nil")
+		assert.NotEmpty(tt, jobUUID, "Job UUID should not be empty")
+		assert.Equal(tt, "Updated description", hgResp.Description, "Host group description should be updated")
 	})
 }

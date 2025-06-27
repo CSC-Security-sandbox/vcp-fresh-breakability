@@ -911,6 +911,18 @@ func (s *BlockPropertiesV1beta) SetFake() {
 	}
 	{
 		{
+			s.HostGroupDetails = nil
+			for i := 0; i < 0; i++ {
+				var elem HostGroupDetail
+				{
+					elem.SetFake()
+				}
+				s.HostGroupDetails = append(s.HostGroupDetails, elem)
+			}
+		}
+	}
+	{
+		{
 			s.LunSerialNumber.SetFake()
 		}
 	}
@@ -1292,6 +1304,27 @@ func (s *Health) SetFake() {
 	{
 		{
 			s.Status.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *HostGroupDetail) SetFake() {
+	{
+		{
+			s.HostGroupId.SetFake()
+		}
+	}
+	{
+		{
+			s.Hosts = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.Hosts = append(s.Hosts, elem)
+			}
 		}
 	}
 }

@@ -67,11 +67,17 @@ type CreateVolumeParams struct {
 	QuotaInBytes     uint64
 	IsDataProtection bool
 	Protocols        []string
-	BlockProperties  *models.BlockProperties
+	BlockProperties  *BlockPropertiesRequest
 	DataProtection   *models.DataProtection
 	SnapshotID       string
 	SnapshotPolicy   *models.SnapshotPolicy
 	Snapshot         *datamodel.Snapshot
+}
+
+type BlockPropertiesRequest struct {
+	OSType          string
+	HostGroupUUIDs  []string
+	LunSerialNumber string
 }
 
 // UpdateVolumeParams describes parameters supplied to UpdateVolume
@@ -87,7 +93,7 @@ type UpdateVolumeParams struct {
 	QuotaInBytes    int64
 	Protocols       []string
 	Labels          map[string]string
-	BlockProperties *models.BlockProperties
+	BlockProperties *BlockPropertiesRequest
 	SnapshotPolicy  *models.SnapshotPolicy
 	DataProtection  *models.DataProtection
 	InitiateSplit   bool
@@ -321,4 +327,21 @@ type ResumeReplicationParams struct {
 	CorrelationId         string
 	VolumeResourceId      string
 	ReplicationResourceId string
+}
+
+// UpdateHostGroupParams describes parameters supplied to UpdateHostGroup
+type UpdateHostGroupParams struct {
+	Hosts         []string
+	Description   *string
+	AccountName   string
+	HostGroupUUID string
+}
+
+type CreateHostGroupParams struct {
+	Name          string
+	Description   string
+	HostGroupType string
+	Hosts         []string
+	OSType        string
+	AccountName   string
 }

@@ -22,9 +22,10 @@ type OrchestratorFactory interface {
 	ListPools(ctx context.Context, accountName string) ([]*models.Pool, error)
 	ListAllPools(ctx context.Context) ([]*models.Pool, error)
 
-	CreateHostGroup(ctx context.Context, params *CreateHostGroupParams) (*models.HostGroup, error)
+	CreateHostGroup(ctx context.Context, params *commonparams.CreateHostGroupParams) (*models.HostGroup, error)
 	GetHostGroup(ctx context.Context, hostGroupUUID string, accountID string) (*models.HostGroup, error)
 	DeleteHostGroup(ctx context.Context, hostGroupUUID string, accountID string) (*models.HostGroup, error)
+	UpdateHostGroup(ctx context.Context, params *commonparams.UpdateHostGroupParams) (*models.HostGroup, string, error)
 	GetMultipleHostGroups(ctx context.Context, accountName string, hostGroupUUIDs []string) ([]*models.HostGroup, error)
 
 	CreateVolume(ctx context.Context, params *commonparams.CreateVolumeParams) (*models.Volume, string, error)

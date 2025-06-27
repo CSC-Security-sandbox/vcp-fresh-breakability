@@ -13,10 +13,13 @@ type SANClient interface { // generate:mock
 	IGroupCreate(params *IgroupCreateParams) (string, error)
 	IGroupsGet(params *IgroupGetParams) ([]*Igroup, error)
 	IGroupGet(params *IgroupGetParams) (*Igroup, error)
+	IGroupAddInitiator(params *IgroupAddInitiatorParams) error
+	IGroupDeleteInitiator(params *IgroupDeleteInitiatorParams) error
 	LunCreate(params *LunCreateParams) (*Lun, error)
 	LunGet(params *LunGetParams) (*Lun, error)
 	LunUpdate(params *LunUpdateParams) (bool, *JobAccepted, error)
 	LunMapCreate(params *LunMapCreateParams) error
+	LunMapDelete(params *LunMapDeleteParams) error
 }
 
 var (
@@ -122,6 +125,12 @@ func (t *sanClient) LunMapCreate(params *LunMapCreateParams) error {
 	return err
 }
 
+// LunMapDelete invokes clients/ontap-rest/client/s_a_n/Client.LunMapDelete to  a LUN mapping
+func (t *sanClient) LunMapDelete(params *LunMapDeleteParams) error {
+	_, err := t.api.LunMapDelete(lunMapDeleteParamsToONTAP(params), nil)
+	return err
+}
+
 // IGroupGet invokes clients/ontap-rest/client/s_a_n/Client.IGroupCreate to create an initiator group
 func (t *sanClient) IGroupGet(params *IgroupGetParams) (*Igroup, error) {
 	if params.Name == nil {
@@ -174,4 +183,24 @@ func (t *sanClient) IGroupsGet(params *IgroupGetParams) ([]*Igroup, error) {
 	}
 
 	return igroups, nil
+}
+
+// IGroupAddInitiator invokes clients/ontap-rest/client/s_a_n/Client.IGroupInitiator to add a new initiator to an existing initiator group
+func (t *sanClient) IGroupAddInitiator(params *IgroupAddInitiatorParams) error {
+	_, err := t.api.IgroupInitiatorCreate(igroupAddInitiatorParamsToONTAP(params), nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// IGroupDeleteInitiator invokes clients/ontap-rest/client/s_a_n/Client.IGroupInitiator to delete an initiator from an existing initiator group
+func (t *sanClient) IGroupDeleteInitiator(params *IgroupDeleteInitiatorParams) error {
+	_, err := t.api.IgroupInitiatorDelete(igroupDeleteInitiatorParamsToONTAP(params), nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
