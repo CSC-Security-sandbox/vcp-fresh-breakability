@@ -59,6 +59,7 @@ manifests:
     - postgres/kubernetes/*
     - worker/kubernetes/*
     - telemetry/kubernetes/*
+    - harvest-farm/kubernetes/*
   helm:
     releases:
       - name: local-temporal
@@ -94,6 +95,11 @@ portForward:
     namespace: vcp
     port: 8080
     localPort: 9090
+  - resourceType: service
+    resourceName: harvest-farm-service
+    namespace: vcp
+    port: 3000
+    localPort: 3000
 profiles:
   - name: gcb
     build:
