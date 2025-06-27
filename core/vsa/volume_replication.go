@@ -50,7 +50,7 @@ const (
 const (
 	SnapmirrorStateUninitialized             = "uninitialized"
 	SnapmirrorStateMirrored                  = "snapmirrored"
-	SnapmirrorStateBroken                    = "broken-off"
+	SnapmirrorStateBroken                    = "broken_off"
 	SnapMirrorRelationshipStatusTransferring = "transferring"
 	SnapmirrorRelationshipStateIdle          = "idle"
 )

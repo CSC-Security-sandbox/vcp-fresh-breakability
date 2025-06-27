@@ -73,3 +73,42 @@ type CreateReplicationResult struct {
 	DstSvm           *string
 	DbVolReplication *datamodel.VolumeReplication
 }
+
+type CommonReplicationEventParams struct {
+	ReplicationModel         *datamodel.VolumeReplication
+	SourceProjectNumber      string  `json:"SourceProjectNumber,omitempty"`
+	DestinationProjectNumber string  `json:"DestinationProjectNumber,omitempty"`
+	XCorrelationID           *string `json:"XCorrelationID,omitempty"`
+	VolumeResourceID         string  `json:"VolumeResourceID,omitempty"`
+	ReplicationResourceID    string  `json:"ReplicationResourceID,omitempty"`
+	Location                 string  `json:"Location,omitempty"`
+	Zone                     string  `json:"Zone,omitempty"`
+	AccountName              string  `json:"AccountName,omitempty"`
+	SrcBasePath              string  `json:"SrcBasePath,omitempty"`
+	DstBasePath              string  `json:"DstBasePath,omitempty"`
+	SrcToken                 string  `json:"SrcToken,omitempty"`
+	DstToken                 string  `json:"DstToken,omitempty"`
+}
+
+type ResumeReplicationEvent struct {
+	ReplicationEventBase
+	CommonReplicationEventParams
+}
+
+type ResumeReplicationResult struct {
+	Ctx              context.Context
+	Event            *ResumeReplicationEvent
+	EventBytes       []byte
+	DstBasePath      *string
+	SrcBasePath      *string
+	DstProjectNumber *string
+	SrcProjectNumber *string
+	DstJwtToken      *string
+	SrcJwtToken      *string
+	DstReplication   *googleproxyclient.VolumeReplicationInternalV1beta
+	DstVolume        *googleproxyclient.VolumeV1beta
+	SrcVolume        *googleproxyclient.VolumeV1beta
+	Error            error
+	JobId            *string
+	DbVolReplication *datamodel.VolumeReplication
+}

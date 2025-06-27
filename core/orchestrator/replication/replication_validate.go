@@ -10,32 +10,42 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/pools"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/replications"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
+	ValidateReplicationParams       = _validateReplicationParams
 	ValidateCreateReplicationParams = _validateCreateReplicationParams
 	validateReplicationResourceId   = _validateReplicationResourceId
 	validateLabels                  = _validateLabels
 	internalUtilGetCCFEURI          = GetCCFEURI
+	utilsParseProjectNumberFromURI  = utils.ParseProjectNumberFromURI
 
 	validateStoragePoolUri      = _validateStoragePoolUri
 	getDestinationPool          = _getDestinationPool
 	getVolume                   = _getVolume
+	describeVolume              = _describeVolume
 	createReplicationObjects    = _createReplicationObjects
 	replicationJobInProcess     = _replicationJobInProcess
 	internalGetReplicationCount = _internalGetReplicationCount
 	internalGetVolumeCount      = _internalGetVolumeCount
 	getReplicationJobs          = _getReplicationJobs
+	getReplication              = _getReplication
+	VerifyDstReplicationResume  = _verifyDstReplicationResume
+	VerifyDstVolume             = _verifyDstVolume
 
 	InternalUtilGetCallbackToken   = auth.GetSignedAccessToken
 	InternalUtilGetSignedToken     = auth.GetSignedJwtToken
@@ -223,7 +233,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	if err != nil {
 		if err.Error() != "volume not found" {
 			logger.Error("getDestinationVolume error", common.Error(err))
-			return nil, errors.NewVCPError(errors.ErrValidateCreateGetVolume, err)
+			return nil, errors.NewVCPError(errors.ErrValidateGetVolume, err)
 		}
 	}
 	if destVolume.ResourceId != "" {
@@ -533,4 +543,229 @@ func _validateStoragePoolUri(uri string) error {
 func GetCCFEURI(projectNumber, location, volumeName, replicationName string) string {
 	out := fmt.Sprintf("projects/%s/locations/%s/volumes/%s/replications/%s", projectNumber, location, volumeName, replicationName)
 	return out
+}
+
+func _validateReplicationParams(ctx context.Context, event *CommonReplicationEventParams, accountID int64, se database.Storage) error {
+	logger := util.GetLogger(ctx)
+	ccfeURI := internalUtilGetCCFEURI(event.AccountName, event.Location, event.VolumeResourceID, event.ReplicationResourceID)
+	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
+		utils.NewFilterCondition().WithConditions("account_id", "=", accountID),
+		utils.NewFilterCondition().WithConditions("uri", "=", ccfeURI)})
+	replicationDb, err := se.ListVolumeReplications(ctx, *filter)
+	if err != nil {
+		return errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
+	}
+	if len(replicationDb) == 0 {
+		logger.Error("Replication not found in database", common.String("ccfeURI", ccfeURI))
+		return utilErrors.NewUserInputValidationErr("No replication found for the given URI")
+	}
+	replication := replicationDb[0]
+
+	remoteProject, err := utilsParseProjectNumberFromURI(replication.RemoteUri)
+	if err != nil {
+		logger.Error("Parse Remote URI Error", common.Error(err))
+		return errors.NewVCPError(errors.ErrProjectParsingError, err)
+	}
+
+	event.SourceProjectNumber, event.DestinationProjectNumber = event.AccountName, remoteProject
+	if replication.ReplicationAttributes.EndpointType == coreModels.DstEndpoint {
+		event.SourceProjectNumber, event.DestinationProjectNumber = remoteProject, event.AccountName
+	}
+
+	srcToken, err := InternalUtilGetSignedToken(event.SourceProjectNumber)
+	if err != nil {
+		logger.Error("Get Signed Token Error", common.Error(err))
+		return errors.NewVCPError(errors.ErrGetSignedToken, err)
+	}
+
+	dstToken := srcToken
+	if event.DestinationProjectNumber != event.SourceProjectNumber {
+		// if remoteProject is not the same as the projectNumber, we need to get a new token for the remote project
+		dstToken, err = InternalUtilGetSignedToken(event.DestinationProjectNumber)
+		if err != nil {
+			logger.Error("Get Signed Token Error For Remote Project", common.Error(err))
+			return errors.NewVCPError(errors.ErrGetSignedToken, err)
+		}
+	}
+
+	srcBasePath, err := InternalUtilGetPairedRegionURI(replication.ReplicationAttributes.SourceLocation)
+	if err != nil {
+		logger.Error("Get Paired Source Region Uri error", common.Error(err))
+		return errors.NewVCPError(errors.ErrGetSrcBasePath, err)
+	}
+
+	dstBasePath, err := InternalUtilGetPairedRegionURI(replication.ReplicationAttributes.DestinationLocation)
+	if err != nil {
+		logger.Error("Get Paired Destination Region Uri error", common.Error(err))
+		return errors.NewVCPError(errors.ErrGetDstBasePath, err)
+	}
+
+	// Check if replication job is in process
+	err = replicationJobInProcess(ctx, event.SourceProjectNumber, event.DestinationProjectNumber, srcBasePath, dstBasePath, replication.ReplicationAttributes.SourceLocation, replication.ReplicationAttributes.DestinationLocation, srcToken, dstToken, replication.Uri, replication.RemoteUri, replication.ReplicationAttributes.SourcePoolUUID, replication.ReplicationAttributes.DestinationPoolUUID, event.XCorrelationID)
+	if err != nil {
+		return err
+	}
+	event.SrcBasePath = srcBasePath
+	event.DstBasePath = dstBasePath
+	event.SrcToken = srcToken
+	event.DstToken = dstToken
+	event.ReplicationModel = replication
+	return nil
+}
+
+func _verifyDstReplicationResume(ctx context.Context, event *ResumeReplicationEvent) (*coreModels.VolumeReplication, error) {
+	logger := util.GetLogger(ctx)
+	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
+	if err != nil || dstReplication == nil {
+		logger.Error("getReplication error", common.Error(err))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
+	}
+
+	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateMIRRORED {
+		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication mirror state should be %s", models.ReplicationV1betaMirrorStateSTOPPED))
+	}
+
+	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateUNINITIALIZED && *dstReplication.RelationshipStatus == coreModels.SnapmirrorRelationshipTransferring {
+		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status should be %s", models.VolumeReplicationCVPV1betaRelationshipStatusIdle))
+	}
+
+	return dstReplication, nil
+}
+
+func _verifyDstVolume(ctx context.Context, event *ResumeReplicationEvent, srcBasePath string, destBasePath string, srcToken string, dstToken string) (googleproxyclient.VolumeV1beta, googleproxyclient.VolumeV1beta, error) {
+	logger := util.GetLogger(ctx)
+	srcVolume, err := describeVolume(ctx, srcBasePath, srcToken, event.ReplicationModel.ReplicationAttributes.SourceLocation, event.SourceProjectNumber, event.XCorrelationID, event.ReplicationModel.ReplicationAttributes.SourceVolumeUUID)
+	if err != nil {
+		if err.Error() != "volume not found" {
+			logger.Error("getSourceVolume error", common.Error(err))
+			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrValidateGetVolume, err)
+		}
+		return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
+	}
+
+	dstVolume, err := describeVolume(ctx, destBasePath, dstToken, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.DestinationProjectNumber, event.XCorrelationID, event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID)
+	if err != nil {
+		if err.Error() != "volume not found" {
+			logger.Error("getDestinationVolume error", common.Error(err))
+			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrValidateGetVolume, err)
+		}
+		return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
+	}
+
+	if (srcVolume.VolumeState.Set && srcVolume.VolumeState.Value == vsa.VolumeStateOffline) && (dstVolume.VolumeState.Set && dstVolume.VolumeState.Value == vsa.VolumeStateOffline) {
+		return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, utilErrors.NewWithTrackingID("Volume is offline", utilErrors.VolumeInOfflineState)
+	}
+
+	var srcQuotaInBytes float64
+	var dstQuotaInBytes float64
+	var dstUsedBytes float64
+
+	if srcVolume.QuotaInBytes.Set {
+		srcQuotaInBytes = srcVolume.QuotaInBytes.Value
+	}
+	if dstVolume.QuotaInBytes.Set {
+		dstQuotaInBytes = dstVolume.QuotaInBytes.Value
+	}
+	if dstVolume.UsedBytes.Set {
+		dstUsedBytes = dstVolume.UsedBytes.Value
+	}
+	if srcQuotaInBytes != dstQuotaInBytes {
+		if dstUsedBytes > srcQuotaInBytes {
+			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, utilErrors.NewBadRequestErr("Destination volume used size is greater than source volume available quota")
+		}
+	}
+	return srcVolume, dstVolume, nil
+}
+
+func _describeVolume(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeId string) (googleproxyclient.VolumeV1beta, error) {
+	logger := util.GetLogger(ctx)
+	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, token, logger)
+	params := googleproxyclient.V1betaDescribeVolumeParams{}
+	params.LocationId = locationID
+	params.ProjectNumber = projectNumber
+	params.XCorrelationID = googleproxyclient.OptString{Value: *xCorrelationID, Set: true}
+	params.VolumeId = volumeId
+
+	response, err := googleProxyClient.Invoker.V1betaDescribeVolume(ctx, params)
+	if err != nil {
+		return googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrListVolumes, err)
+	}
+	volumeResponse := response.(*googleproxyclient.VolumeV1beta)
+	if volumeResponse == nil {
+		return googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrGetVolumeNotFound, nil)
+	}
+
+	return *volumeResponse, nil
+}
+
+func _getReplication(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+	logger := util.GetLogger(ctx)
+
+	logger.Debug(
+		"get destination replication",
+		common.String("basePath", basePath),
+		common.String("projectNumber", projectNumber),
+		common.String("locationID", locationID),
+		common.String("volumeReplicationID", volumeReplicationID),
+	)
+	payloadError := &models.Error{Code: float64(404), Message: fmt.Sprintf("Error fetching replication - Replication %s not found", volumeReplicationID)}
+	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, jwt, logger)
+	params := &googleproxyclient.V1betaGetMultipleReplicationsInternalParams{
+		ProjectNumber: projectNumber,
+		LocationId:    locationID,
+	}
+	body := googleproxyclient.ReplicationIDListV1beta{ReplicationUUIDs: []string{volumeReplicationID}}
+	response, err := googleProxyClient.Invoker.V1betaGetMultipleReplicationsInternal(ctx, &body, *params)
+	if err != nil {
+		return nil, err
+	}
+	replicationResponse := response.(*googleproxyclient.V1betaGetMultipleReplicationsInternalOK)
+
+	if replicationResponse != nil && len(replicationResponse.Replications) < 1 {
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplicationsNotFound, &replications.V1betaGetMultipleReplicationsNotFound{Payload: payloadError})
+	}
+
+	return convertReplicationResponseToModels(replicationResponse), nil
+}
+
+func convertReplicationResponseToModels(response *googleproxyclient.V1betaGetMultipleReplicationsInternalOK) *coreModels.VolumeReplication {
+	var replication coreModels.VolumeReplication
+	if response.Replications != nil && len(response.Replications) < 1 {
+		return nil
+	}
+	var mirrorState, relationshipStatus string
+	if response.Replications[0].MirrorState.Set {
+		mirrorState = string(response.Replications[0].MirrorState.Value)
+		replication.MirrorState = &mirrorState
+	}
+	if response.Replications[0].RelationshipStatus.Set {
+		relationshipStatus = string(response.Replications[0].RelationshipStatus.Value)
+		replication.RelationshipStatus = &relationshipStatus
+	}
+	replication.Name = response.Replications[0].Name.Value
+	replication.UUID = response.Replications[0].VolumeReplicationUuid.Value
+	replication.Description = response.Replications[0].Description.Value
+	replication.ReplicationAttributes = &coreModels.ReplicationDetails{
+		SourceVolumeUUID:      response.Replications[0].SourceVolumeUuid.Value,
+		SourceVolumeName:      response.Replications[0].SourceVolumeName,
+		DestinationVolumeUUID: response.Replications[0].DestinationVolumeUuid.Value,
+		DestinationVolumeName: response.Replications[0].DestinationVolumeName,
+		ReplicationSchedule:   string(response.Replications[0].ReplicationSchedule.Value),
+		EndpointType:          string(response.Replications[0].EndpointType),
+	}
+	replication.TotalTransferBytes = response.Replications[0].TotalTransferBytes.Value
+	replication.TotalTransferTimeSecs = response.Replications[0].TotalTransferTimeSecs.Value
+	replication.LastTransferSize = response.Replications[0].LastTransferSize.Value
+	replication.LastTransferError = response.Replications[0].LastTransferError.Value
+	replication.LastTransferDuration = response.Replications[0].LastTransferDuration.Value
+	replication.TotalProgress = response.Replications[0].TotalProgress.Value
+	replication.LagTime = response.Replications[0].LagTime.Value
+	if response.Replications[0].LastTransferEndTime.Set {
+		replication.LastTransferEndTime = &response.Replications[0].LastTransferEndTime.Value
+	}
+	if response.Replications[0].ProgressLastUpdated.Set {
+		replication.ProgressLastUpdated = &response.Replications[0].ProgressLastUpdated.Value
+	}
+	replication.CreatedAt = response.Replications[0].CreatedAt.Value
+	return &replication
 }

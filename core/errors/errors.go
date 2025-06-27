@@ -105,7 +105,7 @@ const (
 	ErrGetVolumeQuotaLimitInternal                                   = 6032
 	ErrValidateCreateReplicationCvpInternalGetVolumeCount            = 6033
 	ErrVolumeQuotaLimitExceeded                                      = 6034
-	ErrValidateCreateGetVolume                                       = 6035
+	ErrValidateGetVolume                                             = 6035
 	ErrGetVolumeCreateTokenInUse                                     = 6036
 	ErrValidateCreateDummyReplication                                = 6037
 	ErrServiceLevelMismatch                                          = 6038

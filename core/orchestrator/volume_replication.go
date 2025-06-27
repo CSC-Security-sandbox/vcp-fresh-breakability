@@ -34,6 +34,10 @@ var (
 	getReplicationObjects                      = _getReplicationObjects
 	googleProxyInternalGetMultipleReplications = _googleProxyInternalGetMultipleReplications
 	validateCreateReplicationParams            = replication.ValidateCreateReplicationParams
+	validateReplicationParams                  = replication.ValidateReplicationParams
+	verifyDstReplicationResume                 = replication.VerifyDstReplicationResume
+	resumeReplication                          = _resumeReplication
+	resumeReplicationInternal                  = _resumeReplicationInternal
 
 	utilParseRegionAndZone            = utils.ParseRegionAndZone
 	utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -603,4 +607,133 @@ func mapInternalReplicationMirrorStateToCCFEMirrorState(mirrorState googleproxyc
 	default:
 		return gcpgenserver.ReplicationV1betaMirrorStateMIRRORSTATEUNSPECIFIED
 	}
+}
+
+func (o *Orchestrator) ResumeReplication(ctx context.Context, params *commonparams.ResumeReplicationParams) (*models.VolumeReplication, string, error) {
+	return resumeReplication(ctx, o.storage, o.temporal, params)
+}
+
+func _resumeReplication(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.ResumeReplicationParams) (*models.VolumeReplication, string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	event := replication.ResumeReplicationEvent{
+		CommonReplicationEventParams: replication.CommonReplicationEventParams{
+			VolumeResourceID:      params.VolumeResourceId,
+			ReplicationResourceID: params.ReplicationResourceId,
+			AccountName:           params.AccountName,
+			XCorrelationID:        &params.CorrelationId,
+			Location:              params.Region,
+			Zone:                  params.Zone,
+		},
+	}
+
+	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
+	if err != nil {
+		return nil, "", err
+	}
+
+	dstReplication, err := verifyDstReplicationResume(ctx, &event)
+	if err != nil {
+		return nil, "", err
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeResumeVolumeReplication),
+		State:        string(models.JobsStateNEW),
+		ResourceName: event.ReplicationModel.Uri,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		replicationWorkflows.ResumeReplicationWorkflow,
+		params,
+		&event,
+	)
+	if err != nil {
+		logger.Error("Failed to execute workflow", "error", err)
+		return nil, "", err
+	}
+
+	dstReplication.State = models.LifeCycleStateUpdating
+	dstReplication.StateDetails = models.LifeCycleStateUpdatingDetails
+	dstReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
+
+	return dstReplication, createdJob.UUID, nil
+}
+
+func (o *Orchestrator) ResumeReplicationInternal(ctx context.Context, volumeReplicationId, accountName string, forceResume bool) (*models.VolumeReplication, *datamodel.Job, error) {
+	return resumeReplicationInternal(ctx, o.storage, o.temporal, volumeReplicationId, accountName, forceResume)
+}
+
+func _resumeReplicationInternal(ctx context.Context, se database.Storage, temporal client.Client, volumeReplicationId, accountName string, forceResume bool) (*models.VolumeReplication, *datamodel.Job, error) {
+	logger := util.GetLogger(ctx)
+	account, err := getAccountWithName(ctx, se, accountName)
+	if err != nil {
+		logger.Error("Failed to get or create account", "error", err)
+		return nil, nil, err
+	}
+
+	replicationDb, err := se.GetVolumeReplication(ctx, volumeReplicationId)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	replicationDb.State = models.LifeCycleStateUpdating
+	replicationDb.StateDetails = models.LifeCycleStateUpdatingDetails
+
+	err = se.UpdateVolumeReplicationStates(ctx, replicationDb)
+	if err != nil {
+		logger.Error("Failed to update volume replication states in database", "error", err)
+		return nil, nil, err
+	}
+
+	replicationDb.Account = &datamodel.Account{
+		Name: accountName,
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeResumeVolumeReplicationInternal),
+		State:        string(models.JobsStateNEW),
+		ResourceName: replicationDb.Name,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, nil, err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		replicationWorkflows.ResumeInternalVolumeReplicationWorkflow,
+		replicationDb,
+		forceResume,
+	)
+	if err != nil {
+		logger.Error("Failed to execute workflow for resuming volume replication", "error", err)
+		return nil, nil, err
+	}
+
+	return convertDataStoreReplicationToModel(replicationDb), createdJob, nil
 }

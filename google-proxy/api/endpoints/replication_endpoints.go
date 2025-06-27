@@ -22,8 +22,9 @@ import (
 )
 
 var (
-	convertModelToVCPVolumeReplication = _convertModelToVCPVolumeReplication
-	validateReplicationURIList         = _validateReplicationURIList
+	convertModelToVCPVolumeReplication             = _convertModelToVCPVolumeReplication
+	validateReplicationURIList                     = _validateReplicationURIList
+	convertResumeModelToVCPVolumeReplicationV1beta = _convertResumeModelToVCPVolumeReplicationV1beta
 )
 
 func (h Handler) V1betaCreateReplication(ctx context.Context, req *gcpgenserver.ReplicationCreateV1beta, params gcpgenserver.V1betaCreateReplicationParams) (gcpgenserver.V1betaCreateReplicationRes, error) {
@@ -369,5 +370,107 @@ func convertToRole(endpointType string) gcpgenserver.ReplicationV1betaRole {
 		return gcpgenserver.ReplicationV1betaRoleDESTINATION
 	default:
 		return gcpgenserver.ReplicationV1betaRoleREPLICATIONROLEUNSPECIFIED
+	}
+}
+
+func (h Handler) V1betaResumeReplication(ctx context.Context, params gcpgenserver.V1betaResumeReplicationParams) (gcpgenserver.V1betaResumeReplicationRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaResumeReplicationBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	resumeReplicationParams := &common.ResumeReplicationParams{
+		AccountName:           params.ProjectNumber,
+		Region:                region,
+		Zone:                  zone,
+		CorrelationId:         params.XCorrelationID.Value,
+		VolumeResourceId:      params.VolumeResourceId,
+		ReplicationResourceId: params.ReplicationResourceId,
+	}
+
+	volumeRep, jobUUID, err := h.Orchestrator.ResumeReplication(ctx, resumeReplicationParams)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaResumeReplicationBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to resume replication", "error", err.Error())
+		return &gcpgenserver.V1betaResumeReplicationInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+
+	resp, err := encodeVolumeReplicationV1(convertResumeModelToVCPVolumeReplicationV1beta(volumeRep))
+	if err != nil {
+		return nil, err
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	if volumeRep.State == models2.LifeCycleStateUpdating {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}
+
+func _convertResumeModelToVCPVolumeReplicationV1beta(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+	if volumeReplication == nil {
+		return &gcpgenserver.ReplicationV1beta{}
+	}
+
+	var lastTransferEndTime time.Time
+	var progressLastUpdated time.Time
+	if volumeReplication.LastTransferEndTime != nil {
+		lastTransferEndTime = *volumeReplication.LastTransferEndTime
+	}
+	if volumeReplication.ProgressLastUpdated != nil {
+		progressLastUpdated = *volumeReplication.ProgressLastUpdated
+	}
+
+	return &gcpgenserver.ReplicationV1beta{
+		ReplicationId: gcpgenserver.NewOptString(volumeReplication.UUID),
+		ResourceId:    gcpgenserver.NewOptString(volumeReplication.Name),
+		Description:   gcpgenserver.NewOptString(volumeReplication.Description),
+		Source: gcpgenserver.NewOptReplicationVolumeInformationV1beta(gcpgenserver.ReplicationVolumeInformationV1beta{
+			VolumeName: gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.SourceVolumeName),
+			VolumeId:   gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.SourceVolumeUUID),
+		}),
+		Destination: gcpgenserver.NewOptReplicationVolumeInformationV1beta(gcpgenserver.ReplicationVolumeInformationV1beta{
+			VolumeName: gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.DestinationVolumeName),
+			VolumeId:   gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.DestinationVolumeUUID),
+		}),
+		State:               gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaState(volumeReplication.State)),
+		StateDetails:        gcpgenserver.NewOptString(volumeReplication.StateDetails),
+		Role:                gcpgenserver.NewOptReplicationV1betaRole(convertToRole(volumeReplication.ReplicationAttributes.EndpointType)),
+		ReplicationSchedule: gcpgenserver.NewOptReplicationV1betaReplicationSchedule(gcpgenserver.ReplicationV1betaReplicationSchedule(volumeReplication.ReplicationAttributes.ReplicationSchedule)),
+		MirrorState:         gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorState(*volumeReplication.MirrorState)),
+		TransferStats: gcpgenserver.NewOptTransferStatsV1beta(gcpgenserver.TransferStatsV1beta{
+			TotalTransferBytes:    gcpgenserver.NewOptFloat64(float64(volumeReplication.TotalTransferBytes)),
+			TotalTransferTimeSecs: gcpgenserver.NewOptFloat64(float64(volumeReplication.TotalTransferTimeSecs)),
+			LastTransferSize:      gcpgenserver.NewOptFloat64(float64(volumeReplication.LastTransferSize)),
+			LastTransferError:     gcpgenserver.NewOptString(volumeReplication.LastTransferError),
+			LastTransferDuration:  gcpgenserver.NewOptFloat64(float64(volumeReplication.LastTransferDuration)),
+			TotalProgress:         gcpgenserver.NewOptFloat64(float64(volumeReplication.TotalProgress)),
+			LagTime:               gcpgenserver.NewOptFloat64(float64(volumeReplication.LagTime)),
+			LastTransferEndTime:   gcpgenserver.NewOptDateTime(lastTransferEndTime),
+			ProgressLastUpdated:   gcpgenserver.NewOptDateTime(progressLastUpdated),
+		}),
+		Created: gcpgenserver.NewOptDateTime(volumeReplication.CreatedAt),
 	}
 }

@@ -192,3 +192,33 @@ func convertJobToInternalJobV1Beta(job *models.Job) gcpgenserver.InternalJobV1be
 		ResourceName:  gcpgenserver.NewOptString(job.ResourceName),
 	}
 }
+
+func (h Handler) V1betaInternalResumeVolumeReplication(ctx context.Context, params gcpgenserver.V1betaInternalResumeVolumeReplicationParams) (gcpgenserver.V1betaInternalResumeVolumeReplicationRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	forceResume := false
+	if params.ForceResume.Set {
+		forceResume = params.ForceResume.Value
+	}
+	volumeReplication, job, err := h.Orchestrator.ResumeReplicationInternal(ctx, params.VolumeReplicationId, params.ProjectNumber, forceResume)
+	if err != nil {
+		logger.Error("Failed to resume replication", "error", err.Error())
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalResumeVolumeReplicationNotFound{
+				Code:    404,
+				Message: "Volume replication not found",
+			}, nil
+		} else if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaInternalResumeVolumeReplicationBadRequest{
+				Code:    400,
+				Message: "Invalid request parameters",
+			}, nil
+		}
+		return &gcpgenserver.V1betaInternalResumeVolumeReplicationInternalServerError{
+			Code:    500,
+			Message: "Internal server error while resuming replication",
+		}, nil
+	}
+
+	return convertToInternalV1betaVolumeReplication(volumeReplication, job), nil
+}

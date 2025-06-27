@@ -3,18 +3,22 @@ package replication
 import (
 	"context"
 	"fmt"
-	"github.com/pborman/uuid"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"testing"
 
+	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 func Test_getReplicationJobs(t *testing.T) {
@@ -724,4 +728,398 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 
 	// More negative test cases can be added for each error path as needed
+}
+
+func TestValidateReplicationParams(t *testing.T) {
+	event := &CommonReplicationEventParams{
+		AccountName:              "test-account",
+		Location:                 "test-location",
+		VolumeResourceID:         "test-volume-id",
+		ReplicationResourceID:    "test-replication-id",
+		SourceProjectNumber:      "123456789",
+		DestinationProjectNumber: "123456789",
+	}
+	t.Run("WhenListVolumeReplicationError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
+		expectedError := vsaErrors.NewVCPError(vsaErrors.ErrDatabaseDataReadError, errors.New("some error"))
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenEmptyListVolumeReplication", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		expectedError := errors.NewUserInputValidationErr("No replication found for the given URI")
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenParsingProjectError", func(tt *testing.T) {
+		defer func() {
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+
+		parseError := errors.New("[0] undefined error: some error")
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "", vsaErrors.NewVCPError(vsaErrors.ErrProjectParsingError, parseError)
+		}
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenSignedTokenError", func(tt *testing.T) {
+		defer func() {
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{},
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "", vsaErrors.NewVCPError(vsaErrors.ErrGetSignedToken, errors.New("some error"))
+		}
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenGetPairedRegionError", func(tt *testing.T) {
+		defer func() {
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{},
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "", errors.New("some error")
+		}
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenReplicationJobInProcessError", func(tt *testing.T) {
+		defer func() {
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			replicationJobInProcess = _replicationJobInProcess
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{},
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		replicationJobInProcess = func(ctx context.Context, srcProjectNumber, destProjectNumber, srcBasePath, destBasePath, srcLocationID, destLocationID, srcToken, destToken, ccfeUri, remoteCcfeUri, srcPoolId, dstPoolId string, correlationId *string) error {
+			return errors.New("some error")
+		}
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
+		assert.Error(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		defer func() {
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+			InternalUtilGetSignedToken = auth.GetSignedJwtToken
+			InternalUtilGetPairedRegionURI = utils.GetPairedRegionURI
+			replicationJobInProcess = _replicationJobInProcess
+		}()
+		mockStorage := database.NewMockStorage(tt)
+		response := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID: 1,
+				},
+				ReplicationAttributes: &datamodel.ReplicationDetails{},
+			},
+		}
+		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "", nil
+		}
+		InternalUtilGetSignedToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return "basePath", nil
+		}
+		replicationJobInProcess = func(ctx context.Context, srcProjectNumber, destProjectNumber, srcBasePath, destBasePath, srcLocationID, destLocationID, srcToken, destToken, ccfeUri, remoteCcfeUri, srcPoolId, dstPoolId string, correlationId *string) error {
+			return nil
+		}
+		err := _validateReplicationParams(context.Background(), event, 12345, mockStorage)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestVerifyDstReplicationResume(t *testing.T) {
+	event := &ResumeReplicationEvent{
+		CommonReplicationEventParams: CommonReplicationEventParams{
+			DstBasePath:              "dstPath",
+			DestinationProjectNumber: "destinationProjectNumber",
+			DstToken:                 "dstToken",
+			ReplicationModel: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "dstLocation",
+					DestinationReplicationUUID: "dstUUID",
+				},
+			},
+		},
+	}
+	t.Run("WhenGetReplicationError", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, errors.New("some error")
+		}
+		_, err := _verifyDstReplicationResume(ctx, event)
+		assert.Error(tt, err)
+	})
+	t.Run("WhenMirrorStateMirrored", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		mirrorState := "MIRRORED"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState: &mirrorState,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+		expectedError := errors.NewUserInputValidationErr(fmt.Sprintf("Replication mirror state should be %s", models.ReplicationV1betaMirrorStateSTOPPED))
+		_, err := _verifyDstReplicationResume(ctx, event)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenMirrorStateUninitialized", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		mirrorState := "UNINITIALIZED"
+		relationshipStatus := "transferring"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+		expectedError := errors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status should be %s", models.VolumeReplicationCVPV1betaRelationshipStatusIdle))
+		_, err := _verifyDstReplicationResume(ctx, event)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		mirrorState := "STOPPED"
+		relationshipStatus := "IDLE"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+		resp, err := _verifyDstReplicationResume(ctx, event)
+		assert.NoError(tt, err)
+		assert.Equal(tt, dstReplication, resp)
+	})
+}
+
+func TestVerifyDstVolume(t *testing.T) {
+	event := &ResumeReplicationEvent{
+		CommonReplicationEventParams: CommonReplicationEventParams{
+			SrcBasePath:              "srcPath",
+			DstBasePath:              "dstPath",
+			SourceProjectNumber:      "sourceProjectNumber",
+			DestinationProjectNumber: "destinationProjectNumber",
+			SrcToken:                 "srcToken",
+			DstToken:                 "dstToken",
+			ReplicationModel: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "srcLocation",
+					DestinationLocation:        "dstLocation",
+					DestinationReplicationUUID: "dstUUID",
+					SourceVolumeUUID:           "srcVolumeUUID",
+				},
+			},
+		},
+	}
+	t.Run("WhenDescribeVolumeError", func(tt *testing.T) {
+		defer func() {
+			describeVolume = _describeVolume
+		}()
+		ctx := context.Background()
+		describeVolume = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeId string) (googleproxyclient.VolumeV1beta, error) {
+			return googleproxyclient.VolumeV1beta{}, errors.New("some error")
+		}
+		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
+		assert.Error(tt, err)
+	})
+	t.Run("WhenVolumeNotFound", func(tt *testing.T) {
+		defer func() {
+			describeVolume = _describeVolume
+		}()
+		ctx := context.Background()
+		describeVolume = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeId string) (googleproxyclient.VolumeV1beta, error) {
+			return googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
+		}
+		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
+		assert.Error(tt, err)
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		defer func() {
+			describeVolume = _describeVolume
+		}()
+		ctx := context.Background()
+		describeVolume = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string, volumeId string) (googleproxyclient.VolumeV1beta, error) {
+			return googleproxyclient.VolumeV1beta{}, nil
+		}
+		_, _, err := _verifyDstVolume(ctx, event, "srcPath", "dstPath", "srcToken", "dstToken")
+		assert.NoError(tt, err)
+	})
+}
+
+func TestDescribeVolume(t *testing.T) {
+	basePath := "basePath"
+	token := "token"
+	locationId := "locationId"
+	projectNumber := "projectNumber"
+	volumeId := "volumeId"
+	xCorrelationID := new(string)
+	t.Run("WhenError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		mockClient.EXPECT().V1betaDescribeVolume(ctx, mock.Anything).Return(&googleproxyclient.VolumeV1beta{}, errors.New("some error"))
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		_, err := _describeVolume(ctx, basePath, token, locationId, projectNumber, xCorrelationID, volumeId)
+		assert.Error(tt, err)
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		response := &googleproxyclient.VolumeV1beta{}
+		mockClient.EXPECT().V1betaDescribeVolume(ctx, mock.Anything).Return(response, nil)
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		resp, err := _describeVolume(ctx, basePath, token, locationId, projectNumber, xCorrelationID, volumeId)
+		assert.NoError(tt, err)
+		assert.Equal(tt, *response, resp)
+	})
+}
+
+func TestGetReplication(t *testing.T) {
+	t.Run("WhenError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(ctx, mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		_, err := _getReplication(ctx, "basePath", "projectNumber", "locationID", "volumeReplicationID", "jwt")
+		assert.Error(tt, err)
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		response := &googleproxyclient.V1betaGetMultipleReplicationsInternalOK{
+			Replications: []googleproxyclient.VolumeReplicationInternalV1beta{
+				{},
+			},
+		}
+		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(ctx, mock.Anything, mock.Anything).Return(response, nil)
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		_, err := _getReplication(ctx, "basePath", "projectNumber", "locationID", "volumeReplicationID", "jwt")
+		assert.NoError(tt, err)
+	})
 }

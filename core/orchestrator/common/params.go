@@ -310,3 +310,12 @@ type GetMultipleReplicationsParams struct {
 	XCorrelationID   string
 	VolumeResourceId string
 }
+
+type ResumeReplicationParams struct {
+	AccountName           string
+	Region                string
+	Zone                  string
+	CorrelationId         string
+	VolumeResourceId      string
+	ReplicationResourceId string
+}

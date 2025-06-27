@@ -462,3 +462,105 @@ func TestBetaInternalmountVolumeReplication(t *testing.T) {
 		mockOrchestrator.AssertExpectations(tt)
 	})
 }
+
+func TestV1betaInternalResumeVolumeReplication(t *testing.T) {
+	t.Run("WhenResumeVolumeReplicationInternalServerError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		params := gcpgenserver.V1betaInternalResumeVolumeReplicationParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			ForceResume:   gcpgenserver.OptBool{Set: true, Value: false},
+		}
+		expectedResponse := &gcpgenserver.V1betaInternalResumeVolumeReplicationInternalServerError{
+			Code:    500,
+			Message: "Internal server error while resuming replication",
+		}
+		mockOrchestrator.EXPECT().ResumeReplicationInternal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil, errors.New("some error"))
+		resp, err := handler.V1betaInternalResumeVolumeReplication(context.Background(), params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedResponse, resp)
+	})
+	t.Run("WhenResumeVolumeReplicationBadRequest", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		params := gcpgenserver.V1betaInternalResumeVolumeReplicationParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			ForceResume:   gcpgenserver.OptBool{Set: true, Value: false},
+		}
+		expectedResponse := &gcpgenserver.V1betaInternalResumeVolumeReplicationBadRequest{
+			Code:    400,
+			Message: "Invalid request parameters",
+		}
+		mockOrchestrator.EXPECT().ResumeReplicationInternal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil, errors.NewUserInputValidationErr("Invalid request parameters"))
+		resp, err := handler.V1betaInternalResumeVolumeReplication(context.Background(), params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedResponse, resp)
+	})
+	t.Run("WhenResumeVolumeReplicationNotFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		params := gcpgenserver.V1betaInternalResumeVolumeReplicationParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			ForceResume:   gcpgenserver.OptBool{Set: true, Value: false},
+		}
+		expectedResponse := &gcpgenserver.V1betaInternalResumeVolumeReplicationNotFound{
+			Code:    404,
+			Message: "Volume replication not found",
+		}
+		mockOrchestrator.EXPECT().ResumeReplicationInternal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil, errors.NewNotFoundErr("Volume replication not found", nil))
+		resp, err := handler.V1betaInternalResumeVolumeReplication(context.Background(), params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedResponse, resp)
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		params := gcpgenserver.V1betaInternalResumeVolumeReplicationParams{
+			ProjectNumber:       "test-project",
+			LocationId:          "test-location",
+			ForceResume:         gcpgenserver.OptBool{Set: true, Value: false},
+			VolumeReplicationId: "test-replication-id",
+		}
+		replication := &models.VolumeReplication{
+			Name: "test-replication",
+			BaseModel: models.BaseModel{
+				UUID: "replication-uuid",
+			},
+			ReplicationAttributes: &models.ReplicationDetails{
+				DestinationReplicationUUID: "destination-replication-uuid",
+			},
+		}
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "job-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			WorkflowID: "job-workflow-id",
+		}
+		expectedResponse := convertToInternalV1betaVolumeReplication(replication, job)
+		mockOrchestrator.EXPECT().ResumeReplicationInternal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(replication, job, nil)
+		resp, err := handler.V1betaInternalResumeVolumeReplication(context.Background(), params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedResponse, resp)
+	})
+}

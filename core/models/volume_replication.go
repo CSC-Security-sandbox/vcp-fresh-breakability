@@ -13,7 +13,7 @@ type VolumeReplicationUpdateMaskRequest struct {
 const (
 	OntapSnapmirrored                  = "snapmirrored"
 	OntapUninitialized                 = "uninitialized"
-	OntapBrokenOff                     = "broken-off"
+	OntapBrokenOff                     = "broken_off"
 	SnapmirrorRelationshipSuccess      = "success"
 	SnapmirrorRelationshipIdle         = "idle"
 	SnapmirrorRelationshipTransferring = "transferring"
