@@ -518,7 +518,7 @@ func TestGetSnapshot(t *testing.T) {
 	snap := &datamodel.Snapshot{Name: "snap3"}
 	created, err := store.CreatingSnapshot(ctx, snap)
 	assert.NoError(t, err)
-	found, err := store.GetSnapshotByUUID(ctx, created.UUID)
+	found, err := store.GetSnapshotByUUID(ctx, created.UUID, 0, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, found)
 	assert.Equal(t, "snap3", found.Name)

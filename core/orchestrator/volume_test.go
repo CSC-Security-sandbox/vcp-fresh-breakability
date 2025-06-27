@@ -387,6 +387,185 @@ func TestCreateVolume(t *testing.T) {
 		assert.Nil(tt, volume, "Expected nil volume")
 		assert.EqualError(tt, err, "svm not found")
 	})
+	t.Run("WhenGetSnapshotForCreateVolumeFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Region:       "test_region",
+			Name:         "test_pool",
+			VendorID:     "test_vendor",
+			QuotaInBytes: minQuotaInBytesPool,
+			Protocols:    []string{"NFS"},
+			Description:  "Some description",
+			DisplayName:  "Some display name",
+			PoolID:       "test-pool-uuid",
+			SnapshotID:   "test-snapshot-id",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.Nil(tt, volume, "Expected nil volume")
+		assert.EqualError(tt, err, "snapshot 'test-snapshot-id' not found")
+	})
+	t.Run("WhenParentSnapshotNotInReadyStateForCreateVolumeFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Region:       "test_region",
+			Name:         "test_pool",
+			VendorID:     "test_vendor",
+			QuotaInBytes: minQuotaInBytesPool,
+			Protocols:    []string{"NFS"},
+			Description:  "Some description",
+			DisplayName:  "Some display name",
+			PoolID:       "test-pool-uuid",
+			SnapshotID:   "test-snapshot-id",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-id"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			State:     "ERROR",
+		}
+
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.Nil(tt, volume, "Expected nil volume")
+		assert.EqualError(tt, err, "Parent snapshot is not in a valid state for volume creation. Please wait for the snapshot to be ready and retry again.")
+	})
 	t.Run("WhenCreateVolumeSuccess", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -438,6 +617,18 @@ func TestCreateVolume(t *testing.T) {
 		err = store.DB().Create(svm).Error
 		if err != nil {
 			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			State:     "READY",
+		}
+
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
 		}
 
 		params := &common.CreateVolumeParams{

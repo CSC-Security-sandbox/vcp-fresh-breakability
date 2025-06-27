@@ -84,6 +84,15 @@ type Aggregate struct {
 	State string
 }
 
+type RestoreFromSnapshotParams struct {
+	ParentVolumeExternalUUID string // External UUID of the source/parent volume
+	ParentVolumeName         string // Name of the Volume
+	SnapshotUUID             string // UUID of the snapshot to restore from
+	SnapshotName             string // Name of the snapshot to restore from
+	ParentVolumeSvmName      string // Name of the SVM where the parent volume resides
+	// Add more fields as needed
+}
+
 type CreateVolumeParams struct {
 	VolumeName         string
 	SvmName            string
@@ -91,6 +100,8 @@ type CreateVolumeParams struct {
 	Size               int64
 	VolumeType         string
 	SnapshotPolicyName string
+	// Reference to a snapshot for restore/clone
+	RestoreFromSnapshot *RestoreFromSnapshotParams // Optional: parameters for restoring from a snapshot
 }
 
 type UpdateVolumeParams struct {
@@ -100,6 +111,7 @@ type UpdateVolumeParams struct {
 	AggregateName      string
 	Size               int64
 	SnapshotPolicyName string
+	InitiateSplit      bool // Indicates whether to initiate a split for volume restore or clone
 }
 
 type GetVolumeParams struct {

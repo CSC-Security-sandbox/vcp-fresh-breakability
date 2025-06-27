@@ -87,7 +87,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 	mockProvider.On("CreateVolume", mock.Anything).Return(expectedResponse, nil)
 
 	// Act
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
 
 	// Assert
 	assert.NoError(t, err)
@@ -121,7 +121,7 @@ func TestCreateVolumeInONTAP_Success_AlreadyCreated(t *testing.T) {
 	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm"}).Return(expectedResponse, nil)
 
 	// Act
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
 
 	// Assert
 	assert.NoError(t, err)
@@ -155,7 +155,7 @@ func TestCreateVolumeInONTAP_Failure(t *testing.T) {
 	mockProvider.On("CreateVolume", mock.Anything).Return(nil, expectedError)
 
 	// Act
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
 
 	// Assert
 	assert.Error(t, err)
@@ -793,7 +793,7 @@ func TestCreateVolumeInONTAP_CheckVolumeExistsError(t *testing.T) {
 	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm"}).Return(nil, errors.New("volume not found"))
 
 	// Act
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
 
 	// Assert
 	assert.Error(t, err)
@@ -943,7 +943,50 @@ func TestCreateVolumeInONTAP_DataProtectionVolume(t *testing.T) {
 		return params.VolumeType == "dp"
 	})).Return(expectedResponse, nil)
 
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expectedResponse, result)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateVolumeInONTAP_ClonedVolume(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := activities.GetProviderByNode
+	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	activity := activities.VolumeCreateActivity{
+		SE: database.NewMockStorage(t),
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "dp-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: true,
+		},
+	}
+	node := &models.Node{}
+	snapshot := &datamodel.Snapshot{
+		Name: "snapshot-1",
+		Volume: &datamodel.Volume{
+			Name:             "source-volume",
+			Svm:              &datamodel.Svm{Name: "test-svm"},
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "uuid-123"},
+		},
+		SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "uuid-123"},
+	}
+	expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 2048}
+
+	mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
+		return params.RestoreFromSnapshot != nil
+	})).Return(expectedResponse, nil)
+
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, snapshot)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResponse, result)
@@ -1529,4 +1572,50 @@ func TestUpdateVolumeStateInDB_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err)
 	mockStorage.AssertExpectations(t)
+}
+
+func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := activities.GetProviderByNode
+	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+		return mockProvider
+	}
+
+	ctx := context.Background()
+	activity := activities.VolumeCreateActivity{}
+	node := &models.Node{}
+	snapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"}}
+	volume := &datamodel.Volume{
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "vol-uuid-1",
+		},
+		SnapshotPolicy: &datamodel.SnapshotPolicy{
+			Name:      "policy1",
+			IsEnabled: true,
+			Schedules: []*datamodel.SnapshotPolicySchedule{
+				{
+					DaysOfMonth:     []int{1, 15},
+					DaysOfWeek:      []int{2},
+					Hours:           []int{3},
+					Minutes:         []int{0},
+					SnapmirrorLabel: "label1",
+					Count:           5,
+				},
+			},
+		},
+	}
+
+	t.Run("Success", func(tt *testing.T) {
+		mockProvider.On("UpdateVolume", mock.Anything).Return(nil)
+		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("NilSnapshot", func(tt *testing.T) {
+		err := activity.InitiateSplitForVolume(ctx, volume, node, nil)
+		assert.NoError(tt, err)
+	})
 }

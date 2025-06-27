@@ -79,6 +79,64 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
+	t.Run("ValidInputWithBlockPropertiesForSnaphotRestore", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test-volume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaISCSI,
+				},
+				BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
+					gcpgenserver.BlockPropertiesV1beta{
+						OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
+					},
+				),
+				BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
+					gcpgenserver.BackupConfigV1beta{
+						BackupPolicyId:         gcpgenserver.NewOptNilString("backup-policy-id"),
+						BackupVaultId:          gcpgenserver.NewOptNilString("backup-vault-id"),
+						ScheduledBackupEnabled: gcpgenserver.NewOptNilBool(true),
+					},
+				),
+			},
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+			SnapshotId: gcpgenserver.NewOptString("test-snapshot-id"),
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:      "test-project",
+			Region:           "test-region",
+			Name:             "test-volume",
+			VendorID:         "/projects/test-project/locations/test-location/volumes/test-volume",
+			CreationToken:    "test-token",
+			PoolID:           "test-pool",
+			QuotaInBytes:     1024,
+			IsDataProtection: true,
+			BlockProperties: &models.BlockProperties{
+				OSType: "LINUX",
+			},
+			Protocols: []string{
+				"ISCSI",
+			},
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: nillable.GetBoolPtr(true),
+				BackupVaultID:          "backup-vault-id",
+				BackupPolicyId:         "backup-policy-id",
+			},
+			SnapshotID: "test-snapshot-id",
+		}
+		result, err := prepareCreateVolumeParams(req, params, region)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
+	})
 }
 
 func TestV1betaGetMultipleVolumes(t *testing.T) {

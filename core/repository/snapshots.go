@@ -54,12 +54,16 @@ func (d *DataStoreRepository) CreatingSnapshot(ctx context.Context, snapshot *da
 	return snapshot, nil
 }
 
-func getSnapshotWithDetails(db *gorm.DB, query *datamodel.Snapshot) (*datamodel.Snapshot, error) {
+func getSnapshotWithDetails(db *gorm.DB, query *datamodel.Snapshot, isParentSnapshot bool) (*datamodel.Snapshot, error) {
 	snapshot := &datamodel.Snapshot{}
-	err := db.Preload("Account").Preload("Volume").First(&snapshot, query).Error
+	db = db.Preload("Account").Preload("Volume")
+	if isParentSnapshot {
+		db = db.Preload("Volume.Svm")
+	}
+	err := db.First(&snapshot, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.NewNotFoundErr("snapshot", &query.UUID))
+			return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "snapshot", &query.UUID)
 		}
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
@@ -74,7 +78,7 @@ func (d *DataStoreRepository) UpdateSnapshot(ctx context.Context, snapshot *data
 		return nil, err
 	}
 	defer commitOrRollbackOnError(logger, tx, &err)
-	dbSnapshot, err := getSnapshotWithDetails(tx, &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshot.UUID}})
+	dbSnapshot, err := getSnapshotWithDetails(tx, &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshot.UUID}}, false)
 	if err != nil {
 		return nil, err
 	}
@@ -100,8 +104,8 @@ func (d *DataStoreRepository) GetAppConsistentSnapshotsForVolume(ctx context.Con
 	return d.GetSnapshotsWithCondition(ctx, *filter)
 }
 
-func (d *DataStoreRepository) GetSnapshotByUUID(ctx context.Context, uuid string) (*datamodel.Snapshot, error) {
-	return getSnapshotWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: uuid}})
+func (d *DataStoreRepository) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
+	return getSnapshotWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Snapshot{AccountID: accountID, BaseModel: datamodel.BaseModel{UUID: uuid}}, isParentSnapshot)
 }
 
 func (d *DataStoreRepository) GetSnapshotsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Snapshot, error) {
@@ -126,7 +130,7 @@ func (d *DataStoreRepository) DeleteSnapshot(ctx context.Context, snapshotUUID s
 }
 
 func _deleteSnapshot(db *gorm.DB, snapshotUUID string) (*datamodel.Snapshot, error) {
-	snapshot, err := getSnapshotWithDetails(db, &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshotUUID}})
+	snapshot, err := getSnapshotWithDetails(db, &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshotUUID}}, false)
 	if err != nil {
 		return nil, err
 	}

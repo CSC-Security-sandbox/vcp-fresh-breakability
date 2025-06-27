@@ -31,7 +31,7 @@ func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParam
 	if err != nil {
 		return nil, err
 	}
-	_, err = volumeWf.Run(ctx, volume, params.Region)
+	_, err = volumeWf.Run(ctx, volume, params)
 	if err != nil {
 		volumeWf.Status = WorkflowStatusFailed
 		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
@@ -67,7 +67,12 @@ func (wf *volumeCreateWorkflow) Setup(ctx workflow.Context, input interface{}) e
 func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
 	log := util.GetLogger(ctx)
 	dbVolume := args[0].(*datamodel.Volume)
-	region := args[1].(string)
+	createVolumeParams := args[1].(*common.CreateVolumeParams)
+	region := createVolumeParams.Region
+	var snapshot *datamodel.Snapshot
+	if createVolumeParams.Snapshot != nil {
+		snapshot = createVolumeParams.Snapshot
+	}
 	volumeActivity := &activities.VolumeCreateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -115,7 +120,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	var volCreateResponse *vsa.VolumeResponse
-	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateVolumeInONTAP, &dbVolume, &node).Get(ctx, &volCreateResponse)
+	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateVolumeInONTAP, &dbVolume, &node, &snapshot).Get(ctx, &volCreateResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -135,6 +140,12 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	lunMapParams := createLunMapParams(lun.Name, dbVolume.Svm.Name, hostParams)
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLunMap, &dbVolume, &lunMapParams, &node).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	dbVolume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
+	err = workflow.ExecuteActivity(ctx, volumeActivity.InitiateSplitForVolume, &dbVolume, &node, &snapshot).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

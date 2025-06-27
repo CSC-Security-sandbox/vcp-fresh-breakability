@@ -11,7 +11,7 @@ import (
 // CreateVolume creates a volume by calling the ONTAP REST Client
 func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeResponse, error) {
 	client := getOntapClientFunc(rc.ClientParams)
-	vol, job, err := client.Storage().VolumeCreate(&ontapRest.VolumeCreateParams{
+	volumeCreateParams := &ontapRest.VolumeCreateParams{
 		Name:                   params.VolumeName,
 		Type:                   params.VolumeType,
 		Size:                   params.Size,
@@ -19,7 +19,19 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		Aggregates:             []string{params.AggregateName},
 		SnapshotPolicy:         params.SnapshotPolicyName,
 		SnapshotReservePercent: 0, // Setting it to 0, yields more available space
-	})
+	}
+	if params.RestoreFromSnapshot != nil && params.RestoreFromSnapshot.SnapshotUUID != "" {
+		volumeCreateParams.RestoreFromSnapshot = &ontapRest.RestoreFromSnapshotParams{
+			ParentVolumeExternalUUID: params.RestoreFromSnapshot.ParentVolumeExternalUUID,
+			ParentVolumeName:         params.RestoreFromSnapshot.ParentVolumeName,
+			SnapshotUUID:             params.RestoreFromSnapshot.SnapshotUUID,
+			SnapshotName:             params.RestoreFromSnapshot.SnapshotName,
+			ParentVolumeSvmName:      params.RestoreFromSnapshot.ParentVolumeSvmName,
+		}
+		volumeCreateParams.Size = 0
+	}
+
+	vol, job, err := client.Storage().VolumeCreate(volumeCreateParams)
 	if err != nil {
 		if strings.Contains(err.Error(), "Duplicate volume name") {
 			return nil, errors.NewConflictErr(params.VolumeName + " already exists")
@@ -92,11 +104,17 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 
 func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 	client := getOntapClientFunc(rc.ClientParams)
-	success, job, err := client.Storage().VolumeModify(&ontapRest.VolumeModifyParams{
-		UUID:               params.UUID,
-		Size:               nillable.ToPointer(uint64(params.Size)),
-		SnapshotPolicyName: nillable.GetStringPtr(params.SnapshotPolicyName),
-	})
+	volumeModifyParams := &ontapRest.VolumeModifyParams{
+		UUID: params.UUID,
+	}
+	if params.InitiateSplit {
+		volumeModifyParams.SplitInitiated = &params.InitiateSplit
+		volumeModifyParams.MatchParentStorageTier = false // TODO: add this `params.TieringPolicy == "auto"`, when autotier is supported
+	} else {
+		volumeModifyParams.Size = nillable.ToPointer(uint64(params.Size))
+		volumeModifyParams.SnapshotPolicyName = nillable.GetStringPtr(params.SnapshotPolicyName)
+	}
+	success, job, err := client.Storage().VolumeModify(volumeModifyParams)
 	if err != nil {
 		return err
 	}

@@ -258,7 +258,7 @@ func TestGetSnapshot(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create snapshot")
 
 		// Get the snapshot
-		retrievedSnapshot, err := store.GetSnapshotByUUID(ctx, snapshot.UUID)
+		retrievedSnapshot, err := store.GetSnapshotByUUID(ctx, snapshot.UUID, 1, false)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.NotNil(tt, retrievedSnapshot, "Expected snapshot to be retrieved")
 		assert.Equal(tt, snapshot.UUID, retrievedSnapshot.UUID, "Expected UUID %v, got %v", snapshot.UUID, retrievedSnapshot.UUID)
@@ -280,7 +280,7 @@ func TestGetSnapshot(t *testing.T) {
 
 		// Try to get a non-existent snapshot
 		nonExistentUUID := "non-existent-uuid"
-		_, err = store.GetSnapshotByUUID(ctx, nonExistentUUID)
+		_, err = store.GetSnapshotByUUID(ctx, nonExistentUUID, 1, false)
 		assert.Error(tt, err, "Expected error when snapshot does not exist")
 		assert.ErrorContains(tt, err, "not found", "Expected error 'not found', got %v", err)
 	})
@@ -350,7 +350,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		assert.Equal(tt, models.LifeCycleStateDeleted, deletedSnapshot.State, "Expected snapshot state %v, got %v", models.LifeCycleStateDeleted, deletedSnapshot.State)
 		assert.Equal(tt, models.LifeCycleStateDeletedDetails, deletedSnapshot.StateDetails, "Expected snapshot state details %v, got %v", "", deletedSnapshot.StateDetails)
 
-		_, err = store.GetSnapshotByUUID(context.Background(), snapshot.UUID)
+		_, err = store.GetSnapshotByUUID(context.Background(), snapshot.UUID, account.ID, false)
 		if !customerrors.IsNotFoundErr(err) {
 			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
 		}

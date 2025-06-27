@@ -45,7 +45,7 @@ func (a VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamode
 	return se.CreateVolume(ctx, volume)
 }
 
-func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
+func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
 	provider := GetProviderByNode(ctx, node)
 	volumeType := VolumeTypeRW
@@ -57,13 +57,22 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 	if volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
 		snapshotPolicyName = volume.SnapshotPolicy.Name
 	}
+	var restoreFromSnapshotParam vsa.RestoreFromSnapshotParams
+	if snapshot != nil {
+		restoreFromSnapshotParam.ParentVolumeExternalUUID = snapshot.Volume.VolumeAttributes.ExternalUUID
+		restoreFromSnapshotParam.SnapshotUUID = snapshot.SnapshotAttributes.ExternalUUID
+		restoreFromSnapshotParam.ParentVolumeName = snapshot.Volume.Name
+		restoreFromSnapshotParam.ParentVolumeSvmName = snapshot.Volume.Svm.Name
+		restoreFromSnapshotParam.SnapshotName = snapshot.Name
+	}
 	res, err := provider.CreateVolume(vsa.CreateVolumeParams{
-		VolumeName:         volume.Name,
-		SvmName:            volume.Svm.Name,
-		AggregateName:      aggregateName,
-		Size:               volume.SizeInBytes,
-		VolumeType:         volumeType,
-		SnapshotPolicyName: snapshotPolicyName,
+		VolumeName:          volume.Name,
+		SvmName:             volume.Svm.Name,
+		AggregateName:       aggregateName,
+		Size:                volume.SizeInBytes,
+		VolumeType:          volumeType,
+		SnapshotPolicyName:  snapshotPolicyName,
+		RestoreFromSnapshot: &restoreFromSnapshotParam,
 	})
 	if err != nil {
 		if errors.IsConflictErr(err) {
@@ -491,6 +500,26 @@ func (a VolumeCreateActivity) CreateSnapshotPolicyInONTAP(ctx context.Context, v
 			return err
 		}
 	}
+	return nil
+}
+
+// InitiateSplitForVolume initiates a split for the given volume in ONTAP.
+func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot) error {
+	if snapshot == nil {
+		return nil
+	}
+	logger := util.GetLogger(ctx)
+	provider := GetProviderByNode(ctx, node)
+	updateVolumeParams := &vsa.UpdateVolumeParams{
+		UUID:          volume.VolumeAttributes.ExternalUUID,
+		InitiateSplit: true,
+	}
+	err := updateVolume(ctx, provider, *updateVolumeParams)
+	if err != nil {
+		logger.Errorf("Failed to initiate split %s in ontap: %v", volume.Name, err)
+		return err
+	}
+	logger.Debugf("Split %s initiated successfully in ontap", volume.Name)
 	return nil
 }
 

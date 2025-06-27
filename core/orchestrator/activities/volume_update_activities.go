@@ -27,19 +27,27 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 	if volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
 		snapshotPolicyName = volume.SnapshotPolicy.Name
 	}
-
-	err := provider.UpdateVolume(vsa.UpdateVolumeParams{
-		// Set the necessary parameters for updating the volume
+	updateVolumeParams := &vsa.UpdateVolumeParams{
 		UUID:               volume.VolumeAttributes.ExternalUUID,
 		Size:               params.QuotaInBytes,
 		SnapshotPolicyName: snapshotPolicyName,
-	})
+	}
+	err := updateVolume(ctx, provider, *updateVolumeParams)
 	if err != nil {
 		logger.Errorf("Failed to update volume %s in ontap: %v", volume.Name, err)
 		return err
 	}
-
 	logger.Debugf("Volume %s updated successfully in ontap", volume.Name)
+	return nil
+}
+
+func updateVolume(ctx context.Context, provider vsa.Provider, params vsa.UpdateVolumeParams) error {
+	err := provider.UpdateVolume(params)
+	if err != nil {
+		util.GetLogger(ctx).Errorf("Failed to update volume %s in ontap: %v", params.UUID, err)
+		return err
+	}
+	util.GetLogger(ctx).Debugf("Volume %s updated successfully in ontap", params.UUID)
 	return nil
 }
 

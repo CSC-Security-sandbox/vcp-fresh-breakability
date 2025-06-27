@@ -435,3 +435,47 @@ func TestUpdateVolume(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
 }
+
+func TestUpdateVolume_ForSplit(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+		return mockClient
+	}
+	rc := &OntapRestProvider{}
+
+	params := UpdateVolumeParams{
+		UUID:          "testUUID",
+		InitiateSplit: true,
+	}
+
+	// Case 1: VolumeModify returns error
+	mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New("modify error")).Once()
+	err := rc.UpdateVolume(params)
+	assert.Error(t, err)
+	assert.Equal(t, "modify error", err.Error())
+
+	// Case 2: VolumeModify returns success == true
+	mockStorage.On("VolumeModify", mock.Anything).Return(true, nil, nil).Once()
+	err = rc.UpdateVolume(params)
+	assert.NoError(t, err)
+
+	// Case 3: VolumeModify returns success == false, Poll returns nil
+	mockJob := &ontaprest.JobAccepted{JobUUID: "job-uuid"}
+	mockStorage.On("VolumeModify", mock.Anything).Return(false, mockJob, nil).Once()
+	mockClient.On("Poll", mockJob.JobUUID).Return(nil).Once()
+	err = rc.UpdateVolume(params)
+	assert.NoError(t, err)
+
+	// Case 4: VolumeModify returns success == false, Poll returns error
+	mockJob2 := &ontaprest.JobAccepted{JobUUID: "job-uuid-2"}
+	mockStorage.On("VolumeModify", mock.Anything).Return(false, mockJob2, nil).Once()
+	mockClient.On("Poll", mockJob2.JobUUID).Return(errors.New("poll error")).Once()
+	err = rc.UpdateVolume(params)
+	assert.Error(t, err)
+	assert.Equal(t, "poll error", err.Error())
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}

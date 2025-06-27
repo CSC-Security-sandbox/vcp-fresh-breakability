@@ -1198,11 +1198,11 @@ func (re *retryEngine) UpdateSnapshot(ctx context.Context, snapshot *datamodel.S
 	return var0, err
 }
 
-func (re *retryEngine) GetSnapshotByUUID(ctx context.Context, uuid string) (*datamodel.Snapshot, error) {
+func (re *retryEngine) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
 	var var0 *datamodel.Snapshot
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetSnapshotByUUID(ctx, uuid)
+		var0, err = re.dataStore.GetSnapshotByUUID(ctx, uuid, accountID, isParentSnapshot)
 		if err != nil {
 			re.logError("GetSnapshotByUUID", err)
 			if !isTransientErr(err) {

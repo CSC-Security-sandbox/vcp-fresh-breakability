@@ -615,8 +615,8 @@ func (s *PersistenceStore) UpdateSnapshot(ctx context.Context, snapshot *datamod
 	return s.dataStore.UpdateSnapshot(ctx, snapshot)
 }
 
-func (s *PersistenceStore) GetSnapshotByUUID(ctx context.Context, uuid string) (*datamodel.Snapshot, error) {
-	return s.dataStore.GetSnapshotByUUID(ctx, uuid)
+func (s *PersistenceStore) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
+	return s.dataStore.GetSnapshotByUUID(ctx, uuid, accountID, isParentSnapshot)
 }
 
 func (s *PersistenceStore) GetSnapshotsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Snapshot, error) {

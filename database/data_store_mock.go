@@ -3246,7 +3246,7 @@ func (_c *MockDataStore_GetPoolByVendorID_Call) RunAndReturn(run func(context.Co
 }
 
 // GetSnapshotByUUID provides a mock function with given fields: ctx, uuid
-func (_m *MockDataStore) GetSnapshotByUUID(ctx context.Context, uuid string) (*datamodel.Snapshot, error) {
+func (_m *MockDataStore) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
 	ret := _m.Called(ctx, uuid)
 
 	if len(ret) == 0 {

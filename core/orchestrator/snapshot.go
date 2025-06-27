@@ -155,13 +155,13 @@ func (o *Orchestrator) GetSnapshot(ctx context.Context, params *common.GetSnapsh
 func _getSnapshot(ctx context.Context, se database.Storage, params *common.GetSnapshotParams) (*models.Snapshot, error) {
 	logger := util.GetLogger(ctx)
 
-	_, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
+	volume, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
 	if err != nil {
 		logger.Errorf("Failed to validate volume ownership")
 		return nil, err
 	}
 
-	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotUUID)
+	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotUUID, volume.Account.ID, false)
 	if err != nil {
 		logger.Errorf("Failed to get snapshot: %s. Error: %v", params.SnapshotUUID, err)
 		return nil, err
@@ -216,7 +216,7 @@ func _updateSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotUUID)
+	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotUUID, account.ID, false)
 	if err != nil {
 		logger.Errorf("Failed to get snapshot: %s. Error: %v", params.SnapshotUUID, err)
 		return nil, "", err
@@ -317,7 +317,7 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID)
+	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID, volume.Account.ID, false)
 	if err != nil {
 		return nil, "", err
 	}

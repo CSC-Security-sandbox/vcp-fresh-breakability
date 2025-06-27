@@ -161,7 +161,6 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		CreationToken: req.Volume.CreationToken.Value,
 		PoolID:        req.Volume.PoolId.Value,
 		QuotaInBytes:  uint64(req.Volume.QuotaInBytes.Value),
-		Protocols:     make([]string, 0),
 	}
 
 	if req.VolumeType.IsSet() {
@@ -225,6 +224,10 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			}
 		}
 		param.SnapshotPolicy = snapShotPolicy
+	}
+
+	if req.SnapshotId.IsSet() {
+		param.SnapshotID = req.SnapshotId.Value
 	}
 	return param, nil
 }

@@ -61,6 +61,19 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	if params.SnapshotID != "" {
+		dbSnapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID, account.ID, true)
+		if err != nil {
+			logger.Error("Failed to fetch parent snapshot for volume creation. Please use the correct snapshot and retry again.", "error", err)
+			return nil, "", err
+		}
+		if dbSnapshot.State != models.LifeCycleStateREADY {
+			logger.Error("Parent snapshot is not in a valid state for volume creation", "snapshot_state", dbSnapshot.State)
+			return nil, "", customerrors.NewUserInputValidationErr("Parent snapshot is not in a valid state for volume creation. Please wait for the snapshot to be ready and retry again.")
+		}
+		params.Snapshot = dbSnapshot
+	}
+
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeCreateVolume),
 		State:         string(models.JobsStateNEW),

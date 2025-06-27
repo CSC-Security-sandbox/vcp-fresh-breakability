@@ -69,7 +69,9 @@ type CreateVolumeParams struct {
 	Protocols        []string
 	BlockProperties  *models.BlockProperties
 	DataProtection   *models.DataProtection
+	SnapshotID       string
 	SnapshotPolicy   *models.SnapshotPolicy
+	Snapshot         *datamodel.Snapshot
 }
 
 // UpdateVolumeParams describes parameters supplied to UpdateVolume
@@ -88,6 +90,7 @@ type UpdateVolumeParams struct {
 	BlockProperties *models.BlockProperties
 	SnapshotPolicy  *models.SnapshotPolicy
 	DataProtection  *models.DataProtection
+	InitiateSplit   bool
 }
 
 type CreateLunMapParams struct {

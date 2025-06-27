@@ -1829,6 +1829,16 @@ type Protocols struct {
 	EnableIscsi bool
 }
 
+// RestoreFromSnapshotParams contains parameters for restoring a volume from a snapshot
+type RestoreFromSnapshotParams struct {
+	ParentVolumeExternalUUID string // External UUID of the source/parent volume
+	ParentVolumeName         string // Name of the Volume
+	SnapshotUUID             string // UUID of the snapshot to restore from
+	SnapshotName             string // Name of the snapshot to restore from
+	ParentVolumeSvmName      string // Name of the SVM where the parent volume resides
+	// Add more fields as needed
+}
+
 // VolumeCreateParams is the params to create a volume
 type VolumeCreateParams struct {
 	Aggregates                     []string
@@ -1851,8 +1861,7 @@ type VolumeCreateParams struct {
 	UnixPermissions                *string
 	Language                       *string
 	Svm                            string
-	// TODO: enable these while implementing Snapshot
-	// Snapshot                       *sstorage.Snapshot
+	RestoreFromSnapshot            *RestoreFromSnapshotParams
 }
 
 const (
@@ -1860,11 +1869,54 @@ const (
 	GuaranteeTypeNone = "none"
 )
 
+func volumeCreateFromSnapshotParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreateParams {
+	otParams := storage.NewVolumeCreateParams()
+
+	otParams.SetInfo(&models.Volume{
+		Name: &params.Name,
+		Type: &params.Type,
+		Svm: &models.VolumeInlineSvm{
+			Name: &params.Svm,
+		},
+		Guarantee: &models.VolumeInlineGuarantee{
+			Type: nillable.ToPointer(GuaranteeTypeNone),
+		},
+		Space: &models.VolumeInlineSpace{
+			Snapshot: &models.VolumeInlineSpaceInlineSnapshot{
+				ReservePercent: &params.SnapshotReservePercent,
+			},
+			LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
+				Enforcement: nillable.ToPointer(true),
+				Reporting:   nillable.ToPointer(true),
+			},
+		},
+		Autosize: &models.VolumeInlineAutosize{
+			Mode: nillable.ToPointer("off"),
+		},
+		Clone: &models.VolumeInlineClone{
+			ParentSnapshot: &models.SnapshotReference{
+				Name: &params.RestoreFromSnapshot.SnapshotName,
+			},
+			ParentSvm: &models.VolumeInlineCloneInlineParentSvm{
+				Name: &params.RestoreFromSnapshot.ParentVolumeSvmName,
+			},
+			ParentVolume: &models.VolumeInlineCloneInlineParentVolume{
+				Name: &params.RestoreFromSnapshot.ParentVolumeName,
+			},
+			IsFlexclone: nillable.ToPointer(true),
+		},
+	})
+
+	otParams.SetReturnTimeout(&returnTimeout)
+	otParams.SetReturnRecords(nillable.ToPointer("true"))
+
+	return otParams
+}
+
 func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreateParams {
-	// TODO: enable these while implementing FlexCache
-	// if params.Snapshot != nil {
-	//	return volumeCreateFromSnapshotParamsToONTAP(params)
-	// }
+	if params.RestoreFromSnapshot != nil {
+		return volumeCreateFromSnapshotParamsToONTAP(params)
+	}
 
 	otParams := storage.NewVolumeCreateParams()
 	otParams.SetInfo(&models.Volume{
