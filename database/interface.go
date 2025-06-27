@@ -145,7 +145,7 @@ type DataStore interface {
 	CreatingBackupVault(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error)
 	ListBackupVaults(ctx context.Context, accountID int64) ([]*datamodel.BackupVault, error)
 	CreateBackupVault(ctx context.Context, vault *datamodel.BackupVault, vcpVault *datamodel.BackupVault) (*datamodel.BackupVault, error)
-	GetBackupVaultByUUID(ctx context.Context, backupVaultUUID string, accountID int64) (*datamodel.BackupVault, error)
+	GetBackupVaultByUUIDndOwnerID(ctx context.Context, backupVaultUUID string, accountID int64) (*datamodel.BackupVault, error)
 	CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error)
 	UpdateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault) error
 	GetBackupVault(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error)
@@ -157,7 +157,6 @@ type DataStore interface {
 	FinishBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 	UpdateBackupState(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 	IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error)
-	GetBackupsByBackupVault(ctx context.Context, backupVaultUUID string) ([]*datamodel.Backup, error)
 
 	CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)
 	GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error)
@@ -165,4 +164,5 @@ type DataStore interface {
 	GetAdminJobSpecsByState(ctx context.Context, state string) ([]*datamodel.AdminJobSpec, error)
 
 	ErroredResource(ctx context.Context, resource interface{}, errorMessage string) (interface{}, error)
+	GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Context, backupVaultUUID string, accountID int64, filters [][]interface{}) ([]*datamodel.Backup, error)
 }

@@ -381,14 +381,19 @@ func TestUpdateBackup(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err)
 
+		bv := &datamodel.BackupVault{AccountID: 1, BaseModel: datamodel.BaseModel{UUID: "123", ID: 1}}
 		backup := &datamodel.Backup{
 			Name:          "backup-vault",
-			BackupVaultID: 123,
+			BackupVaultID: 1,
+			BackupVault:   bv,
+			VolumeUUID:    "any-volume",
 		}
+		err = store.db.Create(bv).Error()
+		assert.NoError(tt, err)
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
 
-		backups, err := store.GetBackupsByBackupVault(context.Background(), "123")
+		backups, err := store.GetBackupsByBackupVaultOwnerIDAndFilter(context.Background(), "123", 1, nil)
 		assert.NoError(tt, err)
 		assert.Len(tt, backups, 1)
 		assert.Equal(tt, "backup-vault", backups[0].Name)
@@ -404,8 +409,9 @@ func TestUpdateBackup(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err)
 
-		backups, err := store.GetBackupsByBackupVault(context.Background(), "non-existent-vault")
-		assert.NoError(tt, err)
+		backups, err := store.GetBackupsByBackupVaultOwnerIDAndFilter(context.Background(), "non-existent-vault", 1, nil)
+		assert.Error(tt, err)
+		assert.Equal(tt, "backup vault not found", err.Error())
 		assert.Empty(tt, backups)
 	})
 }

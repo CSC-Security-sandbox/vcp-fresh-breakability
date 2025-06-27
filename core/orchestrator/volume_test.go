@@ -2576,7 +2576,7 @@ func TestUpdateVolume(t *testing.T) {
 		job := &datamodel.Job{WorkflowID: "wid"}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
-		se.On("GetBackupsByBackupVault", ctx, "vault-2").Return([]*datamodel.Backup{}, nil)
+		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-2", mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
@@ -2647,7 +2647,7 @@ func TestUpdateVolume(t *testing.T) {
 		job := &datamodel.Job{WorkflowID: "wid"}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
-		se.On("GetBackupsByBackupVault", ctx, "vault-1").Return([]*datamodel.Backup{}, nil)
+		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-1", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
@@ -2681,7 +2681,7 @@ func TestUpdateVolume(t *testing.T) {
 		}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
-		se.On("GetBackupsByBackupVault", ctx, "vault-1").Return(nil, errors.New("no backups found"))
+		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-1", int64(0), mock.Anything).Return(nil, errors.New("no backups found"))
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param)
 		assert.Error(tt, err)
@@ -2718,7 +2718,7 @@ func TestUpdateVolume(t *testing.T) {
 		}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
-		se.On("GetBackupsByBackupVault", ctx, "vault-1").Return(backups, nil)
+		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-1", mock.Anything, mock.Anything).Return(backups, nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param)
 		assert.Error(tt, err)

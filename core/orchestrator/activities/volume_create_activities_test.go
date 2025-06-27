@@ -972,7 +972,7 @@ func TestCheckForBucketResourceName_ReturnsBucketDetails(t *testing.T) {
 			BucketDetails: datamodel.BucketDetailsArray{bucketDetails},
 		}
 
-		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id", int64(123)).Return(backupVault, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(backupVault, nil)
 
 		result, err := activity.CheckForBucketResourceName(ctx, volume)
 
@@ -1005,7 +1005,7 @@ func TestCheckForBucketResourceName_ReturnsBucketDetails(t *testing.T) {
 			BucketDetails: datamodel.BucketDetailsArray{bucketDetails},
 		}
 
-		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id", int64(123)).Return(backupVault, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(backupVault, nil)
 
 		result, err := activity.CheckForBucketResourceName(ctx, volume)
 
@@ -1023,7 +1023,7 @@ func TestCheckForBucketResourceName_ReturnsBucketDetails(t *testing.T) {
 		}
 
 		expectedError := errors.New("failed to fetch backup vault")
-		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id", int64(123)).Return(nil, expectedError)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(nil, expectedError)
 
 		result, err := activity.CheckForBucketResourceName(ctx, volume)
 
@@ -1041,7 +1041,7 @@ func TestCheckForBucketResourceName_ReturnsBucketDetails(t *testing.T) {
 			AccountID:      123,
 		}
 
-		mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id", int64(123)).Return(nil, errors.New("backup vault not found"))
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(nil, errors.New("backup vault not found"))
 
 		result, err := activity.CheckForBucketResourceName(ctx, volume)
 
@@ -1136,7 +1136,7 @@ func TestBackupVaultExists_ReturnsNil(t *testing.T) {
 	}
 	backupVault := &datamodel.BackupVault{}
 
-	mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id", int64(123)).Return(backupVault, nil)
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(backupVault, nil)
 
 	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
 
@@ -1154,7 +1154,7 @@ func TestBackupVaultExists_ReturnsNotFound(t *testing.T) {
 		AccountID:      123,
 	}
 
-	mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id", int64(123)).Return(nil, errors.New("backup vault not found"))
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(nil, errors.New("backup vault not found"))
 
 	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
 
@@ -1172,7 +1172,7 @@ func TestBackupVaultVCPError(t *testing.T) {
 		AccountID:      123,
 	}
 
-	mockStorage.On("GetBackupVaultByUUID", ctx, "vault-id", int64(123)).Return(nil, errors.New("some error"))
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(nil, errors.New("some error"))
 
 	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
 

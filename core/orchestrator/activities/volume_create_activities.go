@@ -264,7 +264,7 @@ func (a VolumeCreateActivity) FindTenancy(ctx context.Context, consumerVPC strin
 
 func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volume *datamodel.Volume, region string) error {
 	bvId := volume.DataProtection.BackupVaultID
-	backupVault, err := se.GetBackupVaultByUUID(ctx, bvId, volume.AccountID)
+	backupVault, err := se.GetBackupVaultByUUIDndOwnerID(ctx, bvId, volume.AccountID)
 	if err != nil {
 		if !strings.Contains(err.Error(), "not found") {
 			return err
@@ -350,7 +350,7 @@ func _checkForBucketResourceName(ctx context.Context, se database.Storage, volum
 }
 
 func getBackupVaultDetails(se database.Storage, ctx context.Context, bvID string, accountId int64) (*datamodel.BackupVault, error) {
-	backupVault, err := se.GetBackupVaultByUUID(ctx, bvID, accountId)
+	backupVault, err := se.GetBackupVaultByUUIDndOwnerID(ctx, bvID, accountId)
 	if err != nil {
 		if !strings.Contains(err.Error(), "backup vault not found") {
 			return nil, err

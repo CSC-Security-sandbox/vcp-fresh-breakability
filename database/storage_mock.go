@@ -2374,12 +2374,12 @@ func (_c *MockStorage_GetBackupVaultByNameAndOwnerID_Call) RunAndReturn(run func
 	return _c
 }
 
-// GetBackupVaultByUUID provides a mock function with given fields: ctx, backupVaultUUID, accountID
-func (_m *MockStorage) GetBackupVaultByUUID(ctx context.Context, backupVaultUUID string, accountID int64) (*datamodel.BackupVault, error) {
+// GetBackupVaultByUUIDndOwnerID provides a mock function with given fields: ctx, backupVaultUUID, accountID
+func (_m *MockStorage) GetBackupVaultByUUIDndOwnerID(ctx context.Context, backupVaultUUID string, accountID int64) (*datamodel.BackupVault, error) {
 	ret := _m.Called(ctx, backupVaultUUID, accountID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetBackupVaultByUUID")
+		panic("no return value specified for GetBackupVaultByUUIDndOwnerID")
 	}
 
 	var r0 *datamodel.BackupVault
@@ -2404,59 +2404,59 @@ func (_m *MockStorage) GetBackupVaultByUUID(ctx context.Context, backupVaultUUID
 	return r0, r1
 }
 
-// MockStorage_GetBackupVaultByUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupVaultByUUID'
-type MockStorage_GetBackupVaultByUUID_Call struct {
+// MockStorage_GetBackupVaultByUUIDndOwnerID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupVaultByUUIDndOwnerID'
+type MockStorage_GetBackupVaultByUUIDndOwnerID_Call struct {
 	*mock.Call
 }
 
-// GetBackupVaultByUUID is a helper method to define mock.On call
+// GetBackupVaultByUUIDndOwnerID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - backupVaultUUID string
 //   - accountID int64
-func (_e *MockStorage_Expecter) GetBackupVaultByUUID(ctx interface{}, backupVaultUUID interface{}, accountID interface{}) *MockStorage_GetBackupVaultByUUID_Call {
-	return &MockStorage_GetBackupVaultByUUID_Call{Call: _e.mock.On("GetBackupVaultByUUID", ctx, backupVaultUUID, accountID)}
+func (_e *MockStorage_Expecter) GetBackupVaultByUUIDndOwnerID(ctx interface{}, backupVaultUUID interface{}, accountID interface{}) *MockStorage_GetBackupVaultByUUIDndOwnerID_Call {
+	return &MockStorage_GetBackupVaultByUUIDndOwnerID_Call{Call: _e.mock.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, accountID)}
 }
 
-func (_c *MockStorage_GetBackupVaultByUUID_Call) Run(run func(ctx context.Context, backupVaultUUID string, accountID int64)) *MockStorage_GetBackupVaultByUUID_Call {
+func (_c *MockStorage_GetBackupVaultByUUIDndOwnerID_Call) Run(run func(ctx context.Context, backupVaultUUID string, accountID int64)) *MockStorage_GetBackupVaultByUUIDndOwnerID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string), args[2].(int64))
 	})
 	return _c
 }
 
-func (_c *MockStorage_GetBackupVaultByUUID_Call) Return(_a0 *datamodel.BackupVault, _a1 error) *MockStorage_GetBackupVaultByUUID_Call {
+func (_c *MockStorage_GetBackupVaultByUUIDndOwnerID_Call) Return(_a0 *datamodel.BackupVault, _a1 error) *MockStorage_GetBackupVaultByUUIDndOwnerID_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockStorage_GetBackupVaultByUUID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.BackupVault, error)) *MockStorage_GetBackupVaultByUUID_Call {
+func (_c *MockStorage_GetBackupVaultByUUIDndOwnerID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.BackupVault, error)) *MockStorage_GetBackupVaultByUUIDndOwnerID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// GetBackupsByBackupVault provides a mock function with given fields: ctx, backupVaultUUID
-func (_m *MockStorage) GetBackupsByBackupVault(ctx context.Context, backupVaultUUID string) ([]*datamodel.Backup, error) {
-	ret := _m.Called(ctx, backupVaultUUID)
+// GetBackupsByBackupVaultOwnerIDAndFilter provides a mock function with given fields: ctx, backupVaultUUID, accountID, filters
+func (_m *MockStorage) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Context, backupVaultUUID string, accountID int64, filters [][]interface{}) ([]*datamodel.Backup, error) {
+	ret := _m.Called(ctx, backupVaultUUID, accountID, filters)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetBackupsByBackupVault")
+		panic("no return value specified for GetBackupsByBackupVaultOwnerIDAndFilter")
 	}
 
 	var r0 []*datamodel.Backup
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*datamodel.Backup, error)); ok {
-		return rf(ctx, backupVaultUUID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, [][]interface{}) ([]*datamodel.Backup, error)); ok {
+		return rf(ctx, backupVaultUUID, accountID, filters)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []*datamodel.Backup); ok {
-		r0 = rf(ctx, backupVaultUUID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, [][]interface{}) []*datamodel.Backup); ok {
+		r0 = rf(ctx, backupVaultUUID, accountID, filters)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*datamodel.Backup)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, backupVaultUUID)
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64, [][]interface{}) error); ok {
+		r1 = rf(ctx, backupVaultUUID, accountID, filters)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2464,31 +2464,33 @@ func (_m *MockStorage) GetBackupsByBackupVault(ctx context.Context, backupVaultU
 	return r0, r1
 }
 
-// MockStorage_GetBackupsByBackupVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupsByBackupVault'
-type MockStorage_GetBackupsByBackupVault_Call struct {
+// MockStorage_GetBackupsByBackupVaultOwnerIDAndFilter_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupsByBackupVaultOwnerIDAndFilter'
+type MockStorage_GetBackupsByBackupVaultOwnerIDAndFilter_Call struct {
 	*mock.Call
 }
 
-// GetBackupsByBackupVault is a helper method to define mock.On call
+// GetBackupsByBackupVaultOwnerIDAndFilter is a helper method to define mock.On call
 //   - ctx context.Context
 //   - backupVaultUUID string
-func (_e *MockStorage_Expecter) GetBackupsByBackupVault(ctx interface{}, backupVaultUUID interface{}) *MockStorage_GetBackupsByBackupVault_Call {
-	return &MockStorage_GetBackupsByBackupVault_Call{Call: _e.mock.On("GetBackupsByBackupVault", ctx, backupVaultUUID)}
+//   - accountID int64
+//   - filters [][]interface{}
+func (_e *MockStorage_Expecter) GetBackupsByBackupVaultOwnerIDAndFilter(ctx interface{}, backupVaultUUID interface{}, accountID interface{}, filters interface{}) *MockStorage_GetBackupsByBackupVaultOwnerIDAndFilter_Call {
+	return &MockStorage_GetBackupsByBackupVaultOwnerIDAndFilter_Call{Call: _e.mock.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, backupVaultUUID, accountID, filters)}
 }
 
-func (_c *MockStorage_GetBackupsByBackupVault_Call) Run(run func(ctx context.Context, backupVaultUUID string)) *MockStorage_GetBackupsByBackupVault_Call {
+func (_c *MockStorage_GetBackupsByBackupVaultOwnerIDAndFilter_Call) Run(run func(ctx context.Context, backupVaultUUID string, accountID int64, filters [][]interface{})) *MockStorage_GetBackupsByBackupVaultOwnerIDAndFilter_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].([][]interface{}))
 	})
 	return _c
 }
 
-func (_c *MockStorage_GetBackupsByBackupVault_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockStorage_GetBackupsByBackupVault_Call {
+func (_c *MockStorage_GetBackupsByBackupVaultOwnerIDAndFilter_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockStorage_GetBackupsByBackupVaultOwnerIDAndFilter_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockStorage_GetBackupsByBackupVault_Call) RunAndReturn(run func(context.Context, string) ([]*datamodel.Backup, error)) *MockStorage_GetBackupsByBackupVault_Call {
+func (_c *MockStorage_GetBackupsByBackupVaultOwnerIDAndFilter_Call) RunAndReturn(run func(context.Context, string, int64, [][]interface{}) ([]*datamodel.Backup, error)) *MockStorage_GetBackupsByBackupVaultOwnerIDAndFilter_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -1617,13 +1617,13 @@ func (re *retryEngine) CreateBackupVault(ctx context.Context, vault *datamodel.B
 	return var0, err
 }
 
-func (re *retryEngine) GetBackupVaultByUUID(ctx context.Context, backupVaultUUID string, accountID int64) (*datamodel.BackupVault, error) {
+func (re *retryEngine) GetBackupVaultByUUIDndOwnerID(ctx context.Context, backupVaultUUID string, accountID int64) (*datamodel.BackupVault, error) {
 	var var0 *datamodel.BackupVault
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetBackupVaultByUUID(ctx, backupVaultUUID, accountID)
+		var0, err = re.dataStore.GetBackupVaultByUUIDndOwnerID(ctx, backupVaultUUID, accountID)
 		if err != nil {
-			re.logError("GetBackupVaultByUUID", err)
+			re.logError("GetBackupVaultByUUIDndOwnerID", err)
 			if !isTransientErr(err) {
 				return false, err
 			}
@@ -1836,26 +1836,6 @@ func (re *retryEngine) IsBackupInCreatingorDeletingStateByVolume(ctx context.Con
 	return var0, err
 }
 
-func (re *retryEngine) GetBackupsByBackupVault(ctx context.Context, backupVaultUUID string) ([]*datamodel.Backup, error) {
-	var var0 []*datamodel.Backup
-	err := retry.Do(func(attempt int) (bool, error) {
-		var err error
-		var0, err = re.dataStore.GetBackupsByBackupVault(ctx, backupVaultUUID)
-		if err != nil {
-			re.logError("GetBackupsByBackupVault", err)
-			if !isTransientErr(err) {
-				return false, err
-			}
-		}
-		return true, err
-	})
-	if isTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
-	return var0, err
-}
-
 func (re *retryEngine) CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
 	var var0 *datamodel.AdminJobSpec
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -1942,6 +1922,26 @@ func (re *retryEngine) ErroredResource(ctx context.Context, resource interface{}
 		var0, err = re.dataStore.ErroredResource(ctx, resource, errorMessage)
 		if err != nil {
 			re.logError("ErroredResource", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Context, backupVaultUUID string, accountID int64, filters [][]interface{}) ([]*datamodel.Backup, error) {
+	var var0 []*datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, backupVaultUUID, accountID, filters)
+		if err != nil {
+			re.logError("GetBackupsByBackupVaultOwnerIDAndFilter", err)
 			if !isTransientErr(err) {
 				return false, err
 			}

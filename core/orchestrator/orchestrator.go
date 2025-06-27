@@ -59,7 +59,8 @@ type OrchestratorFactory interface {
 	ListBackupVaults(ctx context.Context, accountName string) ([]*models.BackupVaultV1beta, error)
 
 	CreateBackup(ctx context.Context, params *commonparams.CreateBackupParams) (*models.Backup, string, error)
-	ListBackups(ctx context.Context, params *commonparams.GetBackupsParams) ([]*datamodel.Backup, error)
+	ListBackups(ctx context.Context, params *commonparams.GetBackupsParams, filters [][]interface{}) ([]*datamodel.Backup, error)
+	GetBackupsUnderBackupVault(ctx context.Context, backupVaultID, ownerID string, backupUUIDs []string) ([]*datamodel.Backup, error)
 }
 
 type Orchestrator struct {

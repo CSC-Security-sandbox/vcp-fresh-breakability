@@ -128,12 +128,12 @@ func TestOrchestrator_ListBackups(t *testing.T) {
 		store := database.NewMockStorage(tt)
 		params := &common.GetBackupsParams{}
 
-		getBackups = func(ctx context.Context, se database.Storage, params *common.GetBackupsParams) ([]*datamodel.Backup, error) {
+		getBackups = func(ctx context.Context, se database.Storage, params *common.GetBackupsParams, filters [][]interface{}) ([]*datamodel.Backup, error) {
 			return []*datamodel.Backup{}, nil
 		}
 
 		o := &Orchestrator{storage: store}
-		backups, err := o.ListBackups(ctx, params)
+		backups, err := o.ListBackups(ctx, params, nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, backups)
@@ -215,11 +215,11 @@ func Test_getBackups(t *testing.T) {
 	t.Run("RetrievesBackups", func(tt *testing.T) {
 		ctx := context.Background()
 		store := database.NewMockStorage(tt)
-		params := &common.GetBackupsParams{}
+		params := &common.GetBackupsParams{BackupVaultID: "BackupVaultID"}
 
-		store.On("GetBackupsByBackupVault", ctx, params.BackupVaultID).Return([]*datamodel.Backup{}, nil)
+		store.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, params.BackupVaultID, int64(0), [][]interface{}(nil)).Return([]*datamodel.Backup{}, nil)
 
-		backups, err := _getBackups(ctx, store, params)
+		backups, err := _getBackups(ctx, store, params, nil)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, backups)
 	})
@@ -355,5 +355,70 @@ func Test_createBackupEdgeCases(t *testing.T) {
 		store.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("job create failed"))
 		_, _, err := _createBackup(ctx, store, temporal, params)
 		assert.EqualError(t, err, "job create failed")
+	})
+}
+
+func TestOrchestrator_GetBackupsUnderBackupVault(t *testing.T) {
+	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		orch := &Orchestrator{storage: mockStorage}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, ownerID string) (*datamodel.Account, error) {
+			return nil, errors.New("failed to get or create account")
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+		backups, err := orch.GetBackupsUnderBackupVault(ctx, "backupVaultID", "ownerID", []string{"backupUUID"})
+		assert.Nil(tt, backups)
+		assert.EqualError(tt, err, "failed to get or create account")
+	})
+
+	t.Run("WhenGetBackupsFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		orch := &Orchestrator{storage: mockStorage}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, ownerID string) (*datamodel.Account, error) {
+			return &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}}, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+
+		getBackups = func(ctx context.Context, se database.Storage, params *common.GetBackupsParams, filters [][]interface{}) ([]*datamodel.Backup, error) {
+			return nil, errors.New("failed to get backups")
+		}
+		defer func() { getBackups = _getBackups }()
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "backupVaultID", int64(1), [][]interface{}{
+			{"uuid in ?", []string{"backupUUID"}},
+		}).Return(nil, errors.New("failed to get backups"))
+		backups, err := orch.GetBackupsUnderBackupVault(ctx, "backupVaultID", "ownerID", []string{"backupUUID"})
+		assert.Nil(tt, backups)
+		assert.EqualError(tt, err, "failed to get backups")
+	})
+
+	t.Run("WhenGetBackupsSucceeds", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		orch := &Orchestrator{storage: mockStorage}
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, ownerID string) (*datamodel.Account, error) {
+			return &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}}, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+
+		expectedBackups := []*datamodel.Backup{
+			{BaseModel: datamodel.BaseModel{UUID: "backupUUID1"}},
+			{BaseModel: datamodel.BaseModel{UUID: "backupUUID2"}},
+		}
+		getBackups = func(ctx context.Context, se database.Storage, params *common.GetBackupsParams, filters [][]interface{}) ([]*datamodel.Backup, error) {
+			return expectedBackups, nil
+		}
+		defer func() { getBackups = _getBackups }()
+		// Set up the mock expectation for GetBackupsByBackupVaultOwnerIDAndFilter
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "backupVaultID", int64(1), [][]interface{}{
+			{"uuid in ?", []string{"backupUUID"}},
+		}).Return(expectedBackups, nil)
+		backups, err := orch.GetBackupsUnderBackupVault(ctx, "backupVaultID", "ownerID", []string{"backupUUID"})
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedBackups, backups)
 	})
 }

@@ -94,7 +94,7 @@ func (d *DataStoreRepository) GetBackupVaultByNameAndOwnerID(ctx context.Context
 	return &bv, nil
 }
 
-func (d *DataStoreRepository) GetBackupVaultByUUID(ctx context.Context, backupVaultID string, accountID int64) (*datamodel.BackupVault, error) {
+func (d *DataStoreRepository) GetBackupVaultByUUIDndOwnerID(ctx context.Context, backupVaultID string, accountID int64) (*datamodel.BackupVault, error) {
 	db := d.db.GORM().WithContext(ctx)
 	dbBackupVault, err := getBackupVaultWithDetails(db, &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: backupVaultID}, AccountID: accountID})
 	if err != nil {

@@ -27,8 +27,23 @@ func (o *Orchestrator) CreateBackup(ctx context.Context, params *common.CreateBa
 	return createBackup(ctx, o.storage, o.temporal, params)
 }
 
-func (o *Orchestrator) ListBackups(ctx context.Context, params *common.GetBackupsParams) ([]*datamodel.Backup, error) {
-	return getBackups(ctx, o.storage, params)
+func (o *Orchestrator) ListBackups(ctx context.Context, params *common.GetBackupsParams, filters [][]interface{}) ([]*datamodel.Backup, error) {
+	return getBackups(ctx, o.storage, params, filters)
+}
+
+// GetBackupsUnderBackupVault retrieves all backups associated with the specified BackupVault
+func (o *Orchestrator) GetBackupsUnderBackupVault(ctx context.Context, backupVaultID, ownerID string, backupUUIDs []string) ([]*datamodel.Backup, error) {
+	se := o.storage
+	account, err := getOrCreateAccount(ctx, se, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	params := &common.GetBackupsParams{
+		BackupVaultID: backupVaultID,
+		AccountID:     account.ID,
+	}
+	conditions := [][]interface{}{{"uuid in ?", backupUUIDs}}
+	return o.GetBackups(ctx, params, conditions)
 }
 
 func _createBackup(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateBackupParams) (*models.Backup, string, error) {
@@ -135,12 +150,12 @@ func _validateCreateBackupParams(ctx context.Context, se database.Storage, param
 }
 
 // GetBackups retrieves all backups associated with the specified BackupVault
-func (o *Orchestrator) GetBackups(ctx context.Context, params *common.GetBackupsParams) ([]*datamodel.Backup, error) {
-	return _getBackups(ctx, o.storage, params)
+func (o *Orchestrator) GetBackups(ctx context.Context, params *common.GetBackupsParams, filters [][]interface{}) ([]*datamodel.Backup, error) {
+	return _getBackups(ctx, o.storage, params, filters)
 }
 
-func _getBackups(ctx context.Context, se database.Storage, params *common.GetBackupsParams) ([]*datamodel.Backup, error) {
-	return se.GetBackupsByBackupVault(ctx, params.BackupVaultID)
+func _getBackups(ctx context.Context, se database.Storage, params *common.GetBackupsParams, filters [][]interface{}) ([]*datamodel.Backup, error) {
+	return se.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, params.BackupVaultID, params.AccountID, filters)
 }
 
 func convertDatastoreBackupToModel(backup *datamodel.Backup) *models.Backup {

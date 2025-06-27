@@ -59,12 +59,24 @@ func _getBackupWithDetails(db *gorm.DB, query *datamodel.Backup) (*datamodel.Bac
 	return backup, nil
 }
 
-func (d *DataStoreRepository) GetBackupsByBackupVault(ctx context.Context, backupVaultUUID string) ([]*datamodel.Backup, error) {
-	return getBackupsByBackupVault(d.db.GORM().WithContext(ctx), backupVaultUUID)
+func (d *DataStoreRepository) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Context, backupVaultUUID string, accountID int64, filters [][]interface{}) ([]*datamodel.Backup, error) {
+	bv, err := d.GetBackupVaultByUUIDndOwnerID(ctx, backupVaultUUID, accountID)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			return nil, customerrors.NewNotFoundErr("backup vault", nil)
+		}
+		return nil, err
+	}
+	// If no filters are provided, fetch all backups for the backup vault
+	if len(filters) == 0 {
+		return getBackupsByBackupVault(d.db.GORM().WithContext(ctx), bv.ID)
+	}
+	return getBackupsByBackupVault(d.db.ApplyFilter(filters).GORM().WithContext(ctx), bv.ID)
 }
 
-func getBackupsByBackupVault(db *gorm.DB, backupVaultUUID string) ([]*datamodel.Backup, error) {
+func getBackupsByBackupVault(db *gorm.DB, backupVaultUUID int64) ([]*datamodel.Backup, error) {
 	var backups []*datamodel.Backup
+
 	err := db.Preload("BackupVault").Where("backup_vault_id = ?", backupVaultUUID).Find(&backups).Error
 	if err != nil {
 		return nil, err

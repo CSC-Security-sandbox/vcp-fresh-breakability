@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backups"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -30,68 +31,97 @@ const (
 func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver.BackupUuidListV1beta, params gcpgenserver.V1betaGetMultipleBackupsParams) (gcpgenserver.V1betaGetMultipleBackupsRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := createClient(logger, jwtToken)
-
-	var backupUUIDs []string
-	backupUUIDs = append(backupUUIDs, req.BackupUuids...)
-
-	body := &models.BackupUUIDListV1beta{
-		BackupUUIDs: backupUUIDs,
+	listBackups, err := h.Orchestrator.GetBackupsUnderBackupVault(ctx, params.BackupVaultId, params.ProjectNumber, req.BackupUuids)
+	if err != nil && errors.IsUserInputValidationErr(err) {
+		return &gcpgenserver.V1betaGetMultipleBackupsBadRequest{
+			Code:    400,
+			Message: err.Error(),
+		}, nil
 	}
-	getMultipleBackupParams := &backups.V1betaGetMultipleBackupsParams{
-		BackupVaultID:  params.BackupVaultId,
-		Body:           body,
-		LocationID:     params.LocationId,
-		ProjectNumber:  params.ProjectNumber,
-		XCorrelationID: &params.XCorrelationID.Value,
+	// If err is not nil and it is not a NotFound error, return an internal server error
+	// For NotFoundErr we will return the list from CVP
+	if err != nil && !errors.IsNotFoundErr(err) {
+		return &gcpgenserver.V1betaGetMultipleBackupsInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
 	}
-
-	resp, err := cvpClient.Backups.V1betaGetMultipleBackups(getMultipleBackupParams)
-	if err != nil {
-		switch e := err.(type) {
-		case *backups.V1betaGetMultipleBackupsBadRequest:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultipleBackupsBadRequest{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *backups.V1betaGetMultipleBackupsUnauthorized:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultipleBackupsUnauthorized{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *backups.V1betaGetMultipleBackupsForbidden:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultipleBackupsForbidden{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *backups.V1betaGetMultipleBackupsNotFound:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultipleBackupsNotFound{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *backups.V1betaGetMultipleBackupsInternalServerError:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultipleBackupsInternalServerError{
-				Code:    code,
-				Message: msg,
-			}, nil
-		}
-	}
+	// Need to fetch the UUIDs not found in VCP to CVP
+	uuids := fetchBackupUUIDWhichAreNotPartOfListBackups(listBackups, req.BackupUuids)
 	operationResponse := gcpgenserver.V1betaGetMultipleBackupsOK{
 		Backups: []gcpgenserver.BackupV1beta{},
 	}
-	for _, bp := range resp.Payload.Backups {
-		operationResponse.Backups = append(operationResponse.Backups, convertToBackupsV1beta(bp))
+	if len(uuids) != 0 {
+		jwtToken := utils.GetJWTTokenFromContext(ctx)
+		cvpClient := createClient(logger, jwtToken)
+
+		var backupUUIDs []string
+		backupUUIDs = append(backupUUIDs, uuids...)
+
+		body := &models.BackupUUIDListV1beta{
+			BackupUUIDs: backupUUIDs,
+		}
+		getMultipleBackupParams := &backups.V1betaGetMultipleBackupsParams{
+			BackupVaultID:  params.BackupVaultId,
+			Body:           body,
+			LocationID:     params.LocationId,
+			ProjectNumber:  params.ProjectNumber,
+			XCorrelationID: &params.XCorrelationID.Value,
+		}
+
+		resp, err := cvpClient.Backups.V1betaGetMultipleBackups(getMultipleBackupParams)
+		if err != nil {
+			switch e := err.(type) {
+			case *backups.V1betaGetMultipleBackupsBadRequest:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaGetMultipleBackupsBadRequest{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *backups.V1betaGetMultipleBackupsUnauthorized:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaGetMultipleBackupsUnauthorized{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *backups.V1betaGetMultipleBackupsForbidden:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaGetMultipleBackupsForbidden{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *backups.V1betaGetMultipleBackupsNotFound:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaGetMultipleBackupsNotFound{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *backups.V1betaGetMultipleBackupsInternalServerError:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaGetMultipleBackupsInternalServerError{
+					Code:    code,
+					Message: msg,
+				}, nil
+			default:
+				return &gcpgenserver.V1betaGetMultipleBackupsInternalServerError{
+					Code:    500,
+					Message: err.Error(),
+				}, nil
+			}
+		}
+		if resp != nil && resp.Payload != nil {
+			for _, bp := range resp.Payload.Backups {
+				operationResponse.Backups = append(operationResponse.Backups, convertToBackupsV1beta(bp))
+			}
+		}
+	}
+	for _, bp := range listBackups {
+		operationResponse.Backups = append(operationResponse.Backups, convertBackupDataModelToBackupsV1beta(bp))
 	}
 	return &operationResponse, nil
 }
@@ -340,6 +370,86 @@ func convertBackupModelToBackupsV1beta(backup *coremodels.Backup) *gcpgenserver.
 	}
 }
 
+func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserver.BackupV1beta {
+	var state gcpgenserver.BackupV1betaState
+	// Need to convert states as DB models and API models have different states
+	if backup.State == coremodels.LifeCycleStateAvailable {
+		state = gcpgenserver.BackupV1betaStateREADY
+	}
+	if backup.State == coremodels.LifeCycleStateError {
+		state = gcpgenserver.BackupV1betaStateERROR
+	}
+	return gcpgenserver.BackupV1beta{
+		ResourceId: gcpgenserver.OptString{
+			Value: backup.Name,
+			Set:   true,
+		},
+		VolumeId: gcpgenserver.OptString{
+			Value: backup.VolumeUUID,
+			Set:   true,
+		},
+		State: gcpgenserver.OptBackupV1betaState{
+			Value: state,
+			Set:   true,
+		},
+		Created: gcpgenserver.OptDateTime{
+			Value: backup.CreatedAt,
+			Set:   true,
+		},
+		EnforcedRetentionEndTime: gcpgenserver.OptDateTime{
+			Value: backup.Attributes.EnforcedRetentionDuration,
+		},
+		BackupId: gcpgenserver.OptString{
+			Value: backup.UUID,
+			Set:   true,
+		},
+		VolumeUsageBytes: gcpgenserver.OptInt64{
+			Value: backup.SizeInBytes,
+			Set:   true,
+		},
+		BackupVaultId: gcpgenserver.OptString{
+			Value: backup.BackupVault.UUID,
+			Set:   true,
+		},
+		Description: gcpgenserver.OptString{
+			Value: backup.Description,
+			Set:   true,
+		},
+		BackupType: gcpgenserver.OptBackupV1betaBackupType{
+			Value: gcpgenserver.BackupV1betaBackupType(backup.Type),
+			Set:   true,
+		},
+		SourceSnapshot: gcpgenserver.OptString{
+			Value: backup.Attributes.SnapshotName,
+		},
+		SourceVolume: gcpgenserver.OptString{
+			Value: backup.Attributes.VolumeName,
+			Set:   true,
+		},
+		BackupRegion: gcpgenserver.OptString{
+			Value: *backup.BackupVault.SourceRegionName,
+			Set:   true,
+		},
+		VolumeRegion: gcpgenserver.OptString{
+			Value: *backup.BackupVault.SourceRegionName,
+			Set:   true,
+		},
+		// These values are not supported as of now
+		SatisfiesPzs: gcpgenserver.OptBool{
+			Value: false,
+		},
+		SatisfiesPzi: gcpgenserver.OptBool{
+			Value: false,
+		},
+		BackupChainBytes: gcpgenserver.OptInt64{
+			Value: 0,
+		},
+		AssetLocationMetadata: gcpgenserver.OptAssetLocationMetadataV2{
+			Set: false,
+		},
+	}
+}
+
 func createBackupParams(req *gcpgenserver.BackupCreateV1beta, params gcpgenserver.V1betaCreateBackupParams) *common.CreateBackupParams {
 	backupParams := common.CreateBackupParams{
 		AccountName:   params.ProjectNumber,
@@ -369,4 +479,20 @@ func encodeBackupV1(backupV1beta *gcpgenserver.BackupV1beta) (jx.Raw, error) {
 		return nil, err
 	}
 	return data, nil
+}
+func fetchBackupUUIDWhichAreNotPartOfListBackups(listBackups []*datamodel.Backup, backupUUIDs []string) []string {
+	// Create a map to store UUIDs from listBackups for quick lookup
+	backupUUIDMap := make(map[string]bool)
+	for _, backup := range listBackups {
+		backupUUIDMap[backup.UUID] = true
+	}
+	// Filter UUIDs from backupUUIDs that are not in listBackups
+	var uuids []string
+	for _, backupUUID := range backupUUIDs {
+		if !backupUUIDMap[backupUUID] {
+			uuids = append(uuids, backupUUID)
+		}
+	}
+
+	return uuids
 }

@@ -510,22 +510,23 @@ type Backup struct {
 
 // BackupAttributes represents the structure of the JSONB data for Backup
 type BackupAttributes struct {
-	BackupPolicyName               string   `json:"backup_policy_name"`
-	SnapshotID                     string   `json:"snapshot_id"`
-	SnapshotName                   string   `json:"snapshot_name"`
-	SnapshotCreationTime           string   `json:"snapshot_creation_time"`
-	CompletionTime                 string   `json:"completion_time"`
-	LifeCycleTrackingID            string   `json:"life_cycle_tracking_id"`
-	ConstituentVolumesPerAggregate string   `json:"constituent_volumes_per_aggregate"`
-	UseExistingSnapshot            bool     `json:"use_existing_snapshot"`
-	NumberOfAggregates             int      `json:"number_of_aggregates"`
-	OntapVolumeStyle               string   `json:"ontap_volume_style"`
-	ServiceAccountName             string   `json:"service_account_name"`
-	EndpointUUID                   string   `json:"endpoint_uuid"`
-	BucketName                     string   `json:"bucket_name"`
-	Protocols                      []string `json:"protocols"`
-	VolumeName                     string   `json:"volume_name"`
-	AccountIdentifier              string   `json:"account_identifier"`
+	BackupPolicyName               string    `json:"backup_policy_name"`
+	SnapshotID                     string    `json:"snapshot_id"`
+	SnapshotName                   string    `json:"snapshot_name"`
+	SnapshotCreationTime           string    `json:"snapshot_creation_time"`
+	CompletionTime                 string    `json:"completion_time"`
+	LifeCycleTrackingID            string    `json:"life_cycle_tracking_id"`
+	ConstituentVolumesPerAggregate string    `json:"constituent_volumes_per_aggregate"`
+	UseExistingSnapshot            bool      `json:"use_existing_snapshot"`
+	NumberOfAggregates             int       `json:"number_of_aggregates"`
+	OntapVolumeStyle               string    `json:"ontap_volume_style"`
+	ServiceAccountName             string    `json:"service_account_name"`
+	EndpointUUID                   string    `json:"endpoint_uuid"`
+	BucketName                     string    `json:"bucket_name"`
+	Protocols                      []string  `json:"protocols"`
+	VolumeName                     string    `json:"volume_name"`
+	AccountIdentifier              string    `json:"account_identifier"`
+	EnforcedRetentionDuration      time.Time `json:"enforced_retention_duration"`
 }
 
 func (b *BackupAttributes) Scan(value interface{}) error {

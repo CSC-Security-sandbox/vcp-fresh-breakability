@@ -280,7 +280,7 @@ type CreateBackupParams struct {
 }
 
 type GetBackupsParams struct {
-	AccountName   string
+	AccountID     int64
 	BackupVaultID string
 	BackupUUIDs   []string
 }

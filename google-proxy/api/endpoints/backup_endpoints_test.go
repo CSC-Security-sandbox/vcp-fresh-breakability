@@ -3,10 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
-	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 	"time"
 
@@ -16,8 +13,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backups"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -87,7 +89,31 @@ func TestV1GetMultipleBackups(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+		backupVault := &datamodel.BackupVault{
+			Name:             "test-backup-vault",
+			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+			SourceRegionName: nillable.ToPointer("rgn-test"),
+		}
+		b := []*datamodel.Backup{
+			{
+				State:         "InProgress",
+				Name:          "test-backup",
+				VolumeUUID:    "test-vol",
+				BackupVault:   backupVault,
+				BackupVaultID: 1,
+				Attributes:    &datamodel.BackupAttributes{}},
+
+			{
+				State:         "InProgress",
+				Name:          "test-backup-1",
+				VolumeUUID:    "test-vol",
+				BackupVault:   backupVault,
+				BackupVaultID: 1,
+				Attributes:    &datamodel.BackupAttributes{}},
+		}
+		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 		// Call the method under test
 		result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
 
@@ -96,7 +122,43 @@ func TestV1GetMultipleBackups(t *testing.T) {
 		assert.NotNil(t, result)
 		// Check if the resource name is as expected
 		assert.Equal(t, "backup-id-1", result.(*gcpgenserver.V1betaGetMultipleBackupsOK).Backups[0].BackupId.Value)
+		assert.Equal(t, "test-backup", result.(*gcpgenserver.V1betaGetMultipleBackupsOK).Backups[1].ResourceId.Value)
+		assert.Equal(t, "test-backup-1", result.(*gcpgenserver.V1betaGetMultipleBackupsOK).Backups[2].ResourceId.Value)
 	})
+	t.Run("WhenGetMultipleBackupsFailsWithVCPFails", func(t *testing.T) {
+		// Define request
+		// Create a mock client
+		mockClient := backups.NewMockClientService(t)
+
+		// Define input parameters
+		params := gcpgenserver.V1betaGetMultipleBackupsParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+			BackupVaultId:  "test-backup-vault-id",
+		}
+		req := &gcpgenserver.BackupUuidListV1beta{
+			BackupUuids: []string{"backup-id-1"},
+		}
+
+		cvpClient := &cvpapi.Cvp{Backups: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("Failed to get backups under backup vault"))
+		// Call the method under test
+		result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaGetMultipleBackupsInternalServerError).Code)
+	})
+
 	t.Run("WhenGetMultipleBackupsFailsWithBadRequest", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backups.NewMockClientService(t)
@@ -108,7 +170,9 @@ func TestV1GetMultipleBackups(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupUuidListV1beta{}
+		req := &gcpgenserver.BackupUuidListV1beta{
+			BackupUuids: []string{"backup-id-1"},
+		}
 
 		// Define mock error
 		errorCode := float64(400)
@@ -129,8 +193,20 @@ func TestV1GetMultipleBackups(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
-		// Call the method under test
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+		backupVault := &datamodel.BackupVault{
+			Name:          "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+		}
+		b := []*datamodel.Backup{{State: "InProgress",
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes:    &datamodel.BackupAttributes{}}}
+		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
+
 		result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
 		// Assertions
 		assert.NoError(t, err)
@@ -139,7 +215,8 @@ func TestV1GetMultipleBackups(t *testing.T) {
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleBackupsBadRequest).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleBackupsBadRequest).Message)
 	})
-	t.Run("WhenGetMultipleBackupsFailsWithUnAuthorized", func(t *testing.T) {
+
+	t.Run("WhenGetMultipleBackupsWithNoUUIDs", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backups.NewMockClientService(t)
 
@@ -151,6 +228,50 @@ func TestV1GetMultipleBackups(t *testing.T) {
 		}
 		// Define request
 		req := &gcpgenserver.BackupUuidListV1beta{}
+
+		cvpClient := &cvpapi.Cvp{Backups: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+		backupVault := &datamodel.BackupVault{
+			Name:             "test-backup-vault",
+			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+			SourceRegionName: nillable.ToPointer("rgn-test"),
+		}
+		b := []*datamodel.Backup{{State: "InProgress",
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes:    &datamodel.BackupAttributes{}}}
+		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
+
+		result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		// Check if the code is as expected
+		assert.NotNil(t, result.(*gcpgenserver.V1betaGetMultipleBackupsOK).Backups)
+	})
+
+	t.Run("WhenGetMultipleBackupsFailsWithUnAuthorized", func(t *testing.T) {
+		// Create a mock client
+		mockClient := backups.NewMockClientService(t)
+
+		// Define input parameters
+		params := gcpgenserver.V1betaGetMultipleBackupsParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		// Define request
+		req := &gcpgenserver.BackupUuidListV1beta{
+			BackupUuids: []string{"backup-id-1"},
+		}
 
 		// Define mock error
 		errorCode := float64(401)
@@ -171,8 +292,19 @@ func TestV1GetMultipleBackups(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
-		// Call the method under test
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+		backupVault := &datamodel.BackupVault{
+			Name:          "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+		}
+		backups := []*datamodel.Backup{{State: "InProgress",
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes:    &datamodel.BackupAttributes{}}}
+		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backups, nil) // Call the method under test
 		result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
 		// Assertions
 		assert.NoError(t, err)
@@ -192,7 +324,9 @@ func TestV1GetMultipleBackups(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		// Define request
-		req := &gcpgenserver.BackupUuidListV1beta{}
+		req := &gcpgenserver.BackupUuidListV1beta{
+			BackupUuids: []string{"backup-id-1"},
+		}
 
 		// Define mock error
 		errorCode := float64(403)
@@ -213,7 +347,19 @@ func TestV1GetMultipleBackups(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+		backupVault := &datamodel.BackupVault{
+			Name:          "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+		}
+		b := []*datamodel.Backup{{State: "InProgress",
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes:    &datamodel.BackupAttributes{}}}
+		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 		// Call the method under test
 		result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
 		// Assertions
@@ -232,8 +378,8 @@ func TestV1betaDeleteBackupUnderBackupVault(t *testing.T) {
 		params := gcpgenserver.V1betaDeleteBackupUnderBackupVaultParams{}
 
 		// Mock handler
-		handler := Handler{}
-
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
 		// Call the method under test
 		result, err := handler.V1betaDeleteBackupUnderBackupVault(context.Background(), params)
 
@@ -252,8 +398,8 @@ func TestV1betaUpdateBackupUnderBackupVault(t *testing.T) {
 		params := gcpgenserver.V1betaUpdateBackupParams{}
 
 		// Mock handler
-		handler := Handler{}
-
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
 		// Call the method under test
 		result, err := handler.V1betaUpdateBackupUnderBackupVault(context.Background(), req, params)
 
@@ -413,7 +559,9 @@ func TestV1betaCreateBackup(t *testing.T) {
 func TestV1betaGetMultipleBackups_NotFound(t *testing.T) {
 	mockClient := backups.NewMockClientService(t)
 	params := gcpgenserver.V1betaGetMultipleBackupsParams{}
-	req := &gcpgenserver.BackupUuidListV1beta{}
+	req := &gcpgenserver.BackupUuidListV1beta{
+		BackupUuids: []string{"backup-id-1"},
+	}
 	mockError := &backups.V1betaGetMultipleBackupsNotFound{
 		Payload: &models.Error{Code: 404, Message: "Not Found"},
 	}
@@ -422,7 +570,19 @@ func TestV1betaGetMultipleBackups_NotFound(t *testing.T) {
 	originalCreateClient := createClient
 	defer func() { createClient = originalCreateClient }()
 	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp { return *cvpClient }
-	handler := Handler{}
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrch}
+	backupVault := &datamodel.BackupVault{
+		Name:          "test-backup-vault",
+		BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+	}
+	b := []*datamodel.Backup{{State: "InProgress",
+		Name:          "test-backup",
+		VolumeUUID:    "test-vol",
+		BackupVault:   backupVault,
+		BackupVaultID: 1,
+		Attributes:    &datamodel.BackupAttributes{}}}
+	mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 	result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
 	assert.NoError(t, err)
 	assert.Equal(t, float64(404), result.(*gcpgenserver.V1betaGetMultipleBackupsNotFound).Code)
@@ -432,7 +592,9 @@ func TestV1betaGetMultipleBackups_NotFound(t *testing.T) {
 func TestV1betaGetMultipleBackups_InternalServerError(t *testing.T) {
 	mockClient := backups.NewMockClientService(t)
 	params := gcpgenserver.V1betaGetMultipleBackupsParams{}
-	req := &gcpgenserver.BackupUuidListV1beta{}
+	req := &gcpgenserver.BackupUuidListV1beta{
+		BackupUuids: []string{"backup-id-1"},
+	}
 	mockError := &backups.V1betaGetMultipleBackupsInternalServerError{
 		Payload: &models.Error{Code: 500, Message: "Internal Server Error"},
 	}
@@ -441,7 +603,19 @@ func TestV1betaGetMultipleBackups_InternalServerError(t *testing.T) {
 	originalCreateClient := createClient
 	defer func() { createClient = originalCreateClient }()
 	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp { return *cvpClient }
-	handler := Handler{}
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrch}
+	backupVault := &datamodel.BackupVault{
+		Name:          "test-backup-vault",
+		BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+	}
+	b := []*datamodel.Backup{{State: "InProgress",
+		Name:          "test-backup",
+		VolumeUUID:    "test-vol",
+		BackupVault:   backupVault,
+		BackupVaultID: 1,
+		Attributes:    &datamodel.BackupAttributes{}}}
+	mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 	result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
 	assert.NoError(t, err)
 	assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaGetMultipleBackupsInternalServerError).Code)
@@ -460,7 +634,9 @@ func TestV1betaGetMultipleBackups_MissingLines(t *testing.T) {
 			ProjectNumber:  "12345",
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
-		req := &gcpgenserver.BackupUuidListV1beta{}
+		req := &gcpgenserver.BackupUuidListV1beta{
+			BackupUuids: []string{"backup-id-1"},
+		}
 
 		// Define mock error
 		mockError := &backups.V1betaGetMultipleBackupsInternalServerError{
@@ -482,7 +658,19 @@ func TestV1betaGetMultipleBackups_MissingLines(t *testing.T) {
 			return *cvpClient
 		}
 
-		handler := Handler{}
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+		backupVault := &datamodel.BackupVault{
+			Name:          "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+		}
+		b := []*datamodel.Backup{{State: "InProgress",
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes:    &datamodel.BackupAttributes{}}}
+		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 
 		// Call the method under test
 		result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
@@ -504,7 +692,9 @@ func TestV1betaGetMultipleBackups_MissingLines(t *testing.T) {
 			ProjectNumber:  "12345",
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
-		req := &gcpgenserver.BackupUuidListV1beta{}
+		req := &gcpgenserver.BackupUuidListV1beta{
+			BackupUuids: []string{"backup-id-1"},
+		}
 
 		// Define mock response
 		mockResponse := &backups.V1betaGetMultipleBackupsOK{
@@ -523,7 +713,10 @@ func TestV1betaGetMultipleBackups_MissingLines(t *testing.T) {
 			return *cvpClient
 		}
 
-		handler := Handler{}
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+		b := []*datamodel.Backup{}
+		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
 
 		// Call the method under test
 		result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
@@ -533,7 +726,62 @@ func TestV1betaGetMultipleBackups_MissingLines(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.Empty(t, result.(*gcpgenserver.V1betaGetMultipleBackupsOK).Backups)
 	})
+	t.Run("WhenGetMultipleBackupsHandlesVCPResponse", func(t *testing.T) {
+		// Mock client
+		mockClient := backups.NewMockClientService(t)
+
+		// Define input parameters
+		params := gcpgenserver.V1betaGetMultipleBackupsParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		req := &gcpgenserver.BackupUuidListV1beta{
+			BackupUuids: []string{"backup-id-1"},
+		}
+
+		// Define mock response
+		mockResponse := &backups.V1betaGetMultipleBackupsOK{
+			Payload: &backups.V1betaGetMultipleBackupsOKBody{Backups: []*models.BackupV1beta{}},
+		}
+
+		// Set up the mock client behavior
+		mockClient.EXPECT().
+			V1betaGetMultipleBackups(mock.Anything).
+			Return(mockResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{Backups: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+		backupVault := &datamodel.BackupVault{
+			Name:             "test-backup-vault",
+			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+			SourceRegionName: nillable.ToPointer("rgn-test"),
+		}
+		b := []*datamodel.Backup{{State: "InProgress",
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes:    &datamodel.BackupAttributes{}}}
+		mockOrch.EXPECT().GetBackupsUnderBackupVault(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(b, nil)
+
+		// Call the method under test
+		result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, result.(*gcpgenserver.V1betaGetMultipleBackupsOK).Backups[0].ResourceId.Value, "test-backup")
+	})
 }
+
 func TestV1betaCreateBackup_CVPErrorCases(t *testing.T) {
 	type cvpErrCase struct {
 		name     string
@@ -791,5 +1039,55 @@ func TestV1betaCreateBackup_CVPCreateBackupCreatedAndAccepted(t *testing.T) {
 		assert.NoError(t, err)
 		assert.IsType(t, &gcpgenserver.V1betaCreateBackupBadRequest{}, result)
 		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaCreateBackupBadRequest).Code)
+	})
+}
+func TestFetchBackupUUIDWhichAreNotPartOfListBackups(t *testing.T) {
+	t.Run("WhenAllUUIDsArePartOfListBackups", func(t *testing.T) {
+		listBackups := []*datamodel.Backup{
+			{BaseModel: datamodel.BaseModel{UUID: "uuid1"}},
+			{BaseModel: datamodel.BaseModel{UUID: "uuid2"}},
+		}
+		backupUUIDs := []string{"uuid1", "uuid2"}
+		var expectedUUIDs []string
+
+		result := fetchBackupUUIDWhichAreNotPartOfListBackups(listBackups, backupUUIDs)
+
+		assert.Equal(t, expectedUUIDs, result)
+	})
+
+	t.Run("WhenSomeUUIDsAreNotPartOfListBackups", func(t *testing.T) {
+		listBackups := []*datamodel.Backup{
+			{BaseModel: datamodel.BaseModel{UUID: "uuid1"}},
+			{BaseModel: datamodel.BaseModel{UUID: "uuid2"}},
+		}
+		backupUUIDs := []string{"uuid1", "uuid2", "uuid3"}
+		expectedUUIDs := []string{"uuid3"}
+
+		result := fetchBackupUUIDWhichAreNotPartOfListBackups(listBackups, backupUUIDs)
+
+		assert.Equal(t, expectedUUIDs, result)
+	})
+
+	t.Run("WhenListBackupsIsEmpty", func(t *testing.T) {
+		listBackups := []*datamodel.Backup{}
+		backupUUIDs := []string{"uuid1", "uuid2"}
+		expectedUUIDs := []string{"uuid1", "uuid2"}
+
+		result := fetchBackupUUIDWhichAreNotPartOfListBackups(listBackups, backupUUIDs)
+
+		assert.Equal(t, expectedUUIDs, result)
+	})
+
+	t.Run("WhenBackupUUIDsIsEmpty", func(t *testing.T) {
+		listBackups := []*datamodel.Backup{
+			{BaseModel: datamodel.BaseModel{UUID: "uuid1"}},
+			{BaseModel: datamodel.BaseModel{UUID: "uuid2"}},
+		}
+		backupUUIDs := []string{}
+		var expectedUUIDs []string
+
+		result := fetchBackupUUIDWhichAreNotPartOfListBackups(listBackups, backupUUIDs)
+
+		assert.Equal(t, expectedUUIDs, result)
 	})
 }
