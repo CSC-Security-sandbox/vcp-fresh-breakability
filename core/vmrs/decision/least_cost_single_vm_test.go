@@ -36,6 +36,24 @@ func TestNewLeastCostSingleVMDecisionMaker(t *testing.T) {
 			},
 		},
 		{
+			name:           "ValidConfigWithMissingWorkloadHeadroom",
+			configFilename: "testdata/valid_missing_workload_headroom.yaml",
+			customerRequest: vmrs.CustomerRequestedPerformance{
+				DesiredIOPS:             10,
+				DesiredThroughputInMiBs: 10,
+				DesiredCapacityInGiB:    10,
+			},
+			expectedError: "",
+			expectedDecision: &vmrs.Decision{
+				ChosenVMs: []string{"c4-standard-16"},
+				StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
+					DesiredIOPS:             16,
+					DesiredThroughputInMiBs: 18,
+					DesiredCapacityInGiB:    13,
+				},
+			},
+		},
+		{
 			name:           "MatchingVMEvenWithOverheads",
 			configFilename: "testdata/valid.yaml",
 			customerRequest: vmrs.CustomerRequestedPerformance{

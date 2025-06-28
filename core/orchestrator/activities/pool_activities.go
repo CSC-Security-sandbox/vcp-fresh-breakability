@@ -431,49 +431,50 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 }
 
 // The IdentifyVMs takes as input the VMRS configuration, the customer requested performance parameters, and the current VLM configuration to identify the optimal VMs to use for the VSA cluster.
-func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, currentConfig *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, vsaClusterPassword string, saEmail string, autoTierBucket string) error {
+func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, vsaClusterPassword string, saEmail string, autoTierBucket string) (*vlmconfig.VLMConfig, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debug("Identifying VMs to use for VSA cluster")
 
 	// Parse VMRS config.
 	vmrsConfig, err := LoadVMRSConfig(vmrsConfigPath)
 	if err != nil {
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	// Identify the right VMs to use using the selection strategy defined in the VMRS config.
 	decisionMaker, err := CreateDecisionMaker(vmrsConfig)
 	if err != nil {
 		logger.Error("Failed to create decision maker", "error", err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	decision, err := decisionMaker.FindOptimalVMs(vmrsConfig, customerRequest, currentConfig)
+	vlmConfig := &vlmconfig.VLMConfig{}
+	decision, err := decisionMaker.FindOptimalVMs(vmrsConfig, customerRequest, vlmConfig)
 	if err != nil {
 		logger.Error("Failed to identify optimal VMs", "error", err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	// Convert the decision to a VLMConfig.
-	err = PrepareVlmConfig(currentConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, decision, vsaClusterPassword, saEmail, autoTierBucket)
+	err = PrepareVlmConfig(vlmConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, decision, vsaClusterPassword, saEmail, autoTierBucket)
 	if err != nil {
 		logger.Error("Failed to prepare VLM config", "error", err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	return nil
+	return vlmConfig, nil
 }
 
-func (j *PoolActivity) CreateVSACluster(ctx context.Context, cfg *vlmconfig.VLMConfig) error {
+func (j *PoolActivity) CreateVSACluster(ctx context.Context, cfg *vlmconfig.VLMConfig) (*vlmconfig.VLMConfig, error) {
 	logger := util.GetLogger(ctx)
 	vlmClient := GetVLMClient(ctx, logger, cfg)
 
 	err := vlmClient.VSAClusterDeployCreate(ctx, cfg)
 	if err != nil {
 		logger.Error("Failed to create VSA cluster", "error", err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return nil
+	return cfg, nil
 }
 
 func assignNetworkConfig(cfg *vlmconfig.VLMConfig, lifType vlmconfig.VSALIFType, vpc, subnet, subnetProjectID string) {

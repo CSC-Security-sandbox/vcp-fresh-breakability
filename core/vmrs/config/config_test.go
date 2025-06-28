@@ -92,6 +92,66 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
+			name:           "ValidConfigWithMissingHeadroom",
+			configFilename: "testdata/valid_missing_headroom.yaml",
+			expectedError:  "",
+			expectedConfig: &vmrs.VMRSConfig{
+				HyperscalerPerfLimits: vmrs.HyperscalerPerfLimits{
+					VMSelectionStrategy: vmrs.LeastCostSingleVM,
+					MaxNumHAPairs:       12,
+					OntapOverheads: vmrs.OntapOverheads{
+						AmplificationFactors: vmrs.AmplificationFactors{
+							PerfAmplificationFactors: vmrs.PerfAmplificationFactors{
+								IOPS:       1.1,
+								Throughput: 1.2,
+							},
+							Capacity: 1.3,
+						},
+						NumDisksPerZone: 4,
+						HotspotPreventionFactors: vmrs.PerfAmplificationFactors{
+							IOPS:       1.9,
+							Throughput: 2.0,
+						},
+					},
+					DiskPerfLimits: []vmrs.DiskTypePerfLimit{
+						{
+							DiskType: "hyperdisk_balanced",
+							QualifiedVMs: []vmrs.VMPerfLimit{
+								{
+									VMType: "c4-standard-4",
+									OntapLimits: vmrs.OntapPerfLimit{
+										IOPS:             1,
+										ThroughputInMiBs: 2,
+										CapacityInGiB:    3,
+									},
+									DiskLimits: vmrs.DiskPerfLimit{
+										IOPS:             4,
+										ThroughputInMiBs: 5,
+										CapacityInGiB:    6,
+									},
+									RelativeCost: 4.0,
+								},
+								{
+									VMType: "c4-standard-8",
+									OntapLimits: vmrs.OntapPerfLimit{
+										IOPS:             8,
+										ThroughputInMiBs: 9,
+										CapacityInGiB:    10,
+									},
+									DiskLimits: vmrs.DiskPerfLimit{
+										IOPS:             11,
+										ThroughputInMiBs: 12,
+										CapacityInGiB:    13,
+									},
+									RelativeCost: 8.0,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name:           "MissingFile",
 			configFilename: "testdata/missing_file.yaml",
 			expectedError:  `[vmrs] ConfigParseError: failed to read config file due to error: open testdata/missing_file.yaml: no such file or directory (path: testdata/missing_file.yaml)`,

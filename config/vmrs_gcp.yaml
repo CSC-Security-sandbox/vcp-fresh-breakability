@@ -15,12 +15,11 @@
 #       throughput: 1.1 # Overhead to overprovision by to guarantee that customer observes the throughput they requested.
 #       capacity: 1.1 # WAFL overhead.
 #     num_disks_per_zone: 8 # The number of disks that will be attached to each HA-pair (shared zonal mode), or VM (non-shared regional mode) to form an aggregate.
-#     workload_headroom:
+#     workload_headroom: # If the headroom values are 0, do not include this field at all.
 #       - workload: backup # The name of the feature which is enabled.
 #         headroom: # Additional headroom to provision in case this feature is enabled.
 #           iops : 0.05
 #           throughput: 0.05
-#           capacity: 0
 #     hotspot_prevention_factors: # Additional overhead to provision to prevent hot-spotting.
 #     # We expect a multiplication factor.
 #     # For example, if we want to allocate a 10% overhead, please input 1.1
@@ -53,11 +52,6 @@ vmrs:
       throughput: 1
       capacity: 1.2
     num_disks_per_zone: 8
-    workload_headroom:
-      - workload: all
-        headroom:
-          iops: 0
-          throughput: 0
     hotspot_prevention_factors:
       iops: 1.1
       throughput: 1.1

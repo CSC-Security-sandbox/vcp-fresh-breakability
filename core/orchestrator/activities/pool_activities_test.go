@@ -855,7 +855,7 @@ func Test_CreateVSACluster_Success(t *testing.T) {
 	mockVlmClient.On("VSAClusterDeployCreate", ctx, cfg).Return(nil)
 	assert.NotNil(t, cfg)
 
-	err := activity.CreateVSACluster(ctx, cfg)
+	_, err := activity.CreateVSACluster(ctx, cfg)
 
 	assert.NoError(t, err)
 	mockVlmClient.AssertExpectations(t)
@@ -887,7 +887,7 @@ func Test_CreateVSACluster_FailsToDeployCluster(t *testing.T) {
 	mockVlmClient.On("VSAClusterDeployCreate", ctx, cfg).Return(errors.New("failed to deploy VSA cluster"))
 	assert.NotNil(t, cfg)
 
-	err := activity.CreateVSACluster(ctx, cfg)
+	_, err := activity.CreateVSACluster(ctx, cfg)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to deploy VSA cluster")
@@ -1156,7 +1156,7 @@ func Test_DeletePoolResourcesOnRollback_Success(t *testing.T) {
 	activities.DeleteNodes = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
 		return nil
 	}
-	
+
 	err := activity.DeletePoolResourcesOnRollback(ctx, pool)
 
 	assert.NoError(t, err)
@@ -3265,7 +3265,6 @@ func Test_getPasswordFromCacheOrSecretManager(t *testing.T) {
 }
 
 func Test_IdentifyVMs_SuccessfullyPreparesConfig(t *testing.T) {
-	cfg := &vlmconfig.VLMConfig{}
 	activity := activities.PoolActivity{}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	prepareVLMConfig := activities.PrepareVlmConfig
@@ -3282,13 +3281,12 @@ func Test_IdentifyVMs_SuccessfullyPreparesConfig(t *testing.T) {
 	}
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.NoError(t, err)
 }
 
 func Test_IdentifyVMs_FailsToPrepareConfig(t *testing.T) {
-	cfg := &vlmconfig.VLMConfig{}
 	activity := activities.PoolActivity{}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	prepareVLMConfig := activities.PrepareVlmConfig
@@ -3304,7 +3302,7 @@ func Test_IdentifyVMs_FailsToPrepareConfig(t *testing.T) {
 	}
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to prepare VLM config")
@@ -3322,7 +3320,7 @@ func Test_IdentifyVMs_FailsToLoadConfig(t *testing.T) {
 	}
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, nil, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to load VMRS config from file")
 }
@@ -3347,7 +3345,7 @@ func Test_IdentifyVMs_FailsToCreateDecisionMaker(t *testing.T) {
 	}
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, nil, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create decision maker")
 }
@@ -3374,7 +3372,7 @@ func Test_IdentifyVMs_FailsToFindOptimalVMs(t *testing.T) {
 	mockDecisionMaker.Mock.On("FindOptimalVMs", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to find optimal VMs foo"))
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, nil, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to find optimal VMs")
 }
