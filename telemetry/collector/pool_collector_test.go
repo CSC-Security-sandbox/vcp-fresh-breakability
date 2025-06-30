@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	orch "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"testing"
 )
@@ -12,8 +13,8 @@ import (
 func Test_ReturnsEmptyMetricsWhenNoPoolsFound(t *testing.T) {
 	mockOrchestrator := orch.NewMockOrchestratorFactory(t)
 	mockOrchestrator.On("ListAllPools", mock.Anything).Return(nil, nil)
-
-	metrics, err := GetPoolMetrics(mockOrchestrator)
+	config := common.LoadConfig()
+	metrics, err := GetPoolMetrics(mockOrchestrator, config)
 
 	assert.Empty(t, metrics)
 	assert.EqualError(t, err, "no pools found from DB")
@@ -26,21 +27,21 @@ func Test_ReturnsMetricsForPoolsWithValidData(t *testing.T) {
 		{BaseModel: models.BaseModel{UUID: "pool2"}, Name: "Pool2", SizeInBytes: 2048, Region: "us-west-1", AccountName: "Account2"},
 	}, nil)
 
-	metrics, err := GetPoolMetrics(mockOrchestrator)
+	metrics, err := GetPoolMetrics(mockOrchestrator, common.LoadConfig())
 
 	assert.NoError(t, err)
 	assert.Len(t, metrics, 2)
 	assert.Equal(t, "Pool1", *metrics[0].Metadata.ResourceName)
-	assert.Equal(t, float64(1024), metrics[0].Value)
+	assert.Equal(t, float64(1024), metrics[0].Quantity)
 	assert.Equal(t, "Pool2", *metrics[1].Metadata.ResourceName)
-	assert.Equal(t, float64(2048), metrics[1].Value)
+	assert.Equal(t, float64(2048), metrics[1].Quantity)
 }
 
 func Test_ReturnsErrorWhenDatabaseFailsToListPools(t *testing.T) {
 	mockOrchestrator := orch.NewMockOrchestratorFactory(t)
 	mockOrchestrator.On("ListAllPools", mock.Anything).Return(nil, errors.New("database error"))
-
-	metrics, err := GetPoolMetrics(mockOrchestrator)
+	config := common.LoadConfig()
+	metrics, err := GetPoolMetrics(mockOrchestrator, config)
 
 	assert.Empty(t, metrics)
 	assert.EqualError(t, err, "database error")

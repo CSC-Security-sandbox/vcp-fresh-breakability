@@ -2,13 +2,13 @@ package entity
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
-	"time"
 )
 
-// HydratedMetric represents a metric with associated metadata and a timestamp.
+// HydratedMetric contains cooked and hydrated metrics to ship over to qstack usage
 type HydratedMetric struct {
-	Timestamp time.Time                 `json:"timestamp"`
-	Metadata  metadata.ResourceMetadata `json:"metadata"`
-	Type      metadata.MetricType       `json:"type"`
-	Value     float64                   `json:"value"`
+	Metadata      metadata.ResourceMetadata `json:"metadata,omitempty"`
+	Timestamp     UnixNano                  `json:"timestamp,omitempty"`
+	MeasuredType  metadata.MeasuredType     `json:"measuredType,omitempty"`
+	Quantity      float64                   `json:"quantity"`
+	CorrelationID string                    `json:"correlationId,omitempty"`
 }

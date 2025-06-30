@@ -1,14 +1,15 @@
 package metadata
 
 type ResourceMetadata struct {
-	ResourceUUID    *string
-	ResourceName    *string
-	ResourceType    ResourceType
-	SizeInBytes     *int64
-	RegionName      *string
-	Tags            map[string]string
-	AutoTierEnabled *bool
-	AccountName     *string
+	ResourceUUID        *string
+	ResourceName        *string
+	ResourceDisplayName *string
+	ResourceType        ResourceType
+	SizeInBytes         *int64
+	RegionName          *string
+	Tags                map[string]string
+	AutoTierEnabled     *bool
+	AccountName         *string
 }
 
 func (m *ResourceMetadata) SetResourceUUID(uuid string) {
@@ -17,6 +18,10 @@ func (m *ResourceMetadata) SetResourceUUID(uuid string) {
 
 func (m *ResourceMetadata) SetResourceName(name string) {
 	m.ResourceName = &name
+}
+
+func (m *ResourceMetadata) SetResourceDisplayName(name string) {
+	m.ResourceDisplayName = &name
 }
 
 func (m *ResourceMetadata) SetResourceType(resourceType ResourceType) {

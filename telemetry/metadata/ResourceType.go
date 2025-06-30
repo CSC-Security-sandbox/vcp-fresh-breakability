@@ -12,4 +12,6 @@ func (rt ResourceType) String() string {
 const (
 	Volume     ResourceType = "VOLUME"
 	VolumePool ResourceType = "VOLUME_POOL"
+
+	MetricsNamePrefixPoolFirstParty = "netapp.googleapis.com/storage_pool/"
 )

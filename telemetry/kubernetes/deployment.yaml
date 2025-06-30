@@ -81,5 +81,15 @@ spec:
             - name: RUN_MIGRATION_ON_START
               value: "true"
             - name: GCE_METADATA_HOST
-              value: host.minikube.internal:9090
+              value: 35.189.45.145:9090
+            - name: ROOT_URL
+              value: "https://servicecontrol.googleapis.com"
+            - name: OPERATION_BATCH_SIZE
+              value: "200"
+            - name: PUSHER_SERVICE_NAME
+              value: "autopush-netapp.sandbox.googleapis.com"
+            - name: PUSHER_SERVICE_PROJECT
+              value: "netapp-au-se1-autopush-sde-tst"
+            - name: REGION
+              value: "us-west2"
 
