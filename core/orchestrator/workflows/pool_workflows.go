@@ -3,10 +3,13 @@ package workflows
 import (
 	"time"
 
-	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
@@ -21,18 +24,17 @@ import (
 )
 
 var (
-	secretManagerEnabled    = env.GetBool("SECRET_MANAGER_ENABLED", false)
-	setupNwHeartbeatTimeout = env.GetUint64("SETUP_NW_HEARTBEAT_TIMEOUT_SEC", 300)
-	vmrsConfigPath          = env.GetString("VMRS_CONFIG_PATH", "config/vmrs_gcp.yaml")
+	_                                WorkflowInterface = &createPoolWorkflow{} // Enforcing the WorkflowInterface on createPoolWorkflow
+	secretManagerEnabled                               = env.GetBool("SECRET_MANAGER_ENABLED", false)
+	setupNwHeartbeatTimeout                            = env.GetUint64("SETUP_NW_HEARTBEAT_TIMEOUT_SEC", 300)
+	vmrsConfigPath                                     = env.GetString("VMRS_CONFIG_PATH", "config/vmrs_gcp.yaml")
+	configureKmsConfigForSvmActivity                   = _configureKmsConfigForSvmActivity
 )
 
 type createPoolWorkflow struct {
 	BaseWorkflow
 	SE *database.Storage
 }
-
-// Enforcing the WorkflowInterface on createPoolWorkflow
-var _ WorkflowInterface = &createPoolWorkflow{}
 
 // const customerActionTimeout = 30 * time.Minute
 
@@ -111,7 +113,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	rollbackManager.Add(poolActivity.ErroredPool, dbPool)
 	rollbackManager.Add(poolActivity.DeletePoolResourcesOnRollback, dbPool)
-	secret := &hyperscaler_models.CustomSecret{}
+	secret := &hyperscalermodels.CustomSecret{}
 	if secretManagerEnabled {
 		err = workflow.ExecuteActivity(ctx, poolActivity.CreateSecret, params.Region, pool.SecretID).Get(ctx, secret)
 		if err != nil {
@@ -221,7 +223,14 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSASVM, dbPool, vlmConfig).Get(ctx, nil)
+	svm := &datamodel.Svm{}
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSASVM, dbPool, vlmConfig).Get(ctx, svm)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enable KMS for SVM if KMS config is provided
+	err = configureKmsConfigForSvmActivity(ctx, *dbPool, node, svm, params)
 	if err != nil {
 		return nil, err
 	}
@@ -452,4 +461,101 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	return nil, err
+}
+
+func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+	if params.KmsConfigId == "" {
+		return nil // No KMS config provided, nothing to configure
+	}
+
+	kmsConfigActivity := &kms_activities.KmsConfigActivity{}
+	kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
+
+	// Check if KMS config is present in the VSA database
+	// In case Kms config is not present in the VSA database, will create a new KMS configuration using the SDE KMS configuration
+	err := workflow.ExecuteActivity(ctx, kmsConfigActivity.GetKmsConfigActivity, params.KmsConfigId).Get(ctx, kmsConfig)
+	if err != nil {
+		var appErr *temporal.ApplicationError
+		if errors.As(err, &appErr) && appErr.NonRetryable() && appErr.Type() == kms_activities.ErrTypeKmsConfigNotFound {
+			// Prepare the KMS configuration object with the SDE KMS configuration details
+			getKmsConfigParams := &common.GetKmsConfigParams{
+				UUID:          params.KmsConfigId,
+				LocationID:    params.Region,
+				ProjectNumber: params.AccountName,
+			}
+
+			var cvpKmsConfig cvpmodels.KmsConfigV1beta
+			// Describe KMS configurations to get the created KMS configuration; this must be called after polling the operation
+			err = workflow.ExecuteActivity(ctx, kmsConfigActivity.DescribeSDEKmsConfigurationActivity, getKmsConfigParams).Get(ctx, &cvpKmsConfig)
+			if err != nil {
+				return err
+			}
+
+			// create and sync the KMS configuration with the SDE KMS configuration
+			createKmsConfigParams := convertToCreateKmsConfigParams(cvpKmsConfig, params)
+			err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateAndSyncKmsConfigActivity, createKmsConfigParams).Get(ctx, kmsConfig)
+			if err != nil {
+				return err
+			}
+
+			// Create the service account key for the KMS configuration
+			err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateVSAKmsConfigSAKeyActivity, kmsConfig).Get(ctx, kmsConfig)
+			if err != nil {
+				return err
+			}
+
+			// Grant the necessary roles to the service account
+			err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GrantRoleActivity, kmsConfig).Get(ctx, nil)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Access a crypto key using the KMS config in the VSA database to make sure key is reachable
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.AccessCryptoKeyWithImpersonationActivity, kmsConfig).Get(ctx, kmsConfig)
+	if err != nil {
+		return err
+	}
+
+	// Configure KMS for SVM if KMS config is provided
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.ConfigureKmsForSvmActivity, svm, node, params).Get(ctx, svm)
+	if err != nil {
+		return err
+	}
+
+	// Check if the KMS config is reachable from the VSA cluster
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CheckVsaKmsConfigReachableActivity, svm, node).Get(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	// Update the Pool with the KMS config IDs
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.UpdatePoolWithKmsConfigActivity, pool, kmsConfig.UUID).Get(ctx, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func convertToCreateKmsConfigParams(params cvpmodels.KmsConfigV1beta, createPoolParams *common.CreatePoolParams) *common.CreateKmsConfigParams {
+	createConfigParams := &common.CreateKmsConfigParams{}
+
+	createConfigParams.ProjectNumber = createPoolParams.AccountName
+	createConfigParams.UUID = params.UUID
+	createConfigParams.KmsState = params.KmsState
+	createConfigParams.KmsStateDetails = params.KmsStateDetails
+	createConfigParams.ServiceAccountEmail = params.ServiceAccountEmail
+	createConfigParams.Instructions = params.Instructions
+	createConfigParams.LocationID = createPoolParams.Region
+
+	if params.Description != nil {
+		createConfigParams.Description = *params.Description
+	}
+	if params.KeyFullPath != nil {
+		createConfigParams.KeyFullPath = *params.KeyFullPath
+	}
+	if params.ResourceID != nil {
+		createConfigParams.ResourceID = *params.ResourceID
+	}
+	return createConfigParams
 }

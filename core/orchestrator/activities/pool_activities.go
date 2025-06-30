@@ -371,7 +371,7 @@ func (j *PoolActivity) GetOntapVersion(ctx context.Context, node *models.Node) (
 	return version, nil
 }
 
-func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlmconfig.VLMConfig) error {
+func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlmconfig.VLMConfig) (*datamodel.Svm, error) {
 	logger := util.GetLogger(ctx)
 	vlmClient := GetVLMClient(ctx, logger, vlmConfig)
 	se := j.SE
@@ -383,7 +383,7 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 	err := vlmClient.VSASVMCreate(ctx, svmParam)
 	// If the SVM already exists, we can ignore the error and move forward
 	if err != nil && !strings.Contains(err.Error(), "already exists and is in use by a different VM") {
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	name := vlmConfig.Deployment.DeploymentID + "-datasvm-" + DefaultSvmName
@@ -398,16 +398,18 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 			IPSpace:      "Default",
 		},
 	}
-	if _, err = se.CreateSVM(ctx, svmRec); err != nil && !utilErrors.IsConflictErr(err) {
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+
+	createdSvm, err := se.CreateSVM(ctx, svmRec)
+	if err != nil && !utilErrors.IsConflictErr(err) {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
 	if err != nil {
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	if len(nodes) < 2 {
-		return vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("not enough nodes in the cluster to create LIFs for SVM "+svm.Svmname))
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("not enough nodes in the cluster to create LIFs for SVM "+svm.Svmname))
 	}
 	lifs := svm.SVMLIFs[vlmconfig.LIFTypeIscsi]
 
@@ -423,11 +425,11 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 			SubnetMask: vsa.DefaultNetmask,
 		}
 		if _, err = se.CreateLif(ctx, lifRec); err != nil && !utilErrors.IsConflictErr(err) {
-			return vsaerrors.WrapAsTemporalApplicationError(err)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 	}
 
-	return nil
+	return createdSvm, nil
 }
 
 // The IdentifyVMs takes as input the VMRS configuration, the customer requested performance parameters, and the current VLM configuration to identify the optimal VMs to use for the VSA cluster.

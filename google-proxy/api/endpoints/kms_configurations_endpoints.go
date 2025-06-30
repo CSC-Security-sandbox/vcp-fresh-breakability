@@ -93,7 +93,7 @@ func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V
 		}
 
 		// Access the KMS crypto key to ensure it is accessible using impersonation
-		err = h.Orchestrator.AccessKmsCryptoKey(ctx, kmsConfig)
+		err = h.Orchestrator.AccessCryptoKeyWithImpersonation(ctx, kmsConfig)
 		if err != nil {
 			return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
 				Code:    http.StatusInternalServerError,
@@ -186,43 +186,76 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 		}, nil
 	}
 
-	createKmsConfigParams := &common.CreateKmsConfigParams{
-		KeyFullPath:    req.KeyFullPath,
-		ResourceID:     req.ResourceId.Value,
-		AccountName:    params.ProjectNumber,
-		LocationID:     params.LocationId,
-		ProjectNumber:  params.ProjectNumber,
-		XCorrelationID: params.XCorrelationID.Value,
+	getKmsConfigParams := &common.GetKmsConfigParams{
+		KeyFullPath: req.KeyFullPath,
 	}
-	kmsConfig, operationID, err := h.Orchestrator.CreateKmsConfig(ctx, createKmsConfigParams)
+	kmsConfig, err := h.Orchestrator.GetKmsConfigByKeyFullPath(ctx, getKmsConfigParams)
 	if err != nil {
-		var conflictErr *errors.ConflictErr
+		var notFoundErr *errors.NotFoundErr
 		switch {
-		case goErrors.As(err, &conflictErr):
-			return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
-				Message: conflictErr.Error(),
-				Code:    403,
-			}, nil
+		case goErrors.As(err, &notFoundErr):
+			createKmsConfigParams := &common.CreateKmsConfigParams{
+				KeyFullPath:    req.KeyFullPath,
+				ResourceID:     req.ResourceId.Value,
+				AccountName:    params.ProjectNumber,
+				LocationID:     params.LocationId,
+				ProjectNumber:  params.ProjectNumber,
+				XCorrelationID: params.XCorrelationID.Value,
+			}
+
+			kmsConfig, operationID, err := h.Orchestrator.CreateKmsConfig(ctx, createKmsConfigParams)
+			if err != nil {
+				var conflictErr *errors.ConflictErr
+				switch {
+				case goErrors.As(err, &conflictErr):
+					return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
+						Message: conflictErr.Error(),
+						Code:    http.StatusConflict,
+					}, nil
+				default:
+					// Handle any other error types
+					return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
+						Message: "An unexpected error occurred",
+						Code:    http.StatusInternalServerError,
+					}, nil
+				}
+			}
+			resp, err := encodeKmsConfigV1(convertModelToKmsConfigV1Beta(kmsConfig))
+			if err != nil {
+				return nil, err
+			}
+			if operationID != "" {
+				return &gcpgenserver.OperationV1beta{
+					Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
+					Response: resp,
+					Done:     gcpgenserver.NewOptBool(false),
+				}, nil
+			}
+			return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{}, nil
 		default:
-			// Handle any other error types
 			return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
-				Message: "An unexpected error occurred",
-				Code:    http.StatusInternalServerError,
+				Code:    500,
+				Message: err.Error(),
 			}, nil
 		}
 	}
+
+	switch kmsConfig.State {
+	case coremodel.LifeCycleStateError:
+		return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
+			Message: "Kms Config is in error state, please delete the config and try again",
+			Code:    http.StatusConflict,
+		}, nil
+	}
+
 	resp, err := encodeKmsConfigV1(convertModelToKmsConfigV1Beta(kmsConfig))
 	if err != nil {
 		return nil, err
 	}
-	if operationID != "" {
-		return &gcpgenserver.OperationV1beta{
-			Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
-			Response: resp,
-			Done:     gcpgenserver.NewOptBool(false),
-		}, nil
-	}
-	return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{}, nil
+	return &gcpgenserver.OperationV1beta{
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
 }
 
 func (h Handler) V1betaDeleteKmsConfiguration(ctx context.Context, params gcpgenserver.V1betaDeleteKmsConfigurationParams) (gcpgenserver.V1betaDeleteKmsConfigurationRes, error) {

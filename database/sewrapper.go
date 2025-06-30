@@ -230,6 +230,26 @@ func (re *retryEngine) SavePoolWithVsaClusterDetails(ctx context.Context, pool *
 	return err
 }
 
+func (re *retryEngine) UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error) {
+	var var0 *datamodel.Pool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdatePoolWithKmsConfigID(ctx, pool, kmsConfigUUID)
+		if err != nil {
+			re.logError("UpdatePoolWithKmsConfigID", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
 	var var0 *datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -924,6 +944,26 @@ func (re *retryEngine) GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*da
 	return var0, err
 }
 
+func (re *retryEngine) UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datamodel.Svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID string) (*datamodel.Svm, error) {
+	var var0 *datamodel.Svm
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateSvmWithKmsConfigIDs(ctx, svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID)
+		if err != nil {
+			re.logError("UpdateSvmWithKmsConfigIDs", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error) {
 	var var0 *datamodel.Lif
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -1603,6 +1643,26 @@ func (re *retryEngine) UpdateKmsConfigDetails(ctx context.Context, uuid string, 
 		var0, err = re.dataStore.UpdateKmsConfigDetails(ctx, uuid, fullKeyPath, resourceID)
 		if err != nil {
 			re.logError("UpdateKmsConfigDetails", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string) (*datamodel.KmsConfig, error) {
+	var var0 *datamodel.KmsConfig
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetKmsConfigByKeyFullPath(ctx, keyFullPath)
+		if err != nil {
+			re.logError("GetKmsConfigByKeyFullPath", err)
 			if !isTransientErr(err) {
 				return false, err
 			}

@@ -116,12 +116,12 @@ func TestCreateKmsConfig(t *testing.T) {
 			Name:        "test-kms",
 			AccountName: "test-account",
 		}
-		kmsConfig := &datamodel.KmsConfig{}
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
 		response := &kms_configurations.V1betaCreateKmsConfigurationAccepted{}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateKmsConfigSDEActivity", mock.Anything, mock.Anything).Return(response, nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
 		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Execute workflow
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
@@ -155,13 +155,13 @@ func TestCreateKmsConfig(t *testing.T) {
 			Name:        "test-kms",
 			AccountName: "test-account",
 		}
-		kmsConfig := &datamodel.KmsConfig{}
-		cvpKmsConfig := &models.KmsConfigV1beta{}
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
 		response := &kms_configurations.V1betaCreateKmsConfigurationAccepted{}
+		cvpKmsConfig := &models.KmsConfigV1beta{}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateKmsConfigSDEActivity", mock.Anything, mock.Anything).Return(response, nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
 		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
 		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -198,13 +198,13 @@ func TestCreateKmsConfig(t *testing.T) {
 			Name:        "test-kms",
 			AccountName: "test-account",
 		}
-		kmsConfig := &datamodel.KmsConfig{}
-		cvpKmsConfig := &models.KmsConfigV1beta{}
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
 		response := &kms_configurations.V1betaCreateKmsConfigurationAccepted{}
+		cvpKmsConfig := &models.KmsConfigV1beta{}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateKmsConfigSDEActivity", mock.Anything, mock.Anything).Return(response, nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
 		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(errors.New("some error"))
@@ -241,17 +241,58 @@ func TestCreateKmsConfig(t *testing.T) {
 			Name:        "test-kms",
 			AccountName: "test-account",
 		}
-		kmsConfig := &datamodel.KmsConfig{}
-		cvpKmsConfig := &models.KmsConfigV1beta{}
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
 		response := &kms_configurations.V1betaCreateKmsConfigurationAccepted{}
+		cvpKmsConfig := &models.KmsConfigV1beta{}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateKmsConfigSDEActivity", mock.Anything, mock.Anything).Return(response, nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
 		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreatedKmsConfigActivity", mock.Anything, mock.Anything).Return(errors.New("some error"))
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Execute workflow
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+
+		// Assert workflow execution
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("WhenUpdateKmsConfigAttributesActivityFails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		// Set up test data
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+		}
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
+		response := &kms_configurations.V1betaCreateKmsConfigurationAccepted{}
+		cvpKmsConfig := &models.KmsConfigV1beta{}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateKmsConfigSDEActivity", mock.Anything, mock.Anything).Return(response, nil)
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
 		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Execute workflow
 		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
@@ -285,13 +326,13 @@ func TestCreateKmsConfig(t *testing.T) {
 			Name:        "test-kms",
 			AccountName: "test-account",
 		}
-		kmsConfig := &datamodel.KmsConfig{}
-		cvpKmsConfig := &models.KmsConfigV1beta{}
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
 		response := &kms_configurations.V1betaCreateKmsConfigurationAccepted{}
+		cvpKmsConfig := &models.KmsConfigV1beta{}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateKmsConfigSDEActivity", mock.Anything, mock.Anything).Return(response, nil)
 		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
-		env.OnActivity("DescribeKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
 		env.OnActivity("UpdateKmsConfigAttributesActivity", mock.Anything, mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)

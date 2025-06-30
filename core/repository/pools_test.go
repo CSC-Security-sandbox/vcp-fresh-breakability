@@ -987,3 +987,140 @@ func TestConvertPoolToPoolView(t *testing.T) {
 		t.Error("expected nil for nil input")
 	}
 }
+
+func TestUpdatePoolWithKmsConfigID(t *testing.T) {
+	t.Run("ReturnsUpdatedPoolWhenKmsConfigAndPoolExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "kms-uuid"},
+			KeyName:   "key",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create kms config: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		updatedPool, err := store.UpdatePoolWithKmsConfigID(context.Background(), pool, "kms-uuid")
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedPool)
+		assert.Equal(tt, int64(1), updatedPool.KmsConfigID.Int64)
+		assert.True(tt, updatedPool.KmsConfigID.Valid)
+	})
+
+	t.Run("ReturnsErrorWhenPoolDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "kms-uuid"},
+			KeyName:   "key",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create kms config: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "non-existent-pool-uuid"},
+			Name:      "non-existent-pool",
+			AccountID: 1,
+		}
+
+		updatedPool, err := store.UpdatePoolWithKmsConfigID(context.Background(), pool, "kms-uuid")
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedPool)
+	})
+	t.Run("ReturnsErrorWhenKmsConfigDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		updatedPool, err := store.UpdatePoolWithKmsConfigID(context.Background(), pool, "non-existent-kms-uuid")
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedPool)
+	})
+	t.Run("ReturnsErrorWhenTransactionCannotStart", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		pool := &datamodel.Pool{Name: "test_pool", AccountID: 1}
+		orgStartTransaction := startTransaction
+		defer func() {
+			startTransaction = orgStartTransaction
+		}()
+		startTransaction = func(db *gorm.DB) (*gorm.DB, error) {
+			return nil, errors.New("failed to start transaction")
+		}
+		updatedPool, err := store.UpdatePoolWithKmsConfigID(context.Background(), pool, "kms-uuid")
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedPool)
+	})
+}

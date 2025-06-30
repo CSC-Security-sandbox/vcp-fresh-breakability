@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
@@ -23,12 +24,6 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		mockSE := database.NewMockStorage(t)
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel:       datamodel.BaseModel{UUID: "uuid"},
-			KmsAttributes:   &datamodel.KmsAttributes{SdeKmsConfigUUID: "external-uuid"},
-			KeyRingLocation: "location",
-			Account:         &datamodel.Account{Name: "project-number"},
-		}
 		mockClient := kms_configurations.NewMockClientService(t)
 		keyFullPath := "key-full-path"
 		resourceID := "resource-id"
@@ -44,7 +39,8 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 				Instructions:        instructions,
 			},
 		}
-		params := &common.CreateKmsConfigParams{LocationID: "location"}
+		params := &common.GetKmsConfigParams{UUID: "SdeKmsConfigUUID",
+			LocationID: "location"}
 		mockClient.EXPECT().
 			V1betaDescribeKmsConfiguration(mock.Anything).
 			Return(mockResponse, nil)
@@ -56,25 +52,19 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 		}
 
 		activity := &KmsConfigActivity{SE: mockSE}
-		result, err := activity.DescribeKmsConfigurationActivity(ctx, kmsConfig, params)
+		result, err := activity.DescribeSDEKmsConfigurationActivity(ctx, params)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-		if result != mockResponse.Payload {
-			t.Errorf("expected returned config to match input")
-		}
+		assert.NotNil(tt, result)
 	})
 	t.Run("DescribeKmsConfigurationActivityReturnsErrorOnDescribeFailure", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		mockSE := database.NewMockStorage(t)
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel:     datamodel.BaseModel{UUID: "uuid"},
-			KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: "external-uuid"},
-			Account:       &datamodel.Account{},
-		}
-		params := &common.CreateKmsConfigParams{LocationID: "location"}
+		params := &common.GetKmsConfigParams{UUID: "uuid",
+			LocationID: "location"}
 		mockClient := kms_configurations.NewMockClientService(t)
 		mockClient.EXPECT().
 			V1betaDescribeKmsConfiguration(mock.Anything).
@@ -86,7 +76,7 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 			return *cvpClient
 		}
 		activity := &KmsConfigActivity{SE: mockSE}
-		_, err := activity.DescribeKmsConfigurationActivity(ctx, kmsConfig, params)
+		_, err := activity.DescribeSDEKmsConfigurationActivity(ctx, params)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -96,12 +86,8 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		mockSE := database.NewMockStorage(t)
-		kmsConfig := &datamodel.KmsConfig{
-			BaseModel:     datamodel.BaseModel{UUID: "uuid"},
-			KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: "external-uuid"},
-			Account:       &datamodel.Account{},
-		}
-		params := &common.CreateKmsConfigParams{LocationID: "location"}
+		params := &common.GetKmsConfigParams{UUID: "uuid",
+			LocationID: "location"}
 		mockClient := kms_configurations.NewMockClientService(t)
 		mockClient.EXPECT().
 			V1betaDescribeKmsConfiguration(mock.Anything).
@@ -113,9 +99,47 @@ func TestGetKmsConfigSDEActivity(t *testing.T) {
 			return *cvpClient
 		}
 		activity := &KmsConfigActivity{SE: mockSE}
-		_, err := activity.DescribeKmsConfigurationActivity(ctx, kmsConfig, params)
+		_, err := activity.DescribeSDEKmsConfigurationActivity(ctx, params)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
+	})
+}
+
+func TestGetKmsConfigActivity(t *testing.T) {
+	t.Run("GetKmsConfigActivityReturnsKmsConfigOnSuccess", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		uuid := "kms-uuid"
+		expected := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: uuid}}
+		mockSE.On("GetKmsConfig", ctx, uuid).Return(expected, nil)
+		result, err := activity.GetKmsConfigActivity(ctx, uuid)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, result)
+	})
+	t.Run("GetKmsConfigActivityReturnsNonRetryableErrorWhenNotFound", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		uuid := "not-found-uuid"
+		notFoundErr := errors.NewNotFoundErr("not found", nil)
+		mockSE.On("GetKmsConfig", ctx, uuid).Return(nil, notFoundErr)
+		result, err := activity.GetKmsConfigActivity(ctx, uuid)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "not found")
+	})
+	t.Run("GetKmsConfigActivityReturnsErrorOnStorageFailure", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		uuid := "kms-uuid"
+		storageErr := errors.New("db error")
+		mockSE.On("GetKmsConfig", ctx, uuid).Return(nil, storageErr)
+		result, err := activity.GetKmsConfigActivity(ctx, uuid)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "db error")
 	})
 }

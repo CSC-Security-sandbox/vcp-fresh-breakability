@@ -102,29 +102,103 @@ func TestCreateKmsConfigSDEActivity(t *testing.T) {
 }
 
 func TestUpdateKmsConfigAttributesActivity(t *testing.T) {
-	ctx := context.Background()
-	mockSE := database.NewMockStorage(t)
-	kmsConfig := &models.KmsConfigV1beta{
-		UUID:                "test-uuid",
-		ServiceAccountEmail: "test-sa@domain.com",
-		Instructions:        "test-instructions",
-	}
-	expectedResult := &datamodel.KmsConfig{}
-	mockSE.On("UpdateKmsConfigAttributes", ctx, "vcp-uuid", mock.Anything).Return(expectedResult, nil)
+	t.Run("WhenNoError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+		expectedResult := &datamodel.KmsConfig{}
+		mockSE.On("UpdateKmsConfigAttributes", ctx, mock.Anything, mock.Anything).Return(expectedResult, nil)
+		activity := &KmsConfigActivity{SE: mockSE}
+		result, err := activity.UpdateKmsConfigAttributesActivity(ctx, &datamodel.KmsConfig{}, &datamodel.KmsAttributes{})
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if result != expectedResult {
+			t.Fatalf("expected %v, got %v", expectedResult, result)
+		}
+	})
+	t.Run("WhenError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		mockSE.On("UpdateKmsConfigAttributes", ctx, "test-uuid", mock.Anything).Return(nil, errors.New("update error"))
+		_, err := activity.UpdateKmsConfigAttributesActivity(ctx, &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "test-uuid"}}, &datamodel.KmsAttributes{})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+}
 
-	activity := &KmsConfigActivity{SE: mockSE}
-	result, err := activity.UpdateKmsConfigAttributesActivity(ctx, "vcp-uuid", kmsConfig)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if result != expectedResult {
-		t.Fatalf("expected %v, got %v", expectedResult, result)
-	}
+func TestCreateAndSyncKmsConfigActivity(t *testing.T) {
+	t.Run("CreateAndSyncKmsConfigActivityReturnsKmsConfigOnSuccess", func(t *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+		params := &common.CreateKmsConfigParams{
+			AccountName:         "acc",
+			KeyFullPath:         "projects/p/locations/l/keyRings/r/cryptoKeys/k",
+			UUID:                "uuid",
+			KmsState:            "ENABLED",
+			KmsStateDetails:     "Active",
+			ProjectNumber:       "123",
+			ResourceID:          "res-id",
+			Instructions:        "inst",
+			ServiceAccountEmail: "sa@email.com",
+		}
+		mockAccount := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}}
+		mockSE.On("GetAccount", ctx, "acc").Return(mockAccount, nil)
+		mockSE.On("CreateKmsConfig", ctx, mock.Anything).Return(&datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}}, nil)
+		activity := &KmsConfigActivity{SE: mockSE}
 
-	// Test error case
-	mockSE.On("UpdateKmsConfigAttributes", ctx, "vcp-uuid1", mock.Anything).Return(nil, errors.New("update error"))
-	_, err = activity.UpdateKmsConfigAttributesActivity(ctx, "vcp-uuid1", kmsConfig)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
+		result, err := activity.CreateAndSyncKmsConfigActivity(ctx, params)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if result.UUID != "uuid" {
+			t.Fatalf("expected uuid, got %v", result.UUID)
+		}
+	})
+	t.Run("CreateAndSyncKmsConfigActivityReturnsErrorWhenGetAccountFails", func(t *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+		params := &common.CreateKmsConfigParams{AccountName: "acc"}
+		mockSE.On("GetAccount", ctx, "acc").Return(nil, errors.New("account error"))
+		activity := &KmsConfigActivity{SE: mockSE}
+
+		_, err := activity.CreateAndSyncKmsConfigActivity(ctx, params)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+	t.Run("CreateAndSyncKmsConfigActivityReturnsErrorWhenParseKeyFullPathResourceFails", func(t *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+		params := &common.CreateKmsConfigParams{
+			AccountName: "acc",
+			KeyFullPath: "invalid-key-path",
+		}
+		mockAccount := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}}
+		mockSE.On("GetAccount", ctx, "acc").Return(mockAccount, nil)
+		activity := &KmsConfigActivity{SE: mockSE}
+
+		_, err := activity.CreateAndSyncKmsConfigActivity(ctx, params)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+	t.Run("CreateAndSyncKmsConfigActivityReturnsErrorWhenCreateKmsConfigFails", func(t *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+		params := &common.CreateKmsConfigParams{
+			AccountName: "acc",
+			KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k",
+		}
+		mockAccount := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 42}}
+		mockSE.On("GetAccount", ctx, "acc").Return(mockAccount, nil)
+		mockSE.On("CreateKmsConfig", ctx, mock.Anything).Return(nil, errors.New("create error"))
+		activity := &KmsConfigActivity{SE: mockSE}
+
+		_, err := activity.CreateAndSyncKmsConfigActivity(ctx, params)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
 }

@@ -474,6 +474,64 @@ func (_c *MockProvider_CreateDataLIF_Call) RunAndReturn(run func(CreateLifParams
 	return _c
 }
 
+// CreateKmsConfig provides a mock function with given fields: params
+func (_m *MockProvider) CreateKmsConfig(params CreateKmsConfigParams) (*CreateKmsConfigResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateKmsConfig")
+	}
+
+	var r0 *CreateKmsConfigResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(CreateKmsConfigParams) (*CreateKmsConfigResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(CreateKmsConfigParams) *CreateKmsConfigResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*CreateKmsConfigResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(CreateKmsConfigParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_CreateKmsConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateKmsConfig'
+type MockProvider_CreateKmsConfig_Call struct {
+	*mock.Call
+}
+
+// CreateKmsConfig is a helper method to define mock.On call
+//   - params CreateKmsConfigParams
+func (_e *MockProvider_Expecter) CreateKmsConfig(params interface{}) *MockProvider_CreateKmsConfig_Call {
+	return &MockProvider_CreateKmsConfig_Call{Call: _e.mock.On("CreateKmsConfig", params)}
+}
+
+func (_c *MockProvider_CreateKmsConfig_Call) Run(run func(params CreateKmsConfigParams)) *MockProvider_CreateKmsConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(CreateKmsConfigParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateKmsConfig_Call) Return(_a0 *CreateKmsConfigResponse, _a1 error) *MockProvider_CreateKmsConfig_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_CreateKmsConfig_Call) RunAndReturn(run func(CreateKmsConfigParams) (*CreateKmsConfigResponse, error)) *MockProvider_CreateKmsConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateNetworkIpRoute provides a mock function with given fields: params
 func (_m *MockProvider) CreateNetworkIpRoute(params CreateNetworkIPRouteParams) error {
 	ret := _m.Called(params)
@@ -2099,6 +2157,62 @@ func (_c *MockProvider_IsAggregateOnline_Call) Return(_a0 bool, _a1 error) *Mock
 }
 
 func (_c *MockProvider_IsAggregateOnline_Call) RunAndReturn(run func(string) (bool, error)) *MockProvider_IsAggregateOnline_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IsGcpKmsReachable provides a mock function with given fields: params
+func (_m *MockProvider) IsGcpKmsReachable(params GetKmsConfigParams) (bool, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsGcpKmsReachable")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(GetKmsConfigParams) (bool, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(GetKmsConfigParams) bool); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(GetKmsConfigParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_IsGcpKmsReachable_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsGcpKmsReachable'
+type MockProvider_IsGcpKmsReachable_Call struct {
+	*mock.Call
+}
+
+// IsGcpKmsReachable is a helper method to define mock.On call
+//   - params GetKmsConfigParams
+func (_e *MockProvider_Expecter) IsGcpKmsReachable(params interface{}) *MockProvider_IsGcpKmsReachable_Call {
+	return &MockProvider_IsGcpKmsReachable_Call{Call: _e.mock.On("IsGcpKmsReachable", params)}
+}
+
+func (_c *MockProvider_IsGcpKmsReachable_Call) Run(run func(params GetKmsConfigParams)) *MockProvider_IsGcpKmsReachable_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(GetKmsConfigParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_IsGcpKmsReachable_Call) Return(_a0 bool, _a1 error) *MockProvider_IsGcpKmsReachable_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_IsGcpKmsReachable_Call) RunAndReturn(run func(GetKmsConfigParams) (bool, error)) *MockProvider_IsGcpKmsReachable_Call {
 	_c.Call.Return(run)
 	return _c
 }

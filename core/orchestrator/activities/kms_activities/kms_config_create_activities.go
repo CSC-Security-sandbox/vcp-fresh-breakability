@@ -2,6 +2,7 @@ package kms_activities
 
 import (
 	"context"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
@@ -51,8 +52,35 @@ func (j *KmsConfigActivity) CreateKmsConfigSDEActivity(ctx context.Context, para
 	return response, nil
 }
 
-func (j *KmsConfigActivity) UpdateKmsConfigAttributesActivity(ctx context.Context, kmsUuid string, kmsConfig *cvpClientModels.KmsConfigV1beta) (*datamodel.KmsConfig, error) {
-	return j.SE.UpdateKmsConfigAttributes(ctx, kmsUuid, &datamodel.KmsAttributes{SdeKmsConfigUUID: kmsConfig.UUID,
-		SdeServiceAccountEmail: kmsConfig.ServiceAccountEmail,
-		Instructions:           kmsConfig.Instructions})
+func (j *KmsConfigActivity) CreateAndSyncKmsConfigActivity(ctx context.Context, params *common.CreateKmsConfigParams) (*datamodel.KmsConfig, error) {
+	se := j.SE
+
+	account, err := se.GetAccount(ctx, params.AccountName)
+	if err != nil {
+		return nil, err
+	}
+
+	parsedKeyFullPathResource, err := utils.ParseKeyFullPathResource(params.KeyFullPath)
+	if err != nil {
+		return nil, err
+	}
+
+	dbKmsConfig := &datamodel.KmsConfig{}
+	dbKmsConfig.CreatedAt = time.Now()
+	dbKmsConfig.UUID = params.UUID
+	dbKmsConfig.State = params.KmsState
+	dbKmsConfig.StateDetails = params.KmsStateDetails
+	dbKmsConfig.AccountID = account.ID
+	dbKmsConfig.UpdatedAt = time.Now()
+	dbKmsConfig.KeyName = parsedKeyFullPathResource.CryptoKey
+	dbKmsConfig.CustomerProjectID = params.ProjectNumber
+	dbKmsConfig.KeyRingLocation = parsedKeyFullPathResource.Location
+	dbKmsConfig.KeyRing = parsedKeyFullPathResource.KeyRing
+	dbKmsConfig.ResourceID = params.ResourceID
+	dbKmsConfig.KmsAttributes = &datamodel.KmsAttributes{Instructions: params.Instructions,
+		SdeKmsConfigUUID:       params.UUID,
+		SdeServiceAccountEmail: params.ServiceAccountEmail,
+	}
+	dbKmsConfig.KeyProjectID = parsedKeyFullPathResource.ProjectID
+	return se.CreateKmsConfig(ctx, dbKmsConfig)
 }

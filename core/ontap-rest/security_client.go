@@ -9,6 +9,7 @@ import (
 // SecurityClient describes a security client
 type SecurityClient interface { // generate:mock
 	GcpKmsCreate(params *GcpKmsCreateParams) ([]*GcpKms, error)
+	GcpKmsGet(params *GcpKmsGetParams) (*GcpKms, error)
 }
 
 type securityClient struct {
@@ -30,5 +31,15 @@ func (sc *securityClient) GcpKmsCreate(params *GcpKmsCreateParams) ([]*GcpKms, e
 	for i, gcp := range response.Payload.GcpKmsResponseInlineRecords {
 		resp[i] = &GcpKms{GcpKms: *gcp}
 	}
+	return resp, err
+}
+
+// GcpKmsGet invokes pkg/ontap-rest/client/security/Client.GcpKmsGet
+func (sc *securityClient) GcpKmsGet(params *GcpKmsGetParams) (*GcpKms, error) {
+	response, err := (*sc.api).GcpKmsGet(gcpKmsGetParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp := &GcpKms{GcpKms: *response.Payload}
 	return resp, err
 }

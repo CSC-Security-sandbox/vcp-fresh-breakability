@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -348,9 +349,9 @@ func TestGetSvmByKmsId(t *testing.T) {
 		}
 
 		svm := &datamodel.Svm{
-			BaseModel:    datamodel.BaseModel{UUID: "test-svm-uuid"},
-			Name:         "test_svm",
-			CmekConfigID: kms.ID,
+			BaseModel:   datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:        "test_svm",
+			KmsConfigID: sql.NullInt64{Int64: kms.ID, Valid: true},
 		}
 		err = store.db.Create(kms).Error()
 		if err != nil {
@@ -408,5 +409,60 @@ func TestGetSvmByKmsId(t *testing.T) {
 			tt.Errorf("Expected nil, got error")
 		}
 		assert.Equal(tt, 0, len(svms), "Expected no SVMs to be returned when KMS ID does not match")
+	})
+}
+
+func TestGetSvmsByKmsConfigID(t *testing.T) {
+	t.Run("UpdateSvmWithKmsConfigIDsReturnsErrorWhenKmsConfigNotFound", func(t *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(t, err)
+
+		svm := &datamodel.Svm{
+			BaseModel:  datamodel.BaseModel{ID: 1, UUID: "svm-uuid"},
+			Name:       "test_svm",
+			SvmDetails: &datamodel.SvmDetails{},
+		}
+		err = store.db.Create(svm).Error()
+		assert.NoError(t, err)
+
+		updated, err := store.UpdateSvmWithKmsConfigIDs(context.Background(), svm, "non-existent-uuid", "external-uuid")
+		assert.Error(t, err)
+		assert.Nil(t, updated)
+	})
+	t.Run("UpdateSvmWithKmsConfigIDsReturnsErrorOnSaveFailure", func(t *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(t, err)
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: "kms-uuid"},
+			Name:      "test_kms",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(t, err)
+
+		svm := &datamodel.Svm{
+			BaseModel:  datamodel.BaseModel{ID: 1, UUID: "svm-uuid"},
+			Name:       "test_svm",
+			SvmDetails: &datamodel.SvmDetails{},
+		}
+		err = store.db.Create(svm).Error()
+		assert.NoError(t, err)
+
+		// Simulate error by closing the DB connection
+		sqlDB, _ := db.DB()
+		err = sqlDB.Close()
+		assert.NoError(t, err)
+
+		updated, err := store.UpdateSvmWithKmsConfigIDs(context.Background(), svm, "kms-uuid", "external-uuid")
+		assert.Error(t, err)
+		assert.Nil(t, updated)
 	})
 }

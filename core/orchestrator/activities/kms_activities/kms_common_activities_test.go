@@ -2,7 +2,13 @@ package kms_activities
 
 import (
 	"context"
+	"database/sql"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
+	googleOauth2 "golang.org/x/oauth2/google"
+	"google.golang.org/api/cloudkms/v1"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -187,6 +193,24 @@ func TestFailedKmsConfigCreateActivity(t *testing.T) {
 			t.Errorf("expected state details to be set")
 		}
 	})
+	t.Run("WhenUpdateKmsConfigStateFails", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, State: models.LifeCycleStateError, StateDetails: "failure reason",
+			ServiceAccount: &datamodel.ServiceAccount{}}
+		mockSE.On("UpdateKmsConfigState", mock.Anything, kmsConfig.UUID, kmsConfig.State, kmsConfig.StateDetails).Return(nil, errors.New("failure reason"))
+		err := activity.FailedKmsConfigCreateActivity(context.Background(), kmsConfig, "failure reason")
+		assert.Error(tt, err)
+	})
+	t.Run("WhenUpdateKmsConfigStateFailsWithErrorNotFound", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, State: models.LifeCycleStateError, StateDetails: "failure reason",
+			ServiceAccount: &datamodel.ServiceAccount{}}
+		mockSE.On("UpdateKmsConfigState", mock.Anything, kmsConfig.UUID, kmsConfig.State, kmsConfig.StateDetails).Return(nil, errors.NewNotFoundErr("failure reason", nil))
+		err := activity.FailedKmsConfigCreateActivity(context.Background(), kmsConfig, "failure reason")
+		assert.NoError(tt, err)
+	})
 }
 
 func TestCreatedKmsConfigActivity(t *testing.T) {
@@ -207,6 +231,15 @@ func TestCreatedKmsConfigActivity(t *testing.T) {
 		if kmsConfig.StateDetails != models.LifeCycleStateCreatedDetails {
 			t.Errorf("expected state details to be set to ready details")
 		}
+	})
+	t.Run("WhenUpdateKmsConfigStateFails", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, State: models.LifeCycleStateCreated, StateDetails: models.LifeCycleStateCreatedDetails,
+			ServiceAccount: &datamodel.ServiceAccount{}}
+		mockSE.On("UpdateKmsConfigState", mock.Anything, kmsConfig.UUID, kmsConfig.State, kmsConfig.StateDetails).Return(nil, errors.New("some one"))
+		err := activity.CreatedKmsConfigActivity(context.Background(), kmsConfig)
+		assert.Error(tt, err)
 	})
 }
 
@@ -259,6 +292,81 @@ func TestCreateVSAKmsConfigSAKeyActivity(t *testing.T) {
 			tt.Errorf("expected ServiceAccountEmail to be set, got %v", result.ServiceAccount.ServiceAccountEmail)
 		}
 	})
+	t.Run("WhenGetGcpServiceError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}},
+			KmsAttributes:  &datamodel.KmsAttributes{SdeServiceAccountEmail: "prefix-test@project.iam.gserviceaccount.com"},
+		}
+		defer func() {
+			getGcpService = activities.GetGCPService
+			gcpServiceCreateServiceAccountKey = _gcpServiceCreateServiceAccountKey
+		}()
+		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("something went wrong")
+		}
+		result, err := activity.CreateVSAKmsConfigSAKeyActivity(ctx, kmsConfig)
+		assert.Error(tt, err)
+		assert.Nil(t, result)
+	})
+	t.Run("WhenGcpServiceCreateServiceAccountKeyFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}},
+			KmsAttributes:  &datamodel.KmsAttributes{SdeServiceAccountEmail: "prefix-test@project.iam.gserviceaccount.com"},
+		}
+		defer func() {
+			getGcpService = activities.GetGCPService
+			gcpServiceCreateServiceAccountKey = _gcpServiceCreateServiceAccountKey
+		}()
+		gcpSer := &google.GcpServices{Ctx: ctx, Logger: mockLogger}
+		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
+			return gcpSer, nil
+		}
+		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*iam.ServiceAccountKey, error) {
+			return nil, errors.New("something went wrong")
+		}
+		result, err := activity.CreateVSAKmsConfigSAKeyActivity(ctx, kmsConfig)
+		assert.Error(tt, err)
+		assert.Nil(t, result)
+	})
+	t.Run("WhenUpdateServiceAccountEmailAndKeyFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}},
+			KmsAttributes:  &datamodel.KmsAttributes{SdeServiceAccountEmail: "prefix-test@project.iam.gserviceaccount.com"},
+		}
+		defer func() {
+			getGcpService = activities.GetGCPService
+			gcpServiceCreateServiceAccountKey = _gcpServiceCreateServiceAccountKey
+		}()
+		gcpSer := &google.GcpServices{Ctx: ctx, Logger: mockLogger}
+		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
+			return gcpSer, nil
+		}
+		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*iam.ServiceAccountKey, error) {
+			return &iam.ServiceAccountKey{}, nil
+		}
+		mockSE.On("UpdateServiceAccountEmailAndKey", mock.Anything, "uuid", mock.Anything, mock.Anything).Return(nil, errors.New("something went wrong"))
+		result, err := activity.CreateVSAKmsConfigSAKeyActivity(ctx, kmsConfig)
+		assert.Error(tt, err)
+		assert.Nil(t, result)
+	})
 }
 
 func Test_gcpServiceCreateServiceAccountKey(t *testing.T) {
@@ -280,5 +388,267 @@ func Test_gcpServiceCreateServiceAccountKey(t *testing.T) {
 		key, err := _gcpServiceCreateServiceAccountKey(mockGCPService, ctx, email)
 		assert.Error(t, err)
 		assert.Nil(t, key)
+	})
+}
+
+func TestGrantRoleActivity(t *testing.T) {
+	t.Run("GrantRoleActivityReturnsErrorWhenServiceAccountEmailIsEmpty", func(t *testing.T) {
+		activity := &KmsConfigActivity{}
+		kmsConfig := &datamodel.KmsConfig{
+			KmsAttributes:  &datamodel.KmsAttributes{SdeServiceAccountEmail: ""},
+			ServiceAccount: &datamodel.ServiceAccount{ServiceAccountEmail: ""},
+		}
+		mockGcpService := &google.GcpServices{}
+		origGetGcpService := getGcpService
+		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+		defer func() { getGcpService = origGetGcpService }()
+		origGrant := gcpGrantServiceAccountRole
+		gcpGrantServiceAccountRole = func(ctx context.Context, gcpService *google.GcpServices, serviceAccountEmail, member, role string) error {
+			if serviceAccountEmail == "" || member == "" {
+				return errors.New("missing email")
+			}
+			return nil
+		}
+		defer func() { gcpGrantServiceAccountRole = origGrant }()
+		err := activity.GrantRoleActivity(context.Background(), kmsConfig)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "missing email")
+	})
+	t.Run("GrantRoleActivityReturnsErrorWhenServiceAccountIsNil", func(t *testing.T) {
+		activity := &KmsConfigActivity{}
+		kmsConfig := &datamodel.KmsConfig{
+			KmsAttributes:  &datamodel.KmsAttributes{SdeServiceAccountEmail: "svc@project.iam.gserviceaccount.com"},
+			ServiceAccount: &datamodel.ServiceAccount{ServiceAccountEmail: ""},
+		}
+		mockGcpService := &google.GcpServices{}
+		origGetGcpService := getGcpService
+		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGcpService, nil
+		}
+		defer func() { getGcpService = origGetGcpService }()
+		origGrant := gcpGrantServiceAccountRole
+		gcpGrantServiceAccountRole = func(ctx context.Context, gcpService *google.GcpServices, serviceAccountEmail, member, role string) error {
+			if member == "" {
+				return errors.New("missing email")
+			}
+			return nil
+		}
+		defer func() { gcpGrantServiceAccountRole = origGrant }()
+		err := activity.GrantRoleActivity(context.Background(), kmsConfig)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "missing email")
+	})
+	t.Run("GrantRoleActivityReturnsErrorWhenGetGcpServiceFails", func(t *testing.T) {
+		activity := &KmsConfigActivity{}
+		kmsConfig := &datamodel.KmsConfig{
+			KmsAttributes:  &datamodel.KmsAttributes{SdeServiceAccountEmail: "svc@project.iam.gserviceaccount.com"},
+			ServiceAccount: &datamodel.ServiceAccount{ServiceAccountEmail: ""},
+		}
+		origGetGcpService := getGcpService
+		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("some error")
+		}
+		defer func() { getGcpService = origGetGcpService }()
+		err := activity.GrantRoleActivity(context.Background(), kmsConfig)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "some error")
+	})
+}
+
+func TestUpdatePoolWithKmsConfigActivity(t *testing.T) {
+	t.Run("UpdatePoolWithKmsConfigActivityReturnsUpdatedPoolOnSuccess", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+		kmsConfigID := "kms-uuid"
+		updatedPool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
+		mockSE.On("UpdatePoolWithKmsConfigID", ctx, pool, kmsConfigID).Return(updatedPool, nil)
+
+		result, err := activity.UpdatePoolWithKmsConfigActivity(ctx, pool, kmsConfigID)
+		assert.NoError(t, err)
+		assert.Equal(t, updatedPool, result)
+	})
+	t.Run("UpdatePoolWithKmsConfigActivityReturnsErrorOnFailure", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+		kmsConfigID := "kms-uuid"
+		mockSE.On("UpdatePoolWithKmsConfigID", ctx, pool, kmsConfigID).Return(nil, errors.New("update error"))
+
+		result, err := activity.UpdatePoolWithKmsConfigActivity(ctx, pool, kmsConfigID)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "update error")
+	})
+}
+
+func TestAccessCryptoKeyActivity(t *testing.T) {
+	t.Run("AccessCryptoKeyActivityReturnsNoErrorOnSuccess", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}}
+		origAccessCryptoKey := AccessCryptoKey
+		defer func() { AccessCryptoKey = origAccessCryptoKey }()
+		AccessCryptoKey = func(ctx context.Context, se database.Storage, dbKmsConfig *datamodel.KmsConfig) error {
+			return nil
+		}
+		err := activity.AccessCryptoKeyWithImpersonationActivity(ctx, kmsConfig)
+		assert.NoError(t, err)
+	})
+	t.Run("AccessCryptoKeyActivityReturnsErrorOnFailure", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}}
+		origAccessCryptoKey := AccessCryptoKey
+		defer func() { AccessCryptoKey = origAccessCryptoKey }()
+		AccessCryptoKey = func(ctx context.Context, se database.Storage, dbKmsConfig *datamodel.KmsConfig) error {
+			return errors.New("access error")
+		}
+		err := activity.AccessCryptoKeyWithImpersonationActivity(ctx, kmsConfig)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "access error")
+	})
+}
+
+func Test_accessCryptoKey(t *testing.T) {
+	t.Run("WhenGetCryptoFails", func(t *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountPasswordLocation: "encrypted-location",
+			},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeServiceAccountEmail: "svc@project.iam.gserviceaccount.com",
+			},
+			KeyProjectID:    "project",
+			KeyRingLocation: "location",
+			KeyRing:         "keyring",
+			KeyName:         "keyname",
+		}
+		origProcessCredentials := utils.ProcessCredentials
+		origRetryDo := retryDo
+		defer func() {
+			utils.ProcessCredentials = origProcessCredentials
+			retryDo = origRetryDo
+		}()
+		utils.ProcessCredentials = func(ctx context.Context, secretPassword string) (*googleOauth2.Credentials, error) {
+			return &googleOauth2.Credentials{}, nil
+		}
+		retryDo = func(ctx context.Context, timeout, wait time.Duration, caller string, fn retry.Retriable) error {
+			_, err := fn(1)
+			return err
+		}
+		mockSE.On("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		err := _accessCryptoKey(ctx, mockSE, kmsConfig)
+		assert.Error(t, err)
+	})
+	t.Run("ReturnsErrorWhenProcessCredentialsFails", func(t *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountPasswordLocation: "bad-location",
+			},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeServiceAccountEmail: "svc@project.iam.gserviceaccount.com",
+			},
+		}
+		origProcessCredentials := utils.ProcessCredentials
+		defer func() { utils.ProcessCredentials = origProcessCredentials }()
+		utils.ProcessCredentials = func(ctx context.Context, secretPassword string) (*googleOauth2.Credentials, error) {
+			return nil, errors.New("decrypt error")
+		}
+		mockSE.On("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		err := _accessCryptoKey(ctx, mockSE, kmsConfig)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "decrypt error")
+	})
+	t.Run("ReturnsErrorWhenRetryDoFails", func(t *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountPasswordLocation: "encrypted-location",
+			},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeServiceAccountEmail: "svc@project.iam.gserviceaccount.com",
+			},
+			KeyProjectID:    "project",
+			KeyRingLocation: "location",
+			KeyRing:         "keyring",
+			KeyName:         "keyname",
+		}
+		origProcessCredentials := utils.ProcessCredentials
+		origRetryDo := retryDo
+		origGetCloudKmsService := getImpersonatedKmsService
+		defer func() {
+			utils.ProcessCredentials = origProcessCredentials
+			retryDo = origRetryDo
+			getImpersonatedKmsService = origGetCloudKmsService
+		}()
+
+		utils.ProcessCredentials = func(ctx context.Context, secretPassword string) (*googleOauth2.Credentials, error) {
+			return &googleOauth2.Credentials{}, nil
+		}
+
+		getImpersonatedKmsService = func(ctx context.Context, targetEmail string, scopeCreds *googleOauth2.Credentials) (*cloudkms.Service, error) {
+			return &cloudkms.Service{}, nil
+		}
+
+		retryDo = func(ctx context.Context, timeout, wait time.Duration, caller string, fn retry.Retriable) error {
+			return errors.New("retry error")
+		}
+		mockSE.On("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		err := _accessCryptoKey(ctx, mockSE, kmsConfig)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "retry error")
+	})
+	t.Run("WhenGetCloudKmsServiceFails", func(t *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(t)
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountPasswordLocation: "encrypted-location",
+			},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeServiceAccountEmail: "svc@project.iam.gserviceaccount.com",
+			},
+			KeyProjectID:    "project",
+			KeyRingLocation: "location",
+			KeyRing:         "keyring",
+			KeyName:         "keyname",
+		}
+		origProcessCredentials := utils.ProcessCredentials
+		origRetryDo := retryDo
+		origGetCloudKmsService := getImpersonatedKmsService
+		defer func() {
+			utils.ProcessCredentials = origProcessCredentials
+			retryDo = origRetryDo
+			getImpersonatedKmsService = origGetCloudKmsService
+		}()
+
+		utils.ProcessCredentials = func(ctx context.Context, secretPassword string) (*googleOauth2.Credentials, error) {
+			return &googleOauth2.Credentials{}, nil
+		}
+
+		getImpersonatedKmsService = func(ctx context.Context, targetEmail string, scopeCreds *googleOauth2.Credentials) (*cloudkms.Service, error) {
+			return nil, errors.New("cloudkms error")
+		}
+
+		mockSE.On("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		err := _accessCryptoKey(ctx, mockSE, kmsConfig)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cloudkms error")
 	})
 }

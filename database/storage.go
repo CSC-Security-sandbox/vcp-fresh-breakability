@@ -413,6 +413,10 @@ func (s *PersistenceStore) SavePoolWithVsaClusterDetails(ctx context.Context, po
 	return s.dataStore.SavePoolWithVsaClusterDetails(ctx, pool, cluster)
 }
 
+func (s *PersistenceStore) UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error) {
+	return s.dataStore.UpdatePoolWithKmsConfigID(ctx, pool, kmsConfigUUID)
+}
+
 func (s *PersistenceStore) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
 	return s.dataStore.CreateVolume(ctx, volume)
 }
@@ -553,6 +557,10 @@ func (s *PersistenceStore) GetSvmsByPoolID(ctx context.Context, poolID int64) ([
 	return s.dataStore.GetSvmsByPoolID(ctx, poolID)
 }
 
+func (s *PersistenceStore) UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datamodel.Svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID string) (*datamodel.Svm, error) {
+	return s.dataStore.UpdateSvmWithKmsConfigIDs(ctx, svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID)
+}
+
 func (s *PersistenceStore) CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error) {
 	return s.dataStore.CreateLif(ctx, lif)
 }
@@ -686,6 +694,10 @@ func (s *PersistenceStore) GetJobByResourceUUID(ctx context.Context, resourceUUI
 
 func (s *PersistenceStore) UpdateKmsConfigDetails(ctx context.Context, uuid string, keyFullPath string, resourceID string) (*datamodel.KmsConfig, error) {
 	return s.dataStore.UpdateKmsConfigDetails(ctx, uuid, keyFullPath, resourceID)
+}
+
+func (s *PersistenceStore) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string) (*datamodel.KmsConfig, error) {
+	return s.dataStore.GetKmsConfigByKeyFullPath(ctx, keyFullPath)
 }
 
 func (s *PersistenceStore) UpdateServiceAccountEmailAndKey(ctx context.Context, uuid string, email string, key string) (*datamodel.ServiceAccount, error) {

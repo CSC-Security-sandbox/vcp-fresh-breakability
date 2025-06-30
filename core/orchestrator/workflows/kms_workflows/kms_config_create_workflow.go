@@ -1,10 +1,10 @@
 package kms_workflows
 
 import (
-	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
@@ -126,15 +126,27 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 		return nil, err
 	}
 
-	var cvpKmsConfig models2.KmsConfigV1beta
-	// Describe KMS configurations to get the created KMS configuration, this must be called after polling the operation
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.DescribeKmsConfigurationActivity, kmsConfig, params).Get(ctx, &cvpKmsConfig)
+	// Describe KMS configurations to get the created KMS configuration; this must be called after polling the operation to get the sde kms config information
+	getKmsConfigParams := &common.GetKmsConfigParams{
+		UUID:          kmsConfig.KmsAttributes.SdeKmsConfigUUID,
+		LocationID:    params.LocationID,
+		ProjectNumber: params.ProjectNumber,
+	}
+	var cvpKmsConfig cvpmodels.KmsConfigV1beta
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.DescribeSDEKmsConfigurationActivity, getKmsConfigParams).Get(ctx, &cvpKmsConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// Update the KMS configuration attributes in the database
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.UpdateKmsConfigAttributesActivity, kmsConfig.UUID, cvpKmsConfig).Get(ctx, kmsConfig)
+	kmsConfig.KmsAttributes = &datamodel.KmsAttributes{
+		SdeKmsConfigUUID:       cvpKmsConfig.UUID,
+		SdeServiceAccountEmail: cvpKmsConfig.ServiceAccountEmail,
+		SdeKmsState:            cvpKmsConfig.KmsState,
+		SdeKmsStateDetails:     cvpKmsConfig.KmsStateDetails,
+		Instructions:           cvpKmsConfig.Instructions,
+	}
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.UpdateKmsConfigAttributesActivity, kmsConfig, kmsConfig.KmsAttributes).Get(ctx, kmsConfig)
 	if err != nil {
 		return nil, err
 	}

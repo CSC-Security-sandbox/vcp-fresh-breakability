@@ -662,8 +662,9 @@ func Test_CreateVSASVM_DBCreationError(t *testing.T) {
 		return mockVlmClient
 	}
 
-	err := activity.CreateVSASVM(ctx, pool, vlmConfig)
+	svm, err := activity.CreateVSASVM(ctx, pool, vlmConfig)
 
+	assert.Nil(t, svm)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "connection error")
 	mockStorage.AssertExpectations(t)
@@ -696,8 +697,9 @@ func Test_CreateVSASVM_FailsToCreateSVM(t *testing.T) {
 		return mockVlmClient
 	}
 
-	err := activity.CreateVSASVM(ctx, pool, vlmConfig)
+	svm, err := activity.CreateVSASVM(ctx, pool, vlmConfig)
 
+	assert.Nil(t, svm)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create SVM")
 	mockVlmClient.AssertExpectations(t)
@@ -731,8 +733,9 @@ func Test_CreateVSASVM_CouldNotFetchNodes(t *testing.T) {
 		return mockVlmClient
 	}
 
-	err := activity.CreateVSASVM(ctx, pool, vlmConfig)
+	svm, err := activity.CreateVSASVM(ctx, pool, vlmConfig)
 
+	assert.Nil(t, svm)
 	assert.Error(t, err)
 	mockStorage.AssertExpectations(t)
 }

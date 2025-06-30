@@ -75,6 +75,64 @@ func (_c *MockSecurityClient_GcpKmsCreate_Call) RunAndReturn(run func(*GcpKmsCre
 	return _c
 }
 
+// GcpKmsGet provides a mock function with given fields: params
+func (_m *MockSecurityClient) GcpKmsGet(params *GcpKmsGetParams) (*GcpKms, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GcpKmsGet")
+	}
+
+	var r0 *GcpKms
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*GcpKmsGetParams) (*GcpKms, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*GcpKmsGetParams) *GcpKms); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*GcpKms)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*GcpKmsGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSecurityClient_GcpKmsGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GcpKmsGet'
+type MockSecurityClient_GcpKmsGet_Call struct {
+	*mock.Call
+}
+
+// GcpKmsGet is a helper method to define mock.On call
+//   - params *GcpKmsGetParams
+func (_e *MockSecurityClient_Expecter) GcpKmsGet(params interface{}) *MockSecurityClient_GcpKmsGet_Call {
+	return &MockSecurityClient_GcpKmsGet_Call{Call: _e.mock.On("GcpKmsGet", params)}
+}
+
+func (_c *MockSecurityClient_GcpKmsGet_Call) Run(run func(params *GcpKmsGetParams)) *MockSecurityClient_GcpKmsGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*GcpKmsGetParams))
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_GcpKmsGet_Call) Return(_a0 *GcpKms, _a1 error) *MockSecurityClient_GcpKmsGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSecurityClient_GcpKmsGet_Call) RunAndReturn(run func(*GcpKmsGetParams) (*GcpKms, error)) *MockSecurityClient_GcpKmsGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockSecurityClient creates a new instance of MockSecurityClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockSecurityClient(t interface {

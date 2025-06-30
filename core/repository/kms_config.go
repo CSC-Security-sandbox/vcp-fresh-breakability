@@ -13,8 +13,10 @@ import (
 )
 
 const (
-	KmsSaStateDisabled = "disable"
-	KmsSaStateEnable   = "enable"
+	KmsSaStateDisabled           = "disable"
+	KmsSaStateEnable             = "enable"
+	RetryTimeOutForGetCryptoKey  = 1 * time.Minute
+	RetryIntervalForGetCryptoKey = 5 * time.Second
 )
 
 var (
@@ -24,6 +26,7 @@ var (
 	createKmsServiceAccount   = _createKmsServiceAccount
 	updateKmsConfigAttributes = _updateKmsConfigAttributes
 	updateKmsConfigDetails    = _updateKmsConfigDetails
+	getKmsConfigByUUID        = _getKmsConfigByUUID
 )
 
 func (d *DataStoreRepository) GetKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error) {
@@ -55,6 +58,7 @@ func (d *DataStoreRepository) UpdateKmsConfigState(ctx context.Context, kmsConfi
 	return kmsConfig, nil
 }
 
+// GetMultipleKmsConfigs retrieves multiple KMS configurations based on the provided conditions
 func (d *DataStoreRepository) GetMultipleKmsConfigs(ctx context.Context, conditions [][]interface{}) ([]*datamodel.KmsConfig, error) {
 	return getMultipleKmsConfigs(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
 }
@@ -68,7 +72,7 @@ func getMultipleKmsConfigs(db *gorm.DB) ([]*datamodel.KmsConfig, error) {
 	return kmsConfigs, nil
 }
 
-// CreateKmsConfig creates a new KMS config in the database.
+// CreateKmsConfig creates the KMS configuration along with the service account
 func (d *DataStoreRepository) CreateKmsConfig(ctx context.Context, kmsConfig *datamodel.KmsConfig) (*datamodel.KmsConfig, error) {
 	db := d.db.GORM().WithContext(ctx)
 	dbKmsConfigs, err := listKmsConfigByAccountID(db, kmsConfig.AccountID)
@@ -124,6 +128,7 @@ func _createKmsServiceAccount(db *gorm.DB, kmsConfig *datamodel.KmsConfig) (*dat
 	return serviceAccount, err
 }
 
+// ListKmsConfigByAccountID retrieves all KMS configurations for a given account ID
 func (d *DataStoreRepository) ListKmsConfigByAccountID(ctx context.Context, accountID int64) ([]*datamodel.KmsConfig, error) {
 	return listKmsConfigByAccountID(d.db.GORM().WithContext(ctx), accountID)
 }
@@ -137,9 +142,14 @@ func _listKmsConfigByAccountID(db *gorm.DB, accountID int64) ([]*datamodel.KmsCo
 	return kmsConfigs, nil
 }
 
+// GetKmsConfigByUUID retrieves a KMS configuration by its UUID
 func (d *DataStoreRepository) GetKmsConfigByUUID(ctx context.Context, uuid string) (*datamodel.KmsConfig, error) {
+	return getKmsConfigByUUID(d.db.GORM().WithContext(ctx), uuid)
+}
+
+func _getKmsConfigByUUID(db *gorm.DB, uuid string) (*datamodel.KmsConfig, error) {
 	kmsConfig := &datamodel.KmsConfig{}
-	err := d.db.GORM().WithContext(ctx).Preload("ServiceAccount").Preload("Account").First(kmsConfig, &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: uuid}}).Error
+	err := db.Preload("ServiceAccount").Preload("Account").First(kmsConfig, &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: uuid}}).Error
 	if err != nil {
 		if err.Error() == "record not found" {
 			return nil, errors.NewNotFoundErr(err.Error(), nil)
@@ -158,6 +168,7 @@ func _getKmsConfig(db *gorm.DB, query *datamodel.KmsConfig) (*datamodel.KmsConfi
 	return kmsConfig, nil
 }
 
+// UpdateKmsConfigAttributes updates the attributes of a KMS configuration in the database
 func (d *DataStoreRepository) UpdateKmsConfigAttributes(ctx context.Context, uuid string, attributes *datamodel.KmsAttributes) (*datamodel.KmsConfig, error) {
 	var updatedKmsConfig *datamodel.KmsConfig
 	err := d.db.GORM().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -187,6 +198,7 @@ func _updateKmsConfigAttributes(db *gorm.DB, uuid string, attributes *datamodel.
 	return dbKmsConfig, nil
 }
 
+// GetJobByResourceUUID retrieves the job associated with a KMS configuration by its UUID
 func (d *DataStoreRepository) GetJobByResourceUUID(ctx context.Context, resourceUUID string) (*datamodel.Job, error) {
 	job := &datamodel.Job{}
 	err := d.db.GORM().WithContext(ctx).Where("job_attributes ->> 'resource_uuid' = ?", resourceUUID).First(job).Error
@@ -196,6 +208,7 @@ func (d *DataStoreRepository) GetJobByResourceUUID(ctx context.Context, resource
 	return job, nil
 }
 
+// UpdateKmsConfigDetails updates the KMS configuration details such as key full path and resource ID
 func (d *DataStoreRepository) UpdateKmsConfigDetails(ctx context.Context, uuid string, keyFullPath string, resourceID string) (*datamodel.KmsConfig, error) {
 	var updatedKmsConfig *datamodel.KmsConfig
 	err := d.db.GORM().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -231,4 +244,23 @@ func _updateKmsConfigDetails(db *gorm.DB, uuid string, keyFullPath string, resou
 		return nil, err
 	}
 	return dbKmsConfig, nil
+}
+
+// GetKmsConfigByKeyFullPath retrieves a KMS configuration by its full key path
+func (d *DataStoreRepository) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string) (*datamodel.KmsConfig, error) {
+	parsedKeyFullPath, err := utils.ParseKeyFullPathResource(keyFullPath)
+	if err != nil {
+		return nil, err
+	}
+	kmsConfig := &datamodel.KmsConfig{}
+	err = d.db.GORM().WithContext(ctx).Preload("ServiceAccount").Preload("Account").First(kmsConfig, &datamodel.KmsConfig{
+		KeyRingLocation:   parsedKeyFullPath.Location,
+		KeyRing:           parsedKeyFullPath.KeyRing,
+		KeyName:           parsedKeyFullPath.CryptoKey,
+		CustomerProjectID: parsedKeyFullPath.ProjectID,
+	}).Error
+	if err != nil {
+		return nil, errors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "KMS Configuration", nil)
+	}
+	return kmsConfig, nil
 }

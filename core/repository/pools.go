@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -52,7 +53,6 @@ func (d *DataStoreRepository) CreatedPool(ctx context.Context, pool *datamodel.P
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
-
 	return dbPool, nil
 }
 
@@ -211,7 +211,7 @@ func (d *DataStoreRepository) GetPoolByVendorID(ctx context.Context, vendorID st
 
 func _getPoolWithDetails(db *gorm.DB, query *datamodel.Pool) (*datamodel.PoolView, error) {
 	pool := &datamodel.PoolView{}
-	err := db.Preload("Account").First(&pool, query).Error
+	err := db.Preload("Account").Preload("KmsConfig").First(&pool, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.NewNotFoundErr("pool", nil))
@@ -307,4 +307,33 @@ func ConvertPoolToPoolView(pool *datamodel.Pool) *datamodel.PoolView {
 		QuotaInBytes: 0, // Set to 0 or fill in with actual value if available
 		VolumeCount:  0, // Set to 0 or fill in with actual value if available
 	}
+}
+
+// UpdatePoolWithKmsConfigID updates the KMS configuration for a pool
+func (d *DataStoreRepository) UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfiUUID string) (*datamodel.Pool, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	kmsConfig, err := getKmsConfigByUUID(tx, kmsConfiUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	dbPool := &datamodel.Pool{}
+	err = tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&dbPool).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	dbPool.KmsConfigID = sql.NullInt64{Int64: kmsConfig.ID, Valid: true}
+	err = tx.Updates(dbPool).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+	poolWithDetails, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: dbPool.UUID}})
+	return &poolWithDetails.Pool, err
 }

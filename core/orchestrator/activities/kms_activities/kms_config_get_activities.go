@@ -2,6 +2,7 @@ package kms_activities
 
 import (
 	"context"
+	"go.temporal.io/sdk/temporal"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -12,18 +13,18 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-// DescribeKmsConfigurationActivity retrieves the KMS configuration details for the given KMS configuration.
-func (j *KmsConfigActivity) DescribeKmsConfigurationActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.CreateKmsConfigParams) (*models.KmsConfigV1beta, error) {
+// DescribeSDEKmsConfigurationActivity retrieves the KMS configuration details for the given KMS configuration.
+func (j *KmsConfigActivity) DescribeSDEKmsConfigurationActivity(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfigV1beta, error) {
 	logger := util.GetLogger(ctx)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 
 	describeKmsConfigParams := kms_configurations.NewV1betaDescribeKmsConfigurationParams()
-	describeKmsConfigParams.KmsConfigID = kmsConfig.KmsAttributes.SdeKmsConfigUUID
+	describeKmsConfigParams.KmsConfigID = params.UUID
 	describeKmsConfigParams.XCorrelationID = &xCorrelationID
 	describeKmsConfigParams.LocationID = params.LocationID
-	describeKmsConfigParams.ProjectNumber = kmsConfig.Account.Name
+	describeKmsConfigParams.ProjectNumber = params.ProjectNumber
 	sdeKmsConfigResponse, err := cvpClient.KmsConfigurations.V1betaDescribeKmsConfiguration(describeKmsConfigParams)
 	if err != nil {
 		return nil, err
@@ -32,4 +33,27 @@ func (j *KmsConfigActivity) DescribeKmsConfigurationActivity(ctx context.Context
 		return nil, errors.New("unknown error during the get kms configuration")
 	}
 	return sdeKmsConfigResponse.Payload, nil
+}
+
+// GetKmsConfigActivity retrieves the KMS configuration by its UUID.
+func (j *KmsConfigActivity) GetKmsConfigActivity(ctx context.Context, uuid string) (*datamodel.KmsConfig, error) {
+	se := j.SE
+	kmsConfig, err := se.GetKmsConfig(ctx, uuid)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return nil, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeKmsConfigNotFound, err)
+		}
+		return nil, err
+	}
+	return kmsConfig, err
+}
+
+// UpdateKmsConfigAttributesActivity updates the attributes of a KMS configuration in the database.
+func (j *KmsConfigActivity) UpdateKmsConfigAttributesActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig, attributes *datamodel.KmsAttributes) (*datamodel.KmsConfig, error) {
+	se := j.SE
+	kmsConfig, err := se.UpdateKmsConfigAttributes(ctx, kmsConfig.UUID, attributes)
+	if err != nil {
+		return nil, err
+	}
+	return kmsConfig, nil
 }

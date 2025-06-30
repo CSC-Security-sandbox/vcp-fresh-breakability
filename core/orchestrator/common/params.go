@@ -29,6 +29,8 @@ type CreatePoolParams struct {
 	SecondaryZone           string
 	HostUUID                string
 	CustomPerformanceParams *CustomPerformanceParams
+	KmsConfigId             string
+	KmsConfigResourceID     string
 }
 
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool

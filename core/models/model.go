@@ -45,6 +45,7 @@ const (
 	LifeCycleStateReadyDetails         = "Ready for use"
 	LifeCycleStateCreatedDetails       = "Created successfully"
 	LifeCycleStateUnknownDetails       = "Unknown state" // Unknown state details, used when the state is not decided yet
+	LifeCycleStateInUseDetails         = "In use"
 
 	AccountStateDisabled = "DISABLED"
 	AccountStateEnabled  = "ENABLED"

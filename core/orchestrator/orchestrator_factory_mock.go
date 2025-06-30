@@ -98,12 +98,12 @@ func (_c *MockOrchestratorFactory_AcceptClusterPeer_Call) RunAndReturn(run func(
 	return _c
 }
 
-// AccessKmsCryptoKey provides a mock function with given fields: ctx, kmsConfig
-func (_m *MockOrchestratorFactory) AccessKmsCryptoKey(ctx context.Context, kmsConfig *models.KmsConfig) error {
+// AccessCryptoKeyWithImpersonation provides a mock function with given fields: ctx, kmsConfig
+func (_m *MockOrchestratorFactory) AccessCryptoKeyWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error {
 	ret := _m.Called(ctx, kmsConfig)
 
 	if len(ret) == 0 {
-		panic("no return value specified for AccessKmsCryptoKey")
+		panic("no return value specified for AccessCryptoKeyWithImpersonation")
 	}
 
 	var r0 error
@@ -116,31 +116,31 @@ func (_m *MockOrchestratorFactory) AccessKmsCryptoKey(ctx context.Context, kmsCo
 	return r0
 }
 
-// MockOrchestratorFactory_AccessKmsCryptoKey_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AccessKmsCryptoKey'
-type MockOrchestratorFactory_AccessKmsCryptoKey_Call struct {
+// MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AccessCryptoKeyWithImpersonation'
+type MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call struct {
 	*mock.Call
 }
 
-// AccessKmsCryptoKey is a helper method to define mock.On call
+// AccessCryptoKeyWithImpersonation is a helper method to define mock.On call
 //   - ctx context.Context
 //   - kmsConfig *models.KmsConfig
-func (_e *MockOrchestratorFactory_Expecter) AccessKmsCryptoKey(ctx interface{}, kmsConfig interface{}) *MockOrchestratorFactory_AccessKmsCryptoKey_Call {
-	return &MockOrchestratorFactory_AccessKmsCryptoKey_Call{Call: _e.mock.On("AccessKmsCryptoKey", ctx, kmsConfig)}
+func (_e *MockOrchestratorFactory_Expecter) AccessCryptoKeyWithImpersonation(ctx interface{}, kmsConfig interface{}) *MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call {
+	return &MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call{Call: _e.mock.On("AccessCryptoKeyWithImpersonation", ctx, kmsConfig)}
 }
 
-func (_c *MockOrchestratorFactory_AccessKmsCryptoKey_Call) Run(run func(ctx context.Context, kmsConfig *models.KmsConfig)) *MockOrchestratorFactory_AccessKmsCryptoKey_Call {
+func (_c *MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call) Run(run func(ctx context.Context, kmsConfig *models.KmsConfig)) *MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(*models.KmsConfig))
 	})
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_AccessKmsCryptoKey_Call) Return(_a0 error) *MockOrchestratorFactory_AccessKmsCryptoKey_Call {
+func (_c *MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call) Return(_a0 error) *MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_AccessKmsCryptoKey_Call) RunAndReturn(run func(context.Context, *models.KmsConfig) error) *MockOrchestratorFactory_AccessKmsCryptoKey_Call {
+func (_c *MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call) RunAndReturn(run func(context.Context, *models.KmsConfig) error) *MockOrchestratorFactory_AccessCryptoKeyWithImpersonation_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1465,6 +1465,65 @@ func (_c *MockOrchestratorFactory_GetKmsConfig_Call) Return(_a0 *models.KmsConfi
 }
 
 func (_c *MockOrchestratorFactory_GetKmsConfig_Call) RunAndReturn(run func(context.Context, *common.GetKmsConfigParams) (*models.KmsConfig, error)) *MockOrchestratorFactory_GetKmsConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetKmsConfigByKeyFullPath provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) GetKmsConfigByKeyFullPath(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetKmsConfigByKeyFullPath")
+	}
+
+	var r0 *models.KmsConfig
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetKmsConfigParams) (*models.KmsConfig, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetKmsConfigParams) *models.KmsConfig); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.KmsConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.GetKmsConfigParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetKmsConfigByKeyFullPath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetKmsConfigByKeyFullPath'
+type MockOrchestratorFactory_GetKmsConfigByKeyFullPath_Call struct {
+	*mock.Call
+}
+
+// GetKmsConfigByKeyFullPath is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.GetKmsConfigParams
+func (_e *MockOrchestratorFactory_Expecter) GetKmsConfigByKeyFullPath(ctx interface{}, params interface{}) *MockOrchestratorFactory_GetKmsConfigByKeyFullPath_Call {
+	return &MockOrchestratorFactory_GetKmsConfigByKeyFullPath_Call{Call: _e.mock.On("GetKmsConfigByKeyFullPath", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_GetKmsConfigByKeyFullPath_Call) Run(run func(ctx context.Context, params *common.GetKmsConfigParams)) *MockOrchestratorFactory_GetKmsConfigByKeyFullPath_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.GetKmsConfigParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetKmsConfigByKeyFullPath_Call) Return(_a0 *models.KmsConfig, _a1 error) *MockOrchestratorFactory_GetKmsConfigByKeyFullPath_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetKmsConfigByKeyFullPath_Call) RunAndReturn(run func(context.Context, *common.GetKmsConfigParams) (*models.KmsConfig, error)) *MockOrchestratorFactory_GetKmsConfigByKeyFullPath_Call {
 	_c.Call.Return(run)
 	return _c
 }

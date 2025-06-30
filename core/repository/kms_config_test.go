@@ -2,15 +2,14 @@ package repository
 
 import (
 	"context"
-	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"gorm.io/gorm"
-	"testing"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"gorm.io/gorm"
+	"testing"
 )
 
 func TestGetKmsConfig(t *testing.T) {
@@ -503,5 +502,69 @@ func TestCreateGetUpdateListKmsConfigAndGetJob(t *testing.T) {
 		assert.Equal(tt, kmsConfigCreate.KeyName, resultGet.KeyName)
 		assert.Equal(tt, accounts[0].Name, resultGet.Account.Name)
 		assert.Equal(tt, serviceAccounts[0].Name, resultGet.ServiceAccount.Name)
+	})
+}
+
+func TestGetKmsConfigByKeyFullPath(t *testing.T) {
+	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(t, err)
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"}, Name: "account"}
+		serviceAccount := &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{ID: 2, UUID: "sa-uuid"}, Name: "sa", AccountID: 1}
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:         datamodel.BaseModel{UUID: "kms-uuid"},
+			Name:              "kms",
+			AccountID:         1,
+			ServiceAccountID:  2,
+			KeyRingLocation:   "us-central1",
+			KeyRing:           "ring1",
+			KeyName:           "key1",
+			CustomerProjectID: "project1",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(t, err)
+		err = store.db.Create(serviceAccount).Error()
+		assert.NoError(t, err)
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(t, err)
+
+		keyFullPath := "projects/project1/locations/us-central1/keyRings/ring1/cryptoKeys/key1"
+		result, err := store.GetKmsConfigByKeyFullPath(context.Background(), keyFullPath)
+		assert.NoError(t, err)
+		assert.Equal(t, kmsConfig.UUID, result.UUID)
+		assert.Equal(t, kmsConfig.Name, result.Name)
+		assert.Equal(t, serviceAccount.Name, result.ServiceAccount.Name)
+		assert.Equal(t, account.Name, result.Account.Name)
+	})
+	t.Run("TestGetKmsConfigByKeyFullPathReturnsErrorWhenKeyFullPathIsInvalid", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(t, err)
+
+		invalidKeyFullPath := "invalid/key/full/path"
+		result, err := store.GetKmsConfigByKeyFullPath(context.Background(), invalidKeyFullPath)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+	t.Run("TestGetKmsConfigByKeyFullPathReturnsNotFoundWhenNoRecordExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(t, err)
+
+		keyFullPath := "projects/project1/locations/us-central1/keyRings/ring1/cryptoKeys/key1"
+		result, err := store.GetKmsConfigByKeyFullPath(context.Background(), keyFullPath)
+		assert.Error(t, err)
+		assert.Nil(t, result)
 	})
 }

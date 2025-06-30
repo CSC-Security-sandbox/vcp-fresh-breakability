@@ -109,6 +109,7 @@ func NewClient(params RESTClientParams) RESTClient {
 			san:                       &sanClient{api: api.San},
 			snapmirror:                &snapmirrorClient{api: api.Snapmirror, apiPriv: apiPriv.Snapmirror},
 			poller:                    p,
+			security:                  &securityClient{api: &api.Security},
 		}
 		if err := TestConnection(rc); err == nil {
 			return rc

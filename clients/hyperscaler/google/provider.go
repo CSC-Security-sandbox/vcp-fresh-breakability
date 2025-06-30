@@ -13,10 +13,12 @@ import (
 	logger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/cloudkms/v1"
 	projectsManagement "google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/impersonate"
 	"google.golang.org/api/option"
 	"google.golang.org/api/privateca/v1"
 	"google.golang.org/api/secretmanager/v1"
@@ -628,4 +630,27 @@ func (gcpService *GcpServices) DeleteHmacKey(projectID string, accessKey string,
 	}
 
 	return nil
+}
+
+func GetImpersonatedKmsService(ctx context.Context, targetEmail string, scopeCreds *google.Credentials) (*cloudkms.Service, error) {
+	// Set up the impersonation token source using the sde service account email from the KMS config
+	// Use the VSA service account key to impersonate the SDE service account
+	// Note:- SDE service account should have roles/iam.serviceAccountTokenCreator and VSA service account should be the member of the project
+	logger := util.GetLogger(ctx)
+	scopes := []string{cloudkms.CloudPlatformScope}
+	tokenSource, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
+		TargetPrincipal: targetEmail,
+		Scopes:          scopes,
+	}, option.WithCredentials(scopeCreds))
+	if err != nil {
+		logger.Errorf("Failed to create impersonated token source: %v. TargetPrincipal: %s, Scopes: %v", err, targetEmail, scopes)
+		return nil, err
+	}
+
+	// Use the impersonated client to interact with Google Cloud KMS
+	kmsService, err := cloudkms.NewService(ctx, option.WithTokenSource(tokenSource))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create KMS service: %w", err)
+	}
+	return kmsService, nil
 }

@@ -48,3 +48,39 @@ func TestGcpKmsCreate(t *testing.T) {
 		assert.Equal(tt, gcpKms, &response[0].GcpKms)
 	})
 }
+func TestGcpKmsGet(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.GcpKmsGet(&GcpKmsGetParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, response)
+	})
+
+	t.Run("WhenResponseIsNil_ThenPanicOrReturnError", func(tt *testing.T) {
+		transport := &mockTransport{response: nil}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		defer func() {
+			if r := recover(); r == nil {
+				tt.Errorf("Expected panic when response.Payload is nil")
+			}
+		}()
+		_, err := client.GcpKmsGet(&GcpKmsGetParams{})
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenResponseHasPayload_ThenReturnGcpKms", func(tt *testing.T) {
+		gcpKms := &models.GcpKms{}
+		transport := &mockTransport{response: &security.GcpKmsGetOK{
+			Payload: gcpKms,
+		}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		response, err := client.GcpKmsGet(&GcpKmsGetParams{})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.Equal(tt, gcpKms, &response.GcpKms)
+	})
+}

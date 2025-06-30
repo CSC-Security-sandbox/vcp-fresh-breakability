@@ -3,11 +3,10 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"strings"
 	"time"
 
-	"encoding/base64"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -15,39 +14,35 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
-	googleOauth2 "golang.org/x/oauth2/google"
-	"google.golang.org/api/cloudkms/v1"
-	"google.golang.org/api/impersonate"
-	"google.golang.org/api/option"
 )
 
 var (
-	createKmsConfig          = _createKmsConfig
-	getKmsConfig             = _getKmsConfig
-	parseKeyFullPathResource = utils.ParseKeyFullPathResource
-	retryDo                  = retry.RetryDoWithTimeout
+	createKmsConfig               = _createKmsConfig
+	getKmsConfig                  = _getKmsConfig
+	parseKeyFullPathResource      = utils.ParseKeyFullPathResource
+	UpdateKmsConfig               = _updateKmsConfig
+	validateUpdateKmsConfigParams = _validateUpdateKmsConfigParams
+	isKmsConfigInUse              = _isKmsConfigInUse
+	getKmsConfigByKeyFullPath     = _getKmsConfigByKeyFullPath
 )
 
 const (
-	GcpKmsConfigHealthError      = "specified key <key_name> in <key_ring> does not exist or service permissions are incorrect"
-	RetryTimeOutForGetCryptoKey  = 1 * time.Minute
-	RetryIntervalForGetCryptoKey = 5 * time.Second
+	GcpKmsConfigHealthError = "specified key <key_name> in <key_ring> does not exist or service permissions are incorrect"
 )
 
 type KmsConfigInterface interface {
 	CreateKmsConfig(ctx context.Context, params *common.CreateKmsConfigParams) (*models.KmsConfig, string, error)
 	GetKmsConfig(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error)
+	GetKmsConfigByKeyFullPath(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error)
 	GetMultipleKMSConfigs(ctx context.Context, kmsConfigIDList []string) ([]*models.KmsConfig, error)
 	UpdateKmsConfig(ctx context.Context, params *common.UpdateKmsConfigParams) (*models.KmsConfig, string, error)
 	CheckAndUpdateKmsConfigHealth(ctx context.Context, params *models.KmsConfigCheck) (*models.KmsConfig, error)
-	AccessKmsCryptoKey(ctx context.Context, kmsConfig *models.KmsConfig) error
+	AccessCryptoKeyWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error
 }
 
 // CreateKmsConfig creates a new KMS configuration.
@@ -73,10 +68,11 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	dbKmsConfig.AccountID = account.ID
 	dbKmsConfig.UpdatedAt = time.Now()
 	dbKmsConfig.KeyName = parsedKeyFullPath.CryptoKey
-	dbKmsConfig.CustomerProjectID = parsedKeyFullPath.ProjectID
+	dbKmsConfig.CustomerProjectID = params.ProjectNumber
 	dbKmsConfig.KeyRingLocation = parsedKeyFullPath.Location
 	dbKmsConfig.KeyRing = parsedKeyFullPath.KeyRing
 	dbKmsConfig.ResourceID = params.ResourceID
+	dbKmsConfig.KeyProjectID = parsedKeyFullPath.ProjectID
 	dbKmsConfig.KmsAttributes = &datamodel.KmsAttributes{}
 	dbKmsConfig, err = se.CreateKmsConfig(ctx, dbKmsConfig)
 	if err != nil {
@@ -179,12 +175,6 @@ func _getKmsConfig(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 	return convertDatastoreKmsConfigToModel(dbKmsConfig), nil
 }
-
-var (
-	UpdateKmsConfig               = _updateKmsConfig
-	validateUpdateKmsConfigParams = _validateUpdateKmsConfigParams
-	isKmsConfigInUse              = _isKmsConfigInUse
-)
 
 // GetMultipleKMSConfigs gets KMS Config records for the UUIDs provided
 func (o *Orchestrator) GetMultipleKMSConfigs(ctx context.Context, kmsConfigUUIDList []string) ([]*models.KmsConfig, error) {
@@ -339,7 +329,7 @@ func _isKmsConfigInUse(ctx context.Context, se database.Storage, kmsConfig *data
 	return false, nil
 }
 
-// UpdateKmsConfigHealth checks the health of a KMS configuration and updates its status accordingly.
+// CheckAndUpdateKmsConfigHealth UpdateKmsConfigHealth checks the health of a KMS configuration and updates its status accordingly.
 func (o *Orchestrator) CheckAndUpdateKmsConfigHealth(ctx context.Context, configCheck *models.KmsConfigCheck) (*models.KmsConfig, error) {
 	se := o.storage
 	kmsConfig, err := se.GetKmsConfig(ctx, configCheck.KmsConfig.UUID)
@@ -391,66 +381,28 @@ func (o *Orchestrator) CheckAndUpdateKmsConfigHealth(ctx context.Context, config
 	return convertDataStoreKmsConfigToModel(kmsConfig), nil
 }
 
-// AccessKmsCryptoKey use impersonation to retrieve the details of a specific KMS crypto key.
-func (o *Orchestrator) AccessKmsCryptoKey(ctx context.Context, kmsConfig *models.KmsConfig) error {
+// AccessCryptoKeyWithImpersonation use impersonation to retrieve the details of a specific KMS crypto key.
+func (o *Orchestrator) AccessCryptoKeyWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error {
 	se := o.storage
-	var err error = nil
-	defer func() {
-		if err != nil {
-			_, _ = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateError, err.Error())
-		}
-	}()
-	logger := util.GetLogger(ctx)
-	decryptKey, err := utils.DecryptPassword(log.Secret(kmsConfig.ServiceAccount.ServiceAccountPasswordLocation))
+	dbKmsConfig, err := se.GetKmsConfig(ctx, kmsConfig.UUID)
 	if err != nil {
 		return err
 	}
-	// Decode the base64 encoded credentials
-	credentialsDecoded, err := base64.StdEncoding.DecodeString(*decryptKey)
-	if err != nil {
-		return err
-	}
+	return kms_activities.AccessCryptoKey(ctx, se, dbKmsConfig)
+}
 
-	// Create a context with the necessary credentials
-	scopeCreds, err := googleOauth2.CredentialsFromJSON(ctx, credentialsDecoded, cloudkms.CloudPlatformScope)
-	if err != nil {
-		return err
-	}
+func (o *Orchestrator) GetKmsConfigByKeyFullPath(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
+	return getKmsConfigByKeyFullPath(ctx, o.storage, params)
+}
 
-	// Set up the impersonation token source using the sde service account email from the KMS config
-	// Use the VSA service account key to impersonate the SDE service account
-	// Note:- SDE service account should have roles/iam.serviceAccountTokenCreator and VSA service account should be the member of the project
-	scopes := []string{cloudkms.CloudPlatformScope}
-	tokenSource, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
-		TargetPrincipal: kmsConfig.KmsAttributes.SdeServiceAccountEmail,
-		Scopes:          scopes,
-	}, option.WithCredentials(scopeCreds))
+func _getKmsConfigByKeyFullPath(ctx context.Context, se database.Storage, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
+	_, err := getOrCreateAccount(ctx, se, params.AccountName)
 	if err != nil {
-		logger.Errorf("Failed to create impersonated token source: %v. TargetPrincipal: %s, Scopes: %v", err, kmsConfig.KmsAttributes.SdeServiceAccountEmail, scopes)
-		return err
+		return nil, err
 	}
-	// Use the impersonated client to interact with Google Cloud KMS
-	kmsService, err := cloudkms.NewService(ctx, option.WithTokenSource(tokenSource))
+	dbKmsConfig, err := se.GetKmsConfigByKeyFullPath(ctx, params.KeyFullPath)
 	if err != nil {
-		return fmt.Errorf("failed to create KMS service: %w", err)
+		return nil, err
 	}
-
-	// Define the name of the crypto key you want to get details about
-	cryptoKeyPath := utils.ParsedKeyFullPathResource{
-		ProjectID: kmsConfig.CustomerProjectID,
-		Location:  kmsConfig.KeyRingLocation,
-		KeyRing:   kmsConfig.KeyRing,
-		CryptoKey: kmsConfig.KeyName,
-	}.String()
-
-	// Get the crypto key details
-	err = retryDo(ctx, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey, "AccessKmsCryptoKey", func(attempt int) (bool, error) {
-		cryptoKey, err := kmsService.Projects.Locations.KeyRings.CryptoKeys.Get(cryptoKeyPath).Context(ctx).Do()
-		if err != nil {
-			return true, fmt.Errorf("Projects.Locations.KeyRings.CryptoKeys.Get: %v", err)
-		}
-		logger.Infof("Successfully got crypto key %s", cryptoKey.Name)
-		return false, nil
-	})
-	return err
+	return convertDatastoreKmsConfigToModel(dbKmsConfig), nil
 }

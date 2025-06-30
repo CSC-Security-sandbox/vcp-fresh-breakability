@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	cvpClientModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
-	helper "github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -18,18 +19,28 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"google.golang.org/api/iam/v1"
 )
 
 var (
-	cmekGlobalProjectId               = env.GetString("CMEK_GLOBAL_PROJECT_ID", "")
 	pollCvpOperationForWorkflow       = _pollCvpOperationForWorkflow
 	getGcpService                     = activities.GetGCPService
 	gcpServiceCreateServiceAccountKey = _gcpServiceCreateServiceAccountKey
+	gcpGrantServiceAccountRole        = _gcpGrantServiceAccountRole
+	retryDo                           = retry.RetryDoWithTimeout
+	AccessCryptoKey                   = _accessCryptoKey
+	getImpersonatedKmsService         = google.GetImpersonatedKmsService
+)
+
+const (
+	ErrTypeKmsConfigNotFound               = "KmsConfigNotFound"
+	ErrTypeKmsConfigNotReachableVsaCluster = "KmsConfigNotReachableVsaCluster"
+	RetryTimeOutForGetCryptoKey            = 1 * time.Minute
+	RetryIntervalForGetCryptoKey           = 5 * time.Second
 )
 
 type KmsConfigActivity struct {
@@ -68,6 +79,7 @@ func (j *KmsConfigActivity) PollKmsConfigOperationActivity(ctx context.Context, 
 		operationParams.OperationID = operationUUID
 		operationParams.ProjectNumber = params.ProjectNumber
 		operationParams.LocationID = params.LocationID
+		operationParams.XCorrelationID = &params.XCorrelationID
 		_, err := pollCvpOperationForWorkflow(ctx, cvpClient, operationParams)
 		if err != nil {
 			return nil, err
@@ -100,11 +112,11 @@ func (j *KmsConfigActivity) CreateVSAKmsConfigSAKeyActivity(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	sa, err := se.UpdateServiceAccountEmailAndKey(ctx, kmsConfig.ServiceAccount.UUID, vsaEmail, serviceAccountKey.PrivateKeyData)
+	serviceAccount, err := se.UpdateServiceAccountEmailAndKey(ctx, kmsConfig.ServiceAccount.UUID, vsaEmail, serviceAccountKey.PrivateKeyData)
 	if err != nil {
 		return nil, err
 	}
-	kmsConfig.ServiceAccount = sa
+	kmsConfig.ServiceAccount = serviceAccount
 	return kmsConfig, nil
 }
 
@@ -113,9 +125,17 @@ func _gcpServiceCreateServiceAccountKey(gcpService hyperscaler.GoogleServices, c
 	return gcpService.CreateServiceAccountKey(ctx, email)
 }
 
+func _gcpGrantServiceAccountRole(ctx context.Context, gcpService *google.GcpServices, serviceAccountEmail, member, role string) error {
+	return gcpService.GrantServiceAccountRole(ctx, serviceAccountEmail, member, role)
+}
+
 // GrantRoleActivity grants the specified role to the service account for the given KMS configuration.
 func (j *KmsConfigActivity) GrantRoleActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig) error {
-	return helper.GrantRoleToServiceAccount(ctx, cmekGlobalProjectId, kmsConfig.ServiceAccount.ServiceAccountEmail, TokenCreatorRole)
+	gcpService, err := getGcpService(ctx)
+	if err != nil {
+		return err
+	}
+	return gcpGrantServiceAccountRole(ctx, gcpService, kmsConfig.KmsAttributes.SdeServiceAccountEmail, kmsConfig.ServiceAccount.ServiceAccountEmail, TokenCreatorRole)
 }
 
 // FailedKmsConfigCreateActivity updates the KMS configuration state to "error" with the provided error message.
@@ -125,6 +145,10 @@ func (j *KmsConfigActivity) FailedKmsConfigCreateActivity(ctx context.Context, k
 	kmsConfig.StateDetails = errMsg
 	_, err := se.UpdateKmsConfigState(ctx, kmsConfig.UUID, kmsConfig.State, kmsConfig.StateDetails)
 	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			// If the KMS config is not found, this can mean that creation failed before the KMS config was created
+			return nil
+		}
 		return err
 	}
 	_, err = se.UpdateServiceAccountState(ctx, kmsConfig.ServiceAccount.UUID, models.LifeCycleStateError, errMsg)
@@ -142,4 +166,61 @@ func (j *KmsConfigActivity) CreatedKmsConfigActivity(ctx context.Context, kmsCon
 	}
 	_, err = se.UpdateServiceAccountState(ctx, kmsConfig.ServiceAccount.UUID, models.AccountStateEnabled, models.LifeCycleStateReadyDetails)
 	return err
+}
+
+func (j *KmsConfigActivity) UpdatePoolWithKmsConfigActivity(ctx context.Context, pool *datamodel.Pool, kmsConfigID string) (*datamodel.Pool, error) {
+	se := j.SE
+	return se.UpdatePoolWithKmsConfigID(ctx, pool, kmsConfigID)
+}
+
+func (j *KmsConfigActivity) AccessCryptoKeyWithImpersonationActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig) error {
+	se := j.SE
+	err := AccessCryptoKey(ctx, se, kmsConfig)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func _accessCryptoKey(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig) error {
+	logger := util.GetLogger(ctx)
+	var err error
+	defer func() {
+		if err != nil {
+			_, _ = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateError, err.Error())
+		}
+	}()
+
+	// Process the service account credentials to get the scope credentials
+	scopeCreds, err := utils.ProcessCredentials(ctx, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+	if err != nil {
+		return err
+	}
+
+	kmsService, err := getImpersonatedKmsService(ctx, kmsConfig.ServiceAccount.ServiceAccountEmail, scopeCreds)
+	if err != nil {
+		return fmt.Errorf("failed to create KMS service: %w", err)
+	}
+
+	// Define the name of the crypto key you want to get details about
+	cryptoKeyPath := utils.ParsedKeyFullPathResource{
+		ProjectID: kmsConfig.KeyProjectID,
+		Location:  kmsConfig.KeyRingLocation,
+		KeyRing:   kmsConfig.KeyRing,
+		CryptoKey: kmsConfig.KeyName,
+	}.String()
+
+	// Get the crypto key details
+	err = retryDo(ctx, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey, "AccessCryptoKeyWithImpersonation", func(attempt int) (bool, error) {
+		cryptoKey, err := kmsService.Projects.Locations.KeyRings.CryptoKeys.Get(cryptoKeyPath).Context(ctx).Do()
+		if err != nil {
+			return true, fmt.Errorf("Projects.Locations.KeyRings.CryptoKeys.Get: %v", err)
+		}
+		logger.Debugf("Successfully got crypto key %s", cryptoKey.Name)
+		return false, nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to access crypto key %s: %w", cryptoKeyPath, err)
+	}
+	return nil
 }

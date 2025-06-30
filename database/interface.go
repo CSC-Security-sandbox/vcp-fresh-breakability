@@ -61,6 +61,7 @@ type DataStore interface {
 	GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.PoolView, error)
 	GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error)
 	SavePoolWithVsaClusterDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error
+	UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error)
 
 	CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error)
 	GetVolume(ctx context.Context, id string) (*datamodel.Volume, error)
@@ -102,6 +103,7 @@ type DataStore interface {
 
 	CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error)
 	GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Svm, error)
+	UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datamodel.Svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID string) (*datamodel.Svm, error)
 
 	CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error)
 	GetLifForNode(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error)
@@ -143,6 +145,7 @@ type DataStore interface {
 	UpdateKmsConfigAttributes(ctx context.Context, uuid string, attributes *datamodel.KmsAttributes) (*datamodel.KmsConfig, error)
 	GetJobByResourceUUID(ctx context.Context, kmsConfigUUID string) (*datamodel.Job, error)
 	UpdateKmsConfigDetails(ctx context.Context, uuid string, fullKeyPath string, resourceID string) (*datamodel.KmsConfig, error)
+	GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string) (*datamodel.KmsConfig, error)
 
 	UpdateServiceAccountEmailAndKey(ctx context.Context, uuid string, email string, key string) (*datamodel.ServiceAccount, error)
 	UpdateServiceAccountState(ctx context.Context, uuid string, state string, stateDetails string) (*datamodel.ServiceAccount, error)

@@ -1,0 +1,318 @@
+package kms_activities
+
+import (
+	"context"
+	"encoding/base64"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+)
+
+func TestConfigureKmsForSvmActivity(t *testing.T) {
+	t.Run("ConfigureKmsForSvmActivityReturnsErrorWhenProviderNotFound", func(t *testing.T) {
+		mockActivity := &KmsConfigActivity{}
+		ctx := context.Background()
+		svm := &datamodel.Svm{Name: "svm1"}
+		node := &coreModels.Node{}
+		params := commonparams.CreatePoolParams{KmsConfigId: "kms-uuid"}
+
+		// Patch activities.GetProviderByNode to return nil
+		origGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) vsa.Provider { return nil }
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+
+		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "provider not found")
+	})
+	t.Run("ConfigureKmsForSvmActivityWhenEmptyKmsConfigId", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockSE := database.NewMockStorage(t)
+		mockActivity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		svm := &datamodel.Svm{Name: "svm1"}
+		node := &coreModels.Node{}
+		params := commonparams.CreatePoolParams{KmsConfigId: ""}
+		// Patch activities.GetProviderByNode to return a dummy provider
+		origGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) vsa.Provider { return mockProvider }
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	t.Run("ConfigureKmsForSvmActivityReturnsErrorWhenGetKmsConfigFails", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockSE := database.NewMockStorage(t)
+		mockActivity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		svm := &datamodel.Svm{Name: "svm1"}
+		node := &coreModels.Node{}
+		params := commonparams.CreatePoolParams{KmsConfigId: "kms-uuid"}
+		// Patch activities.GetProviderByNode to return a dummy provider
+		origGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) vsa.Provider { return mockProvider }
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		mockSE.On("GetKmsConfig", mock.Anything, mock.Anything).Return(nil, errors.New("db error")).Once()
+		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "db error")
+	})
+	t.Run("ConfigureKmsForSvmActivityReturnsErrorWhenDecryptPasswordFails", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockSE := database.NewMockStorage(t)
+		mockActivity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		svm := &datamodel.Svm{Name: "svm1"}
+		node := &coreModels.Node{}
+		params := commonparams.CreatePoolParams{KmsConfigId: "kms-uuid"}
+
+		origDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) { return nil, errors.New("decrypt error") }
+		defer func() { utils.DecryptPassword = origDecryptPassword }()
+		kmsConfig := &datamodel.KmsConfig{ServiceAccount: &datamodel.ServiceAccount{}}
+		mockSE.On("GetKmsConfig", mock.Anything, mock.Anything).Return(kmsConfig, nil).Once()
+		origGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) vsa.Provider { return mockProvider }
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "decrypt error")
+	})
+	t.Run("ConfigureKmsForSvmActivityReturnsErrorWhenBase64DecodeFails", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockSE := database.NewMockStorage(t)
+		mockActivity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		svm := &datamodel.Svm{Name: "svm1"}
+		node := &coreModels.Node{}
+		params := commonparams.CreatePoolParams{KmsConfigId: "kms-uuid"}
+
+		origDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
+			s := "not-base64"
+			return &s, nil
+		}
+		defer func() { utils.DecryptPassword = origDecryptPassword }()
+
+		origGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) vsa.Provider { return mockProvider }
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		kmsConfig := &datamodel.KmsConfig{ServiceAccount: &datamodel.ServiceAccount{}}
+		mockSE.On("GetKmsConfig", mock.Anything, mock.Anything).Return(kmsConfig, nil).Once()
+		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+	t.Run("ConfigureKmsForSvmActivityReturnsErrorWhenCreateKmsConfigFails", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockSE := database.NewMockStorage(t)
+		mockActivity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		svm := &datamodel.Svm{Name: "svm1"}
+		node := &coreModels.Node{}
+		params := commonparams.CreatePoolParams{KmsConfigId: "kms-uuid"}
+
+		origDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
+			s := base64.StdEncoding.EncodeToString([]byte("key"))
+			return &s, nil
+		}
+		defer func() { utils.DecryptPassword = origDecryptPassword }()
+		kmsConfig := &datamodel.KmsConfig{ServiceAccount: &datamodel.ServiceAccount{}, KmsAttributes: &datamodel.KmsAttributes{}}
+		mockSE.On("GetKmsConfig", mock.Anything, mock.Anything).Return(kmsConfig, nil).Once()
+		mockProvider.On("CreateKmsConfig", mock.Anything).Return(nil, errors.New("provider error")).Once()
+		origGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) vsa.Provider {
+			return mockProvider
+		}
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+
+		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "provider error")
+	})
+	t.Run("ConfigureKmsForSvmActivityReturnsErrorWhenUpdateSvmWithKmsConfigIDsFails", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockSE := database.NewMockStorage(t)
+		mockActivity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		svm := &datamodel.Svm{Name: "svm1"}
+		node := &coreModels.Node{}
+		params := commonparams.CreatePoolParams{KmsConfigId: "kms-uuid"}
+		resp := &vsa.CreateKmsConfigResponse{}
+		kmsConfig := &datamodel.KmsConfig{ServiceAccount: &datamodel.ServiceAccount{}, KmsAttributes: &datamodel.KmsAttributes{}}
+		mockSE.On("GetKmsConfig", mock.Anything, mock.Anything).Return(kmsConfig, nil).Once()
+		mockProvider.On("CreateKmsConfig", mock.Anything).Return(resp, nil).Once()
+		mockSE.On("UpdateSvmWithKmsConfigIDs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("update error")).Once()
+
+		origDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
+			s := base64.StdEncoding.EncodeToString([]byte("key"))
+			return &s, nil
+		}
+		defer func() { utils.DecryptPassword = origDecryptPassword }()
+
+		origGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) vsa.Provider { return mockProvider }
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+
+		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "update error")
+	})
+	t.Run("ConfigureKmsForSvmActivityReturnsErrorWhenUpdateKmsConfigStateFails", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockSE := database.NewMockStorage(t)
+		mockActivity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		svm := &datamodel.Svm{Name: "svm1"}
+		node := &coreModels.Node{}
+		params := commonparams.CreatePoolParams{KmsConfigId: "kms-uuid"}
+		resp := &vsa.CreateKmsConfigResponse{}
+		kmsConfig := &datamodel.KmsConfig{ServiceAccount: &datamodel.ServiceAccount{}, KmsAttributes: &datamodel.KmsAttributes{}}
+		mockSE.On("GetKmsConfig", mock.Anything, mock.Anything).Return(kmsConfig, nil).Once()
+		mockProvider.On("CreateKmsConfig", mock.Anything).Return(resp, nil).Once()
+		mockSE.On("UpdateSvmWithKmsConfigIDs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		mockSE.On("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("state error")).Once()
+		origDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
+			s := base64.StdEncoding.EncodeToString([]byte("key"))
+			return &s, nil
+		}
+		defer func() { utils.DecryptPassword = origDecryptPassword }()
+
+		origGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) vsa.Provider { return mockProvider }
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+
+		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "state error")
+	})
+	t.Run("ConfigureKmsForSvmActivityReturnsUpdatedSvmOnSuccess", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockSE := database.NewMockStorage(t)
+		mockActivity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		svm := &datamodel.Svm{Name: "svm1"}
+		node := &coreModels.Node{}
+		params := commonparams.CreatePoolParams{KmsConfigId: "kms-uuid"}
+		resp := &vsa.CreateKmsConfigResponse{}
+		kmsConfig := &datamodel.KmsConfig{ServiceAccount: &datamodel.ServiceAccount{}, KmsAttributes: &datamodel.KmsAttributes{}}
+		mockSE.On("GetKmsConfig", mock.Anything, mock.Anything).Return(kmsConfig, nil).Once()
+		mockProvider.On("CreateKmsConfig", mock.Anything).Return(resp, nil).Once()
+		mockSE.On("UpdateSvmWithKmsConfigIDs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(svm, nil).Once()
+		mockSE.On("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		origDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
+			s := base64.StdEncoding.EncodeToString([]byte("key"))
+			return &s, nil
+		}
+		defer func() { utils.DecryptPassword = origDecryptPassword }()
+
+		origGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) vsa.Provider { return mockProvider }
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+
+		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+}
+
+func TestCheckVsaKmsConfigReachableActivity(t *testing.T) {
+	t.Run("CheckVsaKmsConfigReachableActivityReturnsErrorWhenProviderNotFound", func(t *testing.T) {
+		mockActivity := &KmsConfigActivity{}
+		ctx := context.Background()
+		svm := &datamodel.Svm{}
+		node := &coreModels.Node{}
+
+		origGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) vsa.Provider { return nil }
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+
+		err := mockActivity.CheckVsaKmsConfigReachableActivity(ctx, svm, node)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "provider not found")
+	})
+	t.Run("CheckVsaKmsConfigReachableActivityReturnsNoErrorWhenKmsIsReachable", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockActivity := &KmsConfigActivity{}
+		ctx := context.Background()
+		svm := &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalKmsConfigUUID: "uuid"}}
+		node := &coreModels.Node{}
+
+		mockProvider.On("IsGcpKmsReachable", mock.Anything).Return(true, nil).Once()
+		origGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) vsa.Provider { return mockProvider }
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+
+		err := mockActivity.CheckVsaKmsConfigReachableActivity(ctx, svm, node)
+		assert.NoError(t, err)
+	})
+	t.Run("CheckVsaKmsConfigReachableActivityReturnsPermissionDeniedError", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockActivity := &KmsConfigActivity{}
+		ctx := context.Background()
+		svm := &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalKmsConfigUUID: "uuid"}}
+		node := &coreModels.Node{}
+
+		mockProvider.On("IsGcpKmsReachable", mock.Anything).Return(false, errors.New("permission_denied")).Once()
+		origGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) vsa.Provider { return mockProvider }
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+
+		err := mockActivity.CheckVsaKmsConfigReachableActivity(ctx, svm, node)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "lacks permission")
+	})
+	t.Run("CheckVsaKmsConfigReachableActivityReturnsInvalidJwtSignatureError", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockActivity := &KmsConfigActivity{}
+		ctx := context.Background()
+		svm := &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalKmsConfigUUID: "uuid"}}
+		node := &coreModels.Node{}
+
+		mockProvider.On("IsGcpKmsReachable", mock.Anything).Return(false, errors.New("Invalid JWT Signature")).Once()
+		origGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) vsa.Provider { return mockProvider }
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+
+		err := mockActivity.CheckVsaKmsConfigReachableActivity(ctx, svm, node)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Failed to establish connectivity")
+	})
+	t.Run("CheckVsaKmsConfigReachableActivityReturnsNonRetryableErrorForOtherErrors", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockActivity := &KmsConfigActivity{}
+		ctx := context.Background()
+		svm := &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalKmsConfigUUID: "uuid"}}
+		node := &coreModels.Node{}
+
+		mockProvider.On("IsGcpKmsReachable", mock.Anything).Return(false, errors.New("some other error")).Once()
+		origGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) vsa.Provider { return mockProvider }
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+
+		err := mockActivity.CheckVsaKmsConfigReachableActivity(ctx, svm, node)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "GCP KMS key is not reachable from VSA Clusters")
+	})
+}

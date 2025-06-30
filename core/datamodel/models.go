@@ -34,6 +34,8 @@ type Pool struct {
 	AutoTierBucketName      string          `gorm:"column:auto_tier_bucket_name;type:text"`
 	ServiceAccountId        string          `gorm:"column:service_account_id;type:text"`
 	SecretID                string          `gorm:"column:secret_id"`
+	KmsConfigID             sql.NullInt64   `gorm:"index"`
+	KmsConfig               *KmsConfig      `gorm:"ForeignKey:KmsConfigID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 }
 
 type PoolView struct {
@@ -179,16 +181,17 @@ func (v *VolumeAttributes) Value() (driver.Value, error) {
 
 type Svm struct {
 	BaseModel
-	Name         string      `gorm:"column:name"`
-	Description  string      `gorm:"column:description"`
-	State        string      `gorm:"column:state"`
-	StateDetails string      `gorm:"column:state_details"`
-	SvmDetails   *SvmDetails `gorm:"column:svm_details;type:jsonb"`
-	AccountID    int64       `gorm:"column:account_id"`
-	Account      *Account    `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	PoolID       int64       `gorm:"column:pool_id"`
-	Pool         *Pool       `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	CmekConfigID int64       `gorm:"column:cmek_config_id;type:bigint"`
+	Name         string        `gorm:"column:name"`
+	Description  string        `gorm:"column:description"`
+	State        string        `gorm:"column:state"`
+	StateDetails string        `gorm:"column:state_details"`
+	SvmDetails   *SvmDetails   `gorm:"column:svm_details;type:jsonb"`
+	AccountID    int64         `gorm:"column:account_id"`
+	Account      *Account      `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	PoolID       int64         `gorm:"column:pool_id"`
+	Pool         *Pool         `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	KmsConfigID  sql.NullInt64 `json:"-" gorm:"index"`
+	KmsConfig    *KmsConfig    `json:"-" gorm:"ForeignKey:KmsConfigID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 }
 
 type Account struct {
@@ -273,10 +276,10 @@ type Lif struct {
 }
 
 type SvmDetails struct {
-	ExternalUUID           string `json:"external_uuid"`
-	IPSpace                string `json:"ip_space"`
-	NFSv364BitIdentifiers  string `json:"nf_sv364_bit_identifiers"`
-	ExternalCmekConfigUUID string `json:"external_cmek_config_uuid"`
+	ExternalUUID          string `json:"external_uuid"`
+	IPSpace               string `json:"ip_space"`
+	NFSv364BitIdentifiers string `json:"nf_sv364_bit_identifiers"`
+	ExternalKmsConfigUUID string `json:"external_kms_config_uuid"`
 }
 
 func (sd SvmDetails) Scan(value interface{}) error {

@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"gorm.io/gorm"
 	"strings"
 	"testing"
@@ -17,7 +18,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"go.temporal.io/sdk/client"
 )
@@ -904,92 +904,139 @@ func TestUpdateKmsConfigHealth(t *testing.T) {
 }
 
 func TestAccessKmsCryptoKey(t *testing.T) {
-	t.Run("TestAccessKmsCryptoKeyReturnsErrorWhenDecryptPasswordFails", func(tt *testing.T) {
+	t.Run("AccessKmsCryptoKeyReturnsNoErrorWhenStorageSucceeds", func(tt *testing.T) {
 		mockStorage := new(database.MockStorage)
 		orch := Orchestrator{storage: mockStorage}
-		mockLogger := log.NewLogger()
-		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
-		kmsConfig := &models.KmsConfig{
-			ServiceAccount: &models.ServiceAccount{ServiceAccountPasswordLocation: "mock-location"},
-			KmsAttributes:  &models.KmsAttributes{SdeServiceAccountEmail: "sde@project.iam.gserviceaccount.com"},
+		ctx := context.Background()
+		kmsConfig := &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}}
+		dbKmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "test-uuid"}}
+
+		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(dbKmsConfig, nil)
+		origAccessCryptoKey := kms_activities.AccessCryptoKey
+		defer func() { kms_activities.AccessCryptoKey = origAccessCryptoKey }()
+		kms_activities.AccessCryptoKey = func(ctx context.Context, se database.Storage, dbKmsConfig *datamodel.KmsConfig) error {
+			return nil
 		}
-		origDecryptPassword := utils.DecryptPassword
-		defer func() { utils.DecryptPassword = origDecryptPassword }()
-		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
-			return nil, errors.New("decrypt error")
-		}
-		mockStorage.On("UpdateKmsConfigState", ctx, kmsConfig.UUID, models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil)
-		err := orch.AccessKmsCryptoKey(ctx, kmsConfig)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "decrypt error")
+
+		err := orch.AccessCryptoKeyWithImpersonation(ctx, kmsConfig)
+		assert.NoError(tt, err)
 	})
-	t.Run("TestAccessKmsCryptoKeyReturnsErrorWhenBase64DecodeFails", func(tt *testing.T) {
-		mockLogger := log.NewLogger()
-		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+
+	t.Run("AccessKmsCryptoKeyReturnsErrorWhenGetKmsConfigFails", func(tt *testing.T) {
 		mockStorage := new(database.MockStorage)
 		orch := Orchestrator{storage: mockStorage}
-		kmsConfig := &models.KmsConfig{
-			ServiceAccount: &models.ServiceAccount{ServiceAccountPasswordLocation: "mock-location"},
-			KmsAttributes:  &models.KmsAttributes{SdeServiceAccountEmail: "sde@project.iam.gserviceaccount.com"},
-		}
-		origDecryptPassword := utils.DecryptPassword
-		defer func() { utils.DecryptPassword = origDecryptPassword }()
-		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
-			s := "not-base64"
-			return &s, nil
-		}
-		mockStorage.On("UpdateKmsConfigState", ctx, kmsConfig.UUID, models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil)
-		err := orch.AccessKmsCryptoKey(ctx, kmsConfig)
-		assert.Error(t, err)
+		ctx := context.Background()
+		kmsConfig := &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}}
+
+		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(nil, errors.New("get error"))
+
+		err := orch.AccessCryptoKeyWithImpersonation(ctx, kmsConfig)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "get error")
 	})
-	t.Run("TestAccessKmsCryptoKeyRetryDoFail", func(tt *testing.T) {
-		mockLogger := log.NewLogger()
-		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+
+	t.Run("AccessKmsCryptoKeyReturnsErrorWhenAccessCryptoKeyFails", func(tt *testing.T) {
 		mockStorage := new(database.MockStorage)
 		orch := Orchestrator{storage: mockStorage}
-		kmsConfig := &models.KmsConfig{
-			ServiceAccount: &models.ServiceAccount{ServiceAccountPasswordLocation: "mock-location"},
-			KmsAttributes:  &models.KmsAttributes{SdeServiceAccountEmail: "sde@project.iam.gserviceaccount.com"},
-		}
-		origDecryptPassword := utils.DecryptPassword
+		ctx := context.Background()
+		kmsConfig := &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}}
+		dbKmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "test-uuid"}}
 
-		defer func() {
-			utils.DecryptPassword = origDecryptPassword
-			retryDo = retry.RetryDoWithTimeout
-		}()
-		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
-			s := "ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAicGhhc2UzLWhvc3QiLAogICJlbXVsYXRpb24iOiAibG9jYWxob3N0OjkwMTEiCn0K"
-			return &s, nil
+		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(dbKmsConfig, nil)
+		origAccessCryptoKey := kms_activities.AccessCryptoKey
+		defer func() { kms_activities.AccessCryptoKey = origAccessCryptoKey }()
+		kms_activities.AccessCryptoKey = func(ctx context.Context, se database.Storage, dbKmsConfig *datamodel.KmsConfig) error {
+			return errors.New("access error")
 		}
 
-		retryDo = func(ctx context.Context, timeout, wait time.Duration, caller string, fn retry.Retriable) error {
-			return errors.New("retry error")
-		}
-		mockStorage.On("UpdateKmsConfigState", ctx, kmsConfig.UUID, models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil)
-		err := orch.AccessKmsCryptoKey(ctx, kmsConfig)
-		assert.Error(t, err)
+		err := orch.AccessCryptoKeyWithImpersonation(ctx, kmsConfig)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "access error")
 	})
-	t.Run("TestAccessKmsCryptoKeyRetryCreateCryptoKey", func(tt *testing.T) {
-		mockLogger := log.NewLogger()
-		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+}
+
+func TestGetKmsConfigByKeyFullPath(t *testing.T) {
+	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigOnSuccess", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		params := &common.GetKmsConfigParams{AccountName: "test-account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
+		expectedAccount := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "uuid"}, Name: "test-account"}
+		expectedKmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, KeyName: "k", KmsAttributes: &datamodel.KmsAttributes{},
+			ServiceAccount: &datamodel.ServiceAccount{}}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return expectedAccount, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+		mockStorage.On("GetKmsConfigByKeyFullPath", ctx, params.KeyFullPath).Return(expectedKmsConfig, nil)
+
+		result, err := _getKmsConfigByKeyFullPath(ctx, mockStorage, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "uuid", result.UUID)
+	})
+	t.Run("GetKmsConfigByKeyFullPathReturnsErrorWhenAccountFails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		params := &common.GetKmsConfigParams{AccountName: "fail-account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account error")
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+
+		result, err := _getKmsConfigByKeyFullPath(ctx, mockStorage, params)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "account error")
+	})
+	t.Run("GetKmsConfigByKeyFullPathReturnsErrorWhenStorageFails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		params := &common.GetKmsConfigParams{AccountName: "test-account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}}, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+		mockStorage.On("GetKmsConfigByKeyFullPath", ctx, params.KeyFullPath).Return(nil, errors.New("db error"))
+
+		result, err := _getKmsConfigByKeyFullPath(ctx, mockStorage, params)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "db error")
+	})
+}
+
+func TestOrchestratorGetKmsConfigByKeyFullPath(t *testing.T) {
+	t.Run("OrchestratorGetKmsConfigByKeyFullPathReturnsKmsConfigOnSuccess", func(t *testing.T) {
+		ctx := context.Background()
 		mockStorage := new(database.MockStorage)
 		orch := Orchestrator{storage: mockStorage}
-		kmsConfig := &models.KmsConfig{
-			ServiceAccount: &models.ServiceAccount{ServiceAccountPasswordLocation: "mock-location"},
-			KmsAttributes:  &models.KmsAttributes{SdeServiceAccountEmail: "sde@project.iam.gserviceaccount.com"},
-		}
-		origDecryptPassword := utils.DecryptPassword
+		params := &common.GetKmsConfigParams{AccountName: "test-account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
+		expectedKmsConfig := &models.KmsConfig{BaseModel: models.BaseModel{UUID: "uuid"}}
 
-		defer func() {
-			utils.DecryptPassword = origDecryptPassword
-		}()
-		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
-			s := "ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAicGhhc2UzLWhvc3QiLAogICJlbXVsYXRpb24iOiAibG9jYWxob3N0OjkwMTEiCn0K"
-			return &s, nil
+		getKmsConfigByKeyFullPath = func(ctx context.Context, se database.Storage, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
+			return expectedKmsConfig, nil
 		}
+		defer func() { getKmsConfigByKeyFullPath = _getKmsConfigByKeyFullPath }()
 
-		mockStorage.On("UpdateKmsConfigState", ctx, kmsConfig.UUID, models.LifeCycleStateError, mock.Anything).Return(&datamodel.KmsConfig{}, nil)
-		err := orch.AccessKmsCryptoKey(ctx, kmsConfig)
+		result, err := orch.GetKmsConfigByKeyFullPath(ctx, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "uuid", result.UUID)
+	})
+	t.Run("OrchestratorGetKmsConfigByKeyFullPathReturnsErrorOnFailure", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		orch := Orchestrator{storage: mockStorage}
+		params := &common.GetKmsConfigParams{AccountName: "fail-account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
+
+		getKmsConfigByKeyFullPath = func(ctx context.Context, se database.Storage, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
+			return nil, errors.New("some error")
+		}
+		defer func() { getKmsConfigByKeyFullPath = _getKmsConfigByKeyFullPath }()
+
+		result, err := orch.GetKmsConfigByKeyFullPath(ctx, params)
 		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "some error")
 	})
 }

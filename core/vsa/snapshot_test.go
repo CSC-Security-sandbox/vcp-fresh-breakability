@@ -759,7 +759,7 @@ func TestDeleteSnapshotPolicy(t *testing.T) {
 		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
 			return mockClient
 		}
-		
+
 		rc := &OntapRestProvider{}
 		snapshotPolicyName := "testSnapshotPolicy"
 

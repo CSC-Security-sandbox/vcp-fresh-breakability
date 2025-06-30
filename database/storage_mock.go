@@ -3148,6 +3148,65 @@ func (_c *MockStorage_GetKmsConfig_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// GetKmsConfigByKeyFullPath provides a mock function with given fields: ctx, keyFullPath
+func (_m *MockStorage) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string) (*datamodel.KmsConfig, error) {
+	ret := _m.Called(ctx, keyFullPath)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetKmsConfigByKeyFullPath")
+	}
+
+	var r0 *datamodel.KmsConfig
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.KmsConfig, error)); ok {
+		return rf(ctx, keyFullPath)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.KmsConfig); ok {
+		r0 = rf(ctx, keyFullPath)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.KmsConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, keyFullPath)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetKmsConfigByKeyFullPath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetKmsConfigByKeyFullPath'
+type MockStorage_GetKmsConfigByKeyFullPath_Call struct {
+	*mock.Call
+}
+
+// GetKmsConfigByKeyFullPath is a helper method to define mock.On call
+//   - ctx context.Context
+//   - keyFullPath string
+func (_e *MockStorage_Expecter) GetKmsConfigByKeyFullPath(ctx interface{}, keyFullPath interface{}) *MockStorage_GetKmsConfigByKeyFullPath_Call {
+	return &MockStorage_GetKmsConfigByKeyFullPath_Call{Call: _e.mock.On("GetKmsConfigByKeyFullPath", ctx, keyFullPath)}
+}
+
+func (_c *MockStorage_GetKmsConfigByKeyFullPath_Call) Run(run func(ctx context.Context, keyFullPath string)) *MockStorage_GetKmsConfigByKeyFullPath_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetKmsConfigByKeyFullPath_Call) Return(_a0 *datamodel.KmsConfig, _a1 error) *MockStorage_GetKmsConfigByKeyFullPath_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetKmsConfigByKeyFullPath_Call) RunAndReturn(run func(context.Context, string) (*datamodel.KmsConfig, error)) *MockStorage_GetKmsConfigByKeyFullPath_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetKmsConfigByUUID provides a mock function with given fields: ctx, uuid
 func (_m *MockStorage) GetKmsConfigByUUID(ctx context.Context, uuid string) (*datamodel.KmsConfig, error) {
 	ret := _m.Called(ctx, uuid)
@@ -5927,6 +5986,66 @@ func (_c *MockStorage_UpdateKmsConfigState_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// UpdatePoolWithKmsConfigID provides a mock function with given fields: ctx, pool, kmsConfigUUID
+func (_m *MockStorage) UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error) {
+	ret := _m.Called(ctx, pool, kmsConfigUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatePoolWithKmsConfigID")
+	}
+
+	var r0 *datamodel.Pool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Pool, string) (*datamodel.Pool, error)); ok {
+		return rf(ctx, pool, kmsConfigUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Pool, string) *datamodel.Pool); ok {
+		r0 = rf(ctx, pool, kmsConfigUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Pool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Pool, string) error); ok {
+		r1 = rf(ctx, pool, kmsConfigUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UpdatePoolWithKmsConfigID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatePoolWithKmsConfigID'
+type MockStorage_UpdatePoolWithKmsConfigID_Call struct {
+	*mock.Call
+}
+
+// UpdatePoolWithKmsConfigID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - pool *datamodel.Pool
+//   - kmsConfigUUID string
+func (_e *MockStorage_Expecter) UpdatePoolWithKmsConfigID(ctx interface{}, pool interface{}, kmsConfigUUID interface{}) *MockStorage_UpdatePoolWithKmsConfigID_Call {
+	return &MockStorage_UpdatePoolWithKmsConfigID_Call{Call: _e.mock.On("UpdatePoolWithKmsConfigID", ctx, pool, kmsConfigUUID)}
+}
+
+func (_c *MockStorage_UpdatePoolWithKmsConfigID_Call) Run(run func(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string)) *MockStorage_UpdatePoolWithKmsConfigID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Pool), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdatePoolWithKmsConfigID_Call) Return(_a0 *datamodel.Pool, _a1 error) *MockStorage_UpdatePoolWithKmsConfigID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UpdatePoolWithKmsConfigID_Call) RunAndReturn(run func(context.Context, *datamodel.Pool, string) (*datamodel.Pool, error)) *MockStorage_UpdatePoolWithKmsConfigID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateServiceAccountEmailAndKey provides a mock function with given fields: ctx, uuid, email, key
 func (_m *MockStorage) UpdateServiceAccountEmailAndKey(ctx context.Context, uuid string, email string, key string) (*datamodel.ServiceAccount, error) {
 	ret := _m.Called(ctx, uuid, email, key)
@@ -6104,6 +6223,67 @@ func (_c *MockStorage_UpdateSnapshot_Call) Return(_a0 *datamodel.Snapshot, _a1 e
 }
 
 func (_c *MockStorage_UpdateSnapshot_Call) RunAndReturn(run func(context.Context, *datamodel.Snapshot) (*datamodel.Snapshot, error)) *MockStorage_UpdateSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateSvmWithKmsConfigIDs provides a mock function with given fields: ctx, svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID
+func (_m *MockStorage) UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datamodel.Svm, gcpKmsConfigUUID string, externalGcpKmsConfigUUID string) (*datamodel.Svm, error) {
+	ret := _m.Called(ctx, svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateSvmWithKmsConfigIDs")
+	}
+
+	var r0 *datamodel.Svm
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm, string, string) (*datamodel.Svm, error)); ok {
+		return rf(ctx, svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm, string, string) *datamodel.Svm); ok {
+		r0 = rf(ctx, svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Svm)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Svm, string, string) error); ok {
+		r1 = rf(ctx, svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UpdateSvmWithKmsConfigIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateSvmWithKmsConfigIDs'
+type MockStorage_UpdateSvmWithKmsConfigIDs_Call struct {
+	*mock.Call
+}
+
+// UpdateSvmWithKmsConfigIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - svm *datamodel.Svm
+//   - gcpKmsConfigUUID string
+//   - externalGcpKmsConfigUUID string
+func (_e *MockStorage_Expecter) UpdateSvmWithKmsConfigIDs(ctx interface{}, svm interface{}, gcpKmsConfigUUID interface{}, externalGcpKmsConfigUUID interface{}) *MockStorage_UpdateSvmWithKmsConfigIDs_Call {
+	return &MockStorage_UpdateSvmWithKmsConfigIDs_Call{Call: _e.mock.On("UpdateSvmWithKmsConfigIDs", ctx, svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID)}
+}
+
+func (_c *MockStorage_UpdateSvmWithKmsConfigIDs_Call) Run(run func(ctx context.Context, svm *datamodel.Svm, gcpKmsConfigUUID string, externalGcpKmsConfigUUID string)) *MockStorage_UpdateSvmWithKmsConfigIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Svm), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateSvmWithKmsConfigIDs_Call) Return(_a0 *datamodel.Svm, _a1 error) *MockStorage_UpdateSvmWithKmsConfigIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UpdateSvmWithKmsConfigIDs_Call) RunAndReturn(run func(context.Context, *datamodel.Svm, string, string) (*datamodel.Svm, error)) *MockStorage_UpdateSvmWithKmsConfigIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }

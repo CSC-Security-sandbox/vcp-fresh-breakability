@@ -754,6 +754,7 @@ type GcpKmsCreateParams struct {
 	ProjectID              *string
 	ApplicationCredentials *strfmt.Password
 	SvmName                *string
+	PrivilegedAccount      *string
 }
 
 func gcpKmsCreateParamsToONTAP(params *GcpKmsCreateParams) *security.GcpKmsCreateParams {
@@ -772,6 +773,7 @@ func gcpKmsCreateParamsToONTAP(params *GcpKmsCreateParams) *security.GcpKmsCreat
 			ProjectID:              params.ProjectID,
 			ApplicationCredentials: params.ApplicationCredentials,
 			Svm:                    &models.GcpKmsInlineSvm{Name: params.SvmName},
+			PrivilegedAccount:      params.PrivilegedAccount,
 		})
 	return otParams
 }
@@ -803,6 +805,17 @@ type GcpKmsModifyParams struct {
 type GcpKmsGetParams struct {
 	BaseParams
 	UUID string
+}
+
+func gcpKmsGetParamsToONTAP(params *GcpKmsGetParams) *security.GcpKmsGetParams {
+	otParams := security.NewGcpKmsGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetUUID(params.UUID)
+	otParams.SetFields(params.Fields)
+	return otParams
 }
 
 // AggregateCollectionGetParams is the input param struct for storageClient.AggregateCollectionGet

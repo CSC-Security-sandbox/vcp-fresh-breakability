@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -35,7 +36,7 @@ func (d *DataStoreRepository) GetSvmsByKmsConfigID(ctx context.Context, kmsConfi
 
 func _getSvmsByKmsConfigID(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Svm, error) {
 	var svms []*datamodel.Svm
-	err := db.Where("cmek_config_id = ?", kmsConfigID).Find(&svms).Error
+	err := db.Where("kms_config_id = ?", kmsConfigID).Find(&svms).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
@@ -124,4 +125,32 @@ func (d *DataStoreRepository) DeletingSVM(ctx context.Context, svm *datamodel.Sv
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
+}
+
+func (d *DataStoreRepository) UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datamodel.Svm, gcpKmsConfigUUID, externalKmsConfigUUID string) (*datamodel.Svm, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	kmsConfig, err := d.GetKmsConfig(ctx, gcpKmsConfigUUID)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	svm.KmsConfigID = sql.NullInt64{Int64: kmsConfig.ID, Valid: true}
+	svm.KmsConfig = kmsConfig
+	svm.UpdatedAt = time.Now()
+	svm.SvmDetails.ExternalKmsConfigUUID = externalKmsConfigUUID
+
+	err = tx.Save(svm).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+
+	return svm, nil
 }

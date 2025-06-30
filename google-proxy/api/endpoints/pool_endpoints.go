@@ -130,6 +130,8 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		HotTierSizeInBytes:      uint64(req.HotTierSizeInBytes.Value),
 		EnableHotTierAutoResize: req.EnableHotTierAutoResize.Value,
 		CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: int64(req.TotalThroughputMibps.Value), Enabled: req.CustomPerformanceEnabled.Value, Iops: int64(totalIops)},
+		KmsConfigId:             req.KmsConfigId.Value,
+		KmsConfigResourceID:     req.KmsConfigResourceId.Value,
 	}
 	created, operationID, err := h.Orchestrator.CreatePool(ctx, param)
 	if err != nil {
