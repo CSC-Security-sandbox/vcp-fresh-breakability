@@ -291,7 +291,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		createHGParams := &common.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: "test description", Hosts: []string(nil), OSType: "LINUX", AccountName: "project-number"}
+		createHGParams := &common.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: string(gcpgenserver.HostGroupV1betaTypeISCSIINITIATOR), Hosts: []string(nil), OSType: "LINUX", AccountName: "project-number"}
 		mockOrchestrator.EXPECT().CreateHostGroup(mock.Anything, createHGParams).Return(nil, errors.NewConflictErr("Host group already exists"))
 
 		result, err := handler.V1betaCreateHostGroup(context.Background(), req, params)
@@ -325,7 +325,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		createHGParams := &common.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: "test description", Hosts: []string(nil), OSType: "LINUX", AccountName: "project-number"}
+		createHGParams := &common.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: "ISCSI_INITIATOR", Hosts: []string(nil), OSType: "LINUX", AccountName: "project-number"}
 		mockOrchestrator.EXPECT().CreateHostGroup(mock.Anything, createHGParams).Return(nil, errors.New("some error"))
 
 		result, err := handler.V1betaCreateHostGroup(context.Background(), req, params)
@@ -359,7 +359,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		createHGParams := &common.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: "test description", Hosts: []string(nil), OSType: "LINUX", AccountName: "project-number"}
+		createHGParams := &common.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: "ISCSI_INITIATOR", Hosts: []string(nil), OSType: "LINUX", AccountName: "project-number"}
 		mockOrchestrator.EXPECT().CreateHostGroup(mock.Anything, createHGParams).Return(&models.HostGroup{
 			BaseModel:     models.BaseModel{},
 			Name:          "abcd",
@@ -369,6 +369,49 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 			OSType:        "linux",
 			Hosts:         []string{"a", "b"},
 			HostGroupType: "",
+			AccountName:   "abcd",
+		}, nil)
+
+		result, err := handler.V1betaCreateHostGroup(context.Background(), req, params)
+
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, true, result.(*gcpgenserver.V1betaCreateHostGroupOK).Done.Value)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/invalid-location-id/operations/00000000-0000-0000-0000-000000000000", result.(*gcpgenserver.V1betaCreateHostGroupOK).Name.Value)
+	})
+	t.Run("WhenCreateHostGroupWithSuccessWithTypeDefault", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreateHostGroupParams{
+			LocationId:    "invalid-location-id",
+			ProjectNumber: "project-number",
+		}
+
+		req := &gcpgenserver.HostGroupV1beta{
+			ResourceId:  "test-host-group",
+			Description: gcpgenserver.NewOptString("test description"),
+			OsType:      gcpgenserver.HostGroupV1betaOsTypeLINUX,
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		createHGParams := &common.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: "UNSPECIFIED", Hosts: []string(nil), OSType: "LINUX", AccountName: "project-number"}
+		mockOrchestrator.EXPECT().CreateHostGroup(mock.Anything, createHGParams).Return(&models.HostGroup{
+			BaseModel:     models.BaseModel{},
+			Name:          "abcd",
+			Description:   "test description",
+			State:         "READY",
+			StateDetails:  "READY",
+			OSType:        "linux",
+			Hosts:         []string{"a", "b"},
+			HostGroupType: "UNSPECIFIED",
 			AccountName:   "abcd",
 		}, nil)
 

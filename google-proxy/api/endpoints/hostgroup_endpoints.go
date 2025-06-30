@@ -54,7 +54,7 @@ func (h Handler) V1betaCreateHostGroup(ctx context.Context, req *gcpgenserver.Ho
 	}
 
 	if req.Type.IsSet() {
-		createParams.HostGroupType, _ = req.Description.Get()
+		createParams.HostGroupType = string(req.Type.Value)
 	} else {
 		unspecifiedType, _ := gcpgenserver.HostGroupV1betaTypeUNSPECIFIED.MarshalText()
 		createParams.HostGroupType = string(unspecifiedType)

@@ -83,7 +83,7 @@ vmrs:
   disk_limits:
     - disk_type: hyperdisk-balanced
       qualified_vms:
-      - vm_type: c3-standard-4-lssd
+      - vm_type: c3-standard-4
         ontap_perf:
           iops: 25000
           throughput_in_mibs: 400
@@ -93,7 +93,7 @@ vmrs:
           throughput_in_mibs: 400
           capacity_in_gib: 257000
         relative_cost: 4
-      - vm_type: c3-standard-8-lssd
+      - vm_type: c3-standard-8
         ontap_perf:
           iops: 50000
           throughput_in_mibs: 800
@@ -103,7 +103,7 @@ vmrs:
           throughput_in_mibs: 800
           capacity_in_gib: 257000
         relative_cost: 8
-      - vm_type: c3-standard-22-lssd
+      - vm_type: c3-standard-22
         ontap_perf:
           iops: 120000
           throughput_in_mibs: 1800
@@ -113,7 +113,7 @@ vmrs:
           throughput_in_mibs: 1800
           capacity_in_gib: 257000
         relative_cost: 22
-      - vm_type: c4-standard-44-lssd
+      - vm_type: c4-standard-44
         ontap_perf:
           iops: 160000
           throughput_in_mibs: 2400
@@ -123,7 +123,7 @@ vmrs:
           throughput_in_mibs: 2400
           capacity_in_gib: 512000
         relative_cost: 44
-      - vm_type: c4-standard-88-lssd
+      - vm_type: c4-standard-88
         ontap_perf:
           iops: 160000
           throughput_in_mibs: 4800
