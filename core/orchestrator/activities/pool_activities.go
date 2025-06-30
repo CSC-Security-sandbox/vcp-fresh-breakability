@@ -562,7 +562,7 @@ func (j *PoolActivity) DeleteVSADeployment(ctx context.Context, pool *datamodel.
 	}
 
 	decision := &vmrs.Decision{
-		ChosenVMs: []string{}, // The value of this field doesn't matter for deletion.
+		ChosenVMs: []string{""}, // The value of this field doesn't matter for deletion.
 		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
 			DesiredIOPS:             pool.PoolAttributes.Iops,
 			DesiredThroughputInMiBs: pool.PoolAttributes.ThroughputMibps,
