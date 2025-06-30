@@ -51,6 +51,8 @@ func TestSynchronizeSnapshots(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockProvider := vsa.NewMockProvider(tt)
 
+		originalHydrationEnabled := hydrationEnabled
+		originalHydrateBatchSnapshotsToCCFE := hydrateBatchSnapshotsToCCFE
 		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
 		originalFilterOntapVolumesAndSnapshots := filterOntapVolumesAndSnapshots
 		originalProcessSnapshotSync := processSnapshotSync
@@ -66,7 +68,10 @@ func TestSynchronizeSnapshots(t *testing.T) {
 			syncNewSnapshotsToDatabase = originalSyncNewSnapshotsToDatabase
 			syncUpdatedSnapshotsToDatabase = originalSyncUpdatedSnapshotsToDatabase
 			syncWronglyDeletedSnapshotsToDatabase = originalSyncUndeletedSnapshotsToDatabase
+			hydrationEnabled = originalHydrationEnabled
+			hydrateBatchSnapshotsToCCFE = originalHydrateBatchSnapshotsToCCFE
 		}()
+		hydrationEnabled = true
 
 		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
@@ -90,6 +95,9 @@ func TestSynchronizeSnapshots(t *testing.T) {
 		}
 		syncWronglyDeletedSnapshotsToDatabase = func(ctx context.Context, wronglyDeletedIds []string, wronglyDeletedSnapshotsMap map[string]*vsa.Snapshot, se database.Storage, dbSnapshotsMap map[string]*datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
 			return nil, nil
+		}
+		hydrateBatchSnapshotsToCCFE = func(ctx context.Context, createdSnapshots []*datamodel.Snapshot, deletedSnapshots []*datamodel.Snapshot) error {
+			return nil
 		}
 
 		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
@@ -416,6 +424,195 @@ func TestSynchronizeSnapshots(t *testing.T) {
 		syncSnapshotActivity := SyncSnapshotActivity{SE: mockStorage}
 		err := syncSnapshotActivity.SynchronizeSnapshots(ctx, []*datamodel.Pool{{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"}}})
 		assert.Error(tt, err)
+	})
+
+	t.Run("HydrationEnabledHydrateBatchSnapshotEnabled_HydrateBatchSnapshotsToCCFEFailed", func(tt *testing.T) {
+		ctx := context.TODO()
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+
+		originalHydrationEnabled := hydrationEnabled
+		originalHydrateBatchSnapshotsToCCFE := hydrateBatchSnapshotsToCCFE
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		originalFilterOntapVolumesAndSnapshots := filterOntapVolumesAndSnapshots
+		originalProcessSnapshotSync := processSnapshotSync
+		originalSyncDeletedSnapshotsToDatabase := syncDeletedSnapshotsToDatabase
+		originalSyncNewSnapshotsToDatabase := syncNewSnapshotsToDatabase
+		originalSyncUpdatedSnapshotsToDatabase := syncUpdatedSnapshotsToDatabase
+		originalSyncUndeletedSnapshotsToDatabase := syncWronglyDeletedSnapshotsToDatabase
+		defer func() {
+			GetOntapRestProviderForPool = originalGetOntapRestProviderForPool
+			filterOntapVolumesAndSnapshots = originalFilterOntapVolumesAndSnapshots
+			processSnapshotSync = originalProcessSnapshotSync
+			syncDeletedSnapshotsToDatabase = originalSyncDeletedSnapshotsToDatabase
+			syncNewSnapshotsToDatabase = originalSyncNewSnapshotsToDatabase
+			syncUpdatedSnapshotsToDatabase = originalSyncUpdatedSnapshotsToDatabase
+			syncWronglyDeletedSnapshotsToDatabase = originalSyncUndeletedSnapshotsToDatabase
+			hydrateBatchSnapshotsToCCFE = originalHydrateBatchSnapshotsToCCFE
+			hydrationEnabled = originalHydrationEnabled
+			hydrateBatchSnapshotsToCCFE = originalHydrateBatchSnapshotsToCCFE
+		}()
+		hydrationEnabled = true
+
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		filterOntapVolumesAndSnapshots = func(volumes []*vsa.Volume, snapshots []*vsa.Snapshot) (map[string]*vsa.Volume, []*vsa.Snapshot) {
+			return make(map[string]*vsa.Volume), []*vsa.Snapshot{}
+		}
+		processSnapshotSync = func(ctx context.Context, ontapVolumeMap map[string]*vsa.Volume, ontapSnapshots []*vsa.Snapshot, dbVolumeMap map[string]*datamodel.Volume, dbSnapshots []*datamodel.Snapshot) (
+			newSSMap map[string]*vsa.Snapshot, updatedSSMap map[string]*vsa.Snapshot, wronglyDeletedSnapshotsMap map[string]*vsa.Snapshot,
+			newIDs []string, updatedIDs []string, deleteIDs []int64, wronglyDeletedIDs []string) {
+			return
+		}
+		syncDeletedSnapshotsToDatabase = func(ctx context.Context, deleteIDs []int64, se database.Storage) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+		syncNewSnapshotsToDatabase = func(ctx context.Context, newIds []string, newSSMap map[string]*vsa.Snapshot, se database.Storage, dbVolumeMap map[string]*datamodel.Volume, pool *datamodel.Pool) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+		syncUpdatedSnapshotsToDatabase = func(ctx context.Context, updatedIDs []string, updatedSSMap map[string]*vsa.Snapshot, se database.Storage, dbSnapshotsMap map[string]*datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+		syncWronglyDeletedSnapshotsToDatabase = func(ctx context.Context, wronglyDeletedIds []string, wronglyDeletedSnapshotsMap map[string]*vsa.Snapshot, se database.Storage, dbSnapshotsMap map[string]*datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+
+		hydrateBatchSnapshotsToCCFE = func(ctx context.Context, createdSnapshots []*datamodel.Snapshot, deletedSnapshots []*datamodel.Snapshot) error {
+			return errors.New("failed to hydrate batch snapshots to CCFE")
+		}
+
+		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
+		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{}, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
+			[]*datamodel.Volume{{BaseModel: datamodel.BaseModel{ID: 1}, VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "test-volume-uuid"}}}, nil)
+		mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.Anything).Return(
+			[]*datamodel.Snapshot{{SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "test-snapshot-uuid"}}}, nil)
+
+		syncSnapshotActivity := SyncSnapshotActivity{SE: mockStorage}
+		err := syncSnapshotActivity.SynchronizeSnapshots(ctx, []*datamodel.Pool{{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"}}})
+		assert.Error(tt, err)
+	})
+	t.Run("HydrationEnabledHydrateBatchSnapshotDisabled_HydrateSnapshotsToCCFEFailed", func(tt *testing.T) {
+		ctx := context.TODO()
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		originalFilterOntapVolumesAndSnapshots := filterOntapVolumesAndSnapshots
+		originalProcessSnapshotSync := processSnapshotSync
+		originalSyncDeletedSnapshotsToDatabase := syncDeletedSnapshotsToDatabase
+		originalSyncNewSnapshotsToDatabase := syncNewSnapshotsToDatabase
+		originalSyncUpdatedSnapshotsToDatabase := syncUpdatedSnapshotsToDatabase
+		originalSyncUndeletedSnapshotsToDatabase := syncWronglyDeletedSnapshotsToDatabase
+		defer func() {
+			GetOntapRestProviderForPool = originalGetOntapRestProviderForPool
+			filterOntapVolumesAndSnapshots = originalFilterOntapVolumesAndSnapshots
+			processSnapshotSync = originalProcessSnapshotSync
+			syncDeletedSnapshotsToDatabase = originalSyncDeletedSnapshotsToDatabase
+			syncNewSnapshotsToDatabase = originalSyncNewSnapshotsToDatabase
+			syncUpdatedSnapshotsToDatabase = originalSyncUpdatedSnapshotsToDatabase
+			syncWronglyDeletedSnapshotsToDatabase = originalSyncUndeletedSnapshotsToDatabase
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		filterOntapVolumesAndSnapshots = func(volumes []*vsa.Volume, snapshots []*vsa.Snapshot) (map[string]*vsa.Volume, []*vsa.Snapshot) {
+			return make(map[string]*vsa.Volume), []*vsa.Snapshot{}
+		}
+		processSnapshotSync = func(ctx context.Context, ontapVolumeMap map[string]*vsa.Volume, ontapSnapshots []*vsa.Snapshot, dbVolumeMap map[string]*datamodel.Volume, dbSnapshots []*datamodel.Snapshot) (
+			newSSMap map[string]*vsa.Snapshot, updatedSSMap map[string]*vsa.Snapshot, wronglyDeletedSnapshotsMap map[string]*vsa.Snapshot,
+			newIDs []string, updatedIDs []string, deleteIDs []int64, wronglyDeletedIDs []string) {
+			return
+		}
+		syncDeletedSnapshotsToDatabase = func(ctx context.Context, deleteIDs []int64, se database.Storage) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+		syncNewSnapshotsToDatabase = func(ctx context.Context, newIds []string, newSSMap map[string]*vsa.Snapshot, se database.Storage, dbVolumeMap map[string]*datamodel.Volume, pool *datamodel.Pool) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+		syncUpdatedSnapshotsToDatabase = func(ctx context.Context, updatedIDs []string, updatedSSMap map[string]*vsa.Snapshot, se database.Storage, dbSnapshotsMap map[string]*datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+		syncWronglyDeletedSnapshotsToDatabase = func(ctx context.Context, wronglyDeletedIds []string, wronglyDeletedSnapshotsMap map[string]*vsa.Snapshot, se database.Storage, dbSnapshotsMap map[string]*datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+
+		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
+		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{}, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
+			[]*datamodel.Volume{{BaseModel: datamodel.BaseModel{ID: 1}, VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "test-volume-uuid"}}}, nil)
+		mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.Anything).Return(
+			[]*datamodel.Snapshot{{SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "test-snapshot-uuid"}}}, nil)
+
+		syncSnapshotActivity := SyncSnapshotActivity{SE: mockStorage}
+		err := syncSnapshotActivity.SynchronizeSnapshots(ctx, []*datamodel.Pool{{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"}}})
+		assert.Error(tt, err)
+	})
+	t.Run("HydrationDisabled", func(tt *testing.T) {
+		ctx := context.TODO()
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := vsa.NewMockProvider(tt)
+
+		originalHydrationEnabled := hydrationEnabled
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		originalFilterOntapVolumesAndSnapshots := filterOntapVolumesAndSnapshots
+		originalProcessSnapshotSync := processSnapshotSync
+		originalSyncDeletedSnapshotsToDatabase := syncDeletedSnapshotsToDatabase
+		originalSyncNewSnapshotsToDatabase := syncNewSnapshotsToDatabase
+		originalSyncUpdatedSnapshotsToDatabase := syncUpdatedSnapshotsToDatabase
+		originalSyncUndeletedSnapshotsToDatabase := syncWronglyDeletedSnapshotsToDatabase
+		defer func() {
+			GetOntapRestProviderForPool = originalGetOntapRestProviderForPool
+			filterOntapVolumesAndSnapshots = originalFilterOntapVolumesAndSnapshots
+			processSnapshotSync = originalProcessSnapshotSync
+			syncDeletedSnapshotsToDatabase = originalSyncDeletedSnapshotsToDatabase
+			syncNewSnapshotsToDatabase = originalSyncNewSnapshotsToDatabase
+			syncUpdatedSnapshotsToDatabase = originalSyncUpdatedSnapshotsToDatabase
+			syncWronglyDeletedSnapshotsToDatabase = originalSyncUndeletedSnapshotsToDatabase
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		hydrationEnabled = false
+
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		filterOntapVolumesAndSnapshots = func(volumes []*vsa.Volume, snapshots []*vsa.Snapshot) (map[string]*vsa.Volume, []*vsa.Snapshot) {
+			return make(map[string]*vsa.Volume), []*vsa.Snapshot{}
+		}
+		processSnapshotSync = func(ctx context.Context, ontapVolumeMap map[string]*vsa.Volume, ontapSnapshots []*vsa.Snapshot, dbVolumeMap map[string]*datamodel.Volume, dbSnapshots []*datamodel.Snapshot) (
+			newSSMap map[string]*vsa.Snapshot, updatedSSMap map[string]*vsa.Snapshot, wronglyDeletedSnapshotsMap map[string]*vsa.Snapshot,
+			newIDs []string, updatedIDs []string, deleteIDs []int64, wronglyDeletedIDs []string) {
+			return
+		}
+		syncDeletedSnapshotsToDatabase = func(ctx context.Context, deleteIDs []int64, se database.Storage) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+		syncNewSnapshotsToDatabase = func(ctx context.Context, newIds []string, newSSMap map[string]*vsa.Snapshot, se database.Storage, dbVolumeMap map[string]*datamodel.Volume, pool *datamodel.Pool) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+		syncUpdatedSnapshotsToDatabase = func(ctx context.Context, updatedIDs []string, updatedSSMap map[string]*vsa.Snapshot, se database.Storage, dbSnapshotsMap map[string]*datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+		syncWronglyDeletedSnapshotsToDatabase = func(ctx context.Context, wronglyDeletedIds []string, wronglyDeletedSnapshotsMap map[string]*vsa.Snapshot, se database.Storage, dbSnapshotsMap map[string]*datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+
+		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
+		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{}, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
+			[]*datamodel.Volume{{BaseModel: datamodel.BaseModel{ID: 1}, VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "test-volume-uuid"}}}, nil)
+		mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.Anything).Return(
+			[]*datamodel.Snapshot{{SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "test-snapshot-uuid"}}}, nil)
+
+		syncSnapshotActivity := SyncSnapshotActivity{SE: mockStorage}
+		err := syncSnapshotActivity.SynchronizeSnapshots(ctx, []*datamodel.Pool{{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"}}})
+		assert.NoError(tt, err)
 	})
 }
 

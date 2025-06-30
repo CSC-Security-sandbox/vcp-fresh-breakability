@@ -7,12 +7,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
-	utilsGetSignedCallbackToken                                 = utils.GetSignedCallbackToken
 	MapReplicationBetaToReplicationHydrateObject                = _mapReplicationBetaToReplicationHydrateObject
 	mapReplicationLifeCycleStateBetaToReplicationHydrationState = _mapReplicationLifeCycleStateBetaToReplicationHydrationState
 	mapVolumeBetaToVolumeHydrateObject                          = _mapVolumeBetaToVolumeHydrateObject
@@ -52,19 +52,9 @@ func _mapReplicationBetaToReplicationHydrateObject(replication models.VolumeRepl
 	}
 }
 
-func generateCallbackToken(ctx context.Context) (string, error) {
-	logger := util.GetLogger(ctx)
-	callbackToken, err := utilsGetSignedCallbackToken()
-	if err != nil {
-		logger.Error("Error when getting callback token", err)
-		return "", err
-	}
-	return callbackToken, nil
-}
-
 func GetQuotaLimit(ctx context.Context, region string, project string) (int, error) {
 	logger := util.GetLogger(ctx)
-	callbackToken, err := generateCallbackToken(ctx)
+	callbackToken, err := auth.GenerateCallbackToken(ctx)
 	if err != nil {
 		logger.Error("Error when getting callback token", err)
 		return 0, err
@@ -80,7 +70,7 @@ func GetQuotaLimit(ctx context.Context, region string, project string) (int, err
 
 func _hydrateVolumeReplication(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
 	logger := util.GetLogger(ctx)
-	callbackToken, err := generateCallbackToken(ctx)
+	callbackToken, err := auth.GenerateCallbackToken(ctx)
 	if err != nil {
 		logger.Error("Error when getting callback token", err)
 		return err
@@ -97,7 +87,7 @@ func _hydrateVolumeReplication(ctx context.Context, createReplicationResponse mo
 
 func DeHydrateVolumeReplication(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
 	logger := util.GetLogger(ctx)
-	callbackToken, err := generateCallbackToken(ctx)
+	callbackToken, err := auth.GenerateCallbackToken(ctx)
 	if err != nil {
 		logger.Error("Error when getting callback token", err)
 		return err
@@ -113,7 +103,7 @@ func DeHydrateVolumeReplication(ctx context.Context, createReplicationResponse m
 
 func HydrateVolume(ctx context.Context, destVolume models.Volume, project string, poolResourceId string) error {
 	logger := util.GetLogger(ctx)
-	callbackToken, err := generateCallbackToken(ctx)
+	callbackToken, err := auth.GenerateCallbackToken(ctx)
 	if err != nil {
 		logger.Error("Error when getting callback token", err)
 		return err
@@ -130,7 +120,7 @@ func HydrateVolume(ctx context.Context, destVolume models.Volume, project string
 
 func DeHydrateVolume(ctx context.Context, destVolume models.Volume, project string) error {
 	logger := util.GetLogger(ctx)
-	callbackToken, err := generateCallbackToken(ctx)
+	callbackToken, err := auth.GenerateCallbackToken(ctx)
 	if err != nil {
 		logger.Error("Error when getting callback token", err)
 		return err
@@ -146,7 +136,7 @@ func DeHydrateVolume(ctx context.Context, destVolume models.Volume, project stri
 
 func HydrateReplicationState(ctx context.Context, createReplicationResponse models.VolumeReplication, replicationState models.VolumeReplicationHydrateState, project string) error {
 	logger := util.GetLogger(ctx)
-	callbackToken, err := generateCallbackToken(ctx)
+	callbackToken, err := auth.GenerateCallbackToken(ctx)
 	if err != nil {
 		logger.Error("Error when getting callback token", err)
 		return err
@@ -162,7 +152,7 @@ func HydrateReplicationState(ctx context.Context, createReplicationResponse mode
 
 func HydrateReplicationStateAndType(ctx context.Context, createReplicationResponse models.VolumeReplication, replicationState models.VolumeReplicationHydrateState, hybridReplicationType models.HybridReplicationHydrateType, project string) error {
 	logger := util.GetLogger(ctx)
-	callbackToken, err := generateCallbackToken(ctx)
+	callbackToken, err := auth.GenerateCallbackToken(ctx)
 	if err != nil {
 		logger.Error("Error when getting callback token", err)
 		return err

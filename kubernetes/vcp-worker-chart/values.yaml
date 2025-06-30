@@ -45,6 +45,8 @@ workerConfig:
   objectStoreProvider: "gcp"
   objectStoresServer: "storage.googleapis.com"
   objectStoreAuthType: "GCP_SA"
+  gcpHydrateEnabled: "true"
+  gcpHydrateBatchSize: "10"
   gcpHydrateAuthServiceAccount: ""
   gcpHydrateBaseUrl: ""
   proxyClientTransportSchema: "https"

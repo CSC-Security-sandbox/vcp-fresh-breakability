@@ -1157,6 +1157,138 @@ func TestGetEncryptionType(t *testing.T) {
 	assert.Equal(t, "SERVICE_MANAGED", got)
 }
 
+func TestRenameSnapshotName(t *testing.T) {
+	t.Run("WhenSnapMirror", func(tt *testing.T) {
+		snapshot := models.Snapshot{}
+		snapshot.Name = "snapmirror.d416b9ed-df7d-11ed-b115-d039ea174b66_2159698722.2023-05-02_162000"
+
+		expectedName := "replication-2023-05-02-162000"
+
+		response := RenameSnapshotName(snapshot.Name)
+
+		assert.Equal(tt, expectedName, response)
+	})
+	t.Run("WhenNameContainsUnderScore", func(tt *testing.T) {
+		snapshot := models.Snapshot{}
+		snapshot.Name = "random_name"
+
+		expectedName := "random-name"
+
+		response := RenameSnapshotName(snapshot.Name)
+
+		assert.Equal(tt, expectedName, response)
+	})
+	t.Run("WhenNameContainsPrefixAsWeekly", func(tt *testing.T) {
+		snapshot := models.Snapshot{}
+		snapshot.Name = "weekly-on-saturday+sunday+monday+tuesday+wednesday+thursday+friday-10-min-past-1pm.2023-12-01_1310"
+		expectedName := "weekly-2023-12-01-1310"
+
+		response := RenameSnapshotName(snapshot.Name)
+
+		assert.Equal(tt, expectedName, response)
+	})
+	t.Run("WhenNameContainsPrefixAsMonthly", func(tt *testing.T) {
+		snapshot := models.Snapshot{}
+		snapshot.Name = "monthly-on-day-1+2+3-10-min-past-1pm.2023-12-01_1310"
+
+		expectedName := "monthly-2023-12-01-1310"
+
+		response := RenameSnapshotName(snapshot.Name)
+
+		assert.Equal(tt, expectedName, response)
+	})
+	t.Run("WhenNameContainsPrefixAsMonthly", func(tt *testing.T) {
+		snapshot := models.Snapshot{}
+		snapshot.Name = "weekly-on-monday-35-min-past-7am.2023-12-18_0735"
+
+		expectedName := "weekly-on-monday-35-min-past-7am-2023-12-18-0735"
+
+		response := RenameSnapshotName(snapshot.Name)
+
+		assert.Equal(tt, expectedName, response)
+	})
+	t.Run("WhenNameContainsPrefixAsDaily", func(tt *testing.T) {
+		snapshot := models.Snapshot{}
+		snapshot.Name = "daily-10-min-past-1pm.2023-12-01_1310"
+
+		expectedName := "daily-10-min-past-1pm-2023-12-01-1310"
+
+		response := RenameSnapshotName(snapshot.Name)
+
+		assert.Equal(tt, expectedName, response)
+	})
+}
+
+func TestCheckFor1pNamingConvention(t *testing.T) {
+	t.Run("WhenStringIsNotIN1P", func(tt *testing.T) {
+		snapshot := models.Snapshot{}
+		snapshot.Name = "snapmirror.d416b9ed-df7d-11ed-b115-d039ea174b66_2159698722.2023-05-02_162000"
+		expectedName := false
+		response := CheckForGcpNamingConvention(snapshot.Name)
+		assert.Equal(tt, expectedName, response)
+	})
+	t.Run("WhenStringIsIN1P", func(tt *testing.T) {
+		snapshot := models.Snapshot{}
+		snapshot.Name = "snapmirror"
+		expectedName := true
+		response := CheckForGcpNamingConvention(snapshot.Name)
+		assert.Equal(tt, expectedName, response)
+	})
+}
+
+func TestConvertTo1pString(t *testing.T) {
+	t.Run("WhenConvertNot1pString", func(tt *testing.T) {
+		snapshot := models.Snapshot{}
+		snapshot.Name = "snapmirror.d416b9ed-df7d-11ed-b115-d039ea174b66_2159698722.2023-05-02_162000"
+		expectedName := "b115-d039ea174b66_2159698722.2023-05-02_162000"
+		response := ConvertToGcpResourceName(snapshot.Name)
+		assert.Equal(tt, expectedName, response)
+	})
+	t.Run("WhenConvert1pString", func(tt *testing.T) {
+		snapshot := models.Snapshot{}
+		snapshot.Name = "snapmirror-123"
+		expectedName := "snapmirror-123"
+		response := ConvertToGcpResourceName(snapshot.Name)
+		assert.Equal(tt, expectedName, response)
+	})
+}
+
+func TestGetRegion(t *testing.T) {
+	t.Run("WhenSecondaryZoneIsPresent", func(tt *testing.T) {
+		snapshot := datamodel.Snapshot{
+			Volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone:   "au-se1",
+						SecondaryZone: "us-east4-b",
+					},
+				},
+			},
+		}
+
+		expectedName := "us-east4"
+		response := GetRegion(snapshot)
+		assert.Equal(tt, expectedName, response)
+	})
+
+	t.Run("WhenSecondaryZoneIsEmpty", func(tt *testing.T) {
+		snapshot := datamodel.Snapshot{
+			Volume: &datamodel.Volume{
+				Pool: &datamodel.Pool{
+					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone:   "au-se1",
+						SecondaryZone: "",
+					},
+				},
+			},
+		}
+
+		expectedName := "au-se1"
+		response := GetRegion(snapshot)
+		assert.Equal(tt, expectedName, response)
+	})
+}
+
 func TestGetHgUUIDs(t *testing.T) {
 	tests := []struct {
 		name      string

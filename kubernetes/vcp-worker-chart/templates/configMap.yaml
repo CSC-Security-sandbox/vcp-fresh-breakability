@@ -37,4 +37,6 @@ data:
   GCP_SERVICE_URL: "{{ index .Values "gcpServiceUrl" }}"
   LOGGER_LEVEL: "{{ index .Values "loggerLevel" }}"
   VMRS_CONFIG_PATH: {{ .Values.workerConfig.vmrsConfigPath | quote }}
+  GCP_HYDRATE_ENABLED: "{{ index .Values "gcpHydrateEnabled" }}"
+  GCP_HYDRATE_BATCH_SIZE: "{{ index .Values "gcpHydrateBatchSize" }}"
 

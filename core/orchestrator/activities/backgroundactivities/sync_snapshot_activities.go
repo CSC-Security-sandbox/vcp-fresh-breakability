@@ -8,6 +8,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
@@ -27,6 +28,7 @@ const (
 
 var (
 	snapshotSyncChunkSize = env.GetInt("CVS_SNAPSHOT_SYNC_CHUNK_SIZE", 200)
+	hydrationEnabled      = env.GetBool("GCP_HYDRATE_ENABLED", true)
 
 	scheduledRegExp  = regexp.MustCompile(`^(hourly|daily|weekly|monthly)\..*$`)
 	snapmirrorRegExp = regexp.MustCompile(`^snapmirror\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_.*$`)
@@ -38,6 +40,7 @@ var (
 	syncNewSnapshotsToDatabase            = _syncNewSnapshotsToDatabase
 	syncUpdatedSnapshotsToDatabase        = _syncUpdatedSnapshotsToDatabase
 	syncWronglyDeletedSnapshotsToDatabase = _syncWronglyDeletedSnapshotsToDatabase
+	hydrateBatchSnapshotsToCCFE           = hydrationActivities.HydrateBatchSnapshotstoCCFE
 )
 
 type SyncSnapshotActivity struct {
@@ -120,13 +123,13 @@ func (a *SyncSnapshotActivity) SynchronizeSnapshots(ctx context.Context, pools [
 		newSSMap, updatedSSMap, wronglyDeletedSnapshotsMap, newIds, updatedIDs, deleteIDs, wronglyDeletedIds :=
 			processSnapshotSync(ctx, ontapVolumeMap, ontapSnapshots, dbVolumeMap, dbSnapshots)
 
-		_, err = syncDeletedSnapshotsToDatabase(ctx, deleteIDs, se)
+		deletedSnapshots, err := syncDeletedSnapshotsToDatabase(ctx, deleteIDs, se)
 		if err != nil {
 			logger.Errorf("Failed to sync deleted snapshots to database: %v", err)
 			return err
 		}
 
-		_, err = syncNewSnapshotsToDatabase(ctx, newIds, newSSMap, se, dbVolumeMap, pool)
+		createdSnapshots, err := syncNewSnapshotsToDatabase(ctx, newIds, newSSMap, se, dbVolumeMap, pool)
 		if err != nil {
 			logger.Errorf("Failed to sync new snapshots to database: %v", err)
 			return err
@@ -142,6 +145,13 @@ func (a *SyncSnapshotActivity) SynchronizeSnapshots(ctx context.Context, pools [
 		if err != nil {
 			logger.Errorf("Failed to sync wrongly deleted snapshots to database: %v", err)
 			return err
+		}
+
+		if hydrationEnabled {
+			err = hydrateBatchSnapshotsToCCFE(ctx, createdSnapshots, deletedSnapshots)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -263,7 +273,7 @@ func _syncNewSnapshotsToDatabase(ctx context.Context, newSnapshots []string, new
 
 			dbSnapshot.State = models.LifeCycleStateREADY
 			dbSnapshot.StateDetails = models.LifeCycleStateReadyDetails
-			dbSnapshot, err = se.UpdateSnapshot(ctx, dbSnapshot)
+			_, err = se.UpdateSnapshot(ctx, dbSnapshot)
 			createdSnapshots = append(createdSnapshots, dbSnapshot)
 			if err != nil {
 				return nil, err

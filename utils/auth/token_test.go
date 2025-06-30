@@ -16,6 +16,34 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
+func Test_generateCallbackToken(t *testing.T) {
+	t.Run("WhenError", func(tt *testing.T) {
+		ctx := context.Background()
+		expectedError := errors.New("some error")
+		GetSignedAccessToken = func() (string, error) {
+			return "", errors.New("some error")
+		}
+		defer func() { GetSignedAccessToken = _getSignedAccessToken }()
+		_, err := _generateCallbackToken(ctx)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		ctx := context.Background()
+		GetSignedAccessToken = func() (string, error) {
+			return "mocked-token", nil
+		}
+		defer func() { GetSignedAccessToken = _getSignedAccessToken }()
+		token, err := _generateCallbackToken(ctx)
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		if token != "mocked-token" {
+			t.Errorf("expected token 'mocked-token', got %v", token)
+		}
+	})
+}
+
 func TestGetSignedJwtToken(t *testing.T) {
 	t.Run("WhenCreateIamClientReturnsError", func(tt *testing.T) {
 		mockLogger := &log.MockLogger{}

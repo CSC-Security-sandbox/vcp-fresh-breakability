@@ -442,7 +442,7 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 
 func TestConvertDatastoreSnapshotToModel(t *testing.T) {
 	t.Run("WhenSnapshotIsNil", func(tt *testing.T) {
-		result := convertDatastoreSnapshotToModel(nil)
+		result := ConvertDatastoreSnapshotToModel(nil)
 		assert.Nil(tt, result, "Expected nil result when input snapshot is nil")
 	})
 
@@ -481,7 +481,7 @@ func TestConvertDatastoreSnapshotToModel(t *testing.T) {
 			AccountName:    "test_account",
 		}
 
-		result := convertDatastoreSnapshotToModel(input)
+		result := ConvertDatastoreSnapshotToModel(input)
 		assert.NotNil(tt, result, "Expected non-nil result")
 		assert.Equal(tt, expected.Name, result.Name, "Expected result to match the expected snapshot model")
 	})

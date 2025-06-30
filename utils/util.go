@@ -21,7 +21,6 @@ import (
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -36,17 +35,19 @@ var (
 	ParseAndValidateRegionAndZone = _parseAndValidateRegionAndZone
 	GetPairedRegionURI            = _getPairedRegionURI
 	ConvertStringToMap            = _convertStringToMap
-	GetSignedCallbackToken        = _getSignedCallbackToken
 	ConvertBytesToGib             = _convertBytesToGib
 	ValidateCcfeReplicationUri    = _validateCcfeReplicationUri
+	RenameSnapshotName            = _renameSnapshotName
+	ConvertToGcpResourceName      = _convertToGcpResourceName
+	CheckForGcpNamingConvention   = _checkForGcpNamingConvention
 	ParseProjectNumberFromURI     = _parseProjectNumberFromURI
-	authGetSignedAccessToken      = auth.GetSignedAccessToken
 	sleep                         = _sleep
 	exponentialBackOffErrors      = []int{429}
 	maxExpBackOffDelay            = time.Duration(80) * time.Second
 	jitterBase                    = time.Millisecond
 	generateRandomString          = _generateRandomString
 	ReplicationUriRegex           = "^projects\\/([^\\/]+)\\/locations/([^\\/]+)/volumes\\/([^\\/]+)\\/replications\\/([^\\/]+)$"
+	GetRegion                     = _getRegion
 	GenerateStrongPassword        = _generateStrongPassword
 )
 
@@ -331,10 +332,6 @@ func _convertStringToMap(s string) (map[string]string, error) {
 
 func generateJitter() time.Duration {
 	return jitterBase * time.Duration(GenerateRandomInRange(100)+100) // [100, 200] ms jitter
-}
-
-func _getSignedCallbackToken() (string, error) {
-	return authGetSignedAccessToken()
 }
 
 // _sleep is a helper function to sleep for a given duration according to the error type
@@ -650,6 +647,83 @@ func GetEncryptionType(kmsConfigId *string) string {
 		encryptionType = "CLOUD_KMS"
 	}
 	return encryptionType
+}
+
+func _renameSnapshotName(name string) string {
+	// Snapmirror names are 76 chars from Ontap but Callback api only supports 64 chars
+	if strings.HasPrefix(name, "snapmirror.") {
+		nameArr := strings.Split(name, ".")
+		dateTime := nameArr[len(nameArr)-1]
+		name = fmt.Sprintf("replication-%s", dateTime)
+	}
+
+	name = strings.ReplaceAll(name, "_", "-")
+	name = strings.ReplaceAll(name, ".", "-")
+
+	if strings.HasPrefix(name, "weekly-on-") {
+		name = ConvertToGcpResourceName(name)
+	}
+
+	if strings.HasPrefix(name, "monthly-on-") {
+		name = ConvertToGcpResourceName(name)
+	}
+
+	name = strings.ReplaceAll(name, "+", "-")
+
+	return name
+}
+
+// _convertToGcpResourceName Function which check if given string matches with the 1p format and if not then return date stamp
+func _convertToGcpResourceName(name string) string {
+	is1pCompliant := CheckForGcpNamingConvention(name)
+	var final string
+	if !is1pCompliant {
+		res := []string{}
+		nameArr := strings.Split(name, "-")
+		// Extracting date stamp i.e 2023-12-01-1310
+		for i := len(nameArr) - 4; i <= len(nameArr)-1; i++ {
+			res = append(res, nameArr[i])
+		}
+		final = strings.Join(res, "-")
+		switch nameArr[0] {
+		case "weekly":
+			final = fmt.Sprintf("weekly-%s", final)
+		case "monthly":
+			final = fmt.Sprintf("monthly-%s", final)
+		}
+		return final
+	} else {
+		return name
+	}
+}
+
+// _checkForGcpNamingConvention Checks if a given string follows the GCP naming convention using a regular expression.
+func _checkForGcpNamingConvention(entry string) bool {
+	matched, err := regexp.MatchString(`^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`, entry)
+	if err != nil {
+		return false
+	}
+	return matched
+}
+
+func _getRegion(snapshot datamodel.Snapshot) string {
+	var region string
+
+	if snapshot.Volume == nil || snapshot.Volume.Pool == nil || snapshot.Volume.Pool.PoolAttributes == nil {
+		return ""
+	}
+
+	zone := snapshot.Volume.Pool.PoolAttributes.SecondaryZone
+	if zone != "" {
+		parts := strings.Split(zone, "-")
+		if len(parts) < 3 {
+			return zone
+		}
+		region = strings.Join(parts[:len(parts)-1], "-")
+	} else {
+		region = snapshot.Volume.Pool.PoolAttributes.PrimaryZone
+	}
+	return region
 }
 
 func GetHgUUIDs(hgDetails []datamodel.HostGroupDetail) []string {

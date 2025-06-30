@@ -88,6 +88,7 @@ type GcpHydrateDelete struct {
 type Request struct {
 	Volume      *VolumeHydrateObject      `json:"volume,omitempty"`
 	Replication *ReplicationHydrateObject `json:"replication,omitempty"`
+	Snapshot    *HydrateSnapshot          `json:"snapshot,omitempty"`
 }
 
 type ReplicationHydrateObject struct {

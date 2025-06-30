@@ -21,7 +21,18 @@ var (
 	parseInt                = strconv.ParseInt
 	jsonMarshal             = json.Marshal
 	timeNow                 = time.Now
+	GenerateCallbackToken   = _generateCallbackToken
 )
+
+func _generateCallbackToken(ctx context.Context) (string, error) {
+	logger := util.GetLogger(ctx)
+	callbackToken, err := GetSignedAccessToken()
+	if err != nil {
+		logger.Error("Error when getting callback token", err)
+		return "", err
+	}
+	return callbackToken, nil
+}
 
 func _getSignedJwtToken(projectNumber string) (string, error) {
 	ctx := context.Background()

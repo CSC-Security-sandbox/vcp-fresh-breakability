@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type Snapshot struct {
 	BaseModel
 	AccountName           string
@@ -37,4 +39,17 @@ type Schedule struct {
 	DaysOfWeek  []int
 	Hours       []int
 	Minutes     []int
+}
+
+// HydrateSnapshot describes a snapshot in the hydrate message to CCFE
+type HydrateSnapshot struct {
+	ResourceId   string    `json:"resource_id"`
+	SnapshotId   string    `json:"snapshot_id"`
+	State        string    `json:"snapshot_state"`
+	StateDetails string    `json:"snapshot_state_details"`
+	Description  string    `json:"description"`
+	UsedBytes    int64     `json:"used_bytes"`
+	CreateTime   time.Time `json:"created"`
+	VolumeName   string    `json:"-"`
+	AccountName  string    `json:"-"`
 }

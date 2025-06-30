@@ -9,38 +9,9 @@ import (
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
-
-func TestCrrCreateActivity_generatetoken(t *testing.T) {
-	t.Run("WhenError", func(tt *testing.T) {
-		ctx := context.Background()
-		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
-			return "", errors.New("some error")
-		}
-		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
-		_, err := generateCallbackToken(ctx)
-		assert.Error(tt, err)
-		assert.Equal(tt, expectedError, err)
-	})
-	t.Run("WhenSuccessful", func(tt *testing.T) {
-		ctx := context.Background()
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
-			return "mocked-token", nil
-		}
-		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
-		token, err := generateCallbackToken(ctx)
-		if err != nil {
-			t.Errorf("expected no error, got %v", err)
-		}
-		if token != "mocked-token" {
-			t.Errorf("expected token 'mocked-token', got %v", token)
-		}
-	})
-}
 
 func TestHydrateVolumeReplication(t *testing.T) {
 	createReplicationResponse := &models.VolumeReplication{
@@ -54,11 +25,11 @@ func TestHydrateVolumeReplication(t *testing.T) {
 	t.Run("WhenTokenError", func(tt *testing.T) {
 		ctx := context.Background()
 		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "", errors.New("some error")
 		}
-		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		defer func() { auth.GenerateCallbackToken = originalGetSignedCallbackToken }()
 		err := HydrateVolumeReplication(ctx, *createReplicationResponse, "121")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
@@ -66,8 +37,8 @@ func TestHydrateVolumeReplication(t *testing.T) {
 	t.Run("WhenHydrationReplicationCreateFail", func(tt *testing.T) {
 		ctx := context.Background()
 		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mocked-token", nil
 		}
 		originalHydrateReplicationCreate := hydrateReplicationCreate
@@ -77,7 +48,7 @@ func TestHydrateVolumeReplication(t *testing.T) {
 			}
 		}
 		defer func() {
-			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			auth.GenerateCallbackToken = originalGetSignedCallbackToken
 			hydrateReplicationCreate = originalHydrateReplicationCreate
 		}()
 		err := HydrateVolumeReplication(ctx, *createReplicationResponse, "121")
@@ -86,8 +57,8 @@ func TestHydrateVolumeReplication(t *testing.T) {
 	})
 	t.Run("WhenSuccessFul", func(tt *testing.T) {
 		ctx := context.Background()
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mocked-token", nil
 		}
 		originalHydrateReplicationCreate := hydrateReplicationCreate
@@ -95,7 +66,7 @@ func TestHydrateVolumeReplication(t *testing.T) {
 			return nil
 		}
 		defer func() {
-			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			auth.GenerateCallbackToken = originalGetSignedCallbackToken
 			hydrateReplicationCreate = originalHydrateReplicationCreate
 		}()
 		err := HydrateVolumeReplication(ctx, *createReplicationResponse, "121")
@@ -116,11 +87,11 @@ func TestVolumeReplicationDeHydration(t *testing.T) {
 	t.Run("WhenTokenError", func(tt *testing.T) {
 		ctx := context.Background()
 		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "", errors.New("some error")
 		}
-		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		defer func() { auth.GenerateCallbackToken = originalGetSignedCallbackToken }()
 		err := DeHydrateVolumeReplication(ctx, *createReplicationResponse, "121")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
@@ -128,8 +99,8 @@ func TestVolumeReplicationDeHydration(t *testing.T) {
 	t.Run("WhenHydrateReplicationDeleteFail", func(tt *testing.T) {
 		ctx := context.Background()
 		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mocked-token", nil
 		}
 		originalHydrateReplicationDelete := hydrateReplicationDelete
@@ -139,7 +110,7 @@ func TestVolumeReplicationDeHydration(t *testing.T) {
 			}
 		}
 		defer func() {
-			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			auth.GenerateCallbackToken = originalGetSignedCallbackToken
 			hydrateReplicationDelete = originalHydrateReplicationDelete
 		}()
 		err := DeHydrateVolumeReplication(ctx, *createReplicationResponse, "121")
@@ -148,8 +119,8 @@ func TestVolumeReplicationDeHydration(t *testing.T) {
 	})
 	t.Run("WhenSuccessFul", func(tt *testing.T) {
 		ctx := context.Background()
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mocked-token", nil
 		}
 		originalHydrateReplicationDelete := hydrateReplicationDelete
@@ -157,7 +128,7 @@ func TestVolumeReplicationDeHydration(t *testing.T) {
 			return nil
 		}
 		defer func() {
-			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			auth.GenerateCallbackToken = originalGetSignedCallbackToken
 			hydrateReplicationDelete = originalHydrateReplicationDelete
 		}()
 		err := DeHydrateVolumeReplication(ctx, *createReplicationResponse, "121")
@@ -175,11 +146,11 @@ func TestVolumeHydration(t *testing.T) {
 	t.Run("WhenTokenError", func(tt *testing.T) {
 		ctx := context.Background()
 		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "", errors.New("some error")
 		}
-		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		defer func() { auth.GenerateCallbackToken = originalGetSignedCallbackToken }()
 		err := HydrateVolume(ctx, *destVolume, "121", "pool-resource-id")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
@@ -187,8 +158,8 @@ func TestVolumeHydration(t *testing.T) {
 	t.Run("WhenHydrateReplicationDeleteFail", func(tt *testing.T) {
 		ctx := context.Background()
 		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mocked-token", nil
 		}
 		originalhydrateVolumeCreate := hydrateVolumeCreate
@@ -198,7 +169,7 @@ func TestVolumeHydration(t *testing.T) {
 			}
 		}
 		defer func() {
-			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			auth.GenerateCallbackToken = originalGetSignedCallbackToken
 			hydrateVolumeCreate = originalhydrateVolumeCreate
 		}()
 		err := HydrateVolume(ctx, *destVolume, "121", "pool-resource-id")
@@ -207,8 +178,8 @@ func TestVolumeHydration(t *testing.T) {
 	})
 	t.Run("WhenSuccessFul", func(tt *testing.T) {
 		ctx := context.Background()
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mocked-token", nil
 		}
 		originalHydrateVolumeCreate := hydrateVolumeCreate
@@ -216,7 +187,7 @@ func TestVolumeHydration(t *testing.T) {
 			return nil
 		}
 		defer func() {
-			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			auth.GenerateCallbackToken = originalGetSignedCallbackToken
 			hydrateVolumeCreate = originalHydrateVolumeCreate
 		}()
 		err := HydrateVolume(ctx, *destVolume, "121", "pool-resource-id")
@@ -234,11 +205,11 @@ func TestVolumeDeHydration(t *testing.T) {
 	t.Run("WhenTokenError", func(tt *testing.T) {
 		ctx := context.Background()
 		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "", errors.New("some error")
 		}
-		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		defer func() { auth.GenerateCallbackToken = originalGetSignedCallbackToken }()
 		err := DeHydrateVolume(ctx, *destVolume, "121")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
@@ -246,8 +217,8 @@ func TestVolumeDeHydration(t *testing.T) {
 	t.Run("WhenHydrateReplicationDeleteFail", func(tt *testing.T) {
 		ctx := context.Background()
 		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mocked-token", nil
 		}
 		originalhydrateVolumeDelete := hydrateVolumeDelete
@@ -257,7 +228,7 @@ func TestVolumeDeHydration(t *testing.T) {
 			}
 		}
 		defer func() {
-			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			auth.GenerateCallbackToken = originalGetSignedCallbackToken
 			hydrateVolumeDelete = originalhydrateVolumeDelete
 		}()
 		err := DeHydrateVolume(ctx, *destVolume, "121")
@@ -266,8 +237,8 @@ func TestVolumeDeHydration(t *testing.T) {
 	})
 	t.Run("WhenSuccessFul", func(tt *testing.T) {
 		ctx := context.Background()
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mocked-token", nil
 		}
 		originalhydrateVolumeDelete := hydrateVolumeDelete
@@ -275,7 +246,7 @@ func TestVolumeDeHydration(t *testing.T) {
 			return nil
 		}
 		defer func() {
-			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			auth.GenerateCallbackToken = originalGetSignedCallbackToken
 			hydrateVolumeDelete = originalhydrateVolumeDelete
 		}()
 		err := DeHydrateVolume(ctx, *destVolume, "121")
@@ -287,11 +258,11 @@ func TestGetQuotaLimit(t *testing.T) {
 	t.Run("WhenTokenError", func(tt *testing.T) {
 		ctx := context.Background()
 		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "", errors.New("some error")
 		}
-		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		defer func() { auth.GenerateCallbackToken = originalGetSignedCallbackToken }()
 		_, err := GetQuotaLimit(ctx, "us-east1", "121")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
@@ -299,8 +270,8 @@ func TestGetQuotaLimit(t *testing.T) {
 	t.Run("WhenHydrationReplicationCreateFail", func(tt *testing.T) {
 		ctx := context.Background()
 		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mocked-token", nil
 		}
 		originalHydrateReplicationCreate := getQuotaLimit
@@ -308,7 +279,7 @@ func TestGetQuotaLimit(t *testing.T) {
 			return 0, errors.New("some error")
 		}
 		defer func() {
-			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			auth.GenerateCallbackToken = originalGetSignedCallbackToken
 			getQuotaLimit = originalHydrateReplicationCreate
 		}()
 		_, err := GetQuotaLimit(ctx, "us-east1", "121")
@@ -317,8 +288,8 @@ func TestGetQuotaLimit(t *testing.T) {
 	})
 	t.Run("WhenSuccessFul", func(tt *testing.T) {
 		ctx := context.Background()
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mocked-token", nil
 		}
 		originalHydrateReplicationCreate := getQuotaLimit
@@ -326,7 +297,7 @@ func TestGetQuotaLimit(t *testing.T) {
 			return 1, nil
 		}
 		defer func() {
-			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			auth.GenerateCallbackToken = originalGetSignedCallbackToken
 			getQuotaLimit = originalHydrateReplicationCreate
 		}()
 		dst, err := GetQuotaLimit(ctx, "us-east1", "121")
@@ -349,11 +320,11 @@ func TestHydrateReplicationState(t *testing.T) {
 	t.Run("WhenTokenError", func(tt *testing.T) {
 		ctx := context.Background()
 		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "", errors.New("some error")
 		}
-		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		defer func() { auth.GenerateCallbackToken = originalGetSignedCallbackToken }()
 		err := HydrateReplicationState(ctx, *createReplicationResponse, replicationState, "121")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
@@ -361,8 +332,8 @@ func TestHydrateReplicationState(t *testing.T) {
 	t.Run("WhenHydrateReplicationDeleteFail", func(tt *testing.T) {
 		ctx := context.Background()
 		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mocked-token", nil
 		}
 		originalHydrateReplicationState := hydrateReplicationState
@@ -372,7 +343,7 @@ func TestHydrateReplicationState(t *testing.T) {
 			}
 		}
 		defer func() {
-			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			auth.GenerateCallbackToken = originalGetSignedCallbackToken
 			hydrateReplicationState = originalHydrateReplicationState
 		}()
 		err := HydrateReplicationState(ctx, *createReplicationResponse, replicationState, "121")
@@ -381,8 +352,8 @@ func TestHydrateReplicationState(t *testing.T) {
 	})
 	t.Run("WhenSuccessFul", func(tt *testing.T) {
 		ctx := context.Background()
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mocked-token", nil
 		}
 		originalHydrateReplicationState := hydrateReplicationState
@@ -390,7 +361,7 @@ func TestHydrateReplicationState(t *testing.T) {
 			return nil
 		}
 		defer func() {
-			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			auth.GenerateCallbackToken = originalGetSignedCallbackToken
 			hydrateReplicationState = originalHydrateReplicationState
 		}()
 		err := HydrateReplicationState(ctx, *createReplicationResponse, replicationState, "121")
@@ -415,11 +386,11 @@ func TestHydrateReplicationStateAndType(t *testing.T) {
 	t.Run("WhenTokenError", func(tt *testing.T) {
 		ctx := context.Background()
 		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "", errors.New("some error")
 		}
-		defer func() { utilsGetSignedCallbackToken = originalGetSignedCallbackToken }()
+		defer func() { auth.GenerateCallbackToken = originalGetSignedCallbackToken }()
 		err := HydrateReplicationStateAndType(ctx, *createReplicationResponse, replicationState, hybridReplicationType, "121")
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
@@ -427,8 +398,8 @@ func TestHydrateReplicationStateAndType(t *testing.T) {
 	t.Run("WhenHydrateReplicationDeleteFail", func(tt *testing.T) {
 		ctx := context.Background()
 		expectedError := errors.New("some error")
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mocked-token", nil
 		}
 		originalHydrateReplicationStateAndType := hydrateReplicationStateAndType
@@ -438,7 +409,7 @@ func TestHydrateReplicationStateAndType(t *testing.T) {
 			}
 		}
 		defer func() {
-			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			auth.GenerateCallbackToken = originalGetSignedCallbackToken
 			hydrateReplicationStateAndType = originalHydrateReplicationStateAndType
 		}()
 		err := HydrateReplicationStateAndType(ctx, *createReplicationResponse, replicationState, hybridReplicationType, "121")
@@ -447,8 +418,8 @@ func TestHydrateReplicationStateAndType(t *testing.T) {
 	})
 	t.Run("WhenSuccessFul", func(tt *testing.T) {
 		ctx := context.Background()
-		originalGetSignedCallbackToken := utilsGetSignedCallbackToken
-		utilsGetSignedCallbackToken = func() (string, error) {
+		originalGetSignedCallbackToken := auth.GenerateCallbackToken
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
 			return "mocked-token", nil
 		}
 		originalHydrateReplicationStateAndType := hydrateReplicationStateAndType
@@ -456,7 +427,7 @@ func TestHydrateReplicationStateAndType(t *testing.T) {
 			return nil
 		}
 		defer func() {
-			utilsGetSignedCallbackToken = originalGetSignedCallbackToken
+			auth.GenerateCallbackToken = originalGetSignedCallbackToken
 			hydrateReplicationStateAndType = originalHydrateReplicationStateAndType
 		}()
 		err := HydrateReplicationStateAndType(ctx, *createReplicationResponse, replicationState, hybridReplicationType, "121")

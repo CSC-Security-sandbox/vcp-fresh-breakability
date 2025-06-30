@@ -23,12 +23,13 @@ const (
 )
 
 var (
-	createSnapshot       = _createSnapshot
-	updateSnapshot       = _updateSnapshot
-	getSnapshot          = _getSnapshot
-	VolumeOwnershipCheck = _volumeOwnershipCheck
-	deleteSnapshot       = _deleteSnapshot
-	listSnapshots        = _listSnapshots
+	createSnapshot                  = _createSnapshot
+	updateSnapshot                  = _updateSnapshot
+	getSnapshot                     = _getSnapshot
+	VolumeOwnershipCheck            = _volumeOwnershipCheck
+	deleteSnapshot                  = _deleteSnapshot
+	listSnapshots                   = _listSnapshots
+	ConvertDatastoreSnapshotToModel = _convertDatastoreSnapshotToModel
 )
 
 // CreateSnapshot creates the snapshot and adds to the specified volume belonging to the specified owner
@@ -90,7 +91,7 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		if len(jobs) > 0 {
 			job := jobs[0]
 			logger.Infof("Found ongoing snapshot creation job for account %s with name %s. Job UUID: %s", params.AccountName, params.Name, job.UUID)
-			dataStoreSnap := convertDatastoreSnapshotToModel(existingSnapshots[0])
+			dataStoreSnap := ConvertDatastoreSnapshotToModel(existingSnapshots[0])
 			return dataStoreSnap, job.UUID, nil
 		}
 	}
@@ -145,7 +146,7 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	dataStoreSnap := convertDatastoreSnapshotToModel(dbSnapshot)
+	dataStoreSnap := ConvertDatastoreSnapshotToModel(dbSnapshot)
 	return dataStoreSnap, job.UUID, nil
 }
 
@@ -168,7 +169,7 @@ func _getSnapshot(ctx context.Context, se database.Storage, params *common.GetSn
 		return nil, err
 	}
 
-	dataStoreSnap := convertDatastoreSnapshotToModel(snapshot)
+	dataStoreSnap := ConvertDatastoreSnapshotToModel(snapshot)
 	return dataStoreSnap, nil
 }
 
@@ -193,7 +194,7 @@ func _listSnapshots(ctx context.Context, se database.Storage, params *common.Lis
 
 	var snapshotsToReturn []*models.Snapshot
 	for _, snapshot := range snapshots {
-		snapshotsToReturn = append(snapshotsToReturn, convertDatastoreSnapshotToModel(snapshot))
+		snapshotsToReturn = append(snapshotsToReturn, ConvertDatastoreSnapshotToModel(snapshot))
 	}
 	return snapshotsToReturn, nil
 }
@@ -260,11 +261,11 @@ func _updateSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	dataStoreSnap := convertDatastoreSnapshotToModel(snapshot)
+	dataStoreSnap := ConvertDatastoreSnapshotToModel(snapshot)
 	return dataStoreSnap, job.UUID, nil
 }
 
-func convertDatastoreSnapshotToModel(snapshot *datamodel.Snapshot) *models.Snapshot {
+func _convertDatastoreSnapshotToModel(snapshot *datamodel.Snapshot) *models.Snapshot {
 	if snapshot == nil {
 		return nil
 	}
@@ -363,7 +364,7 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	return convertDatastoreSnapshotToModel(snapshot), createdJob.UUID, nil
+	return ConvertDatastoreSnapshotToModel(snapshot), createdJob.UUID, nil
 }
 
 func _volumeOwnershipCheck(ctx context.Context, se database.Storage, volumeUUID string, accountName string) (*datamodel.Volume, error) {

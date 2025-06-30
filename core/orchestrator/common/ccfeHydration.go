@@ -23,6 +23,9 @@ import (
 var (
 	VolumeCreate                   = _hydrateVolumeCreate
 	VolumeDelete                   = _hydrateVolumeDelete
+	BatchHydrateCreatedSnapshots   = _batchHydrateCreatedSnapshots
+	BatchHydrateDeletedSnapshots   = _batchHydrateDeletedSnapshots
+	MapStateToGcpState             = _mapStateToGcpState
 	HydrateReplicationState        = _hydrateReplicationState
 	HydrateReplicationStateAndType = _hydrateReplicationStateAndType
 	ReplicationDelete              = _hydrateReplicationDelete
@@ -34,6 +37,7 @@ var (
 	getQuotaLimitsForResource      = _getQuotaLimitsForResource
 	HydrateRetryErrors             = []int{409, 429, 500, 503, 504}
 	baseUri                        = env.GetString("GCP_HYDRATE_BASE_URL", "")
+	batchSize                      = env.GetInt("GCP_HYDRATE_BATCH_SIZE", 10)
 	quotaLimitExceededRegex        = regexp.MustCompile(`^Quota limit`)
 	ApiHydrateMaxRetries           = max(1, env.GetInt("API_HYDRATE_MAX_RETRIES", 10))
 	ApiHydrateRetryDelay           = time.Duration(env.GetInt("API_HYDRATE_RETRY_DELAY", 5)) * time.Second
@@ -61,6 +65,10 @@ const (
 	ResourceQuotaTypeEmpty      QuotaType    = ""
 	CorrelationContextKey       ContextKey   = iota
 	CorrelationIDName           string       = log.RequestCorrelationID
+
+	// LifeCycle state in Google
+	deletedGcp = "DISABLED"
+	defaultGcp = "STATE_UNSPECIFIED"
 )
 
 func init() {
@@ -107,6 +115,105 @@ func _hydrateVolumeDelete(ctx context.Context, logger log.Logger, volumeResource
 	logger.Infof("Hydrating volume delete to callbackApi, volumeId: %s", volumeResourceID)
 	err := hydrateToCffe(ctx, logger, models.GcpHydrateDelete{Names: nameArray}, url, http.MethodPost, token)
 	return err
+}
+
+// _batchHydrateCreatedSnapshots hydrates created snapshots in batches to CCFE.
+func _batchHydrateCreatedSnapshots(ctx context.Context, logger log.Logger, resources []models.Request, currVolumeName string, location string, projectId string, token string) error {
+	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s/resources:%s", baseUri, projectId, location, currVolumeName, Create)
+	var err error
+	batch := 0
+	var requestArr []models.Request
+	var uuids, resourceType string
+	for i, resource := range resources {
+		requestArr = append(requestArr, resource)
+		batch++
+		if batch == batchSize || i == len(resources)-1 {
+			err := hydrateToCffe(ctx, logger, models.GcpHydrateCreate{Requests: requestArr}, url, http.MethodPost, token)
+			uuids, resourceType = getAllUUIDs(requestArr)
+			if err != nil {
+				logger.ErrorContext(ctx, "Created Snapshot Hydration failed for this batch", "UUID's", uuids, "resourceType", resourceType, "Error", err, "VolumeName", currVolumeName)
+			}
+			// Reset batch and requestArr after processing the batch
+			batch = 0
+			requestArr = []models.Request{}
+		}
+	}
+	logger.Infof("Successfully Hydrated snapshot create to callbackApi with the volume name %s", currVolumeName)
+	return err
+}
+
+// getAllUUIDs returns all the UUIDs present in a gcp_http Request and also sends which resource type it belongs to
+func getAllUUIDs(requestArr []models.Request) (string, string) {
+	allUuids := ""
+	if len(requestArr) == 0 {
+		return allUuids, "" // Handle empty input gracefully
+	}
+
+	if requestArr[0].Snapshot != nil && requestArr[0].Snapshot.ResourceId != "" {
+		for _, req := range requestArr {
+			allUuids = allUuids + ", " + req.Snapshot.SnapshotId
+		}
+		return allUuids, "snapshot"
+	}
+	return allUuids, ""
+}
+
+// _batchHydrateDeletedSnapshots hydrates deleted snapshots in batches to CCFE.
+func _batchHydrateDeletedSnapshots(ctx context.Context, logger log.Logger, hydrateSnapshot []models.Request, currVolumeName string, region string, projectId string, token string) error {
+	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s/resources:%s", baseUri, projectId, region, currVolumeName, Delete)
+	var err error
+	batch := 0
+	var requestArr []models.Request
+	var uuids, resourceType string
+	for i, resource := range hydrateSnapshot {
+		requestArr = append(requestArr, resource)
+		batch++
+		if batch == batchSize || i == len(hydrateSnapshot)-1 {
+			uuids, resourceType = getAllUUIDs(requestArr)
+			resource := convertDeleteResource(requestArr)
+			if len(resource.Names) == 0 {
+				logger.ErrorContext(ctx, "Deleted Snapshot Hydration failed for this account as the request batch has no snapshot names",
+					"UUID's", uuids,
+					"resourceType", resourceType,
+					"Error", "No snapshot names found in the request batch. Cannot proceed with deletion.",
+					"VolumeName", currVolumeName)
+				batch = 0
+				requestArr = []models.Request{}
+				continue
+			}
+			err = hydrateToCffe(ctx, logger, resource, url, http.MethodPost, token)
+			if err != nil {
+				logger.ErrorContext(ctx, "Deleted Snapshot Hydration failed for this batch", "UUID's", uuids, "resourceType", resourceType, "Error", err, "VolumeName", currVolumeName)
+			}
+			batch = 0
+			requestArr = []models.Request{}
+		}
+	}
+	logger.Infof("Successfully Hydrated snapshot delete to callbackApi with the volume name %s", currVolumeName)
+	return err
+}
+
+// convertDeleteResource converts a slice of requests into a GCP-compatible delete resource object.
+func convertDeleteResource(requestArr []models.Request) models.GcpHydrateDelete {
+	if len(requestArr) == 0 {
+		return models.GcpHydrateDelete{}
+	}
+
+	if requestArr[0].Snapshot != nil && requestArr[0].Snapshot.ResourceId != "" {
+		return mapToGcpBulkSnapshotDelete(requestArr)
+	}
+	return models.GcpHydrateDelete{}
+}
+
+// mapToGcpBulkSnapshotDelete maps a slice of requests to a GCP-compatible bulk snapshot deletion request.
+func mapToGcpBulkSnapshotDelete(reqArray []models.Request) models.GcpHydrateDelete {
+	nameArr := []string{} // Initialize as an empty slice
+	for _, req := range reqArray {
+		if req.Snapshot != nil && req.Snapshot.ResourceId != "" {
+			nameArr = append(nameArr, "snapshots/"+utils.RenameSnapshotName(req.Snapshot.ResourceId))
+		}
+	}
+	return models.GcpHydrateDelete{Names: nameArr}
 }
 
 func _hydrateReplicationState(ctx context.Context, logger log.Logger, region string, projectId string, volumeResourceID string, replicationId string, state models.VolumeReplicationHydrateState, token string) error {
@@ -301,4 +408,18 @@ func getResourceQuotaType(resourceType ResourceType) QuotaType {
 		return FlexReplicationVolumesLimit
 	}
 	return ResourceQuotaTypeEmpty
+}
+
+// _mapStateToGcpState maps a local state string to its corresponding GCP-compatible state string.
+func _mapStateToGcpState(state string) string {
+	switch state {
+	case models.LifeCycleStateDeleted:
+		return deletedGcp
+	case models.LifeCycleStateAvailable:
+		return models.LifeCycleStateREADY
+	case "":
+		return defaultGcp
+	default:
+		return state
+	}
 }

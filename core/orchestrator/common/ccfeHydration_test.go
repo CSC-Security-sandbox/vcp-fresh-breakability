@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -112,6 +113,215 @@ func TestHydrateVolumeDelete(t *testing.T) {
 		}
 		err := _hydrateVolumeDelete(ctx, mockLogger, volumeResourceID, region, projectId, token)
 		assert.NoError(tt, err, nil)
+	})
+}
+
+func TestBatchHydrateCreatedSnapshots(t *testing.T) {
+	mockLogger := log.NewLogger()
+	ctx := context.Background()
+	currVolumeName := "mock-volume"
+	location := "mock-location"
+	projectId := "mock-project"
+	token := "mock-token"
+
+	// Save and mock hydrateToCffe
+	originalHydrateToCffe := hydrateToCffe
+	defer func() { hydrateToCffe = originalHydrateToCffe }()
+
+	t.Run("HandlesEmptyResourcesArray", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		err := _batchHydrateCreatedSnapshots(ctx, mockLogger, []models.Request{}, currVolumeName, location, projectId, token)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("HandlesSingleResource", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		resources := []models.Request{
+			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-1", ResourceId: "snap-1"}},
+		}
+		err := _batchHydrateCreatedSnapshots(ctx, mockLogger, resources, currVolumeName, location, projectId, token)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("HandlesMultipleResources", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		resources := []models.Request{
+			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-1", ResourceId: "snap-1"}},
+			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-2", ResourceId: "snap-2"}},
+		}
+		err := _batchHydrateCreatedSnapshots(ctx, mockLogger, resources, currVolumeName, location, projectId, token)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("HandlesHydrateToCffeError", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return errors.New("mock error")
+		}
+		resources := []models.Request{
+			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-1", ResourceId: "snap-1"}},
+		}
+		err := _batchHydrateCreatedSnapshots(ctx, mockLogger, resources, currVolumeName, location, projectId, token)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("HandlesBatchSizeLimit", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		resources := []models.Request{}
+		for i := 0; i < batchSize+1; i++ {
+			resources = append(resources, models.Request{Snapshot: &models.HydrateSnapshot{SnapshotId: fmt.Sprintf("uuid-%d", i), ResourceId: fmt.Sprintf("snap-%d", i)}})
+		}
+		err := _batchHydrateCreatedSnapshots(ctx, mockLogger, resources, currVolumeName, location, projectId, token)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestBatchHydrateDeletedSnapshots(t *testing.T) {
+	mockLogger := log.NewLogger()
+	ctx := context.Background()
+	currVolumeName := "mock-volume"
+	region := "mock-region"
+	projectId := "mock-project"
+	token := "mock-token"
+
+	t.Run("HandlesEmptyHydrateSnapshot", func(tt *testing.T) {
+		err := _batchHydrateDeletedSnapshots(ctx, mockLogger, []models.Request{}, currVolumeName, region, projectId, token)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("HandlesEmptyNamesError", func(tt *testing.T) {
+		hydrateSnapshot := []models.Request{
+			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-1", ResourceId: ""}},
+		}
+		err := _batchHydrateDeletedSnapshots(ctx, mockLogger, hydrateSnapshot, currVolumeName, region, projectId, token)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("HandlesSingleHydrateSnapshot", func(tt *testing.T) {
+		hydrateSnapshot := []models.Request{
+			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-1", ResourceId: "snap-1"}},
+		}
+		err := _batchHydrateDeletedSnapshots(ctx, mockLogger, hydrateSnapshot, currVolumeName, region, projectId, token)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("HandlesMultipleHydrateSnapshots", func(tt *testing.T) {
+		hydrateSnapshot := []models.Request{
+			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-1", ResourceId: "snap-1"}},
+			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-2", ResourceId: "snap-2"}},
+		}
+		err := _batchHydrateDeletedSnapshots(ctx, mockLogger, hydrateSnapshot, currVolumeName, region, projectId, token)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("HandlesHydrateToCffeError", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return errors.New("mock error")
+		}
+		defer func() { hydrateToCffe = _hydrateToCffe }()
+		hydrateSnapshot := []models.Request{
+			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-1", ResourceId: "snap-1"}},
+		}
+		err := _batchHydrateDeletedSnapshots(ctx, mockLogger, hydrateSnapshot, currVolumeName, region, projectId, token)
+		assert.Error(tt, err)
+		assert.Equal(tt, "mock error", err.Error())
+	})
+
+	t.Run("HandlesBatchSizeLimit", func(tt *testing.T) {
+		hydrateSnapshot := []models.Request{}
+		for i := 0; i < batchSize+1; i++ {
+			hydrateSnapshot = append(hydrateSnapshot, models.Request{Snapshot: &models.HydrateSnapshot{SnapshotId: fmt.Sprintf("uuid-%d", i), ResourceId: fmt.Sprintf("snap-%d", i)}})
+		}
+		err := _batchHydrateDeletedSnapshots(ctx, mockLogger, hydrateSnapshot, currVolumeName, region, projectId, token)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestGetAllUUIDs(t *testing.T) {
+	t.Run("ReturnsAllUUIDsAndSnapshotType", func(tt *testing.T) {
+		requestArr := []models.Request{
+			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-1", ResourceId: "snap-1"}},
+			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-2", ResourceId: "snap-2"}},
+		}
+		expectedUUIDs := ", uuid-1, uuid-2"
+		expectedType := "snapshot"
+		allUuids, resourceType := getAllUUIDs(requestArr)
+		assert.Equal(tt, expectedUUIDs, allUuids)
+		assert.Equal(tt, expectedType, resourceType)
+	})
+
+	t.Run("HandlesEmptyResourceId", func(tt *testing.T) {
+		requestArr := []models.Request{
+			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-1", ResourceId: ""}},
+		}
+		expectedUUIDs := ""
+		expectedType := ""
+		allUuids, resourceType := getAllUUIDs(requestArr)
+		assert.Equal(tt, expectedUUIDs, allUuids)
+		assert.Equal(tt, expectedType, resourceType)
+	})
+
+	t.Run("HandlesNilSnapshot", func(tt *testing.T) {
+		requestArr := []models.Request{
+			{Snapshot: nil},
+		}
+		expectedUUIDs := ""
+		expectedType := ""
+		allUuids, resourceType := getAllUUIDs(requestArr)
+		assert.Equal(tt, expectedUUIDs, allUuids)
+		assert.Equal(tt, expectedType, resourceType)
+	})
+
+	t.Run("HandlesEmptyRequestArray", func(tt *testing.T) {
+		requestArr := []models.Request{}
+		expectedUUIDs := ""
+		expectedType := ""
+		allUuids, resourceType := getAllUUIDs(requestArr)
+		assert.Equal(tt, expectedUUIDs, allUuids)
+		assert.Equal(tt, expectedType, resourceType)
+	})
+}
+
+func TestConvertDeleteResource(tt *testing.T) {
+	tt.Run("HandlesValidSnapshot", func(t *testing.T) {
+		requestArr := []models.Request{
+			{Snapshot: &models.HydrateSnapshot{ResourceId: "snap-1"}},
+		}
+		expected := models.GcpHydrateDelete{Names: []string{"snapshots/snap-1"}}
+		result := convertDeleteResource(requestArr)
+		assert.Equal(t, expected, result)
+	})
+
+	tt.Run("HandlesEmptyResourceId", func(t *testing.T) {
+		requestArr := []models.Request{
+			{Snapshot: &models.HydrateSnapshot{ResourceId: ""}},
+		}
+		expected := models.GcpHydrateDelete{}
+		result := convertDeleteResource(requestArr)
+		assert.Equal(t, expected, result)
+	})
+
+	tt.Run("HandlesNilSnapshot", func(t *testing.T) {
+		requestArr := []models.Request{
+			{Snapshot: nil},
+		}
+		expected := models.GcpHydrateDelete{}
+		result := convertDeleteResource(requestArr)
+		assert.Equal(t, expected, result)
+	})
+
+	tt.Run("HandlesEmptyRequestArray", func(t *testing.T) {
+		requestArr := []models.Request{}
+		expected := models.GcpHydrateDelete{}
+		result := convertDeleteResource(requestArr)
+		assert.Equal(t, expected, result)
 	})
 }
 
@@ -554,5 +764,72 @@ func TestGetQuotaLimitsForResource(t *testing.T) {
 		quota, err := _getQuotaLimitsForResource(ctx, projectId, region, quotaType, token, mockLogger)
 		assert.Equal(tt, 0, quota)
 		assert.Equal(tt, "quota error", err.(*errs.CustomError).GetMessage())
+	})
+}
+
+func TestMapStateToGcpState(t *testing.T) {
+	t.Run("ReturnsDeletedState", func(tt *testing.T) {
+		state := models.LifeCycleStateDeleted
+		expectedState := deletedGcp
+		result := _mapStateToGcpState(state)
+		assert.Equal(tt, expectedState, result)
+	})
+
+	t.Run("ReturnsAvailableState", func(tt *testing.T) {
+		state := models.LifeCycleStateAvailable
+		expectedState := models.LifeCycleStateREADY
+		result := _mapStateToGcpState(state)
+		assert.Equal(tt, expectedState, result)
+	})
+
+	t.Run("ReturnsDefaultStateForEmptyInput", func(tt *testing.T) {
+		state := ""
+		expectedState := defaultGcp
+		result := _mapStateToGcpState(state)
+		assert.Equal(tt, expectedState, result)
+	})
+
+	t.Run("ReturnsInputStateForUnknownState", func(tt *testing.T) {
+		state := "unknownState"
+		expectedState := "unknownState"
+		result := _mapStateToGcpState(state)
+		assert.Equal(tt, expectedState, result)
+	})
+}
+
+func TestMapToGcpBulkSnapshotDeleteTests(tt *testing.T) {
+	tt.Run("HandlesEmptyResourceId", func(tt *testing.T) {
+		reqArray := []models.Request{
+			{Snapshot: &models.HydrateSnapshot{ResourceId: ""}},
+		}
+		expected := models.GcpHydrateDelete{Names: []string{}}
+		result := mapToGcpBulkSnapshotDelete(reqArray)
+		assert.Equal(tt, expected, result)
+	})
+
+	tt.Run("HandlesMultipleSnapshots", func(tt *testing.T) {
+		reqArray := []models.Request{
+			{Snapshot: &models.HydrateSnapshot{ResourceId: "snap-1"}},
+			{Snapshot: &models.HydrateSnapshot{ResourceId: "snap-2"}},
+		}
+		expected := models.GcpHydrateDelete{Names: []string{"snapshots/snap-1", "snapshots/snap-2"}}
+		result := mapToGcpBulkSnapshotDelete(reqArray)
+		assert.Equal(tt, expected, result)
+	})
+
+	tt.Run("HandlesNilSnapshot", func(tt *testing.T) {
+		reqArray := []models.Request{
+			{Snapshot: nil},
+		}
+		expected := models.GcpHydrateDelete{Names: []string{}}
+		result := mapToGcpBulkSnapshotDelete(reqArray)
+		assert.Equal(tt, expected, result)
+	})
+
+	tt.Run("HandlesEmptyRequestArray", func(tt *testing.T) {
+		reqArray := []models.Request{}
+		expected := models.GcpHydrateDelete{Names: []string{}}
+		result := mapToGcpBulkSnapshotDelete(reqArray)
+		assert.Equal(tt, expected, result)
 	})
 }

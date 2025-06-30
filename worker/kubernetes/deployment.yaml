@@ -86,5 +86,9 @@ spec:
               value: "storage.googleapis.com"
             - name: OBJECT_STORE_AUTH_TYPE
               value: "GCP_SA"
+            - name: GCP_HYDRATE_ENABLED
+              value: "true"
+            - name: GCP_HYDRATE_BATCH_SIZE
+              value: "10"
             - name: VMRS_CONFIG_PATH
               value: "config/vmrs_gcp.yaml"
