@@ -13,7 +13,7 @@ var (
 	GetSecretVersion = _getSecretVersion
 )
 
-// CreateSecret GetCertificate creates a secret
+// CreateSecret creates a secret. Reference: https://cloud.google.com/secret-manager/docs/reference/rest/v1beta1/projects.secrets/create
 func (gcpService *GcpServices) CreateSecret(projectID, region, secretID, secretValue string) (*models.CustomSecret, error) {
 	gcpService.Logger.Debug(fmt.Sprintf("Calling CreateSecret for project id : %s, secret id : %s", projectID, secretID))
 
@@ -52,7 +52,7 @@ func (gcpService *GcpServices) CreateSecret(projectID, region, secretID, secretV
 	return customSecret, nil
 }
 
-// GetSecretWithLatestVersion GetSecret retrieves a secret from the secret manager.
+// GetSecretWithLatestVersion retrieves a secret from the secret manager. Reference: https://cloud.google.com/secret-manager/docs/reference/rest/v1beta1/projects.secrets/get
 func (gcpService *GcpServices) GetSecretWithLatestVersion(projectID, secretID string) (*models.CustomSecret, error) {
 	gcpService.Logger.Debug(fmt.Sprintf("Calling GetSecretWithLatestVersion for project id : %s, secretID : %s", projectID, secretID))
 	name := fmt.Sprintf("projects/%s/secrets/%s", projectID, secretID)
@@ -75,7 +75,7 @@ func (gcpService *GcpServices) GetSecretWithLatestVersion(projectID, secretID st
 	return customSecret, nil
 }
 
-// DeleteSecret deletes a secret from the secret manager
+// DeleteSecret deletes a secret from the secret manager. Reference: https://cloud.google.com/secret-manager/docs/reference/rest/v1beta1/projects.secrets/delete
 func (gcpService *GcpServices) DeleteSecret(projectID, secretID string) error {
 	gcpService.Logger.Debug(fmt.Sprintf("Calling GetSecretWithLatestVersion for project id : %s, secretID : %s", projectID, secretID))
 	name := fmt.Sprintf("projects/%s/secrets/%s", projectID, secretID)
@@ -87,7 +87,7 @@ func (gcpService *GcpServices) DeleteSecret(projectID, secretID string) error {
 	return nil
 }
 
-// AddSecretVersion creates a secret version and stores the private key in the secret manager.
+// AddSecretVersion creates a secret version and stores the private key in the secret manager. Reference: https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets/addVersion
 func _addSecretVersion(gcpService *GcpServices, projectID, secretName, secretValue string) (*models.CustomSecretVersion, error) {
 	gcpService.Logger.Debug(fmt.Sprintf("Calling CreateSecretVersion for project id : %s, secret id : %s", projectID, secretName))
 	encodedData := base64.StdEncoding.EncodeToString([]byte(secretValue))
@@ -110,7 +110,7 @@ func _addSecretVersion(gcpService *GcpServices, projectID, secretName, secretVal
 	return customSecretVersion, nil
 }
 
-// GetSecretVersion retrieves a secret version from the secret manager.
+// GetSecretVersion retrieves a secret version from the secret manager. Reference: https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets.versions/access
 func _getSecretVersion(gcpService *GcpServices, projectID, secretName, versionID string) (*models.CustomSecretVersion, error) {
 	gcpService.Logger.Debug(fmt.Sprintf("Calling GetSecretVersion for project id : %s, secret id : %s, version id : %s", projectID, secretName, versionID))
 	name := fmt.Sprintf("projects/%s/secrets/%s/versions/%s", projectID, secretName, versionID)

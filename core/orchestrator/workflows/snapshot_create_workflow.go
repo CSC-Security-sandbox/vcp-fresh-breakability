@@ -101,7 +101,7 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 		return nil, err
 	}
 
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: dbSnapshot.Volume.Pool.Username, Password: dbSnapshot.Volume.Pool.Password})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: dbSnapshot.Volume.Pool.Username, Password: dbSnapshot.Volume.Pool.Password, SecretID: dbSnapshot.Volume.Pool.SecretID})
 
 	var snapshotCreateResponse *vsa.SnapshotProviderResponse
 	defer func() {

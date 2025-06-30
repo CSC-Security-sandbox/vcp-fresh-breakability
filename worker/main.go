@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/jobmanageractivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/jobmanagerworkflows"
@@ -75,6 +76,12 @@ func main() {
 
 	// Create a new worker
 	worker := tManagerPkg.NewWorker(temporalManager.GetClient(), workflowEngine.CustomerTaskQueue)
+
+	err = commonparams.ValidateEnvironmentVariables()
+	if err != nil {
+		logger.Error("Failed to validate environment variables", "error", err.Error())
+		os.Exit(1)
+	}
 
 	logger.Info("registering workflows and activities")
 	RegisterWorkflowsAndActivities(*worker, dbConn)

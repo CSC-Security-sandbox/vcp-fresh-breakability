@@ -55,7 +55,7 @@ func (hgu *HostGroupUpdateActivity) UpdateIGroups(ctx context.Context, hg *datam
 			continue
 		}
 
-		provider := GetProviderByNode(ctx, common.CreateNodeForProvider(common.NodeProviderInput{Nodes: nodes, Username: volume.Pool.Username, Password: volume.Pool.Password}))
+		provider := GetProviderByNode(ctx, common.CreateNodeForProvider(common.NodeProviderInput{Nodes: nodes, Username: volume.Pool.Username, Password: volume.Pool.Password, SecretID: volume.Pool.SecretID}))
 
 		err = handleQNsInHostGroup(logger, hg, provider)
 		if err != nil {
@@ -87,7 +87,7 @@ func (hgu *HostGroupUpdateActivity) UpdateIGroups(ctx context.Context, hg *datam
 			logger.Errorf("Failed to get nodes for pool %d: %v", pool.ID, err)
 			continue
 		}
-		provider := GetProviderByNode(ctx, common.CreateNodeForProvider(common.NodeProviderInput{Nodes: nodes, Username: pool.Username, Password: pool.Password}))
+		provider := GetProviderByNode(ctx, common.CreateNodeForProvider(common.NodeProviderInput{Nodes: nodes, Username: pool.Username, Password: pool.Password, SecretID: pool.SecretID}))
 
 		err = handleQNsInHostGroup(logger, hg, provider)
 		if err != nil {

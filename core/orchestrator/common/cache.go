@@ -11,8 +11,8 @@ import (
 var (
 	authCacheMutex       sync.Mutex
 	authCacheMap         = map[string]*models.UserCache{} // map of secretID to password
-	cacheCleanupInterval = time.Duration(env.GetInt("VSA_SECRET_CACHE_CLEANUP_INTERVAL_MINUTES", 5)) * time.Hour
-	authCacheExpiration  = time.Duration(env.GetInt("VSA_SECRET_AUTH_CACHE_EXPIRATION_MINUTES", 5)) * time.Hour
+	cacheCleanupInterval = time.Duration(env.GetInt("VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS", 50)) * time.Hour
+	authCacheExpiration  = time.Duration(env.GetInt("VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS", 50)) * time.Hour
 
 	GetAuthCache          = _getAuthCache
 	AddToAuthCache        = _addToAuthCache

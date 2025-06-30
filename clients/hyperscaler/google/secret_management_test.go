@@ -296,8 +296,8 @@ func Test_getSecretVersion(t *testing.T) {
 	t.Run("WhenGetSecretVersionSuccess", func(tt *testing.T) {
 		defer testReset(tt)
 		ctx := context.Background()
-		url := fmt.Sprintf("/v1/projects/%s/secrets/%s", projectId, secretName)
-		resp := &hyperscaler.CustomSecretVersion{Name: secretName, Value: secretName}
+		url := fmt.Sprintf("/v1/projects/%s/secrets/%s/versions/latest:access", projectId, secretName)
+		resp := &secretmanager.AccessSecretVersionResponse{Name: secretName, Payload: &secretmanager.SecretPayload{Data: "c29tZSBkYXRhIHdpdGggACBhbmQg77u/"}}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			if req.URL.Path == url && req.Method == http.MethodGet {
 				response, _ := json.Marshal(&resp)
@@ -322,10 +322,11 @@ func Test_getSecretVersion(t *testing.T) {
 		}
 
 		secret, err := _getSecretVersion(gService, projectId, secretName, LatestVersion)
-		if err == nil {
-			tt.Error("Expected an error but got nothing")
-		} else if secret != nil {
-			tt.Errorf("Expected nil operation but got: %+v", secret)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+		if secret == nil || secret.Name != secretName {
+			tt.Errorf("Unexpected operation: %+v", secretName)
 		}
 	})
 }

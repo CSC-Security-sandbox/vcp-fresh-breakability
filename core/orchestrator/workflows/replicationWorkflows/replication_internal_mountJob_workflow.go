@@ -91,7 +91,7 @@ func (wf *mountCheckWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if err != nil {
 		return nil, err
 	}
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: replication.Volume.Pool.Username, Password: replication.Volume.Pool.Password})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: replication.Volume.Pool.Username, Password: replication.Volume.Pool.Password, SecretID: replication.Volume.Pool.SecretID})
 
 	ao1 := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,

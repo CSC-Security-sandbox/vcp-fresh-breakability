@@ -227,7 +227,7 @@ func convertPrivateCACertificateToCustomCertificate(certificateId string, cert *
 		return nil, err
 	}
 	customCert := &models.CustomCertificate{
-		CertificateId:              certificateId,
+		CertificateID:              certificateId,
 		Name:                       cert.Name,
 		PemCertificate:             cert.PemCertificate,
 		CreateTime:                 createTime,
@@ -252,15 +252,15 @@ func parseTimestamps(timeStr string) (*timestamppb.Timestamp, error) {
 }
 
 func _validateAndConvertCertificateParamsToCustomCertificate(param *models.CustomCertificateParam, pemBlock pem.Block) (*models.CustomCertificate, error) {
-	if param == nil || param.CertificateId == "" && param.CaName == "" || param.AccountId == "" || param.Region == "" || param.CaPoolName == "" || pemBlock.Type == "" {
+	if param == nil || param.CertificateID == "" && param.CaName == "" || param.CertOwningEntity == "" || param.Region == "" || param.CaPoolName == "" || pemBlock.Type == "" {
 		return nil, fmt.Errorf("invalid certificate parameters")
 	}
 	return &models.CustomCertificate{
-		CertificateId: param.CertificateId,
-		CaName:        param.CaName,
-		AccountId:     param.AccountId,
-		Region:        param.Region,
-		CaGroupName:   param.CaPoolName,
-		PemCsr:        string(pem.EncodeToMemory(&pemBlock)),
+		CertificateID:    param.CertificateID,
+		CaName:           param.CaName,
+		CertOwningEntity: param.CertOwningEntity,
+		Region:           param.Region,
+		CaGroupName:      param.CaPoolName,
+		PemCsr:           string(pem.EncodeToMemory(&pemBlock)),
 	}, nil
 }

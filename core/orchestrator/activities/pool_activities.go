@@ -71,6 +71,7 @@ var (
 	GetPasswordForVSACluster                  = _getPasswordForVSACluster
 	GetPasswordFromCacheOrSecretManager       = _getPasswordFromCacheOrSecretManager
 	GenerateCSR                               = _generateCSR
+	DeletePasswordFromCacheAndSecretManager   = _deletePasswordFromSecretManagerAndCache
 	LoadVMRSConfig                            = vmrs_config.LoadConfig
 	CreateDecisionMaker                       = vmrs_decision.NewDecisionMaker
 )
@@ -95,14 +96,10 @@ const (
 )
 
 var (
-	maxRetries              = env.GetInt("GOOGLE_API_MAX_RETRIES", 6)
-	localRegion             = env.GetString("REGION", "")
-	firewallSourceRange     = env.GetString("FIREWALL_SOURCE_RANGE", "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,34.0.0.0/8,46.149.16.0/20,52.94.203.152/29,52.94.203.160/29,185.35.244.0/22,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20,198.18.0.0/15")
-	caName                  = env.GetString("CA_NAME", "")
-	caPoolName              = env.GetString("CA_POOL_NAME", "")
-	caPoolDeployedProjectID = env.GetString("CA_POOL_DEPLOYED_PROJECT_ID", "")
-	vsaDeployedDnsName      = env.GetString("VSA_DEPLOYED_DNS_NAME", "")
-	nodePassword            = env.GetString("VSA_NODE_PASSWORD", "")
+	maxRetries          = env.GetInt("GOOGLE_API_MAX_RETRIES", 6)
+	localRegion         = env.GetString("REGION", "")
+	firewallSourceRange = env.GetString("FIREWALL_SOURCE_RANGE", "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,34.0.0.0/8,46.149.16.0/20,52.94.203.152/29,52.94.203.160/29,185.35.244.0/22,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20,198.18.0.0/15")
+	nodePassword        = env.GetString("VSA_NODE_PASSWORD", "")
 )
 
 func (j *PoolActivity) CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
@@ -302,15 +299,15 @@ func (j *PoolActivity) CreateCertificate(ctx context.Context, region, clusterNam
 	// Generate a unique certificate ID and common name
 	uuid := utils.RandomUUID()
 	commonName := fmt.Sprintf("%s-cn", uuid)
-	domains := fmt.Sprintf("*.%s.%s", clusterName, vsaDeployedDnsName)
+	domains := fmt.Sprintf("*.%s.%s", clusterName, commonparams.VsaDeployedDnsName)
 	params := &hyperscaler_models.CustomCertificateParam{
-		Region:        region,
-		CaPoolName:    caPoolName,
-		CaName:        caName,
-		CertificateId: uuid,
-		CommonName:    commonName,
-		Domains:       []string{domains},
-		AccountId:     caPoolDeployedProjectID,
+		Region:           region,
+		CaPoolName:       commonparams.CaPoolName,
+		CaName:           commonparams.CaName,
+		CertificateID:    uuid,
+		CommonName:       commonName,
+		Domains:          []string{domains},
+		CertOwningEntity: commonparams.CaPoolDeployedProjectID,
 	}
 	_, _, err = GenerateAndCreateCertificateForVSACluster(gcpService, params)
 	if err != nil {
@@ -325,12 +322,25 @@ func (j *PoolActivity) CreateSecret(ctx context.Context, region, secretID string
 	if err != nil {
 		return nil, err
 	}
-
-	secret, err := GeneratePasswordForVSACluster(gcpService, caPoolDeployedProjectID, region, secretID)
+	secret, err := GeneratePasswordForVSACluster(gcpService, commonparams.CaPoolDeployedProjectID, region, secretID)
 	if err != nil {
 		return nil, err
 	}
 	return secret, nil
+}
+
+// DeleteSecret deletes a secret from GCP Secret Manager for the VSA cluster
+func (j *PoolActivity) DeleteSecret(ctx context.Context, secretID string) error {
+	gcpService, err := GetGCPService(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = DeletePasswordFromCacheAndSecretManager(gcpService, commonparams.CaPoolDeployedProjectID, secretID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // setupNetworkFirewallsForIscsi sets up a firewall for iSCSI traffic in GCP
@@ -553,12 +563,7 @@ func (j *PoolActivity) DeleteVSADeployment(ctx context.Context, pool *datamodel.
 	saEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", pool.ServiceAccountId, pool.ClusterDetails.RegionalTenantProject)
 	var password string
 	if pool.SecretID != "" {
-		secret, err := GetPasswordForVSACluster(ctx, caPoolDeployedProjectID, pool.SecretID)
-		if err != nil {
-			logger.Error("Failed to get password for VSA cluster", "error", err)
-			return nil, err
-		}
-		password = secret.SecretVersion.Value
+		password = GetPasswordFromCacheOrSecretManager(ctx, pool.SecretID)
 	} else {
 		password = nodePassword
 	}
@@ -1207,14 +1212,14 @@ func _generateAndCreateCertificateForVSACluster(gcpService hyperscaler.GoogleSer
 	// Generate CSR
 	csrDER, key, err := GenerateCSR(param.CommonName, param.Domains)
 	if err != nil {
-		logger.Errorf("failed to generate CSR for commonName: %s, certificateId : %s, err : %v", param.CommonName, param.CertificateId, err)
+		logger.Errorf("failed to generate CSR for commonName: %s, certificateId : %s, err : %v", param.CommonName, param.CertificateID, err)
 		return nil, nil, err
 	}
 	pemBlock := pem.Block{
 		Type:  CsrType,
 		Bytes: csrDER,
 	}
-	logger.Debug("Generate CSR for commonName: %s, certificateId : %s", param.CommonName, param.CertificateId)
+	logger.Debug("Generate CSR for commonName: %s, certificateId : %s", param.CommonName, param.CertificateID)
 
 	certificate, err := google.ValidateAndConvertCertificateParamsToCustomCertificate(param, pemBlock)
 	if err != nil {
@@ -1227,9 +1232,9 @@ func _generateAndCreateCertificateForVSACluster(gcpService hyperscaler.GoogleSer
 	}
 
 	// Store the private key in Secret Manager
-	secretName := fmt.Sprintf("%s-%s-%s-%s", param.AccountId, param.Region, param.CaName, param.CertificateId)
+	secretName := fmt.Sprintf("%s-%s-%s-%s", param.CertOwningEntity, param.Region, param.CaName, param.CertificateID)
 	secretValue := google.ConvertPrivateKeyToString(key, RsaKeyType)
-	secret, err := gcpService.CreateSecret(param.AccountId, param.Region, secretName, secretValue)
+	secret, err := gcpService.CreateSecret(param.CertOwningEntity, param.Region, secretName, secretValue)
 	if err != nil {
 		// Revoke the certificate if the secret creation fails
 		_, revokeError := gcpService.RevokeCertificate(certificate)
@@ -1256,6 +1261,7 @@ func _generatePasswordForVSACluster(gcpService hyperscaler.GoogleServices, proje
 		if err != nil {
 			return nil, err
 		}
+		commonparams.AddToAuthCache(secretID, secret.SecretVersion.Value)
 	}
 	return secret, nil
 }
@@ -1267,7 +1273,7 @@ func _getPasswordForVSACluster(ctx context.Context, projectID, secretID string) 
 	if err != nil {
 		return nil, err
 	}
-	secret, err := gcpService.GetSecretWithLatestVersion(caPoolDeployedProjectID, secretID)
+	secret, err := gcpService.GetSecretWithLatestVersion(projectID, secretID)
 	if err != nil || secret == nil || secret.SecretVersion == nil {
 		return nil, fmt.Errorf("failed to get secret for project: %s, userName: %s, err: %s", projectID, secretID, err)
 	}
@@ -1279,7 +1285,7 @@ func _getPasswordFromCacheOrSecretManager(ctx context.Context, secretID string) 
 	password := ""
 	userCache, exist := commonparams.GetAuthCache(secretID)
 	if !exist || userCache.Password == "" {
-		secret, err := GetPasswordForVSACluster(ctx, caPoolDeployedProjectID, secretID)
+		secret, err := GetPasswordForVSACluster(ctx, commonparams.CaPoolDeployedProjectID, secretID)
 		if err != nil {
 			return ""
 		}
@@ -1287,7 +1293,31 @@ func _getPasswordFromCacheOrSecretManager(ctx context.Context, secretID string) 
 		commonparams.AddToAuthCache(secretID, password)
 		return password
 	}
-	return userCache.Password
+	password = userCache.Password
+	return password
+}
+
+// _deletePasswordFromSecretManagerAndCache generates a strong password and creates a secret in GCP Secret Manager.
+func _deletePasswordFromSecretManagerAndCache(gcpService hyperscaler.GoogleServices, projectID, secretID string) error {
+	logger := gcpService.GetLogger()
+	_, err := gcpService.GetSecretWithLatestVersion(projectID, secretID)
+	if err != nil {
+		logger.Errorf("failed to get password from secret manager for secretID: %s, err : %v", secretID, err)
+		return err
+	}
+	err = gcpService.DeleteSecret(projectID, secretID)
+	if err != nil {
+		logger.Errorf("failed to delete password for secretID: %s, err : %v", secretID, err)
+		return err
+	}
+
+	done := commonparams.RemoveFromCache(secretID)
+	if !done {
+		logger.Errorf("failed to remove password from cache for secretID: %s", secretID)
+		return nil
+	}
+
+	return nil
 }
 
 // _generateCSR generates a Certificate Signing Request (CSR) with the specified common name and domains.

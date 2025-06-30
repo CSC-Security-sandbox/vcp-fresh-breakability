@@ -19,37 +19,37 @@ type CustomCertificate struct {
 	IssuerCertificateAuthority string
 	SubjectOrganization        string
 	Region                     string
-	AccountId                  string
+	CertOwningEntity           string
 	CaName                     string
 	CaGroupName                string
-	CertificateId              string
+	CertificateID              string
 }
 
 // CustomCertificateParam is a struct that represents the parameters needed to create a certificate
 type CustomCertificateParam struct {
-	Region        string
-	AccountId     string
-	CaName        string
-	CaPoolName    string
-	CertificateId string
-	Domains       []string
-	CommonName    string
+	Region           string
+	CertOwningEntity string
+	CaName           string
+	CaPoolName       string
+	CertificateID    string
+	Domains          []string
+	CommonName       string
 }
 
 // CustomSecret is a struct that represents a secret
 type CustomSecret struct {
-	Name          string
-	AccountId     string
-	Region        string
-	CreateTime    *timestamppb.Timestamp
-	LifeTime      *timestamppb.Timestamp
-	SecretVersion *CustomSecretVersion
+	Name               string
+	SecretOwningEntity string
+	Region             string
+	CreateTime         *timestamppb.Timestamp
+	LifeTime           *timestamppb.Timestamp
+	SecretVersion      *CustomSecretVersion
 }
 
 // CustomSecretVersion is a struct that represents a version of a secret
 type CustomSecretVersion struct {
-	Name      string
-	Value     string
-	AccountId string
-	Region    string
+	Name               string
+	Value              string
+	SecretOwningEntity string
+	Region             string
 }

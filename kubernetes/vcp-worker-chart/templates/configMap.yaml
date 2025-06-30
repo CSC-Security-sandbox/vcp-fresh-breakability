@@ -39,4 +39,13 @@ data:
   VMRS_CONFIG_PATH: {{ .Values.workerConfig.vmrsConfigPath | quote }}
   GCP_HYDRATE_ENABLED: "{{ index .Values "gcpHydrateEnabled" }}"
   GCP_HYDRATE_BATCH_SIZE: "{{ index .Values "gcpHydrateBatchSize" }}"
+  VSA_NODE_PASSWORD: {{ .Values.workerConfig.vsaNodePassword | quote }}
+  VSA_AUTH_TYPE: "{{ index .Values.workerConfig.vsaAuthType | quote }}"
+  CERTIFICATE_LIFETIME: "{{ index .Values.workerConfig.certificateLifetime | quote }}"
+  CA_POOL_NAME: "{{ index .Values.workerConfig.caPoolName | quote }}"
+  CA_NAME: "{{ index .Values.workerConfig.caName | quote }}"
+  CA_POOL_DEPLOYED_PROJECT_ID: "{{ index .Values.workerConfig.caPoolDeployedProjectId | quote }}"
+  VSA_DEPLOYED_DNS_NAME: "{{ index .Values.workerConfig.vsaDeployedDnsName | quote }}"
+  VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS: "{{ index .Values.workerConfig.vsaSecretCacheCleanupIntervalHours | quote }}"
+  VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS: "{{ index .Values.workerConfig.vsaSecretAuthCacheExpirationHours | quote }}"
 

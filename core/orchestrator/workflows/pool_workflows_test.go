@@ -51,7 +51,6 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		Password: "test-password",
 		SecretID: "",
 	}
-
 	defer func() {
 		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
 	}()
@@ -59,7 +58,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		return nil
 	}
 
-	if secretManagerEnabled {
+	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
 		env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -186,6 +185,66 @@ func TestDeletePoolWorkflow(t *testing.T) {
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.DeletePoolParams{
+		PoolID:      "test-pool",
+		AccountName: "test-account",
+	}
+	pool := &datamodel.Pool{
+		Username: "test-user",
+		Password: "",
+		SecretID: "test-secret-id",
+	}
+
+	originalAuthType := common.AuthType
+	common.AuthType = common.USERNAME_PWD_SEC_MGR
+	originalProjectID := common.CaPoolDeployedProjectID
+	common.CaPoolDeployedProjectID = "123456789"
+
+	defer func() {
+		common.AuthType = originalAuthType
+		common.CaPoolDeployedProjectID = originalProjectID
+	}()
+
+	// Mock activity responses
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteVSADeployment", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteSecret", mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)

@@ -1223,12 +1223,12 @@ func Test_DeletePoolResources_Success(t *testing.T) {
 	deleteSVMS := activities.DeleteSVMs
 	deleteNodes := activities.DeleteNodes
 	deleteLIFs := activities.DeleteLIFs
+
 	defer func() {
 		activities.DeleteSVMs = deleteSVMS
 		activities.DeleteNodes = deleteNodes
 		activities.DeleteLIFs = deleteLIFs
 	}()
-
 	activities.DeleteLIFs = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
 		return nil
 	}
@@ -1238,7 +1238,6 @@ func Test_DeletePoolResources_Success(t *testing.T) {
 	activities.DeleteNodes = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
 		return nil
 	}
-
 	result, err := activity.DeletePoolResources(ctx, pool)
 
 	assert.NoError(t, err)
@@ -1251,12 +1250,10 @@ func Test_DeletePoolResources_FailsToDeleteLIFs(t *testing.T) {
 	activity := activities.PoolActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
-
 	deleteLIFs := activities.DeleteLIFs
 	defer func() {
 		activities.DeleteLIFs = deleteLIFs
 	}()
-
 	activities.DeleteLIFs = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
 		return errors.New("failed to delete LIFs")
 	}
@@ -1274,7 +1271,6 @@ func Test_DeletePoolResources_FailsToDeleteSVMs(t *testing.T) {
 	activity := activities.PoolActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
-
 	deleteSVMS := activities.DeleteSVMs
 	deleteLIFs := activities.DeleteLIFs
 	defer func() {
@@ -1342,7 +1338,6 @@ func Test_DeletePoolResources_FailsToDeletePool(t *testing.T) {
 		activities.DeleteNodes = deleteNodes
 		activities.DeleteLIFs = deleteLIFs
 	}()
-
 	activities.DeleteLIFs = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
 		return nil
 	}
@@ -2651,21 +2646,21 @@ func Test_generateAndCreateCertificateForVSACluster(t *testing.T) {
 	key, _ := rsa.GenerateKey(rand.Reader, 3072)
 	secretValue := google.ConvertPrivateKeyToString(key, activities.RsaKeyType)
 	param := &models.CustomCertificate{
-		CertificateId: "certid",
-		CaName:        "ca",
-		AccountId:     "pid",
-		Region:        "us",
-		CaGroupName:   "pool",
-		PemCsr:        "-----BEGIN CERTIFICATE REQUEST-----\nY3Ny\n-----END CERTIFICATE REQUEST-----\n",
+		CertificateID:    "certid",
+		CaName:           "ca",
+		CertOwningEntity: "pid",
+		Region:           "us",
+		CaGroupName:      "pool",
+		PemCsr:           "-----BEGIN CERTIFICATE REQUEST-----\nY3Ny\n-----END CERTIFICATE REQUEST-----\n",
 	}
 	reqParam := &models.CustomCertificateParam{
-		CertificateId: "certid",
-		CaName:        "ca",
-		AccountId:     "pid",
-		Region:        "us",
-		CaPoolName:    "pool",
-		CommonName:    "test-cn",
-		Domains:       []string{"*.test.com"},
+		CertificateID:    "certid",
+		CaName:           "ca",
+		CertOwningEntity: "pid",
+		Region:           "us",
+		CaPoolName:       "pool",
+		CommonName:       "test-cn",
+		Domains:          []string{"*.test.com"},
 	}
 
 	t.Run("success", func(tt *testing.T) {
@@ -2681,7 +2676,7 @@ func Test_generateAndCreateCertificateForVSACluster(t *testing.T) {
 
 		gService.On("GetLogger").Return(log.NewLogger())
 		gService.On("CreateCertificate", param).Return(param, nil)
-		gService.On("CreateSecret", param.AccountId, mock.Anything, mock.Anything, mock.Anything).Return(&models.CustomSecret{Name: "pid"}, nil)
+		gService.On("CreateSecret", param.CertOwningEntity, mock.Anything, mock.Anything, mock.Anything).Return(&models.CustomSecret{Name: "pid"}, nil)
 
 		certificate, secret, err := activities.GenerateAndCreateCertificateForVSACluster(gService, reqParam)
 
@@ -2724,7 +2719,7 @@ func Test_generateAndCreateCertificateForVSACluster(t *testing.T) {
 
 		gService.On("GetLogger").Return(log.NewLogger())
 		gService.On("CreateCertificate", param).Return(param, nil)
-		gService.On("CreateSecret", param.AccountId, mock.Anything, mock.Anything, secretValue).Return(nil, errors.New("secret error"))
+		gService.On("CreateSecret", param.CertOwningEntity, mock.Anything, mock.Anything, secretValue).Return(nil, errors.New("secret error"))
 		gService.On("RevokeCertificate", param).Return("", errors.New("revoke error"))
 		certificate, secret, err := activities.GenerateAndCreateCertificateForVSACluster(gService, reqParam)
 		assert.EqualError(t, err, "revoke error")
@@ -2745,8 +2740,8 @@ func Test_generateAndCreateCertificateForVSACluster(t *testing.T) {
 		}
 		gService.On("GetLogger").Return(log.NewLogger())
 		gService.On("CreateCertificate", param).Return(param, nil)
-		gService.On("CreateSecret", param.AccountId, mock.Anything, mock.Anything, secretValue).Return(nil, errors.New("secret error"))
-		gService.On("RevokeCertificate", param).Return(param.CertificateId, nil)
+		gService.On("CreateSecret", param.CertOwningEntity, mock.Anything, mock.Anything, secretValue).Return(nil, errors.New("secret error"))
+		gService.On("RevokeCertificate", param).Return(param.CertificateID, nil)
 		certificate, secret, err := activities.GenerateAndCreateCertificateForVSACluster(gService, reqParam)
 		assert.EqualError(t, err, "secret error")
 		assert.Nil(t, certificate)
@@ -2868,7 +2863,10 @@ func Test_GeneratePasswordForVSACluster(t *testing.T) {
 		mockGCPService := new(hyperscaler.MockGoogleServices)
 		mockGCPService.On("GetLogger").Return(log.NewLogger())
 		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("secret get error"))
-		mockGCPService.On("CreateSecret", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models.CustomSecret{}, nil)
+		mockGCPService.On("CreateSecret", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "secretID"}}, nil)
+		defer func() {
+			commonparams.RemoveFromCache("secretID")
+		}()
 
 		secret, err := activities.GeneratePasswordForVSACluster(mockGCPService, projectId, region, userName)
 
@@ -2896,7 +2894,7 @@ func TestPoolActivity_CreateSecret(t *testing.T) {
 			return &google.GcpServices{}, nil
 		}
 		activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectId, region, secretId string) (*models.CustomSecret, error) {
-			return &models.CustomSecret{}, nil
+			return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: secretID}}, nil
 		}
 		_, err := pa.CreateSecret(ctx, region, secretID)
 		assert.NoError(tt, err)
@@ -3232,6 +3230,7 @@ func Test_getPasswordFromCacheOrSecretManager(t *testing.T) {
 		getPasswordForVSACluster := activities.GetPasswordForVSACluster
 		defer func() {
 			activities.GetPasswordForVSACluster = getPasswordForVSACluster
+			commonparams.RemoveFromCache(secretID)
 		}()
 		activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, secretID string) (*models.CustomSecret, error) {
 			return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "cached-password"}}, nil
@@ -3241,10 +3240,10 @@ func Test_getPasswordFromCacheOrSecretManager(t *testing.T) {
 	})
 
 	t.Run("PasswordNotInCacheAndSecretManagerSucceeds", func(tt *testing.T) {
-		commonparams.RemoveFromCache(secretID)
 		getPasswordForVSACluster := activities.GetPasswordForVSACluster
 		defer func() {
 			activities.GetPasswordForVSACluster = getPasswordForVSACluster
+			commonparams.RemoveFromCache(secretID)
 		}()
 		activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, secretID string) (*models.CustomSecret, error) {
 			return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "secret-manager-password"}}, nil
@@ -3254,10 +3253,10 @@ func Test_getPasswordFromCacheOrSecretManager(t *testing.T) {
 	})
 
 	t.Run("PasswordNotInCacheAndSecretManagerFails", func(tt *testing.T) {
-		commonparams.RemoveFromCache(secretID)
 		getPasswordForVSACluster := activities.GetPasswordForVSACluster
 		defer func() {
 			activities.GetPasswordForVSACluster = getPasswordForVSACluster
+			commonparams.RemoveFromCache(secretID)
 		}()
 		activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, secretID string) (*models.CustomSecret, error) {
 			return nil, assert.AnError
@@ -3378,4 +3377,89 @@ func Test_IdentifyVMs_FailsToFindOptimalVMs(t *testing.T) {
 	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to find optimal VMs")
+}
+
+func Test_deleteVSAClusterPassword(t *testing.T) {
+	projectId := "test-project"
+	secretID := "test-secret"
+
+	t.Run("DeleteSecret called when GetSecretWithLatestVersion passes", func(t *testing.T) {
+		mockGCP := new(hyperscaler.MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		mockGCP.On("GetSecretWithLatestVersion", projectId, secretID).Return(nil, nil)
+		mockGCP.On("DeleteSecret", projectId, secretID).Return(nil)
+
+		err := activities.DeletePasswordFromCacheAndSecretManager(mockGCP, projectId, secretID)
+		assert.NoError(t, err)
+		mockGCP.AssertCalled(t, "DeleteSecret", projectId, secretID)
+	})
+
+	t.Run("DeleteSecret returns error", func(t *testing.T) {
+		mockGCP := new(hyperscaler.MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		mockGCP.On("DeleteSecret", mock.Anything, mock.Anything).Return(fmt.Errorf("delete error"))
+
+		err := activities.DeletePasswordFromCacheAndSecretManager(mockGCP, projectId, secretID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "delete error")
+	})
+
+	t.Run("Delete Secret fails if GetSecretWithLatestVersion fails", func(t *testing.T) {
+		mockGCP := new(hyperscaler.MockGoogleServices)
+		mockGCP.On("GetLogger").Return(log.NewLogger())
+		mockGCP.On("GetSecretWithLatestVersion", projectId, secretID).Return(&models.CustomSecret{}, fmt.Errorf("get secret error"))
+
+		err := activities.DeletePasswordFromCacheAndSecretManager(mockGCP, projectId, secretID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "get secret error")
+		mockGCP.AssertNotCalled(t, "DeleteSecret", projectId, secretID)
+	})
+}
+
+// Unit test for DeleteSecret in core/orchestrator/activities/pool_activities.go
+func TestPoolActivity_DeleteSecret(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	secretID := "test-secret"
+	mockStorage := database.NewMockStorage(t)
+	pa := &activities.PoolActivity{SE: mockStorage}
+
+	origGetGCPService := activities.GetGCPService
+	origDeleteVSAClusterPassword := activities.DeletePasswordFromCacheAndSecretManager
+	defer func() {
+		activities.GetGCPService = origGetGCPService
+		activities.DeletePasswordFromCacheAndSecretManager = origDeleteVSAClusterPassword
+	}()
+
+	t.Run("Success", func(tt *testing.T) {
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{Logger: log.NewLogger()}, nil
+		}
+		activities.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler.GoogleServices, projectId, secretID string) error {
+			return nil
+		}
+		err := pa.DeleteSecret(ctx, secretID)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("GetGCPService fails", func(tt *testing.T) {
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("gcp service error")
+		}
+		err := pa.DeleteSecret(ctx, secretID)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "gcp service error")
+	})
+
+	t.Run("DeletePasswordFromCacheAndSecretManager fails", func(tt *testing.T) {
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{Logger: log.NewLogger()}, nil
+		}
+		activities.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler.GoogleServices, projectId, secretID string) error {
+			return errors.New("delete secret error")
+		}
+		err := pa.DeleteSecret(ctx, secretID)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "delete secret error")
+	})
 }

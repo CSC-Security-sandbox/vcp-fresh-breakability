@@ -13,6 +13,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -273,10 +274,10 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeCloudProjectsService = _initializeCloudProjectsService
 	})
 	t.Run("initializePrivateCaServiceFails", func(t *testing.T) {
-		originalCertificateBasedAuthEnabled := certificateBasedAuthEnabled
-		certificateBasedAuthEnabled = true
+		originalCertificateBasedAuthEnabled := common.AuthType
+		common.AuthType = common.USER_CERTIFICATE
 		defer func() {
-			certificateBasedAuthEnabled = originalCertificateBasedAuthEnabled
+			common.AuthType = originalCertificateBasedAuthEnabled
 		}()
 		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
 			return &serviceconsumermanagement.APIService{

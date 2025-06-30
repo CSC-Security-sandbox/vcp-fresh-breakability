@@ -113,13 +113,6 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	rollbackManager.Add(poolActivity.ErroredPool, dbPool)
 	rollbackManager.Add(poolActivity.DeletePoolResourcesOnRollback, dbPool)
-	secret := &hyperscalermodels.CustomSecret{}
-	if secretManagerEnabled {
-		err = workflow.ExecuteActivity(ctx, poolActivity.CreateSecret, params.Region, pool.SecretID).Get(ctx, secret)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	tenancyDetails := &common.TenancyInfo{}
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateTenancy, params).Get(ctx, &tenancyDetails)
@@ -147,9 +140,21 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	rollbackManager.Add(poolActivity.DeleteAutoTierBucket, pool.AutoTierBucketName)
 
+	secret := &hyperscalermodels.CustomSecret{}
+	var vsaClusterPassword string
+	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
+		err = workflow.ExecuteActivity(ctx, poolActivity.CreateSecret, params.Region, pool.SecretID).Get(ctx, secret)
+		if err != nil {
+			return nil, err
+		}
+		vsaClusterPassword = secret.SecretVersion.Value
+		rollbackManager.Add(poolActivity.DeleteSecret, pool.SecretID)
+	} else {
+		vsaClusterPassword = pool.Password
+	}
+
 	clusterName := params.Name + "-" + params.AccountName
 	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
-
 	// Convert CustomPerformanceParams to CustomerRequestedPerformance.
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
 		DesiredIOPS:             params.CustomPerformanceParams.Iops,
@@ -159,13 +164,6 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// Find the optimal VMs based on the customer requested performance.
 	vlmConfig := &vlmconfig.VLMConfig{}
-
-	var vsaClusterPassword string
-	if secretManagerEnabled {
-		vsaClusterPassword = secret.SecretVersion.Value
-	} else {
-		vsaClusterPassword = pool.Password
-	}
 
 	poolWithClusterDetails := dbPool
 	poolWithClusterDetails.ClusterDetails = datamodel.ClusterDetails{
@@ -195,10 +193,10 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: pool.Username, Password: pool.Password})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: pool.Username, Password: pool.Password, SecretID: pool.SecretID})
 
 	node.Username = pool.Username
-	if secretManagerEnabled {
+	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
 		node.SecretID = pool.SecretID
 	} else {
 		node.Password = pool.Password
@@ -453,6 +451,13 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	err = workflow.ExecuteActivity(ctx, poolActivity.ReleaseSubnet, dbPool).Get(ctx, nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
+		err = workflow.ExecuteActivity(ctx, poolActivity.DeleteSecret, dbPool.SecretID).Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeletePoolResources, dbPool).Get(ctx, nil)

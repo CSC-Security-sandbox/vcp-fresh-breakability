@@ -112,7 +112,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, err
 	}
 
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: volume.Pool.Username, Password: volume.Pool.Password})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: volume.Pool.Username, Password: volume.Pool.Password, SecretID: volume.Pool.SecretID})
 
 	// Update the snapshot policy if it is provided in the params
 	if params.SnapshotPolicy != nil && params.SnapshotPolicy.Name != "" {

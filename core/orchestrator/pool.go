@@ -35,7 +35,6 @@ var (
 	ValidateCreatePoolParams     = _validateCreatePoolParams
 	ValidateUpdatePoolParams     = _validateUpdatePoolParams
 	deletePool                   = _deletePool
-	secretManagerEnabled         = env.GetBool("SECRET_MANAGER_ENABLED", false)
 	nodeUsername                 = env.GetString("VSA_NODE_USERNAME", "")
 	nodePassword                 = env.GetString("VSA_NODE_PASSWORD", "")
 	getInterClusterLifsFromONTAP = _getInterClusterLifsFromONTAP
@@ -80,7 +79,6 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 	}
 	saTimestamp := time.Now().Format("20060102150405")
 	serviceAccountID := fmt.Sprintf("vsa-sa-%s", saTimestamp)
-
 	poolObj := &datamodel.Pool{
 		Name:                    params.Name,
 		Account:                 account,
@@ -106,8 +104,9 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		},
 	}
 
-	if secretManagerEnabled {
+	if commonparams.AuthType == commonparams.USERNAME_PWD_SEC_MGR {
 		poolObj.SecretID = utils.RandomUUID()
+		poolObj.Password = ""
 	} else {
 		poolObj.Password = nodePassword
 		poolObj.SecretID = ""
@@ -479,7 +478,7 @@ func prepareNodeForProvider(nodes *datamodel.Node, pools *datamodel.PoolView) *m
 		Zone:            nodes.ZoneName,
 		InstanceType:    nodes.NodeAttributes.InstanceType,
 	}
-	if secretManagerEnabled {
+	if commonparams.AuthType == commonparams.USERNAME_PWD_SEC_MGR {
 		node.SecretID = pools.SecretID
 	} else {
 		node.Password = pools.Password

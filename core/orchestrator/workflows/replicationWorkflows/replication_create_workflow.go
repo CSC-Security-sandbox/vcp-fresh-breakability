@@ -130,7 +130,7 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		return nil, err
 	}
 
-	srcNode := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: replicationResult.Event.SourcePool.Username, Password: replicationResult.Event.SourcePool.Password})
+	srcNode := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: replicationResult.Event.SourcePool.Username, Password: replicationResult.Event.SourcePool.Password, SecretID: replicationResult.Event.SourcePool.SecretID})
 
 	replicationResult.SrcNode = srcNode
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSourceInterclusterLifs, &replicationResult).Get(ctx, &replicationResult)

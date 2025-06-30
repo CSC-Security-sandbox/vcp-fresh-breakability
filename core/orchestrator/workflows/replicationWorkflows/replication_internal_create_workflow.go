@@ -93,7 +93,7 @@ func (wf *internalVolumeReplicationCreateWorkflow) Run(ctx workflow.Context, arg
 		return nil, err
 	}
 
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: replication.Volume.Pool.Username, Password: replication.Volume.Pool.Password})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: replication.Volume.Pool.Username, Password: replication.Volume.Pool.Password, SecretID: replication.Volume.Pool.SecretID})
 
 	var replicationCreateResponse *vsa.VolumeReplication
 	volumeExternalUUID := replication.Volume.VolumeAttributes.ExternalUUID

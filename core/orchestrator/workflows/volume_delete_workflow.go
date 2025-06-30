@@ -107,7 +107,7 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, err
 	}
 
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: volume.Pool.Username, Password: volume.Pool.Password})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: volume.Pool.Username, Password: volume.Pool.Password, SecretID: volume.Pool.SecretID})
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolumeInONTAP, volume.VolumeAttributes.ExternalUUID, volume.Name, node).Get(ctx, nil)
 	if err != nil {
 		return nil, err

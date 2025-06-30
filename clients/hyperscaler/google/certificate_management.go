@@ -19,12 +19,12 @@ var (
 	validateAndConvertPrivateCACertificateToCustomCertificate = _validateAndConvertPrivateCACertificateToCustomCertificate
 )
 
-// CreateCertificate creates a new certificate in the specified CA.
+// CreateCertificate creates a new certificate in the specified CA. Reference: https://cloud.google.com/certificate-authority-service/docs/reference/rest/v1/projects.locations.caPools.certificates/create
 func (gcpService *GcpServices) CreateCertificate(cert *models.CustomCertificate) (*models.CustomCertificate, error) {
-	gcpService.Logger.Debug(fmt.Sprintf("Calling CreateCertificate for project name : %s, region : %s, pool : %s, certificate id : %s", cert.AccountId, cert.Region, cert.CaGroupName, cert.CertificateId))
+	gcpService.Logger.Debug(fmt.Sprintf("Calling CreateCertificate for project name : %s, region : %s, pool : %s, certificate id : %s", cert.CertOwningEntity, cert.Region, cert.CaGroupName, cert.CertificateID))
 
-	caResourceName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s/certificateAuthorities/%s", cert.AccountId, cert.Region, cert.CaGroupName, cert.CaName)
-	parent := fmt.Sprintf("projects/%s/locations/%s/caPools/%s", cert.AccountId, cert.Region, cert.CaGroupName)
+	caResourceName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s/certificateAuthorities/%s", cert.CertOwningEntity, cert.Region, cert.CaGroupName, cert.CaName)
+	parent := fmt.Sprintf("projects/%s/locations/%s/caPools/%s", cert.CertOwningEntity, cert.Region, cert.CaGroupName)
 
 	certificate := &privateca.Certificate{
 		PemCsr:                     cert.PemCsr,
@@ -33,24 +33,24 @@ func (gcpService *GcpServices) CreateCertificate(cert *models.CustomCertificate)
 		CreateTime:                 time.Now().UTC().Format(time.RFC3339),
 	}
 
-	certificate, err := gcpService.AdminGCPService.privateCaService.Projects.Locations.CaPools.Certificates.Create(parent, certificate).CertificateId(cert.CertificateId).Context(gcpService.Ctx).Do()
+	certificate, err := gcpService.AdminGCPService.privateCaService.Projects.Locations.CaPools.Certificates.Create(parent, certificate).CertificateId(cert.CertificateID).Context(gcpService.Ctx).Do()
 	if err != nil {
 		gcpService.Logger.Errorf("Failed to create certificate: %v", err)
 		return nil, err
 	}
 
-	customCertificate, err := validateAndConvertPrivateCACertificateToCustomCertificate(cert.CertificateId, certificate)
+	customCertificate, err := validateAndConvertPrivateCACertificateToCustomCertificate(cert.CertificateID, certificate)
 	if err != nil {
 		return nil, err
 	}
 	return customCertificate, nil
 }
 
-// RevokeCertificate revokes a certificate in the specified CA.
+// RevokeCertificate revokes a certificate in the specified CA. Reference: https://cloud.google.com/certificate-authority-service/docs/reference/rest/v1/projects.locations.caPools.certificates/revoke
 func (gcpService *GcpServices) RevokeCertificate(cert *models.CustomCertificate) (string, error) {
-	gcpService.Logger.Debug(fmt.Sprintf("Calling CreateCertificate for project name : %s, region : %s, pool : %s, certificate id : %s", cert.AccountId, cert.Region, cert.CaGroupName, cert.CertificateId))
+	gcpService.Logger.Debug(fmt.Sprintf("Calling CreateCertificate for project name : %s, region : %s, pool : %s, certificate id : %s", cert.CertOwningEntity, cert.Region, cert.CaGroupName, cert.CertificateID))
 
-	resourceName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s/certificates/%s", cert.AccountId, cert.Region, cert.CaGroupName, cert.CertificateId)
+	resourceName := fmt.Sprintf("projects/%s/locations/%s/caPools/%s/certificates/%s", cert.CertOwningEntity, cert.Region, cert.CaGroupName, cert.CertificateID)
 	revokeCertificateRequest := &privateca.RevokeCertificateRequest{
 		Reason: PrivilegeWithdrawn,
 	}
@@ -64,7 +64,7 @@ func (gcpService *GcpServices) RevokeCertificate(cert *models.CustomCertificate)
 	return resourceName, nil
 }
 
-// GetCertificate retrieves a certificate in the specified CA.
+// GetCertificate retrieves a certificate in the specified CA. Reference: https://cloud.google.com/certificate-authority-service/docs/reference/rest/v1/projects.locations.caPools.certificates/get
 func (gcpService *GcpServices) GetCertificate(projectID, region, poolName, certificateID string) (*models.CustomCertificate, error) {
 	gcpService.Logger.Debug(fmt.Sprintf("Calling GetCertificate for project name : %s, region : %s, pool : %s, certificate id : %s", projectID, region, poolName, certificateID))
 

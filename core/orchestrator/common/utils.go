@@ -19,6 +19,7 @@ type NodeProviderInput struct {
 	Nodes    []*datamodel.Node
 	Username string
 	Password string
+	SecretID string
 }
 
 // CreateNodeForProvider creates a node for a given provider using the provided information.
@@ -34,6 +35,7 @@ func _createNodeForProvider(inp NodeProviderInput) *models.Node {
 		EndpointAddresses: ipAddrs,
 		Username:          inp.Username,
 		Password:          inp.Password,
+		SecretID:          inp.SecretID,
 	}
 	return node
 }

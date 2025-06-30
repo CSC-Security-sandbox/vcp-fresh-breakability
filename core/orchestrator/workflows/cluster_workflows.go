@@ -82,7 +82,7 @@ func (wf *clusterPeerWorkflow) Run(ctx workflow.Context, args ...interface{}) (i
 		return nil, err
 	}
 
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: pool.Username, Password: pool.Password})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: pool.Username, Password: pool.Password, SecretID: pool.SecretID})
 
 	clusterPeer := &common.ClusterPeerParams{}
 	err = workflow.ExecuteActivity(ctx, clusterPeerActivity.AcceptClusterPeer, params, node).Get(ctx, &clusterPeer)

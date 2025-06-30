@@ -126,11 +126,11 @@ func Test_CreateCertificate(t *testing.T) {
 			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
 		}
 		certificate := &hyperscaler.CustomCertificate{
-			CaName:      caName,
-			CaGroupName: pooID,
-			Region:      region,
-			AccountId:   projectId,
-			PemCsr:      "pem-csr",
+			CaName:           caName,
+			CaGroupName:      pooID,
+			Region:           region,
+			CertOwningEntity: projectId,
+			PemCsr:           "pem-csr",
 		}
 		cert, err := gService.CreateCertificate(certificate)
 		if err == nil {
@@ -142,11 +142,10 @@ func Test_CreateCertificate(t *testing.T) {
 	t.Run("WhenCreateCertificateSuccess", func(tt *testing.T) {
 		defer testReset(tt)
 		ctx := context.Background()
-		errString := fmt.Errorf("CreateCertificate failed for certificate : %s", certID)
 		url := fmt.Sprintf("/v1/projects/%s/locations/%s/caPools/%s/certificates", projectId, region, pooID)
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			if req.URL.Path == url && req.Method == http.MethodPost {
-				response, _ := json.Marshal(&privateca.Operation{Name: certID, Error: &privateca.Status{Message: errString.Error(), Code: 505}})
+				response, _ := json.Marshal(&privateca.Operation{Name: certID, Error: nil})
 				_, _ = rw.Write(response)
 				return
 			}
@@ -167,12 +166,12 @@ func Test_CreateCertificate(t *testing.T) {
 			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
 		}
 		certificate := &hyperscaler.CustomCertificate{
-			CaName:        caName,
-			CaGroupName:   pooID,
-			Region:        region,
-			AccountId:     projectId,
-			CertificateId: certID,
-			PemCsr:        "pem-csr",
+			CaName:           caName,
+			CaGroupName:      pooID,
+			Region:           region,
+			CertOwningEntity: projectId,
+			CertificateID:    certID,
+			PemCsr:           "pem-csr",
 		}
 
 		cert, err := gService.CreateCertificate(certificate)
@@ -218,10 +217,10 @@ func Test_RevokeCertificate(t *testing.T) {
 			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
 		}
 		certificate := &hyperscaler.CustomCertificate{
-			CaGroupName:   pooID,
-			Region:        region,
-			AccountId:     projectId,
-			CertificateId: certID,
+			CaGroupName:      pooID,
+			Region:           region,
+			CertOwningEntity: projectId,
+			CertificateID:    certID,
 		}
 		cert, err := gService.RevokeCertificate(certificate)
 		if err == nil {
@@ -260,10 +259,10 @@ func Test_RevokeCertificate(t *testing.T) {
 		}
 
 		certificate := &hyperscaler.CustomCertificate{
-			CaGroupName:   pooID,
-			Region:        region,
-			AccountId:     projectId,
-			CertificateId: certID,
+			CaGroupName:      pooID,
+			Region:           region,
+			CertOwningEntity: projectId,
+			CertificateID:    certID,
 		}
 		cert, err := gService.RevokeCertificate(certificate)
 		if err != nil {

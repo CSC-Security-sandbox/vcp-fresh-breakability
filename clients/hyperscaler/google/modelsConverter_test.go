@@ -349,7 +349,7 @@ func Test_convertPrivateCACertificateToCustomCertificate(t *testing.T) {
 		expectedCreateTime, _ := time.Parse(time.RFC3339, createTime)
 		expectedLifetime, _ := time.Parse(time.RFC3339, lifetime)
 		expected := &models.CustomCertificate{
-			CertificateId:              "cert-id",
+			CertificateID:              "cert-id",
 			Name:                       "test-cert",
 			PemCertificate:             "pem-data",
 			CreateTime:                 timestamppb.New(expectedCreateTime),
@@ -446,11 +446,11 @@ func Test_convertSecretVersionToCustomSecretVersion(t *testing.T) {
 func Test__convertCertificateParamsToCustomCertificate(t *testing.T) {
 	t.Run("PositiveCase", func(tt *testing.T) {
 		param := &models.CustomCertificateParam{
-			CertificateId: "cert-id",
-			CaName:        "ca-name",
-			AccountId:     "account-id",
-			Region:        "region",
-			CaPoolName:    "ca-pool-name",
+			CertificateID:    "cert-id",
+			CaName:           "ca-name",
+			CertOwningEntity: "account-id",
+			Region:           "region",
+			CaPoolName:       "ca-pool-name",
 		}
 		pemBlock := pem.Block{
 			Type:  "CERTIFICATE REQUEST",

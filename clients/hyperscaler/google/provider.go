@@ -9,6 +9,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	logger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -36,8 +37,6 @@ var (
 	serviceConsumerManagementEndpoint = env.GetString("GCP_CONSUMER_MGMT_ENDPOINT_URL", "")
 	// MockMetaDataHost is the endpoint for the metadata server.
 	MockMetaDataHost = env.GetString("GCE_METADATA_HOST", "")
-
-	certificateBasedAuthEnabled = env.GetBool("CERTIFICATE_BASED_AUTH_ENABLED", false)
 
 	newClient = _newClient
 
@@ -153,7 +152,7 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 	}
 
 	var privateCaService *privateca.Service
-	if certificateBasedAuthEnabled {
+	if common.AuthType == common.USER_CERTIFICATE {
 		log.Debug("Calling initializePrivateCaService")
 		privateCaService, err = initializePrivateCaService(ctx)
 		if err != nil {
@@ -178,7 +177,7 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		secretManagerService: secretManagerService,
 		cloudProjectsService: cloudProjectService,
 	}
-	if certificateBasedAuthEnabled {
+	if common.AuthType == common.USER_CERTIFICATE {
 		gServices.privateCaService = privateCaService
 	}
 	return &gServices, nil
