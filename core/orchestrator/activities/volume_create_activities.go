@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
@@ -320,6 +321,50 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 		return err
 	}
 
+	return nil
+}
+
+func (a *VolumeCreateActivity) CreateBackupPolicyWhenVolumeAttachedInVCP(ctx context.Context, volume *datamodel.Volume, region string) error {
+	se := a.SE
+
+	backupPolicyId := volume.DataProtection.BackupPolicyID
+	backupPolicy, err := se.GetBackupPolicyByUUIDAndOwnerID(ctx, backupPolicyId, volume.AccountID)
+	if err != nil {
+		if !errors.IsNotFoundErr(err) {
+			return err
+		}
+	}
+	if backupPolicy != nil {
+		return nil
+	}
+
+	logger := util.GetLogger(ctx)
+	GetSignedJwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := CvpCreateClient(logger, GetSignedJwtToken)
+	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
+	cvpBackupPolicy, err := cvpClient.BackupPolicy.V1betaDescribeBackupPolicy(&backup_policy.V1betaDescribeBackupPolicyParams{
+		BackupPolicyID: backupPolicyId,
+		LocationID:     region,
+		ProjectNumber:  volume.Account.Name,
+		XCorrelationID: &xCorrelationID,
+	})
+	if err != nil {
+		logger.Errorf("Error checking backup policy : %v", err)
+		return err
+	}
+	if cvpBackupPolicy == nil || cvpBackupPolicy.Payload == nil {
+		logger.Error("No backup policy found in SDE")
+		return errors.NewNotFoundErr("Backup policy", &backupPolicyId)
+	}
+
+	backupPolicyParams := convertToBackupPolicyDataModel(cvpBackupPolicy.Payload)
+
+	// Backup policy is not found in VCP and attached to a volume
+	backupPolicyParams.AccountID = volume.AccountID
+	_, err = se.CreateBackupPolicyEntryInVCP(ctx, backupPolicyParams)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

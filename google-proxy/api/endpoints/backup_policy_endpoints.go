@@ -2,52 +2,61 @@ package api
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"time"
 )
 
 func (h Handler) V1betaCreateBackupPolicy(ctx context.Context, req *gcpgenserver.BackupPolicyCreateV1beta, params gcpgenserver.V1betaCreateBackupPolicyParams) (gcpgenserver.V1betaCreateBackupPolicyRes, error) {
 	logger := util.GetLogger(ctx)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaCreateBackupPolicyBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	// Check if the Backup policy already exists in VCP
+	existingBackupPolicy, err := h.Orchestrator.GetBackupPolicyByNameAndOwnerID(ctx, req.ResourceId, params.ProjectNumber)
+	if err == nil && existingBackupPolicy != nil {
+		logger.Infof("backup policy with name: %s already exists ", req.ResourceId)
+		backupPolicyJSON, err := json.Marshal(existingBackupPolicy)
+		if err != nil {
+			logger.Errorf("Failed to marshal backup policy: %v", err)
+			return &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{
+				Code:    500,
+				Message: "Failed to marshal backup policy",
+			}, err
+		}
+
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.OptString{Value: "operation-id"},
+			Done:     gcpgenserver.NewOptBool(true),
+			Response: backupPolicyJSON,
+		}, nil
+	} else if err != nil && !errors.IsNotFoundErr(err) {
+		logger.Errorf("Failed to check existing backup policy : %v", err)
+		return &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{
+			Code:    500,
+			Message: "Failed to check existing backup policy",
+		}, err
+	}
+
+	// Call SDE to create backup policy
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
-
-	resourceNameV1beta := models.ResourceNameV1beta{
-		ResourceID: &req.ResourceId,
-	}
-	descriptionV1beta := models.DescriptionV1beta{
-		Description: &req.Description.Value,
-	}
-	enabled := req.Enabled.Value
-	dailyBackupLimit := int64(req.DailyBackupLimit.Value)
-	monthlyBackupLimit := int64(req.MonthlyBackupLimit.Value)
-	weeklyBackupLimit := int64(req.WeeklyBackupLimit.Value)
-
-	backupPolicyScheduleV1beta := models.BackupPolicyScheduleV1beta{
-		DailyBackupLimit:   &dailyBackupLimit,
-		MonthlyBackupLimit: &monthlyBackupLimit,
-		WeeklyBackupLimit:  &weeklyBackupLimit,
-	}
-	body := &models.BackupPolicyCreateV1beta{
-		ResourceNameV1beta:         resourceNameV1beta,
-		DescriptionV1beta:          descriptionV1beta,
-		BackupPolicyScheduleV1beta: backupPolicyScheduleV1beta,
-		Enabled:                    &enabled,
-	}
-	createBackupPolicyParams := &backup_policy.V1betaCreateBackupPolicyParams{
-		LocationID:     params.LocationId,
-		ProjectNumber:  params.ProjectNumber,
-		XCorrelationID: &params.XCorrelationID.Value,
-		Body:           body,
-	}
-	res, err := cvpClient.BackupPolicy.V1betaCreateBackupPolicy(createBackupPolicyParams)
+	backupPolicyParams := createBackupPolicyParams(req, params)
+	res, err := cvpClient.BackupPolicy.V1betaCreateBackupPolicy(backupPolicyParams)
 	if err != nil {
 		switch e := err.(type) {
 		case *backup_policy.V1betaCreateBackupPolicyConflict:
@@ -93,7 +102,19 @@ func (h Handler) V1betaCreateBackupPolicy(ctx context.Context, req *gcpgenserver
 			Message: "unknown error during the create backup policy",
 		}, nil
 	}
-	return convertToOperationV1betaBackupPolicy(res.Payload), nil
+	backupPolicyJSON, err := json.Marshal(res.Payload.Response)
+	if err != nil {
+		logger.Errorf("Failed to marshal backup policy: %s", err.Error())
+		return &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{
+			Code:    500,
+			Message: fmt.Sprintf("Failed to marshal backup policy: %s", err.Error()),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(res.Payload.Name),
+		Response: backupPolicyJSON,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
 }
 
 func (h Handler) V1betaDeleteBackupPolicy(ctx context.Context, params gcpgenserver.V1betaDeleteBackupPolicyParams) (gcpgenserver.V1betaDeleteBackupPolicyRes, error) {
@@ -430,6 +451,51 @@ func (h Handler) V1betaUpdateBackupPolicy(ctx context.Context, req *gcpgenserver
 		}, nil
 	}
 	return convertToOperationV1betaBackupPolicy(res.Payload), nil
+}
+
+func createBackupPolicyParams(req *gcpgenserver.BackupPolicyCreateV1beta, params gcpgenserver.V1betaCreateBackupPolicyParams) *backup_policy.V1betaCreateBackupPolicyParams {
+	resourceId := req.ResourceId
+	var description string
+	if req.Description.IsSet() {
+		description = req.Description.Value
+	}
+	var dailyBackupLimit, monthlyBackupLimit, weeklyBackupLimit int64
+	if req.DailyBackupLimit.IsSet() {
+		dailyBackupLimit = int64(req.DailyBackupLimit.Value)
+	}
+	if req.WeeklyBackupLimit.IsSet() {
+		weeklyBackupLimit = int64(req.WeeklyBackupLimit.Value)
+	}
+	if req.MonthlyBackupLimit.IsSet() {
+		monthlyBackupLimit = int64(req.MonthlyBackupLimit.Value)
+	}
+	var enabled bool
+	if req.Enabled.IsSet() {
+		enabled = req.Enabled.Value
+	}
+	var correlationID string
+	if params.XCorrelationID.IsSet() {
+		correlationID = params.XCorrelationID.Value
+	}
+	return &backup_policy.V1betaCreateBackupPolicyParams{
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: &correlationID,
+		Body: &models.BackupPolicyCreateV1beta{
+			ResourceNameV1beta: models.ResourceNameV1beta{
+				ResourceID: &resourceId,
+			},
+			DescriptionV1beta: models.DescriptionV1beta{
+				Description: &description,
+			},
+			BackupPolicyScheduleV1beta: models.BackupPolicyScheduleV1beta{
+				DailyBackupLimit:   &dailyBackupLimit,
+				WeeklyBackupLimit:  &weeklyBackupLimit,
+				MonthlyBackupLimit: &monthlyBackupLimit,
+			},
+			Enabled: &enabled,
+		},
+	}
 }
 
 func convertToOperationV1betaBackupPolicy(res *models.OperationV1beta) *gcpgenserver.OperationV1beta {

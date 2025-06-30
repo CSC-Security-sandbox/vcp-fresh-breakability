@@ -1815,6 +1815,66 @@ func (re *retryEngine) GetBackupVault(ctx context.Context, backupVaultId string)
 	return var0, err
 }
 
+func (re *retryEngine) GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, backupPolicyUUID string, accountID int64) (*datamodel.BackupPolicy, error) {
+	var var0 *datamodel.BackupPolicy
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupPolicyByUUIDAndOwnerID(ctx, backupPolicyUUID, accountID)
+		if err != nil {
+			re.logError("GetBackupPolicyByUUIDAndOwnerID", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetBackupPolicyByNameAndOwnerID(ctx context.Context, backupPolicyName string, accountID int64) (*datamodel.BackupPolicy, error) {
+	var var0 *datamodel.BackupPolicy
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupPolicyByNameAndOwnerID(ctx, backupPolicyName, accountID)
+		if err != nil {
+			re.logError("GetBackupPolicyByNameAndOwnerID", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
+	var var0 *datamodel.BackupPolicy
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
+		if err != nil {
+			re.logError("CreateBackupPolicyEntryInVCP", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
 	var var0 *datamodel.Backup
 	err := retry.Do(func(attempt int) (bool, error) {

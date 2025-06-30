@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"net/url"
 	"strconv"
 	"sync"
@@ -22,6 +21,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
@@ -100,6 +100,7 @@ func SetupInMemoryDB() (*gorm.DB, error) {
 		&datamodel.BackupVault{},
 		&datamodel.AdminJobSpec{},
 		&datamodel.Backup{},
+		&datamodel.BackupPolicy{},
 	)
 	if err != nil {
 		return nil, err
@@ -125,6 +126,7 @@ func ClearInMemoryDB(db *gorm.DB) error {
 		&datamodel.BackupVault{},
 		&datamodel.AdminJobSpec{},
 		&datamodel.Backup{},
+		&datamodel.BackupPolicy{},
 	}
 
 	for _, table := range tables {
@@ -784,4 +786,16 @@ func (s *PersistenceStore) GetAllVolumesForHG(ctx context.Context, hostGroupUUID
 
 func (s *PersistenceStore) UpdateHostGroup(ctx context.Context, hostGroupUUID string, accountID int64, description *string, Hosts *[]string) (*datamodel.HostGroup, error) {
 	return s.dataStore.UpdateHostGroup(ctx, hostGroupUUID, accountID, description, Hosts)
+}
+
+func (s *PersistenceStore) GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, backupPolicyUUID string, accountID int64) (*datamodel.BackupPolicy, error) {
+	return s.dataStore.GetBackupPolicyByUUIDAndOwnerID(ctx, backupPolicyUUID, accountID)
+}
+
+func (s *PersistenceStore) GetBackupPolicyByNameAndOwnerID(ctx context.Context, backupPolicyName string, accountID int64) (*datamodel.BackupPolicy, error) {
+	return s.dataStore.GetBackupPolicyByNameAndOwnerID(ctx, backupPolicyName, accountID)
+}
+
+func (s *PersistenceStore) CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
+	return s.dataStore.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
 }

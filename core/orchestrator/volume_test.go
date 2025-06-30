@@ -649,7 +649,6 @@ func TestCreateVolume(t *testing.T) {
 				BackupVaultID:          "test-backup-vault-id",
 				BackupPolicyId:         "test-backup-policy-id",
 				BackupChainBytes:       &[]int64{1000}[0],
-				PolicyEnforced:         &[]bool{true}[0],
 			},
 			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
@@ -789,7 +788,6 @@ func TestCreateVolume(t *testing.T) {
 				BackupVaultID:          "test-backup-vault-id",
 				BackupPolicyId:         "test-backup-policy-id",
 				BackupChainBytes:       &[]int64{1000}[0],
-				PolicyEnforced:         &[]bool{true}[0],
 			},
 		}
 
@@ -1750,7 +1748,6 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 				BackupVaultID:          "test-backup-vault-id",
 				BackupPolicyId:         "test-backup-policy-id",
 				BackupChainBytes:       &[]int64{1000}[0],
-				PolicyEnforced:         &[]bool{true}[0],
 			},
 		}
 
@@ -2797,6 +2794,181 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BlockProperties: &common.BlockPropertiesRequest{
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"test-volume-uuid2"},
+			},
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.Nil(tt, err)
+	})
+}
+
+func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		tt.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	// Clear the in-memory database
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		tt.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		tt.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test_pool",
+		AccountID: account.ID,
+		State:     models.LifeCycleStateREADY,
+	}
+
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		tt.Fatalf("Failed to create account: %v", err)
+	}
+
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:      "test_pool",
+		AccountID: account.ID,
+		PoolID:    pool.ID,
+		State:     models.LifeCycleStateREADY,
+	}
+
+	err = store.DB().Create(svm).Error
+	if err != nil {
+		tt.Fatalf("Failed to create svm: %v", err)
+	}
+
+	node1 := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+		Name:            "test_node1",
+		AccountID:       account.ID,
+		EndpointAddress: "12.12.12.12",
+		PoolID:          pool.ID,
+		State:           models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node1).Error
+	assert.NoError(tt, err, "Failed to create node")
+
+	node2 := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+		Name:            "test_node2",
+		AccountID:       account.ID,
+		EndpointAddress: "12.12.12.12",
+		PoolID:          pool.ID,
+		State:           models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(node2).Error
+	assert.NoError(tt, err, "Failed to create node")
+
+	lif := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+		Name:      "name",
+		AccountID: account.ID,
+		IPAddress: "1.1.1.1",
+		NodeID:    node1.ID,
+	}
+	err = store.DB().Create(lif).Error
+	assert.NoError(tt, err, "Failed to create node")
+
+	lif2 := &datamodel.Lif{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+		Name:      "test_node",
+		AccountID: account.ID,
+		IPAddress: "1.1.1.1",
+		NodeID:    node2.ID,
+	}
+	err = store.DB().Create(lif2).Error
+	assert.NoError(tt, err, "Failed to create node")
+
+	hg := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+		Name:      "testhg",
+		AccountID: account.ID,
+		State:     models.LifeCycleStateREADY,
+	}
+	err = store.DB().Create(hg).Error
+	assert.NoError(tt, err, "Failed to create node")
+
+	tt.Run("WhenBackupPolicySetWithoutBackupVaultID", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			DataProtection: &models.DataProtection{
+				BackupPolicyId: "test-policy",
+			},
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "backup vault id is required to assign a backup policy to a volume")
+	})
+	tt.Run("WhenBackupPolicySetWithoutScheduledBackupEnable", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			DataProtection: &models.DataProtection{
+				BackupPolicyId: "test-policy",
+				BackupVaultID:  "test-vault",
+			},
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "scheduled backups needs to be enabled/disabled when a backup policy is assigned to a volume")
+	})
+	tt.Run("WhenBackupPolicySetOnDataProtectedVolume", func(tt *testing.T) {
+		scheduledBackupEnable := true
+		params := &common.CreateVolumeParams{
+			Name:             "dummy-name",
+			PoolID:           pool.UUID,
+			QuotaInBytes:     minQuotaInBytesVolume + 1,
+			IsDataProtection: true,
+			DataProtection: &models.DataProtection{
+				BackupPolicyId:         "test-policy",
+				BackupVaultID:          "test-vault",
+				ScheduledBackupEnabled: &scheduledBackupEnable,
+			},
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "scheduled backups are not supported for cross region replication, only manual backups with existing snapshots are supported")
+	})
+	tt.Run("WhenBackupPolicyNotSetWithScheduledBackupNil", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			DataProtection: &models.DataProtection{
+				BackupVaultID: "test-vault",
+			},
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		assert.Nil(tt, err)
+	})
+	tt.Run("WhenBackupPolicySetWithScheduledBackupEnabled", func(tt *testing.T) {
+		scheduledBackupEnable := true
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			DataProtection: &models.DataProtection{
+				BackupPolicyId:         "test-policy",
+				BackupVaultID:          "test-vault",
+				ScheduledBackupEnabled: &scheduledBackupEnable,
 			},
 		}
 

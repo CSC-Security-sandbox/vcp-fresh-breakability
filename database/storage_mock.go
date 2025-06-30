@@ -353,6 +353,65 @@ func (_c *MockStorage_CreateBackup_Call) RunAndReturn(run func(context.Context, 
 	return _c
 }
 
+// CreateBackupPolicyEntryInVCP provides a mock function with given fields: ctx, backupPolicy
+func (_m *MockStorage) CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
+	ret := _m.Called(ctx, backupPolicy)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateBackupPolicyEntryInVCP")
+	}
+
+	var r0 *datamodel.BackupPolicy
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error)); ok {
+		return rf(ctx, backupPolicy)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupPolicy) *datamodel.BackupPolicy); ok {
+		r0 = rf(ctx, backupPolicy)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupPolicy)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.BackupPolicy) error); ok {
+		r1 = rf(ctx, backupPolicy)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_CreateBackupPolicyEntryInVCP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBackupPolicyEntryInVCP'
+type MockStorage_CreateBackupPolicyEntryInVCP_Call struct {
+	*mock.Call
+}
+
+// CreateBackupPolicyEntryInVCP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupPolicy *datamodel.BackupPolicy
+func (_e *MockStorage_Expecter) CreateBackupPolicyEntryInVCP(ctx interface{}, backupPolicy interface{}) *MockStorage_CreateBackupPolicyEntryInVCP_Call {
+	return &MockStorage_CreateBackupPolicyEntryInVCP_Call{Call: _e.mock.On("CreateBackupPolicyEntryInVCP", ctx, backupPolicy)}
+}
+
+func (_c *MockStorage_CreateBackupPolicyEntryInVCP_Call) Run(run func(ctx context.Context, backupPolicy *datamodel.BackupPolicy)) *MockStorage_CreateBackupPolicyEntryInVCP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.BackupPolicy))
+	})
+	return _c
+}
+
+func (_c *MockStorage_CreateBackupPolicyEntryInVCP_Call) Return(_a0 *datamodel.BackupPolicy, _a1 error) *MockStorage_CreateBackupPolicyEntryInVCP_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_CreateBackupPolicyEntryInVCP_Call) RunAndReturn(run func(context.Context, *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error)) *MockStorage_CreateBackupPolicyEntryInVCP_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateBackupVault provides a mock function with given fields: ctx, vault, vcpVault
 func (_m *MockStorage) CreateBackupVault(ctx context.Context, vault *datamodel.BackupVault, vcpVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	ret := _m.Called(ctx, vault, vcpVault)
@@ -2370,6 +2429,126 @@ func (_c *MockStorage_GetBackup_Call) Return(_a0 *datamodel.Backup, _a1 error) *
 }
 
 func (_c *MockStorage_GetBackup_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Backup, error)) *MockStorage_GetBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBackupPolicyByNameAndOwnerID provides a mock function with given fields: ctx, backupPolicyName, accountID
+func (_m *MockStorage) GetBackupPolicyByNameAndOwnerID(ctx context.Context, backupPolicyName string, accountID int64) (*datamodel.BackupPolicy, error) {
+	ret := _m.Called(ctx, backupPolicyName, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupPolicyByNameAndOwnerID")
+	}
+
+	var r0 *datamodel.BackupPolicy
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.BackupPolicy, error)); ok {
+		return rf(ctx, backupPolicyName, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.BackupPolicy); ok {
+		r0 = rf(ctx, backupPolicyName, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupPolicy)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, backupPolicyName, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetBackupPolicyByNameAndOwnerID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupPolicyByNameAndOwnerID'
+type MockStorage_GetBackupPolicyByNameAndOwnerID_Call struct {
+	*mock.Call
+}
+
+// GetBackupPolicyByNameAndOwnerID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupPolicyName string
+//   - accountID int64
+func (_e *MockStorage_Expecter) GetBackupPolicyByNameAndOwnerID(ctx interface{}, backupPolicyName interface{}, accountID interface{}) *MockStorage_GetBackupPolicyByNameAndOwnerID_Call {
+	return &MockStorage_GetBackupPolicyByNameAndOwnerID_Call{Call: _e.mock.On("GetBackupPolicyByNameAndOwnerID", ctx, backupPolicyName, accountID)}
+}
+
+func (_c *MockStorage_GetBackupPolicyByNameAndOwnerID_Call) Run(run func(ctx context.Context, backupPolicyName string, accountID int64)) *MockStorage_GetBackupPolicyByNameAndOwnerID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetBackupPolicyByNameAndOwnerID_Call) Return(_a0 *datamodel.BackupPolicy, _a1 error) *MockStorage_GetBackupPolicyByNameAndOwnerID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetBackupPolicyByNameAndOwnerID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.BackupPolicy, error)) *MockStorage_GetBackupPolicyByNameAndOwnerID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBackupPolicyByUUIDAndOwnerID provides a mock function with given fields: ctx, backupPolicyUUID, accountID
+func (_m *MockStorage) GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, backupPolicyUUID string, accountID int64) (*datamodel.BackupPolicy, error) {
+	ret := _m.Called(ctx, backupPolicyUUID, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupPolicyByUUIDAndOwnerID")
+	}
+
+	var r0 *datamodel.BackupPolicy
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.BackupPolicy, error)); ok {
+		return rf(ctx, backupPolicyUUID, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.BackupPolicy); ok {
+		r0 = rf(ctx, backupPolicyUUID, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupPolicy)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, backupPolicyUUID, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetBackupPolicyByUUIDAndOwnerID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupPolicyByUUIDAndOwnerID'
+type MockStorage_GetBackupPolicyByUUIDAndOwnerID_Call struct {
+	*mock.Call
+}
+
+// GetBackupPolicyByUUIDAndOwnerID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupPolicyUUID string
+//   - accountID int64
+func (_e *MockStorage_Expecter) GetBackupPolicyByUUIDAndOwnerID(ctx interface{}, backupPolicyUUID interface{}, accountID interface{}) *MockStorage_GetBackupPolicyByUUIDAndOwnerID_Call {
+	return &MockStorage_GetBackupPolicyByUUIDAndOwnerID_Call{Call: _e.mock.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID)}
+}
+
+func (_c *MockStorage_GetBackupPolicyByUUIDAndOwnerID_Call) Run(run func(ctx context.Context, backupPolicyUUID string, accountID int64)) *MockStorage_GetBackupPolicyByUUIDAndOwnerID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetBackupPolicyByUUIDAndOwnerID_Call) Return(_a0 *datamodel.BackupPolicy, _a1 error) *MockStorage_GetBackupPolicyByUUIDAndOwnerID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetBackupPolicyByUUIDAndOwnerID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.BackupPolicy, error)) *MockStorage_GetBackupPolicyByUUIDAndOwnerID_Call {
 	_c.Call.Return(run)
 	return _c
 }

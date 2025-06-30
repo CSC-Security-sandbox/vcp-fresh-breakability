@@ -1128,3 +1128,17 @@ func TestListVolumeReplications(t *testing.T) {
 	assert.NotEmpty(t, reps)
 	assert.Equal(t, created.Name, reps[0].Name)
 }
+
+func TestCreateBackupPolicyEntryInVCP(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a backup policy entry in VCP
+	backupPolicy := &datamodel.BackupPolicy{Name: "vcp-policy"}
+	created, err := store.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+	assert.Equal(t, "vcp-policy", created.Name)
+}

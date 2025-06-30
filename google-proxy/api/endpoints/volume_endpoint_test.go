@@ -564,7 +564,6 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 				BackupVaultID:          "backup-vault-id",
 				BackupPolicyId:         "backup-policy-id",
 				BackupChainBytes:       nillable.GetInt64Ptr(10199181),
-				PolicyEnforced:         nillable.GetBoolPtr(true),
 			},
 			SnapshotPolicy: &models.SnapshotPolicy{
 				Name:      "test-snapshot-policy",

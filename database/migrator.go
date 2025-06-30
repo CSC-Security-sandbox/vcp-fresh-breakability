@@ -61,6 +61,7 @@ func getModels() []interface{} {
 		datamodel.BackupVault{},
 		datamodel.AdminJobSpec{},
 		datamodel.Backup{},
+		datamodel.BackupPolicy{},
 	}
 }
 

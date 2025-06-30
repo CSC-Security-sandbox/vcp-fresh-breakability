@@ -156,6 +156,10 @@ type DataStore interface {
 	UpdateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault) error
 	GetBackupVault(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error)
 
+	GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, backupPolicyUUID string, accountID int64) (*datamodel.BackupPolicy, error)
+	GetBackupPolicyByNameAndOwnerID(ctx context.Context, backupPolicyName string, accountID int64) (*datamodel.BackupPolicy, error)
+	CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error)
+
 	CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 	GetBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error)
 	DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error)

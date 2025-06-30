@@ -128,7 +128,6 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			BackupVaultID:          params.DataProtection.BackupVaultID,
 			BackupPolicyID:         params.DataProtection.BackupPolicyId,
 			BackupChainBytes:       params.DataProtection.BackupChainBytes,
-			PolicyEnforced:         params.DataProtection.PolicyEnforced,
 			ScheduledBackupEnabled: params.DataProtection.ScheduledBackupEnabled,
 		}
 	}
@@ -304,6 +303,19 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 	}
 
+	if params.DataProtection != nil && params.DataProtection.BackupPolicyId != "" {
+		// Validate assigning backup policy to the volume
+		if params.DataProtection.BackupVaultID == "" {
+			return customerrors.NewUserInputValidationErr("backup vault id is required to assign a backup policy to a volume")
+		}
+		if params.DataProtection.ScheduledBackupEnabled == nil {
+			return customerrors.NewUserInputValidationErr("scheduled backups needs to be enabled/disabled when a backup policy is assigned to a volume")
+		}
+		if params.IsDataProtection {
+			return customerrors.NewUserInputValidationErr("scheduled backups are not supported for cross region replication, only manual backups with existing snapshots are supported")
+		}
+	}
+
 	return nil
 }
 
@@ -342,7 +354,10 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 	}
 	if volume.DataProtection != nil {
 		res.DataProtection = &models.DataProtection{
-			BackupVaultID: volume.DataProtection.BackupVaultID,
+			BackupVaultID:          volume.DataProtection.BackupVaultID,
+			BackupPolicyId:         volume.DataProtection.BackupPolicyID,
+			BackupChainBytes:       volume.DataProtection.BackupChainBytes,
+			ScheduledBackupEnabled: volume.DataProtection.ScheduledBackupEnabled,
 		}
 	}
 

@@ -43,5 +43,4 @@ type DataProtection struct {
 	BackupVaultID          string
 	BackupPolicyId         string
 	BackupChainBytes       *int64
-	PolicyEnforced         *bool
 }

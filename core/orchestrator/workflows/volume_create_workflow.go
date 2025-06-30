@@ -186,6 +186,13 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}
 
+	if dbVolume.DataProtection != nil && dbVolume.DataProtection.BackupPolicyID != "" {
+		err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBackupPolicyWhenVolumeAttachedInVCP, &dbVolume, &region).Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	dbVolume.VolumeAttributes.BlockProperties.LunSerialNumber = lun.SerialNumber
 	dbVolume.VolumeAttributes.BlockProperties.LunUUID = lun.ExternalUUID
 	err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeDetails, &dbVolume, &volCreateResponse).Get(ctx, nil)

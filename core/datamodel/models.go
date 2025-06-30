@@ -482,7 +482,6 @@ type DataProtection struct {
 	BackupVaultID          string `json:"backup_vault_id"`
 	BackupPolicyID         string `json:"backup_policy_id"`
 	BackupChainBytes       *int64 `json:"backup_chain_bytes"`
-	PolicyEnforced         *bool  `json:"policy_enforced"`
 }
 
 func (dp *DataProtection) Scan(value interface{}) error {
@@ -495,6 +494,21 @@ func (dp *DataProtection) Scan(value interface{}) error {
 
 func (dp *DataProtection) Value() (driver.Value, error) {
 	return json.Marshal(dp)
+}
+
+// BackupPolicy represents the backup policy entity with associated attributes and relationships.
+type BackupPolicy struct {
+	BaseModel
+	Name                  string   `json:"name" gorm:"index"`
+	Account               *Account `json:"-" gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:RESTRICT,OnUpdate:RESTRICT;"`
+	AccountID             int64    `gorm:"column:account_id"`
+	Description           *string  `json:"description" gorm:"type:text"`
+	DailyBackupsToKeep    int64    `json:"dailyBackupsToKeep" gorm:"type:bigint;default:0"`
+	WeeklyBackupsToKeep   int64    `json:"weeklyBackupsToKeep" gorm:"type:bigint;default:0"`
+	MonthlyBackupsToKeep  int64    `json:"monthlyBackupsToKeep" gorm:"type:bigint;default:0"`
+	PolicyEnabled         bool     `json:"policyEnabled" gorm:"default:0"`
+	LifeCycleState        string   `json:"lifeCycleState"`
+	LifeCycleStateDetails string   `json:"lifeCycleStateDetails" gorm:"type:text"`
 }
 
 type Backup struct {

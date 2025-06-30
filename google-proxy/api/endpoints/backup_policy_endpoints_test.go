@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -11,13 +12,71 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	mod "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 // V1betaCreateBackupPolicy unittests
 func TestV1betaCreateBackupPolicy(t *testing.T) {
+	t.Run("ReturnsBadRequestWhenRegionParsingFails", func(t *testing.T) {
+		params := gcpgenserver.V1betaCreateBackupPolicyParams{
+			LocationId:    "local",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId:         "backup-policy",
+			Description:        gcpgenserver.NewOptString("test description"),
+			DailyBackupLimit:   gcpgenserver.NewOptInt(5),
+			MonthlyBackupLimit: gcpgenserver.NewOptInt(10),
+			WeeklyBackupLimit:  gcpgenserver.NewOptInt(3),
+			Enabled:            gcpgenserver.NewOptBool(false),
+		}
+
+		handler := Handler{}
+
+		result, err := handler.V1betaCreateBackupPolicy(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaCreateBackupPolicyBadRequest{}, result)
+		assert.Equal(t, "LocationID represents neither a region nor a zone", result.(*gcpgenserver.V1betaCreateBackupPolicyBadRequest).Message)
+	})
+
+	t.Run("ReturnsExistingBackupPolicyWhenAlreadyPresentInVCP", func(t *testing.T) {
+		params := gcpgenserver.V1betaCreateBackupPolicyParams{
+			LocationId:    "local",
+			ProjectNumber: "1234567890",
+		}
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId:  "existing-policy",
+			Description: gcpgenserver.NewOptString("Test new backup policy with already existing backup policy name"),
+		}
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), "existing-policy", "1234567890").
+			Return(&mod.BackupPolicy{
+				ResourceID: "existing-policy",
+			}, nil)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		result, err := handler.V1betaCreateBackupPolicy(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+		assert.True(t, result.(*gcpgenserver.OperationV1beta).Done.Value)
+		assert.Equal(t, "operation-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
+	})
+
 	t.Run("WhenCreateBackupPolicySuccess", func(t *testing.T) {
 		// Define request
 		// Create a mock client
@@ -26,28 +85,72 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		// Define input parameters
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
 			LocationId:     "test-location",
-			ProjectNumber:  "12345",
+			ProjectNumber:  "1234567890",
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		backupPolicyName := "backup-policy"
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
+			Return(nil, utilErrors.NewNotFoundErr("backup policy", &backupPolicyName))
+
+		dailyBackupLimit := int64(1)
+		weeklyBackupLimit := int64(0)
+		monthlyBackupLimit := int64(2)
 		req := &gcpgenserver.BackupPolicyCreateV1beta{
-			ResourceId:         "bp-1",
+			ResourceId:         backupPolicyName,
 			Description:        gcpgenserver.NewOptString("testDescription"),
-			DailyBackupLimit:   gcpgenserver.NewOptInt(1234),
-			MonthlyBackupLimit: gcpgenserver.NewOptInt(1234),
-			WeeklyBackupLimit:  gcpgenserver.NewOptInt(1234),
+			DailyBackupLimit:   gcpgenserver.NewOptInt(int(dailyBackupLimit)),
+			WeeklyBackupLimit:  gcpgenserver.NewOptInt(int(weeklyBackupLimit)),
+			MonthlyBackupLimit: gcpgenserver.NewOptInt(int(monthlyBackupLimit)),
+			Enabled:            gcpgenserver.NewOptBool(true),
 		}
 
 		// Define mock response
+		jsonResponse := &models.BackupPolicyV1beta{
+			ResourceID:  &req.ResourceId,
+			Description: &req.Description.Value,
+			Enabled:     &req.Enabled.Value,
+			State:       "READY",
+		}
+		backupPolicyJSON, err := json.Marshal(jsonResponse)
+		if err != nil {
+			t.Fatalf("Failed to marshal mock response: %v", err)
+		}
 		mockResponse := &backup_policy.V1betaCreateBackupPolicyAccepted{
 			Payload: &models.OperationV1beta{
-				Name: "operation-id",
-				Done: nillable.GetBoolPtr(true),
+				Name:     "operation-id",
+				Done:     nillable.GetBoolPtr(true),
+				Response: jsonResponse,
+			},
+		}
+		mockCvpRequest := &backup_policy.V1betaCreateBackupPolicyParams{
+			LocationID:     params.LocationId,
+			ProjectNumber:  params.ProjectNumber,
+			XCorrelationID: &params.XCorrelationID.Value,
+			Body: &models.BackupPolicyCreateV1beta{
+				ResourceNameV1beta: models.ResourceNameV1beta{
+					ResourceID: &req.ResourceId,
+				},
+				DescriptionV1beta: models.DescriptionV1beta{
+					Description: &req.Description.Value,
+				},
+				BackupPolicyScheduleV1beta: models.BackupPolicyScheduleV1beta{
+					DailyBackupLimit:   &dailyBackupLimit,
+					WeeklyBackupLimit:  &weeklyBackupLimit,
+					MonthlyBackupLimit: &monthlyBackupLimit,
+				},
+				Enabled: &req.Enabled.Value,
 			},
 		}
 
 		// Set up the mock client behavior
 		mockClient.EXPECT().
-			V1betaCreateBackupPolicy(mock.Anything).
+			V1betaCreateBackupPolicy(mockCvpRequest).
 			Return(mockResponse, nil)
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 		originalCreateClient := createClient
@@ -55,7 +158,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaCreateBackupPolicy(context.Background(), req, params)
 
@@ -66,6 +169,8 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		assert.Equal(t, "operation-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
 		// Check if the operation done value is as expected
 		assert.Equal(t, true, result.(*gcpgenserver.OperationV1beta).Done.Value)
+		// Check if the response done value is as expected
+		assert.Equal(t, string(backupPolicyJSON), result.(*gcpgenserver.OperationV1beta).Response.String())
 	})
 
 	t.Run("WhenCreateBackupPolicyFailsWithBadRequest", func(t *testing.T) {
@@ -75,11 +180,30 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		// Define input parameters
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
 			LocationId:     "test-location",
-			ProjectNumber:  "12345",
+			ProjectNumber:  "1234567890",
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		backupPolicyName := "backup-policy"
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
+			Return(nil, utilErrors.NewNotFoundErr("backup policy", &backupPolicyName))
+
 		// Define request
-		req := &gcpgenserver.BackupPolicyCreateV1beta{}
+		dailyBackupLimit := int64(1)
+		weeklyBackupLimit := int64(0)
+		monthlyBackupLimit := int64(2)
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId:         backupPolicyName,
+			Description:        gcpgenserver.NewOptString("testDescription"),
+			DailyBackupLimit:   gcpgenserver.NewOptInt(int(dailyBackupLimit)),
+			WeeklyBackupLimit:  gcpgenserver.NewOptInt(int(weeklyBackupLimit)),
+			MonthlyBackupLimit: gcpgenserver.NewOptInt(int(monthlyBackupLimit)),
+		}
 		// Define mock error
 		errorCode := float64(400)
 		errorMessage := "Bad Request"
@@ -89,9 +213,28 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
+		mockCvpRequest := &backup_policy.V1betaCreateBackupPolicyParams{
+			LocationID:     params.LocationId,
+			ProjectNumber:  params.ProjectNumber,
+			XCorrelationID: &params.XCorrelationID.Value,
+			Body: &models.BackupPolicyCreateV1beta{
+				ResourceNameV1beta: models.ResourceNameV1beta{
+					ResourceID: &req.ResourceId,
+				},
+				DescriptionV1beta: models.DescriptionV1beta{
+					Description: &req.Description.Value,
+				},
+				BackupPolicyScheduleV1beta: models.BackupPolicyScheduleV1beta{
+					DailyBackupLimit:   &dailyBackupLimit,
+					WeeklyBackupLimit:  &weeklyBackupLimit,
+					MonthlyBackupLimit: &monthlyBackupLimit,
+				},
+				Enabled: &req.Enabled.Value,
+			},
+		}
 		// Set up the mock client behavior
 		mockClient.EXPECT().
-			V1betaCreateBackupPolicy(mock.Anything).
+			V1betaCreateBackupPolicy(mockCvpRequest).
 			Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 		originalCreateClient := createClient
@@ -99,7 +242,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaCreateBackupPolicy(context.Background(), req, params)
 		// Assertions
@@ -117,23 +260,55 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		// Define input parameters
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
 			LocationId:     "test-location",
-			ProjectNumber:  "12345",
+			ProjectNumber:  "1234567890",
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		backupPolicyName := "backup-policy"
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
+			Return(nil, utilErrors.NewNotFoundErr("backup policy", &backupPolicyName))
 		// Define request
-		req := &gcpgenserver.BackupPolicyCreateV1beta{}
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId:  backupPolicyName,
+			Description: gcpgenserver.NewOptString("testDescription"),
+		}
 		// Define mock error
 		errorCode := float64(409)
-		errorMessage := "Conflict errort"
+		errorMessage := "Conflict error"
 		mockError := &backup_policy.V1betaCreateBackupPolicyConflict{
 			Payload: &models.Error{
 				Code:    errorCode,
 				Message: errorMessage,
 			},
 		}
+		var dailyBackupLimit, weeklyBackupLimit, monthlyBackupLimit int64
+		mockCvpRequest := &backup_policy.V1betaCreateBackupPolicyParams{
+			LocationID:     params.LocationId,
+			ProjectNumber:  params.ProjectNumber,
+			XCorrelationID: &params.XCorrelationID.Value,
+			Body: &models.BackupPolicyCreateV1beta{
+				ResourceNameV1beta: models.ResourceNameV1beta{
+					ResourceID: &req.ResourceId,
+				},
+				DescriptionV1beta: models.DescriptionV1beta{
+					Description: &req.Description.Value,
+				},
+				BackupPolicyScheduleV1beta: models.BackupPolicyScheduleV1beta{
+					DailyBackupLimit:   &dailyBackupLimit,
+					WeeklyBackupLimit:  &weeklyBackupLimit,
+					MonthlyBackupLimit: &monthlyBackupLimit,
+				},
+				Enabled: &req.Enabled.Value,
+			},
+		}
 		// Set up the mock client behavior
 		mockClient.EXPECT().
-			V1betaCreateBackupPolicy(mock.Anything).
+			V1betaCreateBackupPolicy(mockCvpRequest).
 			Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 		originalCreateClient := createClient
@@ -141,7 +316,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaCreateBackupPolicy(context.Background(), req, params)
 		// Assertions
@@ -159,11 +334,22 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		// Define input parameters
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
 			LocationId:     "test-location",
-			ProjectNumber:  "12345",
+			ProjectNumber:  "1234567890",
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		backupPolicyName := "backup-policy"
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
+			Return(nil, utilErrors.NewNotFoundErr("backup policy", &backupPolicyName))
 		// Define request
-		req := &gcpgenserver.BackupPolicyCreateV1beta{}
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId: backupPolicyName,
+		}
 		// Define mock error
 		errorCode := float64(401)
 		errorMessage := "Unauthorized error"
@@ -173,9 +359,29 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
+		var dailyBackupLimit, weeklyBackupLimit, monthlyBackupLimit int64
+		mockCvpRequest := &backup_policy.V1betaCreateBackupPolicyParams{
+			LocationID:     params.LocationId,
+			ProjectNumber:  params.ProjectNumber,
+			XCorrelationID: &params.XCorrelationID.Value,
+			Body: &models.BackupPolicyCreateV1beta{
+				ResourceNameV1beta: models.ResourceNameV1beta{
+					ResourceID: &req.ResourceId,
+				},
+				DescriptionV1beta: models.DescriptionV1beta{
+					Description: &req.Description.Value,
+				},
+				BackupPolicyScheduleV1beta: models.BackupPolicyScheduleV1beta{
+					DailyBackupLimit:   &dailyBackupLimit,
+					WeeklyBackupLimit:  &weeklyBackupLimit,
+					MonthlyBackupLimit: &monthlyBackupLimit,
+				},
+				Enabled: &req.Enabled.Value,
+			},
+		}
 		// Set up the mock client behavior
 		mockClient.EXPECT().
-			V1betaCreateBackupPolicy(mock.Anything).
+			V1betaCreateBackupPolicy(mockCvpRequest).
 			Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 		originalCreateClient := createClient
@@ -183,7 +389,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaCreateBackupPolicy(context.Background(), req, params)
 		// Assertions
@@ -201,11 +407,22 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		// Define input parameters
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
 			LocationId:     "test-location",
-			ProjectNumber:  "12345",
+			ProjectNumber:  "1234567890",
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		backupPolicyName := "backup-policy"
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
+			Return(nil, utilErrors.NewNotFoundErr("backup policy", &backupPolicyName))
 		// Define request
-		req := &gcpgenserver.BackupPolicyCreateV1beta{}
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId: backupPolicyName,
+		}
 		// Define mock error
 		errorCode := float64(403)
 		errorMessage := "Forbidden error"
@@ -215,9 +432,29 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
+		var dailyBackupLimit, weeklyBackupLimit, monthlyBackupLimit int64
+		mockCvpRequest := &backup_policy.V1betaCreateBackupPolicyParams{
+			LocationID:     params.LocationId,
+			ProjectNumber:  params.ProjectNumber,
+			XCorrelationID: &params.XCorrelationID.Value,
+			Body: &models.BackupPolicyCreateV1beta{
+				ResourceNameV1beta: models.ResourceNameV1beta{
+					ResourceID: &req.ResourceId,
+				},
+				DescriptionV1beta: models.DescriptionV1beta{
+					Description: &req.Description.Value,
+				},
+				BackupPolicyScheduleV1beta: models.BackupPolicyScheduleV1beta{
+					DailyBackupLimit:   &dailyBackupLimit,
+					WeeklyBackupLimit:  &weeklyBackupLimit,
+					MonthlyBackupLimit: &monthlyBackupLimit,
+				},
+				Enabled: &req.Enabled.Value,
+			},
+		}
 		// Set up the mock client behavior
 		mockClient.EXPECT().
-			V1betaCreateBackupPolicy(mock.Anything).
+			V1betaCreateBackupPolicy(mockCvpRequest).
 			Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 		originalCreateClient := createClient
@@ -225,7 +462,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaCreateBackupPolicy(context.Background(), req, params)
 		// Assertions
@@ -243,11 +480,22 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		// Define input parameters
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
 			LocationId:     "test-location",
-			ProjectNumber:  "12345",
+			ProjectNumber:  "1234567890",
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		backupPolicyName := "backup-policy"
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
+			Return(nil, utilErrors.NewNotFoundErr("backup policy", &backupPolicyName))
 		// Define request
-		req := &gcpgenserver.BackupPolicyCreateV1beta{}
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId: backupPolicyName,
+		}
 		// Define mock error
 		errorCode := float64(500)
 		errorMessage := "default error"
@@ -257,9 +505,29 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
+		var dailyBackupLimit, weeklyBackupLimit, monthlyBackupLimit int64
+		mockCvpRequest := &backup_policy.V1betaCreateBackupPolicyParams{
+			LocationID:     params.LocationId,
+			ProjectNumber:  params.ProjectNumber,
+			XCorrelationID: &params.XCorrelationID.Value,
+			Body: &models.BackupPolicyCreateV1beta{
+				ResourceNameV1beta: models.ResourceNameV1beta{
+					ResourceID: &req.ResourceId,
+				},
+				DescriptionV1beta: models.DescriptionV1beta{
+					Description: &req.Description.Value,
+				},
+				BackupPolicyScheduleV1beta: models.BackupPolicyScheduleV1beta{
+					DailyBackupLimit:   &dailyBackupLimit,
+					WeeklyBackupLimit:  &weeklyBackupLimit,
+					MonthlyBackupLimit: &monthlyBackupLimit,
+				},
+				Enabled: &req.Enabled.Value,
+			},
+		}
 		// Set up the mock client behavior
 		mockClient.EXPECT().
-			V1betaCreateBackupPolicy(mock.Anything).
+			V1betaCreateBackupPolicy(mockCvpRequest).
 			Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 		originalCreateClient := createClient
@@ -267,7 +535,7 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaCreateBackupPolicy(context.Background(), req, params)
 		// Assertions
@@ -285,31 +553,63 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		// Define input parameters
 		params := gcpgenserver.V1betaCreateBackupPolicyParams{
 			LocationId:     "test-location",
-			ProjectNumber:  "12345",
+			ProjectNumber:  "1234567890",
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		backupPolicyName := "backup-policy"
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), backupPolicyName, "1234567890").
+			Return(nil, utilErrors.NewNotFoundErr("backup policy", &backupPolicyName))
 		// Define request
-		req := &gcpgenserver.BackupPolicyCreateV1beta{}
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId: backupPolicyName,
+		}
 		// Define mock error
 		errorCode := float64(500)
 		errorMessage := "unknown error during the create backup policy"
-		mockError := &backup_policy.V1betaCreateBackupPolicyInternalServerError{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
+		var dailyBackupLimit, weeklyBackupLimit, monthlyBackupLimit int64
+		mockCvpRequest := &backup_policy.V1betaCreateBackupPolicyParams{
+			LocationID:     params.LocationId,
+			ProjectNumber:  params.ProjectNumber,
+			XCorrelationID: &params.XCorrelationID.Value,
+			Body: &models.BackupPolicyCreateV1beta{
+				ResourceNameV1beta: models.ResourceNameV1beta{
+					ResourceID: &req.ResourceId,
+				},
+				DescriptionV1beta: models.DescriptionV1beta{
+					Description: &req.Description.Value,
+				},
+				BackupPolicyScheduleV1beta: models.BackupPolicyScheduleV1beta{
+					DailyBackupLimit:   &dailyBackupLimit,
+					WeeklyBackupLimit:  &weeklyBackupLimit,
+					MonthlyBackupLimit: &monthlyBackupLimit,
+				},
+				Enabled: &req.Enabled.Value,
+			},
+		}
+		mockResponse := &backup_policy.V1betaCreateBackupPolicyAccepted{
+			Payload: &models.OperationV1beta{
+				Name:     "operation-id",
+				Done:     nillable.GetBoolPtr(true),
+				Response: nil,
 			},
 		}
 		// Set up the mock client behavior
 		mockClient.EXPECT().
-			V1betaCreateBackupPolicy(mock.Anything).
-			Return(nil, mockError)
+			V1betaCreateBackupPolicy(mockCvpRequest).
+			Return(nil, mockResponse)
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 		originalCreateClient := createClient
 		defer func() { createClient = originalCreateClient }()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaCreateBackupPolicy(context.Background(), req, params)
 		// Assertions
