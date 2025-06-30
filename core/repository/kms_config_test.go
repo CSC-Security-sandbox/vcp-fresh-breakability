@@ -155,8 +155,8 @@ func TestGetMultipleKMSConfigs(t *testing.T) {
 		{BaseModel: datamodel.BaseModel{ID: int64(222), UUID: "uuid20"}, Name: "ServiceAccount2"},
 	}
 	kmsConfigs := []*datamodel.KmsConfig{
-		{BaseModel: datamodel.BaseModel{UUID: "uuid1", DeletedAt: nil}, Name: "kmsConfig1", ServiceAccountID: serviceAccounts[0].ID},
-		{BaseModel: datamodel.BaseModel{UUID: "uuid2", DeletedAt: nil}, Name: "kmsConfig2", ServiceAccountID: serviceAccounts[1].ID},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid1", DeletedAt: nil}, Name: "kmsConfig1", ServiceAccountID: &serviceAccounts[0].ID},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid2", DeletedAt: nil}, Name: "kmsConfig2", ServiceAccountID: &serviceAccounts[1].ID},
 	}
 
 	err = store.db.Create(serviceAccounts).Error()
@@ -235,21 +235,19 @@ func TestCreateGetUpdateListKmsConfigAndGetJob(t *testing.T) {
 		{BaseModel: datamodel.BaseModel{ID: int64(3333), UUID: "uuid300"}, Name: "Account3"},
 	}
 	kmsConfigs := []*datamodel.KmsConfig{
-		{BaseModel: datamodel.BaseModel{UUID: "uuid1", DeletedAt: nil}, Name: "kmsConfig1", ServiceAccountID: serviceAccounts[0].ID, AccountID: 1111, State: "Ready", StateDetails: "Key is in Ready state"},
-		{BaseModel: datamodel.BaseModel{UUID: "uuid2", DeletedAt: nil}, Name: "kmsConfig2", ServiceAccountID: serviceAccounts[1].ID, AccountID: 2222, State: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{UUID: "uuid3", DeletedAt: nil}, Name: "kmsConfig3", ServiceAccountID: serviceAccounts[0].ID, AccountID: 2222},
-		{BaseModel: datamodel.BaseModel{UUID: "uuid4", DeletedAt: nil}, Name: "kmsConfig4", ServiceAccountID: serviceAccounts[1].ID, AccountID: 1111},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid1", DeletedAt: nil}, Name: "kmsConfig1", ServiceAccountID: &serviceAccounts[0].ID, AccountID: 1111, State: "Ready", StateDetails: "Key is in Ready state"},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid2", DeletedAt: nil}, Name: "kmsConfig2", ServiceAccountID: &serviceAccounts[1].ID, AccountID: 2222, State: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid3", DeletedAt: nil}, Name: "kmsConfig3", ServiceAccountID: &serviceAccounts[0].ID, AccountID: 2222},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid4", DeletedAt: nil}, Name: "kmsConfig4", ServiceAccountID: &serviceAccounts[1].ID, AccountID: 1111},
 		{BaseModel: datamodel.BaseModel{UUID: "uuid5", DeletedAt: nil}, Name: "kmsConfig5", AccountID: 3333, State: "Ready", StateDetails: "Key is in Ready state", Description: "kms description"},
 		{BaseModel: datamodel.BaseModel{UUID: "uuid6", DeletedAt: nil}, Name: "kmsConfig6", AccountID: 4444, State: models.LifeCycleStateCreating},
 		{BaseModel: datamodel.BaseModel{UUID: "uuid7", DeletedAt: nil}, Name: "kmsConfig7", AccountID: 5555, State: models.LifeCycleStateDeleting},
-		{BaseModel: datamodel.BaseModel{UUID: "uuid8", DeletedAt: nil}, Name: "kmsConfig8", ServiceAccountID: serviceAccounts[1].ID, AccountID: 6666, State: models.LifeCycleStateAvailable},
-		{BaseModel: datamodel.BaseModel{UUID: "uuid9", DeletedAt: nil}, Name: "kmsConfig9", ServiceAccountID: serviceAccounts[1].ID, AccountID: 6666, State: "Ready", ResourceID: "kmsConfig9"},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid8", DeletedAt: nil}, Name: "kmsConfig8", ServiceAccountID: &serviceAccounts[1].ID, AccountID: 6666, State: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid9", DeletedAt: nil}, Name: "kmsConfig9", ServiceAccountID: &serviceAccounts[1].ID, AccountID: 6666, State: "Ready", ResourceID: "kmsConfig9"},
 	}
 	jobs := []*datamodel.Job{
 		{BaseModel: datamodel.BaseModel{UUID: "job-uuid1", DeletedAt: nil}, JobAttributes: &datamodel.JobAttributes{ResourceUUID: "uuid1"}},
 	}
-	err = store.db.Create(serviceAccounts).Error()
-	assert.NoError(t, err, "Failed to create Service account table")
 	err = store.db.Create(accounts).Error()
 	assert.NoError(t, err, "Failed to create Service account table")
 	err = store.db.Create(kmsConfigs).Error()
@@ -263,13 +261,12 @@ func TestCreateGetUpdateListKmsConfigAndGetJob(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.Equal(tt, "kmsConfig1", result.Name)
-		assert.Equal(tt, "ServiceAccount1", result.ServiceAccount.Name)
 	})
 	t.Run("GetKmsConfigReturnsErrorWhenRecordIsNotFound", func(tt *testing.T) {
 		kmsConfigUUID := "nonexistent-uuid"
 		result, err := store.GetKmsConfigByUUID(context.Background(), kmsConfigUUID)
 
-		assert.ErrorContains(tt, err, "record not found")
+		assert.ErrorContains(tt, err, "KMS Configuration not found")
 		assert.Empty(tt, result)
 	})
 	t.Run("GetKmsConfigVariationRetrievesKMSConfigSuccessfully", func(tt *testing.T) {
@@ -279,7 +276,6 @@ func TestCreateGetUpdateListKmsConfigAndGetJob(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.Equal(tt, "kmsConfig1", result.Name)
-		assert.Equal(tt, "ServiceAccount1", result.ServiceAccount.Name)
 	})
 	t.Run("GetKmsConfigVariationReturnsErrorWhenRecordIsNotFound", func(tt *testing.T) {
 		kmsConfig := new(datamodel.KmsConfig)
@@ -298,8 +294,6 @@ func TestCreateGetUpdateListKmsConfigAndGetJob(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, "kmsConfig1", result[0].Name)
 		assert.Equal(tt, "kmsConfig4", result[1].Name)
-		assert.Equal(tt, "ServiceAccount1", result[0].ServiceAccount.Name)
-		assert.Equal(tt, "ServiceAccount2", result[1].ServiceAccount.Name)
 	})
 	t.Run("ListKmsByAccountIDReturnsEmptyWhenRecordsAreNotFound", func(tt *testing.T) {
 		accountId := int64(9999)
@@ -421,7 +415,7 @@ func TestCreateGetUpdateListKmsConfigAndGetJob(t *testing.T) {
 	})
 
 	t.Run("CreatesKmsServiceAccountReturnsExistingServiceAccountWhenFound", func(tt *testing.T) {
-		serviceAccount, err := _createKmsServiceAccount(db, kmsConfigs[0])
+		serviceAccount, err := store.CreateKmsServiceAccount(context.Background(), serviceAccounts[0])
 
 		assert.NoError(t, err)
 		assert.NotNil(t, serviceAccount)
@@ -431,15 +425,11 @@ func TestCreateGetUpdateListKmsConfigAndGetJob(t *testing.T) {
 		assert.Equal(t, serviceAccounts[0].AccountID, serviceAccount.AccountID)
 	})
 	t.Run("CreatesKmsServiceAccountCreatesWhenNoExistingAccountIsFound", func(t *testing.T) {
-		serviceAccount, err := _createKmsServiceAccount(db, kmsConfigs[4])
+		serviceAccount, err := store.CreateKmsServiceAccount(context.Background(), serviceAccounts[1])
 
 		assert.NoError(t, err)
 		assert.NotNil(t, serviceAccount)
-		assert.Equal(t, kmsConfigs[4].Name, serviceAccount.Name)
-		assert.Equal(t, kmsConfigs[4].State, serviceAccount.State)
-		assert.Equal(t, kmsConfigs[4].StateDetails, serviceAccount.StateDetails)
-		assert.Equal(t, kmsConfigs[4].Description, serviceAccount.Description)
-		assert.Equal(t, kmsConfigs[4].AccountID, serviceAccount.AccountID)
+		assert.Equal(t, "ServiceAccount2", serviceAccount.Name)
 	})
 
 	t.Run("CreatesKmsConfigFailsWhenAnotherIsPresentInCreatingState", func(tt *testing.T) {
@@ -501,7 +491,73 @@ func TestCreateGetUpdateListKmsConfigAndGetJob(t *testing.T) {
 		assert.Equal(tt, kmsConfigCreate.KeyRing, resultGet.KeyRing)
 		assert.Equal(tt, kmsConfigCreate.KeyName, resultGet.KeyName)
 		assert.Equal(tt, accounts[0].Name, resultGet.Account.Name)
-		assert.Equal(tt, serviceAccounts[0].Name, resultGet.ServiceAccount.Name)
+	})
+}
+
+func TestDeleteKmsConfig(t *testing.T) {
+	t.Run("WhenKmsConfigIsDeletedSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			Name:    "test_pool",
+			Account: account,
+		}
+
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		kmsConfig := &datamodel.KmsConfig{
+			Name:      "test_kms_config",
+			AccountID: account.ID,
+			BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+		}
+
+		err = store.db.Create(kmsConfig).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create kms config: %v", err)
+		}
+
+		deletedKmsConfig, err := store.DeleteKmsConfig(context.Background(), kmsConfig.UUID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, deletedKmsConfig.DeletedAt, "Expected kms config to be deleted, got %v", deletedKmsConfig.DeletedAt)
+		assert.Equal(tt, models.LifeCycleStateDeleted, deletedKmsConfig.State, "Expected kms config state %v, got %v", models.LifeCycleStateDeleted, deletedKmsConfig.State)
+		assert.Equal(tt, "", deletedKmsConfig.StateDetails, "Expected kms config details %v, got %v", "", deletedKmsConfig.StateDetails)
+
+		_, err = store.GetKmsConfigByUUID(context.Background(), kmsConfig.UUID)
+		assert.EqualError(tt, err, "KMS Configuration not found", "Expected no error, got %v", err)
+	})
+	t.Run("WhenKmsConfigIsNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		deletedKmsConfig, err := store.DeleteKmsConfig(context.Background(), "dummy")
+		assert.Nil(tt, deletedKmsConfig, "Expected nil volume replication, got %v", deletedKmsConfig)
+		assert.EqualError(tt, err, "KMS Configuration not found", "Expected no error, got %v", err)
 	})
 }
 
@@ -520,7 +576,7 @@ func TestGetKmsConfigByKeyFullPath(t *testing.T) {
 			BaseModel:         datamodel.BaseModel{UUID: "kms-uuid"},
 			Name:              "kms",
 			AccountID:         1,
-			ServiceAccountID:  2,
+			ServiceAccountID:  &serviceAccount.ID,
 			KeyRingLocation:   "us-central1",
 			KeyRing:           "ring1",
 			KeyName:           "key1",

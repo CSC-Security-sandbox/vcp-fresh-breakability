@@ -477,6 +477,10 @@ func (s *PersistenceStore) UpdateVolumeFields(ctx context.Context, volumeUUID st
 	return s.dataStore.UpdateVolumeFields(ctx, volumeUUID, updates)
 }
 
+func (s *PersistenceStore) UpdateKmsConfig(ctx context.Context, kmsUUID string, updates map[string]interface{}) error {
+	return s.dataStore.UpdateKmsConfig(ctx, kmsUUID, updates)
+}
+
 func (s *PersistenceStore) DeleteVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
 	return s.dataStore.DeleteVolume(ctx, id)
 }
@@ -681,6 +685,10 @@ func (s *PersistenceStore) CreateKmsConfig(ctx context.Context, kmsConfigParams 
 	return s.dataStore.CreateKmsConfig(ctx, kmsConfigParams)
 }
 
+func (s *PersistenceStore) DeleteKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error) {
+	return s.dataStore.DeleteKmsConfig(ctx, kmsConfigUUID)
+}
+
 func (s *PersistenceStore) GetKmsConfigByUUID(ctx context.Context, uuid string) (*datamodel.KmsConfig, error) {
 	return s.dataStore.GetKmsConfigByUUID(ctx, uuid)
 }
@@ -692,6 +700,10 @@ func (s *PersistenceStore) GetJobByResourceUUID(ctx context.Context, resourceUUI
 	return s.dataStore.GetJobByResourceUUID(ctx, resourceUUID)
 }
 
+func (s *PersistenceStore) ListOngoingPoolJobsWithKmsConfigId(ctx context.Context, kmsId, accountId int64) ([]*datamodel.Job, error) {
+	return s.dataStore.ListOngoingPoolJobsWithKmsConfigId(ctx, kmsId, accountId)
+}
+
 func (s *PersistenceStore) UpdateKmsConfigDetails(ctx context.Context, uuid string, keyFullPath string, resourceID string) (*datamodel.KmsConfig, error) {
 	return s.dataStore.UpdateKmsConfigDetails(ctx, uuid, keyFullPath, resourceID)
 }
@@ -700,12 +712,20 @@ func (s *PersistenceStore) GetKmsConfigByKeyFullPath(ctx context.Context, keyFul
 	return s.dataStore.GetKmsConfigByKeyFullPath(ctx, keyFullPath)
 }
 
+func (s *PersistenceStore) CreateKmsServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) (*datamodel.ServiceAccount, error) {
+	return s.dataStore.CreateKmsServiceAccount(ctx, serviceAccount)
+}
+
 func (s *PersistenceStore) UpdateServiceAccountEmailAndKey(ctx context.Context, uuid string, email string, key string) (*datamodel.ServiceAccount, error) {
 	return s.dataStore.UpdateServiceAccountEmailAndKey(ctx, uuid, email, key)
 }
 
 func (s *PersistenceStore) UpdateServiceAccountState(ctx context.Context, uuid string, state string, stateDetails string) (*datamodel.ServiceAccount, error) {
 	return s.dataStore.UpdateServiceAccountState(ctx, uuid, state, stateDetails)
+}
+
+func (s *PersistenceStore) GetServiceAccountFromEmail(ctx context.Context, email string) (*datamodel.ServiceAccount, error) {
+	return s.dataStore.GetServiceAccountFromEmail(ctx, email)
 }
 
 func (s *PersistenceStore) GetBackupVaultByNameAndOwnerID(ctx context.Context, backupVaultId string, account_id string) (*datamodel.BackupVault, error) {

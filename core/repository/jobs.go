@@ -6,6 +6,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -68,6 +69,17 @@ func (d *DataStoreRepository) UpdateJob(ctx context.Context, id, status string, 
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
+}
+
+func (d *DataStoreRepository) ListOngoingPoolJobsWithKmsConfigId(ctx context.Context, kmsId, accountId int64) ([]*datamodel.Job, error) {
+	db := d.db.GORM().WithContext(ctx)
+	jobs := make([]*datamodel.Job, 0)
+
+	err := db.Joins("INNER JOIN pools on pools.name = jobs.resource_name").Where("jobs.state = ? and jobs.type = ? and pools.kms_config_id = ? and pools.account_id = ?", models.JobsStatePROCESSING, models.JobTypeCreatePool, kmsId, accountId).Find(&jobs).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return jobs, nil
 }
 
 func (d *DataStoreRepository) GetJobsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Job, error) {

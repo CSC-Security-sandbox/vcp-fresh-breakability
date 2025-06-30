@@ -9,11 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -425,5 +427,369 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError).Message)
+	})
+}
+
+func TestDeleteSDEKmsConfiguration(t *testing.T) {
+	t.Run("WhenDeleteKmsConfigurationSuccess", func(t *testing.T) {
+		mockClient := kms_configurations.NewMockClientService(t)
+		params := &common.DeleteKmsConfigParams{
+			Region:         "test-location",
+			AccountName:    "test-account",
+			XCorrelationID: "test-correlation-id",
+		}
+		req := &datamodel.KmsConfig{
+			KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: "test-id"},
+		}
+		done := false
+		mockResponse := &kms_configurations.V1betaDeleteKmsConfigurationAccepted{
+			Payload: &models.OperationV1beta{
+				Name: "/v1beta/projects/909258763/locations/us-east4/operations/job-uuid",
+				Done: &done,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaDeleteKmsConfiguration(mock.Anything).
+			Return(mockResponse, nil, nil)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, JWT string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		res, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+	})
+
+	t.Run("WhenDeleteKmsConfigurationFailsWithBadRequest", func(t *testing.T) {
+		mockClient := kms_configurations.NewMockClientService(t)
+		params := &common.DeleteKmsConfigParams{
+			Region:         "test-location",
+			AccountName:    "test-account",
+			XCorrelationID: "test-correlation-id",
+		}
+		req := &datamodel.KmsConfig{
+			KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: "test-id"},
+		}
+		errorCode := float64(400)
+		errorMessage := "Bad Request"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationBadRequest{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaDeleteKmsConfiguration(mock.Anything).
+			Return(nil, nil, mockError)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationBadRequest).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationBadRequest).Message)
+	})
+
+	t.Run("WhenDeleteKmsConfigurationFailsWithUnprocessableEntity", func(t *testing.T) {
+		mockClient := kms_configurations.NewMockClientService(t)
+		params := &common.DeleteKmsConfigParams{
+			Region:         "test-location",
+			AccountName:    "test-account",
+			XCorrelationID: "test-correlation-id",
+		}
+		req := &datamodel.KmsConfig{
+			KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: "test-id"},
+		}
+		errorCode := float64(422)
+		errorMessage := "Unprocessable error"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationUnprocessableEntity{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaDeleteKmsConfiguration(mock.Anything).
+			Return(nil, nil, mockError)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationUnprocessableEntity).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationUnprocessableEntity).Message)
+	})
+
+	t.Run("WhenDeleteKmsConfigurationFailsWithConflict", func(t *testing.T) {
+		mockClient := kms_configurations.NewMockClientService(t)
+		params := &common.DeleteKmsConfigParams{
+			Region:         "test-location",
+			AccountName:    "test-account",
+			XCorrelationID: "test-correlation-id",
+		}
+		req := &datamodel.KmsConfig{
+			KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: "test-id"},
+		}
+		errorCode := float64(409)
+		errorMessage := "Conflict error"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationConflict{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaDeleteKmsConfiguration(mock.Anything).
+			Return(nil, nil, mockError)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationConflict).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationConflict).Message)
+	})
+
+	t.Run("WhenDeleteKmsConfigurationFailsWithUnauthorized", func(t *testing.T) {
+		mockClient := kms_configurations.NewMockClientService(t)
+		params := &common.DeleteKmsConfigParams{
+			Region:         "test-location",
+			AccountName:    "test-account",
+			XCorrelationID: "test-correlation-id",
+		}
+		req := &datamodel.KmsConfig{
+			KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: "test-id"},
+		}
+		errorCode := float64(401)
+		errorMessage := "Unauthorized error"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationUnauthorized{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaDeleteKmsConfiguration(mock.Anything).
+			Return(nil, nil, mockError)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationUnauthorized).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationUnauthorized).Message)
+	})
+
+	t.Run("WhenDeleteKmsConfigurationFailsWithForbidden", func(t *testing.T) {
+		mockClient := kms_configurations.NewMockClientService(t)
+		params := &common.DeleteKmsConfigParams{
+			Region:         "test-location",
+			AccountName:    "test-account",
+			XCorrelationID: "test-correlation-id",
+		}
+		req := &datamodel.KmsConfig{
+			KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: "test-id"},
+		}
+		errorCode := float64(403)
+		errorMessage := "Forbidden error"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationForbidden{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaDeleteKmsConfiguration(mock.Anything).
+			Return(nil, nil, mockError)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationForbidden).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationForbidden).Message)
+	})
+
+	t.Run("WhenDeleteKmsConfigurationFailsWithTooManyRequests", func(t *testing.T) {
+		mockClient := kms_configurations.NewMockClientService(t)
+		params := &common.DeleteKmsConfigParams{
+			Region:         "test-location",
+			AccountName:    "test-account",
+			XCorrelationID: "test-correlation-id",
+		}
+		req := &datamodel.KmsConfig{
+			KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: "test-id"},
+		}
+		errorCode := float64(429)
+		errorMessage := "Too Many Requests error"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationTooManyRequests{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaDeleteKmsConfiguration(mock.Anything).
+			Return(nil, nil, mockError)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationTooManyRequests).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationTooManyRequests).Message)
+	})
+
+	t.Run("WhenDeleteKmsConfigurationFailsWithDefault", func(t *testing.T) {
+		mockClient := kms_configurations.NewMockClientService(t)
+		params := &common.DeleteKmsConfigParams{
+			Region:         "test-location",
+			AccountName:    "test-account",
+			XCorrelationID: "test-correlation-id",
+		}
+		req := &datamodel.KmsConfig{
+			KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: "test-id"},
+		}
+		errorCode := float64(500)
+		errorMessage := "default error"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationDefault{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaDeleteKmsConfiguration(mock.Anything).
+			Return(nil, nil, mockError)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError).Message)
+	})
+
+	t.Run("WhenDeleteKmsConfigurationFailsWithUnknownError", func(t *testing.T) {
+		mockClient := kms_configurations.NewMockClientService(t)
+		params := &common.DeleteKmsConfigParams{
+			Region:         "test-location",
+			AccountName:    "test-account",
+			XCorrelationID: "test-correlation-id",
+		}
+		req := &datamodel.KmsConfig{
+			KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: "test-id"},
+		}
+		errorCode := float64(500)
+		errorMessage := "unknown error during the delete kms configurations"
+		mockError := &kms_configurations.V1betaDeleteKmsConfigurationInternalServerError{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaDeleteKmsConfiguration(mock.Anything).
+			Return(nil, nil, mockError)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError).Message)
+	})
+}
+
+func TestDescribeSDEJob(t *testing.T) {
+	t.Run("WhenJobIsDone", func(t *testing.T) {
+		mockClient := async.NewMockClientService(t)
+		done := true
+		mockResponse := &async.V1betaDescribeOperationOK{
+			Payload: &models.OperationV1beta{
+				Done: &done,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaDescribeOperation(mock.Anything).
+			Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{Async: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		err := DescribeSDEJob(context.Background(), "op-id", "region", "account", "corr-id")
+		assert.NoError(t, err)
+	})
+
+	t.Run("WhenJobIsNotDone", func(t *testing.T) {
+		mockClient := async.NewMockClientService(t)
+		done := false
+		mockResponse := &async.V1betaDescribeOperationOK{
+			Payload: &models.OperationV1beta{
+				Done: &done,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaDescribeOperation(mock.Anything).
+			Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{Async: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		err := DescribeSDEJob(context.Background(), "op-id", "region", "account", "corr-id")
+		assert.Error(t, err)
+	})
+
+	t.Run("WhenDescribeOperationReturnsError", func(t *testing.T) {
+		mockClient := async.NewMockClientService(t)
+		mockClient.EXPECT().
+			V1betaDescribeOperation(mock.Anything).
+			Return(nil, errors2.New("describe error"))
+		cvpClient := &cvpapi.Cvp{Async: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		err := DescribeSDEJob(context.Background(), "op-id", "region", "account", "corr-id")
+		assert.Error(t, err)
 	})
 }

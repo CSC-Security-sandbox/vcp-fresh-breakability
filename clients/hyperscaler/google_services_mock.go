@@ -580,6 +580,53 @@ func (_c *MockGoogleServices_CreateVPC_Call) RunAndReturn(run func(*models.VPCNe
 	return _c
 }
 
+// DeleteAllServiceAccountKeys provides a mock function with given fields: ctx, email
+func (_m *MockGoogleServices) DeleteAllServiceAccountKeys(ctx context.Context, email string) error {
+	ret := _m.Called(ctx, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteAllServiceAccountKeys")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, email)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockGoogleServices_DeleteAllServiceAccountKeys_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAllServiceAccountKeys'
+type MockGoogleServices_DeleteAllServiceAccountKeys_Call struct {
+	*mock.Call
+}
+
+// DeleteAllServiceAccountKeys is a helper method to define mock.On call
+//   - ctx context.Context
+//   - email string
+func (_e *MockGoogleServices_Expecter) DeleteAllServiceAccountKeys(ctx interface{}, email interface{}) *MockGoogleServices_DeleteAllServiceAccountKeys_Call {
+	return &MockGoogleServices_DeleteAllServiceAccountKeys_Call{Call: _e.mock.On("DeleteAllServiceAccountKeys", ctx, email)}
+}
+
+func (_c *MockGoogleServices_DeleteAllServiceAccountKeys_Call) Run(run func(ctx context.Context, email string)) *MockGoogleServices_DeleteAllServiceAccountKeys_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteAllServiceAccountKeys_Call) Return(_a0 error) *MockGoogleServices_DeleteAllServiceAccountKeys_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteAllServiceAccountKeys_Call) RunAndReturn(run func(context.Context, string) error) *MockGoogleServices_DeleteAllServiceAccountKeys_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteBucket provides a mock function with given fields: ctx, bucketName
 func (_m *MockGoogleServices) DeleteBucket(ctx context.Context, bucketName string) error {
 	ret := _m.Called(ctx, bucketName)

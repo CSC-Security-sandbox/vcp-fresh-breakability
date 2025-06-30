@@ -29,6 +29,7 @@ var (
 	validateUpdateKmsConfigParams = _validateUpdateKmsConfigParams
 	isKmsConfigInUse              = _isKmsConfigInUse
 	getKmsConfigByKeyFullPath     = _getKmsConfigByKeyFullPath
+	validateDeleteKmsConfigParams = _validateDeleteKmsConfigParams
 )
 
 const (
@@ -43,6 +44,7 @@ type KmsConfigInterface interface {
 	UpdateKmsConfig(ctx context.Context, params *common.UpdateKmsConfigParams) (*models.KmsConfig, string, error)
 	CheckAndUpdateKmsConfigHealth(ctx context.Context, params *models.KmsConfigCheck) (*models.KmsConfig, error)
 	AccessCryptoKeyWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error
+	DeleteKmsConfig(ctx context.Context, params *common.DeleteKmsConfigParams) (*models.KmsConfig, string, error)
 }
 
 // CreateKmsConfig creates a new KMS configuration.
@@ -136,26 +138,6 @@ func convertDatastoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.Km
 		KeyRing:         kmsConfig.KeyRing,
 		KeyRingLocation: kmsConfig.KeyRingLocation,
 		KeyName:         kmsConfig.KeyName,
-		ServiceAccount:  convertDatastoreServiceAccountToModel(kmsConfig.ServiceAccount),
-	}
-}
-
-func convertDatastoreServiceAccountToModel(sa *datamodel.ServiceAccount) *models.ServiceAccount {
-	return &models.ServiceAccount{
-		BaseModel: models.BaseModel{
-			UUID:      sa.UUID,
-			CreatedAt: sa.CreatedAt,
-			UpdatedAt: sa.UpdatedAt,
-			DeletedAt: DeletedAtOrNil(sa.DeletedAt),
-		},
-		Name:                           sa.Name,
-		Description:                    sa.Description,
-		State:                          sa.State,
-		StateDetails:                   sa.StateDetails,
-		AccountID:                      sa.AccountID,
-		ServiceName:                    sa.ServiceName,
-		ServiceAccountEmail:            sa.ServiceAccountEmail,
-		ServiceAccountPasswordLocation: sa.ServiceAccountPasswordLocation,
 	}
 }
 
@@ -264,6 +246,72 @@ func _updateKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	return convertDataStoreKmsConfigToModel(kmsConfig), createdJob.UUID, nil
 }
 
+// DeleteKmsConfig updates the specified kms configuration.
+func (o *Orchestrator) DeleteKmsConfig(ctx context.Context, params *common.DeleteKmsConfigParams) (*models.KmsConfig, string, error) {
+	return _deleteKmsConfig(ctx, o.storage, o.temporal, params)
+}
+
+func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.Client, params *common.DeleteKmsConfigParams) (*models.KmsConfig, string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	kmsConfig, err := se.GetKmsConfig(ctx, params.KmsConfigID)
+	if err == nil {
+		err = validateDeleteKmsConfigParams(ctx, se, kmsConfig, params)
+		if err != nil {
+			return nil, "", err
+		}
+
+		kmsConfig, err = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails)
+		if err != nil {
+			return nil, "", err
+		}
+	} else {
+		if !errors.IsNotFoundErr(err) {
+			return nil, "", err
+		}
+		logger.Error("Failed to get kms config from database", "error", err)
+		kmsConfig = &datamodel.KmsConfig{
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeKmsConfigUUID: params.KmsConfigID,
+			},
+		}
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeDeleteKmsConfig),
+		State:        string(models.JobsStateNEW),
+		ResourceName: kmsConfig.ResourceID,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+	}
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		kms_workflows.DeleteKmsConfigWorkflow,
+		kmsConfig,
+		params,
+	)
+	if err != nil {
+		logger.Error("Failed to start update kms config workflow: ", "error", err)
+		return nil, "", err
+	}
+
+	return convertDataStoreKmsConfigToModel(kmsConfig), createdJob.UUID, nil
+}
+
 func convertDataStoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.KmsConfig {
 	if kmsConfig == nil || kmsConfig.UUID == "" {
 		return nil
@@ -311,6 +359,31 @@ func _validateUpdateKmsConfigParams(ctx context.Context, se database.Storage, km
 
 	if isConfigInUse && !nillable.IsNilOrEmpty(&params.KeyName) {
 		return errors.NewConflictErr("can not update key details while kms config is in use")
+	}
+	return nil
+}
+
+func _validateDeleteKmsConfigParams(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig, params *common.DeleteKmsConfigParams) error {
+	if kmsConfig.State == models.LifeCycleStateCreating {
+		return errors.NewConflictErr("can not delete a gcpKmsConfig which is in creating state.")
+	}
+
+	isConfigInUse, err := isKmsConfigInUse(ctx, se, kmsConfig)
+	if err != nil {
+		return err
+	}
+
+	if isConfigInUse {
+		return errors.NewConflictErr("can not delete this policy as it is still in use")
+	}
+
+	findOngoingJobs, err := se.ListOngoingPoolJobsWithKmsConfigId(ctx, kmsConfig.ID, kmsConfig.AccountID)
+	if err != nil {
+		return err
+	}
+
+	if len(findOngoingJobs) > 0 {
+		return errors.NewConflictErr("can not delete this policy as there are ongoing pool creation using it")
 	}
 	return nil
 }

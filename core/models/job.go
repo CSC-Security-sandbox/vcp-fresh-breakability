@@ -29,6 +29,7 @@ const (
 	JobTypeAcceptClusterPeer                JobType = "ACCEPT_CLUSTER_PEER"
 	JobTypeUpdateKmsConfig                  JobType = "UPDATE_KMS_CONFIG"
 	JobTypeCreateKmsConfig                  JobType = "CREATE_KMS_CONFIG"
+	JobTypeDeleteKmsConfig                  JobType = "DELETE_KMS_CONFIG"
 	JobTypeCreateVolumeReplication          JobType = "CREATE_VOLUME_REPLICATION"
 	JobTypeCreateVolumeReplicationInternal  JobType = "CREATE_VOLUME_REPLICATION_INTERNAL"
 	JobTypeCreateBackupVault                JobType = "CREATE_BACKUP_VAULT"

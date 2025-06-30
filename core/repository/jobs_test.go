@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -248,5 +249,95 @@ func TestGetJobsWithCondition(t *testing.T) {
 		jobs, err := store.GetJobsWithCondition(context.Background(), *filter)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Empty(tt, jobs, "Expected empty jobs list, got %v", jobs)
+	})
+}
+
+func TestListOngoingPoolJobsWithKmsConfigId(t *testing.T) {
+	t.Run("WhenNoJobsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create pool and job with matching kms_config_id
+		pool := &datamodel.Pool{
+			Name:        "test-pool",
+			KmsConfigID: sql.NullInt64{Int64: 123, Valid: true},
+			AccountID:   456,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool: %v", err)
+
+		jobs, err := store.ListOngoingPoolJobsWithKmsConfigId(context.Background(), 123, 456)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Empty(tt, jobs, "Expected no jobs, got %v", jobs)
+	})
+
+	t.Run("WhenJobsExistWithMatchingKmsId", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create pool and job with matching kms_config_id
+		pool := &datamodel.Pool{
+			Name:        "test-pool",
+			KmsConfigID: sql.NullInt64{Int64: 123, Valid: true},
+			AccountID:   456,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool: %v", err)
+
+		job := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "job-uuid"},
+			ResourceName: "test-pool",
+			State:        string(models.JobsStatePROCESSING),
+			Type:         string(models.JobTypeCreatePool),
+		}
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err, "Failed to create job: %v", err)
+
+		jobs, err := store.ListOngoingPoolJobsWithKmsConfigId(context.Background(), 123, 456)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Len(tt, jobs, 1, "Expected 1 job, got %d", len(jobs))
+		assert.Equal(tt, job.UUID, jobs[0].UUID, "Expected job UUID %v, got %v", job.UUID, jobs[0].UUID)
+	})
+
+	t.Run("WhenJobsExistButKmsIdDoesNotMatch", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create pool and job with different kms_config_id
+		pool := &datamodel.Pool{
+			Name:        "test-pool",
+			KmsConfigID: sql.NullInt64{Int64: 999, Valid: true},
+			AccountID:   456,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool: %v", err)
+
+		job := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 2, UUID: "job-uuid-2"},
+			ResourceName: "test-pool",
+			State:        string(models.JobsStatePROCESSING),
+			Type:         string(models.JobTypeCreatePool),
+		}
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err, "Failed to create job: %v", err)
+
+		jobs, err := store.ListOngoingPoolJobsWithKmsConfigId(context.Background(), 123, 456)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Empty(tt, jobs, "Expected no jobs, got %v", jobs)
 	})
 }

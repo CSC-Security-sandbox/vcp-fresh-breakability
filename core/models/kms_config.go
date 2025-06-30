@@ -15,7 +15,7 @@ type KmsConfig struct {
 	AccountID         int64
 	CustomerProjectID string
 	KeyProjectID      string
-	ServiceAccountID  int64
+	ServiceAccountID  *int64
 	ResourceID        string
 	KmsAttributes     *KmsAttributes
 	ServiceAccount    *ServiceAccount

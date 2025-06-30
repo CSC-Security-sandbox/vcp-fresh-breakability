@@ -127,6 +127,8 @@ const (
 	ErrGetLocalReplicationJobs                                       = 6054
 	ErrorCvpReplicationJobAlreadyInProcess                           = 6055
 	ErrMountingVolumeReplication                                     = 6056
+	ErrDescribingSDEJob                                              = 6057
+	ErrSDEJobNotFinished                                             = 6058
 )
 
 type Error interface {

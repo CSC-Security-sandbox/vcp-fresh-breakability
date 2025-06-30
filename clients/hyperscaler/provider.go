@@ -45,6 +45,7 @@ type Services interface {
 	DeleteSecret(projectID, secretID string) error
 
 	CreateServiceAccountKey(ctx context.Context, email string) (*iam.ServiceAccountKey, error)
+	DeleteAllServiceAccountKeys(ctx context.Context, email string) error
 }
 
 type GoogleServices interface {

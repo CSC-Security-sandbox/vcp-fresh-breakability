@@ -258,80 +258,6 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 	}, nil
 }
 
-func (h Handler) V1betaDeleteKmsConfiguration(ctx context.Context, params gcpgenserver.V1betaDeleteKmsConfigurationParams) (gcpgenserver.V1betaDeleteKmsConfigurationRes, error) {
-	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := createClient(logger, jwtToken)
-	deleteKmsConfigParams := &kms_configurations.V1betaDeleteKmsConfigurationParams{
-		KmsConfigID:    params.KmsConfigId,
-		LocationID:     params.LocationId,
-		ProjectNumber:  params.ProjectNumber,
-		XCorrelationID: &params.XCorrelationID.Value,
-	}
-	res, _, err := cvpClient.KmsConfigurations.V1betaDeleteKmsConfiguration(deleteKmsConfigParams)
-	if err != nil {
-		switch e := err.(type) {
-		case *kms_configurations.V1betaDeleteKmsConfigurationUnprocessableEntity:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteKmsConfigurationUnprocessableEntity{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *kms_configurations.V1betaDeleteKmsConfigurationConflict:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteKmsConfigurationConflict{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *kms_configurations.V1betaDeleteKmsConfigurationBadRequest:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteKmsConfigurationBadRequest{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *kms_configurations.V1betaDeleteKmsConfigurationTooManyRequests:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteKmsConfigurationTooManyRequests{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *kms_configurations.V1betaDeleteKmsConfigurationForbidden:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteKmsConfigurationForbidden{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *kms_configurations.V1betaDeleteKmsConfigurationUnauthorized:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteKmsConfigurationUnauthorized{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *kms_configurations.V1betaDeleteKmsConfigurationDefault:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError{
-				Code:    code,
-				Message: msg,
-			}, nil
-		}
-	}
-	if res == nil || res.Payload == nil {
-		return &gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError{
-			Code:    http.StatusInternalServerError,
-			Message: "unknown error during the delete kms configuration",
-		}, nil
-	}
-	return convertToOperationV1beta(res.Payload), nil
-}
-
 func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpgenserver.V1betaDescribeKmsConfigurationParams) (gcpgenserver.V1betaDescribeKmsConfigurationRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
@@ -371,6 +297,13 @@ func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpg
 					return nillable.GetFloat64(code, 0)
 				}
 				switch e := err.(type) {
+				case *kms_configurations.V1betaDescribeKmsConfigurationNotFound:
+					msg := getMsg(&e.Payload.Message)
+					code := getCode(&e.Payload.Code)
+					return &gcpgenserver.V1betaDescribeKmsConfigurationNotFound{
+						Code:    code,
+						Message: msg,
+					}, nil
 				case *kms_configurations.V1betaDescribeKmsConfigurationUnprocessableEntity:
 					msg := getMsg(&e.Payload.Message)
 					code := getCode(&e.Payload.Code)
@@ -650,6 +583,61 @@ func (h Handler) V1betaGetMultipleKmsConfigs(ctx context.Context, req *gcpgenser
 	}
 	// Returning empty list for zero matches is acceptable for GetMultiple API
 	return &operationResponse, nil
+}
+
+func (h Handler) V1betaDeleteKmsConfiguration(ctx context.Context, params gcpgenserver.V1betaDeleteKmsConfigurationParams) (gcpgenserver.V1betaDeleteKmsConfigurationRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	region, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaDeleteKmsConfigurationBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	param := &common.DeleteKmsConfigParams{
+		AccountName:    params.ProjectNumber,
+		Region:         region,
+		XCorrelationID: params.XCorrelationID.Value,
+		KmsConfigID:    params.KmsConfigId,
+	}
+
+	kmsConfig, jobUUID, err := h.Orchestrator.DeleteKmsConfig(ctx, param)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaDeleteKmsConfigurationBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			}, nil
+		} else if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaDeleteKmsConfigurationNotFound{
+				Code:    http.StatusNotFound,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to delete kms configuration", err.Error())
+		return &gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError{Code: 500, Message: err.Error()}, nil
+	}
+
+	var resp jx.Raw
+	if kmsConfig != nil {
+		resp, err = encodeKmsConfigV1(convertVcpKmsConfigToKmsConfigV1beta(kmsConfig))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	if kmsConfig != nil {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.V1betaDeleteKmsConfigurationNoContent{}, nil
 }
 
 func convertToKmsConfigCheckV1beta(res *kms_configurations.V1betaCheckKmsConfigOK) *gcpgenserver.KmsConfigCheckV1beta {

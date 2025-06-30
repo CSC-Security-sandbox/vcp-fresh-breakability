@@ -853,6 +853,72 @@ func (_c *MockOrchestratorFactory_DeleteHostGroup_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// DeleteKmsConfig provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) DeleteKmsConfig(ctx context.Context, params *common.DeleteKmsConfigParams) (*models.KmsConfig, string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteKmsConfig")
+	}
+
+	var r0 *models.KmsConfig
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteKmsConfigParams) (*models.KmsConfig, string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteKmsConfigParams) *models.KmsConfig); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.KmsConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.DeleteKmsConfigParams) string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.DeleteKmsConfigParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_DeleteKmsConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteKmsConfig'
+type MockOrchestratorFactory_DeleteKmsConfig_Call struct {
+	*mock.Call
+}
+
+// DeleteKmsConfig is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.DeleteKmsConfigParams
+func (_e *MockOrchestratorFactory_Expecter) DeleteKmsConfig(ctx interface{}, params interface{}) *MockOrchestratorFactory_DeleteKmsConfig_Call {
+	return &MockOrchestratorFactory_DeleteKmsConfig_Call{Call: _e.mock.On("DeleteKmsConfig", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_DeleteKmsConfig_Call) Run(run func(ctx context.Context, params *common.DeleteKmsConfigParams)) *MockOrchestratorFactory_DeleteKmsConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.DeleteKmsConfigParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteKmsConfig_Call) Return(_a0 *models.KmsConfig, _a1 string, _a2 error) *MockOrchestratorFactory_DeleteKmsConfig_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteKmsConfig_Call) RunAndReturn(run func(context.Context, *common.DeleteKmsConfigParams) (*models.KmsConfig, string, error)) *MockOrchestratorFactory_DeleteKmsConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeletePool provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) DeletePool(ctx context.Context, params *common.DeletePoolParams) (*models.Pool, string, error) {
 	ret := _m.Called(ctx, params)

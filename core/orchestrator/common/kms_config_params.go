@@ -39,3 +39,10 @@ type CheckKmsConfigParams struct {
 	LocationID    string
 	ProjectNumber string
 }
+
+type DeleteKmsConfigParams struct {
+	KmsConfigID    string
+	AccountName    string
+	Region         string
+	XCorrelationID string
+}

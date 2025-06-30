@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -23,7 +24,6 @@ var (
 	getKmsConfig              = _getKmsConfig
 	listKmsConfigByAccountID  = _listKmsConfigByAccountID
 	getTimeNow                = utils.GetTimeNow
-	createKmsServiceAccount   = _createKmsServiceAccount
 	updateKmsConfigAttributes = _updateKmsConfigAttributes
 	updateKmsConfigDetails    = _updateKmsConfigDetails
 	getKmsConfigByUUID        = _getKmsConfigByUUID
@@ -89,11 +89,7 @@ func (d *DataStoreRepository) CreateKmsConfig(ctx context.Context, kmsConfig *da
 			return dbKmsConfig, nil
 		}
 	}
-	dbServiceAccount, err := createKmsServiceAccount(db, kmsConfig)
-	if err != nil {
-		return nil, err
-	}
-	kmsConfig.ServiceAccountID = dbServiceAccount.ID
+	kmsConfig.ServiceAccountID = nil
 	err = db.Save(kmsConfig).Error
 	if err != nil {
 		return nil, err
@@ -103,9 +99,9 @@ func (d *DataStoreRepository) CreateKmsConfig(ctx context.Context, kmsConfig *da
 	return kmsConfig, err
 }
 
-func _createKmsServiceAccount(db *gorm.DB, kmsConfig *datamodel.KmsConfig) (*datamodel.ServiceAccount, error) {
-	serviceAccount := &datamodel.ServiceAccount{}
-	err := db.First(serviceAccount, &datamodel.ServiceAccount{AccountID: kmsConfig.AccountID,
+func (d *DataStoreRepository) CreateKmsServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) (*datamodel.ServiceAccount, error) {
+	db := d.db.GORM().WithContext(ctx)
+	err := db.First(serviceAccount, &datamodel.ServiceAccount{AccountID: serviceAccount.AccountID,
 		State: KmsSaStateEnable}).Error
 	if err != nil {
 		if err.Error() != "record not found" {
@@ -114,11 +110,11 @@ func _createKmsServiceAccount(db *gorm.DB, kmsConfig *datamodel.KmsConfig) (*dat
 		serviceAccount.UUID = utils.RandomUUID()
 		serviceAccount.CreatedAt = getTimeNow()
 		serviceAccount.UpdatedAt = getTimeNow()
-		serviceAccount.Name = kmsConfig.Name
-		serviceAccount.Description = kmsConfig.Description
-		serviceAccount.State = kmsConfig.State
-		serviceAccount.StateDetails = kmsConfig.StateDetails
-		serviceAccount.AccountID = kmsConfig.AccountID
+		encKey, err := utils.EncryptPassword(log.Secret(serviceAccount.ServiceAccountPasswordLocation))
+		if err != nil {
+			return nil, err
+		}
+		serviceAccount.ServiceAccountPasswordLocation = *encKey
 		if err = db.Create(serviceAccount).Error; err != nil {
 			return nil, err
 		}
@@ -152,7 +148,7 @@ func _getKmsConfigByUUID(db *gorm.DB, uuid string) (*datamodel.KmsConfig, error)
 	err := db.Preload("ServiceAccount").Preload("Account").First(kmsConfig, &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: uuid}}).Error
 	if err != nil {
 		if err.Error() == "record not found" {
-			return nil, errors.NewNotFoundErr(err.Error(), nil)
+			return nil, errors.NewNotFoundErr("KMS Configuration", nil)
 		}
 		return nil, err
 	}
@@ -263,4 +259,50 @@ func (d *DataStoreRepository) GetKmsConfigByKeyFullPath(ctx context.Context, key
 		return nil, errors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "KMS Configuration", nil)
 	}
 	return kmsConfig, nil
+}
+
+// DeleteKmsConfig deletes kms config based on UUID
+func (d *DataStoreRepository) DeleteKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
+
+	kmsConfig, err := getKmsConfig(tx, &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: kmsConfigUUID}})
+	if err != nil {
+		return nil, err
+	}
+	kmsConfig.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
+	kmsConfig.State = models.LifeCycleStateDeleted
+	kmsConfig.StateDetails = models.LifeCycleStateDeletingDetails
+	kmsConfig.StateDetails = ""
+	err = tx.Save(kmsConfig).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return kmsConfig, nil
+}
+
+func (d *DataStoreRepository) UpdateKmsConfig(ctx context.Context, kmsUUID string, updates map[string]interface{}) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	dbKmsConfig, err := _getKmsConfig(tx, &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: kmsUUID}})
+	if err != nil {
+		return err
+	}
+
+	err = tx.Model(&dbKmsConfig).Updates(updates).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }

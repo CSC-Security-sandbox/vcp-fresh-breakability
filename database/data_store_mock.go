@@ -672,6 +672,65 @@ func (_c *MockDataStore_CreateKmsConfig_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
+// CreateKmsServiceAccount provides a mock function with given fields: ctx, serviceAccount
+func (_m *MockDataStore) CreateKmsServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) (*datamodel.ServiceAccount, error) {
+	ret := _m.Called(ctx, serviceAccount)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateKmsServiceAccount")
+	}
+
+	var r0 *datamodel.ServiceAccount
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ServiceAccount) (*datamodel.ServiceAccount, error)); ok {
+		return rf(ctx, serviceAccount)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.ServiceAccount) *datamodel.ServiceAccount); ok {
+		r0 = rf(ctx, serviceAccount)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ServiceAccount)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.ServiceAccount) error); ok {
+		r1 = rf(ctx, serviceAccount)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_CreateKmsServiceAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateKmsServiceAccount'
+type MockDataStore_CreateKmsServiceAccount_Call struct {
+	*mock.Call
+}
+
+// CreateKmsServiceAccount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - serviceAccount *datamodel.ServiceAccount
+func (_e *MockDataStore_Expecter) CreateKmsServiceAccount(ctx interface{}, serviceAccount interface{}) *MockDataStore_CreateKmsServiceAccount_Call {
+	return &MockDataStore_CreateKmsServiceAccount_Call{Call: _e.mock.On("CreateKmsServiceAccount", ctx, serviceAccount)}
+}
+
+func (_c *MockDataStore_CreateKmsServiceAccount_Call) Run(run func(ctx context.Context, serviceAccount *datamodel.ServiceAccount)) *MockDataStore_CreateKmsServiceAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.ServiceAccount))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_CreateKmsServiceAccount_Call) Return(_a0 *datamodel.ServiceAccount, _a1 error) *MockDataStore_CreateKmsServiceAccount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_CreateKmsServiceAccount_Call) RunAndReturn(run func(context.Context, *datamodel.ServiceAccount) (*datamodel.ServiceAccount, error)) *MockDataStore_CreateKmsServiceAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateLif provides a mock function with given fields: ctx, lif
 func (_m *MockDataStore) CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error) {
 	ret := _m.Called(ctx, lif)
@@ -1318,6 +1377,65 @@ func (_c *MockDataStore_DeleteHostGroup_Call) Return(_a0 *datamodel.HostGroup, _
 }
 
 func (_c *MockDataStore_DeleteHostGroup_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.HostGroup, error)) *MockDataStore_DeleteHostGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteKmsConfig provides a mock function with given fields: ctx, kmsConfigUUID
+func (_m *MockDataStore) DeleteKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error) {
+	ret := _m.Called(ctx, kmsConfigUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteKmsConfig")
+	}
+
+	var r0 *datamodel.KmsConfig
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.KmsConfig, error)); ok {
+		return rf(ctx, kmsConfigUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.KmsConfig); ok {
+		r0 = rf(ctx, kmsConfigUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.KmsConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, kmsConfigUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_DeleteKmsConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteKmsConfig'
+type MockDataStore_DeleteKmsConfig_Call struct {
+	*mock.Call
+}
+
+// DeleteKmsConfig is a helper method to define mock.On call
+//   - ctx context.Context
+//   - kmsConfigUUID string
+func (_e *MockDataStore_Expecter) DeleteKmsConfig(ctx interface{}, kmsConfigUUID interface{}) *MockDataStore_DeleteKmsConfig_Call {
+	return &MockDataStore_DeleteKmsConfig_Call{Call: _e.mock.On("DeleteKmsConfig", ctx, kmsConfigUUID)}
+}
+
+func (_c *MockDataStore_DeleteKmsConfig_Call) Run(run func(ctx context.Context, kmsConfigUUID string)) *MockDataStore_DeleteKmsConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_DeleteKmsConfig_Call) Return(_a0 *datamodel.KmsConfig, _a1 error) *MockDataStore_DeleteKmsConfig_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_DeleteKmsConfig_Call) RunAndReturn(run func(context.Context, string) (*datamodel.KmsConfig, error)) *MockDataStore_DeleteKmsConfig_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3661,6 +3779,65 @@ func (_c *MockDataStore_GetPoolByVendorID_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
+// GetServiceAccountFromEmail provides a mock function with given fields: ctx, email
+func (_m *MockDataStore) GetServiceAccountFromEmail(ctx context.Context, email string) (*datamodel.ServiceAccount, error) {
+	ret := _m.Called(ctx, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetServiceAccountFromEmail")
+	}
+
+	var r0 *datamodel.ServiceAccount
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.ServiceAccount, error)); ok {
+		return rf(ctx, email)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.ServiceAccount); ok {
+		r0 = rf(ctx, email)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.ServiceAccount)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, email)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetServiceAccountFromEmail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetServiceAccountFromEmail'
+type MockDataStore_GetServiceAccountFromEmail_Call struct {
+	*mock.Call
+}
+
+// GetServiceAccountFromEmail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - email string
+func (_e *MockDataStore_Expecter) GetServiceAccountFromEmail(ctx interface{}, email interface{}) *MockDataStore_GetServiceAccountFromEmail_Call {
+	return &MockDataStore_GetServiceAccountFromEmail_Call{Call: _e.mock.On("GetServiceAccountFromEmail", ctx, email)}
+}
+
+func (_c *MockDataStore_GetServiceAccountFromEmail_Call) Run(run func(ctx context.Context, email string)) *MockDataStore_GetServiceAccountFromEmail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetServiceAccountFromEmail_Call) Return(_a0 *datamodel.ServiceAccount, _a1 error) *MockDataStore_GetServiceAccountFromEmail_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetServiceAccountFromEmail_Call) RunAndReturn(run func(context.Context, string) (*datamodel.ServiceAccount, error)) *MockDataStore_GetServiceAccountFromEmail_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSnapshotByUUID provides a mock function with given fields: ctx, uuid, accountID, isParentSnapshot
 func (_m *MockDataStore) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
 	ret := _m.Called(ctx, uuid, accountID, isParentSnapshot)
@@ -4835,6 +5012,66 @@ func (_c *MockDataStore_ListBackupVaults_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// ListOngoingPoolJobsWithKmsConfigId provides a mock function with given fields: ctx, kmsId, accountId
+func (_m *MockDataStore) ListOngoingPoolJobsWithKmsConfigId(ctx context.Context, kmsId int64, accountId int64) ([]*datamodel.Job, error) {
+	ret := _m.Called(ctx, kmsId, accountId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListOngoingPoolJobsWithKmsConfigId")
+	}
+
+	var r0 []*datamodel.Job
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64) ([]*datamodel.Job, error)); ok {
+		return rf(ctx, kmsId, accountId)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64) []*datamodel.Job); ok {
+		r0 = rf(ctx, kmsId, accountId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64, int64) error); ok {
+		r1 = rf(ctx, kmsId, accountId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListOngoingPoolJobsWithKmsConfigId_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListOngoingPoolJobsWithKmsConfigId'
+type MockDataStore_ListOngoingPoolJobsWithKmsConfigId_Call struct {
+	*mock.Call
+}
+
+// ListOngoingPoolJobsWithKmsConfigId is a helper method to define mock.On call
+//   - ctx context.Context
+//   - kmsId int64
+//   - accountId int64
+func (_e *MockDataStore_Expecter) ListOngoingPoolJobsWithKmsConfigId(ctx interface{}, kmsId interface{}, accountId interface{}) *MockDataStore_ListOngoingPoolJobsWithKmsConfigId_Call {
+	return &MockDataStore_ListOngoingPoolJobsWithKmsConfigId_Call{Call: _e.mock.On("ListOngoingPoolJobsWithKmsConfigId", ctx, kmsId, accountId)}
+}
+
+func (_c *MockDataStore_ListOngoingPoolJobsWithKmsConfigId_Call) Run(run func(ctx context.Context, kmsId int64, accountId int64)) *MockDataStore_ListOngoingPoolJobsWithKmsConfigId_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListOngoingPoolJobsWithKmsConfigId_Call) Return(_a0 []*datamodel.Job, _a1 error) *MockDataStore_ListOngoingPoolJobsWithKmsConfigId_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListOngoingPoolJobsWithKmsConfigId_Call) RunAndReturn(run func(context.Context, int64, int64) ([]*datamodel.Job, error)) *MockDataStore_ListOngoingPoolJobsWithKmsConfigId_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPools provides a mock function with given fields: ctx, conditions
 func (_m *MockDataStore) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error) {
 	ret := _m.Called(ctx, conditions)
@@ -5477,6 +5714,54 @@ func (_c *MockDataStore_UpdateJob_Call) Return(_a0 error) *MockDataStore_UpdateJ
 }
 
 func (_c *MockDataStore_UpdateJob_Call) RunAndReturn(run func(context.Context, string, string, int, []byte) error) *MockDataStore_UpdateJob_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateKmsConfig provides a mock function with given fields: ctx, kmsUUID, updates
+func (_m *MockDataStore) UpdateKmsConfig(ctx context.Context, kmsUUID string, updates map[string]interface{}) error {
+	ret := _m.Called(ctx, kmsUUID, updates)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateKmsConfig")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]interface{}) error); ok {
+		r0 = rf(ctx, kmsUUID, updates)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateKmsConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateKmsConfig'
+type MockDataStore_UpdateKmsConfig_Call struct {
+	*mock.Call
+}
+
+// UpdateKmsConfig is a helper method to define mock.On call
+//   - ctx context.Context
+//   - kmsUUID string
+//   - updates map[string]interface{}
+func (_e *MockDataStore_Expecter) UpdateKmsConfig(ctx interface{}, kmsUUID interface{}, updates interface{}) *MockDataStore_UpdateKmsConfig_Call {
+	return &MockDataStore_UpdateKmsConfig_Call{Call: _e.mock.On("UpdateKmsConfig", ctx, kmsUUID, updates)}
+}
+
+func (_c *MockDataStore_UpdateKmsConfig_Call) Run(run func(ctx context.Context, kmsUUID string, updates map[string]interface{})) *MockDataStore_UpdateKmsConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(map[string]interface{}))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateKmsConfig_Call) Return(_a0 error) *MockDataStore_UpdateKmsConfig_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateKmsConfig_Call) RunAndReturn(run func(context.Context, string, map[string]interface{}) error) *MockDataStore_UpdateKmsConfig_Call {
 	_c.Call.Return(run)
 	return _c
 }

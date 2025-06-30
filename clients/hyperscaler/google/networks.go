@@ -15,8 +15,7 @@ import (
 )
 
 var (
-	waitTimeoutMinutes = time.Minute * time.Duration(env.GetInt("GCP_LRO_TIMEOUT_MINUTES", 20))
-
+	waitTimeoutMinutes       = time.Minute * time.Duration(env.GetInt("GCP_LRO_TIMEOUT_MINUTES", 20))
 	minimumTenantNetworkSize = env.GetInt64("MIN_TENANT_NETWORK_SIZE", int64(24))
 	defaultSleepTime         = time.Duration(env.GetInt64("GCP_NETWORK_SLEEP_SECONDS", int64(28))) * time.Second
 

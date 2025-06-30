@@ -74,3 +74,38 @@ func TestUpdateServiceAccountEmailAndKey(t *testing.T) {
 		assert.ErrorContains(t, err, "encryption error")
 	})
 }
+
+func TestGetGcpKmsServiceAccountFromEmail(t *testing.T) {
+	t.Run("ReturnsServiceAccountOnSuccess", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		sa := &datamodel.ServiceAccount{
+			BaseModel:           datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail: "test@email.com",
+		}
+		err = store.db.Create(sa).Error()
+		assert.NoError(tt, err)
+
+		result, err := store.GetServiceAccountFromEmail(context.Background(), "test@email.com")
+		assert.NoError(tt, err)
+		assert.Equal(tt, "test@email.com", result.ServiceAccountEmail)
+	})
+
+	t.Run("ReturnsNotFoundErrorIfNoAccount", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		_, err = store.GetServiceAccountFromEmail(context.Background(), "notfound@email.com")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found")
+	})
+}

@@ -22,8 +22,8 @@ type KmsConfig struct {
 	CustomerProjectID string          `gorm:"column:customer_project_id"`
 	KeyProjectID      string          `gorm:"column:key_project_id"`
 	ResourceID        string          `gorm:"column:resource_id"`
-	ServiceAccountID  int64           `gorm:"column:service_account_id"`
-	ServiceAccount    *ServiceAccount `gorm:"ForeignKey:ServiceAccountID;AssociationForeignKey:ID;constraint:OnUpdate:RESTRICT;"`
+	ServiceAccountID  *int64          `gorm:"column:service_account_id"`
+	ServiceAccount    *ServiceAccount `gorm:"ForeignKey:ServiceAccountID;AssociationForeignKey:ID:OnUpdate:RESTRICT;"`
 	KmsAttributes     *KmsAttributes  `gorm:"column:kms_attributes;type:jsonb"`
 }
 

@@ -1536,6 +1536,26 @@ func (re *retryEngine) UpdateKmsConfigState(ctx context.Context, kmsConfigUUID s
 	return var0, err
 }
 
+func (re *retryEngine) DeleteKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error) {
+	var var0 *datamodel.KmsConfig
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.DeleteKmsConfig(ctx, kmsConfigUUID)
+		if err != nil {
+			re.logError("DeleteKmsConfig", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetSvmsByKmsConfigID(ctx context.Context, kmsConfigID int64) ([]*datamodel.Svm, error) {
 	var var0 []*datamodel.Svm
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -1543,6 +1563,26 @@ func (re *retryEngine) GetSvmsByKmsConfigID(ctx context.Context, kmsConfigID int
 		var0, err = re.dataStore.GetSvmsByKmsConfigID(ctx, kmsConfigID)
 		if err != nil {
 			re.logError("GetSvmsByKmsConfigID", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) ListOngoingPoolJobsWithKmsConfigId(ctx context.Context, kmsId, accountId int64) ([]*datamodel.Job, error) {
+	var var0 []*datamodel.Job
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListOngoingPoolJobsWithKmsConfigId(ctx, kmsId, accountId)
+		if err != nil {
+			re.logError("ListOngoingPoolJobsWithKmsConfigId", err)
 			if !isTransientErr(err) {
 				return false, err
 			}
@@ -1676,6 +1716,45 @@ func (re *retryEngine) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPat
 	return var0, err
 }
 
+func (re *retryEngine) UpdateKmsConfig(ctx context.Context, kmsUUID string, updates map[string]interface{}) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateKmsConfig(ctx, kmsUUID, updates)
+		if err != nil {
+			re.logError("UpdateKmsConfig", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
+func (re *retryEngine) CreateKmsServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) (*datamodel.ServiceAccount, error) {
+	var var0 *datamodel.ServiceAccount
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateKmsServiceAccount(ctx, serviceAccount)
+		if err != nil {
+			re.logError("CreateKmsServiceAccount", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) UpdateServiceAccountEmailAndKey(ctx context.Context, uuid string, email string, key string) (*datamodel.ServiceAccount, error) {
 	var var0 *datamodel.ServiceAccount
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -1703,6 +1782,26 @@ func (re *retryEngine) UpdateServiceAccountState(ctx context.Context, uuid strin
 		var0, err = re.dataStore.UpdateServiceAccountState(ctx, uuid, state, stateDetails)
 		if err != nil {
 			re.logError("UpdateServiceAccountState", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetServiceAccountFromEmail(ctx context.Context, email string) (*datamodel.ServiceAccount, error) {
+	var var0 *datamodel.ServiceAccount
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetServiceAccountFromEmail(ctx, email)
+		if err != nil {
+			re.logError("GetServiceAccountFromEmail", err)
 			if !isTransientErr(err) {
 				return false, err
 			}

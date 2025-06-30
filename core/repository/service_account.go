@@ -2,10 +2,14 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"gorm.io/gorm"
 )
 
 func (d *DataStoreRepository) UpdateServiceAccountEmailAndKey(ctx context.Context, uuid string, email string, key string) (*datamodel.ServiceAccount, error) {
@@ -36,4 +40,18 @@ func (d *DataStoreRepository) UpdateServiceAccountState(ctx context.Context, uui
 	dbServiceAccount.StateDetails = stateDetails
 	dbServiceAccount.UpdatedAt = utils.GetTimeNow()
 	return dbServiceAccount, db.Where("uuid = ?", uuid).Updates(dbServiceAccount).Error
+}
+
+// GetServiceAccountFromEmail gets the Kms Service Account based on SA email
+func (d *DataStoreRepository) GetServiceAccountFromEmail(ctx context.Context, email string) (*datamodel.ServiceAccount, error) {
+	db := d.db.GORM().WithContext(ctx)
+	sa := &datamodel.ServiceAccount{}
+	err := db.First(&sa, &datamodel.ServiceAccount{ServiceAccountEmail: email}).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.NewNotFoundErr("service account", nil))
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return sa, nil
 }
