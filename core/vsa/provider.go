@@ -16,6 +16,7 @@ const (
 
 type Provider interface {
 	GetONTAPVersion() (*string, error)
+	JobGet(jobUUID string) (*OntapJob, error)
 	AreAllNodeUpAndRunning() (bool, error)
 	IsAggregateOnline(aggregateName string) (bool, error)
 	GetNodes() ([]*Node, error)
@@ -60,7 +61,6 @@ type Provider interface {
 	CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error)
 	DeleteSnapshot(snapshotUUID string, volumeUUID string) error
 	GetSnapshots(volumeUUID string) ([]*Snapshot, error)
-	CreateSnapshotPolicy(sp *SnapshotPolicy) error
 	UpdateSnapshotPolicy(ctx context.Context, params *UpdateSnapshotPolicyParams) error
 	CloudTargetGet(name *string) (*ontapRest.CloudTarget, error)
 	CloudTargetCreate(name, containerName string) (*ontapRest.CloudTarget, error)
@@ -68,6 +68,10 @@ type Provider interface {
 	SnapmirrorRelationshipGet(destinationPath, sourcePath string) (*ontapRest.SnapmirrorRelationship, error)
 	SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName string) error
 	SnapmirrorRelationshipTransferGet(snapmirrorUUID, snapshotName string) (*ontapRest.SnapmirrorTransfer, error)
+	SnapmirrorRelationshipDelete(UUID string) (*OntapAsyncResponse, error)
+	SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, EndpointUUID string) (*OntapAsyncResponse, error)
+	SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID, EndpointUUID, snapshotUUID string) (*OntapAsyncResponse, error)
+	CreateSnapshotPolicy(sp *SnapshotPolicy) error
 	DeleteSnapshotPolicy(snapshotPolicyName string) error
 }
 

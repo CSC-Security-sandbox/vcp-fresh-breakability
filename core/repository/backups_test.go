@@ -73,13 +73,32 @@ func TestGetBackup(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err)
 
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:      "test-backup-vault",
+		}
+		backupVault.AccountID = account.ID
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
 		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{UUID: "test-backup-uuid"},
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test_backup",
+			BackupVaultID: backupVault.ID,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
 
-		result, err := store.GetBackup(context.Background(), backup.UUID)
+		result, err := store.GetBackup(context.Background(), backupVault.UUID, backup.UUID, account.Name)
 		assert.NoError(tt, err)
 		assert.Equal(tt, backup.UUID, result.UUID)
 	})
@@ -94,7 +113,24 @@ func TestGetBackup(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err)
 
-		_, err = store.GetBackup(context.Background(), "non-existent-uuid")
+		// Create account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		// Create backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:      "test-backup-vault",
+		}
+		backupVault.AccountID = account.ID
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		_, err = store.GetBackup(context.Background(), backupVault.UUID, "non-existent-backup-uuid", account.Name)
 		assert.Error(tt, err)
 	})
 }
@@ -172,7 +208,7 @@ func TestGetBackup_Errors(t *testing.T) {
 
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err)
-		_, err = store.GetBackup(context.Background(), "test-uuid")
+		_, err = store.GetBackup(context.Background(), "test-backup-vault-uuid", "test-backup-uuid", "test-account")
 		assert.Error(tt, err)
 	})
 }
@@ -239,23 +275,6 @@ func TestCreateBackup_EdgeCases(t *testing.T) {
 		_, err = store.CreateBackup(context.Background(), backup)
 		assert.Error(tt, err)
 		assert.Equal(tt, "transaction failed", err.Error())
-	})
-}
-
-func TestGetBackup_EdgeCases(t *testing.T) {
-	t.Run("ReturnsErrorWhenBackupNotFound", func(tt *testing.T) {
-		db, err := SetupTestDB()
-		assert.NoError(tt, err)
-
-		wrapper := gormwrapper.New(db)
-		store := NewDataStoreRepository(wrapper)
-
-		err = ClearInMemoryDB(store.db.GORM())
-		assert.NoError(tt, err)
-
-		_, err = store.GetBackup(context.Background(), "non-existent-uuid")
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "not found")
 	})
 }
 
@@ -576,5 +595,157 @@ func TestFinishBackup(t *testing.T) {
 
 		_, err = store.FinishBackup(context.Background(), backup)
 		assert.Error(tt, err)
+	})
+}
+
+func TestIsLatestBackup(t *testing.T) {
+	t.Run("OnSuccessWithLatestBackup", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backup1 := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid1"},
+			Name:         "test_backup",
+			Description:  "Test backup",
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			VolumeUUID:   "volume1",
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+
+		backup2 := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid2"},
+			Name:         "test_backup",
+			Description:  "Test backup",
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			VolumeUUID:   "volume1",
+		}
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		isLatest, err := store.IsLatestBackup(context.Background(), backup2.UUID, "volume1")
+		assert.NoError(tt, err)
+		assert.True(tt, isLatest)
+	})
+	t.Run("OnSuccessWithNotLatestBackup", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backup1 := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid1"},
+			Name:         "test_backup",
+			Description:  "Test backup",
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			VolumeUUID:   "volume1",
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+
+		backup2 := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid2"},
+			Name:         "test_backup",
+			Description:  "Test backup",
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			VolumeUUID:   "volume1",
+		}
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		isLatest, err := store.IsLatestBackup(context.Background(), backup1.UUID, "volume1")
+		assert.NoError(tt, err)
+		assert.False(tt, isLatest)
+	})
+	t.Run("OnError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Simulate DB failure by closing the connection
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		isLatest, err := store.IsLatestBackup(context.Background(), "test-backup-uuid", "volume1")
+		assert.Error(tt, err)
+		assert.False(tt, isLatest)
+	})
+}
+
+func TestBackupCountByVolumeID(t *testing.T) {
+	t.Run("OnSuccessWithBackupCount", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backup1 := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid1"},
+			Name:         "test_backup",
+			Description:  "Test backup",
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			VolumeUUID:   "volume1",
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+
+		backup2 := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid2"},
+			Name:         "test_backup",
+			Description:  "Test backup",
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			VolumeUUID:   "volume1",
+		}
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		count, err := store.BackupCountByVolumeID(context.Background(), "volume1")
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(2), count)
+	})
+	t.Run("onDBFailure", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Simulate DB failure by closing the connection
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		count, err := store.BackupCountByVolumeID(context.Background(), "volume1")
+		assert.Error(tt, err)
+		assert.Equal(tt, int64(0), count)
 	})
 }

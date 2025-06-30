@@ -56,7 +56,7 @@ func TestCloudTargetCreate(t *testing.T) {
 		params := &CloudTargetCreateParams{Name: &name}
 		response, job, err := client.CloudTargetCreate(params)
 		assert.NoError(tt, err)
-		assert.NotNil(tt, response)
+		assert.Nil(tt, response)
 		assert.NotNil(tt, job)
 		assert.Equal(tt, "job-uuid", job.JobUUID)
 	})

@@ -33,6 +33,9 @@ type Services interface {
 	AttachOrUpdateRolesForServiceAccounts(roles []string, serviceAccountEmail, projectID string) error
 	DeleteServiceAccount(email string) error
 
+	CreateHmacKey(projectID string, serviceAccount string) (accessKey *string, secretKey *string, err error)
+	DeleteHmacKey(projectID string, accessKey string, ServiceAccount string) error
+
 	CreateCertificate(cert *models.CustomCertificate) (*models.CustomCertificate, error)
 	RevokeCertificate(cert *models.CustomCertificate) (string, error)
 	GetCertificate(projectID, region, poolName, certificateID string) (*models.CustomCertificate, error)

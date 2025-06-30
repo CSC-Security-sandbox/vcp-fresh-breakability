@@ -727,6 +727,72 @@ func (_c *MockOrchestratorFactory_CreateVolumeReplicationInternal_Call) RunAndRe
 	return _c
 }
 
+// DeleteBackup provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) DeleteBackup(ctx context.Context, params *common.DeleteBackupParams) (*models.BaseModel, string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteBackup")
+	}
+
+	var r0 *models.BaseModel
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteBackupParams) (*models.BaseModel, string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteBackupParams) *models.BaseModel); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.BaseModel)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.DeleteBackupParams) string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.DeleteBackupParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_DeleteBackup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteBackup'
+type MockOrchestratorFactory_DeleteBackup_Call struct {
+	*mock.Call
+}
+
+// DeleteBackup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.DeleteBackupParams
+func (_e *MockOrchestratorFactory_Expecter) DeleteBackup(ctx interface{}, params interface{}) *MockOrchestratorFactory_DeleteBackup_Call {
+	return &MockOrchestratorFactory_DeleteBackup_Call{Call: _e.mock.On("DeleteBackup", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_DeleteBackup_Call) Run(run func(ctx context.Context, params *common.DeleteBackupParams)) *MockOrchestratorFactory_DeleteBackup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.DeleteBackupParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteBackup_Call) Return(_a0 *models.BaseModel, _a1 string, _a2 error) *MockOrchestratorFactory_DeleteBackup_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteBackup_Call) RunAndReturn(run func(context.Context, *common.DeleteBackupParams) (*models.BaseModel, string, error)) *MockOrchestratorFactory_DeleteBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteHostGroup provides a mock function with given fields: ctx, hostGroupUUID, accountID
 func (_m *MockOrchestratorFactory) DeleteHostGroup(ctx context.Context, hostGroupUUID string, accountID string) (*models.HostGroup, error) {
 	ret := _m.Called(ctx, hostGroupUUID, accountID)
@@ -981,6 +1047,65 @@ func (_c *MockOrchestratorFactory_DeleteVolume_Call) Return(_a0 *models.Volume, 
 }
 
 func (_c *MockOrchestratorFactory_DeleteVolume_Call) RunAndReturn(run func(context.Context, string) (*models.Volume, string, error)) *MockOrchestratorFactory_DeleteVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBackup provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) GetBackup(ctx context.Context, params *common.GetBackupParams) (*datamodel.Backup, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackup")
+	}
+
+	var r0 *datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetBackupParams) (*datamodel.Backup, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.GetBackupParams) *datamodel.Backup); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.GetBackupParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetBackup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackup'
+type MockOrchestratorFactory_GetBackup_Call struct {
+	*mock.Call
+}
+
+// GetBackup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.GetBackupParams
+func (_e *MockOrchestratorFactory_Expecter) GetBackup(ctx interface{}, params interface{}) *MockOrchestratorFactory_GetBackup_Call {
+	return &MockOrchestratorFactory_GetBackup_Call{Call: _e.mock.On("GetBackup", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_GetBackup_Call) Run(run func(ctx context.Context, params *common.GetBackupParams)) *MockOrchestratorFactory_GetBackup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.GetBackupParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackup_Call) Return(_a0 *datamodel.Backup, _a1 error) *MockOrchestratorFactory_GetBackup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackup_Call) RunAndReturn(run func(context.Context, *common.GetBackupParams) (*datamodel.Backup, error)) *MockOrchestratorFactory_GetBackup_Call {
 	_c.Call.Return(run)
 	return _c
 }

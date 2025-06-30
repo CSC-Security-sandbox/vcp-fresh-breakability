@@ -294,6 +294,12 @@ type GetBackupsParams struct {
 	BackupUUIDs   []string
 }
 
+type GetBackupParams struct {
+	AccountName   string
+	BackupVaultID string
+	BackupUUID    string
+}
+
 type ReplicationInternalGetMultipleParams struct {
 	ReplicationUUIDs    []string
 	AccountName         string
@@ -306,6 +312,7 @@ type ReplicationInternalGetMultipleParams struct {
 
 type CloudTarget struct {
 	Name string
+	UUID string
 }
 type SnapmirrorRelationship struct {
 	UUID            string
@@ -318,6 +325,40 @@ type GetMultipleReplicationsParams struct {
 	LocationId       string
 	XCorrelationID   string
 	VolumeResourceId string
+}
+
+type ADCParams struct {
+	ADCName          string
+	DestEndpointUUID string
+	SnapshotUUID     string
+	BucketName       string
+	AccessKey        string
+	SecretKey        string
+	ProvideType      string
+	ServerURL        string
+	AccountName      string
+	Port             int64
+}
+
+type ADCResponse struct {
+	StatusCode  int
+	RedirectURL string
+}
+
+type DeleteBackupParams struct {
+	AccountName     string
+	BackupVaultUUID string
+	BackupUUID      string
+}
+
+type HmacKeyCreateParams struct {
+	ServiceAccount string
+	ProjectNumber  string
+}
+
+type HmacKeys struct {
+	AccessKey string
+	SecretKey string
 }
 
 type ResumeReplicationParams struct {

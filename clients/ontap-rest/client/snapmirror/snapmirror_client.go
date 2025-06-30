@@ -104,6 +104,10 @@ type ClientService interface {
 
 	SnapmirrorObjectStoreEndpointSnapshotGet(params *SnapmirrorObjectStoreEndpointSnapshotGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjectStoreEndpointSnapshotGetOK, error)
 
+	SnapmirrorObjstoreEpDelete(params *SnapmirrorObjstoreEpDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjstoreEpDeleteOK, *SnapmirrorObjstoreEpDeleteAccepted, error)
+
+	SnapmirrorObjstoreEpSnapshotDelete(params *SnapmirrorObjstoreEpSnapshotDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjstoreEpSnapshotDeleteOK, *SnapmirrorObjstoreEpSnapshotDeleteAccepted, error)
+
 	SnapmirrorPolicyDeleteCollection(params *SnapmirrorPolicyDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyDeleteCollectionOK, *SnapmirrorPolicyDeleteCollectionAccepted, error)
 
 	SnapmirrorRelationshipCreate(params *SnapmirrorRelationshipCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorRelationshipCreateCreated, *SnapmirrorRelationshipCreateAccepted, error)
@@ -277,6 +281,98 @@ func (a *Client) SnapmirrorObjectStoreEndpointSnapshotGet(params *SnapmirrorObje
 	// unexpected success response
 	unexpectedSuccess := result.(*SnapmirrorObjectStoreEndpointSnapshotGetDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	SnapmirrorObjstoreEpDelete This API deletes all the data of a specific endpoint within an object store that was populated by SnapMirror. The object store UUID, together with the endpoint's UUID will be used to specify the data to be processed by this API.
+
+### Related ONTAP commands
+* `snapmirror object-store endpoint delete`
+### Examples
+
+	DELETE "/api/snapmirror/object-stores/cd9563a0-2e59-11ea-a778-00505682bd8f/endpoints/af86c94c-bcb2-4b4e-b8cc-c294793a310a/"
+*/
+func (a *Client) SnapmirrorObjstoreEpDelete(params *SnapmirrorObjstoreEpDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjstoreEpDeleteOK, *SnapmirrorObjstoreEpDeleteAccepted, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSnapmirrorObjstoreEpDeleteParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "snapmirror_objstore_ep_delete",
+		Method:             "DELETE",
+		PathPattern:        "/snapmirror/object-stores/{object_store.uuid}/endpoints/{uuid}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SnapmirrorObjstoreEpDeleteReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, nil, err
+	}
+	switch value := result.(type) {
+	case *SnapmirrorObjstoreEpDeleteOK:
+		return value, nil, nil
+	case *SnapmirrorObjstoreEpDeleteAccepted:
+		return nil, value, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SnapmirrorObjstoreEpDeleteDefault)
+	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	SnapmirrorObjstoreEpSnapshotDelete Deletes a snapshot from the object store endpoint. The object store UUID, object store endpoint UUID together with the snapshot UUID will be used to specify the snapshot to be deleted.
+
+### Related ONTAP commands
+* `snapmirror object-store endpoint snapshot delete`
+### Examples
+
+	DELETE "/api/snapmirror/object-stores/cd9563a0-2e59-11ea-a778-00505682bd8f/endpoints/af86c94c-bcb2-4b4e-b8cc-c294793a310a/snapshots/04fb1ddb-2947-4eb0-af09-3eb6dc538926"
+*/
+func (a *Client) SnapmirrorObjstoreEpSnapshotDelete(params *SnapmirrorObjstoreEpSnapshotDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjstoreEpSnapshotDeleteOK, *SnapmirrorObjstoreEpSnapshotDeleteAccepted, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSnapmirrorObjstoreEpSnapshotDeleteParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "snapmirror_objstore_ep_snapshot_delete",
+		Method:             "DELETE",
+		PathPattern:        "/snapmirror/object-stores/{object_store.uuid}/endpoints/{endpoint.uuid}/snapshots/{uuid}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SnapmirrorObjstoreEpSnapshotDeleteReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, nil, err
+	}
+	switch value := result.(type) {
+	case *SnapmirrorObjstoreEpSnapshotDeleteOK:
+		return value, nil, nil
+	case *SnapmirrorObjstoreEpSnapshotDeleteAccepted:
+		return nil, value, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SnapmirrorObjstoreEpSnapshotDeleteDefault)
+	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
 /*

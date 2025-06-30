@@ -40,6 +40,7 @@ const (
 	JobTypeStopVolumeReplication            JobType = "STOP_VOLUME_REPLICATION"
 	JobTypeRefreshVolumeReplicationInternal JobType = "REFRESH_VOLUME_REPLICATION_INTERNAL"
 	JobTypeCreateBackup                     JobType = "CREATE_BACKUP"
+	JobTypeDeleteBackup                     JobType = "DELETE_BACKUP"
 	JobTypeUpdateHostGroup                  JobType = "UPDATE_HOSTGROUP"
 	JobTypeMountCheck                       JobType = "MOUNT_VOLUME_REPLICATION_INTERNAL"
 	JobTypeRefreshAdminJobSpecs             JobType = "REFRESH_ADMIN_JOB_SPECS"

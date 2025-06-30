@@ -102,3 +102,12 @@ func _getProviderByNode(ctx context.Context, node *models.Node) vsa.Provider {
 		InsecureSkipVerify: true,
 	})
 }
+
+func (j CommonActivities) GetOntapJob(ctx context.Context, jobUUID string, node *models.Node) (*vsa.OntapJob, error) {
+	provider := GetProviderByNode(ctx, node)
+	job, err := provider.JobGet(jobUUID)
+	if err != nil {
+		return nil, err
+	}
+	return job, nil
+}

@@ -25,6 +25,8 @@ import (
 	scopesHttp "google.golang.org/api/transport/http"
 )
 
+const INACTIVE = "INACTIVE"
+
 var (
 	// serviceNetworkingEndpoint is the endpoint for the Service Networking API.
 	serviceNetworkingEndpoint = env.GetString("GCP_SERVICE_NETWORKING_ENDPOINT_URL", "")
@@ -597,5 +599,33 @@ func (gcpService *GcpServices) DeleteServiceAccount(saEmail string) error {
 		}
 		return fmt.Errorf("Projects.ServiceAccounts.Delete: %v", err)
 	}
+	return nil
+}
+
+func (gcpService *GcpServices) CreateHmacKey(projectID string, serviceAccount string) (accessKey *string, secretKey *string, err error) {
+	// Create the HMAC key
+	key, err := gcpService.AdminGCPService.storageService.CreateHMACKey(gcpService.Ctx, projectID, serviceAccount, storage.ForHMACKeyServiceAccountEmail(serviceAccount))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Extract the access key and secret key from the response
+	accessKey = &key.AccessID
+	secretKey = &key.Secret
+
+	return accessKey, secretKey, nil
+}
+
+func (gcpService *GcpServices) DeleteHmacKey(projectID string, accessKey string, ServiceAccount string) error {
+	// Delete the HMAC key
+	_, err := gcpService.AdminGCPService.storageService.HMACKeyHandle(projectID, accessKey).Update(gcpService.Ctx, storage.HMACKeyAttrsToUpdate{State: INACTIVE}, storage.ForHMACKeyServiceAccountEmail(ServiceAccount))
+	if err != nil {
+		return fmt.Errorf("failed to update HMAC key state to INACTIVE: %v", err)
+	}
+	err = gcpService.AdminGCPService.storageService.HMACKeyHandle(projectID, accessKey).Delete(gcpService.Ctx)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

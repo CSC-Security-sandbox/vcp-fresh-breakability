@@ -349,15 +349,19 @@
 1823188647 6515 ./client/security/security_keystore_delete_responses.go
 298475478 6771 ./client/security/security_keystore_modify_parameters.go
 382166781 10830 ./client/security/security_keystore_modify_responses.go
-1917918503 20058 ./client/snapmirror/client_service_mock.go
-2432643727 16838 ./client/snapmirror/client_service_mock_test.go
+4026169170 22500 ./client/snapmirror/client_service_mock.go
+458215808 18146 ./client/snapmirror/client_service_mock_test.go
 4195433407 6689 ./client/snapmirror/object_store_endpoint_info_get_parameters.go
 2602234235 6681 ./client/snapmirror/object_store_endpoint_info_get_responses.go
-2045330212 67010 ./client/snapmirror/snapmirror_client.go
+3828158860 71566 ./client/snapmirror/snapmirror_client.go
 50195546 24348 ./client/snapmirror/snapmirror_object_store_endpoint_snapshot_collection_get_parameters.go
 3002639911 8211 ./client/snapmirror/snapmirror_object_store_endpoint_snapshot_collection_get_responses.go
 4208981469 22750 ./client/snapmirror/snapmirror_object_store_endpoint_snapshot_get_parameters.go
 1345669785 7845 ./client/snapmirror/snapmirror_object_store_endpoint_snapshot_get_responses.go
+1496329168 7072 ./client/snapmirror/snapmirror_objstore_ep_delete_parameters.go
+3172674900 9801 ./client/snapmirror/snapmirror_objstore_ep_delete_responses.go
+47574175 8242 ./client/snapmirror/snapmirror_objstore_ep_snapshot_delete_parameters.go
+3220596283 10455 ./client/snapmirror/snapmirror_objstore_ep_snapshot_delete_responses.go
 893750297 39574 ./client/snapmirror/snapmirror_policy_delete_collection_parameters.go
 1251646849 12644 ./client/snapmirror/snapmirror_policy_delete_collection_responses.go
 2379862288 9503 ./client/snapmirror/snapmirror_relationship_create_parameters.go
@@ -677,6 +681,7 @@
 2068873214 5512 ./models/object_store.go
 889676473 5733 ./models/object_store_endpoint.go
 33114735 42396 ./models/object_store_endpoint_info.go
+3108596102 4295 ./models/object_store_endpoint_info_job_link_response.go
 1453717296 36882 ./models/oracle_on_nfs.go
 1970658999 40405 ./models/oracle_on_san.go
 1981416009 12888 ./models/oracle_on_san_new_igroups.go
@@ -746,6 +751,7 @@
 1828981487 27243 ./models/snapmirror_endpoint.go
 2225419713 1335 ./models/snapmirror_error.go
 947709838 18829 ./models/snapmirror_object_store_endpoint_snapshot.go
+2991547372 4523 ./models/snapmirror_object_store_endpoint_snapshot_job_link_response.go
 2490515420 9240 ./models/snapmirror_object_store_endpoint_snapshot_response.go
 2442096573 43669 ./models/snapmirror_policy.go
 692435384 4175 ./models/snapmirror_policy_job_link_response.go
@@ -817,4 +823,4 @@
 4173203049 6726 ./models/zapp_s3_bucket_application_components_access_policies.go
 290990735 3069 ./models/zapp_s3_bucket_application_components_access_policies_conditions.go
 3407305603 24004610 swagger.yaml
-639929949 5303 swagger_operations.txt
+221075725 5372 swagger_operations.txt

@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -20,6 +21,8 @@ var (
 	createBackup               = _createBackup
 	validateCreateBackupParams = _validateCreateBackupParams
 	getBackups                 = _getBackups
+	deleteBackup               = _deleteBackup
+	validateBackupDeleteParams = _validateBackupDeleteParams
 )
 
 // CreateBackup creates the specified backup and adds it to the list of backup belonging to the specified BackupVault
@@ -158,6 +161,15 @@ func _getBackups(ctx context.Context, se database.Storage, params *common.GetBac
 	return se.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, params.BackupVaultID, params.AccountID, filters)
 }
 
+// GetBackup retrieves the backup associated with the specified BackupVault uuid and backup uuid and account name
+func (o *Orchestrator) GetBackup(ctx context.Context, params *common.GetBackupParams) (*datamodel.Backup, error) {
+	return _getBackup(ctx, o.storage, params)
+}
+
+func _getBackup(ctx context.Context, se database.Storage, params *common.GetBackupParams) (*datamodel.Backup, error) {
+	return se.GetBackup(ctx, params.BackupVaultID, params.BackupUUID, params.AccountName)
+}
+
 func convertDatastoreBackupToModel(backup *datamodel.Backup) *models.Backup {
 	return &models.Backup{
 		BackupID:              backup.UUID,
@@ -171,4 +183,91 @@ func convertDatastoreBackupToModel(backup *datamodel.Backup) *models.Backup {
 		Description:           &backup.Description,
 		Type:                  backup.Type,
 	}
+}
+
+func (o *Orchestrator) DeleteBackup(ctx context.Context, params *common.DeleteBackupParams) (*models.BaseModel, string, error) {
+	return deleteBackup(ctx, o.storage, o.temporal, params)
+}
+
+func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Client, params *common.DeleteBackupParams) (*models.BaseModel, string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	err = validateBackupDeleteParams(ctx, se, params)
+	if err != nil {
+		return nil, "", err
+	}
+
+	backup, err := se.GetBackup(ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+	backup.State = models.LifeCycleStateDeleting
+	backup.StateDetails = models.LifeCycleStateDeletingDetails
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeDeleteBackup),
+		State:        string(models.JobsStateNEW),
+		ResourceName: params.BackupUUID,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+	}
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+
+	_, err = se.UpdateBackupState(ctx, backup)
+	if err != nil {
+		logger.Error("Failed to change backup state in database", "error", err)
+		return nil, "", err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		workflows.DeleteBackupWorkflow,
+		params,
+	)
+
+	if err != nil {
+		logger.Error("Failed to start delete backup workflow: ", "error", err)
+		return nil, "", err
+	}
+
+	return nil, createdJob.UUID, nil
+}
+
+func _validateBackupDeleteParams(ctx context.Context, se database.Storage, params *common.DeleteBackupParams) error {
+	backup, err := se.GetBackup(ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			return customerrors.NewUserInputValidationErr("Backup not found")
+		}
+		return err
+	}
+
+	// check if backup is latest
+	isLatest, err := se.IsLatestBackup(ctx, backup.UUID, backup.VolumeUUID)
+	if err != nil {
+		return err
+	}
+
+	// get count of backups under the volume
+	count, err := se.BackupCountByVolumeID(ctx, backup.VolumeUUID)
+	if err != nil {
+		return err
+	}
+
+	if isLatest && count != 1 {
+		return errors.NewBadRequest("cannot delete latest backup")
+	}
+	return nil
 }

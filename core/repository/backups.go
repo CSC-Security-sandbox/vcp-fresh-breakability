@@ -46,10 +46,6 @@ func (d *DataStoreRepository) CreateBackup(ctx context.Context, backup *datamode
 	return nil, customerrors.NewUserInputValidationErr("backup already exists")
 }
 
-func (d *DataStoreRepository) GetBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
-	return getBackupWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: backupUUID}})
-}
-
 func _getBackupWithDetails(db *gorm.DB, query *datamodel.Backup) (*datamodel.Backup, error) {
 	backup := &datamodel.Backup{}
 	err := db.Preload("BackupVault").First(&backup, query).Error
@@ -83,6 +79,38 @@ func getBackupsByBackupVault(db *gorm.DB, backupVaultUUID int64) ([]*datamodel.B
 	}
 
 	return backups, nil
+}
+
+func (d *DataStoreRepository) GetBackup(ctx context.Context, backupVaultUUID string, backupUUID string, accountName string) (*datamodel.Backup, error) {
+	return getBackup(d.db.GORM().WithContext(ctx), backupVaultUUID, backupUUID, accountName)
+}
+
+func getBackup(db *gorm.DB, backupVaultUUID string, backupUUID string, accountName string) (*datamodel.Backup, error) {
+	// Retrieve the backup vault details using the backupVaultUUID and account
+	backupVault, err := getBackupVaultWithDetails(db, &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: backupVaultUUID},
+		Account: &datamodel.Account{
+			Name: accountName,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if backupVault.Account.Name != accountName {
+		return nil, customerrors.NewNotFoundErr("backup vault", &backupVaultUUID)
+	}
+
+	// Retrieve the backup using the backupVaultUUID and backupUUID
+	var backup *datamodel.Backup
+	backup, err = getBackupWithDetails(db, &datamodel.Backup{
+		BaseModel:     datamodel.BaseModel{UUID: backupUUID},
+		BackupVaultID: backupVault.ID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return backup, nil
 }
 
 func (d *DataStoreRepository) IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error) {
@@ -193,4 +221,29 @@ func (d *DataStoreRepository) UpdateBackupState(ctx context.Context, backup *dat
 		return nil, err
 	}
 	return dbBackup, nil
+}
+
+func (d *DataStoreRepository) IsLatestBackup(ctx context.Context, backupUUID, volumeUUID string) (bool, error) {
+	db := d.db.GORM().WithContext(ctx)
+	backup := &datamodel.Backup{}
+	// get backup by created_at timestamp under a volume
+	err := db.Where("volume_uuid = ? and state = ?", volumeUUID, models.LifeCycleStateAvailable).Order("created_at desc").First(&backup).Error
+	if err != nil {
+		return false, err
+	}
+	// check if the backup is latest
+	if backup.UUID == backupUUID {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (d *DataStoreRepository) BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var count int64
+	err := db.Model(&datamodel.Backup{}).Where("volume_uuid = ? and state = ?", volumeUUID, models.LifeCycleStateAvailable).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }

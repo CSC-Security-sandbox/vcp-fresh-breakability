@@ -155,6 +155,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(replicationWorkflows.CreateVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(workflows.CreateBackupWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.GetMultipleReplicationsInternalWorkflow)
+	worker.RegisterWorkflow(workflows.DeleteBackupWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.PerformMountCheckWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ResumeInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ResumeReplicationWorkflow)

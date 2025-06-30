@@ -28,17 +28,13 @@ func (rc *OntapRestProvider) SnapmirrorRelationshipCreate(destinationPath, sourc
 	return snapmirror[0], nil
 }
 
-func (rc *OntapRestProvider) SnapmirrorRelationshipDelete(UUID string) error {
+func (rc *OntapRestProvider) SnapmirrorRelationshipDelete(UUID string) (*OntapAsyncResponse, error) {
 	client := getOntapClientFunc(rc.ClientParams)
 	_, job, err := client.Snapmirror().SnapmirrorRelationshipDelete(&ontapRest.SnapmirrorRelationshipDeleteParams{UUID: UUID})
-	if err != nil {
-		return err
+	if job != nil {
+		return &OntapAsyncResponse{JobUUID: job.JobUUID}, err
 	}
-	err = waitForJobIfNeeded(rc, job)
-	if err != nil {
-		return err
-	}
-	return nil
+	return nil, err
 }
 
 func (rc *OntapRestProvider) SnapmirrorRelationshipGet(destinationPath, sourcePath string) (*ontapRest.SnapmirrorRelationship, error) {
@@ -69,4 +65,29 @@ func (rc *OntapRestProvider) SnapmirrorRelationshipTransferGet(snapmirrorUUID, s
 		return nil, err
 	}
 	return snapmirrorTransfer, nil
+}
+
+func (rc *OntapRestProvider) SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, EndpointUUID string) (*OntapAsyncResponse, error) {
+	client := getOntapClientFunc(rc.ClientParams)
+	job, err := client.Snapmirror().SnapmirrorObjectStoreEndpointDelete(&ontapRest.SnapmirrorCloudEndpointDeleteParams{
+		ObjectStoreUUID: objectStoreUUID,
+		EndpointUUID:    EndpointUUID,
+	})
+	if job != nil {
+		return &OntapAsyncResponse{JobUUID: job.JobUUID}, err
+	}
+	return nil, err
+}
+
+func (rc *OntapRestProvider) SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID, EndpointUUID, snapshotUUID string) (*OntapAsyncResponse, error) {
+	client := getOntapClientFunc(rc.ClientParams)
+	job, err := client.Snapmirror().SnapmirrorObjectStoreSnapshotDelete(&ontapRest.SnapmirrorCloudSnapshotDeleteParams{
+		ObjectStoreUUID: objectStoreUUID,
+		EndpointUUID:    EndpointUUID,
+		SnapshotUUID:    snapshotUUID,
+	})
+	if job != nil {
+		return &OntapAsyncResponse{JobUUID: job.JobUUID}, err
+	}
+	return nil, err
 }

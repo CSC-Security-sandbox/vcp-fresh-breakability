@@ -381,6 +381,21 @@ type Schedule struct {
 	Minutes     []int
 }
 
+type OntapAsyncResponse struct {
+	JobUUID string
+}
+
+type OntapJob struct {
+	UUID  string
+	State string
+	Error *OntapError
+}
+
+type OntapError struct {
+	Code    string
+	Message string
+}
+
 // UpdateSnapshotPolicyParams describes parameters supplied to Provider.UpdateSnapshotPolicy
 type UpdateSnapshotPolicyParams struct {
 	CurrentSnapshotPolicy  *SnapshotPolicy

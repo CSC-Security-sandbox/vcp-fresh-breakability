@@ -1657,6 +1657,19 @@ type SnapmirrorRelationshipTransferGetParams struct {
 	SnapshotName   string
 }
 
+// SnapmirrorCloudEndpointDeleteParams describes the params to invoke Snapmirror Cloud Endpoint Delete
+type SnapmirrorCloudEndpointDeleteParams struct {
+	ObjectStoreUUID string
+	EndpointUUID    string
+}
+
+// SnapmirrorCloudSnapshotDeleteParams describes the params to invoke Snapmirror Cloud Snapshot Delete
+type SnapmirrorCloudSnapshotDeleteParams struct {
+	ObjectStoreUUID string
+	EndpointUUID    string
+	SnapshotUUID    string
+}
+
 // NetworkIPDefaultRouteCreateParams describes the params to invoke Network Route Creation
 type NetworkIPDefaultRouteCreateParams struct {
 	IPSpace string
@@ -2839,5 +2852,30 @@ func snapmirrorRelationshipTransferGetParamsToONTAP(params *SnapmirrorRelationsh
 	}
 	otParams.SetRelationshipUUID(params.SnapmirrorUUID)
 	otParams.SetSnapshot(&params.SnapshotName)
+	return otParams
+}
+
+func snapmirrorCloudEndpointDeleteParamsToONTAP(params *SnapmirrorCloudEndpointDeleteParams) *snapmirror.SnapmirrorObjstoreEpDeleteParams {
+	otParams := snapmirror.NewSnapmirrorObjstoreEpDeleteParams()
+	if params.ObjectStoreUUID != "" {
+		otParams.SetObjectStoreUUID(params.ObjectStoreUUID)
+	}
+	if params.EndpointUUID != "" {
+		otParams.SetUUID(params.EndpointUUID)
+	}
+	return otParams
+}
+
+func snapmirrorCloudSnapshotDeleteParamsToONTAP(params *SnapmirrorCloudSnapshotDeleteParams) *snapmirror.SnapmirrorObjstoreEpSnapshotDeleteParams {
+	otParams := snapmirror.NewSnapmirrorObjstoreEpSnapshotDeleteParams()
+	if params.ObjectStoreUUID != "" {
+		otParams.SetObjectStoreUUID(params.ObjectStoreUUID)
+	}
+	if params.EndpointUUID != "" {
+		otParams.SetEndpointUUID(params.EndpointUUID)
+	}
+	if params.SnapshotUUID != "" {
+		otParams.SetUUID(params.SnapshotUUID)
+	}
 	return otParams
 }

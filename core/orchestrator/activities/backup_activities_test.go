@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 
@@ -64,12 +65,14 @@ func TestGetBackup_Success(t *testing.T) {
 	activity := activities.BackupActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	backupUUID := "test-uuid"
+	backupVaultUUID := "test-backup-vault-uuid"
+	accountName := "test-account"
 	backup := &datamodel.Backup{Name: "test-backup"}
 
-	mockStorage.On("GetBackup", ctx, backupUUID).Return(backup, nil)
+	mockStorage.On("GetBackup", ctx, backupVaultUUID, backupUUID, accountName).Return(backup, nil)
 
 	// Act
-	result, err := activity.GetBackup(ctx, backupUUID)
+	result, err := activity.GetBackup(ctx, backupVaultUUID, backupUUID, accountName)
 
 	// Assert
 	assert.NoError(t, err)
@@ -83,11 +86,13 @@ func TestGetBackup_Failure(t *testing.T) {
 	activity := activities.BackupActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	backupUUID := "test-uuid"
+	backupVaultUUID := "test-backup-vault-uuid"
+	accountName := "test-account"
 
-	mockStorage.On("GetBackup", ctx, backupUUID).Return(nil, errors.New("backup not found"))
+	mockStorage.On("GetBackup", ctx, backupVaultUUID, backupUUID, accountName).Return(nil, errors.New("backup not found"))
 
 	// Act
-	result, err := activity.GetBackup(ctx, backupUUID)
+	result, err := activity.GetBackup(ctx, backupVaultUUID, backupUUID, accountName)
 
 	// Assert
 	assert.Error(t, err)
@@ -210,6 +215,7 @@ func TestGetOrCreateObjectStore(t *testing.T) {
 	ct := oModels.CloudTarget{
 		Name:      nillable.ToPointer("targetName"),
 		Container: nillable.ToPointer("container"),
+		UUID:      nillable.ToPointer("123e4567-e89b-12d3-a456-426614174000"),
 	}
 
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -376,7 +382,11 @@ func TestGetOrCreateObjectStore_Success(t *testing.T) {
 	node := &models.Node{}
 	objStoreName := "test-objstore"
 	bucketName := "test-bucket"
-	expectedResponse := &ontap_rest.CloudTarget{CloudTarget: oModels.CloudTarget{Name: nillable.ToPointer(objStoreName), Container: nillable.ToPointer(bucketName)}}
+	expectedResponse := &ontap_rest.CloudTarget{CloudTarget: oModels.CloudTarget{
+		Name:      nillable.ToPointer(objStoreName),
+		Container: nillable.ToPointer(bucketName),
+		UUID:      nillable.ToPointer("123e4567-e89b-12d3-a456-426614174000"),
+	}}
 
 	mockProvider.On("CloudTargetGet", &objStoreName).Return(expectedResponse, nil)
 
@@ -579,5 +589,434 @@ func TestSnapshotActivities(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "delete failed")
 		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestGetObjectStore(t *testing.T) {
+	t.Run("onSuccess", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+
+		bucketName := "test-bucket"
+		mockProvider.On("CloudTargetGet", &bucketName).Return(&ontap_rest.CloudTarget{
+			CloudTarget: oModels.CloudTarget{
+				Name: nillable.ToPointer("test-container"),
+				UUID: nillable.ToPointer("123e4567-e89b-12d3-a456-426614174000"),
+			},
+		}, nil)
+
+		objectStore, err := activity.GetObjectStore(context.Background(), &models.Node{}, bucketName)
+		assert.Nil(t, err)
+		assert.NotNil(t, objectStore)
+		assert.Equal(t, "test-container", objectStore.Name)
+	})
+	t.Run("onFailure", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+
+		bucketName := "test-bucket"
+		mockProvider.On("CloudTargetGet", &bucketName).Return(nil, errors.New("failed"))
+
+		objectStore, err := activity.GetObjectStore(context.Background(), &models.Node{}, "test-bucket")
+		assert.NotNil(t, err)
+		assert.Nil(t, objectStore)
+		assert.EqualError(t, err, "object store does not exist")
+	})
+}
+
+func TestGetSnapmirror(t *testing.T) {
+	t.Run("onSuccess", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		sourcePath := "source-path"
+		destinationPath := "destination-path"
+		mockProvider.On("SnapmirrorRelationshipGet", destinationPath, sourcePath).Return(&ontap_rest.SnapmirrorRelationship{
+			SnapmirrorRelationship: oModels.SnapmirrorRelationship{
+				UUID: nillable.ToPointer(strfmt.UUID("123e4567-e89b-12d3-a456-426614174000")),
+			},
+		}, nil)
+		snapmirror, err := activity.GetSnapmirror(context.Background(), &models.Node{}, sourcePath, destinationPath)
+		assert.Nil(t, err)
+		assert.NotNil(t, snapmirror)
+		assert.Equal(t, "123e4567-e89b-12d3-a456-426614174000", snapmirror.UUID)
+	})
+	t.Run("onFailure", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		sourcePath := "source-path"
+		destinationPath := "destination-path"
+		mockProvider.On("SnapmirrorRelationshipGet", destinationPath, sourcePath).Return(nil, errors.New("not found"))
+		snapmirror, err := activity.GetSnapmirror(context.Background(), &models.Node{}, sourcePath, destinationPath)
+		assert.NotNil(t, err)
+		assert.Nil(t, snapmirror)
+		assert.EqualError(t, err, "failed to get snapmirror relationship: not found")
+	})
+}
+
+func TestIsVolumeDeleted(t *testing.T) {
+	t.Run("onSuccessWhenVolumeAvailable", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volumeUUID := "test-volume-uuid"
+		store.On("GetVolume", ctx, volumeUUID).Return(&datamodel.Volume{}, nil)
+		isDeleted, err := activity.IsVolumeDeleted(ctx, volumeUUID)
+		assert.NoError(t, err)
+		assert.False(t, isDeleted)
+	})
+	t.Run("onSuccessWhenVolumeDeleted", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volumeUUID := "test-volume-uuid"
+		store.On("GetVolume", ctx, volumeUUID).Return(nil, utilerrors.NewNotFoundErr("volume", nil))
+		isDeleted, err := activity.IsVolumeDeleted(ctx, volumeUUID)
+		assert.NoError(t, err)
+		assert.True(t, isDeleted)
+	})
+	t.Run("onDBFailure", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volumeUUID := "test-volume-uuid"
+		store.On("GetVolume", ctx, volumeUUID).Return(nil, errors.New("failed to check volume deletion"))
+		isDeleted, err := activity.IsVolumeDeleted(ctx, volumeUUID)
+		assert.Error(t, err)
+		assert.False(t, isDeleted)
+		assert.EqualError(t, err, "failed to check volume deletion")
+	})
+}
+
+func TestGetVolume(t *testing.T) {
+	t.Run("onSuccess", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volumeUUID := "test-volume-uuid"
+		expectedVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: volumeUUID,
+			},
+		}
+		store.On("GetVolume", ctx, volumeUUID).Return(expectedVolume, nil)
+
+		volume, err := activity.GetVolume(ctx, volumeUUID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedVolume, volume)
+		store.AssertExpectations(t)
+	})
+	t.Run("onDBFailure", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volumeUUID := "test-volume-uuid"
+
+		store.On("GetVolume", ctx, volumeUUID).Return(nil, errors.New("failed to get volume"))
+
+		volume, err := activity.GetVolume(ctx, volumeUUID)
+
+		assert.Error(t, err)
+		assert.Nil(t, volume)
+		assert.EqualError(t, err, "failed to get volume")
+		store.AssertExpectations(t)
+	})
+}
+
+func TestGetBackupVault(t *testing.T) {
+	t.Run("onSuccess", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		vaultUUID := "test-vault-uuid"
+		expectedVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID: vaultUUID,
+			},
+		}
+		store.On("GetBackupVault", ctx, vaultUUID).Return(expectedVault, nil)
+
+		vault, err := activity.GetBackupVault(ctx, vaultUUID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedVault, vault)
+		store.AssertExpectations(t)
+	})
+	t.Run("onDBFailure", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		vaultUUID := "test-vault-uuid"
+
+		store.On("GetBackupVault", ctx, vaultUUID).Return(nil, errors.New("failed to get backup vault"))
+
+		vault, err := activity.GetBackupVault(ctx, vaultUUID)
+
+		assert.Error(t, err)
+		assert.Nil(t, vault)
+		assert.EqualError(t, err, "failed to get backup vault")
+		store.AssertExpectations(t)
+	})
+}
+
+func TestGetBackupCountByVolumeUUID(t *testing.T) {
+	t.Run("onSuccess", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volumeUUID := "test-volume-uuid"
+		expectedCount := int64(5)
+
+		store.On("BackupCountByVolumeID", ctx, volumeUUID).Return(expectedCount, nil)
+
+		count, err := activity.GetBackupCountByVolumeUUID(ctx, volumeUUID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedCount, count)
+	})
+	t.Run("onDBFailure", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volumeUUID := "test-volume-uuid"
+
+		store.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(0), errors.New("failed to get backup count"))
+
+		count, err := activity.GetBackupCountByVolumeUUID(ctx, volumeUUID)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "failed to get backup count")
+		assert.Equal(t, int64(0), count)
+	})
+}
+
+func TestDeleteSnapshotFromObjectStore(t *testing.T) {
+	t.Run("onSuccessWithJob", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		snapshotUUID := "snapshot-uuid"
+		endpointUUID := "endpoint-uuid"
+		objectStoreUUID := "object-store-uuid"
+		jobUUID := "123e4567-e89b-12d3-a456-426614174000"
+		mockProvider.On("SnapmirrorObjectStoreSnapshotDelete", objectStoreUUID, endpointUUID, snapshotUUID).Return(&vsa.OntapAsyncResponse{
+			JobUUID: jobUUID,
+		}, nil)
+		job, err := activity.DeleteSnapshotFromObjectStore(ctx, node, objectStoreUUID, endpointUUID, snapshotUUID)
+		assert.NoError(t, err)
+		assert.NotNil(t, job)
+		assert.Equal(t, jobUUID, job.JobUUID)
+	})
+	t.Run("onSuccessWithoutJob", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		snapshotUUID := "snapshot-uuid"
+		endpointUUID := "endpoint-uuid"
+		objectStoreUUID := "object-store-uuid"
+		mockProvider.On("SnapmirrorObjectStoreSnapshotDelete", objectStoreUUID, endpointUUID, snapshotUUID).Return(nil, nil)
+		job, err := activity.DeleteSnapshotFromObjectStore(ctx, node, objectStoreUUID, endpointUUID, snapshotUUID)
+		assert.NoError(t, err)
+		assert.Nil(t, job)
+	})
+	t.Run("onFailure", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		snapshotUUID := "snapshot-uuid"
+		endpointUUID := "endpoint-uuid"
+		objectStoreUUID := "object-store-uuid"
+		mockProvider.On("SnapmirrorObjectStoreSnapshotDelete", objectStoreUUID, endpointUUID, snapshotUUID).Return(nil, errors.New("delete failed"))
+		job, err := activity.DeleteSnapshotFromObjectStore(ctx, node, objectStoreUUID, endpointUUID, snapshotUUID)
+		assert.Error(t, err)
+		assert.Nil(t, job)
+		assert.EqualError(t, err, "delete failed")
+	})
+}
+
+func TestDeleteSnapmirror(t *testing.T) {
+	t.Run("onSuccessWithJob", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		snapmirrorUUID := "snapmirror-uuid"
+		jobUUID := "123e4567-e89b-12d3-a456-426614174000"
+		mockProvider.On("SnapmirrorRelationshipDelete", snapmirrorUUID).Return(&vsa.OntapAsyncResponse{
+			JobUUID: jobUUID,
+		}, nil)
+		job, err := activity.DeleteSnapmirror(ctx, node, snapmirrorUUID)
+		assert.Nil(t, err)
+		assert.NotNil(t, job)
+	})
+	t.Run("onSuccessWithoutJob", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		snapmirrorUUID := "snapmirror-uuid"
+		mockProvider.On("SnapmirrorRelationshipDelete", snapmirrorUUID).Return(nil, nil)
+		job, err := activity.DeleteSnapmirror(ctx, node, snapmirrorUUID)
+		assert.Nil(t, err)
+		assert.Nil(t, job)
+	})
+	t.Run("onFailure", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		snapmirrorUUID := "snapmirror-uuid"
+		mockProvider.On("SnapmirrorRelationshipDelete", snapmirrorUUID).Return(nil, errors.New("delete failed"))
+		job, err := activity.DeleteSnapmirror(ctx, node, snapmirrorUUID)
+		assert.Error(t, err)
+		assert.Nil(t, job)
+		assert.EqualError(t, err, "delete failed")
+	})
+}
+
+func TestDeleteCloudEndpoint(t *testing.T) {
+	t.Run("onSuccessWithJob", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		endpointUUID := "endpoint-uuid"
+		objectStoreUUID := "object-store-uuid"
+		jobUUID := "123e4567-e89b-12d3-a456-426614174000"
+		mockProvider.On("SnapmirrorObjectStoreEndpointDelete", objectStoreUUID, endpointUUID).Return(&vsa.OntapAsyncResponse{
+			JobUUID: jobUUID,
+		}, nil)
+		job, err := activity.DeleteCloudEndpoint(ctx, node, objectStoreUUID, endpointUUID)
+		assert.Nil(t, err)
+		assert.NotNil(t, job)
+	})
+	t.Run("onSuccessWithoutJob", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		endpointUUID := "endpoint-uuid"
+		objectStoreUUID := "object-store-uuid"
+		mockProvider.On("SnapmirrorObjectStoreEndpointDelete", objectStoreUUID, endpointUUID).Return(nil, nil)
+		job, err := activity.DeleteCloudEndpoint(ctx, node, objectStoreUUID, endpointUUID)
+		assert.Nil(t, err)
+		assert.Nil(t, job)
+	})
+	t.Run("onFailure", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		endpointUUID := "endpoint-uuid"
+		objectStoreUUID := "object-store-uuid"
+		mockProvider.On("SnapmirrorObjectStoreEndpointDelete", objectStoreUUID, endpointUUID).Return(nil, errors.New("delete failed"))
+		job, err := activity.DeleteCloudEndpoint(ctx, node, objectStoreUUID, endpointUUID)
+		assert.Error(t, err)
+		assert.Nil(t, job)
+		assert.EqualError(t, err, "delete failed")
+	})
+}
+
+func TestDeleteSnapshotForBackup(t *testing.T) {
+	t.Run("onSuccess", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		snapshotUUID := "snapshot-uuid"
+		volumeUUID := "volume-uuid"
+		mockProvider.On("DeleteSnapshot", snapshotUUID, volumeUUID).Return(nil)
+		err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID)
+		assert.Nil(t, err)
+	})
+	t.Run("onFailure", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		snapshotUUID := "snapshot-uuid"
+		volumeUUID := "volume-uuid"
+		mockProvider.On("DeleteSnapshot", snapshotUUID, volumeUUID).Return(errors.New("delete failed"))
+		err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "delete failed")
 	})
 }

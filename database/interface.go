@@ -161,12 +161,14 @@ type DataStore interface {
 	CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error)
 
 	CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
-	GetBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error)
+	GetBackup(ctx context.Context, backupVaultUUID string, backupUUID string, accountName string) (*datamodel.Backup, error)
 	DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error)
 	UpdateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 	FinishBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 	UpdateBackupState(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 	IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error)
+	IsLatestBackup(ctx context.Context, backupUUID, volumeUUID string) (bool, error)
+	BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error)
 
 	CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)
 	GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error)

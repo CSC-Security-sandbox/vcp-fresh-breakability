@@ -2149,6 +2149,64 @@ func (_c *MockProvider_IscsiServiceCreate_Call) RunAndReturn(run func(string) er
 	return _c
 }
 
+// JobGet provides a mock function with given fields: jobUUID
+func (_m *MockProvider) JobGet(jobUUID string) (*OntapJob, error) {
+	ret := _m.Called(jobUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for JobGet")
+	}
+
+	var r0 *OntapJob
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (*OntapJob, error)); ok {
+		return rf(jobUUID)
+	}
+	if rf, ok := ret.Get(0).(func(string) *OntapJob); ok {
+		r0 = rf(jobUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*OntapJob)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(jobUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_JobGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'JobGet'
+type MockProvider_JobGet_Call struct {
+	*mock.Call
+}
+
+// JobGet is a helper method to define mock.On call
+//   - jobUUID string
+func (_e *MockProvider_Expecter) JobGet(jobUUID interface{}) *MockProvider_JobGet_Call {
+	return &MockProvider_JobGet_Call{Call: _e.mock.On("JobGet", jobUUID)}
+}
+
+func (_c *MockProvider_JobGet_Call) Run(run func(jobUUID string)) *MockProvider_JobGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_JobGet_Call) Return(_a0 *OntapJob, _a1 error) *MockProvider_JobGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_JobGet_Call) RunAndReturn(run func(string) (*OntapJob, error)) *MockProvider_JobGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListClusterPeers provides a mock function with no fields
 func (_m *MockProvider) ListClusterPeers() ([]*ClusterPeer, error) {
 	ret := _m.Called()
@@ -2576,6 +2634,125 @@ func (_c *MockProvider_ResyncVolumeReplication_Call) RunAndReturn(run func(*Volu
 	return _c
 }
 
+// SnapmirrorObjectStoreEndpointDelete provides a mock function with given fields: objectStoreUUID, EndpointUUID
+func (_m *MockProvider) SnapmirrorObjectStoreEndpointDelete(objectStoreUUID string, EndpointUUID string) (*OntapAsyncResponse, error) {
+	ret := _m.Called(objectStoreUUID, EndpointUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SnapmirrorObjectStoreEndpointDelete")
+	}
+
+	var r0 *OntapAsyncResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) (*OntapAsyncResponse, error)); ok {
+		return rf(objectStoreUUID, EndpointUUID)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) *OntapAsyncResponse); ok {
+		r0 = rf(objectStoreUUID, EndpointUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*OntapAsyncResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(objectStoreUUID, EndpointUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_SnapmirrorObjectStoreEndpointDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SnapmirrorObjectStoreEndpointDelete'
+type MockProvider_SnapmirrorObjectStoreEndpointDelete_Call struct {
+	*mock.Call
+}
+
+// SnapmirrorObjectStoreEndpointDelete is a helper method to define mock.On call
+//   - objectStoreUUID string
+//   - EndpointUUID string
+func (_e *MockProvider_Expecter) SnapmirrorObjectStoreEndpointDelete(objectStoreUUID interface{}, EndpointUUID interface{}) *MockProvider_SnapmirrorObjectStoreEndpointDelete_Call {
+	return &MockProvider_SnapmirrorObjectStoreEndpointDelete_Call{Call: _e.mock.On("SnapmirrorObjectStoreEndpointDelete", objectStoreUUID, EndpointUUID)}
+}
+
+func (_c *MockProvider_SnapmirrorObjectStoreEndpointDelete_Call) Run(run func(objectStoreUUID string, EndpointUUID string)) *MockProvider_SnapmirrorObjectStoreEndpointDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_SnapmirrorObjectStoreEndpointDelete_Call) Return(_a0 *OntapAsyncResponse, _a1 error) *MockProvider_SnapmirrorObjectStoreEndpointDelete_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_SnapmirrorObjectStoreEndpointDelete_Call) RunAndReturn(run func(string, string) (*OntapAsyncResponse, error)) *MockProvider_SnapmirrorObjectStoreEndpointDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SnapmirrorObjectStoreSnapshotDelete provides a mock function with given fields: objectStoreUUID, EndpointUUID, snapshotUUID
+func (_m *MockProvider) SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID string, EndpointUUID string, snapshotUUID string) (*OntapAsyncResponse, error) {
+	ret := _m.Called(objectStoreUUID, EndpointUUID, snapshotUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SnapmirrorObjectStoreSnapshotDelete")
+	}
+
+	var r0 *OntapAsyncResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, string) (*OntapAsyncResponse, error)); ok {
+		return rf(objectStoreUUID, EndpointUUID, snapshotUUID)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string) *OntapAsyncResponse); ok {
+		r0 = rf(objectStoreUUID, EndpointUUID, snapshotUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*OntapAsyncResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = rf(objectStoreUUID, EndpointUUID, snapshotUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_SnapmirrorObjectStoreSnapshotDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SnapmirrorObjectStoreSnapshotDelete'
+type MockProvider_SnapmirrorObjectStoreSnapshotDelete_Call struct {
+	*mock.Call
+}
+
+// SnapmirrorObjectStoreSnapshotDelete is a helper method to define mock.On call
+//   - objectStoreUUID string
+//   - EndpointUUID string
+//   - snapshotUUID string
+func (_e *MockProvider_Expecter) SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID interface{}, EndpointUUID interface{}, snapshotUUID interface{}) *MockProvider_SnapmirrorObjectStoreSnapshotDelete_Call {
+	return &MockProvider_SnapmirrorObjectStoreSnapshotDelete_Call{Call: _e.mock.On("SnapmirrorObjectStoreSnapshotDelete", objectStoreUUID, EndpointUUID, snapshotUUID)}
+}
+
+func (_c *MockProvider_SnapmirrorObjectStoreSnapshotDelete_Call) Run(run func(objectStoreUUID string, EndpointUUID string, snapshotUUID string)) *MockProvider_SnapmirrorObjectStoreSnapshotDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_SnapmirrorObjectStoreSnapshotDelete_Call) Return(_a0 *OntapAsyncResponse, _a1 error) *MockProvider_SnapmirrorObjectStoreSnapshotDelete_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_SnapmirrorObjectStoreSnapshotDelete_Call) RunAndReturn(run func(string, string, string) (*OntapAsyncResponse, error)) *MockProvider_SnapmirrorObjectStoreSnapshotDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SnapmirrorRelationshipCreate provides a mock function with given fields: destinationPath, sourcePath
 func (_m *MockProvider) SnapmirrorRelationshipCreate(destinationPath string, sourcePath string) (*ontap_rest.SnapmirrorRelationship, error) {
 	ret := _m.Called(destinationPath, sourcePath)
@@ -2631,6 +2808,64 @@ func (_c *MockProvider_SnapmirrorRelationshipCreate_Call) Return(_a0 *ontap_rest
 }
 
 func (_c *MockProvider_SnapmirrorRelationshipCreate_Call) RunAndReturn(run func(string, string) (*ontap_rest.SnapmirrorRelationship, error)) *MockProvider_SnapmirrorRelationshipCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SnapmirrorRelationshipDelete provides a mock function with given fields: UUID
+func (_m *MockProvider) SnapmirrorRelationshipDelete(UUID string) (*OntapAsyncResponse, error) {
+	ret := _m.Called(UUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SnapmirrorRelationshipDelete")
+	}
+
+	var r0 *OntapAsyncResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (*OntapAsyncResponse, error)); ok {
+		return rf(UUID)
+	}
+	if rf, ok := ret.Get(0).(func(string) *OntapAsyncResponse); ok {
+		r0 = rf(UUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*OntapAsyncResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(UUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_SnapmirrorRelationshipDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SnapmirrorRelationshipDelete'
+type MockProvider_SnapmirrorRelationshipDelete_Call struct {
+	*mock.Call
+}
+
+// SnapmirrorRelationshipDelete is a helper method to define mock.On call
+//   - UUID string
+func (_e *MockProvider_Expecter) SnapmirrorRelationshipDelete(UUID interface{}) *MockProvider_SnapmirrorRelationshipDelete_Call {
+	return &MockProvider_SnapmirrorRelationshipDelete_Call{Call: _e.mock.On("SnapmirrorRelationshipDelete", UUID)}
+}
+
+func (_c *MockProvider_SnapmirrorRelationshipDelete_Call) Run(run func(UUID string)) *MockProvider_SnapmirrorRelationshipDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_SnapmirrorRelationshipDelete_Call) Return(_a0 *OntapAsyncResponse, _a1 error) *MockProvider_SnapmirrorRelationshipDelete_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_SnapmirrorRelationshipDelete_Call) RunAndReturn(run func(string) (*OntapAsyncResponse, error)) *MockProvider_SnapmirrorRelationshipDelete_Call {
 	_c.Call.Return(run)
 	return _c
 }

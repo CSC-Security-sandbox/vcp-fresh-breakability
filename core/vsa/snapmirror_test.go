@@ -103,7 +103,7 @@ func TestSnapmirrorRelationshipDeleteSucceeds(t *testing.T) {
 	mockSnapmirrorClient.On("SnapmirrorRelationshipDelete", expectedParams).Return(true, expectedJob, nil)
 	mockClient.On("Poll", "jobUUID").Return(nil)
 
-	err := ontapProvider.SnapmirrorRelationshipDelete("snapmirrorUUID")
+	_, err := ontapProvider.SnapmirrorRelationshipDelete("snapmirrorUUID")
 	assert.NoError(t, err)
 }
 
@@ -116,13 +116,11 @@ func TestSnapmirrorRelationshipDeleteFailsOnJobError(t *testing.T) {
 	}
 	ontapProvider := &OntapRestProvider{}
 	expectedParams := &ontapRest.SnapmirrorRelationshipDeleteParams{UUID: "snapmirrorUUID"}
-	expectedJob := &ontapRest.JobAccepted{JobUUID: "jobUUID"}
 
 	mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
-	mockSnapmirrorClient.On("SnapmirrorRelationshipDelete", expectedParams).Return(false, expectedJob, nil)
-	mockClient.On("Poll", "jobUUID").Return(errors.New("job failed"))
+	mockSnapmirrorClient.On("SnapmirrorRelationshipDelete", expectedParams).Return(false, nil, errors.New("failed"))
 
-	err := ontapProvider.SnapmirrorRelationshipDelete("snapmirrorUUID")
+	_, err := ontapProvider.SnapmirrorRelationshipDelete("snapmirrorUUID")
 	assert.Error(t, err)
 }
 
@@ -265,6 +263,158 @@ func TestSnapmirrorRelationshipTransferGet(t *testing.T) {
 		result, err := ontapProvider.SnapmirrorRelationshipTransferGet(snapmirrorUUID, snapshotName)
 		assert.Error(t, err)
 		assert.Nil(t, result)
+		assert.EqualError(t, err, "api error")
+	})
+}
+
+func TestSnapmirrorObjectStoreEndpointDelete(t *testing.T) {
+	t.Run("OnSuccessWithJob", func(t *testing.T) {
+		mockClient := new(ontapRest.MockRESTClient)
+		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
+			return mockClient
+		}
+		ontapProvider := &OntapRestProvider{}
+		objectStoreUUID := "objectStoreUUID"
+		endpointUUID := "endpointUUID"
+		expectedParams := &ontapRest.SnapmirrorCloudEndpointDeleteParams{
+			ObjectStoreUUID: objectStoreUUID,
+			EndpointUUID:    endpointUUID,
+		}
+
+		jobResponse := &ontapRest.JobAccepted{JobUUID: "jobUUID"}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorObjectStoreEndpointDelete", expectedParams).Return(jobResponse, nil)
+
+		job, err := ontapProvider.SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, endpointUUID)
+		assert.NoError(t, err)
+		assert.NotNil(t, job)
+		assert.Equal(t, "jobUUID", job.JobUUID)
+	})
+	t.Run("OnSuccessWithoutJob", func(t *testing.T) {
+		mockClient := new(ontapRest.MockRESTClient)
+		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
+			return mockClient
+		}
+		ontapProvider := &OntapRestProvider{}
+		objectStoreUUID := "objectStoreUUID"
+		endpointUUID := "endpointUUID"
+		expectedParams := &ontapRest.SnapmirrorCloudEndpointDeleteParams{
+			ObjectStoreUUID: objectStoreUUID,
+			EndpointUUID:    endpointUUID,
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorObjectStoreEndpointDelete", expectedParams).Return(nil, nil)
+
+		job, err := ontapProvider.SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, endpointUUID)
+		assert.NoError(t, err)
+		assert.Nil(t, job)
+	})
+	t.Run("OnError", func(t *testing.T) {
+		mockClient := new(ontapRest.MockRESTClient)
+		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
+			return mockClient
+		}
+		ontapProvider := &OntapRestProvider{}
+		objectStoreUUID := "objectStoreUUID"
+		endpointUUID := "endpointUUID"
+		expectedParams := &ontapRest.SnapmirrorCloudEndpointDeleteParams{
+			ObjectStoreUUID: objectStoreUUID,
+			EndpointUUID:    endpointUUID,
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorObjectStoreEndpointDelete", expectedParams).Return(nil, fmt.Errorf("api error"))
+
+		job, err := ontapProvider.SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, endpointUUID)
+		assert.Error(t, err)
+		assert.Nil(t, job)
+		assert.EqualError(t, err, "api error")
+	})
+}
+
+func TestSnapmirrorObjectStoreSnapshotDelete(t *testing.T) {
+	t.Run("OnSuccessWithJob", func(t *testing.T) {
+		mockClient := new(ontapRest.MockRESTClient)
+		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
+			return mockClient
+		}
+		ontapProvider := &OntapRestProvider{}
+		objectStoreUUID := "objectStoreUUID"
+		endpointUUID := "endpointUUID"
+		snapshotUUID := "snapshotUUID"
+		expectedParams := &ontapRest.SnapmirrorCloudSnapshotDeleteParams{
+			ObjectStoreUUID: objectStoreUUID,
+			EndpointUUID:    endpointUUID,
+			SnapshotUUID:    snapshotUUID,
+		}
+
+		jobResponse := &ontapRest.JobAccepted{JobUUID: "jobUUID"}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorObjectStoreSnapshotDelete", expectedParams).Return(jobResponse, nil)
+
+		job, err := ontapProvider.SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID, endpointUUID, snapshotUUID)
+		assert.NoError(t, err)
+		assert.NotNil(t, job)
+		assert.Equal(t, "jobUUID", job.JobUUID)
+	})
+	t.Run("OnSuccessWithoutJob", func(t *testing.T) {
+		mockClient := new(ontapRest.MockRESTClient)
+		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
+			return mockClient
+		}
+		ontapProvider := &OntapRestProvider{}
+		objectStoreUUID := "objectStoreUUID"
+		endpointUUID := "endpointUUID"
+		snapshotUUID := "snapshotUUID"
+		expectedParams := &ontapRest.SnapmirrorCloudSnapshotDeleteParams{
+			ObjectStoreUUID: objectStoreUUID,
+			EndpointUUID:    endpointUUID,
+			SnapshotUUID:    snapshotUUID,
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorObjectStoreSnapshotDelete", expectedParams).Return(nil, nil)
+
+		job, err := ontapProvider.SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID, endpointUUID, snapshotUUID)
+		assert.NoError(t, err)
+		assert.Nil(t, job)
+	})
+	t.Run("OnError", func(t *testing.T) {
+		mockClient := new(ontapRest.MockRESTClient)
+		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
+			return mockClient
+		}
+		ontapProvider := &OntapRestProvider{}
+		objectStoreUUID := "objectStoreUUID"
+		endpointUUID := "endpointUUID"
+		snapshotUUID := "snapshotUUID"
+		expectedParams := &ontapRest.SnapmirrorCloudSnapshotDeleteParams{
+			ObjectStoreUUID: objectStoreUUID,
+			EndpointUUID:    endpointUUID,
+			SnapshotUUID:    snapshotUUID,
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorObjectStoreSnapshotDelete", expectedParams).Return(nil, fmt.Errorf("api error"))
+
+		job, err := ontapProvider.SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID, endpointUUID, snapshotUUID)
+		assert.Error(t, err)
+		assert.Nil(t, job)
 		assert.EqualError(t, err, "api error")
 	})
 }

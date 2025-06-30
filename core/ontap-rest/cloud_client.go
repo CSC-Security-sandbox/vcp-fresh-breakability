@@ -29,7 +29,7 @@ func (c *cloudClient) CloudTargetCreate(params *CloudTargetCreateParams) (*Cloud
 		job := &JobAccepted{
 			JobUUID: asyncResponse.Payload.Job.UUID.String(),
 		}
-		return &CloudTarget{CloudTarget: *asyncResponse.Payload.Records[0]}, job, nil
+		return nil, job, nil
 	}
 
 	return &CloudTarget{CloudTarget: *syncResponse.Payload.Records[0]}, nil, nil

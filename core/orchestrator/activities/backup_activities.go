@@ -27,9 +27,9 @@ func (a *BackupActivity) CreateBackup(ctx context.Context, backup *datamodel.Bac
 	se := a.SE
 	return se.CreateBackup(ctx, backup)
 }
-func (a *BackupActivity) GetBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
+func (a *BackupActivity) GetBackup(ctx context.Context, backupVaultUUID, backupUUID, accountName string) (*datamodel.Backup, error) {
 	se := a.SE
-	return se.GetBackup(ctx, backupUUID)
+	return se.GetBackup(ctx, backupVaultUUID, backupUUID, accountName)
 }
 func (a *BackupActivity) DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
 	se := a.SE
@@ -59,7 +59,7 @@ func (a *BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *model
 	// Check if the error is nil, which means the object store already exists
 	if err == nil {
 		// If no error, return the existing object store
-		return &commonparams.CloudTarget{Name: *objectStore.Name}, nil
+		return &commonparams.CloudTarget{Name: *objectStore.Name, UUID: *objectStore.UUID}, nil
 	}
 	objectStore, err = provider.CloudTargetCreate(name, containerName)
 	if err == nil {
@@ -94,6 +94,31 @@ func (a *BackupActivity) SnapmirrorGetorCreate(ctx context.Context, node *models
 		return &resp, nil
 	}
 	return nil, err
+}
+
+func (a *BackupActivity) GetObjectStore(ctx context.Context, node *models.Node, name string) (*commonparams.CloudTarget, error) {
+	provider := GetProviderByNode(ctx, node)
+	// Handle both return values from CloudTargetGet
+	objectStore, err := provider.CloudTargetGet(&name)
+	if err != nil {
+		// If there is an error, it means the object store does not exist
+		return nil, errors.New("object store does not exist")
+	}
+	return &commonparams.CloudTarget{Name: *objectStore.Name, UUID: *objectStore.UUID}, nil
+}
+
+func (a *BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, sourcePath, destinationPath string) (*commonparams.SnapmirrorRelationship, error) {
+	provider := GetProviderByNode(ctx, node)
+	snapmirror, err := provider.SnapmirrorRelationshipGet(destinationPath, sourcePath)
+	if err != nil {
+		return nil, errors.New("failed to get snapmirror relationship: " + err.Error())
+	}
+
+	resp := commonparams.SnapmirrorRelationship{UUID: snapmirror.UUID.String()}
+	if snapmirror.Destination != nil && snapmirror.Destination.UUID != nil {
+		resp.DestinationUUID = nillable.ToPointer(snapmirror.Destination.UUID.String())
+	}
+	return &resp, nil
 }
 
 func (a *BackupActivity) SnapshotCreate(ctx context.Context, node *models.Node, volumeUUID, name, comment string) (*vsa.SnapshotProviderResponse, error) {
@@ -137,3 +162,91 @@ func (a *BackupActivity) DeleteBackupSnapshot(ctx context.Context, node *models.
 	provider := GetProviderByNode(ctx, node)
 	return provider.DeleteSnapshot(snapshotUUID, volumeUUID)
 }
+
+func (a *BackupActivity) IsVolumeDeleted(ctx context.Context, volumeUUID string) (bool, error) {
+	se := a.SE
+	_, err := se.GetVolume(ctx, volumeUUID)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			// If the volume is not found, it means it has been deleted
+			return true, nil
+		}
+		return false, err
+	}
+	return false, nil
+}
+
+func (a *BackupActivity) GetVolume(ctx context.Context, volumeUUID string) (*datamodel.Volume, error) {
+	se := a.SE
+	volume, err := se.GetVolume(ctx, volumeUUID)
+	if err != nil {
+		return nil, err
+	}
+	return volume, nil
+}
+
+func (a *BackupActivity) GetBackupVault(ctx context.Context, backupVaultUUID string) (*datamodel.BackupVault, error) {
+	se := a.SE
+	return se.GetBackupVault(ctx, backupVaultUUID)
+}
+
+func (a *BackupActivity) GetBackupCountByVolumeUUID(ctx context.Context, volumeUUID string) (int64, error) {
+	se := a.SE
+	return se.BackupCountByVolumeID(ctx, volumeUUID)
+}
+
+func (a *BackupActivity) DeleteSnapshotFromObjectStore(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID, snapshotUUID string) (*vsa.OntapAsyncResponse, error) {
+	provider := GetProviderByNode(ctx, node)
+	return provider.SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID, EndpointUUID, snapshotUUID)
+}
+
+func (a *BackupActivity) DeleteSnapmirror(ctx context.Context, node *models.Node, snapmirrorUUID string) (*vsa.OntapAsyncResponse, error) {
+	provider := GetProviderByNode(ctx, node)
+	return provider.SnapmirrorRelationshipDelete(snapmirrorUUID)
+}
+
+func (a *BackupActivity) DeleteCloudEndpoint(ctx context.Context, node *models.Node, objectStoreUUID string, EndpointUUID string) (*vsa.OntapAsyncResponse, error) {
+	provider := GetProviderByNode(ctx, node)
+	return provider.SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, EndpointUUID)
+}
+
+func (a *BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {
+	provider := GetProviderByNode(ctx, node)
+	return provider.DeleteSnapshot(snapshotUUID, volumeUUID)
+}
+
+// func (a *BackupActivity) CreateHmacKeys(ctx context.Context, params *commonparams.HmacKeyCreateParams, gcpService hyperscaler.GoogleServices) (hmacKeys *commonparams.HmacKeys, err error) {
+//	err = gcpService.InitializeClients()
+//	if err != nil || !gcpService.IsAdminClientInitialized() {
+//		gcpService.GetLogger().Debug("Initialisation of service failed")
+//		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, errors.New("initialisation of Google GCP service failed"))
+//	}
+//
+//	accessKey, secretKey, err := gcpService.CreateHmacKey(params.ProjectNumber, params.ServiceAccount)
+//	if err != nil {
+//		return nil, err
+//	}
+//	if accessKey == nil || secretKey == nil {
+//		return nil, errors.New("accessKey or secretKey is nil")
+//	}
+//	return &commonparams.HmacKeys{
+//		AccessKey: *accessKey,
+//		SecretKey: *secretKey,
+//	}, nil
+// }
+//
+// func (a *BackupActivity) DeleteHmacKeys(ctx context.Context, projectNumber, accessKey, ServiceAccount string, gcpService hyperscaler.GoogleServices) error {
+//	err := gcpService.InitializeClients()
+//	if err != nil || !gcpService.IsAdminClientInitialized() {
+//		gcpService.GetLogger().Debug("Initialisation of service failed")
+//		return vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, errors.New("initialisation of Google GCP service failed"))
+//	}
+//
+//	err = gcpService.InitializeClients()
+//	if err != nil || !gcpService.IsAdminClientInitialized() {
+//		gcpService.GetLogger().Debug("Initialisation of service failed")
+//		return vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, errors.New("initialisation of Google GCP service failed"))
+//	}
+//
+//	return gcpService.DeleteHmacKey(projectNumber, accessKey, ServiceAccount)
+// }

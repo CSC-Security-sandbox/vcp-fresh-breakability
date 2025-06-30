@@ -1895,11 +1895,11 @@ func (re *retryEngine) CreateBackup(ctx context.Context, backup *datamodel.Backu
 	return var0, err
 }
 
-func (re *retryEngine) GetBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
+func (re *retryEngine) GetBackup(ctx context.Context, backupVaultUUID string, backupUUID string, accountName string) (*datamodel.Backup, error) {
 	var var0 *datamodel.Backup
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetBackup(ctx, backupUUID)
+		var0, err = re.dataStore.GetBackup(ctx, backupVaultUUID, backupUUID, accountName)
 		if err != nil {
 			re.logError("GetBackup", err)
 			if !isTransientErr(err) {
@@ -2002,6 +2002,46 @@ func (re *retryEngine) IsBackupInCreatingorDeletingStateByVolume(ctx context.Con
 		var0, err = re.dataStore.IsBackupInCreatingorDeletingStateByVolume(ctx, volumeUUID)
 		if err != nil {
 			re.logError("IsBackupInCreatingorDeletingStateByVolume", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) IsLatestBackup(ctx context.Context, backupUUID, volumeUUID string) (bool, error) {
+	var var0 bool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.IsLatestBackup(ctx, backupUUID, volumeUUID)
+		if err != nil {
+			re.logError("IsLatestBackup", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.BackupCountByVolumeID(ctx, volumeUUID)
+		if err != nil {
+			re.logError("BackupCountByVolumeID", err)
 			if !isTransientErr(err) {
 				return false, err
 			}

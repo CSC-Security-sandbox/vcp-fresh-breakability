@@ -324,6 +324,40 @@ func TestMockClientServiceSnapmirrorObjectStoreEndpointSnapshotGet(t *testing.T)
 	mockClientService.AssertMockClientServiceDone()
 }
 
+func TestMockClientServiceSnapmirrorObjstoreEpDelete(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SnapmirrorObjstoreEpDeleteParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SnapmirrorObjstoreEpDeleteOK
+	var ret1 *SnapmirrorObjstoreEpDeleteAccepted
+	var ret2 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _, _ = mockClientService.SnapmirrorObjstoreEpDelete(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSnapmirrorObjstoreEpDelete(params, authInfo, opts, ret0, ret1, ret2)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceSnapmirrorObjstoreEpSnapshotDelete(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SnapmirrorObjstoreEpSnapshotDeleteParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SnapmirrorObjstoreEpSnapshotDeleteOK
+	var ret1 *SnapmirrorObjstoreEpSnapshotDeleteAccepted
+	var ret2 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _, _ = mockClientService.SnapmirrorObjstoreEpSnapshotDelete(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSnapmirrorObjstoreEpSnapshotDelete(params, authInfo, opts, ret0, ret1, ret2)
+	mockClientService.AssertMockClientServiceDone()
+}
+
 func TestMockClientServiceSnapmirrorPolicyDeleteCollection(t *testing.T) {
 	mockClientService := NewMockClientService(t)
 	var params *SnapmirrorPolicyDeleteCollectionParams

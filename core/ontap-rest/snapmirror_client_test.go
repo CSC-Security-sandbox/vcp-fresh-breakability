@@ -378,3 +378,89 @@ func TestSnapmirrorGetPriv(t *testing.T) {
 		assert.Equal(tt, int64(0), response.GetPayload().NumRecords)
 	})
 }
+
+func TestSnapmirrorObjectStoreEndpointDelete(t *testing.T) {
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapmirror.SnapmirrorObjstoreEpDeleteOK{}}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		job, err := client.SnapmirrorObjectStoreEndpointDelete(&SnapmirrorCloudEndpointDeleteParams{
+			ObjectStoreUUID: "object-store-uuid",
+			EndpointUUID:    "endpoint-uuid",
+		})
+		assert.NoError(tt, err)
+		assert.Nil(tt, job)
+	})
+	t.Run("WhenSuccessWithJob", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapmirror.SnapmirrorObjstoreEpDeleteAccepted{
+			Payload: &models.ObjectStoreEndpointInfoJobLinkResponse{
+				Job: &models.JobLink{
+					UUID: nillable.ToPointer(strfmt.UUID("job-uuid")),
+				},
+			},
+		}}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		job, err := client.SnapmirrorObjectStoreEndpointDelete(&SnapmirrorCloudEndpointDeleteParams{
+			ObjectStoreUUID: "object-store-uuid",
+			EndpointUUID:    "endpoint-uuid",
+		})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, job)
+		assert.Equal(tt, "job-uuid", job.JobUUID)
+	})
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		job, err := client.SnapmirrorObjectStoreEndpointDelete(&SnapmirrorCloudEndpointDeleteParams{
+			ObjectStoreUUID: "object-store-uuid",
+			EndpointUUID:    "endpoint-uuid",
+		})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, job)
+	})
+}
+
+func TestSnapmirrorObjectStoreSnapshotDelete(t *testing.T) {
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapmirror.SnapmirrorObjstoreEpSnapshotDeleteOK{}}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		job, err := client.SnapmirrorObjectStoreSnapshotDelete(&SnapmirrorCloudSnapshotDeleteParams{
+			ObjectStoreUUID: "object-store-uuid",
+			SnapshotUUID:    "snapshot-uuid",
+		})
+		assert.NoError(tt, err)
+		assert.Nil(tt, job)
+	})
+	t.Run("WhenSuccessWithJob", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapmirror.SnapmirrorObjstoreEpSnapshotDeleteAccepted{
+			Payload: &models.SnapmirrorObjectStoreEndpointSnapshotJobLinkResponse{
+				Job: &models.JobLink{
+					UUID: nillable.ToPointer(strfmt.UUID("job-uuid")),
+				},
+			},
+		}}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		job, err := client.SnapmirrorObjectStoreSnapshotDelete(&SnapmirrorCloudSnapshotDeleteParams{
+			ObjectStoreUUID: "object-store-uuid",
+			SnapshotUUID:    "snapshot-uuid",
+		})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, job)
+		assert.Equal(tt, "job-uuid", job.JobUUID)
+	})
+	t.Run("WhenRESTCallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		n := snapmirror.New(transport, nil)
+		client := &snapmirrorClient{api: n}
+		job, err := client.SnapmirrorObjectStoreSnapshotDelete(&SnapmirrorCloudSnapshotDeleteParams{
+			ObjectStoreUUID: "object-store-uuid",
+			SnapshotUUID:    "snapshot-uuid",
+		})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, job)
+	})
+}

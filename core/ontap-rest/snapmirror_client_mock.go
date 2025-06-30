@@ -83,6 +83,122 @@ func (_c *MockSnapmirrorClient_SnapmirrorGetPriv_Call) RunAndReturn(run func(con
 	return _c
 }
 
+// SnapmirrorObjectStoreEndpointDelete provides a mock function with given fields: params
+func (_m *MockSnapmirrorClient) SnapmirrorObjectStoreEndpointDelete(params *SnapmirrorCloudEndpointDeleteParams) (*JobAccepted, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SnapmirrorObjectStoreEndpointDelete")
+	}
+
+	var r0 *JobAccepted
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*SnapmirrorCloudEndpointDeleteParams) (*JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*SnapmirrorCloudEndpointDeleteParams) *JobAccepted); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*JobAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*SnapmirrorCloudEndpointDeleteParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSnapmirrorClient_SnapmirrorObjectStoreEndpointDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SnapmirrorObjectStoreEndpointDelete'
+type MockSnapmirrorClient_SnapmirrorObjectStoreEndpointDelete_Call struct {
+	*mock.Call
+}
+
+// SnapmirrorObjectStoreEndpointDelete is a helper method to define mock.On call
+//   - params *SnapmirrorCloudEndpointDeleteParams
+func (_e *MockSnapmirrorClient_Expecter) SnapmirrorObjectStoreEndpointDelete(params interface{}) *MockSnapmirrorClient_SnapmirrorObjectStoreEndpointDelete_Call {
+	return &MockSnapmirrorClient_SnapmirrorObjectStoreEndpointDelete_Call{Call: _e.mock.On("SnapmirrorObjectStoreEndpointDelete", params)}
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorObjectStoreEndpointDelete_Call) Run(run func(params *SnapmirrorCloudEndpointDeleteParams)) *MockSnapmirrorClient_SnapmirrorObjectStoreEndpointDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*SnapmirrorCloudEndpointDeleteParams))
+	})
+	return _c
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorObjectStoreEndpointDelete_Call) Return(_a0 *JobAccepted, _a1 error) *MockSnapmirrorClient_SnapmirrorObjectStoreEndpointDelete_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorObjectStoreEndpointDelete_Call) RunAndReturn(run func(*SnapmirrorCloudEndpointDeleteParams) (*JobAccepted, error)) *MockSnapmirrorClient_SnapmirrorObjectStoreEndpointDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SnapmirrorObjectStoreSnapshotDelete provides a mock function with given fields: params
+func (_m *MockSnapmirrorClient) SnapmirrorObjectStoreSnapshotDelete(params *SnapmirrorCloudSnapshotDeleteParams) (*JobAccepted, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SnapmirrorObjectStoreSnapshotDelete")
+	}
+
+	var r0 *JobAccepted
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*SnapmirrorCloudSnapshotDeleteParams) (*JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*SnapmirrorCloudSnapshotDeleteParams) *JobAccepted); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*JobAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*SnapmirrorCloudSnapshotDeleteParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSnapmirrorClient_SnapmirrorObjectStoreSnapshotDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SnapmirrorObjectStoreSnapshotDelete'
+type MockSnapmirrorClient_SnapmirrorObjectStoreSnapshotDelete_Call struct {
+	*mock.Call
+}
+
+// SnapmirrorObjectStoreSnapshotDelete is a helper method to define mock.On call
+//   - params *SnapmirrorCloudSnapshotDeleteParams
+func (_e *MockSnapmirrorClient_Expecter) SnapmirrorObjectStoreSnapshotDelete(params interface{}) *MockSnapmirrorClient_SnapmirrorObjectStoreSnapshotDelete_Call {
+	return &MockSnapmirrorClient_SnapmirrorObjectStoreSnapshotDelete_Call{Call: _e.mock.On("SnapmirrorObjectStoreSnapshotDelete", params)}
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorObjectStoreSnapshotDelete_Call) Run(run func(params *SnapmirrorCloudSnapshotDeleteParams)) *MockSnapmirrorClient_SnapmirrorObjectStoreSnapshotDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*SnapmirrorCloudSnapshotDeleteParams))
+	})
+	return _c
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorObjectStoreSnapshotDelete_Call) Return(_a0 *JobAccepted, _a1 error) *MockSnapmirrorClient_SnapmirrorObjectStoreSnapshotDelete_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSnapmirrorClient_SnapmirrorObjectStoreSnapshotDelete_Call) RunAndReturn(run func(*SnapmirrorCloudSnapshotDeleteParams) (*JobAccepted, error)) *MockSnapmirrorClient_SnapmirrorObjectStoreSnapshotDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SnapmirrorRelationshipCreate provides a mock function with given fields: params
 func (_m *MockSnapmirrorClient) SnapmirrorRelationshipCreate(params *SnapmirrorRelationshipCreateParams) (*SnapmirrorRelationship, *JobAccepted, error) {
 	ret := _m.Called(params)

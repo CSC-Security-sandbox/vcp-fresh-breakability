@@ -716,10 +716,6 @@ func (s *PersistenceStore) CreateBackup(ctx context.Context, backup *datamodel.B
 	return s.dataStore.CreateBackup(ctx, backup)
 }
 
-func (s *PersistenceStore) GetBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
-	return s.dataStore.GetBackup(ctx, backupUUID)
-}
-
 func (s *PersistenceStore) DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
 	return s.dataStore.DeleteBackup(ctx, backupUUID)
 }
@@ -748,6 +744,10 @@ func (s *PersistenceStore) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.C
 	return s.dataStore.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, backupVaultUUID, accountID, filters)
 }
 
+func (s *PersistenceStore) GetBackup(ctx context.Context, backupVaultUUID string, backupUUID string, accountName string) (*datamodel.Backup, error) {
+	return s.dataStore.GetBackup(ctx, backupVaultUUID, backupUUID, accountName)
+}
+
 func (s *PersistenceStore) GetBackupVaultByUUIDndOwnerID(ctx context.Context, backupVaultUUID string, accountID int64) (*datamodel.BackupVault, error) {
 	return s.dataStore.GetBackupVaultByUUIDndOwnerID(ctx, backupVaultUUID, accountID)
 }
@@ -758,6 +758,14 @@ func (s *PersistenceStore) CreateBackupVaultEntryInVCP(ctx context.Context, back
 
 func (s *PersistenceStore) UpdateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault) error {
 	return s.dataStore.UpdateBackupVault(ctx, backupVault)
+}
+
+func (s *PersistenceStore) IsLatestBackup(ctx context.Context, backupUUID, volumeUUID string) (bool, error) {
+	return s.dataStore.IsLatestBackup(ctx, backupUUID, volumeUUID)
+}
+
+func (s *PersistenceStore) BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error) {
+	return s.dataStore.BackupCountByVolumeID(ctx, volumeUUID)
 }
 
 func (s *PersistenceStore) CreateAdminJobSpec(ctx context.Context, spec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {

@@ -35,7 +35,7 @@ func (d *DataStoreRepository) CreateBackupVault(ctx context.Context, bv *datamod
 		}
 	}()
 
-	vcpBvParams, err = getBackupVaultWithDetails(db, &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: vcpBvParams.UUID}})
+	vcpBvParams, err = getBackupVaultWithDetails(tx, &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: vcpBvParams.UUID}})
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("entry not found")
 	} else if err != nil {
@@ -197,7 +197,6 @@ func (d *DataStoreRepository) CreatingBackupVault(ctx context.Context, bv *datam
 		bv.LifeCycleStateDetails = models.LifeCycleStateCreatingDetails
 		bv.CreatedAt = time.Now()
 		bv.UpdatedAt = bv.CreatedAt
-		bv.Account.ID = bv.AccountID
 		err = tx.Create(&bv).Error
 		if err != nil {
 			return nil, err

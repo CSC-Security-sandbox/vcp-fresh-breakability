@@ -989,19 +989,31 @@ func TestGetBackup(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 
+	// Create a account
+	acc := &datamodel.Account{Name: "acc_backup"}
+	createdAcc, err := store.CreateAccount(ctx, acc)
+	assert.NoError(t, err)
+
+	// create a backup vault
+	bv := &datamodel.BackupVault{Name: "backupVault", AccountID: createdAcc.ID}
+	creatingBv, err := store.CreatingBackupVault(ctx, bv)
+	assert.NoError(t, err)
+	createdBv, err := store.CreateBackupVault(ctx, creatingBv, bv)
+	assert.NoError(t, err)
+
 	// Create a backup
-	backup := &datamodel.Backup{VolumeUUID: "uuid", State: "new"}
+	backup := &datamodel.Backup{VolumeUUID: "uuid", State: "new", BackupVaultID: createdBv.ID}
 	created, err := store.CreateBackup(ctx, backup)
 	assert.NoError(t, err)
 
 	// Case 1: Successful retrieval
-	found, err := store.GetBackup(ctx, created.UUID)
+	found, err := store.GetBackup(ctx, bv.UUID, created.UUID, acc.Name)
 	assert.NoError(t, err)
 	assert.NotNil(t, found)
 	assert.Equal(t, created.UUID, found.UUID)
 
 	// Case 2: Error scenario (non-existent UUID)
-	_, err = store.GetBackup(ctx, "non-existent-uuid")
+	_, err = store.GetBackup(ctx, bv.UUID, "random-uuid1", acc.Name)
 	assert.Error(t, err)
 }
 

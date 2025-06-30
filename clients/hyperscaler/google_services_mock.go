@@ -180,6 +180,74 @@ func (_c *MockGoogleServices_CreateCertificate_Call) RunAndReturn(run func(*mode
 	return _c
 }
 
+// CreateHmacKey provides a mock function with given fields: projectID, serviceAccount
+func (_m *MockGoogleServices) CreateHmacKey(projectID string, serviceAccount string) (*string, *string, error) {
+	ret := _m.Called(projectID, serviceAccount)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateHmacKey")
+	}
+
+	var r0 *string
+	var r1 *string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(string, string) (*string, *string, error)); ok {
+		return rf(projectID, serviceAccount)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) *string); ok {
+		r0 = rf(projectID, serviceAccount)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) *string); ok {
+		r1 = rf(projectID, serviceAccount)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*string)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(string, string) error); ok {
+		r2 = rf(projectID, serviceAccount)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockGoogleServices_CreateHmacKey_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateHmacKey'
+type MockGoogleServices_CreateHmacKey_Call struct {
+	*mock.Call
+}
+
+// CreateHmacKey is a helper method to define mock.On call
+//   - projectID string
+//   - serviceAccount string
+func (_e *MockGoogleServices_Expecter) CreateHmacKey(projectID interface{}, serviceAccount interface{}) *MockGoogleServices_CreateHmacKey_Call {
+	return &MockGoogleServices_CreateHmacKey_Call{Call: _e.mock.On("CreateHmacKey", projectID, serviceAccount)}
+}
+
+func (_c *MockGoogleServices_CreateHmacKey_Call) Run(run func(projectID string, serviceAccount string)) *MockGoogleServices_CreateHmacKey_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateHmacKey_Call) Return(accessKey *string, secretKey *string, err error) *MockGoogleServices_CreateHmacKey_Call {
+	_c.Call.Return(accessKey, secretKey, err)
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateHmacKey_Call) RunAndReturn(run func(string, string) (*string, *string, error)) *MockGoogleServices_CreateHmacKey_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateSecret provides a mock function with given fields: projectID, region, secretID, secretValue
 func (_m *MockGoogleServices) CreateSecret(projectID string, region string, secretID string, secretValue string) (*models.CustomSecret, error) {
 	ret := _m.Called(projectID, region, secretID, secretValue)
@@ -555,6 +623,54 @@ func (_c *MockGoogleServices_DeleteBucket_Call) Return(_a0 error) *MockGoogleSer
 }
 
 func (_c *MockGoogleServices_DeleteBucket_Call) RunAndReturn(run func(context.Context, string) error) *MockGoogleServices_DeleteBucket_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteHmacKey provides a mock function with given fields: projectID, accessKey, ServiceAccount
+func (_m *MockGoogleServices) DeleteHmacKey(projectID string, accessKey string, ServiceAccount string) error {
+	ret := _m.Called(projectID, accessKey, ServiceAccount)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteHmacKey")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(projectID, accessKey, ServiceAccount)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockGoogleServices_DeleteHmacKey_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteHmacKey'
+type MockGoogleServices_DeleteHmacKey_Call struct {
+	*mock.Call
+}
+
+// DeleteHmacKey is a helper method to define mock.On call
+//   - projectID string
+//   - accessKey string
+//   - ServiceAccount string
+func (_e *MockGoogleServices_Expecter) DeleteHmacKey(projectID interface{}, accessKey interface{}, ServiceAccount interface{}) *MockGoogleServices_DeleteHmacKey_Call {
+	return &MockGoogleServices_DeleteHmacKey_Call{Call: _e.mock.On("DeleteHmacKey", projectID, accessKey, ServiceAccount)}
+}
+
+func (_c *MockGoogleServices_DeleteHmacKey_Call) Run(run func(projectID string, accessKey string, ServiceAccount string)) *MockGoogleServices_DeleteHmacKey_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteHmacKey_Call) Return(_a0 error) *MockGoogleServices_DeleteHmacKey_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteHmacKey_Call) RunAndReturn(run func(string, string, string) error) *MockGoogleServices_DeleteHmacKey_Call {
 	_c.Call.Return(run)
 	return _c
 }

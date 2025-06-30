@@ -182,6 +182,32 @@ func (mock *MockClientService) AssertSnapmirrorObjectStoreEndpointSnapshotGet(pa
 	mock.returns <- []interface{}{&ret0, &ret1}
 }
 
+// SnapmirrorObjstoreEpDelete mocks a call to ClientService.SnapmirrorObjstoreEpDelete
+func (mock *MockClientService) SnapmirrorObjstoreEpDelete(params *SnapmirrorObjstoreEpDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjstoreEpDeleteOK, *SnapmirrorObjstoreEpDeleteAccepted, error) {
+	mock.calls <- &mockClientServiceCall{name: "SnapmirrorObjstoreEpDelete", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SnapmirrorObjstoreEpDeleteOK), *ret[1].(**SnapmirrorObjstoreEpDeleteAccepted), *ret[2].(*error)
+}
+
+// AssertSnapmirrorObjstoreEpDelete verifies that SnapmirrorObjstoreEpDelete has been invoked
+func (mock *MockClientService) AssertSnapmirrorObjstoreEpDelete(params *SnapmirrorObjstoreEpDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SnapmirrorObjstoreEpDeleteOK, ret1 *SnapmirrorObjstoreEpDeleteAccepted, ret2 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SnapmirrorObjstoreEpDelete", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1, &ret2}
+}
+
+// SnapmirrorObjstoreEpSnapshotDelete mocks a call to ClientService.SnapmirrorObjstoreEpSnapshotDelete
+func (mock *MockClientService) SnapmirrorObjstoreEpSnapshotDelete(params *SnapmirrorObjstoreEpSnapshotDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorObjstoreEpSnapshotDeleteOK, *SnapmirrorObjstoreEpSnapshotDeleteAccepted, error) {
+	mock.calls <- &mockClientServiceCall{name: "SnapmirrorObjstoreEpSnapshotDelete", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SnapmirrorObjstoreEpSnapshotDeleteOK), *ret[1].(**SnapmirrorObjstoreEpSnapshotDeleteAccepted), *ret[2].(*error)
+}
+
+// AssertSnapmirrorObjstoreEpSnapshotDelete verifies that SnapmirrorObjstoreEpSnapshotDelete has been invoked
+func (mock *MockClientService) AssertSnapmirrorObjstoreEpSnapshotDelete(params *SnapmirrorObjstoreEpSnapshotDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SnapmirrorObjstoreEpSnapshotDeleteOK, ret1 *SnapmirrorObjstoreEpSnapshotDeleteAccepted, ret2 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SnapmirrorObjstoreEpSnapshotDelete", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1, &ret2}
+}
+
 // SnapmirrorPolicyDeleteCollection mocks a call to ClientService.SnapmirrorPolicyDeleteCollection
 func (mock *MockClientService) SnapmirrorPolicyDeleteCollection(params *SnapmirrorPolicyDeleteCollectionParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SnapmirrorPolicyDeleteCollectionOK, *SnapmirrorPolicyDeleteCollectionAccepted, error) {
 	mock.calls <- &mockClientServiceCall{name: "SnapmirrorPolicyDeleteCollection", params: []interface{}{&params, &authInfo, &opts}}

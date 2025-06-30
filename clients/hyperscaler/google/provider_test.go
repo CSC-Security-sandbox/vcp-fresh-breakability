@@ -1564,3 +1564,201 @@ func TestGcpServices_DeleteServiceAccount(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateHmacKey(t *testing.T) {
+	t.Run("WhenCreateHmacKeySuccess", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, "/storage/v1/projects/project1/hmacKeys") {
+				rw.Header().Set("Content-Type", "application/json")
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write([]byte(`{
+                    "metadata": {
+                        "accessId": "test-access-id",
+                        "secret": "test-secret",
+                        "timeCreated": "2025-06-24T14:38:52Z"
+                    }
+                }`))
+				return
+			}
+			http.NotFound(rw, req)
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		logger := util.GetLogger(ctx)
+
+		storageClient, err := storage.NewClient(ctx,
+			option.WithEndpoint(server.URL+"/storage/v1/"),
+			option.WithHTTPClient(&http.Client{}),
+			option.WithoutAuthentication(),
+		)
+		if err != nil {
+			tt.Fatalf("failed to create storage client: %v", err)
+		}
+
+		gcp := &GcpServices{
+			Ctx: ctx,
+			AdminGCPService: &AdminGCPService{
+				storageService: storageClient,
+			},
+			Logger: logger,
+		}
+
+		accessKey, secretKey, err := gcp.CreateHmacKey("project1", "serviceAccount1")
+		assert.Nil(tt, err, "Expected no error but got one")
+		assert.NotNil(tt, accessKey)
+		assert.NotNil(tt, secretKey)
+	})
+
+	t.Run("WhenCreateHmacKeyFails", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			rw.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		logger := util.GetLogger(ctx)
+
+		storageClient, err := storage.NewClient(ctx,
+			option.WithEndpoint(server.URL+"/storage/v1/"),
+			option.WithHTTPClient(&http.Client{}),
+			option.WithoutAuthentication(),
+		)
+		if err != nil {
+			tt.Fatalf("failed to create storage client: %v", err)
+		}
+
+		gcp := &GcpServices{
+			Ctx: ctx,
+			AdminGCPService: &AdminGCPService{
+				storageService: storageClient,
+			},
+			Logger: logger,
+		}
+
+		accessKey, secretKey, err := gcp.CreateHmacKey("project1", "serviceAccount1")
+		assert.NotNil(tt, err)
+		assert.Nil(tt, accessKey)
+		assert.Nil(tt, secretKey)
+	})
+}
+
+func TestDeleteHmacKey(t *testing.T) {
+	t.Run("WhenDeleteHmacKeySuccess", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPut && strings.Contains(req.URL.Path, "/storage/v1/projects/project1/hmacKeys/test-access-id") {
+				rw.Header().Set("Content-Type", "application/json")
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write([]byte(`{
+					"accessId": "test-access-id",
+					"state": "INACTIVE",
+					"timeCreated": "2025-06-24T14:38:52Z",
+					"updated": "2025-06-24T14:38:52Z"
+				}`))
+				return
+			}
+			if req.Method == http.MethodDelete && strings.Contains(req.URL.Path, "/storage/v1/projects/project1/hmacKeys/test-access-id") {
+				rw.WriteHeader(http.StatusOK)
+				return
+			}
+			http.NotFound(rw, req)
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		logger := util.GetLogger(ctx)
+
+		storageClient, err := storage.NewClient(ctx,
+			option.WithEndpoint(server.URL+"/storage/v1/"),
+			option.WithHTTPClient(&http.Client{}),
+			option.WithoutAuthentication(),
+		)
+		if err != nil {
+			tt.Fatalf("failed to create storage client: %v", err)
+		}
+
+		gcp := &GcpServices{
+			Ctx: ctx,
+			AdminGCPService: &AdminGCPService{
+				storageService: storageClient,
+			},
+			Logger: logger,
+		}
+
+		err = gcp.DeleteHmacKey("project1", "test-access-id", "serviceAccount1")
+		assert.Nil(tt, err, "Expected no error but got one")
+	})
+
+	t.Run("WhenUpdateHmacKeyFails", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPatch && strings.Contains(req.URL.Path, "/storage/v1/projects/project1/hmacKeys/test-access-id") {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			http.NotFound(rw, req)
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		logger := util.GetLogger(ctx)
+
+		storageClient, err := storage.NewClient(ctx,
+			option.WithEndpoint(server.URL+"/storage/v1/"),
+			option.WithHTTPClient(&http.Client{}),
+			option.WithoutAuthentication(),
+		)
+		if err != nil {
+			tt.Fatalf("failed to create storage client: %v", err)
+		}
+
+		gcp := &GcpServices{
+			Ctx: ctx,
+			AdminGCPService: &AdminGCPService{
+				storageService: storageClient,
+			},
+			Logger: logger,
+		}
+
+		err = gcp.DeleteHmacKey("project1", "test-access-id", "serviceAccount1")
+		assert.NotNil(tt, err, "Expected an error but got none")
+		assert.Contains(tt, err.Error(), "failed to update HMAC key state to INACTIVE", "Expected error message to match")
+	})
+
+	t.Run("WhenDeleteHmacKeyFails", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPatch && strings.Contains(req.URL.Path, "/storage/v1/projects/project1/hmacKeys/test-access-id") {
+				rw.WriteHeader(http.StatusOK)
+				return
+			}
+			if req.Method == http.MethodDelete && strings.Contains(req.URL.Path, "/storage/v1/projects/project1/hmacKeys/test-access-id") {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			http.NotFound(rw, req)
+		}))
+		defer server.Close()
+
+		ctx := context.Background()
+		logger := util.GetLogger(ctx)
+
+		storageClient, err := storage.NewClient(ctx,
+			option.WithEndpoint(server.URL+"/storage/v1/"),
+			option.WithHTTPClient(&http.Client{}),
+			option.WithoutAuthentication(),
+		)
+		if err != nil {
+			tt.Fatalf("failed to create storage client: %v", err)
+		}
+
+		gcp := &GcpServices{
+			Ctx: ctx,
+			AdminGCPService: &AdminGCPService{
+				storageService: storageClient,
+			},
+			Logger: logger,
+		}
+
+		err = gcp.DeleteHmacKey("project1", "test-access-id", "serviceAccount1")
+		assert.NotNil(tt, err, "Expected an error but got none")
+	})
+}

@@ -28,6 +28,8 @@ const (
 	BackupTypeSCHEDULED string = "SCHEDULED"
 )
 
+var utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+
 func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver.BackupUuidListV1beta, params gcpgenserver.V1betaGetMultipleBackupsParams) (gcpgenserver.V1betaGetMultipleBackupsRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
@@ -303,10 +305,47 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 }
 
 func (h Handler) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params gcpgenserver.V1betaDeleteBackupUnderBackupVaultParams) (gcpgenserver.V1betaDeleteBackupUnderBackupVaultRes, error) {
-	msg := "Unimplemented function flow"
-	return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError{
-		Code:    float64(500),
-		Message: msg,
+	logger := util.GetLogger(ctx)
+	_, _, parsingErr := utilParseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+	_, err := h.Orchestrator.GetBackup(ctx, &common.GetBackupParams{
+		BackupVaultID: params.BackupVaultId,
+		BackupUUID:    params.BackupId,
+		AccountName:   params.ProjectNumber,
+	})
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return deleteBackupToCVP(ctx, params)
+		}
+		logger.Error("Failed to get backup", "error", err.Error())
+		return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+	// If the request belongs to VSA, we will delete the backup using the orchestrator
+	vsaParams := &common.DeleteBackupParams{
+		AccountName:     params.ProjectNumber,
+		BackupVaultUUID: params.BackupVaultId,
+		BackupUUID:      params.BackupId,
+	}
+	_, jobId, err := h.Orchestrator.DeleteBackup(ctx, vsaParams)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to delete backup", "error", err.Error())
+		return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobId)
+	return &gcpgenserver.OperationV1beta{
+		Name: gcpgenserver.NewOptString(operationID),
+		Done: gcpgenserver.NewOptBool(true),
 	}, nil
 }
 
@@ -480,6 +519,91 @@ func encodeBackupV1(backupV1beta *gcpgenserver.BackupV1beta) (jx.Raw, error) {
 	}
 	return data, nil
 }
+
+func deleteBackupToCVP(ctx context.Context, params gcpgenserver.V1betaDeleteBackupUnderBackupVaultParams) (gcpgenserver.V1betaDeleteBackupUnderBackupVaultRes, error) {
+	logger := util.GetLogger(ctx)
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := createClient(logger, jwtToken)
+	cvpParams := &backups.V1betaDeleteBackupUnderBackupVaultParams{
+		BackupVaultID:  params.BackupVaultId,
+		BackupID:       params.BackupId,
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: &params.XCorrelationID.Value,
+	}
+
+	cvpDeleted, cvpAccepted, err := cvpClient.Backups.V1betaDeleteBackupUnderBackupVault(cvpParams)
+	if err != nil {
+		switch e := err.(type) {
+		case *backups.V1betaDeleteBackupUnderBackupVaultBadRequest:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultBadRequest{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaDeleteBackupUnderBackupVaultUnauthorized:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultUnauthorized{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaDeleteBackupUnderBackupVaultForbidden:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultForbidden{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaDeleteBackupUnderBackupVaultNotFound:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultNotFound{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaDeleteBackupUnderBackupVaultInternalServerError:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError{
+				Code:    code,
+				Message: msg,
+			}, nil
+		default:
+			code := float64(500)
+			msg := err.Error()
+			return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError{
+				Code:    code,
+				Message: msg,
+			}, nil
+		}
+	}
+	if cvpDeleted != nil {
+		pl := cvpDeleted.Payload
+		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, pl.Name)
+		return &gcpgenserver.OperationV1beta{
+			Name: gcpgenserver.NewOptString(operationID),
+			Done: gcpgenserver.NewOptBool(true),
+		}, nil
+	}
+
+	if cvpAccepted != nil {
+		pl := cvpAccepted.Payload
+		done := false
+		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, pl.Name)
+		return &gcpgenserver.OperationV1beta{
+			Name: gcpgenserver.NewOptString(operationID),
+			Done: gcpgenserver.NewOptBool(done),
+		}, nil
+	}
+	msg := "Unexpected function flow"
+	return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError{
+		Code:    float64(500),
+		Message: msg,
+	}, nil
+}
+
 func fetchBackupUUIDWhichAreNotPartOfListBackups(listBackups []*datamodel.Backup, backupUUIDs []string) []string {
 	// Create a map to store UUIDs from listBackups for quick lookup
 	backupUUIDMap := make(map[string]bool)
