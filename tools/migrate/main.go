@@ -68,6 +68,7 @@ func main() {
 }
 
 func setupDatabase(ctx context.Context, dbConfig database.DbConfig, logger slogger.Logger) error {
+	dbConfig.Name = common.DefaultDB
 	storage, err := database.New(dbConfig, logger)
 	if err != nil {
 		return err

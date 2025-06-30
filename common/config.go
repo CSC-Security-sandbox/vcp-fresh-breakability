@@ -7,6 +7,10 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+const (
+	DefaultDB = "postgres"
+)
+
 type Config struct {
 	// Server configuration
 	GCPPort             string

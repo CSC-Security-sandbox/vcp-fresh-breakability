@@ -233,10 +233,6 @@ func (s *PersistenceStore) getPostgresDSN(isAdmin bool) (string, error) {
 	query.Add("timezone", s.config.TimeZone)
 	// For admin connections, connect to the admin database
 	dbName := s.config.Name
-	if isAdmin {
-		dbName = "postgres"
-	}
-
 	u := &url.URL{
 		Scheme:   s.config.Type,
 		User:     url.UserPassword(username, password),
