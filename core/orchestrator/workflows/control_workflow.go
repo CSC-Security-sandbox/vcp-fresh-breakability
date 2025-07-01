@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	// VolumeCreateDeleteSeq is a placeholder used for sequence workflow instance that runs all volume CREATE & DELETE operation calls for a specific pool sequentially.
-	VolumeCreateDeleteSeq = "Account_%d_Location_%s_Pool_%s_Ops_VolumeCreateDelete"
+	// VolumeCreateDeleteSnapshotDeleteSeq is a placeholder used for sequence workflow instance that runs all
+	// volume CREATE & DELETE operation and snapshot DELETE calls for a specific pool sequentially.
+	VolumeCreateDeleteSnapshotDeleteSeq = "Account_%d_Location_%s_Pool_%s_Ops_Volume-CD-Snapshot-D"
 
 	// Signal is the name of the signal used to call sequential workflows.
 	Signal = "req"
@@ -78,13 +79,23 @@ func SequenceWorkflow(ctx workflow.Context) error {
 
 // ExecuteWorkflowSequentially sends a signal to the sequence workflow to execute a child workflow sequentially.
 // If the sequence workflow is not running, it starts a new instance with the provided options and signals it.
+//
 //   - temporal: Temporal client instance.
+//
 //   - ctx: Go context.
+//
 //   - sequenceWfOptions: Workflow start options for the sequence workflow.
 //     This includes options like WorkflowID, TaskQueue, WorkflowIDReusePolicy.
+//     Sequence WorkflowID needs to have resource and its operations that we want to sequence post-fixed in below format
+//
+//     (Sequence-Uniqueness-ID)_Ops_(Resource1-C/U/D)-(Resource2-C/U/D)-...-(ResourceN-C/U/D)
+//     , where C=CREATE, U=UPDATE, D=DELETE.
+//
 //   - wfFunction: The child workflow function to execute.
+//
 //   - wfOptions: Workflow options for the child workflow.
 //     This includes options like TaskQueue, WorkflowID, and WorkflowIDReusePolicy.
+//
 //   - wfArgs: Arguments to pass to the child workflow function.
 //
 // Returns an error if the signal or workflow start fails.

@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -16,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/workflow"
 )
 
 const (
@@ -349,13 +351,27 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	_, err = temporal.ExecuteWorkflow(ctx,
+	location, err := getLocationFromVendorID(volume.Pool.VendorID)
+	if err != nil {
+		logger.Error("Failed to get location from vendor ID: ", "error", err)
+		return nil, "", err
+	}
+
+	// controlWorkflowID defines the workflow ID for the control workflow
+	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSnapshotDeleteSeq, volume.Account.ID, location, volume.Pool.Name)
+	err = workflows.ExecuteWorkflowSequentially(
+		temporal,
+		ctx,
 		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			TaskQueue: workflowengine.CustomerTaskQueue,
+			ID:        controlWorkflowID,
 		},
 		workflows.DeleteSnapshotWorkflow,
+		workflow.ChildWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			WorkflowID:            createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
 		params,
 		snapshot,
 	)

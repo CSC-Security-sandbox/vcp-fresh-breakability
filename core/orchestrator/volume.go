@@ -152,8 +152,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	// controlWorkflowID defines the workflow ID for the control workflow
-	// which runs all volume CREATE & DELETE operation calls for a specific pool sequentially.
-	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSeq, dbVolume.Account.ID, location, dbVolume.Pool.Name)
+	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSnapshotDeleteSeq, dbVolume.Account.ID, location, dbVolume.Pool.Name)
 	err = workflows.ExecuteWorkflowSequentially(
 		temporal,
 		ctx,
@@ -425,8 +424,7 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	// controlWorkflowID defines the workflow ID for the control workflow
-	// which runs all volume CREATE & DELETE operation calls for a specific pool sequentially.
-	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSeq, volume.Account.ID, location, volume.Pool.Name)
+	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSnapshotDeleteSeq, volume.Account.ID, location, volume.Pool.Name)
 	err = workflows.ExecuteWorkflowSequentially(
 		temporal,
 		ctx,

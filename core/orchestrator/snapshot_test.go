@@ -13,11 +13,14 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/workflow"
 )
 
 func TestOrchestrator_CreateSnapshot(t *testing.T) {
@@ -1332,6 +1335,9 @@ func TestDeleteSnapshot(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: account.ID,
+			Pool: &datamodel.Pool{
+				VendorID: "/projects/project123/locations/location123/pools/pool123",
+			},
 		}
 		err = store.DB().Create(volume).Error
 		if err != nil {
@@ -1354,7 +1360,12 @@ func TestDeleteSnapshot(t *testing.T) {
 			},
 			SnapshotID: "test-snapshot-uuid",
 		}
-		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 		snapshotResp, _, err := orch.DeleteSnapshot(ctx, params)
 		assert.NoError(tt, err, "Failed to delete snapshot")
 		assert.NotNil(tt, snapshotResp, "Expected snapshot to be deleted")
@@ -1481,6 +1492,9 @@ func TestDeleteSnapshot(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: account.ID,
+			Pool: &datamodel.Pool{
+				VendorID: "/projects/project123/locations/location123/pools/pool123",
+			},
 		}
 		err = store.DB().Create(volume).Error
 		if err != nil {
@@ -1506,11 +1520,79 @@ func TestDeleteSnapshot(t *testing.T) {
 			},
 		}
 
-		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error")).Once()
-
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return errors.New("workflow error")
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
 		snapshotRes, _, err := orch.DeleteSnapshot(ctx, params)
 		assert.Nil(tt, snapshotRes, "Expected nil snapshot")
 		assert.EqualError(tt, err, "workflow error")
+	})
+	t.Run("WhenSnapshotDeletionFailsDueToVendorIDError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Pool: &datamodel.Pool{
+				VendorID: "/wrong/format/vendor/id", // Intentionally wrong format
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.DeleteSnapshotParams{
+			SnapshotID: "test-snapshot-uuid",
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				AccountName: account.Name,
+				VolumeID:    volume.UUID,
+			},
+		}
+
+		snapshotRes, _, err := orch.DeleteSnapshot(ctx, params)
+		assert.Nil(tt, snapshotRes, "Expected nil snapshot")
+		assert.Contains(tt, err.Error(), "invalid vendor ID")
 	})
 
 	t.Run("WhenSnapshotDeletionFailsDueToWrongState", func(tt *testing.T) {
