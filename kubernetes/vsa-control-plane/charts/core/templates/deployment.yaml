@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core-service
+  annotations:
+    {{- include "core.kubernetes.annotations" . | nindent 4 }}
+    {{- include "core.helmchart.annotations" . | nindent 4 }}
+  labels:
+    {{- include "core.kubernetes.labels" . | nindent 4 }}
+    {{- include "core.helmchart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      nodeSelector:
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+        iam.gke.io/gke-metadata-server-enabled: "true"
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      containers:
+        - name: vcp-core
+          {{- if .Values.images.core.secondary }}
+          image: "{{- include "containerImage" (list . (dict "name" "core" "secondary" true)) | trim -}}"
+          {{- else }}
+          image: "{{- include "containerImage" (list . (dict "name" "core" "secondary" false)) | trim -}}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.images.core.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.appPort }}
+              name: http
+          envFrom:
+            - configMapRef:
+                name: core-service-env-config
+          volumeMounts:
+            - name: env-config-volume
+              mountPath: /etc/config
+              readOnly: true
+      volumes:
+        - name: env-config-volume
+          configMap:
+            name: core-service-env-config

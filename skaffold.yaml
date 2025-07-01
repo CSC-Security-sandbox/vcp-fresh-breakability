@@ -24,6 +24,16 @@ build:
       requires:
         - image: base
           alias: BASE
+    - image: core
+      context: .
+      docker:
+        dockerfile: core/Dockerfile
+        buildArgs:
+          noCache: true
+          GHVSA_PAT: "{{.GHVSA_PAT}}"
+      requires:
+        - image: base
+          alias: BASE          
     - image: vcp-worker
       context: .
       docker:
@@ -128,4 +138,4 @@ profiles:
           requires:
             - image: base
               alias: BASE
-      
+
