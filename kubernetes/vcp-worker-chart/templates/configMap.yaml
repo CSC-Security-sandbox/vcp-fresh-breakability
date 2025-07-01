@@ -29,26 +29,26 @@ data:
   GCP_SERVICE_NETWORKING_ENDPOINT_URL: {{ .Values.workerConfig.gcpServiceNetworkingEndpointUrl | quote }}
   LOCAL_REGION: {{ .Values.workerConfig.localRegion | quote }}
   VSA_NODE_USERNAME: {{ .Values.workerConfig.vsaNodeUsername | quote }}
-  GCP_HYDRATE_AUTH_SERVICE_ACCOUNT: "{{ index .Values "gcpHydrateAuthServiceAccount" }}"
-  GCP_HYDRATE_BASE_URL: "{{ index .Values "gcpHydrateBaseUrl" }}"
-  PROXY_CLIENT_TRANSPORT_SCHEMA: "{{ index .Values "proxyClientTransportSchema" }}"
-  VCP_PAIRED_REGIONS: "{{ index .Values "vcpPairedRegions" }}"
-  GCP_AUTH_SERVICE_ACCOUNT: "{{ index .Values "gcpAuthServiceAccount" }}"
-  GCP_SERVICE_URL: "{{ index .Values "gcpServiceUrl" }}"
-  LOGGER_LEVEL: "{{ index .Values "loggerLevel" }}"
-  SMC_GCP_PROJECT_ID: "{{ index .Values "smcProjectId" }}"
-  GCP_SMC_SECRET_NAME: "{{ index .Values "gcpSmcSecretName" }}"
-  GCP_SMC_SECRET_VERSION_NAME: "{{ index .Values "gcpSmcSecretVersionName" }}"
+  GCP_HYDRATE_AUTH_SERVICE_ACCOUNT: {{ .Values.workerConfig.gcpServiceNetworkingEndpointUrl | quote }}
+  GCP_HYDRATE_BASE_URL: {{ .Values.workerConfig.gcpHydrateBaseUrl | quote }}
+  PROXY_CLIENT_TRANSPORT_SCHEMA: {{ .Values.workerConfig.proxyClientTransportSchema | quote }}
+  VCP_PAIRED_REGIONS: {{ .Values.workerConfig.vcpPairedRegions | quote }}
+  GCP_AUTH_SERVICE_ACCOUNT: {{ .Values.workerConfig.gcpAuthServiceAccount | quote }}
+  GCP_SERVICE_URL: {{ .Values.workerConfig.gcpServiceUrl | quote }}
+  LOGGER_LEVEL: {{ .Values.workerConfig.loggerLevel | quote }}
+  SMC_GCP_PROJECT_ID: {{ .Values.workerConfig.smcProjectId | quote }}
+  GCP_SMC_SECRET_NAME: {{ .Values.workerConfig.gcpSmcSecretName | quote }}
+  GCP_SMC_SECRET_VERSION_NAME: {{ .Values.workerConfig.gcpSmcSecretVersionName | quote }}
   VMRS_CONFIG_PATH: {{ .Values.workerConfig.vmrsConfigPath | quote }}
-  GCP_HYDRATE_ENABLED: "{{ index .Values "gcpHydrateEnabled" }}"
-  GCP_HYDRATE_BATCH_SIZE: "{{ index .Values "gcpHydrateBatchSize" }}"
+  GCP_HYDRATE_ENABLED: {{ .Values.workerConfig.gcpHydrateEnabled | quote }}
+  GCP_HYDRATE_BATCH_SIZE: {{ .Values.workerConfig.gcpHydrateBatchSize | quote }}
   VSA_NODE_PASSWORD: {{ .Values.workerConfig.vsaNodePassword | quote }}
-  VSA_AUTH_TYPE: "{{ index .Values.workerConfig.vsaAuthType | quote }}"
-  CERTIFICATE_LIFETIME: "{{ index .Values.workerConfig.certificateLifetime | quote }}"
-  CA_POOL_NAME: "{{ index .Values.workerConfig.caPoolName | quote }}"
-  CA_NAME: "{{ index .Values.workerConfig.caName | quote }}"
-  CA_POOL_DEPLOYED_PROJECT_ID: "{{ index .Values.workerConfig.caPoolDeployedProjectId | quote }}"
-  VSA_DEPLOYED_DNS_NAME: "{{ index .Values.workerConfig.vsaDeployedDnsName | quote }}"
-  VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS: "{{ index .Values.workerConfig.vsaSecretCacheCleanupIntervalHours | quote }}"
-  VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS: "{{ index .Values.workerConfig.vsaSecretAuthCacheExpirationHours | quote }}"
+  VSA_AUTH_TYPE: {{ .Values.workerConfig.vsaAuthType | quote }}
+  CERTIFICATE_LIFETIME: {{ .Values.workerConfig.certificateLifetime | quote }}
+  CA_POOL_NAME: {{ .Values.workerConfig.caPoolName | quote }}
+  CA_NAME: {{ .Values.workerConfig.caName | quote }}
+  CA_POOL_DEPLOYED_PROJECT_ID: {{ .Values.workerConfig.caPoolDeployedProjectId | quote }}
+  VSA_DEPLOYED_DNS_NAME: {{ .Values.workerConfig.vsaDeployedDnsName | quote }}
+  VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS: {{ .Values.workerConfig.vsaSecretCacheCleanupIntervalHours | quote }}
+  VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS: {{ .Values.workerConfig.vsaSecretAuthCacheExpirationHours | quote }}
 
