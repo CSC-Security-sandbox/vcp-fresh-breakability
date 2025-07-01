@@ -1,0 +1,47 @@
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-to-google-proxy
+  namespace: vcp
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: google-proxy
+  rules:
+    - {}   # Matches all sources (internal and external)
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-internal-from-specific-namespaces
+  namespace: vcp
+spec:
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            namespaces: ["temporal", "otel", "vcp"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all-ingress-to-temporal-except
+  namespace: temporal
+spec:
+  action: DENY
+  rules:
+  - from:
+    - source:
+        notNamespaces: ["temporal", "otel","vcp"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all-ingress-to-otel
+  namespace: otel
+spec:
+  action: DENY
+  rules:
+  - {}
