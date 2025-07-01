@@ -75,6 +75,29 @@ func (gcpService *GcpServices) GetSecretWithLatestVersion(projectID, secretID st
 	return customSecret, nil
 }
 
+// GetSecretWithCustomVersion retrieves a secret with a specific version from the secret manager.
+func (gcpService *GcpServices) GetSecretWithCustomVersion(projectID, secretID string, versionID string) (*models.CustomSecret, error) {
+	gcpService.Logger.Debugf("Calling GetSecretWithCustomVersion for project id : %s, secretID : %s , versionID : %s", projectID, secretID, versionID)
+	name := fmt.Sprintf("projects/%s/secrets/%s", projectID, secretID)
+
+	secret, err := gcpService.AdminGCPService.secretManagerService.Projects.Secrets.Get(name).Context(gcpService.Ctx).Do()
+	if err != nil {
+		gcpService.Logger.Errorf("GetSecretWithCustomVersion failed for secret : %s, err : %s", name, err.Error())
+		return nil, err
+	}
+
+	version, err := GetSecretVersion(gcpService, projectID, secretID, versionID)
+	if err != nil {
+		return nil, err
+	}
+	gcpService.Logger.Debugf("GetSecretWithCustomVersion success with response :  %s", name)
+	customSecret, err := _convertSecretToCustomSecret(secret, version)
+	if err != nil {
+		return nil, err
+	}
+	return customSecret, nil
+}
+
 // DeleteSecret deletes a secret from the secret manager. Reference: https://cloud.google.com/secret-manager/docs/reference/rest/v1beta1/projects.secrets/delete
 func (gcpService *GcpServices) DeleteSecret(projectID, secretID string) error {
 	gcpService.Logger.Debug(fmt.Sprintf("Calling GetSecretWithLatestVersion for project id : %s, secretID : %s", projectID, secretID))

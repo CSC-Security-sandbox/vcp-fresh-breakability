@@ -6,9 +6,9 @@ import (
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 )
 
-func (rc *OntapRestProvider) SnapmirrorRelationshipCreate(destinationPath, sourcePath string) (*ontapRest.SnapmirrorRelationship, error) {
+func (rc *OntapRestProvider) SnapmirrorRelationshipCreate(destinationPath, sourcePath string, smcToken *string) (*ontapRest.SnapmirrorRelationship, error) {
 	client := getOntapClientFunc(rc.ClientParams)
-	_, job, err := client.Snapmirror().SnapmirrorRelationshipCreate(&ontapRest.SnapmirrorRelationshipCreateParams{SourcePath: sourcePath, DestinationPath: destinationPath, SetAccessToken: true})
+	_, job, err := client.Snapmirror().SnapmirrorRelationshipCreate(&ontapRest.SnapmirrorRelationshipCreateParams{SourcePath: sourcePath, DestinationPath: destinationPath, AccessToken: smcToken})
 	if err != nil {
 		return nil, err
 	}
@@ -49,9 +49,9 @@ func (rc *OntapRestProvider) SnapmirrorRelationshipGet(destinationPath, sourcePa
 	return snapmirror[0], nil
 }
 
-func (rc *OntapRestProvider) SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName string) error {
+func (rc *OntapRestProvider) SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName string, smcToken *string) error {
 	client := getOntapClientFunc(rc.ClientParams)
-	err := client.Snapmirror().SnapmirrorRelationshipTransferCreate(&ontapRest.SnapmirrorRelationshipTransferCreateParams{UUID: snapmirrorUUID, SnapshotName: snapshotName, SetAccessToken: true})
+	err := client.Snapmirror().SnapmirrorRelationshipTransferCreate(&ontapRest.SnapmirrorRelationshipTransferCreateParams{UUID: snapmirrorUUID, SnapshotName: snapshotName, AccessToken: smcToken})
 	if err != nil {
 		return err
 	}

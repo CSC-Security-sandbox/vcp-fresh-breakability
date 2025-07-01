@@ -329,6 +329,10 @@ type GetMultipleReplicationsParams struct {
 	VolumeResourceId string
 }
 
+type CreateSMCTokenRotationParams struct {
+	AccountName string
+}
+
 type ADCParams struct {
 	ADCName          string
 	DestEndpointUUID string

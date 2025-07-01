@@ -43,9 +43,9 @@ type Services interface {
 	CreateSecret(projectID, region, secretID, secretValue string) (*models.CustomSecret, error)
 	GetSecretWithLatestVersion(projectID, secretID string) (*models.CustomSecret, error)
 	DeleteSecret(projectID, secretID string) error
-
 	CreateServiceAccountKey(ctx context.Context, email string) (*iam.ServiceAccountKey, error)
 	DeleteAllServiceAccountKeys(ctx context.Context, email string) error
+	GetSecretWithCustomVersion(projectID, secretID string, versionID string) (*models.CustomSecret, error)
 }
 
 type GoogleServices interface {

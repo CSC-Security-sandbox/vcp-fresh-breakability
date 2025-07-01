@@ -240,15 +240,26 @@ func TestSnapmirrorGetorCreate_Success(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
 	mockStorage := database.NewMockStorage(t)
 	originalGetProviderByNode := activities.GetProviderByNode
-
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	originalGetSmcLicenseFromCloud := activities.GetSmcLicenseFromCloud
+	originalGenerateTokenForNode := activities.GenerateTokenForNode
 	activity := activities.BackupActivity{SE: mockStorage}
-	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+	defer func() {
+		activities.GetProviderByNode = originalGetProviderByNode
+		activities.GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
+		activities.GenerateTokenForNode = originalGenerateTokenForNode
+	}()
 
 	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 		return mockProvider
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
+		return "mock-license", nil
+	}
+	activities.GenerateTokenForNode = func(ctx context.Context, node *models.Node, clientSecret *string) (*string, error) {
+		token := "mock-token"
+		return &token, nil
+	}
 	node := &models.Node{}
 	sourcePath := "source-path"
 	destinationPath := "destination-path"
@@ -270,22 +281,33 @@ func TestSnapmirrorGetorCreate_CreateNew(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
 	mockStorage := database.NewMockStorage(t)
 	originalGetProviderByNode := activities.GetProviderByNode
-
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	originalGetSmcLicenseFromCloud := activities.GetSmcLicenseFromCloud
+	originalGenerateTokenForNode := activities.GenerateTokenForNode
 	activity := activities.BackupActivity{SE: mockStorage}
-	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+	defer func() {
+		activities.GetProviderByNode = originalGetProviderByNode
+		activities.GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
+		activities.GenerateTokenForNode = originalGenerateTokenForNode
+	}()
 
 	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 		return mockProvider
 	}
-
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
+		return "mock-license", nil
+	}
+	activities.GenerateTokenForNode = func(ctx context.Context, node *models.Node, clientSecret *string) (*string, error) {
+		token := "mock-token"
+		return &token, nil
+	}
 	node := &models.Node{}
 	sourcePath := "source-path"
 	destinationPath := "destination-path"
 	expectedResponse := &ontap_rest.SnapmirrorRelationship{SnapmirrorRelationship: oModels.SnapmirrorRelationship{UUID: nillable.ToPointer(strfmt.UUID("smUUID")), Destination: &oModels.SnapmirrorEndpoint{UUID: nillable.ToPointer(strfmt.UUID("uuid"))}}}
 
 	mockProvider.On("SnapmirrorRelationshipGet", destinationPath, sourcePath).Return(nil, errors.New("not found"))
-	mockProvider.On("SnapmirrorRelationshipCreate", destinationPath, sourcePath).Return(expectedResponse, nil)
+	mockProvider.On("SnapmirrorRelationshipCreate", destinationPath, sourcePath, mock.Anything).Return(expectedResponse, nil)
 
 	// Act
 	result, err := activity.SnapmirrorGetorCreate(ctx, node, sourcePath, destinationPath)
@@ -463,9 +485,26 @@ func TestGetOrCreateObjectStore_Failure(t *testing.T) {
 func TestSnapshotActivities(t *testing.T) {
 	t.Run("SnapmirrorTransfer_WhenTransferSucceeds_ThenReturnNil", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
-		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		originalGetSmcLicenseFromCloud := activities.GetSmcLicenseFromCloud
+		originalGenerateTokenForNode := activities.GenerateTokenForNode
+		activity := activities.BackupActivity{}
+		defer func() {
+			activities.GetProviderByNode = originalGetProviderByNode
+			activities.GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
+			activities.GenerateTokenForNode = originalGenerateTokenForNode
+		}()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
+			return "mock-license", nil
+		}
+		activities.GenerateTokenForNode = func(ctx context.Context, node *models.Node, clientSecret *string) (*string, error) {
+			token := "mock-token"
+			return &token, nil
+		}
 		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
@@ -474,7 +513,7 @@ func TestSnapshotActivities(t *testing.T) {
 		snapmirrorUUID := "snapmirror-uuid"
 		snapshotName := "snapshot-name"
 
-		mockProvider.On("SnapmirrorRelationshipTransferCreate", snapmirrorUUID, snapshotName).Return(nil)
+		mockProvider.On("SnapmirrorRelationshipTransferCreate", snapmirrorUUID, snapshotName, mock.Anything).Return(nil)
 
 		err := activity.SnapmirrorTransfer(context.Background(), node, snapmirrorUUID, snapshotName)
 
@@ -484,9 +523,26 @@ func TestSnapshotActivities(t *testing.T) {
 
 	t.Run("SnapmirrorTransfer_WhenTransferFails_ThenReturnError", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
-		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		originalGetSmcLicenseFromCloud := activities.GetSmcLicenseFromCloud
+		originalGenerateTokenForNode := activities.GenerateTokenForNode
+		activity := activities.BackupActivity{}
+		defer func() {
+			activities.GetProviderByNode = originalGetProviderByNode
+			activities.GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
+			activities.GenerateTokenForNode = originalGenerateTokenForNode
+		}()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
+			return "mock-license", nil
+		}
+		activities.GenerateTokenForNode = func(ctx context.Context, node *models.Node, clientSecret *string) (*string, error) {
+			token := "mock-token"
+			return &token, nil
+		}
 		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
 			return mockProvider
 		}
@@ -495,7 +551,7 @@ func TestSnapshotActivities(t *testing.T) {
 		snapmirrorUUID := "snapmirror-uuid"
 		snapshotName := "snapshot-name"
 
-		mockProvider.On("SnapmirrorRelationshipTransferCreate", snapmirrorUUID, snapshotName).Return(errors.New("transfer failed"))
+		mockProvider.On("SnapmirrorRelationshipTransferCreate", snapmirrorUUID, snapshotName, mock.Anything).Return(errors.New("transfer failed"))
 
 		err := activity.SnapmirrorTransfer(context.Background(), node, snapmirrorUUID, snapshotName)
 
@@ -588,6 +644,139 @@ func TestSnapshotActivities(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "delete failed")
+		mockProvider.AssertExpectations(tt)
+	})
+	t.Run("SnapmirrorTransfer_WhenGetSmcLicenseFails_ThenReturnError", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		originalGetSmcLicenseFromCloud := activities.GetSmcLicenseFromCloud
+		originalGenerateTokenForNode := activities.GenerateTokenForNode
+		activity := activities.BackupActivity{}
+		defer func() {
+			activities.GetProviderByNode = originalGetProviderByNode
+			activities.GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
+			activities.GenerateTokenForNode = originalGenerateTokenForNode
+		}()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
+			return "", errors.New("smc license error")
+		}
+		activities.GenerateTokenForNode = func(ctx context.Context, node *models.Node, clientSecret *string) (*string, error) {
+			token := "mock-token"
+			return &token, nil
+		}
+
+		node := &models.Node{}
+		snapmirrorUUID := "snapmirror-uuid"
+		snapshotName := "snapshot-name"
+
+		err := activity.SnapmirrorTransfer(context.Background(), node, snapmirrorUUID, snapshotName)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get SMC license from cloud")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("SnapmirrorTransfer_WhenGenerateTokenFails_ThenReturnError", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		originalGetSmcLicenseFromCloud := activities.GetSmcLicenseFromCloud
+		originalGenerateTokenForNode := activities.GenerateTokenForNode
+		activity := activities.BackupActivity{}
+		defer func() {
+			activities.GetProviderByNode = originalGetProviderByNode
+			activities.GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
+			activities.GenerateTokenForNode = originalGenerateTokenForNode
+		}()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
+			return "mock-license", nil
+		}
+		activities.GenerateTokenForNode = func(ctx context.Context, node *models.Node, clientSecret *string) (*string, error) {
+			return nil, errors.New("token error")
+		}
+
+		node := &models.Node{}
+		snapmirrorUUID := "snapmirror-uuid"
+		snapshotName := "snapshot-name"
+
+		err := activity.SnapmirrorTransfer(context.Background(), node, snapmirrorUUID, snapshotName)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to generate SMC token for node")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("SnapmirrorTransfer_WhenTokenIsNil_ThenReturnError", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		originalGetSmcLicenseFromCloud := activities.GetSmcLicenseFromCloud
+		originalGenerateTokenForNode := activities.GenerateTokenForNode
+		activity := activities.BackupActivity{}
+		defer func() {
+			activities.GetProviderByNode = originalGetProviderByNode
+			activities.GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
+			activities.GenerateTokenForNode = originalGenerateTokenForNode
+		}()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
+			return "mock-license", nil
+		}
+		activities.GenerateTokenForNode = func(ctx context.Context, node *models.Node, clientSecret *string) (*string, error) {
+			return nil, nil
+		}
+
+		node := &models.Node{}
+		snapmirrorUUID := "snapmirror-uuid"
+		snapshotName := "snapshot-name"
+
+		err := activity.SnapmirrorTransfer(context.Background(), node, snapmirrorUUID, snapshotName)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "SMC token is empty or nil")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("SnapmirrorTransfer_WhenTokenIsEmpty_ThenReturnError", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		originalGetSmcLicenseFromCloud := activities.GetSmcLicenseFromCloud
+		originalGenerateTokenForNode := activities.GenerateTokenForNode
+		activity := activities.BackupActivity{}
+		defer func() {
+			activities.GetProviderByNode = originalGetProviderByNode
+			activities.GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
+			activities.GenerateTokenForNode = originalGenerateTokenForNode
+		}()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+		activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
+			return "mock-license", nil
+		}
+		activities.GenerateTokenForNode = func(ctx context.Context, node *models.Node, clientSecret *string) (*string, error) {
+			empty := ""
+			return &empty, nil
+		}
+
+		node := &models.Node{}
+		snapmirrorUUID := "snapmirror-uuid"
+		snapshotName := "snapshot-name"
+
+		err := activity.SnapmirrorTransfer(context.Background(), node, snapmirrorUUID, snapshotName)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "SMC token is empty or nil")
 		mockProvider.AssertExpectations(tt)
 	})
 }

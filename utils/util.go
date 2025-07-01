@@ -649,6 +649,14 @@ func GetEncryptionType(kmsConfigId *string) string {
 	return encryptionType
 }
 
+func GetSMCSecretName() string {
+	return env.GetString("GCP_SMC_SECRET_NAME", "")
+}
+
+func GetSMCSecretVersionName() string {
+	return env.GetString("GCP_SMC_SECRET_VERSION_NAME", "latest")
+}
+
 func _renameSnapshotName(name string) string {
 	// Snapmirror names are 76 chars from Ontap but Callback api only supports 64 chars
 	if strings.HasPrefix(name, "snapmirror.") {

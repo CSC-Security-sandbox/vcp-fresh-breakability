@@ -1,6 +1,7 @@
 package vsa
 
 import (
+	"context"
 	"fmt"
 
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -103,4 +104,16 @@ func (rc *OntapRestProvider) GetONTAPVersion() (*string, error) {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrONTAPVersionFetchError, err)
 	}
 	return version, nil
+}
+
+func (rc *OntapRestProvider) PostClusterLicenseAccessToken(ctx context.Context, clientSecret string) (*string, error) {
+	client := getOntapClientFunc(rc.ClientParams)
+	version, err := client.Cluster().PostClusterLicenseAccessToken(ctx, clientSecret)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrONTAPVersionFetchError, err)
+	}
+	if version.Payload == nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrONTAPVersionFetchError, fmt.Errorf("payload is nil"))
+	}
+	return &version.Payload.AccessToken, nil
 }

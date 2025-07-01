@@ -23,7 +23,7 @@ func TestSnapmirrorRelationshipCreateSucceeds(t *testing.T) {
 	expectedParams := &ontapRest.SnapmirrorRelationshipCreateParams{
 		SourcePath:      "sourcePath",
 		DestinationPath: "destinationPath",
-		SetAccessToken:  true,
+		AccessToken:     nil,
 	}
 	expectedJob := &ontapRest.JobAccepted{JobUUID: "jobUUID"}
 	expectedSnapmirror := []*ontapRest.SnapmirrorRelationship{{SnapmirrorRelationship: models.SnapmirrorRelationship{}}}
@@ -33,7 +33,7 @@ func TestSnapmirrorRelationshipCreateSucceeds(t *testing.T) {
 	mockClient.On("Poll", "jobUUID").Return(nil)
 	mockSnapmirrorClient.On("SnapmirrorRelationshipList", &ontapRest.SnapmirrorRelationshipListParams{DestinationPath: "destinationPath", SourcePath: "sourcePath"}).Return(expectedSnapmirror, nil)
 
-	result, err := ontapProvider.SnapmirrorRelationshipCreate("destinationPath", "sourcePath")
+	result, err := ontapProvider.SnapmirrorRelationshipCreate("destinationPath", "sourcePath", nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -49,7 +49,7 @@ func TestSnapmirrorRelationshipCreateNotFound(t *testing.T) {
 	expectedParams := &ontapRest.SnapmirrorRelationshipCreateParams{
 		SourcePath:      "sourcePath",
 		DestinationPath: "destinationPath",
-		SetAccessToken:  true,
+		AccessToken:     nil,
 	}
 	expectedJob := &ontapRest.JobAccepted{JobUUID: "jobUUID"}
 	var expectedSnapmirror []*ontapRest.SnapmirrorRelationship
@@ -59,7 +59,7 @@ func TestSnapmirrorRelationshipCreateNotFound(t *testing.T) {
 	mockClient.On("Poll", "jobUUID").Return(nil)
 	mockSnapmirrorClient.On("SnapmirrorRelationshipList", &ontapRest.SnapmirrorRelationshipListParams{DestinationPath: "destinationPath", SourcePath: "sourcePath"}).Return(expectedSnapmirror, nil)
 
-	result, err := ontapProvider.SnapmirrorRelationshipCreate("destinationPath", "sourcePath")
+	result, err := ontapProvider.SnapmirrorRelationshipCreate("destinationPath", "sourcePath", nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
@@ -75,14 +75,14 @@ func TestSnapmirrorRelationshipCreateFailsOnAPIError(t *testing.T) {
 	expectedParams := &ontapRest.SnapmirrorRelationshipCreateParams{
 		SourcePath:      "sourcePath",
 		DestinationPath: "destinationPath",
-		SetAccessToken:  true,
+		AccessToken:     nil,
 	}
 	expectedError := fmt.Errorf("API error")
 
 	mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 	mockSnapmirrorClient.On("SnapmirrorRelationshipCreate", expectedParams).Return(nil, nil, expectedError)
 
-	result, err := ontapProvider.SnapmirrorRelationshipCreate("destinationPath", "sourcePath")
+	result, err := ontapProvider.SnapmirrorRelationshipCreate("destinationPath", "sourcePath", nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Equal(t, expectedError, err)
@@ -202,16 +202,16 @@ func TestSnapmirrorRelationshipTransferCreate(t *testing.T) {
 	snapmirrorUUID := "test-uuid"
 	snapshotName := "test-snapshot"
 	expectedParams := &ontapRest.SnapmirrorRelationshipTransferCreateParams{
-		UUID:           snapmirrorUUID,
-		SnapshotName:   snapshotName,
-		SetAccessToken: true,
+		UUID:         snapmirrorUUID,
+		SnapshotName: snapshotName,
+		AccessToken:  nil,
 	}
 
 	t.Run("success", func(t *testing.T) {
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipTransferCreate", expectedParams).Return(nil)
 
-		err := ontapProvider.SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName)
+		err := ontapProvider.SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName, nil)
 		assert.NoError(t, err)
 	})
 
@@ -221,7 +221,7 @@ func TestSnapmirrorRelationshipTransferCreate(t *testing.T) {
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipTransferCreate", expectedParams).Return(fmt.Errorf("api error"))
 
-		err := ontapProvider.SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName)
+		err := ontapProvider.SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName, nil)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "api error")
 	})

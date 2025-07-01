@@ -247,6 +247,19 @@ func (mock *MockClientService) AssertNodesGet(params *NodesGetParams, authInfo r
 	mock.returns <- []interface{}{&ret0, &ret1}
 }
 
+// PostClusterAccessToken mocks a call to ClientService.PostClusterAccessToken
+func (mock *MockClientService) PostClusterAccessToken(params *PostClusterAccessTokenParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*PostClusterAccessTokenOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "PostClusterAccessToken", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**PostClusterAccessTokenOK), *ret[1].(*error)
+}
+
+// AssertPostClusterAccessToken verifies that PostClusterAccessToken has been invoked
+func (mock *MockClientService) AssertPostClusterAccessToken(params *PostClusterAccessTokenParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *PostClusterAccessTokenOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "PostClusterAccessToken", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
 // ScheduleCollectionGet mocks a call to ClientService.ScheduleCollectionGet
 func (mock *MockClientService) ScheduleCollectionGet(params *ScheduleCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ScheduleCollectionGetOK, error) {
 	mock.calls <- &mockClientServiceCall{name: "ScheduleCollectionGet", params: []interface{}{&params, &authInfo, &opts}}

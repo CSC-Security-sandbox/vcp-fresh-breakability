@@ -135,6 +135,7 @@ nfs_get
 nfs_modify
 nodes_get
 object_store_endpoint_info_get
+post_cluster_access_token
 qos_policy_collection_get
 qos_policy_create
 qos_policy_delete_collection

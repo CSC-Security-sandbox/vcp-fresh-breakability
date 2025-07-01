@@ -36,6 +36,9 @@ data:
   GCP_AUTH_SERVICE_ACCOUNT: "{{ index .Values "gcpAuthServiceAccount" }}"
   GCP_SERVICE_URL: "{{ index .Values "gcpServiceUrl" }}"
   LOGGER_LEVEL: "{{ index .Values "loggerLevel" }}"
+  SMC_GCP_PROJECT_ID: "{{ index .Values "smcProjectId" }}"
+  GCP_SMC_SECRET_NAME: "{{ index .Values "gcpSmcSecretName" }}"
+  GCP_SMC_SECRET_VERSION_NAME: "{{ index .Values "gcpSmcSecretVersionName" }}"
   VMRS_CONFIG_PATH: {{ .Values.workerConfig.vmrsConfigPath | quote }}
   GCP_HYDRATE_ENABLED: "{{ index .Values "gcpHydrateEnabled" }}"
   GCP_HYDRATE_BATCH_SIZE: "{{ index .Values "gcpHydrateBatchSize" }}"

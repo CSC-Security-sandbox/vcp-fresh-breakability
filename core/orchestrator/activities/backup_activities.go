@@ -85,7 +85,22 @@ func (a *BackupActivity) SnapmirrorGetorCreate(ctx context.Context, node *models
 		}
 		return &resp, nil
 	}
-	snapmirror, err = provider.SnapmirrorRelationshipCreate(destinationPath, sourcePath)
+	// Remove this once we start using cache to store token
+	smcLicense, err := GetSmcLicenseFromCloud(ctx)
+	if err != nil {
+		logger.Errorf("Failed to get SMC license from cloud: %v", err)
+		return nil, errors.New("failed to get SMC license from cloud")
+	}
+	token, err := GenerateTokenForNode(ctx, node, &smcLicense)
+	if err != nil {
+		logger.Errorf("Failed to generate SMC token for node %s: %v", node.Name, err)
+		return nil, errors.New("failed to generate SMC token for node")
+	}
+	if token == nil || *token == "" {
+		logger.Error("SMC token is empty or nil")
+		return nil, errors.New("SMC token is empty or nil")
+	}
+	snapmirror, err = provider.SnapmirrorRelationshipCreate(destinationPath, sourcePath, token)
 	if snapmirror != nil {
 		resp := commonparams.SnapmirrorRelationship{UUID: snapmirror.UUID.String()}
 		if snapmirror.Destination != nil && snapmirror.Destination.UUID != nil {
@@ -131,8 +146,24 @@ func (a *BackupActivity) SnapshotCreate(ctx context.Context, node *models.Node, 
 }
 
 func (a *BackupActivity) SnapmirrorTransfer(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) error {
+	logger := util.GetLogger(ctx)
 	provider := GetProviderByNode(ctx, node)
-	return provider.SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName)
+	// Remove this once we start using cache to store token
+	smcLicense, err := GetSmcLicenseFromCloud(ctx)
+	if err != nil {
+		logger.Errorf("Failed to get SMC license from cloud: %v", err)
+		return errors.New("failed to get SMC license from cloud")
+	}
+	token, err := GenerateTokenForNode(ctx, node, &smcLicense)
+	if err != nil {
+		logger.Errorf("Failed to generate SMC token for node %s: %v", node.Name, err)
+		return errors.New("failed to generate SMC token for node")
+	}
+	if token == nil || *token == "" {
+		logger.Error("SMC token is empty or nil")
+		return errors.New("SMC token is empty or nil")
+	}
+	return provider.SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName, token)
 }
 
 func (a *BackupActivity) SnapmirrorTransferPoll(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) error {

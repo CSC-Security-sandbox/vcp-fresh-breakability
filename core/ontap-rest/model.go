@@ -34,9 +34,6 @@ var (
 	objStoreAuthenticationType = env.GetString("OBJECT_STORE_AUTH_TYPE", "GCP_SA")
 	objStoreSnapmirrorUse      = "data"
 	objStoreOwner              = "snapmirror"
-	// This is just a hack till be find a proper solution. The token expires in every 7 days.
-	// accessToken should be in format "Bearer youRaCCesstOKen"
-	accessToken = env.GetString("SM_ACCESS_TOKEN", "")
 )
 
 // BaseParams contains all the common parameters that ONTAP REST supports
@@ -1602,7 +1599,7 @@ type SnapmirrorRelationshipCreateParams struct {
 	SourcePath      string
 	Policy          string
 	Schedule        *string
-	SetAccessToken  bool
+	AccessToken     *string
 }
 
 // SnapmirrorRelationshipDeleteParams describes the params to invoke snapmirror relationship delete
@@ -1659,9 +1656,9 @@ type SnapmirrorPolicyDeleteCollectionParams struct {
 
 // SnapmirrorRelationshipResyncParams describes the params to invoke snapmirror relationship resync
 type SnapmirrorRelationshipTransferCreateParams struct {
-	UUID           string
-	SnapshotName   string
-	SetAccessToken bool
+	UUID         string
+	SnapshotName string
+	AccessToken  *string
 }
 
 // SnapmirrorRelationshipTransferGetParams describes the params to invoke snapmirror relationship transfer get
@@ -2674,8 +2671,9 @@ func snapmirrorRelationshipCreateParamsToONTAP(params *SnapmirrorRelationshipCre
 			Name: params.Schedule,
 		}
 	}
-	if params.SetAccessToken && accessToken != "" {
-		otParams.WithXNetappAuthorization(&accessToken)
+	if params.AccessToken != nil && *params.AccessToken != "" {
+		xNetappAuthorization := "Bearer " + *params.AccessToken
+		otParams.WithXNetappAuthorization(&xNetappAuthorization)
 	}
 	otParams.SetInfo(sm)
 	returnRecords := "true"
@@ -2852,8 +2850,9 @@ func snapmirrorRelationshipTransferCreateParamsToONTAP(params *SnapmirrorRelatio
 	}
 	otParams.SetRelationshipUUID(params.UUID)
 	otParams.SetInfo(&models.SnapmirrorTransfer{SourceSnapshot: &params.SnapshotName})
-	if params.SetAccessToken && accessToken != "" {
-		otParams.WithXNetappAuthorization(&accessToken)
+	if params.AccessToken != nil && *params.AccessToken != "" {
+		xNetappAuthorization := "Bearer " + *params.AccessToken
+		otParams.WithXNetappAuthorization(&xNetappAuthorization)
 	}
 	return otParams
 }

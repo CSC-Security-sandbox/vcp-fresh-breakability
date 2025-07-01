@@ -404,6 +404,22 @@ func TestMockClientServiceNodesGet(t *testing.T) {
 	mockClientService.AssertMockClientServiceDone()
 }
 
+func TestMockClientServicePostClusterAccessToken(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *PostClusterAccessTokenParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *PostClusterAccessTokenOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.PostClusterAccessToken(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertPostClusterAccessToken(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
 func TestMockClientServiceScheduleCollectionGet(t *testing.T) {
 	mockClientService := NewMockClientService(t)
 	var params *ScheduleCollectionGetParams

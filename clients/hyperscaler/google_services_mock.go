@@ -982,6 +982,66 @@ func (_c *MockGoogleServices_GetLogger_Call) RunAndReturn(run func() log.Logger)
 	return _c
 }
 
+// GetSecretWithCustomVersion provides a mock function with given fields: projectID, secretID, versionID
+func (_m *MockGoogleServices) GetSecretWithCustomVersion(projectID string, secretID string, versionID string) (*models.CustomSecret, error) {
+	ret := _m.Called(projectID, secretID, versionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSecretWithCustomVersion")
+	}
+
+	var r0 *models.CustomSecret
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, string) (*models.CustomSecret, error)); ok {
+		return rf(projectID, secretID, versionID)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string) *models.CustomSecret); ok {
+		r0 = rf(projectID, secretID, versionID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.CustomSecret)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = rf(projectID, secretID, versionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetSecretWithCustomVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSecretWithCustomVersion'
+type MockGoogleServices_GetSecretWithCustomVersion_Call struct {
+	*mock.Call
+}
+
+// GetSecretWithCustomVersion is a helper method to define mock.On call
+//   - projectID string
+//   - secretID string
+//   - versionID string
+func (_e *MockGoogleServices_Expecter) GetSecretWithCustomVersion(projectID interface{}, secretID interface{}, versionID interface{}) *MockGoogleServices_GetSecretWithCustomVersion_Call {
+	return &MockGoogleServices_GetSecretWithCustomVersion_Call{Call: _e.mock.On("GetSecretWithCustomVersion", projectID, secretID, versionID)}
+}
+
+func (_c *MockGoogleServices_GetSecretWithCustomVersion_Call) Run(run func(projectID string, secretID string, versionID string)) *MockGoogleServices_GetSecretWithCustomVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetSecretWithCustomVersion_Call) Return(_a0 *models.CustomSecret, _a1 error) *MockGoogleServices_GetSecretWithCustomVersion_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetSecretWithCustomVersion_Call) RunAndReturn(run func(string, string, string) (*models.CustomSecret, error)) *MockGoogleServices_GetSecretWithCustomVersion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSecretWithLatestVersion provides a mock function with given fields: projectID, secretID
 func (_m *MockGoogleServices) GetSecretWithLatestVersion(projectID string, secretID string) (*models.CustomSecret, error) {
 	ret := _m.Called(projectID, secretID)

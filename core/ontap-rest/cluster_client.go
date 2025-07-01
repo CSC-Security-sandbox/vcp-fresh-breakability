@@ -1,6 +1,9 @@
 package ontap_rest
 
 import (
+	"context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
@@ -11,6 +14,11 @@ import (
 
 var (
 	deleteClusterPeerTimeout = 10 * time.Second
+)
+
+const (
+	smcGrantType = "client_credentials"
+	clientId     = "global-scheduler"
 )
 
 // ClusterClient describes a cluster client
@@ -25,6 +33,7 @@ type ClusterClient interface { // generate:mock
 	ScheduleCreate(params *ScheduleCreateParams) error
 	ScheduleCollectionGet(sfp *ScheduleCollectionGetParams, ucbf UserCallbackFunc[[]*Schedule]) error
 	GetJob(UUID string) (*cluster.JobGetOK, error)
+	PostClusterLicenseAccessToken(ctx context.Context, clientSecret string) (*cluster.PostClusterAccessTokenOK, error)
 }
 
 type clusterClient struct {
@@ -162,4 +171,24 @@ func (cc *clusterClient) GetJob(UUID string) (*cluster.JobGetOK, error) {
 		return nil, err
 	}
 	return job, nil
+}
+func (cc clusterClient) PostClusterLicenseAccessToken(ctx context.Context, clientSecret string) (*cluster.PostClusterAccessTokenOK, error) {
+	logger := util.GetLogger(ctx)
+	logger.Info("In OntapProvider.PostClusterLincenseAccessToken(...)")
+
+	info := models.AccessTokenBody{
+		GrantType:    smcGrantType,
+		ClientID:     clientId,
+		ClientSecret: clientSecret,
+	}
+	param := cluster.NewPostClusterAccessTokenParams()
+	param.WithInfo(&info)
+
+	res, err := cc.api.PostClusterAccessToken(param, nil)
+	parsedErr := errors.ParseOntapError(err)
+	if err != nil {
+		logger.Errorf("ONTAP error: PostClusterLicenseAccessToken() on ontap failed with error: %+v", parsedErr)
+		return nil, err
+	}
+	return res, nil
 }

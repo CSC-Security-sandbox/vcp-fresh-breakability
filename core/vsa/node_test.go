@@ -1,6 +1,8 @@
 package vsa
 
 import (
+	"context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
 	"testing"
 
 	"github.com/go-openapi/strfmt"
@@ -326,6 +328,97 @@ func TestGetONTAPVersion(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.Nil(tt, result)
+
+		mockCluster.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+}
+func TestPostClusterLicenseAccessToken(t *testing.T) {
+	t.Run("WhenAccessTokenIsRetrievedSuccessfully_ThenReturnToken", func(tt *testing.T) {
+		mockCluster := new(ontaprest.MockClusterClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Cluster").Return(mockCluster)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		accessToken := "test-token"
+		mockResponse := cluster.PostClusterAccessTokenOK{
+			Payload: &models.AccessTokenResponse{
+				AccessToken: accessToken,
+			},
+		}
+		mockCluster.On("PostClusterLicenseAccessToken", mock.Anything, "secret").
+			Return(&mockResponse, nil)
+
+		result, err := rc.PostClusterLicenseAccessToken(context.Background(), "secret")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, accessToken, *result)
+
+		mockCluster.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenPostFails_ThenReturnError", func(tt *testing.T) {
+		mockCluster := new(ontaprest.MockClusterClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Cluster").Return(mockCluster)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		mockCluster.On("PostClusterLicenseAccessToken", mock.Anything, "secret").
+			Return(nil, errors.New("post error"))
+
+		result, err := rc.PostClusterLicenseAccessToken(context.Background(), "secret")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, "post error", customErr.OriginalErr.Error())
+		} else {
+			t.Errorf("Expected CustomError, got %T", err)
+		}
+
+		mockCluster.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenPayloadIsNil_ThenReturnError", func(tt *testing.T) {
+		mockCluster := new(ontaprest.MockClusterClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Cluster").Return(mockCluster)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		mockResponse := cluster.PostClusterAccessTokenOK{
+			Payload: nil,
+		}
+		mockCluster.On("PostClusterLicenseAccessToken", mock.Anything, "secret").
+			Return(&mockResponse, nil)
+
+		result, err := rc.PostClusterLicenseAccessToken(context.Background(), "secret")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, "payload is nil", customErr.OriginalErr.Error())
+		} else {
+			t.Errorf("Expected CustomError, got %T", err)
+		}
 
 		mockCluster.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)

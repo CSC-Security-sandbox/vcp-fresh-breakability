@@ -64,9 +64,9 @@ type Provider interface {
 	UpdateSnapshotPolicy(ctx context.Context, params *UpdateSnapshotPolicyParams) error
 	CloudTargetGet(name *string) (*ontapRest.CloudTarget, error)
 	CloudTargetCreate(name, containerName string) (*ontapRest.CloudTarget, error)
-	SnapmirrorRelationshipCreate(destinationPath, sourcePath string) (*ontapRest.SnapmirrorRelationship, error)
+	SnapmirrorRelationshipCreate(destinationPath, sourcePath string, smcToken *string) (*ontapRest.SnapmirrorRelationship, error)
 	SnapmirrorRelationshipGet(destinationPath, sourcePath string) (*ontapRest.SnapmirrorRelationship, error)
-	SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName string) error
+	SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName string, smcToken *string) error
 	SnapmirrorRelationshipTransferGet(snapmirrorUUID, snapshotName string) (*ontapRest.SnapmirrorTransfer, error)
 	SnapmirrorRelationshipDelete(UUID string) (*OntapAsyncResponse, error)
 	SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, EndpointUUID string) (*OntapAsyncResponse, error)
@@ -75,6 +75,7 @@ type Provider interface {
 	DeleteSnapshotPolicy(snapshotPolicyName string) error
 	CreateKmsConfig(params CreateKmsConfigParams) (*CreateKmsConfigResponse, error)
 	IsGcpKmsReachable(params GetKmsConfigParams) (bool, error)
+	PostClusterLicenseAccessToken(ctx context.Context, clientSecret string) (*string, error)
 }
 
 type OntapRestProvider struct {

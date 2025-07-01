@@ -114,6 +114,8 @@ type ClientService interface {
 
 	NodesGet(params *NodesGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*NodesGetOK, error)
 
+	PostClusterAccessToken(params *PostClusterAccessTokenParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*PostClusterAccessTokenOK, error)
+
 	ScheduleCollectionGet(params *ScheduleCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ScheduleCollectionGetOK, error)
 
 	ScheduleCreate(params *ScheduleCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ScheduleCreateCreated, error)
@@ -458,6 +460,50 @@ func (a *Client) NodesGet(params *NodesGetParams, authInfo runtime.ClientAuthInf
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*NodesGetDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+PostClusterAccessToken Generates SM-C access token for host
+
+	<br/>
+	```
+	POST "/cluster/licensing/access_tokens"
+	```
+	<br/>
+*/
+func (a *Client) PostClusterAccessToken(params *PostClusterAccessTokenParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*PostClusterAccessTokenOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewPostClusterAccessTokenParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "post_cluster_access_token",
+		Method:             "POST",
+		PathPattern:        "/cluster/licensing/access_tokens",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &PostClusterAccessTokenReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*PostClusterAccessTokenOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*PostClusterAccessTokenDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

@@ -78,8 +78,6 @@ spec:
               value: <vsa_node_password_here>
             - name: VSA_NODE_USERNAME
               value: <vsa_node_username_here>
-            - name: SM_ACCESS_TOKEN
-              value: <snapmirror_access_token_here>
             - name: OBJECT_STORE_PROVIDER
               value: "googlecloud"
             - name: OBJECT_STORES_SERVER

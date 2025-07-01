@@ -9,9 +9,9 @@
 2835551513 12743 ./client/cloud/cloud_target_delete_collection_responses.go
 2059070643 8144 ./client/cloud/cloud_target_modify_parameters.go
 2307397372 12509 ./client/cloud/cloud_target_modify_responses.go
-1028234636 14564 ./client/cluster/client_service_mock.go
-4147123232 14348 ./client/cluster/client_service_mock_test.go
-3576127157 23577 ./client/cluster/cluster_client.go
+3573050776 15535 ./client/cluster/client_service_mock.go
+3442747609 14903 ./client/cluster/client_service_mock_test.go
+460386726 25197 ./client/cluster/cluster_client.go
 779611282 4649 ./client/cluster/cluster_get_parameters.go
 2297857103 5447 ./client/cluster/cluster_get_responses.go
 96885478 9786 ./client/cluster/cluster_peer_collection_get_parameters.go
@@ -28,6 +28,8 @@
 3526510301 4903 ./client/cluster/job_get_responses.go
 1443160154 175935 ./client/cluster/nodes_get_parameters.go
 1629913232 5018 ./client/cluster/nodes_get_responses.go
+2639079046 4770 ./client/cluster/post_cluster_access_token_parameters.go
+3402662783 5927 ./client/cluster/post_cluster_access_token_responses.go
 3995775283 19856 ./client/cluster/schedule_collection_get_parameters.go
 2748742163 6057 ./client/cluster/schedule_collection_get_responses.go
 2493008091 5397 ./client/cluster/schedule_create_parameters.go
@@ -502,6 +504,8 @@
 2857115275 7947 ./client/svm/svm_peer_delete_responses.go
 690365697 6196 ./client/svm/svm_peer_modify_parameters.go
 3134325006 8521 ./client/svm/svm_peer_modify_responses.go
+1045764703 2547 ./models/access_token_body.go
+3221845184 2623 ./models/access_token_response.go
 3015875537 7580 ./models/account_application.go
 373368037 3728 ./models/active_directory_discovered_server_reference.go
 1517062442 2766 ./models/active_directory_security.go
@@ -822,5 +826,5 @@
 180786681 30282 ./models/zapp_s3_bucket_application_components.go
 4173203049 6726 ./models/zapp_s3_bucket_application_components_access_policies.go
 290990735 3069 ./models/zapp_s3_bucket_application_components_access_policies_conditions.go
-3407305603 24004610 swagger.yaml
-221075725 5372 swagger_operations.txt
+473426123 24006300 swagger.yaml
+3478816102 5398 swagger_operations.txt

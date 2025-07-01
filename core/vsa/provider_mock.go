@@ -2632,6 +2632,65 @@ func (_c *MockProvider_LunUpdate_Call) RunAndReturn(run func(LunUpdateParams) er
 	return _c
 }
 
+// PostClusterLicenseAccessToken provides a mock function with given fields: ctx, clientSecret
+func (_m *MockProvider) PostClusterLicenseAccessToken(ctx context.Context, clientSecret string) (*string, error) {
+	ret := _m.Called(ctx, clientSecret)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PostClusterLicenseAccessToken")
+	}
+
+	var r0 *string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*string, error)); ok {
+		return rf(ctx, clientSecret)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *string); ok {
+		r0 = rf(ctx, clientSecret)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, clientSecret)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_PostClusterLicenseAccessToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PostClusterLicenseAccessToken'
+type MockProvider_PostClusterLicenseAccessToken_Call struct {
+	*mock.Call
+}
+
+// PostClusterLicenseAccessToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - clientSecret string
+func (_e *MockProvider_Expecter) PostClusterLicenseAccessToken(ctx interface{}, clientSecret interface{}) *MockProvider_PostClusterLicenseAccessToken_Call {
+	return &MockProvider_PostClusterLicenseAccessToken_Call{Call: _e.mock.On("PostClusterLicenseAccessToken", ctx, clientSecret)}
+}
+
+func (_c *MockProvider_PostClusterLicenseAccessToken_Call) Run(run func(ctx context.Context, clientSecret string)) *MockProvider_PostClusterLicenseAccessToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_PostClusterLicenseAccessToken_Call) Return(_a0 *string, _a1 error) *MockProvider_PostClusterLicenseAccessToken_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_PostClusterLicenseAccessToken_Call) RunAndReturn(run func(context.Context, string) (*string, error)) *MockProvider_PostClusterLicenseAccessToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ReleaseVolumeReplication provides a mock function with given fields: params
 func (_m *MockProvider) ReleaseVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error) {
 	ret := _m.Called(params)
@@ -2867,9 +2926,9 @@ func (_c *MockProvider_SnapmirrorObjectStoreSnapshotDelete_Call) RunAndReturn(ru
 	return _c
 }
 
-// SnapmirrorRelationshipCreate provides a mock function with given fields: destinationPath, sourcePath
-func (_m *MockProvider) SnapmirrorRelationshipCreate(destinationPath string, sourcePath string) (*ontap_rest.SnapmirrorRelationship, error) {
-	ret := _m.Called(destinationPath, sourcePath)
+// SnapmirrorRelationshipCreate provides a mock function with given fields: destinationPath, sourcePath, smcToken
+func (_m *MockProvider) SnapmirrorRelationshipCreate(destinationPath string, sourcePath string, smcToken *string) (*ontap_rest.SnapmirrorRelationship, error) {
+	ret := _m.Called(destinationPath, sourcePath, smcToken)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SnapmirrorRelationshipCreate")
@@ -2877,19 +2936,19 @@ func (_m *MockProvider) SnapmirrorRelationshipCreate(destinationPath string, sou
 
 	var r0 *ontap_rest.SnapmirrorRelationship
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, string) (*ontap_rest.SnapmirrorRelationship, error)); ok {
-		return rf(destinationPath, sourcePath)
+	if rf, ok := ret.Get(0).(func(string, string, *string) (*ontap_rest.SnapmirrorRelationship, error)); ok {
+		return rf(destinationPath, sourcePath, smcToken)
 	}
-	if rf, ok := ret.Get(0).(func(string, string) *ontap_rest.SnapmirrorRelationship); ok {
-		r0 = rf(destinationPath, sourcePath)
+	if rf, ok := ret.Get(0).(func(string, string, *string) *ontap_rest.SnapmirrorRelationship); ok {
+		r0 = rf(destinationPath, sourcePath, smcToken)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*ontap_rest.SnapmirrorRelationship)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(destinationPath, sourcePath)
+	if rf, ok := ret.Get(1).(func(string, string, *string) error); ok {
+		r1 = rf(destinationPath, sourcePath, smcToken)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2905,13 +2964,14 @@ type MockProvider_SnapmirrorRelationshipCreate_Call struct {
 // SnapmirrorRelationshipCreate is a helper method to define mock.On call
 //   - destinationPath string
 //   - sourcePath string
-func (_e *MockProvider_Expecter) SnapmirrorRelationshipCreate(destinationPath interface{}, sourcePath interface{}) *MockProvider_SnapmirrorRelationshipCreate_Call {
-	return &MockProvider_SnapmirrorRelationshipCreate_Call{Call: _e.mock.On("SnapmirrorRelationshipCreate", destinationPath, sourcePath)}
+//   - smcToken *string
+func (_e *MockProvider_Expecter) SnapmirrorRelationshipCreate(destinationPath interface{}, sourcePath interface{}, smcToken interface{}) *MockProvider_SnapmirrorRelationshipCreate_Call {
+	return &MockProvider_SnapmirrorRelationshipCreate_Call{Call: _e.mock.On("SnapmirrorRelationshipCreate", destinationPath, sourcePath, smcToken)}
 }
 
-func (_c *MockProvider_SnapmirrorRelationshipCreate_Call) Run(run func(destinationPath string, sourcePath string)) *MockProvider_SnapmirrorRelationshipCreate_Call {
+func (_c *MockProvider_SnapmirrorRelationshipCreate_Call) Run(run func(destinationPath string, sourcePath string, smcToken *string)) *MockProvider_SnapmirrorRelationshipCreate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
+		run(args[0].(string), args[1].(string), args[2].(*string))
 	})
 	return _c
 }
@@ -2921,7 +2981,7 @@ func (_c *MockProvider_SnapmirrorRelationshipCreate_Call) Return(_a0 *ontap_rest
 	return _c
 }
 
-func (_c *MockProvider_SnapmirrorRelationshipCreate_Call) RunAndReturn(run func(string, string) (*ontap_rest.SnapmirrorRelationship, error)) *MockProvider_SnapmirrorRelationshipCreate_Call {
+func (_c *MockProvider_SnapmirrorRelationshipCreate_Call) RunAndReturn(run func(string, string, *string) (*ontap_rest.SnapmirrorRelationship, error)) *MockProvider_SnapmirrorRelationshipCreate_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3043,17 +3103,17 @@ func (_c *MockProvider_SnapmirrorRelationshipGet_Call) RunAndReturn(run func(str
 	return _c
 }
 
-// SnapmirrorRelationshipTransferCreate provides a mock function with given fields: snapmirrorUUID, snapshotName
-func (_m *MockProvider) SnapmirrorRelationshipTransferCreate(snapmirrorUUID string, snapshotName string) error {
-	ret := _m.Called(snapmirrorUUID, snapshotName)
+// SnapmirrorRelationshipTransferCreate provides a mock function with given fields: snapmirrorUUID, snapshotName, smcToken
+func (_m *MockProvider) SnapmirrorRelationshipTransferCreate(snapmirrorUUID string, snapshotName string, smcToken *string) error {
+	ret := _m.Called(snapmirrorUUID, snapshotName, smcToken)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SnapmirrorRelationshipTransferCreate")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string) error); ok {
-		r0 = rf(snapmirrorUUID, snapshotName)
+	if rf, ok := ret.Get(0).(func(string, string, *string) error); ok {
+		r0 = rf(snapmirrorUUID, snapshotName, smcToken)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3069,13 +3129,14 @@ type MockProvider_SnapmirrorRelationshipTransferCreate_Call struct {
 // SnapmirrorRelationshipTransferCreate is a helper method to define mock.On call
 //   - snapmirrorUUID string
 //   - snapshotName string
-func (_e *MockProvider_Expecter) SnapmirrorRelationshipTransferCreate(snapmirrorUUID interface{}, snapshotName interface{}) *MockProvider_SnapmirrorRelationshipTransferCreate_Call {
-	return &MockProvider_SnapmirrorRelationshipTransferCreate_Call{Call: _e.mock.On("SnapmirrorRelationshipTransferCreate", snapmirrorUUID, snapshotName)}
+//   - smcToken *string
+func (_e *MockProvider_Expecter) SnapmirrorRelationshipTransferCreate(snapmirrorUUID interface{}, snapshotName interface{}, smcToken interface{}) *MockProvider_SnapmirrorRelationshipTransferCreate_Call {
+	return &MockProvider_SnapmirrorRelationshipTransferCreate_Call{Call: _e.mock.On("SnapmirrorRelationshipTransferCreate", snapmirrorUUID, snapshotName, smcToken)}
 }
 
-func (_c *MockProvider_SnapmirrorRelationshipTransferCreate_Call) Run(run func(snapmirrorUUID string, snapshotName string)) *MockProvider_SnapmirrorRelationshipTransferCreate_Call {
+func (_c *MockProvider_SnapmirrorRelationshipTransferCreate_Call) Run(run func(snapmirrorUUID string, snapshotName string, smcToken *string)) *MockProvider_SnapmirrorRelationshipTransferCreate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
+		run(args[0].(string), args[1].(string), args[2].(*string))
 	})
 	return _c
 }
@@ -3085,7 +3146,7 @@ func (_c *MockProvider_SnapmirrorRelationshipTransferCreate_Call) Return(_a0 err
 	return _c
 }
 
-func (_c *MockProvider_SnapmirrorRelationshipTransferCreate_Call) RunAndReturn(run func(string, string) error) *MockProvider_SnapmirrorRelationshipTransferCreate_Call {
+func (_c *MockProvider_SnapmirrorRelationshipTransferCreate_Call) RunAndReturn(run func(string, string, *string) error) *MockProvider_SnapmirrorRelationshipTransferCreate_Call {
 	_c.Call.Return(run)
 	return _c
 }

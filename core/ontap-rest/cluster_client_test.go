@@ -1,6 +1,7 @@
 package ontap_rest
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -457,5 +458,50 @@ func TestScheduleCollectionGet2(t *testing.T) {
 		})
 		assert.NoError(tt, err)
 		assert.True(tt, funcCalled)
+	})
+}
+func TestClusterClient_PostClusterLicenseAccessToken(t *testing.T) {
+	t.Run("WhenPostClusterAccessTokenSucceeds", func(tt *testing.T) {
+		mockAPI := cluster.NewMockClientService(tt)
+		client := clusterClient{api: mockAPI}
+		ctx := context.Background()
+		clientSecret := "secret"
+		expectedRes := &cluster.PostClusterAccessTokenOK{}
+
+		go func() {
+			defer mockAPI.MockClientServiceDone()
+			res, err := client.PostClusterLicenseAccessToken(ctx, clientSecret)
+			assert.NoError(tt, err)
+			assert.Equal(tt, expectedRes, res)
+		}()
+
+		mockAPI.AssertPostClusterAccessToken(cluster.NewPostClusterAccessTokenParams().WithInfo(&models.AccessTokenBody{
+			GrantType:    smcGrantType,
+			ClientID:     clientId,
+			ClientSecret: clientSecret,
+		}), nil, nil, expectedRes, nil)
+		mockAPI.AssertMockClientServiceDone()
+	})
+
+	t.Run("WhenPostClusterAccessTokenFails", func(tt *testing.T) {
+		mockAPI := cluster.NewMockClientService(tt)
+		client := clusterClient{api: mockAPI}
+		ctx := context.Background()
+		clientSecret := "secret"
+		expectedErr := errors.New("ontap error")
+
+		go func() {
+			defer mockAPI.MockClientServiceDone()
+			res, err := client.PostClusterLicenseAccessToken(ctx, clientSecret)
+			assert.Error(tt, err)
+			assert.Nil(tt, res)
+		}()
+
+		mockAPI.AssertPostClusterAccessToken(cluster.NewPostClusterAccessTokenParams().WithInfo(&models.AccessTokenBody{
+			GrantType:    smcGrantType,
+			ClientID:     clientId,
+			ClientSecret: clientSecret,
+		}), nil, nil, nil, expectedErr)
+		mockAPI.AssertMockClientServiceDone()
 	})
 }
