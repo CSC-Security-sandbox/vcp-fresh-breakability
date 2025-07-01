@@ -343,6 +343,12 @@ func (h Handler) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params 
 		return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError{Code: 500, Message: err.Error()}, err
 	}
 	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobId)
+	if jobId != "" {
+		return &gcpgenserver.OperationV1beta{
+			Name: gcpgenserver.NewOptString(operationID),
+			Done: gcpgenserver.NewOptBool(false),
+		}, nil
+	}
 	return &gcpgenserver.OperationV1beta{
 		Name: gcpgenserver.NewOptString(operationID),
 		Done: gcpgenserver.NewOptBool(true),
