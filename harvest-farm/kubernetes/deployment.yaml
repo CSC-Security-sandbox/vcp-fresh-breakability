@@ -41,7 +41,7 @@ spec:
       containers:
         - name: harvest-farm
           image: ghcr.io/vcp-vsa-control-plane/harvest-multi:25.06.18-1
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
               name: http

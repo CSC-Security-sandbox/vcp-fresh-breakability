@@ -22,16 +22,6 @@ build:
           GHVSA_PAT: "{{.GHVSA_PAT}}"
           noCache: true
       requires:
-        - image: core
-          alias: BASE
-    - image: core
-      context: .
-      docker:
-        dockerfile: core/Dockerfile
-        buildArgs:
-          noCache: true
-          GHVSA_PAT: "{{.GHVSA_PAT}}"
-      requires:
         - image: base
           alias: BASE
     - image: vcp-worker
@@ -55,7 +45,6 @@ build:
 manifests:
   rawYaml:
     - google-proxy/kubernetes/*
-    - core/kubernetes/*
     - postgres/kubernetes/*
     - worker/kubernetes/*
     - telemetry/kubernetes/*
@@ -75,11 +64,6 @@ portForward:
     namespace: vcp
     port: 8080
     localPort: 9000
-  - resourceType: service
-    resourceName: core-service
-    namespace: vcp
-    port: 50051
-    localPort: 9001
   - resourceType: service
     resourceName: postgres
     namespace: default
@@ -104,3 +88,44 @@ profiles:
   - name: gcb
     build:
       googleCloudBuild: {}
+  - name: dev
+    build:
+      artifacts:
+        - image: base
+          context: .
+          docker:
+            dockerfile: common/Dockerfile.dev
+        - image: google-proxy
+          context: .
+          sync:
+            manual:
+              - src: artifacts/google-proxy
+                dest: "/app"
+          docker:
+            dockerfile: google-proxy/Dockerfile.dev
+          requires:
+            - image: base
+              alias: BASE
+        - image: vcp-worker
+          context: .
+          sync:
+            manual:
+              - src: "artifacts/vcp-worker"
+                dest: "/app"
+          docker:
+            dockerfile: worker/Dockerfile.dev
+          requires:
+            - image: base
+              alias: BASE
+        - image: telemetry
+          context: .
+          sync:
+            manual:
+              - src: "artifacts/telemetry"
+                dest: "/app"
+          docker:
+            dockerfile: telemetry/Dockerfile.dev
+          requires:
+            - image: base
+              alias: BASE
+      

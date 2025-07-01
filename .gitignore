@@ -39,3 +39,5 @@ vendor/
 bin/
 build/
 /kubernetes/charts/*.tgz
+
+artifacts/

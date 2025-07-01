@@ -31,10 +31,6 @@ RUN go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -trimpath -o /app .
 
 FROM $BASE
 
-## Install bash
-#RUN apt-get update && apt-get install -y bash && rm -rf /var/lib/apt/lists/*
-
-
 COPY --from=builder /app /app
 COPY --from=builder /code/core/errors/errors.json /errors.json
 COPY common/vsa_config common/vsa_config

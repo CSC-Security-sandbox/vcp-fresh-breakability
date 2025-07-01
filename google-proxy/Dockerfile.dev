@@ -1,0 +1,13 @@
+ARG BASE
+FROM $BASE
+
+COPY artifacts/google-proxy /app
+COPY core/errors/errors.json /errors.json
+COPY common/vsa_config common/vsa_config
+
+# For dev: use Air as entrypoint, otherwise use the binary
+# To use the binary directly in prod, comment the above and uncomment below:
+# ENTRYPOINT ["/app"]
+
+# Set ownership and permissions
+# USER nonroot:nonroot

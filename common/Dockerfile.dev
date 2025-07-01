@@ -1,0 +1,12 @@
+FROM golang:1.24.1 AS base
+# Define GOTRACEBACK to mark this container as using the Go language runtime
+# for `skaffold debug` (https://skaffold.dev/docs/workflows/debug/).
+# Install Air for live reload
+RUN go install github.com/air-verse/air@latest
+
+# Inline Air config for live reload
+ENV AIR_CONFIG_CONTENT='[build]\n  bin = "/app"\n  follow_symlink = true\n  delay = 1000\n[log]\n  time = true\n'
+RUN echo "$AIR_CONFIG_CONTENT" > /air.toml
+
+ENV GOTRACEBACK=single
+ENTRYPOINT ["air", "-c", "/air.toml"]
