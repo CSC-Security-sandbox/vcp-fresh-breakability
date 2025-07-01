@@ -2,13 +2,13 @@ package repository
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
 
@@ -241,7 +241,7 @@ func (d *DataStoreRepository) IsLatestBackup(ctx context.Context, backupUUID, vo
 func (d *DataStoreRepository) BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error) {
 	db := d.db.GORM().WithContext(ctx)
 	var count int64
-	err := db.Model(&datamodel.Backup{}).Where("volume_uuid = ? and state = ?", volumeUUID, models.LifeCycleStateAvailable).Count(&count).Error
+	err := db.Model(&datamodel.Backup{}).Where("volume_uuid = ? and state != ?", volumeUUID, models.LifeCycleStateError).Count(&count).Error
 	if err != nil {
 		return 0, err
 	}

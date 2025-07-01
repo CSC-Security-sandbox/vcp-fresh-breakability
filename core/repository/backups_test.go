@@ -3,13 +3,13 @@ package repository
 import (
 	"context"
 	"errors"
-	"gorm.io/gorm"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	"gorm.io/gorm"
 )
 
 func TestCreateBackup(t *testing.T) {
@@ -718,8 +718,8 @@ func TestBackupCountByVolumeID(t *testing.T) {
 			BaseModel:    datamodel.BaseModel{UUID: "test-backup-uuid2"},
 			Name:         "test_backup",
 			Description:  "Test backup",
-			State:        models.LifeCycleStateAvailable,
-			StateDetails: models.LifeCycleStateAvailableDetails,
+			State:        models.LifeCycleStateError,
+			StateDetails: models.LifeCycleStateCreationErrorDetails,
 			VolumeUUID:   "volume1",
 		}
 		err = store.db.Create(backup2).Error()
@@ -727,7 +727,7 @@ func TestBackupCountByVolumeID(t *testing.T) {
 
 		count, err := store.BackupCountByVolumeID(context.Background(), "volume1")
 		assert.NoError(tt, err)
-		assert.Equal(tt, int64(2), count)
+		assert.Equal(tt, int64(1), count)
 	})
 	t.Run("onDBFailure", func(tt *testing.T) {
 		db, err := SetupTestDB()
