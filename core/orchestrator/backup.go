@@ -3,8 +3,6 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
-	"k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -267,7 +265,7 @@ func _validateBackupDeleteParams(ctx context.Context, se database.Storage, param
 	}
 
 	if isLatest && count != 1 {
-		return errors.NewBadRequest("cannot delete latest backup")
+		return customerrors.NewUserInputValidationErr("Cannot delete latest backup")
 	}
 	return nil
 }

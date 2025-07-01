@@ -573,7 +573,7 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 			AccountName:     "testAccount",
 		})
 		assert.NotNil(t, err)
-		assert.EqualError(t, err, "cannot delete latest backup")
+		assert.EqualError(t, err, "Cannot delete latest backup")
 	})
 	t.Run("OnBackupNotFound", func(t *testing.T) {
 		ctx := context.Background()
