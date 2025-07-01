@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
@@ -1193,26 +1194,7 @@ func TestUpdateBackupVaultWithBucketDetails_Failure_UpdateError(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
-func TestBackupVaultExists_ReturnsNil(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	activity := activities.VolumeCreateActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volume := &datamodel.Volume{
-		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
-		Account:        &datamodel.Account{Name: "project-number"},
-		AccountID:      123,
-	}
-	backupVault := &datamodel.BackupVault{}
-
-	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(backupVault, nil)
-
-	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
-
-	assert.NoError(t, err)
-	mockStorage.AssertExpectations(t)
-}
-
-func TestBackupVaultExists_ReturnsNotFound(t *testing.T) {
+func TestBackupVaultExists_ReturnsUnexpectedError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -1222,11 +1204,133 @@ func TestBackupVaultExists_ReturnsNotFound(t *testing.T) {
 		AccountID:      123,
 	}
 
-	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(nil, errors.New("backup vault not found"))
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(nil, errors.New("Unexpected DB Error"))
 
 	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
 
 	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestBackupVaultExists_ReturnsCrossRegionError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		Account:        &datamodel.Account{Name: "project-number"},
+		AccountID:      123,
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", volume.AccountID).Return(&datamodel.BackupVault{BackupVaultType: "CROSS_REGION"}, nil)
+
+	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
+
+	assert.Error(t, err)
+	assert.EqualError(t, err, "Cross region backup vaults are not supported for ISCSI volumes")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestBackupVaultExistsSDE_ReturnsCrossRegionError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockClient := backup_vault.NewMockClientService(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		Account:        &datamodel.Account{Name: "project-number"},
+		AccountID:      123,
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", volume.AccountID).Return(nil, errors.New("backup vault not found"))
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	originalCreateClient := activities.CvpCreateClient
+	defer func() { activities.CvpCreateClient = originalCreateClient }()
+	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+	bvName := "bv-1"
+	res := []*cvpModels.BackupVaultV1beta{
+		{
+			ResourceID:    &bvName,
+			BackupRegion:  nillable.GetStringPtr("CROSS_REGION"),
+			BackupVaultID: "vault-id",
+			State:         "CREATING",
+			StateDetails:  "Creation in progress",
+		},
+	}
+	result := backup_vault.V1betaListBackupVaultsOK{Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+		BackupVaults: res,
+	}}
+	mockClient.On("V1betaListBackupVaults", mock.Anything).Return(&result, nil)
+
+	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
+
+	assert.Error(t, err)
+	assert.EqualError(t, err, "Cross region backup vaults are not supported for ISCSI volumes")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestBackupVaultExists_ReturnsImmutableBVError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		Account:        &datamodel.Account{Name: "project-number"},
+		AccountID:      123,
+	}
+	mrd := int64(1)
+	immutableFields := &datamodel.BackupVault{ImmutableAttributes: &datamodel.ImmutableAttributes{BackupMinimumEnforcedRetentionDuration: &mrd}}
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", volume.AccountID).Return(immutableFields, nil)
+	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
+
+	assert.Error(t, err)
+	assert.EqualError(t, err, "Immutable backup vaults are not supported for ISCSI volumes")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestBackupVaultExistsSDE_ReturnsImmutableBVError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		Account:        &datamodel.Account{Name: "project-number"},
+		AccountID:      123,
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", volume.AccountID).Return(nil, errors.New("backup vault not found"))
+
+	mockClient := backup_vault.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	originalCreateClient := activities.CvpCreateClient
+	defer func() { activities.CvpCreateClient = originalCreateClient }()
+	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+	bvName := "bv-1"
+	res := []*cvpModels.BackupVaultV1beta{
+		{
+			ResourceID:            &bvName,
+			BackupRetentionPolicy: &cvpModels.BackupRetentionPolicyV1beta{BackupMinimumEnforcedRetentionDays: nillable.GetInt64Ptr(1)},
+			BackupVaultID:         "vault-id",
+			State:                 "CREATING",
+			StateDetails:          "Creation in progress",
+		},
+	}
+
+	result := backup_vault.V1betaListBackupVaultsOK{Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+		BackupVaults: res,
+	}}
+
+	mockClient.On("V1betaListBackupVaults", mock.Anything).Return(&result, nil)
+
+	err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "region")
+
+	assert.Error(t, err)
+	assert.EqualError(t, err, "Immutable backup vaults are not supported for ISCSI volumes")
 	mockStorage.AssertExpectations(t)
 }
 

@@ -21,9 +21,12 @@ import (
 )
 
 const (
-	VolumeTypeRW       = "rw"
-	VolumeTypeDP       = "dp"
-	SnapshotPolicyNone = "none"
+	VolumeTypeRW                 = "rw"
+	VolumeTypeDP                 = "dp"
+	SnapshotPolicyNone           = "none"
+	CrossRegionBackupType        = "CROSS_REGION"
+	ImmutableBackupVaultErrMsg   = "Immutable backup vaults are not supported for ISCSI volumes"
+	CrossRegionBackupVaultErrMsg = "Cross region backup vaults are not supported for ISCSI volumes"
 )
 
 type VolumeCreateActivity struct {
@@ -281,13 +284,22 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 		}
 	}
 	if backupVault != nil {
-		return nil
+		if backupVault.ImmutableAttributes != nil {
+			err := validateImmutableBackupVault(*backupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration)
+			if err != nil {
+				return err
+			}
+		}
+		err := validateCRBBackupVault(backupVault.BackupVaultType)
+		if err != nil {
+			return err
+		}
 	}
 	bvParams := &datamodel.BackupVault{}
 
 	logger := util.GetLogger(ctx)
 	GetSignedJwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
+	cvpClient := CvpCreateClient(logger, GetSignedJwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 	vaults, err := cvpClient.BackupVault.V1betaListBackupVaults(&backup_vault.V1betaListBackupVaultsParams{
 		LocationID:     region,
@@ -306,6 +318,17 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 
 	for _, bv := range bvs {
 		if bv.BackupVaultID == bvId {
+			if bv.BackupRetentionPolicy != nil {
+				err := validateImmutableBackupVault(*bv.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDays)
+				if err != nil {
+					return err
+				}
+			}
+			err := validateCRBBackupVault(*bv.BackupRegion)
+			if err != nil {
+				return err
+			}
+
 			bvModel, err := convertToBackupVaultDataModel(bv, region)
 			if err != nil {
 				return err
@@ -321,6 +344,20 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 		return err
 	}
 
+	return nil
+}
+
+func validateCRBBackupVault(backupVaultType string) error {
+	if backupVaultType == CrossRegionBackupType {
+		return errors.NewBadRequestErr(CrossRegionBackupVaultErrMsg)
+	}
+	return nil
+}
+
+func validateImmutableBackupVault(minRetentionDuration int64) error {
+	if minRetentionDuration > 0 {
+		return errors.NewBadRequestErr(ImmutableBackupVaultErrMsg)
+	}
 	return nil
 }
 

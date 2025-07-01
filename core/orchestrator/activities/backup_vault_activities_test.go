@@ -239,9 +239,9 @@ func TestCreateBackupVault(tt *testing.T) {
 		}, nil)
 
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := cvpCreateClient
-		defer func() { cvpCreateClient = originalCreateClient }()
-		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
 
@@ -280,9 +280,9 @@ func TestCreateBackupVault(tt *testing.T) {
 		}
 
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := cvpCreateClient
-		defer func() { cvpCreateClient = originalCreateClient }()
-		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
 
@@ -306,13 +306,13 @@ func TestCreateBackupVault(tt *testing.T) {
 			CreatedAt:     strfmt.DateTime(time.Now()),
 		}
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := cvpCreateClient
-		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		originalCreateClient := CvpCreateClient
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
 		defer func() {
 			convertToBackupVaultDataModel = _convertToBackupVaultDataModel
-			cvpCreateClient = originalCreateClient
+			CvpCreateClient = originalCreateClient
 		}()
 
 		mockClient.On("V1betaCreateBackupVault", mock.Anything).Return(&backup_vault.V1betaCreateBackupVaultAccepted{
@@ -355,9 +355,9 @@ func TestCheckBackupVaultExistsInSDE(tt *testing.T) {
 		}, nil)
 
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := cvpCreateClient
-		defer func() { cvpCreateClient = originalCreateClient }()
-		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
 
@@ -378,9 +378,9 @@ func TestCheckBackupVaultExistsInSDE(tt *testing.T) {
 		mockClient.On("V1betaListBackupVaults", mock.Anything).Return(nil, errors.New("list failed"))
 
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := cvpCreateClient
-		defer func() { cvpCreateClient = originalCreateClient }()
-		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
 
@@ -405,9 +405,9 @@ func TestCheckBackupVaultExistsInSDE(tt *testing.T) {
 		}, nil)
 
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := cvpCreateClient
-		defer func() { cvpCreateClient = originalCreateClient }()
-		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
 
@@ -446,9 +446,9 @@ func TestCreateBackupVaultInSDE(tt *testing.T) {
 		}, nil)
 
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := cvpCreateClient
-		defer func() { cvpCreateClient = originalCreateClient }()
-		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
 
@@ -473,9 +473,9 @@ func TestCreateBackupVaultInSDE(tt *testing.T) {
 		}
 
 		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := cvpCreateClient
-		defer func() { cvpCreateClient = originalCreateClient }()
-		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
 

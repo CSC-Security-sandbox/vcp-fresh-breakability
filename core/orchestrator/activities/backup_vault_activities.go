@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -22,7 +21,6 @@ var (
 	convertImmutableAttributesToBackupRetentionPolicy = _convertImmutableAttributesToBackupRetentionPolicy
 	convertToBackupVaultDataModel                     = _convertToBackupVaultDataModel
 	createBvToSde                                     = _createBvToSde
-	cvpCreateClient                                   = cvp.CreateClient
 	checkBackupVaultExistsInSDE                       = _checkBackupVaultExistsInSDE
 	createBackupVaultInSDE                            = _createBackupVaultInSDE
 )
@@ -54,7 +52,7 @@ func _createBackupVaultInSDE(ctx context.Context, bvParams *datamodel.BackupVaul
 func _checkBackupVaultExistsInSDE(ctx context.Context, bvParams *datamodel.BackupVault, paramz gcpgenserver.V1betaCreateBackupVaultParams) (*datamodel.BackupVault, error) {
 	logger := util.GetLogger(ctx)
 	GetSignedJwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
+	cvpClient := CvpCreateClient(logger, GetSignedJwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 	vaults, err := cvpClient.BackupVault.V1betaListBackupVaults(&backup_vault.V1betaListBackupVaultsParams{
 		LocationID:     paramz.LocationId,
@@ -84,7 +82,7 @@ func _checkBackupVaultExistsInSDE(ctx context.Context, bvParams *datamodel.Backu
 func _createBvToSde(ctx context.Context, bvParams *datamodel.BackupVault, paramz gcpgenserver.V1betaCreateBackupVaultParams) (*datamodel.BackupVault, error) {
 	logger := util.GetLogger(ctx)
 	GetSignedJwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
+	cvpClient := CvpCreateClient(logger, GetSignedJwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 
 	body := &models.BackupVaultCreateV1beta{
