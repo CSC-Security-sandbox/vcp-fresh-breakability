@@ -2,14 +2,12 @@ package kms_activities
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	cvpClientModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
@@ -18,7 +16,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
-	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
@@ -66,18 +63,15 @@ func _pollCvpOperationForWorkflow(ctx context.Context, cvpClient cvpapi.Cvp, ope
 }
 
 // PollKmsConfigOperationActivity polls the KMS configuration operation until it is done.
-func (j *KmsConfigActivity) PollKmsConfigOperationActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.CreateKmsConfigParams, response *kms_configurations.V1betaCreateKmsConfigurationAccepted) (*datamodel.KmsConfig, error) {
-	if response == nil || response.Payload == nil {
-		return nil, errors.New("unknown error during the create kms configuration")
-	}
+func (j *KmsConfigActivity) PollKmsConfigOperationActivity(ctx context.Context, params *common.CreateKmsConfigParams) error {
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	logger := util.GetLogger(ctx)
 	cvpClient := createClient(logger, jwtToken)
 
 	// Check if the operation is done
-	if !*response.Payload.Done {
+	if !params.OperationDone {
 		// Extract the operation UUID
-		operationUUID := utils.GetOperationUUID(response.Payload.Name)
+		operationUUID := utils.GetOperationUUID(params.OperationUri)
 		operationParams := async.NewV1betaDescribeOperationParams()
 		operationParams.OperationID = operationUUID
 		operationParams.ProjectNumber = params.ProjectNumber
@@ -85,21 +79,10 @@ func (j *KmsConfigActivity) PollKmsConfigOperationActivity(ctx context.Context, 
 		operationParams.XCorrelationID = &params.XCorrelationID
 		_, err := pollCvpOperationForWorkflow(ctx, cvpClient, operationParams)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	var cvpResponse = gcpserver.KmsConfigV1beta{}
-	// Marshal the response field back to JSON
-	responseJSON, err := json.Marshal(response.Payload.Response)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(responseJSON, &cvpResponse)
-	if err != nil {
-		return nil, err
-	}
-	kmsConfig.KmsAttributes.SdeKmsConfigUUID = cvpResponse.UUID.Value
-	return kmsConfig, nil
+	return nil
 }
 
 // CreateVSAKmsConfigSAKeyActivity creates a service account key for the given KMS configuration.
@@ -239,7 +222,7 @@ func _accessCryptoKey(ctx context.Context, se database.Storage, kmsConfig *datam
 		return err
 	}
 
-	kmsService, err := getImpersonatedKmsService(ctx, kmsConfig.ServiceAccount.ServiceAccountEmail, scopeCreds)
+	kmsService, err := getImpersonatedKmsService(ctx, kmsConfig.KmsAttributes.SdeServiceAccountEmail, scopeCreds)
 	if err != nil {
 		return fmt.Errorf("failed to create KMS service: %w", err)
 	}

@@ -250,10 +250,10 @@ func (d *DataStoreRepository) GetKmsConfigByKeyFullPath(ctx context.Context, key
 	}
 	kmsConfig := &datamodel.KmsConfig{}
 	err = d.db.GORM().WithContext(ctx).Preload("ServiceAccount").Preload("Account").First(kmsConfig, &datamodel.KmsConfig{
-		KeyRingLocation:   parsedKeyFullPath.Location,
-		KeyRing:           parsedKeyFullPath.KeyRing,
-		KeyName:           parsedKeyFullPath.CryptoKey,
-		CustomerProjectID: parsedKeyFullPath.ProjectID,
+		KeyRingLocation: parsedKeyFullPath.Location,
+		KeyRing:         parsedKeyFullPath.KeyRing,
+		KeyName:         parsedKeyFullPath.CryptoKey,
+		KeyProjectID:    parsedKeyFullPath.ProjectID,
 	}).Error
 	if err != nil {
 		return nil, errors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "KMS Configuration", nil)

@@ -580,7 +580,8 @@ func TestGetKmsConfigByKeyFullPath(t *testing.T) {
 			KeyRingLocation:   "us-central1",
 			KeyRing:           "ring1",
 			KeyName:           "key1",
-			CustomerProjectID: "project1",
+			CustomerProjectID: "projectNumber",
+			KeyProjectID:      "project1",
 		}
 		err = store.db.Create(account).Error()
 		assert.NoError(t, err)

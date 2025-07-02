@@ -64,7 +64,7 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	}
 	dbKmsConfig := &datamodel.KmsConfig{}
 	dbKmsConfig.CreatedAt = time.Now()
-	dbKmsConfig.UUID = utils.RandomUUID()
+	dbKmsConfig.UUID = params.UUID // Use the uuid of the sde; this is to make sure CCFE gets the same UUID as SDE for PO volume creation
 	dbKmsConfig.State = models.LifeCycleStateCreating
 	dbKmsConfig.StateDetails = models.LifeCycleStateCreatingDetails
 	dbKmsConfig.AccountID = account.ID
@@ -75,7 +75,7 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	dbKmsConfig.KeyRing = parsedKeyFullPath.KeyRing
 	dbKmsConfig.ResourceID = params.ResourceID
 	dbKmsConfig.KeyProjectID = parsedKeyFullPath.ProjectID
-	dbKmsConfig.KmsAttributes = &datamodel.KmsAttributes{}
+	dbKmsConfig.KmsAttributes = &datamodel.KmsAttributes{SdeKmsConfigUUID: params.UUID}
 	dbKmsConfig, err = se.CreateKmsConfig(ctx, dbKmsConfig)
 	if err != nil {
 		return nil, "", err

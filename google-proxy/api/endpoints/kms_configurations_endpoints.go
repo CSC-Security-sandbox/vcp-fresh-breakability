@@ -25,7 +25,8 @@ import (
 )
 
 var (
-	roleName = "cmekNetAppVolumesRole"
+	roleName               = "cmekNetAppVolumesRole"
+	parseKmsConfigResponse = _parseKmsConfigResponse
 )
 
 const uriFormat = "^projects\\/[^\\/]+\\/locations\\/[^\\/]+\\/keyRings\\/[^\\/]+\\/cryptoKeys.+$"
@@ -169,6 +170,57 @@ func categorizeCvpClientErrorsForCheckKmsConfigs(cvpErr error) (gcpgenserver.V1b
 	}
 }
 
+func categorizeCvpClientErrorsForCreateKmsConfigs(cvpErr error) (gcpgenserver.V1betaCreateKmsConfigurationRes, error) {
+	getMsg := func(msg *string) string {
+		return nillable.GetString(msg, "")
+	}
+	getCode := func(floatVal *float64) float64 {
+		return nillable.GetFloat64(floatVal, 0)
+	}
+	switch e := cvpErr.(type) {
+	case *kms_configurations.V1betaCreateKmsConfigurationUnprocessableEntity:
+		return &gcpgenserver.V1betaCreateKmsConfigurationUnprocessableEntity{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	case *kms_configurations.V1betaCreateKmsConfigurationConflict:
+		return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	case *kms_configurations.V1betaCreateKmsConfigurationBadRequest:
+		return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	case *kms_configurations.V1betaCreateKmsConfigurationUnauthorized:
+		return &gcpgenserver.V1betaCreateKmsConfigurationUnauthorized{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	case *kms_configurations.V1betaCreateKmsConfigurationForbidden:
+		return &gcpgenserver.V1betaCreateKmsConfigurationForbidden{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	case *kms_configurations.V1betaCreateKmsConfigurationTooManyRequests:
+		return &gcpgenserver.V1betaCreateKmsConfigurationTooManyRequests{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	case *kms_configurations.V1betaCreateKmsConfigurationDefault:
+		return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
+			Code:    getCode(&e.Payload.Code),
+			Message: getMsg(&e.Payload.Message),
+		}, nil
+	default:
+		return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: "unknown error during the create kms config",
+		}, nil
+	}
+}
+
 func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgenserver.KmsConfigV1beta, params gcpgenserver.V1betaCreateKmsConfigurationParams) (gcpgenserver.V1betaCreateKmsConfigurationRes, error) {
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
@@ -194,15 +246,48 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 		var notFoundErr *errors.NotFoundErr
 		switch {
 		case goErrors.As(err, &notFoundErr):
+			logger := util.GetLogger(ctx)
+			jwtToken := utils.GetJWTTokenFromContext(ctx)
+			cvpClient := createClient(logger, jwtToken)
+
+			var body = &models.KmsConfigV1beta{
+				ResourceID:  &req.ResourceId.Value,
+				KeyFullPath: &req.KeyFullPath,
+			}
+
+			cvpCreateKmsConfigParams := &kms_configurations.V1betaCreateKmsConfigurationParams{
+				LocationID:     params.LocationId,
+				ProjectNumber:  params.ProjectNumber,
+				XCorrelationID: &params.XCorrelationID.Value,
+				Body:           body,
+			}
+
+			cvpResponse, err := cvpClient.KmsConfigurations.V1betaCreateKmsConfiguration(cvpCreateKmsConfigParams)
+			if err != nil {
+				return categorizeCvpClientErrorsForCreateKmsConfigs(err)
+			}
+
+			parsedCvpResponse, err := parseKmsConfigResponse(cvpResponse.Payload.Response)
+			if err != nil {
+				return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
+					Code:    http.StatusInternalServerError,
+					Message: "Failed to parse KMS configuration response",
+				}, nil
+			}
+
 			createKmsConfigParams := &common.CreateKmsConfigParams{
 				KeyFullPath:    req.KeyFullPath,
 				ResourceID:     req.ResourceId.Value,
 				AccountName:    params.ProjectNumber,
 				LocationID:     params.LocationId,
 				ProjectNumber:  params.ProjectNumber,
+				OperationUri:   cvpResponse.Payload.Name,
+				OperationDone:  *cvpResponse.Payload.Done,
+				UUID:           parsedCvpResponse.UUID, // UUID of the SDE kms config
 				XCorrelationID: params.XCorrelationID.Value,
 			}
 
+			// create kms config in vsa DB and start the workflow to poll the SDE operation
 			kmsConfig, operationID, err := h.Orchestrator.CreateKmsConfig(ctx, createKmsConfigParams)
 			if err != nil {
 				var conflictErr *errors.ConflictErr
@@ -846,4 +931,22 @@ func convertModelToKmsConfigV1Beta(kmsConfig *coremodel.KmsConfig) *gcpgenserver
 		UpdatedTime:  gcpgenserver.NewOptDateTime(kmsConfig.UpdatedAt),
 		Instructions: gcpgenserver.NewOptString(getKmsInstructions(kmsConfig)),
 	}
+}
+
+func _parseKmsConfigResponse(payloadResponse interface{}) (*models.KmsConfigV1beta, error) {
+	var cvpResponse models.KmsConfigV1beta
+
+	// Marshal the response field back to JSON
+	responseJSON, err := json.Marshal(payloadResponse)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal payload response: %w", err)
+	}
+
+	// Unmarshal the JSON back into the KmsConfigV1beta struct
+	err = json.Unmarshal(responseJSON, &cvpResponse)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JSON to KmsConfigV1beta: %w", err)
+	}
+
+	return &cvpResponse, nil
 }

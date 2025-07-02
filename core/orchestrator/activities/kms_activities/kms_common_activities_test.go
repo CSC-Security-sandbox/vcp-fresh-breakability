@@ -36,19 +36,12 @@ func TestPollKmsConfigOperationActivity(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
-		kmsConfig := &datamodel.KmsConfig{}
-		params := &common.CreateKmsConfigParams{}
-		mockClient := kms_configurations.NewMockClientService(t)
-		// Define mock response
 		kfp := "kfp"
-		mockResponse := &kms_configurations.V1betaCreateKmsConfigurationAccepted{
-			Payload: &cvpModels.OperationV1beta{
-				Name:     "operation-id",
-				Done:     nillable.GetBoolPtr(false),
-				Response: cvpModels.KmsConfigV1beta{UUID: "test", KeyFullPath: &kfp},
-			},
+		params := &common.CreateKmsConfigParams{OperationUri: "operation-id",
+			OperationDone: false,
+			KeyFullPath:   kfp,
 		}
-		// Set up the mock client behavior
+		mockClient := kms_configurations.NewMockClientService(t)
 
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
@@ -64,71 +57,7 @@ func TestPollKmsConfigOperationActivity(t *testing.T) {
 			return nil, errors.New("new error")
 		}
 
-		_, err := activity.PollKmsConfigOperationActivity(ctx, kmsConfig, params, mockResponse)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-	})
-	t.Run("PollKmsConfigOperationActivityReturnsErrorWhenPayloadIsNil", func(tt *testing.T) {
-		mockSE := database.NewMockStorage(t)
-		activity := &KmsConfigActivity{SE: mockSE}
-		kmsConfig := &datamodel.KmsConfig{}
-		params := &common.CreateKmsConfigParams{}
-		response := &kms_configurations.V1betaCreateKmsConfigurationAccepted{Payload: nil}
-		_, err := activity.PollKmsConfigOperationActivity(context.Background(), kmsConfig, params, response)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-	})
-	t.Run("PollKmsConfigOperationActivityReturnsErrorOnMarshalFailure", func(tt *testing.T) {
-		mockLogger := log.NewLogger()
-		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
-		mockSE := database.NewMockStorage(t)
-		activity := &KmsConfigActivity{SE: mockSE}
-		kmsConfig := &datamodel.KmsConfig{}
-		params := &common.CreateKmsConfigParams{}
-		mockClient := kms_configurations.NewMockClientService(t)
-		// Define mock response
-		mockResponse := &kms_configurations.V1betaCreateKmsConfigurationAccepted{
-			Payload: &cvpModels.OperationV1beta{
-				Name:     "operation-id",
-				Done:     nillable.GetBoolPtr(false),
-				Response: cvpModels.KmsConfigV1beta{UUID: "test", KeyFullPath: nil},
-			},
-		}
-		// Set up the mock client behavior
-
-		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
-		originalCreateClient := createClient
-		defer func() {
-			createClient = originalCreateClient
-			pollCvpOperationForWorkflow = _pollCvpOperationForWorkflow
-		}()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-
-		pollCvpOperationForWorkflow = func(ctx context.Context, cvpClient cvpapi.Cvp, operationParams *async.V1betaDescribeOperationParams) (*cvpModels.OperationV1beta, error) {
-			return mockResponse.Payload, nil
-		}
-
-		_, err := activity.PollKmsConfigOperationActivity(ctx, kmsConfig, params, mockResponse)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-	})
-	t.Run("PollKmsConfigOperationActivityReturnsErrorOnUnmarshalFailure", func(tt *testing.T) {
-		mockSE := database.NewMockStorage(t)
-		activity := &KmsConfigActivity{SE: mockSE}
-		kmsConfig := &datamodel.KmsConfig{}
-		params := &common.CreateKmsConfigParams{}
-		response := &kms_configurations.V1betaCreateKmsConfigurationAccepted{
-			Payload: &cvpModels.OperationV1beta{
-				Done:     func() *bool { b := true; return &b }(),
-				Response: "not-a-json-object",
-			},
-		}
-		_, err := activity.PollKmsConfigOperationActivity(context.Background(), kmsConfig, params, response)
+		err := activity.PollKmsConfigOperationActivity(ctx, params)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -138,12 +67,12 @@ func TestPollKmsConfigOperationActivity(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
-		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"},
-			KmsAttributes: &datamodel.KmsAttributes{}}
-		params := &common.CreateKmsConfigParams{}
+		kp := "kp"
+		params := &common.CreateKmsConfigParams{OperationUri: "operation-id",
+			OperationDone: false,
+			KeyFullPath:   "kp"}
 		mockClient := kms_configurations.NewMockClientService(t)
 		// Define mock response
-		kp := "kp"
 		mockResponse := &kms_configurations.V1betaCreateKmsConfigurationAccepted{
 			Payload: &cvpModels.OperationV1beta{
 				Name:     "operation-id",
@@ -167,7 +96,7 @@ func TestPollKmsConfigOperationActivity(t *testing.T) {
 			return mockResponse.Payload, nil
 		}
 
-		_, err := activity.PollKmsConfigOperationActivity(ctx, kmsConfig, params, mockResponse)
+		err := activity.PollKmsConfigOperationActivity(ctx, params)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}

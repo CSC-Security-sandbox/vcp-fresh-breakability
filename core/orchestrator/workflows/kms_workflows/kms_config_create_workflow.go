@@ -3,7 +3,6 @@ package kms_workflows
 import (
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -102,13 +101,6 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 		}
 	}()
 
-	// Create the KMS configuration in CVP
-	var response *kms_configurations.V1betaCreateKmsConfigurationAccepted
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateKmsConfigSDEActivity, params).Get(ctx, &response)
-	if err != nil {
-		return nil, err
-	}
-
 	// retry policy for polling the KMS configuration operation
 	pollingOptions := workflow.ActivityOptions{
 		StartToCloseTimeout: time.Duration(cvpMaxPollTimeout) * time.Minute,
@@ -121,7 +113,7 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	pollingCtx := workflow.WithActivityOptions(ctx, pollingOptions)
 
 	// Poll the KMS configuration operation until it is done
-	err = workflow.ExecuteActivity(pollingCtx, kmsConfigActivity.PollKmsConfigOperationActivity, kmsConfig, params, response).Get(ctx, kmsConfig)
+	err = workflow.ExecuteActivity(pollingCtx, kmsConfigActivity.PollKmsConfigOperationActivity, params).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

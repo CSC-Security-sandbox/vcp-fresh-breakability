@@ -15,6 +15,8 @@ type CreateKmsConfigParams struct {
 	LocationID          string
 	ProjectNumber       string
 	XCorrelationID      string
+	OperationUri        string
+	OperationDone       bool
 }
 
 // GetKmsConfigParams describes parameters supplied to CreateKmsConfigActivity
