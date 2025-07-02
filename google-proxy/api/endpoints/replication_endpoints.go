@@ -16,6 +16,7 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -25,11 +26,18 @@ var (
 	convertModelToVCPVolumeReplication             = _convertModelToVCPVolumeReplication
 	validateReplicationURIList                     = _validateReplicationURIList
 	convertResumeModelToVCPVolumeReplicationV1beta = _convertResumeModelToVCPVolumeReplicationV1beta
+	crrEnabled                                     = env.GetBool("CRR_ENABLED", true)
 )
 
 func (h Handler) V1betaCreateReplication(ctx context.Context, req *gcpgenserver.ReplicationCreateV1beta, params gcpgenserver.V1betaCreateReplicationParams) (gcpgenserver.V1betaCreateReplicationRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	if !crrEnabled {
+		return &gcpgenserver.V1betaCreateReplicationForbidden{
+			Code:    403,
+			Message: "CRR is not enabled",
+		}, nil
+	}
 	region, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreateReplicationBadRequest{
@@ -376,6 +384,12 @@ func convertToRole(endpointType string) gcpgenserver.ReplicationV1betaRole {
 func (h Handler) V1betaResumeReplication(ctx context.Context, params gcpgenserver.V1betaResumeReplicationParams) (gcpgenserver.V1betaResumeReplicationRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	if !crrEnabled {
+		return &gcpgenserver.V1betaResumeReplicationForbidden{
+			Code:    403,
+			Message: "CRR is not enabled",
+		}, nil
+	}
 	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaResumeReplicationBadRequest{

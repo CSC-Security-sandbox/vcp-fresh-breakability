@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -565,6 +566,28 @@ func TestV1betaGetReplicationCount(t *testing.T) {
 }
 
 func TestV1betaCreateReplication(t *testing.T) {
+	t.Run("WhenCRRNotEnabled", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			crrEnabled = env.GetBool("CRR_ENABLED", true)
+		}()
+		crrEnabled = false
+		params := gcpgenserver.V1betaCreateReplicationParams{
+			ProjectNumber:    "project-number",
+			LocationId:       "location-id",
+			VolumeResourceId: "volume-resource-id",
+			XCorrelationID:   gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationCreateV1beta{
+			ResourceId:  "resource-id",
+			Description: gcpgenserver.NewOptString("description"),
+		}
+		result, _ := handler.V1betaCreateReplication(context.Background(), req, params)
+		assert.Equal(tt, float64(403), result.(*gcpgenserver.V1betaCreateReplicationForbidden).Code)
+	})
 	t.Run("WhenCreateReplicationSucceedsWithNoJob", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{
@@ -752,6 +775,25 @@ func TestV1betaCreateReplication(t *testing.T) {
 }
 
 func TestV1betaResumeReplication(t *testing.T) {
+	t.Run("WhenCRRNotEnabled", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			crrEnabled = env.GetBool("CRR_ENABLED", true)
+		}()
+		crrEnabled = false
+		params := gcpgenserver.V1betaResumeReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		result, _ := handler.V1betaResumeReplication(context.Background(), params)
+		assert.Equal(tt, float64(403), result.(*gcpgenserver.V1betaResumeReplicationForbidden).Code)
+	})
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{

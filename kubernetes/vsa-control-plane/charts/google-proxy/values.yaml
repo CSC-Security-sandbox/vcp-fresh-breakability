@@ -16,6 +16,7 @@ vsaNodePassword: ""
 smcProjectId: ""
 gcpSmcSecretName: ""
 gcpSmcSecretVersionName: ""
+gcpHydrateEnabled: false
 gcpHydrateAuthServiceAccount: ""
 gcpAuthServiceAccount: ""
 gcpHydrateBaseUrl: ""
@@ -23,6 +24,7 @@ proxyClientTransportSchema: "https"
 vcpPairedRegions: ""
 loggerLevel: "info"
 cvpHost: ""
+crrEnabled: false
 
 images:
   googleProxy:

@@ -32,6 +32,7 @@ data:
   SMC_GCP_PROJECT_ID: "{{ index .Values "smcProjectId" }}"
   GCP_SMC_SECRET_NAME: "{{ index .Values "gcpSmcSecretName" }}"
   GCP_SMC_SECRET_VERSION_NAME: "{{ index .Values "gcpSmcSecretVersionName" }}"
+  GCP_HYDRATE_ENABLED: "{{ index .Values "gcpHydrateEnabled" }}"
   GCP_HYDRATE_AUTH_SERVICE_ACCOUNT: "{{ index .Values "gcpHydrateAuthServiceAccount" }}"
   GCP_AUTH_SERVICE_ACCOUNT: "{{ index .Values "gcpAuthServiceAccount" }}"
   GCP_HYDRATE_BASE_URL: "{{ index .Values "gcpHydrateBaseUrl" }}"
@@ -39,6 +40,7 @@ data:
   VCP_PAIRED_REGIONS: "{{ index .Values "vcpPairedRegions" }}"
   LOGGER_LEVEL: "{{ index .Values "loggerLevel" }}"
   CVP_HOST: "{{ index .Values "cvpHost" }}"
+  CRR_ENABLED: "{{ index .Values "crrEnabled" }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_USER: {{ index .Values "database" "user"  }}
