@@ -324,7 +324,7 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 					return err
 				}
 			}
-			err := validateCRBBackupVault(*bv.BackupRegion)
+			err := validateCRBBackupVault(*bv.BackupVaultType)
 			if err != nil {
 				return err
 			}

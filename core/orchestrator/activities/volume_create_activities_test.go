@@ -1251,13 +1251,15 @@ func TestBackupVaultExistsSDE_ReturnsCrossRegionError(t *testing.T) {
 		return *cvpClient
 	}
 	bvName := "bv-1"
+	bvType := "CROSS_REGION"
 	res := []*cvpModels.BackupVaultV1beta{
 		{
-			ResourceID:    &bvName,
-			BackupRegion:  nillable.GetStringPtr("CROSS_REGION"),
-			BackupVaultID: "vault-id",
-			State:         "CREATING",
-			StateDetails:  "Creation in progress",
+			ResourceID:      &bvName,
+			BackupRegion:    nillable.GetStringPtr("CROSS_REGION"),
+			BackupVaultID:   "vault-id",
+			State:           "CREATING",
+			StateDetails:    "Creation in progress",
+			BackupVaultType: &bvType,
 		},
 	}
 	result := backup_vault.V1betaListBackupVaultsOK{Payload: &backup_vault.V1betaListBackupVaultsOKBody{
