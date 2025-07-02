@@ -14,6 +14,8 @@ import (
 	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
+//go:generate go run github.com/ogen-go/ogen/cmd/ogen@latest --clean --package googleproxyclient --config .ogenserver.yml --target . ../../google-proxy/api/gcp-api.yaml
+
 type ContextKey int
 
 const (

@@ -48,7 +48,7 @@ func runUnitTests(filtered bool) error {
 func runGoTests() error {
 	log.Println("Running Go unit tests with coverage...")
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command("go", "test", "./...", "-cover", "-coverprofile="+coverageFile)
+	cmd := exec.Command("go", "test", "-tags=test_exclude", "./...", "-cover", "-coverprofile="+coverageFile)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 

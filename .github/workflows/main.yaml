@@ -78,7 +78,7 @@ jobs:
   unit_tests:
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v24
       options: --user root
 
     steps:
@@ -108,7 +108,7 @@ jobs:
     needs: unit_tests
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v24
       options: --user root
 
     steps:
@@ -135,7 +135,7 @@ jobs:
     needs: unit_tests
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v24
       options: --user root
 
     steps:
@@ -213,7 +213,7 @@ jobs:
     name: Verify build
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v24
       options: --user root
     permissions:
       contents: read
@@ -244,7 +244,7 @@ jobs:
   lint:
     runs-on: [self-hosted, linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v22
+      image: ghcr.io/vcp-vsa-control-plane/vsacictl:v24
       options: --user root
 
     steps:

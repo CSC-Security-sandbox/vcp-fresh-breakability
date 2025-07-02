@@ -17,12 +17,12 @@ docker buildx build --platform linux/amd64 \
   -t ghcr.io/vcp-vsa-control-plane/vsacictl:v22 .
 echo "Docker image built successfully with tag vsacictl."
 
-docker buildx build --platform linux/amd64 -t ghcr.io/vcp-vsa-control-plane/vsacictl:v22 .
+docker buildx build --platform linux/amd64 -t ghcr.io/vcp-vsa-control-plane/vsacictl:v24 .
 
 # Tag and push the Docker image
-#docker tag vsacictl:v3 ghcr.io/vcp-vsa-control-plane/vsacictl:v3
-#v3 is for example. Give your required <tag>
-docker push ghcr.io/vcp-vsa-control-plane/vsacictl:v22
+#docker tag vsacictl:v3 ghcr.io/vcp-vsa-control-plane/vsacictl:v24
+#v24 is for example. Give your required <tag>
+docker push ghcr.io/vcp-vsa-control-plane/vsacictl:v24
 echo "Docker image tagged and pushed successfully to ghcr.io/vcp-vsa-control-plane/vsacictl."
 
 # Exit successfully

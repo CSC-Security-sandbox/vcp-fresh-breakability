@@ -3004,6 +3004,9 @@ func (s *FlexCacheV1beta) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.PeerIpAddresses == nil {
+			return nil // optional
+		}
 		if err := (validate.Array{
 			MinLength:    1,
 			MinLengthSet: true,
