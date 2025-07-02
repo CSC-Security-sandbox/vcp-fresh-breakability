@@ -38,6 +38,13 @@ jobs:
 
         # TODO: use Github bot account here
 
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: vcpghsa
+          password: ${{ secrets.GHVSA_PAT }}
+
       - name: Run Promotional logic
         id: promotional_logic_binary
         run: vsacictl tag promotional
