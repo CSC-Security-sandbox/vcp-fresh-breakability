@@ -111,8 +111,8 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}()
 
-	rollbackManager.Add(poolActivity.ErroredPool, dbPool)
-	rollbackManager.Add(poolActivity.DeletePoolResourcesOnRollback, dbPool)
+	rollbackManager.AddActivity(poolActivity.ErroredPool, dbPool)
+	rollbackManager.AddActivity(poolActivity.DeletePoolResourcesOnRollback, dbPool)
 
 	tenancyDetails := &common.TenancyInfo{}
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateTenancy, params).Get(ctx, &tenancyDetails)
@@ -120,7 +120,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
-	rollbackManager.Add(poolActivity.ReleaseSubnet, dbPool)
+	rollbackManager.AddActivity(poolActivity.ReleaseSubnet, dbPool)
 	setupNwCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(setupNwHeartbeatTimeout)*time.Second)
 	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.SetupNetwork, params.Region, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, tenancyDetails.Network).Get(setupNwCtx, nil)
 	if err != nil {
@@ -132,13 +132,13 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if err != nil {
 		return nil, err
 	}
-	rollbackManager.Add(poolActivity.DeleteServiceAccount, tenancyDetails.RegionalTenantProject, pool.ServiceAccountId)
+	rollbackManager.AddActivity(poolActivity.DeleteServiceAccount, tenancyDetails.RegionalTenantProject, pool.ServiceAccountId)
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateAutoTierBucket, pool.AutoTierBucketName, params.Region, tenancyDetails.RegionalTenantProject).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	rollbackManager.Add(poolActivity.DeleteAutoTierBucket, pool.AutoTierBucketName)
+	rollbackManager.AddActivity(poolActivity.DeleteAutoTierBucket, pool.AutoTierBucketName)
 
 	secret := &hyperscalermodels.CustomSecret{}
 	var vsaClusterPassword string
@@ -148,7 +148,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			return nil, err
 		}
 		vsaClusterPassword = secret.SecretVersion.Value
-		rollbackManager.Add(poolActivity.DeleteSecret, pool.SecretID)
+		rollbackManager.AddActivity(poolActivity.DeleteSecret, pool.SecretID)
 	} else {
 		vsaClusterPassword = pool.Password
 	}
@@ -171,7 +171,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		RegionalTenantProject: tenancyDetails.RegionalTenantProject,
 		SnHostProject:         tenancyDetails.SnHostProject,
 		Network:               tenancyDetails.Network}
-	rollbackManager.Add(poolActivity.DeleteVSADeployment, poolWithClusterDetails)
+	rollbackManager.AddActivity(poolActivity.DeleteVSADeployment, poolWithClusterDetails)
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, clusterName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkName, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, vsaClusterPassword, serviceAccount.Email, pool.AutoTierBucketName).Get(ctx, vlmConfig)
 	if err != nil {
@@ -340,7 +340,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		},
 	}
 
-	rollbackManager.Add(poolActivity.UpdatedPool, pool)
+	rollbackManager.AddActivity(poolActivity.UpdatedPool, pool)
 	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPool, poolObj).Get(ctx, nil) // replace with the actual activity to update the pool
 	return nil, err
 }
@@ -436,7 +436,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// Add the cleanup / rollback activity using this rollback.Add() method instead of writing multiple defer statements,
 	// this rollback manager will be invoked whenever there is an error, and it will start calling clean up activities in LIFO manner ***/
-	rollbackManager.Add(poolActivity.FailedPool, dbPool, "Failed to delete pool")
+	rollbackManager.AddActivity(poolActivity.FailedPool, dbPool, "Failed to delete pool")
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeletingPoolResources, dbPool).Get(ctx, nil)
 	if err != nil {

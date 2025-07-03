@@ -101,7 +101,7 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	}
 	ctx = workflow.WithValue(ctx, middleware.AuthToken, jwtToken)
 	rollbackManager := common.NewRollbackManager()
-	rollbackManager.Add(kmsConfigActivity.FailedKmsConfigCreateActivity, kmsConfig)
+	rollbackManager.AddActivity(kmsConfigActivity.FailedKmsConfigCreateActivity, kmsConfig)
 	defer func() {
 		if err != nil {
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)

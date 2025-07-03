@@ -807,7 +807,7 @@ func TestValidateUpdatePoolParams(t *testing.T) {
 	})
 	t.Run("Returns error for pool size not multiple of granularity", func(tt *testing.T) {
 		pool := &datamodel.Pool{QosType: "Manual"}
-		// Add 1 to minimum quota to simulate a value that's not divisible by minSizeGranularity.
+		// AddActivity 1 to minimum quota to simulate a value that's not divisible by minSizeGranularity.
 		params := &common.UpdatePoolParams{
 			QosType:                  "Manual",
 			SizeInBytes:              minQuotaInBytesPool + 1,

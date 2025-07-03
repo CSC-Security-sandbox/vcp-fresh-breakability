@@ -154,7 +154,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		if err != nil {
 			return nil, err
 		}
-		rollbackManager.Add(updateActivity.UpdateVolumeInONTAP, volume, getUpdateParamsForRollback(volResponse), node)
+		rollbackManager.AddActivity(updateActivity.UpdateVolumeInONTAP, volume, getUpdateParamsForRollback(volResponse), node)
 	}
 
 	// Avoid updating the lun if the size is not changed
