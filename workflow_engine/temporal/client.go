@@ -1,9 +1,9 @@
-package workflow_engine
+package temporal
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -22,20 +22,31 @@ const (
 	BackgroundTaskQueue = "background-workflows"
 )
 
-type TemporalWorkflowEngine struct {
-	temporalClient client.Client
+var (
+	createClientOptionsFromEnv = _createClientOptionsFromEnv
+	waitTime                   = 5 * time.Second // Time to wait before retrying connection to Temporal server
+)
+
+type NamespaceClientFactory func(client.Options) (client.NamespaceClient, error)
+type ClientDialFunc func(client.Options) (client.Client, error)
+
+type WorkflowEngine struct {
+	temporalClient         client.Client
+	NamespaceClientFactory NamespaceClientFactory
+	ClientDial             ClientDialFunc
+	Sleep                  func(time.Duration) // Inject sleep for testability
 }
 
-func (t *TemporalWorkflowEngine) LoadConfig() workflow_engine.ClientConfig {
+func (t *WorkflowEngine) LoadConfig() workflow_engine.ClientConfig {
 	return LoadTemporalConfig()
 }
 
-func (t *TemporalWorkflowEngine) InitializeClient(cfg workflow_engine.ClientConfig, logger log.Logger) error {
+func (t *WorkflowEngine) InitializeClient(cfg workflow_engine.ClientConfig, logger log.Logger) error {
 	// Initialize the temporal server client
 	clientOptions, err := createClientOptionsFromEnv(cfg, logger)
 	if err != nil {
 		logger.Error("failed to create temporal client options: %w", "error", err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	if cfg.ShouldEnableDataEncryption() && cfg.GetEncryptionID() != "" {
@@ -45,25 +56,53 @@ func (t *TemporalWorkflowEngine) InitializeClient(cfg workflow_engine.ClientConf
 		clientOptions.DataConverter = util.NewEncryptionDataConverter(defaultDataConverter, cfg.GetEncryptionID())
 	}
 
-	var temporalClient client.Client
-	for {
-		temporalClient, err = client.Dial(clientOptions)
-		if err == nil {
-			break
-		}
-		logger.Error("Failed to connect to the temporal, retrying...", "error", err.Error())
-		time.Sleep(2 * time.Second) // Add a delay between retries to avoid overwhelming the temporal server
+	factory := t.NamespaceClientFactory
+	if factory == nil {
+		factory = client.NewNamespaceClient
 	}
-	t.temporalClient = temporalClient
-	return err
+	dial := t.ClientDial
+	if dial == nil {
+		dial = client.Dial
+	}
+	sleep := t.Sleep
+	if sleep == nil {
+		sleep = time.Sleep
+	}
+
+	var temporalClient client.Client
+	namespaceClient, err := factory(clientOptions)
+	if err != nil {
+		logger.Error("Failed to create temporal namespace client", "error", err.Error())
+		return err
+	}
+	for {
+		temporalClient, err = dial(clientOptions)
+		if err != nil {
+			sleep(waitTime * time.Second)
+			continue
+		}
+
+		name, err := namespaceClient.Describe(context.Background(), cfg.GetNamespace())
+
+		if err == nil {
+			t.temporalClient = temporalClient
+			logger.Info("Connected to Temporal namespace", "namespace", name.GetNamespaceInfo().GetName())
+			return nil
+		}
+		logger.Error("Failed to connect to Temporal server", "error", err.Error(), "retrying in 5 seconds")
+		sleep(waitTime * time.Second) // Retry after 5 seconds
+		// Add a delay between retries to avoid overwhelming the temporal server
+	}
 }
 
-func (t *TemporalWorkflowEngine) CloseClient(client client.Client) {
-	client.Close()
+func (t *WorkflowEngine) CloseClient(client client.Client) {
+	if client != nil {
+		client.Close()
+	}
 }
 
 // GetTemporalClient returns the temporal client instance.
-func (t *TemporalWorkflowEngine) GetTemporalClient() client.Client {
+func (t *WorkflowEngine) GetTemporalClient() client.Client {
 	return t.temporalClient
 }
 
@@ -78,7 +117,7 @@ func (t *TemporalWorkflowEngine) GetTemporalClient() client.Client {
 //
 // If these environment variables are not set, the client.Options
 // instance returned will be based on the SDK's default configuration.
-func createClientOptionsFromEnv(cfg workflow_engine.ClientConfig, logger log.Logger) (client.Options, error) {
+func _createClientOptionsFromEnv(cfg workflow_engine.ClientConfig, logger log.Logger) (client.Options, error) {
 	tracingInterceptor, err := opentelemetry.NewTracingInterceptor(opentelemetry.TracerOptions{
 		Tracer: otel.GetTracerProvider().Tracer("Temporal-Worker"),
 	})

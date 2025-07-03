@@ -1,4 +1,4 @@
-package workflow_engine
+package temporal
 
 import (
 	"log"

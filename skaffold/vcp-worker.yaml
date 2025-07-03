@@ -67,7 +67,7 @@ spec:
             - name: RUN_MIGRATION_ON_START
               value: "true"
             - name: GCE_METADATA_HOST
-              value: host.minikube.internal:9090
+              value: "{{ .ENV.GCE_METADATA_HOST }}"
             - name: GCP_CONSUMER_MGMT_ENDPOINT_URL
               value: autopush-netapp.sandbox.googleapis.com
             - name: GCP_SERVICE_NETWORKING_ENDPOINT_URL
@@ -89,6 +89,8 @@ spec:
             - name: GCP_HYDRATE_BATCH_SIZE
               value: "10"
             - name: VMRS_CONFIG_PATH
-              value: "/config/vmrs_gcp.yaml"
+              value: "/app/vmrs_gcp.yaml"
             - name: VLM_CONFIG_FILE_PATH
-              value: "/common/vsa_config/vlm-config.json"
+              value: "/app/vlm-config.json"
+            - name: ERROR_FILE_PATH
+              value: "/app/errors.json"

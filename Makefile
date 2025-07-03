@@ -47,24 +47,28 @@ PACKAGES="./..."
 test:
 	go test -coverprofile=vcp-coverage.out $(PACKAGES)
 
-.PHONY: build-all-binaries
+GOMODCACHE := $(shell go env GOMODCACHE)
+GOCACHE := $(shell go env GOCACHE)
+
+.PHONY: build-all-binaries-dev
 build-all-binaries-dev:
 	docker build --build-arg GHVSA_PAT=$(GHVSA_PAT) -f builder/Dockerfile.build-all -t vsa-binaries-builder builder
 	mkdir -p artifacts
 	docker run --rm \
 		-e GHVSA_PAT=$(GHVSA_PAT) \
 		-v $(PWD):/src \
-		-v $(HOME)/.cache/go-build:/go-build-cache \
-		-v $(HOME)/go/pkg/mod:/go/pkg/mod \
+		-v $(GOCACHE):/go-build-cache \
+		-v $(GOMODCACHE):/go/pkg/mod \
 		-e GOCACHE=/go-build-cache \
 		-e GOMODCACHE=/go/pkg/mod \
 		vsa-binaries-builder sh -c '\
-		go build  -o /src/artifacts/vcp-worker ./worker/ && \
-		go build -o /src/artifacts/google-proxy ./google-proxy/ && \
-		go build  -o /src/artifacts/telemetry ./telemetry/'
+		go build -gcflags="all=-N -l" -o /src/artifacts/vcp-worker ./worker/ && \
+		go build -gcflags="all=-N -l" -o /src/artifacts/google-proxy ./google-proxy/ && \
+		go build -gcflags="all=-N -l" -o /src/artifacts/telemetry ./telemetry/'
 
 .PHONY: skaffold-dev
 skaffold-dev:
+	export $(cat skaffold.env | xargs)
 	skaffold dev -p dev
 %:
 	@:

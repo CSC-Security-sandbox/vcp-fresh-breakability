@@ -54,11 +54,7 @@ build:
           alias: BASE
 manifests:
   rawYaml:
-    - google-proxy/kubernetes/*
-    - postgres/kubernetes/*
-    - worker/kubernetes/*
-    - telemetry/kubernetes/*
-    - harvest-farm/kubernetes/*
+    - skaffold/*
   helm:
     releases:
       - name: local-temporal
@@ -110,7 +106,7 @@ profiles:
           sync:
             manual:
               - src: artifacts/google-proxy
-                dest: "/app"
+                dest: "/"
           docker:
             dockerfile: google-proxy/Dockerfile.dev
           requires:
@@ -121,7 +117,7 @@ profiles:
           sync:
             manual:
               - src: "artifacts/vcp-worker"
-                dest: "/app"
+                dest: "/"
           docker:
             dockerfile: worker/Dockerfile.dev
           requires:
@@ -132,9 +128,15 @@ profiles:
           sync:
             manual:
               - src: "artifacts/telemetry"
-                dest: "/app"
+                dest: "/"
           docker:
             dockerfile: telemetry/Dockerfile.dev
           requires:
             - image: base
               alias: BASE
+deploy:
+  kubectl:
+    hooks:
+      after:
+        - host:
+            command: [ "sh", "-c", "./configure.sh" ]

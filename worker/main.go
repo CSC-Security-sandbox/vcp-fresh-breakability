@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/db"
@@ -30,6 +31,9 @@ import (
 
 // main is the entry point of the worker application. It initializes the Temporal worker,
 // database connection, registers workflows and activities, and starts the worker.
+
+var errorFilePath = env.GetString("ERROR_FILE_PATH", "/errors.json")
+
 func main() {
 	ctx := context.WithValue(context.Background(), utilsmiddleware.CorrelationContextKey, uuid.NewString())
 	eg, ctx := errgroup.WithContext(ctx)
@@ -58,10 +62,11 @@ func main() {
 		Config: workflowClient.LoadConfig(),
 		DBConn: dbConn,
 	}
+
 	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
 
 	// Initialise the error handler
-	errorFilePath := "/errors.json"
+
 	// Check if the file exists
 	if _, err := os.Stat(errorFilePath); err == nil {
 		// TODO: add a flag to enable/disable the error handler
@@ -132,8 +137,8 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 
 // initializeTemporalClient initializes and returns a TemporalWorkflowEngine client.
 // It loads the configuration, initializes the client, and logs any errors encountered.
-func initializeTemporalClient(logger log.Logger) (workflowEngine.TemporalWorkflowEngine, error) {
-	workflowClient := workflowEngine.TemporalWorkflowEngine{}
+func initializeTemporalClient(logger log.Logger) (workflowEngine.WorkflowEngine, error) {
+	workflowClient := workflowEngine.WorkflowEngine{}
 	workflowCfg := workflowClient.LoadConfig()
 	err := workflowClient.InitializeClient(workflowCfg, logger)
 	if err != nil {

@@ -4,31 +4,39 @@ This repo hosts all the code for the VSA Control Plane. The VSA Control Plane is
 
 ### Code Layout
 The code is organized into the following directories:
-```aiignore
+
+```
 .
-├── clients - This directory contains the client libraries for the VSA Control Plane.
-│   ├── core-api 
-│   └── ontap-rest 
-├── common -    This directory contains common code that is shared across the VSA Control Plane.
-├── config -   This directory contains the configuration files for the VSA Control Plane.
-├── core -   This directory contains the code for the Core API (Hyperscaler Agnostic).
-│   ├── core-api -   This directory contains the core API code.
-│   ├── datastores -   This directory contains the code for the datastores ( Database Connectivity and Persistence).
-│   ├── kubernetes -   This directory contains the Kubernetes manifests for the Core API.
-│   ├── models -   This directory contains the models for the Core API.
-│   └── server -   This directory contains the server code for the Core API.
-├── firestore-emulator -  This directory contains the code for the Firestore Emulator.
-│   └── kubernetes -  
-├── google-proxy -  This directory contains the code for the Google Proxy.
-│   └── kubernetes
-│   └── api - This directory contains the code for the Google Proxy API.
-├── spanner-emulator -  This directory contains the code for the Spanner Emulator.
-│   └── kubernetes 
-├── tools - This directory contains all the external tools used in the repo. For ex Swagger Generator
-├── workflow-executor -  This directory contains the code for the Workflow Executor.
-│   ├── starter 
-│   └── worker 
-└── workflow-engine - This directory contains the code for the workflow client integration.
+├── artifacts/              # Compiled binaries and build artifacts
+├── builder/                # Dockerfiles and build scripts
+├── checksums/              # Checksum files for various modules
+├── cicd/                   # CI/CD scripts, Dockerfiles, and pipeline configs
+├── clients/                # Client libraries for the VSA Control Plane
+│   ├── core-api/
+│   ├── cvp/
+│   ├── google-proxy-client/
+│   ├── hyperscaler/
+│   ├── ontap-rest/
+│   └── vlm/
+├── common/                 # Shared/common code across services
+├── config/                 # Configuration files (YAML, env, etc.)
+├── core/                   # Core API (Hyperscaler Agnostic)
+├── database/               # Database logic, mocks, and interfaces
+├── doc/                    # Documentation and architecture diagrams
+├── google-proxy/           # Google Proxy service and API
+├── harvest-farm/           # Harvest farm logic and Kubernetes manifests
+├── kubernetes/             # Helm charts and Kubernetes manifests
+├── mocks/                  # Mock implementations for testing
+├── poller/                 # Poller service and Operator
+├── postgres/               # Postgres-related code and manifests
+├── scripts/                # Utility scripts for code generation and verification
+├── security/               # Network policies and security configs
+├── telemetry/              # Telemetry service, API, and supporting code
+├── tools/                  # External tools (Swagger, migration, etc.)
+├── utils/                  # Utility functions and helpers
+├── vsa_config/             # VSA configuration files and logic
+├── worker/                 # Worker service and supporting code
+└── workflow_engine/        # Workflow engine and Temporal client integration
 ```
 
 ### How to Run VSA Using Skaffold Locally (Minikube Cluster)
@@ -42,45 +50,33 @@ The code is organized into the following directories:
 
 #### Steps
 
-##### 1. Update Environment Variables in Google Proxy Deployment File
-
-Modify the `google-proxy/kubernetes/deployment.yaml` and `worker/kubernetes/deployment.yaml` file to include the following environment variables:
-
-```yaml
-- name: VSA_NODE_PASSWORD
-  value: <vsa_node_password_here>
-- name: VSA_NODE_USERNAME
-  value: <vsa_node_username_here>
-```
-
-##### 2. Run Mock Metadata Server
-After starting Skaffold, ensure the mock metadata server is running.
-
-```
-go run tools/mock-metadata-server/app.go
-```
-
-##### 3. Start a minikube cluster.
+##### 1. Start a minikube cluster.
 
 ```
 minikube start
 ```
 
-##### 4. Run Skaffold
+##### 2. Run Skaffold
 Run the following command to start Skaffold:
 
 ```
 export GHVSA_PAT=$(gh auth token)
-skaffold dev
+export VSA_NODE_PASSWORD=<passwrod-to-be-set-on-ontap>
+export VSA_NODE_USERNAME=<username-to-be-set-on-ontap>
+export GCE_METADATA_HOST=<ip-of-remote-hosted-mock-server>
+
+make build-all-binaries-dev skaffold-dev
 ```
 
 This will build and deploy all the services to your local Kubernetes cluster. Once deployed, you can access the services using the following URLs:
 
-- Google Proxy: http://localhost:9000
+- Google Proxy: http://127.0.0.1:9000
 - Core Service: http://localhost:9001
-- Postgres: http://localhost:5432
-- Local Temporal Web: http://localhost:8080
+- Postgres: http://127.0.0.1:5433
+- Local Temporal Web: http://127.0.0.1:8080
 - Workflow Server: http://localhost:9003
+- Harvest Farm: http://127.0.0.1:3000
+- Metrics Processor: http://127.0.0.1:9090
 
 #### Debugging the code
 

@@ -22,13 +22,16 @@ import (
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/endpoints"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	workflow_engine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"go.temporal.io/sdk/client"
 	"golang.org/x/sync/errgroup"
 )
+
+var errorFilePath = env.GetString("ERROR_FILE_PATH", "/errors.json")
 
 func main() {
 	ctx := context.WithValue(context.Background(), utilsmiddleware.CorrelationContextKey, uuid.NewString())
@@ -85,7 +88,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	errorFilePath := "/errors.json"
 	// Check if the file exists
 	if _, err := os.Stat(errorFilePath); err == nil {
 		// TODO: add a flag to enable/disable the error handler
@@ -176,8 +178,8 @@ func closeDatabase(dbCon database.Storage, logger log.Logger) {
 	}
 }
 
-func initializeTemporalClient(logger log.Logger) (workflow_engine.TemporalWorkflowEngine, error) {
-	workflowClient := workflow_engine.TemporalWorkflowEngine{}
+func initializeTemporalClient(logger log.Logger) (workflowengine.WorkflowEngine, error) {
+	workflowClient := workflowengine.WorkflowEngine{}
 	workflowCfg := workflowClient.LoadConfig()
 	err := workflowClient.InitializeClient(workflowCfg, logger)
 	if err != nil {

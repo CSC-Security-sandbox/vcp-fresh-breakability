@@ -76,3 +76,5 @@ spec:
               value: <vsa_node_password_here>
             - name: VSA_NODE_USERNAME
               value: <vsa_node_username_here>
+            - name: ERROR_FILE_PATH
+              value: "/app/errors.json"
