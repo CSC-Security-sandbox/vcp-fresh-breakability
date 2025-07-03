@@ -3819,10 +3819,7 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenUpdateVolumeSuccess", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", SnapshotPolicy: &models.SnapshotPolicy{
-			IsEnabled: false,
-			Schedules: nil,
-		},
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", SnapshotPolicy: nil,
 			DataProtection: &models.DataProtection{
 				BackupVaultID: "vault-1",
 			},
@@ -4039,6 +4036,40 @@ func TestUpdateVolume(t *testing.T) {
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param)
 		assert.Contains(tt, err.Error(), "volume is not in a valid state for update")
+		assert.Nil(tt, volume)
+	})
+
+	t.Run("WhenUpdateVolumeFailsWithInvalidSnapshotPolicy", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{
+			AccountName:  "acc",
+			VolumeId:     "vid",
+			QuotaInBytes: 200,
+			Name:         "vol",
+			SnapshotPolicy: &models.SnapshotPolicy{
+				IsEnabled: true,
+				Schedules: []*models.SnapshotPolicySchedule{},
+			},
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account:     &datamodel.Account{Name: "acc"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+			State:          "READY",
+			SnapshotPolicy: nil,
+		}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+		assert.Error(tt, err)
+		assert.Equal(tt, err.Error(), "no existing snapshot policy found for the volume and no schedules provided in the update request. Cannot create a new snapshot policy without schedules")
 		assert.Nil(tt, volume)
 	})
 }

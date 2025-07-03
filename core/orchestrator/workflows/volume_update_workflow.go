@@ -8,7 +8,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -118,12 +117,8 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if params.SnapshotPolicy != nil && params.SnapshotPolicy.Name != "" {
 		updatingPolicy := populateSnapshotPolicyFromParams(params.SnapshotPolicy)
 
-		// If the volume does not have an existing snapshot policy, we need create a new one using the provided snapshot policy
+		// If the volume does not have an existing snapshot policy, we need to create a new one using the provided snapshot policy
 		if volume.SnapshotPolicy == nil || volume.SnapshotPolicy.Name == "" {
-			if len(updatingPolicy.Schedules) == 0 {
-				wf.Logger.Error("No existing snapshot policy found for the volume, and no schedules provided in the update request. Cannot create a new snapshot policy without schedules.")
-				return nil, errors.New("no existing snapshot policy found for the volume and no schedules provided in the update request. Cannot create a new snapshot policy without schedules")
-			}
 			createActivity := &activities.VolumeCreateActivity{}
 			volume.SnapshotPolicy = updatingPolicy
 

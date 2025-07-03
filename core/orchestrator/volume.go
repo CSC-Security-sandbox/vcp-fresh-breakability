@@ -609,6 +609,12 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 			return err
 		}
 	}
+
+	// When just enabling or disabling the snapshot policy, we need to check if there is an existing snapshot policy
+	if params.SnapshotPolicy != nil && len(params.SnapshotPolicy.Schedules) == 0 && (volume.SnapshotPolicy == nil || volume.SnapshotPolicy.Name == "") {
+		return customerrors.NewUserInputValidationErr("no existing snapshot policy found for the volume and no schedules provided in the update request. Cannot create a new snapshot policy without schedules")
+	}
+
 	return nil
 }
 

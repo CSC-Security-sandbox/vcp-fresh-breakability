@@ -25,6 +25,7 @@ vcpPairedRegions: ""
 loggerLevel: "info"
 cvpHost: ""
 crrEnabled: false
+refreshAdminJobSpecs: false
 autoTieringEnabled: false
 
 images:

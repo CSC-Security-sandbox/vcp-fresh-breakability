@@ -464,51 +464,6 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SnapshotPolicy_OnlyEna
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_NoExistingSnapshotPolicy_NoSchedulesInUpdate() {
-	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
-	createActivity := activities.VolumeCreateActivity{SE: mockStorage}
-
-	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-	// Register activities
-	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
-	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
-	s.env.RegisterActivity(updateActivity.UpdateLun)
-	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
-	s.env.RegisterActivity(createActivity.CreateSnapshotPolicyInONTAP)
-	s.env.RegisterActivity(updateActivity.UpdateSnapshotPolicyInOntap)
-
-	// Mock activities
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(createActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(updateActivity.UpdateSnapshotPolicyInOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-	// Case: No existing snapshot policy and no schedules provided in update (should error)
-	volume := &datamodel.Volume{
-		Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
-		Account:        &datamodel.Account{Name: "test_account"},
-		SizeInBytes:    100,
-		SnapshotPolicy: nil,
-	}
-	params := &common.UpdateVolumeParams{
-		QuotaInBytes: 200,
-		SnapshotPolicy: &models.SnapshotPolicy{
-			Name:      "policy1",
-			IsEnabled: true,
-			Schedules: []*models.SnapshotPolicySchedule{}, // No schedules
-		},
-	}
-	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "no existing snapshot policy found for the volume and no schedules provided in the update request")
-}
-
 func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_NoSizeChange() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}

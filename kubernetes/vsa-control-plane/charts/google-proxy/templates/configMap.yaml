@@ -41,6 +41,7 @@ data:
   LOGGER_LEVEL: "{{ index .Values "loggerLevel" }}"
   CVP_HOST: "{{ index .Values "cvpHost" }}"
   CRR_ENABLED: "{{ index .Values "crrEnabled" }}"
+  REFRESH_ADMIN_JOB_SPECS: "{{ index .Values "refreshAdminJobSpecs" }}"
   AUTO_TIERING_ENABLED: "{{ index .Values "autoTieringEnabled" }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
