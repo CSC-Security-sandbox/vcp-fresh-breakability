@@ -9,15 +9,16 @@ import (
 )
 
 var (
-	authCacheMutex       sync.Mutex
-	authCacheMap         = map[string]*models.UserCache{} // map of secretID to password
-	cacheCleanupInterval = time.Duration(env.GetInt("VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS", 50)) * time.Hour
-	authCacheExpiration  = time.Duration(env.GetInt("VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS", 50)) * time.Hour
+	userAuthCacheMutex sync.Mutex
+	userAuthCacheMap   = map[string]*models.UserCache{} // map of secretID to password
 
-	GetAuthCache          = _getAuthCache
-	AddToAuthCache        = _addToAuthCache
-	InitializeAuthCaching = initAuthCaching
-	RemoveFromCache       = _removeFromCache
+	cacheCleanupInterval = time.Duration(env.GetInt("VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS", 24)) * time.Hour
+	authCacheExpiration  = time.Duration(env.GetInt("VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS", 24)) * time.Hour
+
+	GetFromUserAuthCache    = _getFromUserAuthCache
+	AddToUserAuthCache      = _addToUserAuthCache
+	InitializeAuthCaching   = initAuthCaching
+	RemoveFromUserAuthCache = _removeFromUserAuthCache
 )
 
 func init() {
@@ -31,46 +32,46 @@ func initAuthCaching() {
 func cleanupCachingTask() {
 	for {
 		time.Sleep(cacheCleanupInterval)
-		cleanupAuthCache()
+		cleanupUserAuthCache()
 	}
 }
 
-func cleanupAuthCache() {
-	authCacheMutex.Lock()
-	defer authCacheMutex.Unlock()
-	for apiKey, value := range authCacheMap {
+func cleanupUserAuthCache() {
+	userAuthCacheMutex.Lock()
+	defer userAuthCacheMutex.Unlock()
+	for apiKey, value := range userAuthCacheMap {
 		if time.Since(value.Time) > authCacheExpiration {
-			delete(authCacheMap, apiKey)
+			delete(userAuthCacheMap, apiKey)
 		}
 	}
 }
 
-func _getAuthCache(key string) (*models.UserCache, bool) {
-	authCacheMutex.Lock()
-	defer authCacheMutex.Unlock()
-	authCache, exists := authCacheMap[key]
+func _getFromUserAuthCache(key string) (*models.UserCache, bool) {
+	userAuthCacheMutex.Lock()
+	defer userAuthCacheMutex.Unlock()
+	authCache, exists := userAuthCacheMap[key]
 	if !exists {
 		return nil, false
 	}
 	return authCache, exists
 }
 
-func _addToAuthCache(key, value string) {
-	authCache, exists := authCacheMap[key]
+func _addToUserAuthCache(key, value string) {
+	authCache, exists := userAuthCacheMap[key]
 	if !exists || authCache.Password == "" {
-		authCacheMutex.Lock()
-		defer authCacheMutex.Unlock()
-		authCacheMap[key] = &models.UserCache{Time: time.Now(), SecretID: key, Password: value}
+		userAuthCacheMutex.Lock()
+		defer userAuthCacheMutex.Unlock()
+		userAuthCacheMap[key] = &models.UserCache{Time: time.Now(), SecretID: key, Password: value}
 	}
 }
 
-func _removeFromCache(key string) bool {
-	authCacheMutex.Lock()
-	defer authCacheMutex.Unlock()
-	_, exists := authCacheMap[key]
+func _removeFromUserAuthCache(key string) bool {
+	userAuthCacheMutex.Lock()
+	defer userAuthCacheMutex.Unlock()
+	_, exists := userAuthCacheMap[key]
 	if !exists {
 		return false
 	}
-	delete(authCacheMap, key)
+	delete(userAuthCacheMap, key)
 	return true
 }

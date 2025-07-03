@@ -248,6 +248,67 @@ func (_c *MockGoogleServices_CreateHmacKey_Call) RunAndReturn(run func(string, s
 	return _c
 }
 
+// CreateResourceRecordSet provides a mock function with given fields: projectID, managedZone, ipAddress, recordName
+func (_m *MockGoogleServices) CreateResourceRecordSet(projectID string, managedZone string, ipAddress string, recordName string) (*models.CustomCloudDNSRecord, error) {
+	ret := _m.Called(projectID, managedZone, ipAddress, recordName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateResourceRecordSet")
+	}
+
+	var r0 *models.CustomCloudDNSRecord
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, string, string) (*models.CustomCloudDNSRecord, error)); ok {
+		return rf(projectID, managedZone, ipAddress, recordName)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string, string) *models.CustomCloudDNSRecord); ok {
+		r0 = rf(projectID, managedZone, ipAddress, recordName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.CustomCloudDNSRecord)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, string, string) error); ok {
+		r1 = rf(projectID, managedZone, ipAddress, recordName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_CreateResourceRecordSet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateResourceRecordSet'
+type MockGoogleServices_CreateResourceRecordSet_Call struct {
+	*mock.Call
+}
+
+// CreateResourceRecordSet is a helper method to define mock.On call
+//   - projectID string
+//   - managedZone string
+//   - ipAddress string
+//   - recordName string
+func (_e *MockGoogleServices_Expecter) CreateResourceRecordSet(projectID interface{}, managedZone interface{}, ipAddress interface{}, recordName interface{}) *MockGoogleServices_CreateResourceRecordSet_Call {
+	return &MockGoogleServices_CreateResourceRecordSet_Call{Call: _e.mock.On("CreateResourceRecordSet", projectID, managedZone, ipAddress, recordName)}
+}
+
+func (_c *MockGoogleServices_CreateResourceRecordSet_Call) Run(run func(projectID string, managedZone string, ipAddress string, recordName string)) *MockGoogleServices_CreateResourceRecordSet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateResourceRecordSet_Call) Return(_a0 *models.CustomCloudDNSRecord, _a1 error) *MockGoogleServices_CreateResourceRecordSet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateResourceRecordSet_Call) RunAndReturn(run func(string, string, string, string) (*models.CustomCloudDNSRecord, error)) *MockGoogleServices_CreateResourceRecordSet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateSecret provides a mock function with given fields: projectID, region, secretID, secretValue
 func (_m *MockGoogleServices) CreateSecret(projectID string, region string, secretID string, secretValue string) (*models.CustomSecret, error) {
 	ret := _m.Called(projectID, region, secretID, secretValue)
@@ -722,6 +783,54 @@ func (_c *MockGoogleServices_DeleteHmacKey_Call) RunAndReturn(run func(string, s
 	return _c
 }
 
+// DeleteResourceRecordSet provides a mock function with given fields: projectID, managedZone, recordName
+func (_m *MockGoogleServices) DeleteResourceRecordSet(projectID string, managedZone string, recordName string) error {
+	ret := _m.Called(projectID, managedZone, recordName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteResourceRecordSet")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(projectID, managedZone, recordName)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockGoogleServices_DeleteResourceRecordSet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteResourceRecordSet'
+type MockGoogleServices_DeleteResourceRecordSet_Call struct {
+	*mock.Call
+}
+
+// DeleteResourceRecordSet is a helper method to define mock.On call
+//   - projectID string
+//   - managedZone string
+//   - recordName string
+func (_e *MockGoogleServices_Expecter) DeleteResourceRecordSet(projectID interface{}, managedZone interface{}, recordName interface{}) *MockGoogleServices_DeleteResourceRecordSet_Call {
+	return &MockGoogleServices_DeleteResourceRecordSet_Call{Call: _e.mock.On("DeleteResourceRecordSet", projectID, managedZone, recordName)}
+}
+
+func (_c *MockGoogleServices_DeleteResourceRecordSet_Call) Run(run func(projectID string, managedZone string, recordName string)) *MockGoogleServices_DeleteResourceRecordSet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteResourceRecordSet_Call) Return(_a0 error) *MockGoogleServices_DeleteResourceRecordSet_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteResourceRecordSet_Call) RunAndReturn(run func(string, string, string) error) *MockGoogleServices_DeleteResourceRecordSet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteSecret provides a mock function with given fields: projectID, secretID
 func (_m *MockGoogleServices) DeleteSecret(projectID string, secretID string) error {
 	ret := _m.Called(projectID, secretID)
@@ -978,6 +1087,66 @@ func (_c *MockGoogleServices_GetLogger_Call) Return(_a0 log.Logger) *MockGoogleS
 }
 
 func (_c *MockGoogleServices_GetLogger_Call) RunAndReturn(run func() log.Logger) *MockGoogleServices_GetLogger_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetResourceRecordSet provides a mock function with given fields: projectID, managedZone, recordName
+func (_m *MockGoogleServices) GetResourceRecordSet(projectID string, managedZone string, recordName string) (*models.CustomCloudDNSRecord, error) {
+	ret := _m.Called(projectID, managedZone, recordName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetResourceRecordSet")
+	}
+
+	var r0 *models.CustomCloudDNSRecord
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, string) (*models.CustomCloudDNSRecord, error)); ok {
+		return rf(projectID, managedZone, recordName)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string) *models.CustomCloudDNSRecord); ok {
+		r0 = rf(projectID, managedZone, recordName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.CustomCloudDNSRecord)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = rf(projectID, managedZone, recordName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetResourceRecordSet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetResourceRecordSet'
+type MockGoogleServices_GetResourceRecordSet_Call struct {
+	*mock.Call
+}
+
+// GetResourceRecordSet is a helper method to define mock.On call
+//   - projectID string
+//   - managedZone string
+//   - recordName string
+func (_e *MockGoogleServices_Expecter) GetResourceRecordSet(projectID interface{}, managedZone interface{}, recordName interface{}) *MockGoogleServices_GetResourceRecordSet_Call {
+	return &MockGoogleServices_GetResourceRecordSet_Call{Call: _e.mock.On("GetResourceRecordSet", projectID, managedZone, recordName)}
+}
+
+func (_c *MockGoogleServices_GetResourceRecordSet_Call) Run(run func(projectID string, managedZone string, recordName string)) *MockGoogleServices_GetResourceRecordSet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetResourceRecordSet_Call) Return(_a0 *models.CustomCloudDNSRecord, _a1 error) *MockGoogleServices_GetResourceRecordSet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetResourceRecordSet_Call) RunAndReturn(run func(string, string, string) (*models.CustomCloudDNSRecord, error)) *MockGoogleServices_GetResourceRecordSet_Call {
 	_c.Call.Return(run)
 	return _c
 }

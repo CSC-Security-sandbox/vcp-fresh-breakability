@@ -2774,7 +2774,7 @@ func TestPoolActivity_SetupNetwork(t *testing.T) {
 
 func Test_generateAndCreateCertificateForVSACluster(t *testing.T) {
 	key, _ := rsa.GenerateKey(rand.Reader, 3072)
-	secretValue := google.ConvertPrivateKeyToString(key, activities.RsaKeyType)
+	secretValue := commonparams.ConvertPrivateKeyToString(key, activities.RsaKeyType)
 	param := &models.CustomCertificate{
 		CertificateID:    "certid",
 		CaName:           "ca",
@@ -2995,7 +2995,7 @@ func Test_GeneratePasswordForVSACluster(t *testing.T) {
 		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("secret get error"))
 		mockGCPService.On("CreateSecret", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "secretID"}}, nil)
 		defer func() {
-			commonparams.RemoveFromCache("secretID")
+			commonparams.RemoveFromUserAuthCache("secretID")
 		}()
 
 		secret, err := activities.GeneratePasswordForVSACluster(mockGCPService, projectId, region, userName)
@@ -3356,11 +3356,11 @@ func Test_getPasswordFromCacheOrSecretManager(t *testing.T) {
 	secretID := "test-secret"
 
 	t.Run("PasswordExistsInCache", func(tt *testing.T) {
-		commonparams.AddToAuthCache(secretID, "cached-password")
+		commonparams.AddToUserAuthCache(secretID, "cached-password")
 		getPasswordForVSACluster := activities.GetPasswordForVSACluster
 		defer func() {
 			activities.GetPasswordForVSACluster = getPasswordForVSACluster
-			commonparams.RemoveFromCache(secretID)
+			commonparams.RemoveFromUserAuthCache(secretID)
 		}()
 		activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, secretID string) (*models.CustomSecret, error) {
 			return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "cached-password"}}, nil
@@ -3373,7 +3373,7 @@ func Test_getPasswordFromCacheOrSecretManager(t *testing.T) {
 		getPasswordForVSACluster := activities.GetPasswordForVSACluster
 		defer func() {
 			activities.GetPasswordForVSACluster = getPasswordForVSACluster
-			commonparams.RemoveFromCache(secretID)
+			commonparams.RemoveFromUserAuthCache(secretID)
 		}()
 		activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, secretID string) (*models.CustomSecret, error) {
 			return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "secret-manager-password"}}, nil
@@ -3386,7 +3386,7 @@ func Test_getPasswordFromCacheOrSecretManager(t *testing.T) {
 		getPasswordForVSACluster := activities.GetPasswordForVSACluster
 		defer func() {
 			activities.GetPasswordForVSACluster = getPasswordForVSACluster
-			commonparams.RemoveFromCache(secretID)
+			commonparams.RemoveFromUserAuthCache(secretID)
 		}()
 		activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, secretID string) (*models.CustomSecret, error) {
 			return nil, assert.AnError

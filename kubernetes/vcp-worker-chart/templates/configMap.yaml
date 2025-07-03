@@ -48,6 +48,7 @@ data:
   CA_POOL_NAME: {{ .Values.workerConfig.caPoolName | quote }}
   CA_NAME: {{ .Values.workerConfig.caName | quote }}
   CA_POOL_DEPLOYED_PROJECT_ID: {{ .Values.workerConfig.caPoolDeployedProjectId | quote }}
+  SECRET_MANAGER_PROJECT_ID: {{ .Values.workerConfig.secretManagerProjectId | quote }}
   VSA_DEPLOYED_DNS_NAME: {{ .Values.workerConfig.vsaDeployedDnsName | quote }}
   VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS: {{ .Values.workerConfig.vsaSecretCacheCleanupIntervalHours | quote }}
   VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS: {{ .Values.workerConfig.vsaSecretAuthCacheExpirationHours | quote }}

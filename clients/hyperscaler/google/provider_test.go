@@ -20,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/compute/v1"
+	"google.golang.org/api/dns/v1"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 	"google.golang.org/api/privateca/v1"
@@ -363,6 +364,55 @@ func TestNewGoogleClient(t *testing.T) {
 		initializePrivateCaService = _initializePrivateCaService
 		initializeSecretManagerService = _initializeSecretManagerService
 	})
+	t.Run("initializeCloudDnsServiceFails", func(t *testing.T) {
+		originalCertificateBasedAuthEnabled := common.AuthType
+		common.AuthType = common.USER_CERTIFICATE
+		defer func() {
+			common.AuthType = originalCertificateBasedAuthEnabled
+		}()
+		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
+			return &serviceconsumermanagement.APIService{
+				BasePath: "",
+			}, nil
+		}
+		initializeNetworkingService = func(ctx context.Context) (*servicenetworking.APIService, error) {
+			return nil, nil
+		}
+		initializeComputeService = func(ctx context.Context) (*compute.Service, error) {
+			return nil, nil
+		}
+		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
+			return nil, nil
+		}
+		initializeCloudProjectsService = func(ctx context.Context) (*cloudresourcemanager.Service, error) { return nil, nil }
+		initializePrivateCaService = func(ctx context.Context) (*privateca.Service, error) {
+			return nil, nil
+		}
+		initializeSecretManagerService = func(ctx context.Context) (*secretmanager.Service, error) { return nil, nil }
+		initializeIamService = func(ctx context.Context) (*iam.Service, error) { return nil, nil }
+		initializeCloudDnsService = func(ctx context.Context) (*dns.Service, error) {
+			return nil, errors.New("initializeCloudDnsService failed")
+		}
+		res, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
+		if res != nil {
+			t.Error("unexpected result returned")
+		}
+		if err == nil {
+			t.Error("error was expected")
+		}
+		if err.Error() != "initializeCloudDnsService failed" {
+			t.Error("Incorrect error response")
+		}
+		initializeManagementService = _initializeManagementService
+		initializeNetworkingService = _initializeNetworkingService
+		initializeComputeService = _initializeComputeService
+		initializeStorageService = _initializeStorageService
+		initializeCloudProjectsService = _initializeCloudProjectsService
+		initializePrivateCaService = _initializePrivateCaService
+		initializeSecretManagerService = _initializeSecretManagerService
+		initializeCloudDnsService = _initializeCloudDnsService
+		initializeIamService = _initializeIamService
+	})
 	t.Run("WhenOK", func(t *testing.T) {
 		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
 			return &serviceconsumermanagement.APIService{
@@ -386,6 +436,72 @@ func TestNewGoogleClient(t *testing.T) {
 		}
 		initializeSecretManagerService = func(ctx context.Context) (*secretmanager.Service, error) {
 			return &secretmanager.Service{
+				BasePath: "",
+			}, nil
+		}
+		initializeIamService = func(ctx context.Context) (*iam.Service, error) {
+			return &iam.Service{
+				BasePath: "",
+			}, nil
+		}
+
+		initializeCloudProjectsService = func(ctx context.Context) (*cloudresourcemanager.Service, error) {
+			return &cloudresourcemanager.Service{
+				BasePath: "",
+			}, nil
+		}
+
+		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
+			return &storage.Client{}, nil
+		}
+
+		_, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
+		if err != nil {
+			t.Error("Unexpected error")
+		}
+		initializeManagementService = _initializeManagementService
+		initializeNetworkingService = _initializeNetworkingService
+		initializeComputeService = _initializeComputeService
+		initializePrivateCaService = _initializePrivateCaService
+		initializeSecretManagerService = _initializeSecretManagerService
+		initializeStorageService = _initializeStorageService
+		initializeIamService = _initializeIamService
+		initializeCloudProjectsService = _initializeCloudProjectsService
+	})
+
+	t.Run("WhenOKWithAuthTypeAsCert", func(t *testing.T) {
+		originalCertificateBasedAuthEnabled := common.AuthType
+		common.AuthType = common.USER_CERTIFICATE
+		defer func() {
+			common.AuthType = originalCertificateBasedAuthEnabled
+		}()
+		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
+			return &serviceconsumermanagement.APIService{
+				BasePath: "",
+			}, nil
+		}
+		initializeNetworkingService = func(ctx context.Context) (*servicenetworking.APIService, error) {
+			return &servicenetworking.APIService{
+				BasePath: "",
+			}, nil
+		}
+		initializeComputeService = func(ctx context.Context) (*compute.Service, error) {
+			return &compute.Service{
+				BasePath: "",
+			}, nil
+		}
+		initializePrivateCaService = func(ctx context.Context) (*privateca.Service, error) {
+			return &privateca.Service{
+				BasePath: "",
+			}, nil
+		}
+		initializeSecretManagerService = func(ctx context.Context) (*secretmanager.Service, error) {
+			return &secretmanager.Service{
+				BasePath: "",
+			}, nil
+		}
+		initializeCloudDnsService = func(ctx context.Context) (*dns.Service, error) {
+			return &dns.Service{
 				BasePath: "",
 			}, nil
 		}
@@ -418,6 +534,7 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeStorageService = _initializeStorageService
 		initializeIamService = _initializeIamService
 		initializeCloudProjectsService = _initializeCloudProjectsService
+		initializeCloudDnsService = _initializeCloudDnsService
 	})
 }
 
@@ -1564,6 +1681,68 @@ func TestGcpServices_DeleteServiceAccount(t *testing.T) {
 			}
 		})
 	}
+}
+func TestInitializeCloudDnsService(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		origNewClient := newClient
+		origMockMetaDataHost := MockMetaDataHost
+		defer func() {
+			newClient = origNewClient
+			MockMetaDataHost = origMockMetaDataHost
+		}()
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return &http.Client{}, "custom-endpoint", nil
+		}
+		client, err := _initializeCloudDnsService(context.Background())
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if client == nil {
+			t.Fatal("expected client, got nil")
+		}
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		origNewClient := newClient
+		origMockMetaDataHost := MockMetaDataHost
+		defer func() {
+			newClient = origNewClient
+			MockMetaDataHost = origMockMetaDataHost
+		}()
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return nil, "", errors.New("fail")
+		}
+		client, err := _initializeCloudDnsService(context.Background())
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if client != nil {
+			t.Fatal("expected nil client, got non-nil")
+		}
+	})
+
+	t.Run("with MockMetaDataHost", func(t *testing.T) {
+		origNewClient := newClient
+		origMockMetaDataHost := MockMetaDataHost
+		defer func() {
+			newClient = origNewClient
+			MockMetaDataHost = origMockMetaDataHost
+		}()
+		MockMetaDataHost = "mock-host"
+		newClient = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			if len(opts) == 0 {
+				t.Error("Expected at least one option when MockMetaDataHost is set")
+			}
+			return &http.Client{}, "", nil
+		}
+		client, err := _initializeCloudDnsService(context.Background())
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if client == nil {
+			t.Fatal("expected client, got nil")
+		}
+	})
 }
 
 func TestCreateHmacKey(t *testing.T) {

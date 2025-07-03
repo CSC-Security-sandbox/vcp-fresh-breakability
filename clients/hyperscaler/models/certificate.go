@@ -9,7 +9,7 @@ type CustomCertificate struct {
 	Name                       string
 	PemCertificate             string
 	CreateTime                 *timestamppb.Timestamp
-	LifeTime                   *timestamppb.Timestamp
+	LifeTime                   string
 	UpdateTime                 *timestamppb.Timestamp
 	SubjectCommonName          string
 	SubjectAltName             []string
@@ -52,4 +52,12 @@ type CustomSecretVersion struct {
 	Value              string
 	SecretOwningEntity string
 	Region             string
+}
+
+type CustomCloudDNSRecord struct {
+	RecordName  string
+	Type        string
+	TTL         int64
+	Data        string // IP address
+	ManagedZone string
 }

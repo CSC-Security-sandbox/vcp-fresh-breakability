@@ -312,14 +312,13 @@ func (j *PoolActivity) CreateCertificate(ctx context.Context, region, clusterNam
 
 	// Generate a unique certificate ID and common name
 	uuid := utils.RandomUUID()
-	commonName := fmt.Sprintf("%s-cn", uuid)
 	domains := fmt.Sprintf("*.%s.%s", clusterName, commonparams.VsaDeployedDnsName)
 	params := &hyperscaler_models.CustomCertificateParam{
 		Region:           region,
 		CaPoolName:       commonparams.CaPoolName,
 		CaName:           commonparams.CaName,
 		CertificateID:    uuid,
-		CommonName:       commonName,
+		CommonName:       commonparams.VCP_ADMIN,
 		Domains:          []string{domains},
 		CertOwningEntity: commonparams.CaPoolDeployedProjectID,
 	}
@@ -336,7 +335,7 @@ func (j *PoolActivity) CreateSecret(ctx context.Context, region, secretID string
 	if err != nil {
 		return nil, err
 	}
-	secret, err := GeneratePasswordForVSACluster(gcpService, commonparams.CaPoolDeployedProjectID, region, secretID)
+	secret, err := GeneratePasswordForVSACluster(gcpService, commonparams.SecretManagerProjectID, region, secretID)
 	if err != nil {
 		return nil, err
 	}
@@ -350,7 +349,7 @@ func (j *PoolActivity) DeleteSecret(ctx context.Context, secretID string) error 
 		return err
 	}
 
-	err = DeletePasswordFromCacheAndSecretManager(gcpService, commonparams.CaPoolDeployedProjectID, secretID)
+	err = DeletePasswordFromCacheAndSecretManager(gcpService, commonparams.SecretManagerProjectID, secretID)
 	if err != nil {
 		return err
 	}
@@ -1283,7 +1282,7 @@ func _generateAndCreateCertificateForVSACluster(gcpService hyperscaler.GoogleSer
 	}
 	logger.Debug("Generate CSR for commonName: %s, certificateId : %s", param.CommonName, param.CertificateID)
 
-	certificate, err := google.ValidateAndConvertCertificateParamsToCustomCertificate(param, pemBlock)
+	certificate, err := commonparams.ValidateAndConvertCertificateParamsToCustomCertificate(param, pemBlock)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1295,7 +1294,7 @@ func _generateAndCreateCertificateForVSACluster(gcpService hyperscaler.GoogleSer
 
 	// Store the private key in Secret Manager
 	secretName := fmt.Sprintf("%s-%s-%s-%s", param.CertOwningEntity, param.Region, param.CaName, param.CertificateID)
-	secretValue := google.ConvertPrivateKeyToString(key, RsaKeyType)
+	secretValue := commonparams.ConvertPrivateKeyToString(key, RsaKeyType)
 	secret, err := gcpService.CreateSecret(param.CertOwningEntity, param.Region, secretName, secretValue)
 	if err != nil {
 		// Revoke the certificate if the secret creation fails
@@ -1323,7 +1322,7 @@ func _generatePasswordForVSACluster(gcpService hyperscaler.GoogleServices, proje
 		if err != nil {
 			return nil, err
 		}
-		commonparams.AddToAuthCache(secretID, secret.SecretVersion.Value)
+		commonparams.AddToUserAuthCache(secretID, secret.SecretVersion.Value)
 	}
 	return secret, nil
 }
@@ -1345,14 +1344,14 @@ func _getPasswordForVSACluster(ctx context.Context, projectID, secretID string) 
 // _getPasswordFromCacheOrSecretManager retrieves the password for a VSA cluster from cache or GCP Secret Manager if not found in cache.
 func _getPasswordFromCacheOrSecretManager(ctx context.Context, secretID string) string {
 	password := ""
-	userCache, exist := commonparams.GetAuthCache(secretID)
+	userCache, exist := commonparams.GetFromUserAuthCache(secretID)
 	if !exist || userCache.Password == "" {
-		secret, err := GetPasswordForVSACluster(ctx, commonparams.CaPoolDeployedProjectID, secretID)
+		secret, err := GetPasswordForVSACluster(ctx, commonparams.SecretManagerProjectID, secretID)
 		if err != nil {
 			return ""
 		}
 		password = secret.SecretVersion.Value
-		commonparams.AddToAuthCache(secretID, password)
+		commonparams.AddToUserAuthCache(secretID, password)
 		return password
 	}
 	password = userCache.Password
@@ -1373,7 +1372,7 @@ func _deletePasswordFromSecretManagerAndCache(gcpService hyperscaler.GoogleServi
 		return err
 	}
 
-	done := commonparams.RemoveFromCache(secretID)
+	done := commonparams.RemoveFromUserAuthCache(secretID)
 	if !done {
 		logger.Errorf("failed to remove password from cache for secretID: %s", secretID)
 		return nil

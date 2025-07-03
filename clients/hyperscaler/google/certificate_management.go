@@ -5,18 +5,13 @@ import (
 	"time"
 
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"google.golang.org/api/privateca/v1"
 )
 
 const (
 	LatestVersion      = "latest"
 	PrivilegeWithdrawn = "PRIVILEGE_WITHDRAWN"
-)
-
-var (
-	CertificateLifetime                                       = env.GetString("CERTIFICATE_LIFETIME", "25920000s") // Default to 300 days
-	validateAndConvertPrivateCACertificateToCustomCertificate = _validateAndConvertPrivateCACertificateToCustomCertificate
 )
 
 // CreateCertificate creates a new certificate in the specified CA. Reference: https://cloud.google.com/certificate-authority-service/docs/reference/rest/v1/projects.locations.caPools.certificates/create
@@ -28,7 +23,7 @@ func (gcpService *GcpServices) CreateCertificate(cert *models.CustomCertificate)
 
 	certificate := &privateca.Certificate{
 		PemCsr:                     cert.PemCsr,
-		Lifetime:                   CertificateLifetime,
+		Lifetime:                   commonparams.CertificateLifetime,
 		IssuerCertificateAuthority: caResourceName,
 		CreateTime:                 time.Now().UTC().Format(time.RFC3339),
 	}
@@ -39,7 +34,7 @@ func (gcpService *GcpServices) CreateCertificate(cert *models.CustomCertificate)
 		return nil, err
 	}
 
-	customCertificate, err := validateAndConvertPrivateCACertificateToCustomCertificate(cert.CertificateID, certificate)
+	customCertificate, err := commonparams.ValidateAndConvertPrivateCACertificateToCustomCertificate(cert.CertificateID, certificate)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +72,7 @@ func (gcpService *GcpServices) GetCertificate(projectID, region, poolName, certi
 	}
 
 	gcpService.Logger.Debug(fmt.Sprintf("GetCertificate success with response :  %s", certificateID))
-	customCertificate, err := validateAndConvertPrivateCACertificateToCustomCertificate(certificateID, certificate)
+	customCertificate, err := commonparams.ValidateAndConvertPrivateCACertificateToCustomCertificate(certificateID, certificate)
 	if err != nil {
 		return nil, err
 	}

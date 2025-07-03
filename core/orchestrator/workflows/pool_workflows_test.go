@@ -232,12 +232,12 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 
 	originalAuthType := common.AuthType
 	common.AuthType = common.USERNAME_PWD_SEC_MGR
-	originalProjectID := common.CaPoolDeployedProjectID
-	common.CaPoolDeployedProjectID = "123456789"
+	originalProjectID := common.SecretManagerProjectID
+	common.SecretManagerProjectID = "123456789"
 
 	defer func() {
 		common.AuthType = originalAuthType
-		common.CaPoolDeployedProjectID = originalProjectID
+		common.SecretManagerProjectID = originalProjectID
 	}()
 
 	// Mock activity responses

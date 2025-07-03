@@ -17,6 +17,7 @@ import (
 	"google.golang.org/api/cloudkms/v1"
 	projectsManagement "google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/compute/v1"
+	"google.golang.org/api/dns/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/impersonate"
@@ -49,6 +50,7 @@ var (
 	initializeCloudProjectsService = _initializeCloudProjectsService
 	initializePrivateCaService     = _initializePrivateCaService
 	initializeSecretManagerService = _initializeSecretManagerService
+	initializeCloudDnsService      = _initializeCloudDnsService
 )
 
 type GcpServices struct {
@@ -71,6 +73,7 @@ type AdminGCPService struct {
 	privateCaService     *privateca.Service
 	secretManagerService *secretmanager.Service
 	cloudProjectsService *projectsManagement.Service
+	cloudDnsService      *dns.Service
 }
 
 // _newClient redirects to third party library HTTP NewClient for networking, while it helps to mock the function for init_test
@@ -152,11 +155,18 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 	}
 
 	var privateCaService *privateca.Service
+	var cloudDnsService *dns.Service
 	if common.AuthType == common.USER_CERTIFICATE {
 		log.Debug("Calling initializePrivateCaService")
 		privateCaService, err = initializePrivateCaService(ctx)
 		if err != nil {
 			log.Errorf("Error initializePrivateCaService :%s", err.Error())
+			return nil, err
+		}
+		log.Debug("Calling initializeCloudDnsService")
+		cloudDnsService, err = initializeCloudDnsService(ctx)
+		if err != nil {
+			log.Errorf("Error initializeCloudDnsService :%s", err.Error())
 			return nil, err
 		}
 	}
@@ -179,6 +189,7 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 	}
 	if common.AuthType == common.USER_CERTIFICATE {
 		gServices.privateCaService = privateCaService
+		gServices.cloudDnsService = cloudDnsService
 	}
 	return &gServices, nil
 }
@@ -378,6 +389,35 @@ func _initializeSecretManagerService(ctx context.Context) (*secretmanager.Servic
 	svc, err := secretmanager.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		logger.Errorf("secretmanager.NewService error : %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
+	}
+
+	if endpoint != "" {
+		svc.BasePath = endpoint
+	}
+	return svc, nil
+}
+
+// _initializeCloudDnsService initializes the Cloud DNS API service in GCP
+func _initializeCloudDnsService(ctx context.Context) (*dns.Service, error) {
+	logger := util.GetLogger(ctx)
+	scopesOption := option.WithScopes(dns.CloudPlatformScope)
+	opts := []option.ClientOption{scopesOption}
+
+	if MockMetaDataHost != "" {
+		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", dns.CloudPlatformScope)))
+	}
+	logger.Debug("creating newClient")
+	client, endpoint, err := newClient(ctx, opts...)
+	if err != nil {
+		logger.Errorf("error while creating new client for _initializeCloudDnsService : %s", err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
+	}
+	client.Timeout = waitTimeoutMinutes
+
+	svc, err := dns.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		logger.Errorf("dns.NewService error : %v", err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
 	}
 

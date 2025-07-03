@@ -62,9 +62,10 @@ workerConfig:
   caName: ""
   caPoolName: ""
   caPoolDeployedProjectId: ""
+  secretManagerProjectId: ""
   vsaDeployedDnsName: ""
-  vsaSecretCacheCleanupIntervalHours: 50
-  vsaSecretAuthCacheExpirationHours: 50
+  vsaSecretCacheCleanupIntervalHours: 24
+  vsaSecretAuthCacheExpirationHours: 24
 
   # Database configuration
   database:

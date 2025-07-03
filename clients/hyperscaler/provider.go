@@ -46,6 +46,10 @@ type Services interface {
 	CreateServiceAccountKey(ctx context.Context, email string) (*iam.ServiceAccountKey, error)
 	DeleteAllServiceAccountKeys(ctx context.Context, email string) error
 	GetSecretWithCustomVersion(projectID, secretID string, versionID string) (*models.CustomSecret, error)
+
+	CreateResourceRecordSet(projectID, managedZone, ipAddress, recordName string) (*models.CustomCloudDNSRecord, error)
+	GetResourceRecordSet(projectID, managedZone, recordName string) (*models.CustomCloudDNSRecord, error)
+	DeleteResourceRecordSet(projectID, managedZone, recordName string) error
 }
 
 type GoogleServices interface {
