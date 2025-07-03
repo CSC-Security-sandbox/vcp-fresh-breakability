@@ -117,6 +117,19 @@ func TestGetPool(t *testing.T) {
 	assert.NotNil(t, found)
 }
 
+func TestDescribePool(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	pool := &datamodel.Pool{Name: "describepool", Account: &datamodel.Account{}}
+	created, err := store.CreatingPool(ctx, pool)
+	assert.NoError(t, err)
+	found, err := store.DescribePool(ctx, created.UUID, 0)
+	assert.NoError(t, err)
+	assert.NotNil(t, found)
+}
+
 func TestUpdatePool(t *testing.T) {
 	logger := log.NewLogger()
 	store, _ := SetupStorageForTest(logger)

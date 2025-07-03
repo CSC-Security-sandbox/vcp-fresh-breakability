@@ -310,6 +310,15 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+	rollbackManager := common.NewRollbackManager()
+
+	defer func() {
+		if err != nil {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
+
 	dbPool := pool
 	wf.Logger.Info("Updating pool with new parameters", "params", updatePoolParams) // Update the pool with the new parameters
 
@@ -331,6 +340,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		},
 	}
 
+	rollbackManager.Add(poolActivity.UpdatedPool, pool)
 	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPool, poolObj).Get(ctx, nil) // replace with the actual activity to update the pool
 	return nil, err
 }
@@ -425,8 +435,8 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	// Add the cleanup / rollback activity using this rollback.Add() method instead of writing multiple defer statements,
-	// this rollback manager will be invoked whenever there is an error and it will start calling clean up activities in LIFO manner ***/
-	rollbackManager.Add(poolActivity.FailedPool, dbPool)
+	// this rollback manager will be invoked whenever there is an error, and it will start calling clean up activities in LIFO manner ***/
+	rollbackManager.Add(poolActivity.FailedPool, dbPool, "Failed to delete pool")
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeletingPoolResources, dbPool).Get(ctx, nil)
 	if err != nil {

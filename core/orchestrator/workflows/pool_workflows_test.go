@@ -135,7 +135,7 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 		Return(nil)
 	// The UpdatedPool activity is called within updatePoolWorkflow.Run.
 	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).
-		Return(nil)
+		Return(nil, nil)
 
 	// Execute the workflow.
 	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool)
@@ -171,20 +171,25 @@ func TestDeletePoolWorkflow(t *testing.T) {
 		PoolID:      "test-pool",
 		AccountName: "test-account",
 	}
+
 	pool := &datamodel.Pool{
-		Username: "test-user",
-		Password: "test-password",
+		Name:               "test-pool",
+		AutoTierBucketName: "test-bucket",
+		ServiceAccountId:   "test-service-account",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-tenant",
+		},
 	}
 
 	// Mock activity responses
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("DeleteVSADeployment", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)

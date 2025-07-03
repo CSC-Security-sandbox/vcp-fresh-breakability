@@ -4789,6 +4789,8 @@ func (s PoolInternalV1betaStoragePoolState) Validate() error {
 		return nil
 	case "DISABLED":
 		return nil
+	case "DELETED":
+		return nil
 	case "DELETING":
 		return nil
 	case "ERROR":
@@ -5378,6 +5380,8 @@ func (s PoolV1betaStoragePoolState) Validate() error {
 	case "RESTORING":
 		return nil
 	case "DISABLED":
+		return nil
+	case "DELETED":
 		return nil
 	case "DELETING":
 		return nil
@@ -7911,6 +7915,14 @@ func (s *V1betaDeletePoolForbidden) Validate() error {
 }
 
 func (s *V1betaDeletePoolInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeletePoolNotFound) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err

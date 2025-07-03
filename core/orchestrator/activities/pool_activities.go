@@ -51,7 +51,9 @@ var (
 	SaveNodeDetails                           = _saveNodeDetails
 	DeleteLIFs                                = _deleteLIFs
 	DeleteSVMs                                = _deleteSVMs
+	FailedSVMs                                = _failedSVMs
 	DeleteNodes                               = _deleteNodes
+	FailedNodes                               = _failedNodes
 	DeletingNodes                             = _deletingNodes
 	DeletingSVMs                              = _deletingSVMs
 	CreateVPC                                 = _createVPC
@@ -107,11 +109,22 @@ func (j *PoolActivity) CreatingPool(ctx context.Context, pool *datamodel.Pool) (
 	return se.CreatingPool(ctx, pool)
 }
 
-func (j *PoolActivity) FailedPool(ctx context.Context, pool *datamodel.Pool, errMessage string) error {
+func (j *PoolActivity) FailedPool(ctx context.Context, pool *datamodel.Pool, errMsg string) error {
 	se := j.SE
-	_, err := se.ErroredResource(ctx, pool, errMessage)
+	pool.State = models.LifeCycleStateError
+	_, err := se.ErroredResource(ctx, pool, errMsg)
 	if err != nil {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// mark SVMs as failed SVMs
+	if err := FailedSVMs(ctx, se, pool); err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// mark nodes as failed nodes
+	if err := FailedNodes(ctx, se, pool); err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return nil
 }
@@ -1037,6 +1050,54 @@ func _deleteNodes(ctx context.Context, se database.Storage, pool *datamodel.Pool
 		}
 	}
 
+	return nil
+}
+
+// _failedSVMs updates svm status to error.
+func _failedSVMs(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
+	// Retrieve the svms associated with the pool
+	svms, err := se.GetSvmsByPoolID(ctx, pool.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return vsaerrors.NewVCPError(vsaerrors.ErrSVMNotFound, errors.New("SVM not found"))
+		}
+		return err
+	}
+	for _, svm := range svms {
+		// Check if the SVM is already marked for deletion
+		if svm.State == models.LifeCycleStateDeleting {
+			svm.State = models.LifeCycleStateError
+			svm.StateDetails = models.LifeCycleStateDeletionErrorDetails
+			err = se.ErroredSVM(ctx, svm, models.LifeCycleStateDeletionErrorDetails)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// _failedNodes updates nodes status to error.
+func _failedNodes(ctx context.Context, se database.Storage, pool *datamodel.Pool) error {
+	// Retrieve the nodes associated with the pool
+	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, fmt.Errorf("failed to retrieve nodes for pool %d: %w", pool.ID, err))
+	}
+
+	// Delete each node
+	for _, node := range nodes {
+		// Check if the node is already marked for deletion
+		if node.State == models.LifeCycleStateDeleting {
+			node.State = models.LifeCycleStateError
+			node.StateDetails = models.LifeCycleStateDeletionErrorDetails
+			err = se.ErroredNode(ctx, node, models.LifeCycleStateDeletionErrorDetails)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

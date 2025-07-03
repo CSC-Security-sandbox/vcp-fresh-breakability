@@ -1993,6 +1993,114 @@ func (_c *MockDataStore_DeletingSnapshot_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// DescribePool provides a mock function with given fields: ctx, poolUUID, accountID
+func (_m *MockDataStore) DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error) {
+	ret := _m.Called(ctx, poolUUID, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DescribePool")
+	}
+
+	var r0 *datamodel.PoolView
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.PoolView, error)); ok {
+		return rf(ctx, poolUUID, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.PoolView); ok {
+		r0 = rf(ctx, poolUUID, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.PoolView)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, poolUUID, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_DescribePool_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DescribePool'
+type MockDataStore_DescribePool_Call struct {
+	*mock.Call
+}
+
+// DescribePool is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolUUID string
+//   - accountID int64
+func (_e *MockDataStore_Expecter) DescribePool(ctx interface{}, poolUUID interface{}, accountID interface{}) *MockDataStore_DescribePool_Call {
+	return &MockDataStore_DescribePool_Call{Call: _e.mock.On("DescribePool", ctx, poolUUID, accountID)}
+}
+
+func (_c *MockDataStore_DescribePool_Call) Run(run func(ctx context.Context, poolUUID string, accountID int64)) *MockDataStore_DescribePool_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_DescribePool_Call) Return(_a0 *datamodel.PoolView, _a1 error) *MockDataStore_DescribePool_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_DescribePool_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.PoolView, error)) *MockDataStore_DescribePool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ErroredNode provides a mock function with given fields: ctx, node, errMsg
+func (_m *MockDataStore) ErroredNode(ctx context.Context, node *datamodel.Node, errMsg string) error {
+	ret := _m.Called(ctx, node, errMsg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ErroredNode")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Node, string) error); ok {
+		r0 = rf(ctx, node, errMsg)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_ErroredNode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ErroredNode'
+type MockDataStore_ErroredNode_Call struct {
+	*mock.Call
+}
+
+// ErroredNode is a helper method to define mock.On call
+//   - ctx context.Context
+//   - node *datamodel.Node
+//   - errMsg string
+func (_e *MockDataStore_Expecter) ErroredNode(ctx interface{}, node interface{}, errMsg interface{}) *MockDataStore_ErroredNode_Call {
+	return &MockDataStore_ErroredNode_Call{Call: _e.mock.On("ErroredNode", ctx, node, errMsg)}
+}
+
+func (_c *MockDataStore_ErroredNode_Call) Run(run func(ctx context.Context, node *datamodel.Node, errMsg string)) *MockDataStore_ErroredNode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Node), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ErroredNode_Call) Return(_a0 error) *MockDataStore_ErroredNode_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_ErroredNode_Call) RunAndReturn(run func(context.Context, *datamodel.Node, string) error) *MockDataStore_ErroredNode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ErroredResource provides a mock function with given fields: ctx, resource, errorMessage
 func (_m *MockDataStore) ErroredResource(ctx context.Context, resource interface{}, errorMessage string) (interface{}, error) {
 	ret := _m.Called(ctx, resource, errorMessage)
@@ -2049,6 +2157,54 @@ func (_c *MockDataStore_ErroredResource_Call) Return(_a0 interface{}, _a1 error)
 }
 
 func (_c *MockDataStore_ErroredResource_Call) RunAndReturn(run func(context.Context, interface{}, string) (interface{}, error)) *MockDataStore_ErroredResource_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ErroredSVM provides a mock function with given fields: ctx, svm, errMsg
+func (_m *MockDataStore) ErroredSVM(ctx context.Context, svm *datamodel.Svm, errMsg string) error {
+	ret := _m.Called(ctx, svm, errMsg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ErroredSVM")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm, string) error); ok {
+		r0 = rf(ctx, svm, errMsg)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_ErroredSVM_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ErroredSVM'
+type MockDataStore_ErroredSVM_Call struct {
+	*mock.Call
+}
+
+// ErroredSVM is a helper method to define mock.On call
+//   - ctx context.Context
+//   - svm *datamodel.Svm
+//   - errMsg string
+func (_e *MockDataStore_Expecter) ErroredSVM(ctx interface{}, svm interface{}, errMsg interface{}) *MockDataStore_ErroredSVM_Call {
+	return &MockDataStore_ErroredSVM_Call{Call: _e.mock.On("ErroredSVM", ctx, svm, errMsg)}
+}
+
+func (_c *MockDataStore_ErroredSVM_Call) Run(run func(ctx context.Context, svm *datamodel.Svm, errMsg string)) *MockDataStore_ErroredSVM_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Svm), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ErroredSVM_Call) Return(_a0 error) *MockDataStore_ErroredSVM_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_ErroredSVM_Call) RunAndReturn(run func(context.Context, *datamodel.Svm, string) error) *MockDataStore_ErroredSVM_Call {
 	_c.Call.Return(run)
 	return _c
 }

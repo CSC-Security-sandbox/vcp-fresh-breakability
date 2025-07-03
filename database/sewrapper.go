@@ -131,6 +131,26 @@ func (re *retryEngine) DeletingPool(ctx context.Context, pool *datamodel.Pool) e
 	return err
 }
 
+func (re *retryEngine) DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error) {
+	var var0 *datamodel.PoolView
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.DescribePool(ctx, poolUUID, accountID)
+		if err != nil {
+			re.logError("DescribePool", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error) {
 	var var0 *datamodel.PoolView
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -1225,6 +1245,44 @@ func (re *retryEngine) DeletingSVM(ctx context.Context, svm *datamodel.Svm) erro
 		err = re.dataStore.DeletingSVM(ctx, svm)
 		if err != nil {
 			re.logError("DeletingSVM", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
+func (re *retryEngine) ErroredNode(ctx context.Context, node *datamodel.Node, errMsg string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.ErroredNode(ctx, node, errMsg)
+		if err != nil {
+			re.logError("ErroredNode", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
+func (re *retryEngine) ErroredSVM(ctx context.Context, svm *datamodel.Svm, errMsg string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.ErroredSVM(ctx, svm, errMsg)
+		if err != nil {
+			re.logError("ErroredSVM", err)
 			if !isTransientErr(err) {
 				return false, err
 			}

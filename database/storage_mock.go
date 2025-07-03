@@ -2133,6 +2133,114 @@ func (_c *MockStorage_DeletingSnapshot_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// DescribePool provides a mock function with given fields: ctx, poolUUID, accountID
+func (_m *MockStorage) DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error) {
+	ret := _m.Called(ctx, poolUUID, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DescribePool")
+	}
+
+	var r0 *datamodel.PoolView
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.PoolView, error)); ok {
+		return rf(ctx, poolUUID, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.PoolView); ok {
+		r0 = rf(ctx, poolUUID, accountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.PoolView)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, poolUUID, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_DescribePool_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DescribePool'
+type MockStorage_DescribePool_Call struct {
+	*mock.Call
+}
+
+// DescribePool is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolUUID string
+//   - accountID int64
+func (_e *MockStorage_Expecter) DescribePool(ctx interface{}, poolUUID interface{}, accountID interface{}) *MockStorage_DescribePool_Call {
+	return &MockStorage_DescribePool_Call{Call: _e.mock.On("DescribePool", ctx, poolUUID, accountID)}
+}
+
+func (_c *MockStorage_DescribePool_Call) Run(run func(ctx context.Context, poolUUID string, accountID int64)) *MockStorage_DescribePool_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_DescribePool_Call) Return(_a0 *datamodel.PoolView, _a1 error) *MockStorage_DescribePool_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_DescribePool_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.PoolView, error)) *MockStorage_DescribePool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ErroredNode provides a mock function with given fields: ctx, node, errMsg
+func (_m *MockStorage) ErroredNode(ctx context.Context, node *datamodel.Node, errMsg string) error {
+	ret := _m.Called(ctx, node, errMsg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ErroredNode")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Node, string) error); ok {
+		r0 = rf(ctx, node, errMsg)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_ErroredNode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ErroredNode'
+type MockStorage_ErroredNode_Call struct {
+	*mock.Call
+}
+
+// ErroredNode is a helper method to define mock.On call
+//   - ctx context.Context
+//   - node *datamodel.Node
+//   - errMsg string
+func (_e *MockStorage_Expecter) ErroredNode(ctx interface{}, node interface{}, errMsg interface{}) *MockStorage_ErroredNode_Call {
+	return &MockStorage_ErroredNode_Call{Call: _e.mock.On("ErroredNode", ctx, node, errMsg)}
+}
+
+func (_c *MockStorage_ErroredNode_Call) Run(run func(ctx context.Context, node *datamodel.Node, errMsg string)) *MockStorage_ErroredNode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Node), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ErroredNode_Call) Return(_a0 error) *MockStorage_ErroredNode_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_ErroredNode_Call) RunAndReturn(run func(context.Context, *datamodel.Node, string) error) *MockStorage_ErroredNode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ErroredResource provides a mock function with given fields: ctx, resource, errorMessage
 func (_m *MockStorage) ErroredResource(ctx context.Context, resource interface{}, errorMessage string) (interface{}, error) {
 	ret := _m.Called(ctx, resource, errorMessage)
@@ -2189,6 +2297,54 @@ func (_c *MockStorage_ErroredResource_Call) Return(_a0 interface{}, _a1 error) *
 }
 
 func (_c *MockStorage_ErroredResource_Call) RunAndReturn(run func(context.Context, interface{}, string) (interface{}, error)) *MockStorage_ErroredResource_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ErroredSVM provides a mock function with given fields: ctx, svm, errMsg
+func (_m *MockStorage) ErroredSVM(ctx context.Context, svm *datamodel.Svm, errMsg string) error {
+	ret := _m.Called(ctx, svm, errMsg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ErroredSVM")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Svm, string) error); ok {
+		r0 = rf(ctx, svm, errMsg)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_ErroredSVM_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ErroredSVM'
+type MockStorage_ErroredSVM_Call struct {
+	*mock.Call
+}
+
+// ErroredSVM is a helper method to define mock.On call
+//   - ctx context.Context
+//   - svm *datamodel.Svm
+//   - errMsg string
+func (_e *MockStorage_Expecter) ErroredSVM(ctx interface{}, svm interface{}, errMsg interface{}) *MockStorage_ErroredSVM_Call {
+	return &MockStorage_ErroredSVM_Call{Call: _e.mock.On("ErroredSVM", ctx, svm, errMsg)}
+}
+
+func (_c *MockStorage_ErroredSVM_Call) Run(run func(ctx context.Context, svm *datamodel.Svm, errMsg string)) *MockStorage_ErroredSVM_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Svm), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ErroredSVM_Call) Return(_a0 error) *MockStorage_ErroredSVM_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_ErroredSVM_Call) RunAndReturn(run func(context.Context, *datamodel.Svm, string) error) *MockStorage_ErroredSVM_Call {
 	_c.Call.Return(run)
 	return _c
 }

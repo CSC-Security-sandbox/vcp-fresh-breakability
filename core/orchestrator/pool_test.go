@@ -337,7 +337,7 @@ func TestUpdatePool(t *testing.T) {
 			PoolId:      "test-pool-id",
 		}
 
-		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return nil, errors.New("account not found")
 		}
 
@@ -371,7 +371,7 @@ func TestUpdatePool(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-uuid", ID: 1},
 			Name:      "test_account",
 		}
-		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
 
@@ -408,7 +408,7 @@ func TestUpdatePool(t *testing.T) {
 		}
 		err = store.DB().Create(dbAccount).Error
 		assert.NoError(tt, err, "Failed to create account")
-		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
 
@@ -451,7 +451,7 @@ func TestUpdatePool(t *testing.T) {
 		err = store.DB().Create(dbAccount).Error
 		assert.NoError(tt, err, "Failed to create account")
 
-		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
 
@@ -513,7 +513,7 @@ func TestUpdatePool(t *testing.T) {
 		err = store.DB().Create(dbAccount).Error
 		assert.NoError(tt, err, "Failed to create account")
 
-		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
 
@@ -568,7 +568,7 @@ func TestGetPool(t *testing.T) {
 			return &datamodel.Account{Name: "test_account"}, nil
 		}
 
-		_, err = orch.GetPool(ctx, "non-existent-uuid", "")
+		_, err = orch.DescribePool(ctx, "non-existent-uuid", "")
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
 			assert.EqualError(tt, customErr.Unwrap(), "pool not found")
@@ -613,7 +613,7 @@ func TestGetPool(t *testing.T) {
 		err = store.DB().Create(pool).Error
 		assert.NoError(tt, err, "Failed to create pool")
 
-		result, err := orch.GetPool(ctx, "test-pool-uuid", "test_account")
+		result, err := orch.DescribePool(ctx, "test-pool-uuid", "test_account")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, pool.Name, result.Name)
 		assert.Equal(tt, account.Name, result.AccountName)
@@ -714,11 +714,11 @@ func TestValidateCreatePoolParams(t *testing.T) {
 			QosType:      QosTypeAuto,
 		}
 		err := _validateCreatePoolParams(params)
-		assert.EqualError(t, err, "Given pool size not supported. Pool size must be greater than 1TiB and a multiple of 1GiB")
+		assert.EqualError(t, err, "Given pool size not supported. Pool size must be greater than 2TiB and a multiple of 1GiB")
 	})
 	t.Run("ValidateCreatePoolParams_WithInvalidGiBSize_ReturnsError", func(tt *testing.T) {
 		params := &common.CreatePoolParams{
-			SizeInBytes:  1099511627777, // Exactly the minimum quota+1
+			SizeInBytes:  2 * 1099511627777, // Exactly the minimum quota+1
 			ServiceLevel: ServiceLevelNameFLEX,
 			QosType:      QosTypeAuto,
 		}
@@ -736,7 +736,7 @@ func TestValidateCreatePoolParams(t *testing.T) {
 	})
 	t.Run("ValidateCreatePoolParams_WithNoCustomPerformanceSet", func(tt *testing.T) {
 		params := &common.CreatePoolParams{
-			SizeInBytes:             1099511627776,
+			SizeInBytes:             2 * 1099511627776,
 			ServiceLevel:            ServiceLevelNameFLEX,
 			QosType:                 QosTypeAuto,
 			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: false, ThroughputMibps: 0, Iops: 0},
@@ -746,7 +746,7 @@ func TestValidateCreatePoolParams(t *testing.T) {
 	})
 	t.Run("ValidateCreatePoolParams_WithInvalidThroughputSetWithCustomPerformance", func(tt *testing.T) {
 		params := &common.CreatePoolParams{
-			SizeInBytes:             1099511627776,
+			SizeInBytes:             2 * 1099511627776,
 			ServiceLevel:            ServiceLevelNameFLEX,
 			QosType:                 QosTypeAuto,
 			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 0, Iops: 1000},
@@ -756,7 +756,7 @@ func TestValidateCreatePoolParams(t *testing.T) {
 	})
 	t.Run("ValidateCreatePoolParams_WithInvalidIOPSSetWithCustomPerformance", func(tt *testing.T) {
 		params := &common.CreatePoolParams{
-			SizeInBytes:             1099511627776,
+			SizeInBytes:             2 * 1099511627776,
 			ServiceLevel:            ServiceLevelNameFLEX,
 			QosType:                 QosTypeAuto,
 			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 128, Iops: 100},

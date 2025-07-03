@@ -81,6 +81,25 @@ func (d *DataStoreRepository) DeleteNode(ctx context.Context, node *datamodel.No
 	return nil
 }
 
+// ErroredNode marks a Node state to error in the database
+func (d *DataStoreRepository) ErroredNode(ctx context.Context, node *datamodel.Node, errMsg string) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+	node.UpdatedAt = time.Now()
+	node.State = models.LifeCycleStateError
+	node.StateDetails = errMsg
+	err = tx.Updates(node).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+	return nil
+}
+
 // DeletingNode updates the node entry to deleting state
 func (d *DataStoreRepository) DeletingNode(ctx context.Context, node *datamodel.Node) error {
 	db := d.db.GORM().WithContext(ctx)

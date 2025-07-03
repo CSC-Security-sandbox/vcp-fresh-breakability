@@ -56,6 +56,7 @@ type DataStore interface {
 	UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
 	DeletePool(ctx context.Context, pool *datamodel.Pool) error
 	DeletingPool(ctx context.Context, pool *datamodel.Pool) error
+	DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
 	GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
 	ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error)
 	GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.PoolView, error)
@@ -121,6 +122,8 @@ type DataStore interface {
 	DeletingNode(ctx context.Context, node *datamodel.Node) error
 	DeleteSVM(ctx context.Context, svm *datamodel.Svm) error
 	DeletingSVM(ctx context.Context, svm *datamodel.Svm) error
+	ErroredNode(ctx context.Context, node *datamodel.Node, errMsg string) error
+	ErroredSVM(ctx context.Context, svm *datamodel.Svm, errMsg string) error
 
 	CreatingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error)
 	UpdateSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error)

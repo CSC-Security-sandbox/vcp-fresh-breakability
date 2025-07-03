@@ -4601,6 +4601,18 @@ func TestV1betaDeletePoolInternalServerError_EncodeDecode(t *testing.T) {
 	var typ2 V1betaDeletePoolInternalServerError
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaDeletePoolNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaDeletePoolNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeletePoolNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaDeletePoolTooManyRequests_EncodeDecode(t *testing.T) {
 	var typ V1betaDeletePoolTooManyRequests
 	typ.SetFake()

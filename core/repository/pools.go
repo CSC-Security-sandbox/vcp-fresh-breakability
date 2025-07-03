@@ -93,6 +93,11 @@ func (d *DataStoreRepository) CreatingPool(ctx context.Context, pool *datamodel.
 	return nil, customerrors.NewConflictErr("pool already exists")
 }
 
+// DescribePool retrieves a pool by its UUID
+func (d *DataStoreRepository) DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error) {
+	return getPoolWithDetails(d.db.Unscoped().GORM().WithContext(ctx), &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: poolUUID}, AccountID: accountID})
+}
+
 // GetPool retrieves a pool by its UUID
 func (d *DataStoreRepository) GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error) {
 	return getPoolWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: poolUUID}, AccountID: accountID})

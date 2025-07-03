@@ -5253,6 +5253,15 @@ func (s *V1betaDeletePoolInternalServerError) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaDeletePoolNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeletePoolNotFound(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaDeletePoolTooManyRequests) SetFake() {
 	var unwrapped Error
 	{

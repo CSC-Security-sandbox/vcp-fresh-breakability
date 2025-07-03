@@ -109,6 +109,25 @@ func (d *DataStoreRepository) DeleteSVM(ctx context.Context, svm *datamodel.Svm)
 	return nil
 }
 
+// ErroredSVM marks an SVM with error state the database
+func (d *DataStoreRepository) ErroredSVM(ctx context.Context, svm *datamodel.Svm, errMsg string) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+	svm.UpdatedAt = time.Now()
+	svm.State = models.LifeCycleStateError
+	svm.StateDetails = errMsg
+	err = tx.Updates(svm).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+	return nil
+}
+
 // DeletingSVM deletes an SVM from the database
 func (d *DataStoreRepository) DeletingSVM(ctx context.Context, svm *datamodel.Svm) error {
 	db := d.db.GORM().WithContext(ctx)

@@ -1117,6 +1117,66 @@ func (_c *MockOrchestratorFactory_DeleteVolume_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// DescribePool provides a mock function with given fields: ctx, poolId, accountName
+func (_m *MockOrchestratorFactory) DescribePool(ctx context.Context, poolId string, accountName string) (*models.Pool, error) {
+	ret := _m.Called(ctx, poolId, accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DescribePool")
+	}
+
+	var r0 *models.Pool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*models.Pool, error)); ok {
+		return rf(ctx, poolId, accountName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *models.Pool); ok {
+		r0 = rf(ctx, poolId, accountName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.Pool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, poolId, accountName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_DescribePool_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DescribePool'
+type MockOrchestratorFactory_DescribePool_Call struct {
+	*mock.Call
+}
+
+// DescribePool is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolId string
+//   - accountName string
+func (_e *MockOrchestratorFactory_Expecter) DescribePool(ctx interface{}, poolId interface{}, accountName interface{}) *MockOrchestratorFactory_DescribePool_Call {
+	return &MockOrchestratorFactory_DescribePool_Call{Call: _e.mock.On("DescribePool", ctx, poolId, accountName)}
+}
+
+func (_c *MockOrchestratorFactory_DescribePool_Call) Run(run func(ctx context.Context, poolId string, accountName string)) *MockOrchestratorFactory_DescribePool_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DescribePool_Call) Return(_a0 *models.Pool, _a1 error) *MockOrchestratorFactory_DescribePool_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DescribePool_Call) RunAndReturn(run func(context.Context, string, string) (*models.Pool, error)) *MockOrchestratorFactory_DescribePool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackup provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) GetBackup(ctx context.Context, params *common.GetBackupParams) (*datamodel.Backup, error) {
 	ret := _m.Called(ctx, params)
@@ -1948,66 +2008,6 @@ func (_c *MockOrchestratorFactory_GetMultipleVolumes_Call) Return(_a0 []*models.
 }
 
 func (_c *MockOrchestratorFactory_GetMultipleVolumes_Call) RunAndReturn(run func(context.Context, []string, string) ([]*models.Volume, error)) *MockOrchestratorFactory_GetMultipleVolumes_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetPool provides a mock function with given fields: ctx, poolId, accountName
-func (_m *MockOrchestratorFactory) GetPool(ctx context.Context, poolId string, accountName string) (*models.Pool, error) {
-	ret := _m.Called(ctx, poolId, accountName)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetPool")
-	}
-
-	var r0 *models.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*models.Pool, error)); ok {
-		return rf(ctx, poolId, accountName)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) *models.Pool); ok {
-		r0 = rf(ctx, poolId, accountName)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*models.Pool)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, poolId, accountName)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockOrchestratorFactory_GetPool_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPool'
-type MockOrchestratorFactory_GetPool_Call struct {
-	*mock.Call
-}
-
-// GetPool is a helper method to define mock.On call
-//   - ctx context.Context
-//   - poolId string
-//   - accountName string
-func (_e *MockOrchestratorFactory_Expecter) GetPool(ctx interface{}, poolId interface{}, accountName interface{}) *MockOrchestratorFactory_GetPool_Call {
-	return &MockOrchestratorFactory_GetPool_Call{Call: _e.mock.On("GetPool", ctx, poolId, accountName)}
-}
-
-func (_c *MockOrchestratorFactory_GetPool_Call) Run(run func(ctx context.Context, poolId string, accountName string)) *MockOrchestratorFactory_GetPool_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
-	})
-	return _c
-}
-
-func (_c *MockOrchestratorFactory_GetPool_Call) Return(_a0 *models.Pool, _a1 error) *MockOrchestratorFactory_GetPool_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockOrchestratorFactory_GetPool_Call) RunAndReturn(run func(context.Context, string, string) (*models.Pool, error)) *MockOrchestratorFactory_GetPool_Call {
 	_c.Call.Return(run)
 	return _c
 }

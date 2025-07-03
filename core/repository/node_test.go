@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -156,6 +157,80 @@ func TestDeleteNode(t *testing.T) {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			tt.Errorf("Expected record not found error, got %v", err)
 		}
+	})
+}
+
+func TestErroredNode(t *testing.T) {
+	t.Run("WhenNodeIsMarkedErroredSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		node := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-node-uuid",
+			},
+			Name:      "test_node",
+			AccountID: int64(12),
+			PoolID:    1234,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(node).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create node: %v", err)
+		}
+
+		errMsg := "error during node update"
+		err = store.ErroredNode(context.Background(), node, errMsg)
+		assert.NoError(tt, err)
+
+		updatedNode := &datamodel.Node{}
+		err = store.db.GORM().First(updatedNode, "uuid = ?", node.UUID).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateError, updatedNode.State)
+		assert.Equal(tt, errMsg, updatedNode.StateDetails)
+		assert.WithinDuration(tt, time.Now(), updatedNode.UpdatedAt, 2*time.Second)
+	})
+
+	t.Run("WhenUpdatingNodeFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		node := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "test-node-uuid-2",
+			},
+			Name:      "failing_node",
+			AccountID: int64(34),
+			PoolID:    5678,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(node).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create node: %v", err)
+		}
+
+		// Force failure by dropping the underlying table
+		err = store.db.GORM().Exec("DROP TABLE nodes").Error
+		assert.NoError(tt, err)
+
+		errMsg := "simulated update error"
+		err = store.ErroredNode(context.Background(), node, errMsg)
+		assert.Error(tt, err)
+		var vcpErr *vsaerrors.CustomError
+		assert.True(tt, errors.As(err, &vcpErr))
+		assert.Contains(tt, err.Error(), "no such table")
 	})
 }
 

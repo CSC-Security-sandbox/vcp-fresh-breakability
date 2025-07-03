@@ -464,6 +464,8 @@ paths:
           $ref: '#/components/responses/StandardError-401'
         '403':
           $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
         '409':
           $ref: '#/components/responses/StandardError-409'
         '422':
@@ -6229,6 +6231,7 @@ components:
             - UPDATING
             - RESTORING
             - DISABLED
+            - DELETED
             - DELETING
             - ERROR
         storagePoolStateDetails:

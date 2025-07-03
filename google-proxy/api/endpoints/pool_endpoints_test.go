@@ -677,7 +677,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
-		mockOrchestrator.EXPECT().GetPool(mock.Anything, params.PoolId, params.ProjectNumber).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(nil, errors.NewNotFoundErr("not found", nil))
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -686,8 +686,8 @@ func TestV1betaDeletePool(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, float64(404), result.(*gcpgenserver.V1betaDeletePoolBadRequest).Code)
-		assert.Equal(tt, "Pool not found", result.(*gcpgenserver.V1betaDeletePoolBadRequest).Message)
+		assert.Equal(tt, float64(404), result.(*gcpgenserver.V1betaDeletePoolNotFound).Code)
+		assert.Equal(tt, "Pool not found", result.(*gcpgenserver.V1betaDeletePoolNotFound).Message)
 	})
 	t.Run("WhenPoolHasActiveVolumes", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -705,7 +705,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
-		mockOrchestrator.EXPECT().GetPool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
 		mockOrchestrator.EXPECT().DeletePool(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("pool has active volumes"))
 
 		handler := Handler{
@@ -715,8 +715,8 @@ func TestV1betaDeletePool(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, float64(409), result.(*gcpgenserver.V1betaDeletePoolBadRequest).Code)
-		assert.Equal(tt, "Pool has active volumes", result.(*gcpgenserver.V1betaDeletePoolBadRequest).Message)
+		assert.Equal(tt, float64(409), result.(*gcpgenserver.V1betaDeletePoolConflict).Code)
+		assert.Equal(tt, "Pool has active volumes", result.(*gcpgenserver.V1betaDeletePoolConflict).Message)
 	})
 	t.Run("WhenPoolDeletionSucceeds", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -742,7 +742,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
-		mockOrchestrator.EXPECT().GetPool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
 		mockOrchestrator.EXPECT().DeletePool(mock.Anything, mock.Anything).Return(deletedPool, "operation-id", nil)
 
 		handler := Handler{
@@ -791,7 +791,7 @@ func TestV1betaDescribePool(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		mockOrchestrator.EXPECT().GetPool(mock.Anything, params.PoolId, params.ProjectNumber).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(nil, errors.NewNotFoundErr("not found", nil))
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -814,7 +814,7 @@ func TestV1betaDescribePool(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		mockOrchestrator.EXPECT().GetPool(mock.Anything, params.PoolId, params.ProjectNumber).Return(nil, fmt.Errorf("internal error"))
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(nil, fmt.Errorf("internal error"))
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -845,7 +845,7 @@ func TestV1betaDescribePool(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
-		mockOrchestrator.EXPECT().GetPool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,

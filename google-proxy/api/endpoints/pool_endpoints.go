@@ -36,7 +36,7 @@ func (h Handler) V1betaDescribePool(ctx context.Context, params gcpgenserver.V1b
 			Message: parsingErr.Message,
 		}, nil
 	}
-	pool, err := h.Orchestrator.GetPool(ctx, params.PoolId, params.ProjectNumber)
+	pool, err := h.Orchestrator.DescribePool(ctx, params.PoolId, params.ProjectNumber)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			logger.Info("Pool not found", "uuid", params.PoolId)
@@ -175,11 +175,11 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 	}
 
 	// Check if the pool exists
-	existingPool, err := h.Orchestrator.GetPool(ctx, params.PoolId, params.ProjectNumber)
+	existingPool, err := h.Orchestrator.DescribePool(ctx, params.PoolId, params.ProjectNumber)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			logger.Info("Pool not found", "uuid", params.PoolId)
-			return &gcpgenserver.V1betaDeletePoolBadRequest{
+			return &gcpgenserver.V1betaDeletePoolNotFound{
 				Code:    404,
 				Message: "Pool not found",
 			}, nil
@@ -197,14 +197,14 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			logger.Info("Pool not found", "uuid", params.PoolId)
-			return &gcpgenserver.V1betaDeletePoolBadRequest{
+			return &gcpgenserver.V1betaDeletePoolNotFound{
 				Code:    404,
 				Message: "Pool not found",
 			}, nil
 		}
 		if errors.IsConflictErr(err) {
 			logger.Info("Pool has volume", "uuid", params.PoolId)
-			return &gcpgenserver.V1betaDeletePoolBadRequest{
+			return &gcpgenserver.V1betaDeletePoolConflict{
 				Code:    409,
 				Message: "Pool has active volumes",
 			}, nil

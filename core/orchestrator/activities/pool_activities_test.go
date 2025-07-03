@@ -1521,6 +1521,136 @@ func Test_DeleteLIFsReturnsErrorWhenLIFDeletionFails(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func TestUpdatesSVMStatusToErrorWhenMarkedForDeletion(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+	svms := []*datamodel.Svm{
+		{State: coremodel.LifeCycleStateDeleting, BaseModel: datamodel.BaseModel{ID: 1}},
+	}
+
+	mockStorage.On("GetSvmsByPoolID", ctx, pool.ID).Return(svms, nil)
+	mockStorage.On("ErroredSVM", ctx, svms[0], coremodel.LifeCycleStateDeletionErrorDetails).Return(nil)
+
+	err := activities.FailedSVMs(ctx, mockStorage, pool)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestReturnsErrorWhenSVMsNotFound(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+	mockStorage.On("GetSvmsByPoolID", ctx, pool.ID).Return(nil, gorm.ErrRecordNotFound)
+
+	err := activities.FailedSVMs(ctx, mockStorage, pool)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "SVM not found")
+	mockStorage.AssertExpectations(t)
+}
+
+func ReturnsErrorWhenErroredSVMFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+	svms := []*datamodel.Svm{
+		{State: coremodel.LifeCycleStateDeleting},
+	}
+
+	mockStorage.On("GetSvmsByPoolID", ctx, pool.ID).Return(svms, nil)
+	mockStorage.On("ErroredSVM", ctx, svms[0], coremodel.LifeCycleStateDeletionErrorDetails).Return(errors.New("failed to update SVM"))
+
+	err := activities.FailedSVMs(ctx, mockStorage, pool)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update SVM")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestSkipsSVMsNotMarkedForDeletion(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+	svms := []*datamodel.Svm{
+		{State: coremodel.LifeCycleStateREADY},
+	}
+
+	mockStorage.On("GetSvmsByPoolID", ctx, pool.ID).Return(svms, nil)
+
+	err := activities.FailedSVMs(ctx, mockStorage, pool)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdatesNodeStatusToErrorWhenMarkedForDeletion(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+	nodes := []*datamodel.Node{
+		{State: coremodel.LifeCycleStateDeleting},
+	}
+
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
+	mockStorage.On("ErroredNode", ctx, nodes[0], coremodel.LifeCycleStateDeletionErrorDetails).Return(nil)
+
+	err := activities.FailedNodes(ctx, mockStorage, pool)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestReturnsErrorWhenNodesNotFound(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nil, errors.New("nodes not found"))
+
+	err := activities.FailedNodes(ctx, mockStorage, pool)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to retrieve nodes for pool")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestReturnsErrorWhenErroredNodeFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+	nodes := []*datamodel.Node{
+		{State: coremodel.LifeCycleStateDeleting},
+	}
+
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
+	mockStorage.On("ErroredNode", ctx, nodes[0], coremodel.LifeCycleStateDeletionErrorDetails).Return(errors.New("failed to update node"))
+
+	err := activities.FailedNodes(ctx, mockStorage, pool)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update node")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestSkipsNodesNotMarkedForDeletion(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+	nodes := []*datamodel.Node{
+		{State: coremodel.LifeCycleStateREADY},
+	}
+
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nodes, nil)
+
+	err := activities.FailedNodes(ctx, mockStorage, pool)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
 func Test_DeletesAllNodesSuccessfully(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -3377,6 +3507,71 @@ func Test_IdentifyVMs_FailsToFindOptimalVMs(t *testing.T) {
 	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to find optimal VMs")
+}
+
+func TestMarksPoolAndResourcesAsFailedWhenErroredResourceSucceeds(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+	mockStorage.On("ErroredResource", ctx, pool, "error during pool deletion").Return(pool, nil)
+	mockStorage.On("GetSvmsByPoolID", ctx, pool.ID).Return([]*datamodel.Svm{}, nil)
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{}, nil)
+
+	err := activity.FailedPool(ctx, pool, "error during pool deletion")
+
+	assert.NoError(t, err)
+	assert.Equal(t, coremodel.LifeCycleStateError, pool.State)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestReturnsErrorWhenErroredResourceFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+	mockStorage.On("ErroredResource", ctx, pool, "error during pool deletion").Return(nil, errors.New("failed to mark pool as errored"))
+
+	err := activity.FailedPool(ctx, pool, "error during pool deletion")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to mark pool as errored")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestReturnsErrorWhenFailedSVMsFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+	mockStorage.On("ErroredResource", ctx, pool, "error during pool deletion").Return(pool, nil)
+	mockStorage.On("GetSvmsByPoolID", ctx, pool.ID).Return(nil, errors.New("failed to retrieve SVMs"))
+
+	err := activity.FailedPool(ctx, pool, "error during pool deletion")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to retrieve SVMs")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestReturnsErrorWhenFailedNodesFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+	mockStorage.On("ErroredResource", ctx, pool, "error during pool deletion").Return(pool, nil)
+	mockStorage.On("GetSvmsByPoolID", ctx, pool.ID).Return([]*datamodel.Svm{}, nil)
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nil, errors.New("failed to retrieve nodes"))
+
+	err := activity.FailedPool(ctx, pool, "error during pool deletion")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to retrieve nodes")
+	mockStorage.AssertExpectations(t)
 }
 
 func Test_deleteVSAClusterPassword(t *testing.T) {

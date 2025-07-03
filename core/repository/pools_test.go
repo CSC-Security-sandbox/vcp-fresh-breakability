@@ -85,6 +85,124 @@ func TestGetPool(t *testing.T) {
 	})
 }
 
+func TestDescribePool(t *testing.T) {
+	t.Run("WhenPoolExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		result, err := store.DescribePool(context.Background(), "test-pool-uuid", 0)
+		if err != nil {
+			tt.Errorf("Expected no error, got %v", err)
+		}
+		if result.Name != pool.Name {
+			tt.Errorf("Expected pool name %v, got %v", pool.Name, result.Name)
+		}
+		if result.Account.Name != account.Name {
+			tt.Errorf("Expected account name %v, got %v", account.Name, result.Account.Name)
+		}
+	})
+
+	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		_, err = store.DescribePool(context.Background(), "test-pool-uuid", 0)
+		if err == nil {
+			tt.Errorf("Expected error, got nil")
+		}
+		if !customerrors.IsNotFoundErr(err) {
+			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		}
+	})
+	t.Run("WhenPoolExistsButDeleted", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true}},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		result, err := store.DescribePool(context.Background(), "test-pool-uuid", 0)
+		if err != nil {
+			tt.Errorf("Expected no error, got %v", err)
+		}
+		if result.Name != pool.Name {
+			tt.Errorf("Expected pool name %v, got %v", pool.Name, result.Name)
+		}
+		if result.Account.Name != account.Name {
+			tt.Errorf("Expected account name %v, got %v", account.Name, result.Account.Name)
+		}
+	})
+}
+
 func TestGetPoolWithVendorID(t *testing.T) {
 	t.Run("WhenPoolExists", func(tt *testing.T) {
 		db, err := SetupTestDB()

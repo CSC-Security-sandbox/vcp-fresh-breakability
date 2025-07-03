@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -409,6 +410,79 @@ func TestGetSvmByKmsId(t *testing.T) {
 			tt.Errorf("Expected nil, got error")
 		}
 		assert.Equal(tt, 0, len(svms), "Expected no SVMs to be returned when KMS ID does not match")
+	})
+}
+
+func TestErroredSVM(t *testing.T) {
+	t.Run("WhenSvmIsMarkedErroredSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-svm-uuid",
+			},
+			Name:      "test_svm",
+			AccountID: int64(10),
+			PoolID:    1234,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(svm).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		errMsg := "error during svm update"
+		err = store.ErroredSVM(context.Background(), svm, errMsg)
+		assert.NoError(tt, err)
+
+		updatedSvm := &datamodel.Svm{}
+		err = store.db.GORM().First(updatedSvm, "uuid = ?", svm.UUID).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateError, updatedSvm.State)
+		assert.Equal(tt, errMsg, updatedSvm.StateDetails)
+		assert.WithinDuration(tt, time.Now(), updatedSvm.UpdatedAt, 2*time.Second)
+	})
+
+	t.Run("WhenUpdatingSvmFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "test-svm-uuid-2",
+			},
+			Name:      "failing_svm",
+			AccountID: int64(20),
+			PoolID:    5678,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.db.Create(svm).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		err = store.db.GORM().Exec("DROP TABLE svms").Error
+		assert.NoError(tt, err)
+
+		errMsg := "simulated update error"
+		err = store.ErroredSVM(context.Background(), svm, errMsg)
+		assert.Error(tt, err)
+		var vcpErr *vsaerrors.CustomError
+		assert.True(tt, errors.As(err, &vcpErr))
+		assert.Contains(tt, err.Error(), "no such table")
 	})
 }
 

@@ -14310,6 +14310,8 @@ func (s *PoolInternalV1betaStoragePoolState) Decode(d *jx.Decoder) error {
 		*s = PoolInternalV1betaStoragePoolStateRESTORING
 	case PoolInternalV1betaStoragePoolStateDISABLED:
 		*s = PoolInternalV1betaStoragePoolStateDISABLED
+	case PoolInternalV1betaStoragePoolStateDELETED:
+		*s = PoolInternalV1betaStoragePoolStateDELETED
 	case PoolInternalV1betaStoragePoolStateDELETING:
 		*s = PoolInternalV1betaStoragePoolStateDELETING
 	case PoolInternalV1betaStoragePoolStateERROR:
@@ -15635,6 +15637,8 @@ func (s *PoolV1betaStoragePoolState) Decode(d *jx.Decoder) error {
 		*s = PoolV1betaStoragePoolStateRESTORING
 	case PoolV1betaStoragePoolStateDISABLED:
 		*s = PoolV1betaStoragePoolStateDISABLED
+	case PoolV1betaStoragePoolStateDELETED:
+		*s = PoolV1betaStoragePoolStateDELETED
 	case PoolV1betaStoragePoolStateDELETING:
 		*s = PoolV1betaStoragePoolStateDELETING
 	case PoolV1betaStoragePoolStateERROR:
@@ -23964,6 +23968,44 @@ func (s *V1betaDeletePoolInternalServerError) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaDeletePoolInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeletePoolNotFound as json.
+func (s *V1betaDeletePoolNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeletePoolNotFound from json.
+func (s *V1betaDeletePoolNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeletePoolNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeletePoolNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeletePoolNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeletePoolNotFound) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

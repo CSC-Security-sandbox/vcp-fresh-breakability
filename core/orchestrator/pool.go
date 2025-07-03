@@ -25,11 +25,11 @@ import (
 )
 
 var (
-	minQuotaInBytesPool          = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 1099511627776)
-	maxQuotaInBytesPool          = env.GetUint64("MAX_QUOTA_IN_BYTES_POOL", 500*1099511627776) // 1TiB
-	minCustomThroughput          = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)                  // 64 MiBps
+	minQuotaInBytesPool          = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 2*TibInBytes)   // 2TiB
+	maxQuotaInBytesPool          = env.GetUint64("MAX_QUOTA_IN_BYTES_POOL", 500*TibInBytes) // 500TiB
+	minCustomThroughput          = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)               // 64 MiBps
 	minCustomIops                = env.GetUint64("MIN_CUSTOM_IOPS", 1024)
-	minSizeGranularity           = env.GetUint64("MIN_SIZE_GRANULARITY", 1073741824) // 1 GiB
+	minSizeGranularity           = env.GetUint64("MIN_SIZE_GRANULARITY", GibInBytes) // 1 GiB
 	createPool                   = _createPool
 	updatePool                   = _updatePool
 	ValidateCreatePoolParams     = _validateCreatePoolParams
@@ -44,6 +44,8 @@ var (
 const (
 	ServiceLevelNameFLEX = "FLEX"
 	QosTypeAuto          = "auto"
+	GibInBytes           = 1073741824
+	TibInBytes           = 1099511627776
 )
 
 // CreatePool creates the specified pool and adds it to the list of pools belonging to the specified owner
@@ -144,7 +146,7 @@ func (o *Orchestrator) UpdatePool(ctx context.Context, params *commonparams.Upda
 // _updatePool updates an existing pool
 func _updatePool(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.UpdatePoolParams) (*models.Pool, string, error) {
 	logger := util.GetLogger(ctx)
-	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	account, err := getAccountWithName(ctx, se, params.AccountName)
 	if err != nil {
 		return nil, "", err
 	}
@@ -199,7 +201,7 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 }
 
 // GetPool gets the specified pool
-func (o *Orchestrator) GetPool(ctx context.Context, poolId string, accountName string) (*models.Pool, error) {
+func (o *Orchestrator) DescribePool(ctx context.Context, poolId string, accountName string) (*models.Pool, error) {
 	se := o.storage
 
 	account, err := getAccountWithName(ctx, se, accountName)
@@ -207,7 +209,7 @@ func (o *Orchestrator) GetPool(ctx context.Context, poolId string, accountName s
 		return nil, err
 	}
 
-	pool, err := se.GetPool(ctx, poolId, account.ID)
+	pool, err := se.DescribePool(ctx, poolId, account.ID)
 	if err != nil {
 		return nil, err
 	}

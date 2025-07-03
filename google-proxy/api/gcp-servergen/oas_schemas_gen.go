@@ -10869,6 +10869,7 @@ const (
 	PoolInternalV1betaStoragePoolStateUPDATING         PoolInternalV1betaStoragePoolState = "UPDATING"
 	PoolInternalV1betaStoragePoolStateRESTORING        PoolInternalV1betaStoragePoolState = "RESTORING"
 	PoolInternalV1betaStoragePoolStateDISABLED         PoolInternalV1betaStoragePoolState = "DISABLED"
+	PoolInternalV1betaStoragePoolStateDELETED          PoolInternalV1betaStoragePoolState = "DELETED"
 	PoolInternalV1betaStoragePoolStateDELETING         PoolInternalV1betaStoragePoolState = "DELETING"
 	PoolInternalV1betaStoragePoolStateERROR            PoolInternalV1betaStoragePoolState = "ERROR"
 )
@@ -10882,6 +10883,7 @@ func (PoolInternalV1betaStoragePoolState) AllValues() []PoolInternalV1betaStorag
 		PoolInternalV1betaStoragePoolStateUPDATING,
 		PoolInternalV1betaStoragePoolStateRESTORING,
 		PoolInternalV1betaStoragePoolStateDISABLED,
+		PoolInternalV1betaStoragePoolStateDELETED,
 		PoolInternalV1betaStoragePoolStateDELETING,
 		PoolInternalV1betaStoragePoolStateERROR,
 	}
@@ -10901,6 +10903,8 @@ func (s PoolInternalV1betaStoragePoolState) MarshalText() ([]byte, error) {
 	case PoolInternalV1betaStoragePoolStateRESTORING:
 		return []byte(s), nil
 	case PoolInternalV1betaStoragePoolStateDISABLED:
+		return []byte(s), nil
+	case PoolInternalV1betaStoragePoolStateDELETED:
 		return []byte(s), nil
 	case PoolInternalV1betaStoragePoolStateDELETING:
 		return []byte(s), nil
@@ -10931,6 +10935,9 @@ func (s *PoolInternalV1betaStoragePoolState) UnmarshalText(data []byte) error {
 		return nil
 	case PoolInternalV1betaStoragePoolStateDISABLED:
 		*s = PoolInternalV1betaStoragePoolStateDISABLED
+		return nil
+	case PoolInternalV1betaStoragePoolStateDELETED:
+		*s = PoolInternalV1betaStoragePoolStateDELETED
 		return nil
 	case PoolInternalV1betaStoragePoolStateDELETING:
 		*s = PoolInternalV1betaStoragePoolStateDELETING
@@ -11732,6 +11739,7 @@ const (
 	PoolV1betaStoragePoolStateUPDATING         PoolV1betaStoragePoolState = "UPDATING"
 	PoolV1betaStoragePoolStateRESTORING        PoolV1betaStoragePoolState = "RESTORING"
 	PoolV1betaStoragePoolStateDISABLED         PoolV1betaStoragePoolState = "DISABLED"
+	PoolV1betaStoragePoolStateDELETED          PoolV1betaStoragePoolState = "DELETED"
 	PoolV1betaStoragePoolStateDELETING         PoolV1betaStoragePoolState = "DELETING"
 	PoolV1betaStoragePoolStateERROR            PoolV1betaStoragePoolState = "ERROR"
 )
@@ -11745,6 +11753,7 @@ func (PoolV1betaStoragePoolState) AllValues() []PoolV1betaStoragePoolState {
 		PoolV1betaStoragePoolStateUPDATING,
 		PoolV1betaStoragePoolStateRESTORING,
 		PoolV1betaStoragePoolStateDISABLED,
+		PoolV1betaStoragePoolStateDELETED,
 		PoolV1betaStoragePoolStateDELETING,
 		PoolV1betaStoragePoolStateERROR,
 	}
@@ -11764,6 +11773,8 @@ func (s PoolV1betaStoragePoolState) MarshalText() ([]byte, error) {
 	case PoolV1betaStoragePoolStateRESTORING:
 		return []byte(s), nil
 	case PoolV1betaStoragePoolStateDISABLED:
+		return []byte(s), nil
+	case PoolV1betaStoragePoolStateDELETED:
 		return []byte(s), nil
 	case PoolV1betaStoragePoolStateDELETING:
 		return []byte(s), nil
@@ -11794,6 +11805,9 @@ func (s *PoolV1betaStoragePoolState) UnmarshalText(data []byte) error {
 		return nil
 	case PoolV1betaStoragePoolStateDISABLED:
 		*s = PoolV1betaStoragePoolStateDISABLED
+		return nil
+	case PoolV1betaStoragePoolStateDELETED:
+		*s = PoolV1betaStoragePoolStateDELETED
 		return nil
 	case PoolV1betaStoragePoolStateDELETING:
 		*s = PoolV1betaStoragePoolStateDELETING
@@ -14463,6 +14477,10 @@ func (*V1betaDeletePoolInternalServerError) v1betaDeletePoolRes() {}
 type V1betaDeletePoolNoContent struct{}
 
 func (*V1betaDeletePoolNoContent) v1betaDeletePoolRes() {}
+
+type V1betaDeletePoolNotFound Error
+
+func (*V1betaDeletePoolNotFound) v1betaDeletePoolRes() {}
 
 type V1betaDeletePoolTooManyRequests Error
 

@@ -382,9 +382,15 @@ func (s *PersistenceStore) CreatedPool(ctx context.Context, pool *datamodel.Pool
 func (s *PersistenceStore) CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	return s.dataStore.CreatingPool(ctx, pool)
 }
+
+func (s *PersistenceStore) DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error) {
+	return s.dataStore.DescribePool(ctx, poolUUID, accountID)
+}
+
 func (s *PersistenceStore) GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error) {
 	return s.dataStore.GetPool(ctx, poolUUID, accountID)
 }
+
 func (s *PersistenceStore) UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	return s.dataStore.UpdatingPool(ctx, pool)
 }
@@ -587,6 +593,14 @@ func (s *PersistenceStore) DeleteLif(ctx context.Context, lif *datamodel.Lif) er
 
 func (s *PersistenceStore) DeleteNode(ctx context.Context, node *datamodel.Node) error {
 	return s.dataStore.DeleteNode(ctx, node)
+}
+
+func (s *PersistenceStore) ErroredNode(ctx context.Context, node *datamodel.Node, errMsg string) error {
+	return s.dataStore.ErroredNode(ctx, node, errMsg)
+}
+
+func (s *PersistenceStore) ErroredSVM(ctx context.Context, svm *datamodel.Svm, errMsg string) error {
+	return s.dataStore.ErroredSVM(ctx, svm, errMsg)
 }
 
 func (s *PersistenceStore) DeletingNode(ctx context.Context, node *datamodel.Node) error {
