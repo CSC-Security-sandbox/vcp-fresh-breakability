@@ -448,6 +448,7 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		CustomPerformanceEnabled: gcpgenserver.NewOptBool(customPerformanceEnabled),
 		// Unified Pool is set true & StorageClass is to software for VSA pools
 		UnifiedPool:             gcpgenserver.NewOptBool(true),
+		Unified:                 gcpgenserver.NewOptBool(true),
 		StorageClass:            gcpgenserver.NewOptStorageClassV1beta("SOFTWARE"),
 		AllowAutoTiering:        gcpgenserver.NewOptNilBool(pool.AllowAutoTiering),
 		HotTierSizeInBytes:      gcpgenserver.NewOptNilFloat64(float64(pool.HotTierSizeInBytes)),
@@ -535,16 +536,24 @@ func convertToPoolV1beta(pool *cvpmodels.PoolV1beta) *gcpgenserver.PoolV1beta {
 		AssetLocationMetadata:     gcpgenserver.NewOptNilPoolV1betaAssetLocationMetadata(assetLocationMetadata),
 		// Unified Pool is set false for SDE pools
 		UnifiedPool: gcpgenserver.NewOptBool(false),
+		Unified:     gcpgenserver.NewOptBool(false),
 	}
 }
 
 // validateCreatePoolParams validates the parameters for creating a pool.
 // It ensures that the provided parameters meet the requirements for a Unified Flex Storage Pool.
 func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgenserver.Error {
-	if !req.UnifiedPool.Value {
+	// Check both unified and unifiedPool fields (for backward compatibility)
+	unifiedValue := false
+	if req.Unified.IsSet() {
+		unifiedValue = req.Unified.Value
+	} else if req.UnifiedPool.IsSet() {
+		unifiedValue = req.UnifiedPool.Value
+	}
+	if !unifiedValue {
 		return &gcpgenserver.Error{
 			Code:    HTTP_BAD_REQUEST_CODE,
-			Message: "UnifiedPool must be set to true",
+			Message: "unified (or unifiedPool) must be set to true",
 		}
 	}
 

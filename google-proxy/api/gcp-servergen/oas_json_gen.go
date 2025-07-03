@@ -13508,6 +13508,12 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.Unified.Set {
+			e.FieldStart("unified")
+			s.Unified.Encode(e)
+		}
+	}
+	{
 		if s.UnifiedPool.Set {
 			e.FieldStart("unifiedPool")
 			s.UnifiedPool.Encode(e)
@@ -13531,7 +13537,7 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfPoolInternalV1beta = [40]string{
+var jsonFieldsNameOfPoolInternalV1beta = [41]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -13569,9 +13575,10 @@ var jsonFieldsNameOfPoolInternalV1beta = [40]string{
 	34: "assetLocationMetadata",
 	35: "customPerformanceEnabled",
 	36: "totalIops",
-	37: "unifiedPool",
-	38: "clusterName",
-	39: "interclusterLifs",
+	37: "unified",
+	38: "unifiedPool",
+	39: "clusterName",
+	40: "interclusterLifs",
 }
 
 // Decode decodes PoolInternalV1beta from json.
@@ -13579,7 +13586,7 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode PoolInternalV1beta to nil")
 	}
-	var requiredBitSet [5]uint8
+	var requiredBitSet [6]uint8
 	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
@@ -13960,6 +13967,16 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"totalIops\"")
 			}
+		case "unified":
+			if err := func() error {
+				s.Unified.Reset()
+				if err := s.Unified.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unified\"")
+			}
 		case "unifiedPool":
 			if err := func() error {
 				s.UnifiedPool.Reset()
@@ -14008,9 +14025,10 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [5]uint8{
+	for i, mask := range [6]uint8{
 		0b11010000,
 		0b00000010,
+		0b00000000,
 		0b00000000,
 		0b00000000,
 		0b00000000,
@@ -14863,6 +14881,12 @@ func (s *PoolV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.Unified.Set {
+			e.FieldStart("unified")
+			s.Unified.Encode(e)
+		}
+	}
+	{
 		if s.UnifiedPool.Set {
 			e.FieldStart("unifiedPool")
 			s.UnifiedPool.Encode(e)
@@ -14870,7 +14894,7 @@ func (s *PoolV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfPoolV1beta = [38]string{
+var jsonFieldsNameOfPoolV1beta = [39]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -14908,7 +14932,8 @@ var jsonFieldsNameOfPoolV1beta = [38]string{
 	34: "assetLocationMetadata",
 	35: "customPerformanceEnabled",
 	36: "totalIops",
-	37: "unifiedPool",
+	37: "unified",
+	38: "unifiedPool",
 }
 
 // Decode decodes PoolV1beta from json.
@@ -15296,6 +15321,16 @@ func (s *PoolV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"totalIops\"")
+			}
+		case "unified":
+			if err := func() error {
+				s.Unified.Reset()
+				if err := s.Unified.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"unified\"")
 			}
 		case "unifiedPool":
 			if err := func() error {

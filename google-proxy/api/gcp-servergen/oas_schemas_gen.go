@@ -2793,7 +2793,7 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
 
-// Export policy for a volume.
+// Export policy for a NAS volume.
 // Ref: #/components/schemas/ExportPolicy_v1beta
 type ExportPolicyV1beta struct {
 	Rules []SimpleExportPolicyRuleV1beta `json:"rules"`
@@ -10307,6 +10307,8 @@ type PoolInternalV1beta struct {
 	// The total iops set for a pool.
 	TotalIops OptNilFloat64 `json:"totalIops"`
 	// Indicates if the pool type is unified.
+	Unified OptBool `json:"unified"`
+	// Indicates if the pool type is unified.
 	UnifiedPool OptBool `json:"unifiedPool"`
 	// The name of the cluster.
 	ClusterName OptString `json:"clusterName"`
@@ -10497,6 +10499,11 @@ func (s *PoolInternalV1beta) GetCustomPerformanceEnabled() OptBool {
 // GetTotalIops returns the value of TotalIops.
 func (s *PoolInternalV1beta) GetTotalIops() OptNilFloat64 {
 	return s.TotalIops
+}
+
+// GetUnified returns the value of Unified.
+func (s *PoolInternalV1beta) GetUnified() OptBool {
+	return s.Unified
 }
 
 // GetUnifiedPool returns the value of UnifiedPool.
@@ -10697,6 +10704,11 @@ func (s *PoolInternalV1beta) SetCustomPerformanceEnabled(val OptBool) {
 // SetTotalIops sets the value of TotalIops.
 func (s *PoolInternalV1beta) SetTotalIops(val OptNilFloat64) {
 	s.TotalIops = val
+}
+
+// SetUnified sets the value of Unified.
+func (s *PoolInternalV1beta) SetUnified(val OptBool) {
+	s.Unified = val
 }
 
 // SetUnifiedPool sets the value of UnifiedPool.
@@ -11182,6 +11194,8 @@ type PoolV1beta struct {
 	// The total iops set for a pool.
 	TotalIops OptNilFloat64 `json:"totalIops"`
 	// Indicates if the pool type is unified.
+	Unified OptBool `json:"unified"`
+	// Indicates if the pool type is unified.
 	UnifiedPool OptBool `json:"unifiedPool"`
 }
 
@@ -11368,6 +11382,11 @@ func (s *PoolV1beta) GetCustomPerformanceEnabled() OptBool {
 // GetTotalIops returns the value of TotalIops.
 func (s *PoolV1beta) GetTotalIops() OptNilFloat64 {
 	return s.TotalIops
+}
+
+// GetUnified returns the value of Unified.
+func (s *PoolV1beta) GetUnified() OptBool {
+	return s.Unified
 }
 
 // GetUnifiedPool returns the value of UnifiedPool.
@@ -11558,6 +11577,11 @@ func (s *PoolV1beta) SetCustomPerformanceEnabled(val OptBool) {
 // SetTotalIops sets the value of TotalIops.
 func (s *PoolV1beta) SetTotalIops(val OptNilFloat64) {
 	s.TotalIops = val
+}
+
+// SetUnified sets the value of Unified.
+func (s *PoolV1beta) SetUnified(val OptBool) {
+	s.Unified = val
 }
 
 // SetUnifiedPool sets the value of UnifiedPool.
@@ -12858,6 +12882,8 @@ func (s *RestrictedActionsV1betaItem) UnmarshalText(data []byte) error {
 
 type SMBSettingsV1beta []SMBSettingsV1betaItem
 
+// SMB settings for the volume. These settings are used to control the behavior of the SMB protocol
+// on the NAS volume.
 type SMBSettingsV1betaItem string
 
 const (
@@ -19260,7 +19286,7 @@ type VolumeV1beta struct {
 	// A creation token must be supplied by the caller and is used by the API to ensure idempotent
 	// creation of a volume. Subsequent calls to the create-volume operation using the same creation
 	// token will have no effect. The creation token can be any user supplied string e.g. a randomly
-	// generated v4 Uuid.
+	// generated v4 Uuid.(This is required for a NAS volume).
 	CreationToken OptString `json:"creationToken"`
 	// Uuid of the pool Id under which volumes get created.
 	PoolId NilString `json:"poolId"`
@@ -19282,7 +19308,7 @@ type VolumeV1beta struct {
 	// name is one of premium or extreme, the performance will be that of the service level, not the
 	// performance equivalent.
 	ServiceLevel OptVolumeV1betaServiceLevel `json:"serviceLevel"`
-	// The security style of the volume.
+	// The security style of the NAS volume.
 	SecurityStyle OptVolumeV1betaSecurityStyle `json:"securityStyle"`
 	// Current storage usage for the volume in bytes.
 	UsedBytes OptNilFloat64 `json:"usedBytes"`
@@ -19319,15 +19345,15 @@ type VolumeV1beta struct {
 	MountPoints []MountPointV1beta `json:"mountPoints"`
 	// JSON dictionary of resource labels to allow linking of billing labels to a volume.
 	Labels OptVolumeV1betaLabels `json:"labels"`
-	// Flag indicating if the volume is a kerberos volume or not, export policy rules control kerberos
-	// security modes (krb5, krb5i, krb5p).
+	// Flag indicating if the NAS volume is a kerberos volume or not, export policy rules control
+	// kerberos security modes (krb5, krb5i, krb5p).
 	KerberosEnabled OptNilBool `json:"kerberosEnabled"`
-	// Flag indicating if the volume is NFS LDAP enabled or not.
+	// Flag indicating if the NAS volume is NFS LDAP enabled or not.
 	LdapEnabled OptNilBool `json:"ldapEnabled"`
-	// UNIX permissions for NFS volume accepted in octal 4 digit format. First digit selects the set user
-	// Id(4), set group Id (2) and sticky (1) attributes. Second digit selects permission for the owner
-	// of the file: read (4), write (2) and execute (1). Third selects permissions for other users in the
-	// same group. the fourth for other users not in the group. "0755" - gives read/write/execute
+	// UNIX permissions for NFS(NAS) volume accepted in octal 4 digit format. First digit selects the set
+	// user Id(4), set group Id (2) and sticky (1) attributes. Second digit selects permission for the
+	// owner of the file: read (4), write (2) and execute (1). Third selects permissions for other users
+	// in the same group. the fourth for other users not in the group. "0755" - gives read/write/execute
 	// permissions to owner and read/execute to group and other users.
 	UnixPermissions OptNilString `json:"unixPermissions"`
 	// Type of encryption used for volumes - can be either service managed key (service_managed) or
@@ -19886,7 +19912,7 @@ func (s *VolumeV1betaLabels) init() VolumeV1betaLabels {
 	return m
 }
 
-// The security style of the volume.
+// The security style of the NAS volume.
 type VolumeV1betaSecurityStyle string
 
 const (

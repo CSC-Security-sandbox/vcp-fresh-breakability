@@ -6385,11 +6385,17 @@ components:
           format: double
           nullable: true
           example: 1600.0
+        unified:
+          type: boolean
+          description: Indicates if the pool type is unified
+          default: false
+          example: false
         unifiedPool:
           type: boolean
           description: Indicates if the pool type is unified
           default: false
           example: false
+          x-deprecated-message: "Use 'unified' field instead. This field will be removed in a future version."
     Volume_v1beta:
       title: Volume v1beta model definition
       required:
@@ -6441,7 +6447,7 @@ components:
             by the API to ensure idempotent creation of a volume. Subsequent calls
             to the create-volume operation using the same creation token will have
             no effect. The creation token can be any user supplied string e.g. a randomly
-            generated v4 Uuid.
+            generated v4 Uuid.(This is required for a NAS volume)
           example: hopefully-sufficient-newton
         poolId:
           title: poolId
@@ -6520,7 +6526,7 @@ components:
         securityStyle:
           title: securityStyle
           type: string
-          description: The security style of the volume
+          description: The security style of the NAS volume.
           example: NTFS
           enum:
             - SECURITY_STYLE_UNSPECIFIED
@@ -6655,14 +6661,14 @@ components:
         kerberosEnabled:
           title: kerberosEnabled
           type: boolean
-          description: "Flag indicating if the volume is a kerberos volume or not,\
+          description: "Flag indicating if the NAS volume is a kerberos volume or not,\
             \ export policy rules control kerberos security modes (krb5, krb5i, krb5p)."
           nullable: true
           default: false
         ldapEnabled:
           title: ldapEnabled
           type: boolean
-          description: Flag indicating if the volume is NFS LDAP enabled or not.
+          description: Flag indicating if the NAS volume is NFS LDAP enabled or not.
           nullable: true
           readOnly: true
           default: false
@@ -6671,7 +6677,7 @@ components:
           maxLength: 4
           minLength: 4
           type: string
-          description: "UNIX permissions for NFS volume accepted in octal 4 digit\
+          description: "UNIX permissions for NFS(NAS) volume accepted in octal 4 digit\
             \ format. First digit selects the set user Id(4), set group Id (2) and\
             \ sticky (1) attributes. Second digit selects permission for the owner\
             \ of the file: read (4), write (2) and execute (1). Third selects permissions\
@@ -7063,7 +7069,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SimpleExportPolicyRule_v1beta'
-      description: Export policy for a volume
+      description: Export policy for a NAS volume.
     BackupConfig_v1beta:
       title: BackupConfig
       type: object
@@ -7415,6 +7421,8 @@ components:
       type: array
       items:
         type: string
+        description: SMB settings for the volume. These settings are used to control
+          the behavior of the SMB protocol on the NAS volume.
         example: ENCRYPT_DATA
         enum:
           - SMB_SETTINGS_UNSPECIFIED

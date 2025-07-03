@@ -151,6 +151,34 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 }
 
 func TestV1betaCreatePool(t *testing.T) {
+	t.Run("WhenUnifiedIsNotSetToTrue", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			Unified: gcpgenserver.NewOptBool(false),
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
+		assert.Equal(tt, "unified (or unifiedPool) must be set to true", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+	})
 	t.Run("WhenUnifiedPoolIsNotSetToTrue", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
@@ -177,7 +205,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
-		assert.Equal(tt, "UnifiedPool must be set to true", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+		assert.Equal(tt, "unified (or unifiedPool) must be set to true", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenRegionAndZoneParsingFails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -186,7 +214,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			ProjectNumber: "project-number",
 		}
 		req := &gcpgenserver.PoolV1beta{
-			UnifiedPool: gcpgenserver.NewOptBool(true),
+			Unified: gcpgenserver.NewOptBool(true),
 		}
 
 		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
@@ -215,7 +243,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			ProjectNumber: "project-number",
 		}
 		req := &gcpgenserver.PoolV1beta{
-			UnifiedPool:               gcpgenserver.NewOptBool(true),
+			Unified:                   gcpgenserver.NewOptBool(true),
 			ActiveDirectoryResourceId: gcpgenserver.NewOptString("some-resource-id"),
 		}
 
@@ -243,7 +271,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			ProjectNumber: "project-number",
 		}
 		req := &gcpgenserver.PoolV1beta{
-			UnifiedPool: gcpgenserver.NewOptBool(true),
+			Unified:     gcpgenserver.NewOptBool(true),
 			LdapEnabled: gcpgenserver.NewOptNilBool(true),
 		}
 
@@ -271,7 +299,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			ProjectNumber: "project-number",
 		}
 		req := &gcpgenserver.PoolV1beta{
-			UnifiedPool:  gcpgenserver.NewOptBool(true),
+			Unified:      gcpgenserver.NewOptBool(true),
 			ServiceLevel: gcpgenserver.PoolV1betaServiceLevelFLEX,
 			SizeInBytes:  1099511627776,
 			QosType:      gcpgenserver.NewOptNilString("auto"),
@@ -301,7 +329,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			ProjectNumber: "project-number",
 		}
 		req := &gcpgenserver.PoolV1beta{
-			UnifiedPool:  gcpgenserver.NewOptBool(true),
+			Unified:      gcpgenserver.NewOptBool(true),
 			ServiceLevel: gcpgenserver.PoolV1betaServiceLevelFLEX,
 			SizeInBytes:  1099511627776,
 			QosType:      gcpgenserver.NewOptNilString("auto"),
@@ -332,7 +360,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			ProjectNumber: "project-number",
 		}
 		req := &gcpgenserver.PoolV1beta{
-			UnifiedPool:   gcpgenserver.NewOptBool(true),
+			Unified:       gcpgenserver.NewOptBool(true),
 			ServiceLevel:  gcpgenserver.PoolV1betaServiceLevelFLEX,
 			SizeInBytes:   1099511627776,
 			QosType:       gcpgenserver.NewOptNilString("auto"),
@@ -365,7 +393,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		}
 
 		req := &gcpgenserver.PoolV1beta{
-			UnifiedPool:              gcpgenserver.NewOptBool(true),
+			Unified:                  gcpgenserver.NewOptBool(true),
 			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
 			SizeInBytes:              1099511627776,
 			QosType:                  gcpgenserver.NewOptNilString("auto"),
@@ -408,7 +436,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		}
 
 		req := &gcpgenserver.PoolV1beta{
-			UnifiedPool:              gcpgenserver.NewOptBool(true),
+			Unified:                  gcpgenserver.NewOptBool(true),
 			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
 			SizeInBytes:              1099511627776,
 			QosType:                  gcpgenserver.NewOptNilString("auto"),
@@ -446,7 +474,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		}
 
 		req := &gcpgenserver.PoolV1beta{
-			UnifiedPool:              gcpgenserver.NewOptBool(true),
+			Unified:                  gcpgenserver.NewOptBool(true),
 			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
 			SizeInBytes:              1099511627776,
 			QosType:                  gcpgenserver.NewOptNilString("auto"),

@@ -3057,6 +3057,11 @@ func (s *PoolInternalV1beta) SetFake() {
 	}
 	{
 		{
+			s.Unified.SetFake()
+		}
+	}
+	{
+		{
 			s.UnifiedPool.SetFake()
 		}
 	}
@@ -3379,6 +3384,11 @@ func (s *PoolV1beta) SetFake() {
 	{
 		{
 			s.TotalIops.SetFake()
+		}
+	}
+	{
+		{
+			s.Unified.SetFake()
 		}
 	}
 	{
