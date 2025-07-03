@@ -131,6 +131,7 @@ func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver
 // V1betaCreateBackup creates a backup for a given volume.
 func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.BackupCreateV1beta, params gcpgenserver.V1betaCreateBackupParams) (gcpgenserver.V1betaCreateBackupRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreateBackupBadRequest{
@@ -306,6 +307,7 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 
 func (h Handler) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params gcpgenserver.V1betaDeleteBackupUnderBackupVaultParams) (gcpgenserver.V1betaDeleteBackupUnderBackupVaultRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := utilParseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultBadRequest{
@@ -528,6 +530,7 @@ func encodeBackupV1(backupV1beta *gcpgenserver.BackupV1beta) (jx.Raw, error) {
 
 func deleteBackupToCVP(ctx context.Context, params gcpgenserver.V1betaDeleteBackupUnderBackupVaultParams) (gcpgenserver.V1betaDeleteBackupUnderBackupVaultRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 	cvpParams := &backups.V1betaDeleteBackupUnderBackupVaultParams{

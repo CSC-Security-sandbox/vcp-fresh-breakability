@@ -25,6 +25,7 @@ const ErrBackupVaultNotFound = "backup vault not found"
 
 func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultCreateV1beta, reqPayloadparams gcpgenserver.V1betaCreateBackupVaultParams) (gcpgenserver.V1betaCreateBackupVaultRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, reqPayloadparams.ProjectNumber, reqPayloadparams.LocationId, nil)
 	_, _, parsingErr := parseAndValidateRegionAndZone(reqPayloadparams.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
