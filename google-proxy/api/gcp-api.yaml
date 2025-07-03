@@ -6391,12 +6391,10 @@ components:
         unified:
           type: boolean
           description: Indicates if the pool type is unified
-          default: false
           example: false
         unifiedPool:
           type: boolean
           description: Indicates if the pool type is unified
-          default: false
           example: false
           x-deprecated-message: "Use 'unified' field instead. This field will be removed in a future version."
     Volume_v1beta:
