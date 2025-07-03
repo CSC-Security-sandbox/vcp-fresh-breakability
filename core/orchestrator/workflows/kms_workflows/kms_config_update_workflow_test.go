@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -54,6 +55,9 @@ func TestUpdateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("UpdateSDEKmsConfig", mock.Anything, kmsConfig, params).Return(nil)
 		env.OnActivity("UpdateKmsConfig", mock.Anything, kmsConfig, params).Return(nil)
 
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
 		// Execute workflow
 		env.ExecuteWorkflow(UpdateKmsConfigWorkflow, kmsConfig, params)
 
@@ -77,6 +81,9 @@ func TestUpdateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
 		// Set up test data
 		params := &common.UpdateKmsConfigParams{
 			Name:            "test-pool",
@@ -113,6 +120,9 @@ func TestUpdateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
 		// Set up test data
 		params := &common.UpdateKmsConfigParams{
 			Name:            "test-pool",

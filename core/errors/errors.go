@@ -129,6 +129,7 @@ const (
 	ErrMountingVolumeReplication                                     = 6056
 	ErrDescribingSDEJob                                              = 6057
 	ErrSDEJobNotFinished                                             = 6058
+	ErrSDEKmsDeleteJobFailed                                         = 6059
 )
 
 type Error interface {

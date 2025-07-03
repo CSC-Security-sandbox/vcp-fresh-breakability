@@ -1320,3 +1320,23 @@ func TestGetHgUUIDs(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAuthTokenFromContext(t *testing.T) {
+	t.Run("TokenPresent", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.AuthToken, "test-token")
+		got := GetAuthTokenFromContext(ctx)
+		assert.Equal(tt, "test-token", got)
+	})
+
+	t.Run("TokenAbsent", func(tt *testing.T) {
+		ctx := context.Background()
+		got := GetAuthTokenFromContext(ctx)
+		assert.Equal(tt, "", got)
+	})
+
+	t.Run("TokenWrongType", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.AuthToken, 12345)
+		got := GetAuthTokenFromContext(ctx)
+		assert.Equal(tt, "", got)
+	})
+}

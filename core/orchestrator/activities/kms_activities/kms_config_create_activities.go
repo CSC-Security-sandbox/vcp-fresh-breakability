@@ -26,7 +26,7 @@ var (
 // CreateKmsConfigSDEActivity creates a KMS configuration in SDE and polls for its completion.
 func (j *KmsConfigActivity) CreateKmsConfigSDEActivity(ctx context.Context, params *common.CreateKmsConfigParams) (*kms_configurations.V1betaCreateKmsConfigurationAccepted, error) {
 	logger := util.GetLogger(ctx)
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	jwtToken := utils.GetAuthTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 	var body = &cvpClientModels.KmsConfigV1beta{

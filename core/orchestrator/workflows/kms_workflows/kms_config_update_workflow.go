@@ -7,6 +7,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -84,7 +86,11 @@ func (wf *updateKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, options)
-
+	jwtToken, err := auth.GetSignedJwtToken(params.AccountName)
+	if err != nil {
+		return nil, err
+	}
+	ctx = workflow.WithValue(ctx, middleware.AuthToken, jwtToken)
 	defer func() {
 		if err != nil && kmsConfig.UUID != "" {
 			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateKmsConfigState, kmsConfig, params, models.LifeCycleStateError, err.Error()).Get(ctx, nil)

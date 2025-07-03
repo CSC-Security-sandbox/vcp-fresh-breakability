@@ -524,6 +524,8 @@ func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool
 			if err != nil {
 				return err
 			}
+		} else {
+			return err
 		}
 	}
 

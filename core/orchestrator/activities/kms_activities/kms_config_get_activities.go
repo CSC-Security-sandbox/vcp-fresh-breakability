@@ -16,7 +16,7 @@ import (
 // DescribeSDEKmsConfigurationActivity retrieves the KMS configuration details for the given KMS configuration.
 func (j *KmsConfigActivity) DescribeSDEKmsConfigurationActivity(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfigV1beta, error) {
 	logger := util.GetLogger(ctx)
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	jwtToken := utils.GetAuthTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 

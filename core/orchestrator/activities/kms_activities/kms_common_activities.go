@@ -64,7 +64,7 @@ func _pollCvpOperationForWorkflow(ctx context.Context, cvpClient cvpapi.Cvp, ope
 
 // PollKmsConfigOperationActivity polls the KMS configuration operation until it is done.
 func (j *KmsConfigActivity) PollKmsConfigOperationActivity(ctx context.Context, params *common.CreateKmsConfigParams) error {
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	jwtToken := utils.GetAuthTokenFromContext(ctx)
 	logger := util.GetLogger(ctx)
 	cvpClient := createClient(logger, jwtToken)
 
@@ -183,7 +183,7 @@ func (j *KmsConfigActivity) FailedKmsConfigCreateActivity(ctx context.Context, k
 // CreatedKmsConfigActivity updates the KMS configuration state to created
 func (j *KmsConfigActivity) CreatedKmsConfigActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig) error {
 	se := j.SE
-	kmsConfig.State = models.LifeCycleStateCreated
+	kmsConfig.State = models.LifeCycleStateREADY
 	kmsConfig.StateDetails = models.LifeCycleStateCreatedDetails
 	_, err := se.UpdateKmsConfigState(ctx, kmsConfig.UUID, kmsConfig.State, kmsConfig.StateDetails)
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -35,6 +36,12 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
 		// Set up test data
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",
@@ -71,6 +78,12 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
 		// Set up test data
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",
@@ -108,6 +121,12 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
 		// Set up test data
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",
@@ -149,6 +168,12 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
 		// Set up test data
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",
@@ -190,6 +215,12 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
 		// Set up test data
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",
@@ -232,6 +263,12 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
 		// Set up test data
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",
@@ -271,6 +308,12 @@ func TestCreateKmsConfig(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
 		// Set up test data
 		params := &common.CreateKmsConfigParams{
 			Name:        "test-kms",

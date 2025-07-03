@@ -7,7 +7,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -89,7 +91,11 @@ func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, defaultActivityOpts)
-
+	jwtToken, err := auth.GetSignedJwtToken(params.AccountName)
+	if err != nil {
+		return nil, err
+	}
+	ctx = workflow.WithValue(ctx, middleware.AuthToken, jwtToken)
 	sdeJobRetryOpts := defaultActivityOpts
 	sdeJobRetryOpts.RetryPolicy.MaximumAttempts = int32(SdeKmsJobRetryMaxAttempts)
 	ctx1 := workflow.WithActivityOptions(ctx, sdeJobRetryOpts)

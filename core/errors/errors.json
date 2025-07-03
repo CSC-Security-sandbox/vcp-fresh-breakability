@@ -238,5 +238,11 @@
     "message":  "Failed To Generate Access Token",
     "retriable": false,
     "http_code": 500
+  },
+  "6059": {
+    "description": "Delete Kms Job Failed",
+    "message":  "Error while deleting KMS configuration",
+    "retriable": false,
+    "http_code": 500
   }
 }

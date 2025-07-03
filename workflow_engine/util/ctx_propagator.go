@@ -18,7 +18,7 @@ var ContextPropagateKeys = []string{
 	// Any param which is context propagated in temporal
 	// should be json serializable
 	"logParam",
-	"authorization",
+	"Authorization",
 }
 
 // contextMapPropagator propagates the keySet across a workflow,
@@ -35,6 +35,8 @@ func NewContextMapPropagator() workflow.ContextPropagator {
 		switch key {
 		case "logParam":
 			keyMap[key] = middleware.TemporalSLoggerKey
+		case "Authorization":
+			keyMap[key] = middleware.AuthToken
 		default:
 			keyMap[key] = key
 		}

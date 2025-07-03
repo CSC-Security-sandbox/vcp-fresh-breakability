@@ -21,7 +21,7 @@ var createClient = cvp.CreateClient
 
 func UpdateSDEKmsConfiguration(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpgenserver.V1betaUpdateKmsConfigurationRes, error) {
 	logger := util.GetLogger(ctx)
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	jwtToken := utils.GetAuthTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 
 	body := &models.KmsConfigUpdateV1beta{}
@@ -56,7 +56,7 @@ func UpdateSDEKmsConfiguration(ctx context.Context, kmsConfig *datamodel.KmsConf
 
 func DeleteSDEKmsConfiguration(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.DeleteKmsConfigParams) (gcpgenserver.V1betaDeleteKmsConfigurationRes, error) {
 	logger := util.GetLogger(ctx)
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	jwtToken := utils.GetAuthTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 
 	deleteKmsConfigParams := &kms_configurations.V1betaDeleteKmsConfigurationParams{
@@ -80,7 +80,7 @@ func DeleteSDEKmsConfiguration(ctx context.Context, kmsConfig *datamodel.KmsConf
 
 func DescribeSDEJob(ctx context.Context, operationId, region, accountName, correlationId string) error {
 	logger := util.GetLogger(ctx)
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	jwtToken := utils.GetAuthTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 
 	describeOperationParams := &async.V1betaDescribeOperationParams{
@@ -94,6 +94,10 @@ func DescribeSDEJob(ctx context.Context, operationId, region, accountName, corre
 		return temporal.NewNonRetryableApplicationError("failed to describe operation", "DescribeOperationError", err)
 	}
 	if *res.Payload.Done {
+		if res.Payload.Error != nil {
+			logger.Errorf("failed to describe sde kms delete job: %v", res.Payload.Error)
+			return errors2.NewVCPError(errors2.ErrSDEKmsDeleteJobFailed, errors2.New("delete kms job failed"))
+		}
 		return nil
 	}
 
