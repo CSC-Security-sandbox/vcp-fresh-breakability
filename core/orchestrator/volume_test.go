@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -219,7 +220,54 @@ func TestCreateVolume(t *testing.T) {
 	})
 	t.Run("WhenValidateCreateVolumeParamFails", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-		se := database.Storage(nil)
+		mockLogger := log.NewLogger()
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
 
 		params := &common.CreateVolumeParams{
 			AccountName:  "test_account",
@@ -241,7 +289,7 @@ func TestCreateVolume(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 			return errors.New("invalid volume params")
 		}
 		defer func() {
@@ -250,7 +298,7 @@ func TestCreateVolume(t *testing.T) {
 		}()
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 
-		volume, _, err := createVolume(ctx, se, temporal, params)
+		volume, _, err := createVolume(ctx, store, temporal, params)
 		assert.EqualError(tt, err, "invalid volume params")
 		assert.Nil(tt, volume)
 	})
@@ -300,7 +348,7 @@ func TestCreateVolume(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 			return nil
 		}
 		defer func() {
@@ -375,7 +423,7 @@ func TestCreateVolume(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 			return nil
 		}
 		defer func() {
@@ -458,7 +506,7 @@ func TestCreateVolume(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 			return nil
 		}
 		defer func() {
@@ -554,7 +602,7 @@ func TestCreateVolume(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 			return nil
 		}
 		defer func() {
@@ -665,7 +713,7 @@ func TestCreateVolume(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 			return nil
 		}
 
@@ -789,6 +837,11 @@ func TestCreateVolume(t *testing.T) {
 				BackupPolicyId:         "test-backup-policy-id",
 				BackupChainBytes:       &[]int64{1000}[0],
 			},
+			TieringPolicy: &common.TieringPolicy{
+				CoolAccess:              true,
+				CoolAccessTieringPolicy: "ENABLED",
+				CoolnessPeriod:          30,
+			},
 		}
 
 		dbAccount := &datamodel.Account{
@@ -800,7 +853,7 @@ func TestCreateVolume(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 			return nil
 		}
 
@@ -904,7 +957,7 @@ func TestCreateVolume(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 			return nil
 		}
 
@@ -997,7 +1050,7 @@ func TestCreateVolume(t *testing.T) {
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
-		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 			return nil
 		}
 
@@ -1147,7 +1200,7 @@ func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
 	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 		return dbAccount, nil
 	}
-	validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+	validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 		return nil
 	}
 	defer func() {
@@ -1751,47 +1804,12 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			},
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.Nil(tt, err, "some error")
-	})
-	t.Run("WhenPoolNotFound", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-
-		mockLogger := log.NewLogger()
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			tt.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			t.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			tt.Fatalf("Failed to create account: %v", err)
-		}
-
-		params := &common.CreateVolumeParams{
-			Name:         "dummy-name",
-			PoolID:       "non-existent-pool",
-			QuotaInBytes: minQuotaInBytesPool + 1,
-		}
-
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
-
-		var customErr *vsaerrors.CustomError
-		if vsaerrors.As(err, &customErr) {
-			assert.EqualError(tt, customErr.Unwrap(), "pool not found")
-		} else {
-			tt.Fatalf("Expected a CustomError, got: %v", err)
-		}
 	})
 	t.Run("WhenPoolStateNotReady", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -1835,7 +1853,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			QuotaInBytes: minQuotaInBytesPool + 1,
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "pool is not ready")
 	})
 	t.Run("WhenQuotaIsTooSmall", func(tt *testing.T) {
@@ -1880,7 +1902,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			QuotaInBytes: minQuotaInBytesVolume - 1,
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "volume size must be between 100 GiB and 102,400 GiB.")
 	})
 	t.Run("WhenPoolNetworkIsNotSameAsVolume", func(tt *testing.T) {
@@ -1926,7 +1952,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Network:      "dummy-network",
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "pool network and volume network should be same")
 	})
 	t.Run("WhenSvmforPoolIdIsNotThere", func(tt *testing.T) {
@@ -1971,7 +2001,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			QuotaInBytes: minQuotaInBytesVolume + 1,
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "svm not found")
 	})
 	t.Run("WhenSvmforPoolIdNotInRightState", func(tt *testing.T) {
@@ -2029,7 +2063,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			QuotaInBytes: minQuotaInBytesVolume + 1,
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "svm is not ready")
 	})
 	t.Run("WhenCountOfNodes<2", func(tt *testing.T) {
@@ -2099,7 +2137,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			QuotaInBytes: minQuotaInBytesVolume + 1,
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "required count of nodes not found")
 	})
 	t.Run("WhenNodesNotInReadyState", func(tt *testing.T) {
@@ -2179,7 +2221,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			QuotaInBytes: minQuotaInBytesVolume + 1,
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "node is not ready")
 	})
 	t.Run("WhenGetLifForNodeFails", func(tt *testing.T) {
@@ -2259,7 +2305,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			QuotaInBytes: minQuotaInBytesVolume + 1,
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
 			assert.EqualError(tt, customErr.Unwrap(), "lif not found")
@@ -2364,7 +2414,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			QuotaInBytes: minQuotaInBytesVolume + 1,
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "lif for node test_node1 is not available")
 	})
 	t.Run("WhenBPAvailableWithNoHG", func(tt *testing.T) {
@@ -2466,8 +2520,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 				OSType: "linux",
 			},
 		}
-
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView, err := store.GetPool(ctx, params.PoolID, account.ID)
+		if err != nil {
+			tt.Fatalf("Failed to get pool view: %v", err)
+		}
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.Nil(tt, err)
 	})
 	t.Run("WhenBPAvailableWithInvalidHG", func(tt *testing.T) {
@@ -2499,6 +2556,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			State:     models.LifeCycleStateREADY,
+			Account:   account,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -2571,7 +2629,10 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			},
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
 	})
 	t.Run("WhenBPAvailableWithInvalidHGState", func(tt *testing.T) {
@@ -2603,6 +2664,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			State:     models.LifeCycleStateREADY,
+			Account:   account,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -2684,7 +2746,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			},
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "host group testhg is not available")
 	})
 	t.Run("WhenBPAvailableWithRightState", func(tt *testing.T) {
@@ -2716,6 +2782,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			State:     models.LifeCycleStateREADY,
+			Account:   account,
 		}
 
 		err = store.DB().Create(pool).Error
@@ -2797,8 +2864,510 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			},
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.Nil(tt, err)
+	})
+
+	t.Run("WhenCoolAccessNotAllowed", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:             "test_pool",
+			AccountID:        account.ID,
+			State:            models.LifeCycleStateREADY,
+			Account:          account,
+			AllowAutoTiering: false,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "name",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "testhg",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(hg).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType:         "linux",
+				HostGroupUUIDs: []string{"test-volume-uuid2"},
+			},
+			TieringPolicy: &common.TieringPolicy{
+				CoolAccess: true,
+			},
+		}
+		poolView, err := store.GetPool(ctx, params.PoolID, account.ID)
+		if err != nil {
+			tt.Fatalf("Failed to get pool view: %v", err)
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.EqualError(tt, err, "Auto Tiering is not allowed for this volume. Please enable Auto Tiering on the Pool and try again")
+	})
+
+	t.Run("WhenCoolnessPeriodBelowTheRange", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:             "test_pool",
+			AccountID:        account.ID,
+			State:            models.LifeCycleStateREADY,
+			Account:          account,
+			AllowAutoTiering: true,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "name",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "testhg",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(hg).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType:         "linux",
+				HostGroupUUIDs: []string{"test-volume-uuid2"},
+			},
+			TieringPolicy: &common.TieringPolicy{
+				CoolAccess:              true,
+				CoolAccessTieringPolicy: models2.VolumeInlineTieringPolicyAuto,
+				CoolnessPeriod:          1,
+			},
+		}
+
+		poolView, err := store.GetPool(ctx, params.PoolID, account.ID)
+		if err != nil {
+			tt.Fatalf("Failed to get pool view: %v", err)
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.EqualError(tt, err, "Auto Tiering Cooling Threshold days must be between 2 and 183 days")
+	})
+
+	t.Run("WhenCoolnessPeriodAboveTheRange", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:             "test_pool",
+			AccountID:        account.ID,
+			State:            models.LifeCycleStateREADY,
+			Account:          account,
+			AllowAutoTiering: true,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "name",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "testhg",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(hg).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType:         "linux",
+				HostGroupUUIDs: []string{"test-volume-uuid2"},
+			},
+			TieringPolicy: &common.TieringPolicy{
+				CoolAccess:              true,
+				CoolnessPeriod:          184,
+				CoolAccessTieringPolicy: models2.VolumeInlineTieringPolicyAuto,
+			},
+		}
+
+		poolView, err := store.GetPool(ctx, params.PoolID, account.ID)
+		if err != nil {
+			tt.Fatalf("Failed to get pool view: %v", err)
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.EqualError(tt, err, "Auto Tiering Cooling Threshold days must be between 2 and 183 days")
+	})
+
+	t.Run("WhenCoolAccessIsFalse", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:             "test_pool",
+			AccountID:        account.ID,
+			State:            models.LifeCycleStateREADY,
+			Account:          account,
+			AllowAutoTiering: true,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "name",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "testhg",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(hg).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType:         "linux",
+				HostGroupUUIDs: []string{"test-volume-uuid2"},
+			},
+			TieringPolicy: &common.TieringPolicy{
+				CoolAccess: false,
+			},
+		}
+		poolView, err := store.GetPool(ctx, params.PoolID, account.ID)
+		if err != nil {
+			tt.Fatalf("Failed to get pool view: %v", err)
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.NoError(tt, err)
 	})
 }
 
@@ -2912,7 +3481,11 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			},
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "backup vault id is required to assign a backup policy to a volume")
 	})
 	tt.Run("WhenBackupPolicySetWithoutScheduledBackupEnable", func(tt *testing.T) {
@@ -2926,7 +3499,11 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			},
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "scheduled backups needs to be enabled/disabled when a backup policy is assigned to a volume")
 	})
 	tt.Run("WhenBackupPolicySetOnDataProtectedVolume", func(tt *testing.T) {
@@ -2943,7 +3520,11 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			},
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "scheduled backups are not supported for cross region replication, only manual backups with existing snapshots are supported")
 	})
 	tt.Run("WhenBackupPolicyNotSetWithScheduledBackupNil", func(tt *testing.T) {
@@ -2956,7 +3537,11 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			},
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.Nil(tt, err)
 	})
 	tt.Run("WhenBackupPolicySetWithScheduledBackupEnabled", func(tt *testing.T) {
@@ -2972,7 +3557,11 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			},
 		}
 
-		err = validateCreateVolumeParams(ctx, store, params, account.ID)
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.Nil(tt, err)
 	})
 }

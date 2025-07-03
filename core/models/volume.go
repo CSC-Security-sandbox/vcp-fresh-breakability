@@ -25,6 +25,14 @@ type Volume struct {
 	Zone                  string
 	UsedBytes             uint64
 	EncryptionType        string
+	TieringPolicy         *TieringPolicy
+}
+
+// TieringPolicy describes the auto tiering policy for a volume
+type TieringPolicy struct {
+	CoolAccess              bool
+	CoolnessPeriod          int32
+	CoolAccessTieringPolicy string
 }
 
 type BlockProperties struct {

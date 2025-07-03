@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/iam/v1"
 )
@@ -69,7 +70,8 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 		restoreFromSnapshotParam.ParentVolumeSvmName = snapshot.Volume.Svm.Name
 		restoreFromSnapshotParam.SnapshotName = snapshot.Name
 	}
-	res, err := provider.CreateVolume(vsa.CreateVolumeParams{
+
+	params := vsa.CreateVolumeParams{
 		VolumeName:          volume.Name,
 		SvmName:             volume.Svm.Name,
 		AggregateName:       aggregateName,
@@ -77,7 +79,19 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 		VolumeType:          volumeType,
 		SnapshotPolicyName:  snapshotPolicyName,
 		RestoreFromSnapshot: &restoreFromSnapshotParam,
-	})
+		TieringPolicy: &vsa.TieringPolicy{
+			CoolAccessTieringPolicy: ontapModels.VolumeInlineTieringPolicyNone,
+		},
+	}
+
+	if volume.CoolAccess {
+		params.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&volume.CoolAccessTieringPolicy, ontapModels.VolumeInlineTieringPolicyAuto)
+		params.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&volume.CoolAccessRetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
+		params.TieringPolicy.CoolnessPeriod = int64(volume.CoolnessPeriod)
+	}
+
+	res, err := provider.CreateVolume(params)
+
 	if err != nil {
 		if errors.IsConflictErr(err) {
 			return HandleVolumeCreateConflict(volume, provider)

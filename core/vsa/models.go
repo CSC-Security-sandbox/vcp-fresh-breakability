@@ -102,6 +102,14 @@ type CreateVolumeParams struct {
 	SnapshotPolicyName string
 	// Reference to a snapshot for restore/clone
 	RestoreFromSnapshot *RestoreFromSnapshotParams // Optional: parameters for restoring from a snapshot
+	TieringPolicy       *TieringPolicy
+}
+
+// TieringPolicy describes the auto tiering policy for a volume
+type TieringPolicy struct {
+	CoolnessPeriod            int64
+	CoolAccessRetrievalPolicy string
+	CoolAccessTieringPolicy   string
 }
 
 type UpdateVolumeParams struct {

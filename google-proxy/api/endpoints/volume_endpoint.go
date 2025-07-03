@@ -14,11 +14,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/volumes"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -29,6 +31,7 @@ var (
 	getMultipleVolumesFromCVP     = _getMultipleVolumesFromCVP
 	prepareUpdateVolumeParams     = _prepareUpdateVolumeParams
 	prepareCreateVolumeParams     = _prepareCreateVolumeParams
+	autoTieringEnabled            = env.GetBool("AUTO_TIERING_ENABLED", false)
 )
 
 const (
@@ -186,6 +189,23 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			return nil, errors.NewUserInputValidationErr("only ISCSI protocol is supported")
 		}
 		param.Protocols = append(param.Protocols, string(protocolStr))
+	}
+
+	if req.Volume.TieringPolicy.IsSet() {
+		if !autoTieringEnabled {
+			return nil, errors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
+		}
+		param.TieringPolicy = &common.TieringPolicy{}
+		switch req.Volume.TieringPolicy.Value.TierAction.Value {
+		case gcpgenserver.TieringPolicyV1betaTierActionENABLED:
+			param.TieringPolicy.CoolAccess = true
+			param.TieringPolicy.CoolAccessTieringPolicy = ontapmodels.VolumeInlineTieringPolicyAuto
+			param.TieringPolicy.CoolAccessRetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
+			param.TieringPolicy.CoolnessPeriod = req.Volume.TieringPolicy.Value.CoolingThresholdDays.Value
+		case gcpgenserver.TieringPolicyV1betaTierActionPAUSED:
+			param.TieringPolicy.CoolAccess = false
+			param.TieringPolicy.CoolAccessTieringPolicy = ontapmodels.VolumeInlineTieringPolicyNone
+		}
 	}
 
 	if req.Volume.BlockProperties.IsSet() {
@@ -516,6 +536,14 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 
 	if volume.SnapshotPolicy != nil {
 		res.SnapshotPolicy = gcpgenserver.NewOptSnapshotPolicyV1beta(*convertToSnapshotPolicyV2(volume.SnapshotPolicy))
+	}
+
+	if volume.TieringPolicy != nil && volume.TieringPolicy.CoolAccess {
+		res.TieringPolicy = gcpgenserver.NewOptTieringPolicyV1beta(
+			gcpgenserver.TieringPolicyV1beta{
+				TierAction:           gcpgenserver.NewOptNilTieringPolicyV1betaTierAction(gcpgenserver.TieringPolicyV1betaTierActionENABLED),
+				CoolingThresholdDays: gcpgenserver.NewOptNilInt32(volume.TieringPolicy.CoolnessPeriod),
+			})
 	}
 
 	return res

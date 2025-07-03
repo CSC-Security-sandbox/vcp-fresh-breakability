@@ -1876,9 +1876,6 @@ type VolumeCreateParams struct {
 	ExportPolicy                   string
 	SecurityStyle                  string
 	SnapshotReservePercent         int64
-	TieringPolicy                  string
-	MinCoolingDays                 int64
-	CloudRetrievalPolicy           string
 	JunctionPath                   string
 	SnapshotDirectoryAccessEnabled bool
 	Encrypt                        bool
@@ -1886,6 +1883,14 @@ type VolumeCreateParams struct {
 	Language                       *string
 	Svm                            string
 	RestoreFromSnapshot            *RestoreFromSnapshotParams
+	TieringPolicy                  *TieringPolicy
+}
+
+// TieringPolicy describes the auto tiering policy for a volume
+type TieringPolicy struct {
+	TieringPolicy        string
+	MinCoolingDays       int64
+	CloudRetrievalPolicy string
 }
 
 const (
@@ -1980,6 +1985,17 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 
 	otParams.SetReturnTimeout(&returnTimeout)
 	otParams.SetReturnRecords(nillable.ToPointer("true"))
+
+	if params.TieringPolicy != nil {
+		otParams.Info.Tiering = &models.VolumeInlineTiering{
+			Policy:         nillable.ToPointer(params.TieringPolicy.TieringPolicy),
+			MinCoolingDays: nil,
+		}
+		if params.TieringPolicy.TieringPolicy == models.VolumeInlineTieringPolicyAuto || params.TieringPolicy.TieringPolicy == models.VolumeInlineTieringPolicySnapshotOnly {
+			otParams.Info.Tiering.MinCoolingDays = &params.TieringPolicy.MinCoolingDays
+			otParams.Info.CloudRetrievalPolicy = &params.TieringPolicy.CloudRetrievalPolicy
+		}
+	}
 	return otParams
 }
 

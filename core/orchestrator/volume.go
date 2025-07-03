@@ -33,6 +33,11 @@ var (
 	deleteVolume               = _deleteVolume
 )
 
+const (
+	minCoolnessPeriodDays = 2
+	maxCoolnessPeriodDays = 183
+)
+
 // CreateVolume creates the specified volume and adds it to the list of volume belonging to the specified owner
 func (o *Orchestrator) CreateVolume(ctx context.Context, params *common.CreateVolumeParams) (*models.Volume, string, error) {
 	return createVolume(ctx, o.storage, o.temporal, params)
@@ -46,12 +51,12 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	err = validateCreateVolumeParams(ctx, se, params, account.ID)
+	pool, err := se.GetPool(ctx, params.PoolID, account.ID)
 	if err != nil {
 		return nil, "", err
 	}
 
-	pool, err := se.GetPool(ctx, params.PoolID, account.ID)
+	err = validateCreateVolumeParams(ctx, se, params, pool)
 	if err != nil {
 		return nil, "", err
 	}
@@ -138,6 +143,13 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			IsEnabled: params.SnapshotPolicy.IsEnabled,
 			Schedules: convertToDBSnapshotPolicySchedule(params.SnapshotPolicy.Schedules),
 		}
+	}
+
+	if params.TieringPolicy != nil && params.TieringPolicy.CoolAccess {
+		volumeObj.CoolAccess = params.TieringPolicy.CoolAccess
+		volumeObj.CoolAccessTieringPolicy = params.TieringPolicy.CoolAccessTieringPolicy
+		volumeObj.CoolnessPeriod = params.TieringPolicy.CoolnessPeriod
+		volumeObj.CoolAccessRetrievalPolicy = params.TieringPolicy.CoolAccessRetrievalPolicy
 	}
 
 	dbVolume, err := se.CreateVolume(ctx, volumeObj)
@@ -243,14 +255,9 @@ func _getIPAddressForVolume(ctx context.Context, se database.Storage, volume *da
 	return lif.IPAddress, nil
 }
 
-func _validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+func _validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 	if params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytesVolume {
 		return customerrors.NewUserInputValidationErr("volume size must be between 100 GiB and 102,400 GiB.")
-	}
-
-	pool, err := se.GetPool(ctx, params.PoolID, accountID)
-	if err != nil {
-		return err
 	}
 
 	if pool.State != models.LifeCycleStateREADY {
@@ -315,6 +322,14 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 	}
 
+	if !pool.AllowAutoTiering && params.TieringPolicy != nil && params.TieringPolicy.CoolAccess {
+		return customerrors.NewUserInputValidationErr("Auto Tiering is not allowed for this volume. Please enable Auto Tiering on the Pool and try again")
+	} else if params.TieringPolicy != nil && params.TieringPolicy.CoolAccess {
+		if params.TieringPolicy.CoolnessPeriod < minCoolnessPeriodDays || params.TieringPolicy.CoolnessPeriod > maxCoolnessPeriodDays {
+			return customerrors.NewUserInputValidationErr("Auto Tiering Cooling Threshold days must be between 2 and 183 days")
+		}
+	}
+
 	return nil
 }
 
@@ -372,6 +387,15 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 			Schedules: convertToModelSnapshotPolicySchedule(volume.SnapshotPolicy.Schedules),
 		}
 	}
+
+	if volume.CoolAccess {
+		res.TieringPolicy = &models.TieringPolicy{
+			CoolAccess:              volume.CoolAccess,
+			CoolnessPeriod:          volume.CoolnessPeriod,
+			CoolAccessTieringPolicy: volume.CoolAccessTieringPolicy,
+		}
+	}
+
 	return res
 }
 

@@ -67,37 +67,126 @@ func TestCreateVolume_Failure(t *testing.T) {
 }
 
 func TestCreateVolumeInONTAP_Success(t *testing.T) {
-	// Arrange
-	mockProvider := new(vsa.MockProvider) // Use the mock provider
-	originalGetProviderByNode := activities.GetProviderByNode
-	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+	t.Run("TestCreateVolumeInONTAP_DefaultConfig_Success", func(t *testing.T) {
+		// Arrange
+		mockProvider := new(vsa.MockProvider) // Use the mock provider
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
-	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
-	}
+		// Mock GetProviderByNode to return the mock provider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
 
-	activity := activities.VolumeCreateActivity{
-		SE: database.NewMockStorage(t),
-	}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			IsDataProtection: false,
-		}}
-	node := &models.Node{}
-	expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
+		activity := activities.VolumeCreateActivity{
+			SE: database.NewMockStorage(t),
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			}}
+		node := &models.Node{}
+		expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
 
-	// Mock the CreateVolume method
-	mockProvider.On("CreateVolume", mock.Anything).Return(expectedResponse, nil)
+		// Mock the CreateVolume method
+		mockProvider.On("CreateVolume", mock.Anything).Return(expectedResponse, nil)
 
-	// Act
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
+		// Act
+		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
 
-	// Assert
-	assert.NoError(t, err)
-	assert.Equal(t, expectedResponse, result)
-	mockProvider.AssertExpectations(t)
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, result)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("TestCreateVolumeInONTAP_WhenCoolAccessFalse_DefaultConfigIsSet", func(t *testing.T) {
+		// Arrange
+		mockProvider := new(vsa.MockProvider) // Use the mock provider
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+		// Mock GetProviderByNode to return the mock provider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+
+		activity := activities.VolumeCreateActivity{
+			SE: database.NewMockStorage(t),
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volume := &datamodel.Volume{
+			Name:       "test-volume",
+			Svm:        &datamodel.Svm{Name: "test-svm"},
+			CoolAccess: false,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+		}
+
+		node := &models.Node{}
+		expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
+
+		// Mock the CreateVolume method
+		mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
+			return params.TieringPolicy.CoolAccessTieringPolicy == ontapModels.VolumeInlineTieringPolicyNone
+		})).Return(expectedResponse, nil)
+
+		// Act
+		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, result)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("TestCreateVolumeInONTAP_WhenCoolAccessTrue_AutoTierConfigIsSet", func(t *testing.T) {
+		// Arrange
+		mockProvider := new(vsa.MockProvider) // Use the mock provider
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+		// Mock GetProviderByNode to return the mock provider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
+			return mockProvider
+		}
+
+		activity := activities.VolumeCreateActivity{
+			SE: database.NewMockStorage(t),
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volume := &datamodel.Volume{
+			Name:                      "test-volume",
+			Svm:                       &datamodel.Svm{Name: "test-svm"},
+			CoolAccess:                true,
+			CoolAccessTieringPolicy:   "auto",
+			CoolAccessRetrievalPolicy: "onread",
+			CoolnessPeriod:            45,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+		}
+		node := &models.Node{}
+
+		expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
+
+		// Mock the CreateVolume method
+		mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
+			return params.TieringPolicy.CoolAccessTieringPolicy == ontapModels.VolumeInlineTieringPolicyAuto &&
+				params.TieringPolicy.CoolAccessRetrievalPolicy == "onread" &&
+				params.TieringPolicy.CoolnessPeriod == 45
+		})).Return(expectedResponse, nil)
+
+		// Act
+		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, result)
+		mockProvider.AssertExpectations(t)
+	})
 }
 
 func TestCreateVolumeInONTAP_Success_AlreadyCreated(t *testing.T) {

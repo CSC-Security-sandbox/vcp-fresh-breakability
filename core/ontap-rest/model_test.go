@@ -783,6 +783,11 @@ func TestVolumeCreateParamsToONTAP(t *testing.T) {
 			Svm:                            "svm1",
 			SnapshotReservePercent:         5,
 			SnapshotDirectoryAccessEnabled: true,
+			TieringPolicy: &TieringPolicy{
+				TieringPolicy:        "auto",
+				MinCoolingDays:       30,
+				CloudRetrievalPolicy: "default",
+			},
 		}
 		result := volumeCreateParamsToONTAP(params)
 		assert.NotNil(tt, result)
@@ -794,6 +799,9 @@ func TestVolumeCreateParamsToONTAP(t *testing.T) {
 		assert.NotNil(tt, result.Info.Space)
 		assert.NotNil(tt, result.Info.VolumeInlineAggregates)
 		assert.Equal(tt, "true", *result.ReturnRecords)
+		assert.Equal(tt, params.TieringPolicy.TieringPolicy, *result.Info.Tiering.Policy)
+		assert.Equal(tt, params.TieringPolicy.MinCoolingDays, *result.Info.Tiering.MinCoolingDays)
+		assert.Equal(tt, params.TieringPolicy.CloudRetrievalPolicy, *result.Info.CloudRetrievalPolicy)
 	})
 }
 

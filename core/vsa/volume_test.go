@@ -12,52 +12,109 @@ import (
 )
 
 func TestCreateVolume_Success(t *testing.T) {
-	mockStorage := new(ontaprest.MockStorageClient)
-	mockClient := new(ontaprest.MockRESTClient)
-	mockClient.On("Storage").Return(mockStorage)
+	t.Run("TestCreateVolumesSuccess_WithoutAutoTieringConfig", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
 
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
-	}
-	rc := &OntapRestProvider{}
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
 
-	volumeName := "testVolume"
-	volSpace := int64(1024)
-	params := CreateVolumeParams{
-		VolumeName:    volumeName,
-		SvmName:       "testSVM",
-		AggregateName: "testAggregate",
-		Size:          volSpace,
-		VolumeType:    "rw",
-	}
+		volumeName := "testVolume"
+		volSpace := int64(1024)
+		params := CreateVolumeParams{
+			VolumeName:    volumeName,
+			SvmName:       "testSVM",
+			AggregateName: "testAggregate",
+			Size:          volSpace,
+			VolumeType:    "rw",
+		}
 
-	mockJob := &ontaprest.JobAccepted{
-		JobUUID:      "testJobUUID",
-		ResourceUUID: "testResourceUUID",
-	}
-	mockVolume := &ontaprest.Volume{
-		Volume: models.Volume{
-			UUID: nillable.ToPointer("testUUID"),
-			Name: &volumeName,
-			Space: &models.VolumeInlineSpace{
-				Available: &volSpace,
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: nillable.ToPointer("testUUID"),
+				Name: &volumeName,
+				Space: &models.VolumeInlineSpace{
+					Available: &volSpace,
+				},
+				State: nillable.ToPointer(models.VolumeStateOnline),
 			},
-			State: nillable.ToPointer(models.VolumeStateOnline),
-		},
-	}
+		}
 
-	mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolume, mockJob, nil)
-	mockClient.On("Poll", mockJob.JobUUID).Return(nil)
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolume, mockJob, nil)
+		mockClient.On("Poll", mockJob.JobUUID).Return(nil)
 
-	resp, err := rc.CreateVolume(params)
+		resp, err := rc.CreateVolume(params)
 
-	assert.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.Equal(t, volumeName, resp.Name)
-	assert.Equal(t, "testUUID", resp.ExternalUUID)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, volumeName, resp.Name)
+		assert.Equal(t, "testUUID", resp.ExternalUUID)
 
-	mockStorage.AssertExpectations(t)
-	mockClient.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("TestCreateVolumesSuccess_WithAutoTieringConfig", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
+			return mockClient
+		}
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		volSpace := int64(1024)
+		tieringPolicy := TieringPolicy{
+			CoolnessPeriod:            30,
+			CoolAccessRetrievalPolicy: "Default",
+			CoolAccessTieringPolicy:   "auto",
+		}
+		params := CreateVolumeParams{
+			VolumeName:    volumeName,
+			SvmName:       "testSVM",
+			AggregateName: "testAggregate",
+			Size:          volSpace,
+			VolumeType:    "rw",
+			TieringPolicy: &tieringPolicy,
+		}
+
+		mockJob := &ontaprest.JobAccepted{
+			JobUUID:      "testJobUUID",
+			ResourceUUID: "testResourceUUID",
+		}
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: nillable.ToPointer("testUUID"),
+				Name: &volumeName,
+				Space: &models.VolumeInlineSpace{
+					Available: &volSpace,
+				},
+				State: nillable.ToPointer(models.VolumeStateOnline),
+			},
+		}
+
+		mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolume, mockJob, nil)
+		mockClient.On("Poll", mockJob.JobUUID).Return(nil)
+
+		resp, err := rc.CreateVolume(params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, volumeName, resp.Name)
+		assert.Equal(t, "testUUID", resp.ExternalUUID)
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
 }
 
 func TestCreateVolume_ErrorOnCreate(t *testing.T) {

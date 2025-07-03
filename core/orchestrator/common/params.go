@@ -74,6 +74,15 @@ type CreateVolumeParams struct {
 	SnapshotID       string
 	SnapshotPolicy   *models.SnapshotPolicy
 	Snapshot         *datamodel.Snapshot
+	TieringPolicy    *TieringPolicy
+}
+
+// TieringPolicy describes the auto tiering policy for a volume
+type TieringPolicy struct {
+	CoolAccess                bool
+	CoolnessPeriod            int32
+	CoolAccessTieringPolicy   string
+	CoolAccessRetrievalPolicy string
 }
 
 type BlockPropertiesRequest struct {

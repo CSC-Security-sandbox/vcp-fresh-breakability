@@ -137,6 +137,152 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
+
+	t.Run("WhenTieringPolicyIsEnabled", func(tt *testing.T) {
+		// Save and restore the original value
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test-volume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaISCSI,
+				},
+				BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
+					gcpgenserver.BlockPropertiesV1beta{
+						OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
+					},
+				),
+				BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
+					gcpgenserver.BackupConfigV1beta{
+						BackupPolicyId:         gcpgenserver.NewOptNilString("backup-policy-id"),
+						BackupVaultId:          gcpgenserver.NewOptNilString("backup-vault-id"),
+						ScheduledBackupEnabled: gcpgenserver.NewOptNilBool(true),
+					},
+				),
+				TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+					gcpgenserver.TieringPolicyV1beta{
+						TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
+						CoolingThresholdDays: gcpgenserver.OptNilInt32{
+							Value: 30,
+							Set:   true,
+						},
+					},
+				),
+			},
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:      "test-project",
+			Region:           "test-region",
+			Name:             "test-volume",
+			VendorID:         "/projects/test-project/locations/test-location/volumes/test-volume",
+			CreationToken:    "test-token",
+			PoolID:           "test-pool",
+			QuotaInBytes:     1024,
+			IsDataProtection: true,
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType: "LINUX",
+			},
+			Protocols: []string{
+				"ISCSI",
+			},
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: nillable.GetBoolPtr(true),
+				BackupVaultID:          "backup-vault-id",
+				BackupPolicyId:         "backup-policy-id",
+			},
+			TieringPolicy: &common.TieringPolicy{
+				CoolAccess:                true,
+				CoolnessPeriod:            30,
+				CoolAccessTieringPolicy:   "auto",
+				CoolAccessRetrievalPolicy: "default",
+			},
+		}
+		result, err := prepareCreateVolumeParams(req, params, region)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
+	})
+
+	t.Run("WhenTieringPolicyIsPaused", func(tt *testing.T) {
+		// Save and restore the original value
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test-volume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaISCSI,
+				},
+				BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
+					gcpgenserver.BlockPropertiesV1beta{
+						OsType: gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
+					},
+				),
+				BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(
+					gcpgenserver.BackupConfigV1beta{
+						BackupPolicyId:         gcpgenserver.NewOptNilString("backup-policy-id"),
+						BackupVaultId:          gcpgenserver.NewOptNilString("backup-vault-id"),
+						ScheduledBackupEnabled: gcpgenserver.NewOptNilBool(true),
+					},
+				),
+				TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+					gcpgenserver.TieringPolicyV1beta{
+						TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("PAUSED"),
+					},
+				),
+			},
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:      "test-project",
+			Region:           "test-region",
+			Name:             "test-volume",
+			VendorID:         "/projects/test-project/locations/test-location/volumes/test-volume",
+			CreationToken:    "test-token",
+			PoolID:           "test-pool",
+			QuotaInBytes:     1024,
+			IsDataProtection: true,
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType: "LINUX",
+			},
+			Protocols: []string{
+				"ISCSI",
+			},
+			DataProtection: &models.DataProtection{
+				ScheduledBackupEnabled: nillable.GetBoolPtr(true),
+				BackupVaultID:          "backup-vault-id",
+				BackupPolicyId:         "backup-policy-id",
+			},
+			TieringPolicy: &common.TieringPolicy{
+				CoolAccess:              false,
+				CoolAccessTieringPolicy: "none",
+			},
+		}
+		result, err := prepareCreateVolumeParams(req, params, region)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
+	})
 }
 
 func TestV1betaGetMultipleVolumes(t *testing.T) {
@@ -1614,6 +1760,52 @@ func TestV1betaCreateVolume(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
 		assert.True(tt, op.Done.Value)
 	})
+
+	t.Run("ValidCreateVolumeWithTieringPolicy", func(tt *testing.T) {
+		// Save and restore the original value
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test-volume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+				TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+					gcpgenserver.TieringPolicyV1beta{
+						TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
+						CoolingThresholdDays: gcpgenserver.OptNilInt32{
+							Value: 30,
+							Set:   true,
+						},
+					},
+				),
+			},
+			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "CREATING",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+		assert.False(tt, op.Done.Value)
+	})
 }
 
 func TestConvertModelToVCPVolume(t *testing.T) {
@@ -1633,4 +1825,40 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.Equal(t, "LINUX", string(out.BlockProperties.Value.OsType.Value))
 		assert.Equal(t, "ISCSI", string(out.Protocols[0]))
 	})
+}
+
+func TestPrepareCreateVolumeParams_WithAutoTieringFeatureDisabled(t *testing.T) {
+	// Save and restore the original value
+	currentATState := autoTieringEnabled
+	defer func() { autoTieringEnabled = currentATState }()
+	autoTieringEnabled = false
+
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "test-volume",
+			CreationToken: gcpgenserver.NewOptString("test-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+			Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
+					CoolingThresholdDays: gcpgenserver.OptNilInt32{
+						Value: 30,
+						Set:   true,
+					},
+				},
+			),
+		},
+		VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+
+	_, err := _prepareCreateVolumeParams(req, params, region)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Auto-Tiering feature is currently not enabled.")
 }

@@ -33,6 +33,14 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		volumeCreateParams.Size = 0
 	}
 
+	if params.TieringPolicy != nil {
+		volumeCreateParams.TieringPolicy = &ontapRest.TieringPolicy{
+			TieringPolicy:        params.TieringPolicy.CoolAccessTieringPolicy,
+			MinCoolingDays:       params.TieringPolicy.CoolnessPeriod,
+			CloudRetrievalPolicy: params.TieringPolicy.CoolAccessRetrievalPolicy,
+		}
+	}
+
 	vol, job, err := client.Storage().VolumeCreate(volumeCreateParams)
 	if err != nil {
 		if strings.Contains(err.Error(), "Duplicate volume name") {
