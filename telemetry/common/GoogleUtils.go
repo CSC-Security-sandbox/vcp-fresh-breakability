@@ -2,11 +2,12 @@ package common
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/servicecontrol/v1"
-	"strconv"
-	"strings"
 )
 
 // GetErrorMessage returns the error message from the result.

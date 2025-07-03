@@ -3,29 +3,28 @@ package collector
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"time"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"time"
 )
 
-var (
-	ctx    = context.Background()
-	logger = util.GetLogger(ctx)
-)
-
-func GetPoolMetrics(orchestrator orchestrator.OrchestratorFactory, config *common.TelemetryConfig) ([]entity.HydratedMetric, error) {
-	pools, err := orchestrator.ListAllPools(ctx)
+// GetPoolMetrics retrieves metrics for all pools from the database and returns them as a slice of HydratedMetric.
+func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig) ([]entity.HydratedMetric, error) {
+	conditions := [][]interface{}{{"deleted_at = ?", nil}}
+	logger := util.GetLogger(ctx)
+	pools, err := vcpDB.ListPools(ctx, conditions)
 	if err != nil {
 		logger.Error("Failed to list pools", "error", err.Error())
 		return []entity.HydratedMetric{}, err
 	}
 	logger.Info(fmt.Sprintf("Found %d pools", len(pools)))
 
-	if pools == nil {
+	if len(pools) == 0 {
 		return []entity.HydratedMetric{}, fmt.Errorf("no pools found from DB")
 	}
 
@@ -47,15 +46,15 @@ func GetPoolMetrics(orchestrator orchestrator.OrchestratorFactory, config *commo
 	return metrics, nil
 }
 
-func assemblePoolMetadata(pool *models.Pool, config *common.TelemetryConfig) metadata.ResourceMetadata {
+func assemblePoolMetadata(pool *datamodel.PoolView, config *common.TelemetryConfig) metadata.ResourceMetadata {
 	met := metadata.ResourceMetadata{}
 	met.SetResourceUUID(pool.UUID)
 	met.SetResourceName(pool.Name)
 	met.SetResourceDisplayName(pool.Name)
 	met.SetResourceType(metadata.VolumePool)
-	met.SetSizeInBytes(int64(pool.SizeInBytes))
+	met.SetSizeInBytes(pool.SizeInBytes)
 	met.SetRegionName(config.RegionName)
-	met.SetAccountName(pool.AccountName)
+	met.SetAccountName(pool.Account.Name)
 	return met
 }
 

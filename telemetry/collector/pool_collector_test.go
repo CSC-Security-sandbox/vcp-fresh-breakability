@@ -1,48 +1,121 @@
 package collector
 
 import (
+	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	orch "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"testing"
 )
 
-func Test_ReturnsEmptyMetricsWhenNoPoolsFound(t *testing.T) {
-	mockOrchestrator := orch.NewMockOrchestratorFactory(t)
-	mockOrchestrator.On("ListAllPools", mock.Anything).Return(nil, nil)
-	config := common.LoadConfig()
-	metrics, err := GetPoolMetrics(mockOrchestrator, config)
-
-	assert.Empty(t, metrics)
-	assert.EqualError(t, err, "no pools found from DB")
+type mockStorage struct {
+	mock.Mock
+	database.Storage
 }
 
-func Test_ReturnsMetricsForPoolsWithValidData(t *testing.T) {
-	mockOrchestrator := orch.NewMockOrchestratorFactory(t)
-	mockOrchestrator.On("ListAllPools", mock.Anything).Return([]*models.Pool{
-		{BaseModel: models.BaseModel{UUID: "pool1"}, Name: "Pool1", SizeInBytes: 1024, Region: "us-east-1", AccountName: "Account1"},
-		{BaseModel: models.BaseModel{UUID: "pool2"}, Name: "Pool2", SizeInBytes: 2048, Region: "us-west-1", AccountName: "Account2"},
-	}, nil)
+func (m *mockStorage) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error) {
+	args := m.Called(ctx, conditions)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*datamodel.PoolView), args.Error(1)
+}
 
-	metrics, err := GetPoolMetrics(mockOrchestrator, common.LoadConfig())
+func Test_GetPoolMetrics_ReturnsMetrics(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
 
+	var pools []*datamodel.PoolView
+	pools = append(
+		pools,
+		&datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					UUID: "pool-uuid-1",
+				},
+				Name:        "Pool1",
+				SizeInBytes: 1000,
+				Account: &datamodel.Account{
+					Name: "Account1",
+				},
+			},
+		},
+	)
+
+	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+
+	metrics, err := GetPoolMetrics(ctx, m, config)
+	assert.NoError(t, err)
+	assert.Len(t, metrics, 1)
+}
+
+func derefString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+func Test_GetPoolMetrics_MultiplePools(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	pools := []*datamodel.PoolView{
+		{
+			Pool: datamodel.Pool{
+				BaseModel:   datamodel.BaseModel{UUID: "pool-uuid-1"},
+				Name:        "Pool1",
+				SizeInBytes: 1000,
+				Account:     &datamodel.Account{Name: "Account1"},
+			},
+		},
+		{
+			Pool: datamodel.Pool{
+				BaseModel:   datamodel.BaseModel{UUID: "pool-uuid-2"},
+				Name:        "Pool2",
+				SizeInBytes: 2000,
+				Account:     &datamodel.Account{Name: "Account2"},
+			},
+		},
+	}
+
+	m.On("ListPools", mock.Anything, mock.Anything).Return(pools, nil)
+
+	metrics, err := GetPoolMetrics(ctx, m, config)
 	assert.NoError(t, err)
 	assert.Len(t, metrics, 2)
-	assert.Equal(t, "Pool1", *metrics[0].Metadata.ResourceName)
-	assert.Equal(t, float64(1024), metrics[0].Quantity)
-	assert.Equal(t, "Pool2", *metrics[1].Metadata.ResourceName)
-	assert.Equal(t, float64(2048), metrics[1].Quantity)
+	assert.Equal(t, float64(1000), metrics[0].Quantity)
+	assert.Equal(t, "Pool1", derefString(metrics[0].Metadata.ResourceName))
+	assert.Equal(t, "us-east-1", derefString(metrics[0].Metadata.RegionName))
+	assert.Equal(t, "Account1", derefString(metrics[0].Metadata.AccountName))
+	assert.Equal(t, float64(2000), metrics[1].Quantity)
+	assert.Equal(t, "Pool2", derefString(metrics[1].Metadata.ResourceName))
+	assert.Equal(t, "Account2", derefString(metrics[1].Metadata.AccountName))
 }
 
-func Test_ReturnsErrorWhenDatabaseFailsToListPools(t *testing.T) {
-	mockOrchestrator := orch.NewMockOrchestratorFactory(t)
-	mockOrchestrator.On("ListAllPools", mock.Anything).Return(nil, errors.New("database error"))
-	config := common.LoadConfig()
-	metrics, err := GetPoolMetrics(mockOrchestrator, config)
+func Test_GetPoolMetrics_EmptyPools(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	m.On("ListPools", mock.Anything, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 
+	metrics, err := GetPoolMetrics(ctx, m, config)
+	assert.Error(t, err)
 	assert.Empty(t, metrics)
-	assert.EqualError(t, err, "database error")
+}
+
+func Test_GetPoolMetrics_ListPoolsError(t *testing.T) {
+	m := new(mockStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+	m.On("ListPools", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+
+	metrics, err := GetPoolMetrics(ctx, m, config)
+	assert.Error(t, err)
+	assert.Empty(t, metrics)
 }

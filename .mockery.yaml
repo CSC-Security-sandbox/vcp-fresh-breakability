@@ -102,3 +102,15 @@ packages:
       dir: "{{.InterfaceDir}}"
     interfaces:
       OrchestratorFactory:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/performance:
+    config:
+      inpackage: True
+      dir: "{{.InterfaceDir}}"
+    interfaces:
+      Sink:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/processor:
+    config:
+      inpackage: True
+      dir: "{{.InterfaceDir}}"
+    interfaces:
+      Processor:

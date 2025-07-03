@@ -1,12 +1,13 @@
 package utils
 
 import (
+	"strconv"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
-	"strconv"
-	"time"
 )
 
 func CreateDummyMetrics() []entity.HydratedMetric {

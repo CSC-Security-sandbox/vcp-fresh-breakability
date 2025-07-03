@@ -80,6 +80,29 @@ func TestGetDbConnection(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestGetTelemetryDbConnection(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+
+	origInitializeDatabase := db.InitializeDatabase
+	db.InitializeDatabase = func(ctx context.Context, cfg *common.Config, logger log.Logger) (database.Storage, error) {
+		return &database.MockStorage{}, nil
+	}
+	defer func() { db.InitializeDatabase = origInitializeDatabase }()
+
+	dbCon, err := db.GetTelemetryDbConnection(ctx, logger)
+	assert.NoError(t, err)
+	assert.NotNil(t, dbCon)
+
+	// Test error case
+	db.InitializeDatabase = func(ctx context.Context, cfg *common.Config, logger log.Logger) (database.Storage, error) {
+		return nil, errors.New("failed to initialize telemetry database")
+	}
+	dbCon, err = db.GetTelemetryDbConnection(ctx, logger)
+	assert.Error(t, err)
+	assert.Nil(t, dbCon)
+}
+
 func TestCloseDatabase(t *testing.T) {
 	// Mock context and logger
 	logger := log.NewLogger()

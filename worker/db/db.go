@@ -75,6 +75,17 @@ func GetDbConnection(ctx context.Context, logger log.Logger) (database.Storage, 
 	return dbCon, nil
 }
 
+// GetTelemetryDbConnection retrieves the database connection using the provided context and logger.
+func GetTelemetryDbConnection(ctx context.Context, logger log.Logger) (database.Storage, error) {
+	cfg := common.LoadTelemetryConfig()
+	dbCon, err := InitializeDatabase(ctx, cfg, logger)
+	if err != nil {
+		logger.Error("Failed to initialize telemetry database", "error", err.Error())
+		return nil, err
+	}
+	return dbCon, nil
+}
+
 // CloseDatabase closes the database connection and logs any errors encountered.
 func CloseDatabase(dbCon database.Storage, logger log.Logger) {
 	if err := dbCon.Close(); err != nil {

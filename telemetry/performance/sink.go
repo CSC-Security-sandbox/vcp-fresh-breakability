@@ -2,15 +2,16 @@ package performance
 
 import (
 	"context"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/googlePusher"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"strings"
-	"sync"
-	"time"
 )
 
 const (
@@ -34,9 +35,10 @@ type GoogleSink struct {
 	logger       log.Logger
 }
 
-// NewSink creates a new GoogleSink with the provided logger and pipeline configuration.
-// Returns:
-// - A pointer to the newly created GoogleSink.
+func (s *GoogleSink) processMetricsResults(results []common.MetricsResult) {
+	s.logger.Warn("processMetricsResults not implemented")
+}
+
 func NewSink(ctx context.Context, config *common.TelemetryConfig) *GoogleSink {
 	return &GoogleSink{
 		metricClient: *googlePusher.NewGoogleMetricsClient(ctx, config.RootUrl, config),

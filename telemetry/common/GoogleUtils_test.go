@@ -2,9 +2,10 @@ package common
 
 import (
 	"fmt"
+	"testing"
+
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/servicecontrol/v1"
-	"testing"
 )
 
 func TestReturnsErrorMessageForValidReportResponse(t *testing.T) {

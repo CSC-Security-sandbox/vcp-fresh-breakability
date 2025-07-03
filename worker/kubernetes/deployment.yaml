@@ -89,4 +89,6 @@ spec:
             - name: GCP_HYDRATE_BATCH_SIZE
               value: "10"
             - name: VMRS_CONFIG_PATH
-              value: "config/vmrs_gcp.yaml"
+              value: "/config/vmrs_gcp.yaml"
+            - name: VLM_CONFIG_FILE_PATH
+              value: "/common/vsa_config/vlm-config.json"

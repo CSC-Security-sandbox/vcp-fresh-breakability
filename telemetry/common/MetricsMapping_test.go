@@ -1,8 +1,9 @@
 package common
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"testing"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 )
 
 func TestReturnsCorrectMappingForValidKey(t *testing.T) {

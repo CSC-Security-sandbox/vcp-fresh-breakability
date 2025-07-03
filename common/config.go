@@ -125,6 +125,11 @@ func LoadConfig() *Config {
 	}
 }
 
+// LoadTelemetryConfig TODO: Add telemetry config to this function
+func LoadTelemetryConfig() *Config {
+	return LoadConfig()
+}
+
 func parseDuration(value string) time.Duration {
 	duration, err := time.ParseDuration(value)
 	if err != nil {

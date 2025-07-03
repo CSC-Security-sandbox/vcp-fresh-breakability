@@ -2,8 +2,9 @@ package common
 
 import (
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"testing"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 )
 
 func TestCreatesMetricsResultWithValidResponse(t *testing.T) {

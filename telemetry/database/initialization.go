@@ -2,28 +2,60 @@ package database
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"errors"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/db"
-	"os/signal"
-	"syscall"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/db"
 )
 
-func InitializeDatabase() orchestrator.OrchestratorFactory {
-	ctx := context.WithValue(context.Background(), middleware.CorrelationContextKey, uuid.NewString())
-	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-	cfg := common.LoadConfig()
-	logger := log.NewLogger()
-	logger.Info("Initializing telemetry database connection", "dbType", cfg.DBType, "dbHost", cfg.DBHost, "dbName", cfg.DBName)
-	db, err := database.InitializeDatabase(ctx, cfg, logger)
-	if err != nil {
-		logger.Error("Failed to initialize database for telemetry", "error", err.Error())
-		return nil
+// Database interface defines the methods required for a database connection
+type Database interface {
+	GetConnection(ctx context.Context, logger log.Logger) (database.Storage, error)
+}
+
+// VCPDatabase interface defines the methods required for a VCP database connection
+type VCPDatabase interface {
+	GetConnection(ctx context.Context, logger log.Logger) (database.Storage, error)
+}
+
+// vcpDatabaseImpl implements the VCPDatabase interface
+// Use this concrete type where needed
+type vcpDataRepository struct{}
+
+func (vcp *vcpDataRepository) GetConnection(ctx context.Context, logger log.Logger) (database.Storage, error) {
+	return db.GetDbConnection(ctx, logger)
+}
+
+type TelemetryDatabase interface {
+	GetConnection(ctx context.Context, logger log.Logger) (database.Storage, error)
+}
+
+// telemetryDatabaseImpl implements the TelemetryDatabase interface
+// Use this concrete type where needed
+type telemetryDatabaseImpl struct{}
+
+func (telemetry *telemetryDatabaseImpl) GetConnection(ctx context.Context, logger log.Logger) (database.Storage, error) {
+	return db.GetTelemetryDbConnection(ctx, logger)
+}
+
+// Exported types for DI usage
+var (
+	VCPDatabaseImpl       = vcpDataRepository{}
+	TelemetryDatabaseImpl = telemetryDatabaseImpl{}
+)
+
+// InitializeDatabase initializes the database connection based on the provided Database type
+func InitializeDatabase(ctx context.Context, dbType Database, logger log.Logger) (database.Storage, error) {
+	if dbType == nil {
+		return nil, errors.New("database type is nil")
 	}
-	orch := orchestrator.GetNewOrchestrator(db, nil)
-	return orch
+	storage, err := dbType.GetConnection(ctx, logger)
+	if err != nil {
+		return nil, err
+	}
+	if storage == nil {
+		return nil, errors.New("database storage is nil")
+	}
+	return storage, nil
 }

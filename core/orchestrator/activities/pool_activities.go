@@ -76,6 +76,7 @@ var (
 	DeletePasswordFromCacheAndSecretManager   = _deletePasswordFromSecretManagerAndCache
 	LoadVMRSConfig                            = vmrs_config.LoadConfig
 	CreateDecisionMaker                       = vmrs_decision.NewDecisionMaker
+	vlmConfigFilePath                         = env.GetString("VLM_CONFIG_FILE_PATH", "common/vsa_config/vlm-config.json")
 )
 
 type PoolActivity struct {
@@ -511,7 +512,7 @@ func assignNetworkConfig(cfg *vlmconfig.VLMConfig, lifType vlmconfig.VSALIFType,
 }
 
 func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, decision *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
-	vlmContent, err := ReadFile("common/vsa_config/vlm-config.json")
+	vlmContent, err := ReadFile(vlmConfigFilePath)
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrFileReadError, err)
 	}

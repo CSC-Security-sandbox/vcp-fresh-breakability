@@ -3,6 +3,10 @@ package googlePusher
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"sync"
+	"time"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
@@ -16,9 +20,6 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/api/servicecontrol/v1"
 	"google.golang.org/api/transport"
-	"regexp"
-	"sync"
-	"time"
 )
 
 type Operation servicecontrol.Operation
