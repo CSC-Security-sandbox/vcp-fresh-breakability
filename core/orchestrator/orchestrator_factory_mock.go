@@ -1952,6 +1952,67 @@ func (_c *MockOrchestratorFactory_GetMultipleReplicationsInternal_Call) RunAndRe
 	return _c
 }
 
+// GetMultipleSnapshots provides a mock function with given fields: ctx, VolumeUuId, accountName, snapshotUUIDs
+func (_m *MockOrchestratorFactory) GetMultipleSnapshots(ctx context.Context, VolumeUuId string, accountName string, snapshotUUIDs []string) ([]*models.Snapshot, error) {
+	ret := _m.Called(ctx, VolumeUuId, accountName, snapshotUUIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMultipleSnapshots")
+	}
+
+	var r0 []*models.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, []string) ([]*models.Snapshot, error)); ok {
+		return rf(ctx, VolumeUuId, accountName, snapshotUUIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, []string) []*models.Snapshot); ok {
+		r0 = rf(ctx, VolumeUuId, accountName, snapshotUUIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, []string) error); ok {
+		r1 = rf(ctx, VolumeUuId, accountName, snapshotUUIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetMultipleSnapshots_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMultipleSnapshots'
+type MockOrchestratorFactory_GetMultipleSnapshots_Call struct {
+	*mock.Call
+}
+
+// GetMultipleSnapshots is a helper method to define mock.On call
+//   - ctx context.Context
+//   - VolumeUuId string
+//   - accountName string
+//   - snapshotUUIDs []string
+func (_e *MockOrchestratorFactory_Expecter) GetMultipleSnapshots(ctx interface{}, VolumeUuId interface{}, accountName interface{}, snapshotUUIDs interface{}) *MockOrchestratorFactory_GetMultipleSnapshots_Call {
+	return &MockOrchestratorFactory_GetMultipleSnapshots_Call{Call: _e.mock.On("GetMultipleSnapshots", ctx, VolumeUuId, accountName, snapshotUUIDs)}
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleSnapshots_Call) Run(run func(ctx context.Context, VolumeUuId string, accountName string, snapshotUUIDs []string)) *MockOrchestratorFactory_GetMultipleSnapshots_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].([]string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleSnapshots_Call) Return(_a0 []*models.Snapshot, _a1 error) *MockOrchestratorFactory_GetMultipleSnapshots_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetMultipleSnapshots_Call) RunAndReturn(run func(context.Context, string, string, []string) ([]*models.Snapshot, error)) *MockOrchestratorFactory_GetMultipleSnapshots_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetMultipleVolumes provides a mock function with given fields: ctx, volumeIds, accountName
 func (_m *MockOrchestratorFactory) GetMultipleVolumes(ctx context.Context, volumeIds []string, accountName string) ([]*models.Volume, error) {
 	ret := _m.Called(ctx, volumeIds, accountName)

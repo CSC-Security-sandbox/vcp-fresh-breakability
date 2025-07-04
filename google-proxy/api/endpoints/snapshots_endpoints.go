@@ -19,7 +19,44 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+var (
+	getMultipleSnapshotsFromCVP = _getMultipleSnapshotsFromCVP
+)
+
 func (h Handler) V1betaGetMultipleSnapshots(ctx context.Context, req *gcpgenserver.SnapshotIdListV1beta, params gcpgenserver.V1betaGetMultipleSnapshotsParams) (gcpgenserver.V1betaGetMultipleSnapshotsRes, error) {
+	logger := util.GetLogger(ctx)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaGetMultipleSnapshotsBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	if req.SnapshotUuids == nil {
+		return &gcpgenserver.V1betaGetMultipleSnapshotsBadRequest{
+			Code:    400,
+			Message: "SnapshotUUIDs cannot be empty",
+		}, nil
+	}
+
+	snapshotModelVCP, err := h.Orchestrator.GetMultipleSnapshots(ctx, params.VolumeId, params.ProjectNumber, req.SnapshotUuids)
+	if err != nil {
+		logger.Error("Failed to fetch snapshots", "error", err.Error())
+		return &gcpgenserver.V1betaGetMultipleSnapshotsInternalServerError{Code: 500, Message: "Internal server error"}, err
+	}
+
+	snapshotsVCP := make([]gcpgenserver.SnapshotV1beta, 0)
+	if len(snapshotModelVCP) > 0 { // If snapshots are found in VCP, return them else return from CVP
+		for _, snapshot := range snapshotModelVCP {
+			response := convertModelToVCPSnapshot(snapshot)
+			snapshotsVCP = append(snapshotsVCP, *response)
+		}
+	}
+	return getMultipleSnapshotsFromCVP(ctx, req, params, snapshotsVCP)
+}
+
+func _getMultipleSnapshotsFromCVP(ctx context.Context, req *gcpgenserver.SnapshotIdListV1beta, params gcpgenserver.V1betaGetMultipleSnapshotsParams, vcpSnapshots []gcpgenserver.SnapshotV1beta) (gcpgenserver.V1betaGetMultipleSnapshotsRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	reqPrams := &snapshots.V1betaGetMultipleSnapshotsParams{
@@ -82,20 +119,20 @@ func (h Handler) V1betaGetMultipleSnapshots(ctx context.Context, req *gcpgenserv
 		}
 	}
 
-	if resp == nil || resp.Payload == nil {
-		logger.Errorf("Received nil response CVP client for the V1betaGetMultipleSnapshots call: %v", err)
-		return &gcpgenserver.V1betaGetMultipleSnapshotsInternalServerError{
-			Code:    500,
-			Message: "unknown error during the get multiple snapshots",
-		}, nil
-	}
-
 	// Converting CVP model to gcpgenserver.SnapshotV1beta
 	snapResponse := gcpgenserver.V1betaGetMultipleSnapshotsOK{
 		Snapshots: []gcpgenserver.SnapshotV1beta{},
 	}
-	for _, snap := range resp.Payload.Snapshots {
-		snapResponse.Snapshots = append(snapResponse.Snapshots, convertToSnapshotsV1Beta(snap))
+
+	if resp != nil && resp.Payload != nil && len(resp.Payload.Snapshots) != 0 {
+		for _, snap := range resp.Payload.Snapshots {
+			snapResponse.Snapshots = append(snapResponse.Snapshots, convertToSnapshotsV1Beta(snap))
+		}
+	}
+
+	// Append VCP snapshots if any
+	if len(vcpSnapshots) > 0 {
+		snapResponse.Snapshots = append(snapResponse.Snapshots, vcpSnapshots...)
 	}
 	return &snapResponse, nil
 }

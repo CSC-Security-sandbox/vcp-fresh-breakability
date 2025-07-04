@@ -201,6 +201,44 @@ func _listSnapshots(ctx context.Context, se database.Storage, params *common.Lis
 	return snapshotsToReturn, nil
 }
 
+func (o *Orchestrator) GetMultipleSnapshots(ctx context.Context, volumeUuid string, accountName string, snapshotUUIDs []string) ([]*models.Snapshot, error) {
+	se := o.storage
+
+	account, err := getAccountWithName(ctx, se, accountName)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			util.GetLogger(ctx).Warnf("Account with name %s not found in VCP, checking in CVP", accountName)
+			return []*models.Snapshot{}, nil
+		}
+		return nil, err
+	}
+
+	volume, err := se.GetVolumeWithAccountID(ctx, volumeUuid, account.ID)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			util.GetLogger(ctx).Warnf("Volume with uuid %s not found in VCP, checking in CVP", volumeUuid)
+			return []*models.Snapshot{}, nil
+		}
+		return nil, err
+	}
+
+	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
+		utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
+		utils.NewFilterCondition().WithConditions("volume_id", "=", volume.ID),
+		utils.NewFilterCondition().WithConditions("uuid", "in", snapshotUUIDs)})
+
+	dbSnapshots, err := se.GetSnapshotsWithCondition(ctx, *filter)
+	if err != nil {
+		return nil, err
+	}
+
+	modelSnapshots := make([]*models.Snapshot, len(dbSnapshots))
+	for i, snapshot := range dbSnapshots {
+		modelSnapshots[i] = ConvertDatastoreSnapshotToModel(snapshot)
+	}
+	return modelSnapshots, nil
+}
+
 func (o *Orchestrator) UpdateSnapshot(ctx context.Context, params *common.UpdateSnapshotParams) (*models.Snapshot, string, error) {
 	return updateSnapshot(ctx, o.storage, o.temporal, params)
 }

@@ -20,8 +20,88 @@ import (
 )
 
 func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
+	t.Run("WhenRegionParsingError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaGetMultipleSnapshotsParams{
+			LocationId:    "bad-location",
+			ProjectNumber: "project-number",
+			VolumeId:      "volume-id",
+		}
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"snap-uuid-1"},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "", "", &gcpserver.Error{
+				Code:    400,
+				Message: "Invalid location ID",
+			}
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, _ := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpserver.V1betaGetMultipleSnapshotsBadRequest).Code)
+		assert.Equal(tt, "Invalid location ID", result.(*gcpserver.V1betaGetMultipleSnapshotsBadRequest).Message)
+	})
+
+	t.Run("WhenSnapshotUuidsIsNil", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaGetMultipleSnapshotsParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "volume-id",
+		}
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: nil,
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "region", "zone", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, _ := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpserver.V1betaGetMultipleSnapshotsBadRequest).Code)
+		assert.Equal(tt, "SnapshotUUIDs cannot be empty", result.(*gcpserver.V1betaGetMultipleSnapshotsBadRequest).Message)
+	})
+
+	t.Run("WhenOrchestratorReturnsError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaGetMultipleSnapshotsParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "volume-id",
+		}
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"snap-uuid-1"},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "region", "zone", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		mockOrchestrator.EXPECT().GetMultipleSnapshots(mock.Anything, params.VolumeId, mock.Anything, req.SnapshotUuids).Return(nil, errors.New("internal error"))
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
+		assert.Error(tt, err)
+		internal, ok := result.(*gcpserver.V1betaGetMultipleSnapshotsInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internal.Code)
+	})
+
 	t.Run("WhenGetMultipleSnapshotsFailsWithBadRequest", func(tt *testing.T) {
 		mockClient := snapshots.NewMockClientService(tt)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
 
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:     "location-id",
@@ -50,174 +130,19 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().GetMultipleSnapshots(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
 		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, errorCode, result.(*gcpserver.V1betaGetMultipleSnapshotsBadRequest).Code)
 		assert.Equal(tt, errorMessage, result.(*gcpserver.V1betaGetMultipleSnapshotsBadRequest).Message)
-	})
-
-	t.Run("WhenGetMultipleSnapshotsFailsWithUnauthorized", func(tt *testing.T) {
-		mockClient := snapshots.NewMockClientService(tt)
-
-		params := gcpserver.V1betaGetMultipleSnapshotsParams{
-			LocationId:     "location-id",
-			ProjectNumber:  "project-number",
-			VolumeId:       "volume-resource-id",
-			XCorrelationID: gcpserver.NewOptString("X-Correlation-ID"),
-		}
-		req := &gcpserver.SnapshotIdListV1beta{
-			SnapshotUuids: []string{"uri1", "uri2"},
-		}
-
-		errorMessage := "Unauthorized error"
-		errorCode := float64(401)
-		mockError := &snapshots.V1betaGetMultipleSnapshotsUnauthorized{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		mockClient.EXPECT().V1betaGetMultipleSnapshots(mock.Anything).Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{Snapshots: mockClient}
-		originalClient := createClient
-		defer func() {
-			createClient = originalClient
-		}()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
-
-		assert.NoError(tt, err)
-		assert.NotNil(tt, result)
-		assert.Equal(tt, errorCode, result.(*gcpserver.V1betaGetMultipleSnapshotsUnauthorized).Code)
-		assert.Equal(tt, errorMessage, result.(*gcpserver.V1betaGetMultipleSnapshotsUnauthorized).Message)
-	})
-
-	t.Run("WhenGetMultipleSnapshotsFailsWithForbidden", func(tt *testing.T) {
-		mockClient := snapshots.NewMockClientService(tt)
-
-		params := gcpserver.V1betaGetMultipleSnapshotsParams{
-			LocationId:     "location-id",
-			ProjectNumber:  "project-number",
-			VolumeId:       "volume-resource-id",
-			XCorrelationID: gcpserver.NewOptString("X-Correlation-ID"),
-		}
-		req := &gcpserver.SnapshotIdListV1beta{
-			SnapshotUuids: []string{"uri1", "uri2"},
-		}
-
-		errorMessage := "Forbidden error"
-		errorCode := float64(403)
-		mockError := &snapshots.V1betaGetMultipleSnapshotsForbidden{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		mockClient.EXPECT().V1betaGetMultipleSnapshots(mock.Anything).Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{Snapshots: mockClient}
-		originalClient := createClient
-		defer func() {
-			createClient = originalClient
-		}()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
-
-		assert.NoError(tt, err)
-		assert.NotNil(tt, result)
-		assert.Equal(tt, errorCode, result.(*gcpserver.V1betaGetMultipleSnapshotsForbidden).Code)
-		assert.Equal(tt, errorMessage, result.(*gcpserver.V1betaGetMultipleSnapshotsForbidden).Message)
-	})
-
-	t.Run("WhenGetMultipleSnapshotsFailsWithTooManyRequests", func(tt *testing.T) {
-		mockClient := snapshots.NewMockClientService(tt)
-
-		params := gcpserver.V1betaGetMultipleSnapshotsParams{
-			LocationId:     "location-id",
-			ProjectNumber:  "project-number",
-			VolumeId:       "volume-resource-id",
-			XCorrelationID: gcpserver.NewOptString("X-Correlation-ID"),
-		}
-		req := &gcpserver.SnapshotIdListV1beta{
-			SnapshotUuids: []string{"uri1", "uri2"},
-		}
-
-		errorMessage := "Too many requests"
-		errorCode := float64(429)
-		mockError := &snapshots.V1betaGetMultipleSnapshotsTooManyRequests{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		mockClient.EXPECT().V1betaGetMultipleSnapshots(mock.Anything).Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{Snapshots: mockClient}
-		originalClient := createClient
-		defer func() {
-			createClient = originalClient
-		}()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
-
-		assert.NoError(tt, err)
-		assert.NotNil(tt, result)
-		assert.Equal(tt, errorCode, result.(*gcpserver.V1betaGetMultipleSnapshotsTooManyRequests).Code)
-		assert.Equal(tt, errorMessage, result.(*gcpserver.V1betaGetMultipleSnapshotsTooManyRequests).Message)
-	})
-
-	t.Run("WhenGetMultipleReplicationsSucceeds", func(tt *testing.T) {
-		mockClient := snapshots.NewMockClientService(tt)
-
-		params := gcpserver.V1betaGetMultipleSnapshotsParams{
-			LocationId:     "location-id",
-			ProjectNumber:  "project-number",
-			VolumeId:       "volume-resource-id",
-			XCorrelationID: gcpserver.NewOptString("X-Correlation-ID"),
-		}
-		req := &gcpserver.SnapshotIdListV1beta{
-			SnapshotUuids: []string{"uri1", "uri2"},
-		}
-
-		description := "description"
-		mockResponse := &snapshots.V1betaGetMultipleSnapshotsOK{
-			Payload: &snapshots.V1betaGetMultipleSnapshotsOKBody{
-				Snapshots: []*models.SnapshotV1beta{
-					{
-						SnapshotID:  "snapshot-id-1",
-						Description: &description,
-						VolumeID:    "vol-id",
-					},
-				},
-			},
-		}
-		mockClient.EXPECT().V1betaGetMultipleSnapshots(mock.Anything).Return(mockResponse, nil)
-		cvpClient := &cvpapi.Cvp{Snapshots: mockClient}
-		originalClient := createClient
-		defer func() {
-			createClient = originalClient
-		}()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
-
-		assert.NoError(tt, err)
-		assert.NotNil(tt, result)
-		successResult, ok := result.(*gcpserver.V1betaGetMultipleSnapshotsOK)
-		assert.True(tt, ok)
-		assert.Equal(tt, "snapshot-id-1", successResult.Snapshots[0].SnapshotId.Value)
 	})
 }
 
@@ -816,7 +741,6 @@ func TestHandler_V1betaUpdateSnapshot(t *testing.T) {
 		assert.Equal(tt, "internal error", internal.Message)
 	})
 }
-
 func TestV1betaDeleteSnapshot(t *testing.T) {
 	t.Run("WhenLocationValidationFailsInDeleteSnapshot", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -943,5 +867,221 @@ func TestV1betaDeleteSnapshot(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, operationID, result.(*gcpserver.OperationV1beta).Name.Value)
+	})
+}
+
+func Test_getMultipleSnapshotsFromCVP(t *testing.T) {
+	mockClient := snapshots.NewMockClientService(t)
+	ctx := context.Background()
+	params := gcpserver.V1betaGetMultipleSnapshotsParams{
+		LocationId:     "location-id",
+		ProjectNumber:  "project-number",
+		VolumeId:       "volume-id",
+		XCorrelationID: gcpserver.NewOptString("corr-id"),
+	}
+	req := &gcpserver.SnapshotIdListV1beta{
+		SnapshotUuids: []string{"snap-uuid-1"},
+	}
+
+	cvpClient := &cvpapi.Cvp{Snapshots: mockClient}
+	originalClient := createClient
+	defer func() {
+		createClient = originalClient
+	}()
+	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	t.Run("SuccessWithCVPResponse", func(tt *testing.T) {
+		mockClient := snapshots.NewMockClientService(tt)
+		snap := &models.SnapshotV1beta{
+			SnapshotID:  "cvp-snap-id",
+			Description: nillable.ToPointer("desc"),
+			VolumeID:    "cvp-vol-id",
+		}
+		resp := &snapshots.V1betaGetMultipleSnapshotsOK{
+			Payload: &snapshots.V1betaGetMultipleSnapshotsOKBody{
+				Snapshots: []*models.SnapshotV1beta{snap},
+			},
+		}
+		mockClient.EXPECT().V1betaGetMultipleSnapshots(mock.Anything).Return(resp, nil)
+		cvpClient := &cvpapi.Cvp{Snapshots: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		res, err := _getMultipleSnapshotsFromCVP(ctx, req, params, nil)
+		assert.NoError(tt, err)
+		ok, okType := res.(*gcpserver.V1betaGetMultipleSnapshotsOK)
+		assert.True(tt, okType)
+		assert.Len(tt, ok.Snapshots, 1)
+		assert.Equal(tt, "cvp-snap-id", ok.Snapshots[0].SnapshotId.Value)
+	})
+
+	t.Run("NotFoundError", func(tt *testing.T) {
+		mockClient := snapshots.NewMockClientService(tt)
+		mockErr := &snapshots.V1betaGetMultipleSnapshotsNotFound{
+			Payload: &models.Error{Code: 404, Message: "not found"},
+		}
+		mockClient.EXPECT().V1betaGetMultipleSnapshots(mock.Anything).Return(nil, mockErr)
+		cvpClient := &cvpapi.Cvp{Snapshots: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		res, err := _getMultipleSnapshotsFromCVP(ctx, req, params, nil)
+		assert.NoError(tt, err)
+		notFound, ok := res.(*gcpserver.V1betaGetMultipleSnapshotsNotFound)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(404), notFound.Code)
+	})
+
+	t.Run("BadRequestError", func(tt *testing.T) {
+		mockClient := snapshots.NewMockClientService(tt)
+		mockErr := &snapshots.V1betaGetMultipleSnapshotsBadRequest{
+			Payload: &models.Error{Code: 400, Message: "bad request"},
+		}
+		mockClient.EXPECT().V1betaGetMultipleSnapshots(mock.Anything).Return(nil, mockErr)
+		cvpClient := &cvpapi.Cvp{Snapshots: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		res, err := _getMultipleSnapshotsFromCVP(ctx, req, params, nil)
+		assert.NoError(tt, err)
+		badReq, ok := res.(*gcpserver.V1betaGetMultipleSnapshotsBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+	})
+
+	t.Run("UnauthorizedError", func(tt *testing.T) {
+		mockClient := snapshots.NewMockClientService(tt)
+		mockErr := &snapshots.V1betaGetMultipleSnapshotsUnauthorized{
+			Payload: &models.Error{Code: 401, Message: "unauthorized"},
+		}
+		mockClient.EXPECT().V1betaGetMultipleSnapshots(mock.Anything).Return(nil, mockErr)
+		cvpClient := &cvpapi.Cvp{Snapshots: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		res, err := _getMultipleSnapshotsFromCVP(ctx, req, params, nil)
+		assert.NoError(tt, err)
+		unauth, ok := res.(*gcpserver.V1betaGetMultipleSnapshotsUnauthorized)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(401), unauth.Code)
+	})
+
+	t.Run("ForbiddenError", func(tt *testing.T) {
+		mockClient := snapshots.NewMockClientService(tt)
+		mockErr := &snapshots.V1betaGetMultipleSnapshotsForbidden{
+			Payload: &models.Error{Code: 403, Message: "forbidden"},
+		}
+		mockClient.EXPECT().V1betaGetMultipleSnapshots(mock.Anything).Return(nil, mockErr)
+		cvpClient := &cvpapi.Cvp{Snapshots: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		res, err := _getMultipleSnapshotsFromCVP(ctx, req, params, nil)
+		assert.NoError(tt, err)
+		forbidden, ok := res.(*gcpserver.V1betaGetMultipleSnapshotsForbidden)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(403), forbidden.Code)
+	})
+
+	t.Run("TooManyRequestsError", func(tt *testing.T) {
+		mockClient := snapshots.NewMockClientService(tt)
+		mockErr := &snapshots.V1betaGetMultipleSnapshotsTooManyRequests{
+			Payload: &models.Error{Code: 429, Message: "too many"},
+		}
+		mockClient.EXPECT().V1betaGetMultipleSnapshots(mock.Anything).Return(nil, mockErr)
+		cvpClient := &cvpapi.Cvp{Snapshots: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		res, err := _getMultipleSnapshotsFromCVP(ctx, req, params, nil)
+		assert.NoError(tt, err)
+		tooMany, ok := res.(*gcpserver.V1betaGetMultipleSnapshotsTooManyRequests)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(429), tooMany.Code)
+	})
+
+	t.Run("DefaultError", func(tt *testing.T) {
+		mockClient := snapshots.NewMockClientService(tt)
+		mockErr := &snapshots.V1betaGetMultipleSnapshotsDefault{}
+		mockClient.EXPECT().V1betaGetMultipleSnapshots(mock.Anything).Return(nil, mockErr)
+		cvpClient := &cvpapi.Cvp{Snapshots: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		res, err := _getMultipleSnapshotsFromCVP(ctx, req, params, nil)
+		assert.NoError(tt, err)
+		internal, ok := res.(*gcpserver.V1betaGetMultipleSnapshotsInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internal.Code)
+	})
+
+	t.Run("AppendsVCPSnapshots", func(tt *testing.T) {
+		mockClient := snapshots.NewMockClientService(tt)
+		snap := &models.SnapshotV1beta{
+			SnapshotID:  "cvp-snap-id",
+			Description: nillable.ToPointer("desc"),
+			VolumeID:    "cvp-vol-id",
+		}
+		resp := &snapshots.V1betaGetMultipleSnapshotsOK{
+			Payload: &snapshots.V1betaGetMultipleSnapshotsOKBody{
+				Snapshots: []*models.SnapshotV1beta{snap},
+			},
+		}
+		mockClient.EXPECT().V1betaGetMultipleSnapshots(mock.Anything).Return(resp, nil)
+		cvpClient := &cvpapi.Cvp{Snapshots: mockClient}
+		originalClient := createClient
+		defer func() {
+			createClient = originalClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		vcpSnap := gcpserver.SnapshotV1beta{
+			ResourceId: "vcp-snap",
+			SnapshotId: gcpserver.NewOptString("vcp-snap-id"),
+		}
+		res, err := _getMultipleSnapshotsFromCVP(ctx, req, params, []gcpserver.SnapshotV1beta{vcpSnap})
+		assert.NoError(tt, err)
+		ok, okType := res.(*gcpserver.V1betaGetMultipleSnapshotsOK)
+		assert.True(tt, okType)
+		assert.Len(tt, ok.Snapshots, 2)
+		assert.Equal(tt, "cvp-snap-id", ok.Snapshots[0].SnapshotId.Value)
+		assert.Equal(tt, "vcp-snap-id", ok.Snapshots[1].SnapshotId.Value)
 	})
 }
