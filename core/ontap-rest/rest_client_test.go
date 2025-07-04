@@ -75,7 +75,8 @@ func TestNewClient(t *testing.T) {
 		}
 	}
 
-	cl := NewClient(params)
+	cl, err := NewClient(params)
+	assert.NoError(t, err)
 	f(cl)
 }
 
@@ -129,7 +130,9 @@ func TestNewClient_with_lastErr(t *testing.T) {
 		}
 	}
 
-	cl := NewClient(params)
+	cl, err := NewClient(params)
+	assert.Error(t, err)
+	assert.Equal(t, err.Error(), "test error")
 	f(cl)
 }
 

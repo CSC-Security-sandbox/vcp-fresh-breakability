@@ -16,9 +16,12 @@ func TestCreateVolume_Success(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Storage").Return(mockStorage)
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -65,9 +68,12 @@ func TestCreateVolume_Success(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Storage").Return(mockStorage)
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -121,9 +127,12 @@ func TestCreateVolume_ErrorOnCreate(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
-
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 
@@ -151,9 +160,12 @@ func TestCreateVolume_DuplicateErrorOnCreate(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
-
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 
@@ -181,9 +193,12 @@ func TestCreateVolume_ErrorOnNilResponse(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
-
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 
@@ -212,9 +227,12 @@ func TestCreateVolume_ErrorOnPoll(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
-
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 
@@ -250,13 +268,49 @@ func TestCreateVolume_ErrorOnPoll(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+func TestCreateVolumesFailure_getOntapClientFuncError(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return nil, errors.New("getOntapClientFunc error")
+	}
+	rc := &OntapRestProvider{}
+
+	volumeName := "testVolume"
+	volSpace := int64(1024)
+	tieringPolicy := TieringPolicy{
+		CoolnessPeriod:            30,
+		CoolAccessRetrievalPolicy: "Default",
+		CoolAccessTieringPolicy:   "auto",
+	}
+	params := CreateVolumeParams{
+		VolumeName:    volumeName,
+		SvmName:       "testSVM",
+		AggregateName: "testAggregate",
+		Size:          volSpace,
+		VolumeType:    "rw",
+		TieringPolicy: &tieringPolicy,
+	}
+
+	resp, err := rc.CreateVolume(params)
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Equal(t, "getOntapClientFunc error", err.Error())
+}
+
 func TestDeleteVolume_Success(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
-
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 
@@ -277,9 +331,12 @@ func TestDeleteVolume_Error(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
-
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 
@@ -296,13 +353,35 @@ func TestDeleteVolume_Error(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+func TestDeleteVolume_Error_getOntapClientFuncError(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return nil, errors.New("getOntapClientFunc error")
+	}
+	rc := &OntapRestProvider{}
+
+	volumeUUID := "testUUID"
+	volumeName := "testVolume"
+
+	err := rc.DeleteVolume(volumeUUID, volumeName)
+
+	assert.Error(t, err)
+	assert.Equal(t, "getOntapClientFunc error", err.Error())
+}
+
 func TestGetVolume_WhenVolumeIsFound_ThenReturnVolumeResponse(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
-
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 
@@ -342,9 +421,12 @@ func TestGetVolume_WhenVolumeGetReturnsError_ThenReturnError(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
-
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 
@@ -372,9 +454,12 @@ func TestGetVolume_WhenVolumeGetReturnsNilVolume_ThenReturnNotFoundError(t *test
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
-
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 
@@ -402,9 +487,12 @@ func TestGetVolume_WhenVolumeGetReturnsVolumeWithNilNameOrUUID_ThenReturnNotFoun
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
-
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 
@@ -448,12 +536,42 @@ func TestGetVolume_WhenVolumeGetReturnsVolumeWithNilNameOrUUID_ThenReturnNotFoun
 	mockClient.AssertExpectations(t)
 }
 
+func TestGetVolume_WhenVolumeGetReturnsError_getOntapClientFuncError(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return nil, errors.New("getOntapClientFunc error")
+	}
+	rc := &OntapRestProvider{}
+
+	volumeName := "testVolume"
+	volumeUUID := "testUUID"
+	svmName := "testSVM"
+
+	params := GetVolumeParams{
+		UUID:       volumeUUID,
+		VolumeName: volumeName,
+		SvmName:    svmName,
+	}
+	resp, err := rc.GetVolume(params)
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Equal(t, "getOntapClientFunc error", err.Error())
+}
+
 func TestUpdateVolume(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 
@@ -489,6 +607,14 @@ func TestUpdateVolume(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "poll error", err.Error())
 
+	// Case 5: getOntapClientFunc returns error
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return nil, errors.New("getOntapClientFunc error")
+	}
+	err = rc.UpdateVolume(params)
+	assert.Error(t, err)
+	assert.Equal(t, "getOntapClientFunc error", err.Error())
+
 	mockStorage.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
 }
@@ -498,9 +624,12 @@ func TestGetVolumes(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Storage").Return(mockStorage)
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -511,14 +640,31 @@ func TestGetVolumes(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
 	})
+	t.Run("GetVolumesFailure", func(t *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("getOntapClientFunc error")
+		}
+		rc := &OntapRestProvider{}
+		_, err := rc.GetVolumes()
+		assert.Error(t, err)
+		assert.Equal(t, "getOntapClientFunc error", err.Error())
+	})
 }
 
 func TestUpdateVolume_ForSplit(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Storage").Return(mockStorage)
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 
@@ -552,6 +698,14 @@ func TestUpdateVolume_ForSplit(t *testing.T) {
 	err = rc.UpdateVolume(params)
 	assert.Error(t, err)
 	assert.Equal(t, "poll error", err.Error())
+
+	// Case 5: getOntapClientFunc returns error
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return nil, errors.New("getOntapClientFunc error")
+	}
+	err = rc.UpdateVolume(params)
+	assert.Error(t, err)
+	assert.Equal(t, "getOntapClientFunc error", err.Error())
 
 	mockStorage.AssertExpectations(t)
 	mockClient.AssertExpectations(t)

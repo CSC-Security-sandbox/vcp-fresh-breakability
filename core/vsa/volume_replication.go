@@ -69,7 +69,10 @@ var (
 
 func createVolumeReplicationSchedule(provider *OntapRestProvider, schedule string) (err error) {
 	var cronSchedule *ontaprest.Schedule
-	client := getOntapClientFunc(provider.ClientParams)
+	client, err := getOntapClientFunc(provider.ClientParams)
+	if err != nil {
+		return err
+	}
 	if err := client.Cluster().ScheduleCollectionGet(&ontaprest.ScheduleCollectionGetParams{
 		Name: schedule,
 	}, func(schedules []*ontaprest.Schedule) error {
@@ -144,7 +147,10 @@ func createVsaVolumeReplication(provider *OntapRestProvider, params *CreateVolum
 		Schedule:        &params.VolumeReplication.ReplicationSchedule,
 	}
 
-	client := getOntapClientFunc(provider.ClientParams)
+	client, err := getOntapClientFunc(provider.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	snapmirror, job, err := client.Snapmirror().SnapmirrorRelationshipCreate(createParams)
 	if err != nil {
 		return nil, err
@@ -193,7 +199,10 @@ func createVsaVolumeReplication(provider *OntapRestProvider, params *CreateVolum
 }
 
 func waitForJobIfNeeded(provider *OntapRestProvider, job *ontaprest.JobAccepted) error {
-	client := getOntapClientFunc(provider.ClientParams)
+	client, err := getOntapClientFunc(provider.ClientParams)
+	if err != nil {
+		return err
+	}
 	if job != nil {
 		if err := client.Poll(job.JobUUID); err != nil {
 			return err
@@ -285,7 +294,10 @@ func convertSnapMirrorToVolumeReplication(snapmirror ontaprest.SnapmirrorRelatio
 }
 
 func waitForSnapmirrorState(provider *OntapRestProvider, retryInterval time.Duration, maxRetries int, mirrorState, snapmirrorUUID string) (snapmirror *ontaprest.SnapmirrorRelationship, err error) {
-	client := getOntapClientFunc(provider.ClientParams)
+	client, err := getOntapClientFunc(provider.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	for retries := 0; retries < maxRetries; retries++ {
 		snapmirror, err = client.Snapmirror().SnapmirrorRelationshipGet(&ontaprest.SnapmirrorRelationshipGetParams{UUID: snapmirrorUUID})
 		if err != nil {
@@ -303,8 +315,11 @@ func waitForSnapmirrorState(provider *OntapRestProvider, retryInterval time.Dura
 // validateCreateSnapmirror validates all the create replication parameters
 func validateCreateSnapmirror(provider *OntapRestProvider, params *CreateVolumeReplicationParams) (bool, error) {
 	// Step 1.: Ensure that SVM peering exists
-	client := getOntapClientFunc(provider.ClientParams)
-	err := doEnsureSvmPeering(provider, params)
+	client, err := getOntapClientFunc(provider.ClientParams)
+	if err != nil {
+		return false, err
+	}
+	err = doEnsureSvmPeering(provider, params)
 	if err != nil {
 		return false, err
 	}
@@ -396,7 +411,10 @@ func ensureSvmPeering(provider *OntapRestProvider, params *CreateVolumeReplicati
 // DeleteVolumeReplication deletes the Volume Replication
 func (rc *OntapRestProvider) DeleteVolumeReplication(params *DeleteVolumeReplicationParams) (*VolumeReplication, error) {
 	volRep := params.VolumeReplication
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	var mirrorState, relationshipStatus, snapmirrorUUID string
 	var snapmirror ontaprest.SnapmirrorRelationship
 
@@ -435,7 +453,7 @@ func (rc *OntapRestProvider) DeleteVolumeReplication(params *DeleteVolumeReplica
 		snapmirrorUUID = snapmirror.UUID.String()
 	}
 
-	err := doValidateAndDeleteVolumeReplication(rc, mirrorState, relationshipStatus, snapmirrorUUID, params)
+	err = doValidateAndDeleteVolumeReplication(rc, mirrorState, relationshipStatus, snapmirrorUUID, params)
 	if err != nil {
 		return nil, err
 	}
@@ -462,7 +480,10 @@ func validateAndDeleteVolumeReplication(provider *OntapRestProvider, mirrorState
 		snapmirrorRelationshipParams.SourceOnly = params.SourceOnly
 	}
 
-	client := getOntapClientFunc(provider.ClientParams)
+	client, err := getOntapClientFunc(provider.ClientParams)
+	if err != nil {
+		return err
+	}
 	if snapmirrorUUID != "" {
 		_, jobAccepted, err := client.Snapmirror().SnapmirrorRelationshipDelete(&snapmirrorRelationshipParams)
 		if err != nil && (!errors.IsNotFoundErr(err) && !strings.Contains(err.Error(), "entry doesn't exist") && !strings.Contains(err.Error(), "entry not found")) {
@@ -475,7 +496,7 @@ func validateAndDeleteVolumeReplication(provider *OntapRestProvider, mirrorState
 		}
 	}
 
-	err := doCleanupSvmPeering(provider, params)
+	err = doCleanupSvmPeering(provider, params)
 	if err != nil && !errors.IsNotFoundErrForObjectType(err, "SVM peer") {
 		return err
 	}
@@ -503,7 +524,10 @@ func modifyVsaVolumeReplication(provider *OntapRestProvider, volRep *VolumeRepli
 		TransferSchedule: &volRep.ReplicationSchedule,
 	}
 
-	client := getOntapClientFunc(provider.ClientParams)
+	client, err := getOntapClientFunc(provider.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	snapMirror, job, err := client.Snapmirror().SnapmirrorRelationshipModify(modifyParams)
 	if err != nil {
 		return nil, err
@@ -526,7 +550,10 @@ func modifyVsaVolumeReplication(provider *OntapRestProvider, volRep *VolumeRepli
 }
 
 func _listSnapmirrorDestinations(provider *OntapRestProvider) ([]*SnapmirrorDestination, error) {
-	client := getOntapClientFunc(provider.ClientParams)
+	client, err := getOntapClientFunc(provider.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	destinations, err := client.Snapmirror().SnapmirrorRelationshipListDestinations(nil)
 	if err != nil {
 		return nil, err
@@ -564,7 +591,10 @@ func (rc *OntapRestProvider) ReleaseVolumeReplication(params *CreateVolumeReplic
 		SourcePath:      nillable.GetStringPtr(params.VolumeReplication.SourcePath()),
 	}
 
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	listDestinations, err := client.Snapmirror().SnapmirrorRelationshipListDestinations(listDestinationParams)
 	if err != nil {
 		return nil, err
@@ -617,7 +647,10 @@ func (rc *OntapRestProvider) ReleaseVolumeReplication(params *CreateVolumeReplic
 // ResyncVolumeReplication resyncs the Volume Replication
 func (rc *OntapRestProvider) ResyncVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error) {
 	getParams := ontaprest.SnapmirrorRelationshipGetParams{UUID: volRep.RelationshipID}
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	snapmirror, err := client.Snapmirror().SnapmirrorRelationshipGet(&getParams)
 	if err != nil {
 		return nil, err
@@ -665,7 +698,10 @@ func validateResyncVolumeReplication(provider *OntapRestProvider, snapmirror *on
 	}
 
 	volumeGetParams := &ontaprest.VolumeGetParams{UUID: volRep.Volume.ExternalUUID}
-	client := getOntapClientFunc(provider.ClientParams)
+	client, err := getOntapClientFunc(provider.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	volume, err := client.Storage().VolumeGet(volumeGetParams)
 	if err != nil {
 		return nil, err
@@ -681,7 +717,10 @@ func unmountVolume(provider *OntapRestProvider, volume *ontaprest.Volume, volRep
 }
 
 func cleanupSvmPeering(provider *OntapRestProvider, params *DeleteVolumeReplicationParams) error {
-	client := getOntapClientFunc(provider.ClientParams)
+	client, err := getOntapClientFunc(provider.ClientParams)
+	if err != nil {
+		return err
+	}
 	remainingSnapmirrors, err := client.Snapmirror().SnapmirrorRelationshipList(&ontaprest.SnapmirrorRelationshipListParams{})
 	if err != nil {
 		return err
@@ -793,8 +832,10 @@ func isNonExistentVserverEntryError(err error) bool {
 
 // GetReplicationDetails retrieves the details of a specific Volume Replication
 func (rc *OntapRestProvider) GetReplicationDetails(volRep *VolumeReplication) (*VolumeReplication, error) {
-	client := getOntapClientFunc(rc.ClientParams)
-
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	snapmirrorOkResp, err := client.Snapmirror().SnapmirrorGetPriv(context.TODO(), volRep.DestinationPath(), volRep.ExternalUUID, nil)
 	if err != nil {
 		return nil, err
@@ -836,7 +877,10 @@ func (rc *OntapRestProvider) GetReplicationDetails(volRep *VolumeReplication) (*
 }
 
 func (provider *OntapRestProvider) GetVolumeReplication(replication *VolumeReplication) (*VolumeReplication, error) {
-	client := getOntapClientFunc(provider.ClientParams)
+	client, err := getOntapClientFunc(provider.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	snapmirror, err := client.Snapmirror().SnapmirrorRelationshipGet(&ontaprest.SnapmirrorRelationshipGetParams{UUID: replication.ExternalUUID})
 	if err != nil {
 		return nil, err

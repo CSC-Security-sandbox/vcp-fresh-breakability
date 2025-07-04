@@ -12,7 +12,10 @@ import (
 
 // CreateVolume creates a volume by calling the ONTAP REST Client
 func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeResponse, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	volumeCreateParams := &ontapRest.VolumeCreateParams{
 		Name:                   params.VolumeName,
 		Type:                   params.VolumeType,
@@ -74,8 +77,11 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 
 // DeleteVolume creates a volume by calling the ONTAP REST Client
 func (rc *OntapRestProvider) DeleteVolume(volumeUUID, volumeName string) error {
-	client := getOntapClientFunc(rc.ClientParams)
-	err := client.Storage().VolumeDelete(&ontapRest.VolumeDeleteParams{
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+	err = client.Storage().VolumeDelete(&ontapRest.VolumeDeleteParams{
 		UUID: volumeUUID,
 		Name: volumeName,
 	})
@@ -89,7 +95,10 @@ func (rc *OntapRestProvider) DeleteVolume(volumeUUID, volumeName string) error {
 
 // GetVolume returns a volume by calling the ONTAP REST Client
 func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	vol, err := client.Storage().VolumeGet(&ontapRest.VolumeGetParams{
 		UUID:    params.UUID,
 		Name:    params.VolumeName,
@@ -115,7 +124,10 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 func (rc *OntapRestProvider) GetVolumes() ([]*Volume, error) {
 	var resultVolumes []*Volume
 
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	ucbf := func(volumes []*ontapRest.Volume) error {
 		for _, volume := range volumes {
 			vol := &Volume{
@@ -133,7 +145,7 @@ func (rc *OntapRestProvider) GetVolumes() ([]*Volume, error) {
 		return nil
 	}
 
-	err := client.Storage().VolumeCollectionGet(&ontapRest.VolumeCollectionGetParams{
+	err = client.Storage().VolumeCollectionGet(&ontapRest.VolumeCollectionGetParams{
 		BaseParams: ontapRest.BaseParams{
 			Fields: []string{"uuid", "name", "svm", "is_svm_root", "style"},
 		},
@@ -146,7 +158,10 @@ func (rc *OntapRestProvider) GetVolumes() ([]*Volume, error) {
 }
 
 func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
 	volumeModifyParams := &ontapRest.VolumeModifyParams{
 		UUID: params.UUID,
 	}

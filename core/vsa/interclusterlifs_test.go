@@ -14,8 +14,11 @@ func TestGetInterclusterLIF(t *testing.T) {
 	t.Run("WhenClientReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockNetworkingClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		servicePolicyName := "default-intercluster"
 		networkIPInterfacesGetParams := &ontaprest.NetworkIPInterfacesGetParams{BaseParams: ontaprest.BaseParams{Fields: []string{"ip.address"}}, ServicePolicyName: &servicePolicyName}
@@ -33,8 +36,12 @@ func TestGetInterclusterLIF(t *testing.T) {
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockNetworkingClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		servicePolicyName := "default-intercluster"

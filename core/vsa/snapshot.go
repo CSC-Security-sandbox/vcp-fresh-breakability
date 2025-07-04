@@ -3,7 +3,6 @@ package vsa
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"sort"
 	"strings"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 type action int
@@ -39,7 +39,10 @@ func (a action) String() string {
 
 // CreateSnapshot creates a snapshot by calling the ONTAP REST Client
 func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	snapshot, job, err := client.Storage().SnapshotCreate(&ontapRest.SnapshotCreateParams{
 		VolumeUUID: params.VolumeUUID,
 		Name:       params.Name,
@@ -98,7 +101,10 @@ func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*Snaps
 
 // DeleteSnapshot deletes a snapshot by calling the ONTAP REST Client
 func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID string) error {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
 	sc := client.Storage()
 	snapshot, err := sc.SnapshotGet(&ontapRest.SnapshotGetParams{
 		BaseParams: ontapRest.BaseParams{Fields: []string{"name", "owners"}},
@@ -162,8 +168,10 @@ func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID stri
 
 func (rc *OntapRestProvider) GetSnapshots(volumeUUID string) ([]*Snapshot, error) {
 	var resultSnapshots []*Snapshot
-
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	// TODO: CVS fetches "afs-used" attribute of the snapshot and uses it to identify if the snapshot is updated or not.
 	//  VSA's ONTAP REST API does not support this attribute. We need to check if this attribute is necessary for VSA's snapshot management.
 	ucbf := func(snapshots []*ontapRest.Snapshot) error {
@@ -188,7 +196,7 @@ func (rc *OntapRestProvider) GetSnapshots(volumeUUID string) ([]*Snapshot, error
 		return nil
 	}
 
-	err := client.Storage().SnapshotCollectionGet(&ontapRest.SnapshotCollectionGetParams{
+	err = client.Storage().SnapshotCollectionGet(&ontapRest.SnapshotCollectionGetParams{
 		BaseParams: ontapRest.BaseParams{
 			Fields: []string{"uuid", "version_uuid", "name", "size", "create_time", "snapmirror_label", "provenance_volume", "volume", "svm", "logical_size"},
 		},
@@ -202,7 +210,10 @@ func (rc *OntapRestProvider) GetSnapshots(volumeUUID string) ([]*Snapshot, error
 }
 
 func (rc *OntapRestProvider) CreateSnapshotPolicy(sp *SnapshotPolicy) error {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
 	if len(sp.Schedules) == 0 {
 		return errors.New("must have at least one snapshot policy schedule when creating")
 	}
@@ -234,7 +245,7 @@ func (rc *OntapRestProvider) CreateSnapshotPolicy(sp *SnapshotPolicy) error {
 		})
 	}
 
-	err := client.Storage().SnapshotPolicyCreate(&ontapRest.SnapshotPolicyCreateParams{
+	err = client.Storage().SnapshotPolicyCreate(&ontapRest.SnapshotPolicyCreateParams{
 		Name:      &sp.Name,
 		Comment:   &sp.Comment,
 		Enabled:   &sp.IsEnabled,
@@ -277,8 +288,11 @@ func (rc *OntapRestProvider) CreateSnapshotPolicy(sp *SnapshotPolicy) error {
 
 // DeleteSnapshotPolicy deletes a snapshot policy in ONTAP using the provided snapshot policy name.
 func (rc *OntapRestProvider) DeleteSnapshotPolicy(snapshotPolicyName string) error {
-	client := getOntapClientFunc(rc.ClientParams)
-	err := client.Storage().SnapshotPolicyDelete(&ontapRest.SnapshotPolicyDeleteParams{
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+	err = client.Storage().SnapshotPolicyDelete(&ontapRest.SnapshotPolicyDeleteParams{
 		Name: snapshotPolicyName,
 	})
 	if err != nil {
@@ -304,7 +318,10 @@ func generateNameForSchedule(schedule *Schedule) string {
 
 // UpdateSnapshotPolicy updates volume snapshot policy
 func (rc *OntapRestProvider) UpdateSnapshotPolicy(ctx context.Context, params *UpdateSnapshotPolicyParams) error {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
 
 	return updateSnapshotPolicy(ctx, client, params)
 }

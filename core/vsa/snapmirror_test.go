@@ -15,9 +15,11 @@ import (
 func TestSnapmirrorRelationshipCreateSucceeds(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-	getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-		return mockClient
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
 	}
 	ontapProvider := &OntapRestProvider{}
 	expectedParams := &ontapRest.SnapmirrorRelationshipCreateParams{
@@ -41,9 +43,11 @@ func TestSnapmirrorRelationshipCreateSucceeds(t *testing.T) {
 func TestSnapmirrorRelationshipCreateNotFound(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-	getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-		return mockClient
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
 	}
 	ontapProvider := &OntapRestProvider{}
 	expectedParams := &ontapRest.SnapmirrorRelationshipCreateParams{
@@ -64,12 +68,28 @@ func TestSnapmirrorRelationshipCreateNotFound(t *testing.T) {
 	assert.Nil(t, result)
 }
 
+func TestSnapmirrorRelationshipCreateFailsOngetOntapClientFuncError(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return nil, errors.New("getOntapClient error")
+	}
+	ontapProvider := &OntapRestProvider{}
+	result, err := ontapProvider.SnapmirrorRelationshipCreate("destinationPath", "sourcePath", nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Equal(t, "getOntapClient error", err.Error())
+}
+
 func TestSnapmirrorRelationshipCreateFailsOnAPIError(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-	getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-		return mockClient
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
 	}
 	ontapProvider := &OntapRestProvider{}
 	expectedParams := &ontapRest.SnapmirrorRelationshipCreateParams{
@@ -91,9 +111,11 @@ func TestSnapmirrorRelationshipCreateFailsOnAPIError(t *testing.T) {
 func TestSnapmirrorRelationshipDeleteSucceeds(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-	getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-		return mockClient
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
 	}
 	ontapProvider := &OntapRestProvider{}
 	expectedParams := &ontapRest.SnapmirrorRelationshipDeleteParams{UUID: "snapmirrorUUID"}
@@ -110,9 +132,11 @@ func TestSnapmirrorRelationshipDeleteSucceeds(t *testing.T) {
 func TestSnapmirrorRelationshipDeleteFailsOnJobError(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-	getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-		return mockClient
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
 	}
 	ontapProvider := &OntapRestProvider{}
 	expectedParams := &ontapRest.SnapmirrorRelationshipDeleteParams{UUID: "snapmirrorUUID"}
@@ -124,12 +148,28 @@ func TestSnapmirrorRelationshipDeleteFailsOnJobError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestSnapmirrorRelationshipDeleteFailsOnGetOntapClientFuncError(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return nil, errors.New("getOntapClient error")
+	}
+	ontapProvider := &OntapRestProvider{}
+	result, err := ontapProvider.SnapmirrorRelationshipDelete("snapmirrorUUID")
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Equal(t, "getOntapClient error", err.Error())
+}
+
 func TestSnapmirrorRelationshipGetSuccess(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-	getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-		return mockClient
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
 	}
 	ontapProvider := &OntapRestProvider{}
 
@@ -151,9 +191,11 @@ func TestSnapmirrorRelationshipGetSuccess(t *testing.T) {
 func TestSnapmirrorRelationshipGetNotFound(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-	getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-		return mockClient
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
 	}
 	ontapProvider := &OntapRestProvider{}
 	destinationPath := "dest"
@@ -172,9 +214,11 @@ func TestSnapmirrorRelationshipGetNotFound(t *testing.T) {
 func TestSnapmirrorRelationshipGetAPIError(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-	getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-		return mockClient
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
 	}
 	ontapProvider := &OntapRestProvider{}
 
@@ -191,12 +235,28 @@ func TestSnapmirrorRelationshipGetAPIError(t *testing.T) {
 	assert.EqualError(t, err, "api error")
 }
 
+func TestSnapmirrorRelationshipGetFailsOnGetOntapClientFuncError(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return nil, errors.New("getOntapClient error")
+	}
+	ontapProvider := &OntapRestProvider{}
+	result, err := ontapProvider.SnapmirrorRelationshipGet("dest", "src")
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Equal(t, "getOntapClient error", err.Error())
+}
+
 func TestSnapmirrorRelationshipTransferCreate(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-	getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-		return mockClient
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
 	}
 	ontapProvider := &OntapRestProvider{}
 	snapmirrorUUID := "test-uuid"
@@ -225,13 +285,24 @@ func TestSnapmirrorRelationshipTransferCreate(t *testing.T) {
 		assert.Error(t, err)
 		assert.EqualError(t, err, "api error")
 	})
+
+	t.Run("getOntapClientFunc error", func(t *testing.T) {
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return nil, errors.New("getOntapClient error")
+		}
+		err := ontapProvider.SnapmirrorRelationshipTransferCreate("snapmirrorUUID", "snapshotName", nil)
+		assert.Error(t, err)
+		assert.Equal(t, "getOntapClient error", err.Error())
+	})
 }
 func TestSnapmirrorRelationshipTransferGet(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-	getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-		return mockClient
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
 	}
 	ontapProvider := &OntapRestProvider{}
 	snapmirrorUUID := "test-uuid"
@@ -254,8 +325,8 @@ func TestSnapmirrorRelationshipTransferGet(t *testing.T) {
 	t.Run("api error", func(t *testing.T) {
 		mockClient = new(ontapRest.MockRESTClient)
 		mockSnapmirrorClient = new(ontapRest.MockSnapmirrorClient)
-		getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockClient, nil
 		}
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipTransferGet", expectedParams).Return(nil, fmt.Errorf("api error"))
@@ -265,15 +336,27 @@ func TestSnapmirrorRelationshipTransferGet(t *testing.T) {
 		assert.Nil(t, result)
 		assert.EqualError(t, err, "api error")
 	})
+
+	t.Run("getOntapClientFunc error", func(t *testing.T) {
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return nil, errors.New("getOntapClient error")
+		}
+		result, err := ontapProvider.SnapmirrorRelationshipTransferGet("uuid", "host")
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, "getOntapClient error", err.Error())
+	})
 }
 
 func TestSnapmirrorObjectStoreEndpointDelete(t *testing.T) {
 	t.Run("OnSuccessWithJob", func(t *testing.T) {
 		mockClient := new(ontapRest.MockRESTClient)
 		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		objectStoreUUID := "objectStoreUUID"
@@ -297,8 +380,8 @@ func TestSnapmirrorObjectStoreEndpointDelete(t *testing.T) {
 		mockClient := new(ontapRest.MockRESTClient)
 		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
 
-		getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		objectStoreUUID := "objectStoreUUID"
@@ -319,8 +402,8 @@ func TestSnapmirrorObjectStoreEndpointDelete(t *testing.T) {
 		mockClient := new(ontapRest.MockRESTClient)
 		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
 
-		getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		objectStoreUUID := "objectStoreUUID"
@@ -344,9 +427,11 @@ func TestSnapmirrorObjectStoreSnapshotDelete(t *testing.T) {
 	t.Run("OnSuccessWithJob", func(t *testing.T) {
 		mockClient := new(ontapRest.MockRESTClient)
 		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		objectStoreUUID := "objectStoreUUID"
@@ -371,9 +456,11 @@ func TestSnapmirrorObjectStoreSnapshotDelete(t *testing.T) {
 	t.Run("OnSuccessWithoutJob", func(t *testing.T) {
 		mockClient := new(ontapRest.MockRESTClient)
 		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		objectStoreUUID := "objectStoreUUID"
@@ -395,9 +482,11 @@ func TestSnapmirrorObjectStoreSnapshotDelete(t *testing.T) {
 	t.Run("OnError", func(t *testing.T) {
 		mockClient := new(ontapRest.MockRESTClient)
 		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		objectStoreUUID := "objectStoreUUID"

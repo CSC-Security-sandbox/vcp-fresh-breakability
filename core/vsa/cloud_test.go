@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 func strPtr(s string) *string {
@@ -17,8 +18,8 @@ func TestCloudTargetCreateSucceeds(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockCloudClient := new(ontapRest.MockCloudClient)
 
-	getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-		return mockClient
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
 	}
 	ontapProvider := &OntapRestProvider{}
 	expectedParams := &ontapRest.CloudTargetCreateParams{
@@ -48,9 +49,11 @@ func TestCloudTargetCreateSucceeds(t *testing.T) {
 func TestCloudTargetCreateFailsOnAPIError(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockCloudClient := new(ontapRest.MockCloudClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-	getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-		return mockClient
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
 	}
 	ontapProvider := &OntapRestProvider{}
 
@@ -69,12 +72,28 @@ func TestCloudTargetCreateFailsOnAPIError(t *testing.T) {
 	assert.Equal(t, expectedError, err)
 }
 
+func TestCloudTargetCreateFails_getOntapClientFuncErr(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return nil, errors.New("OntapClientFunc error")
+	}
+	ontapProvider := &OntapRestProvider{}
+	result, err := ontapProvider.CloudTargetCreate("targetName", "containerName")
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "OntapClientFunc error")
+}
+
 func TestCloudTargetGetReturnsValidTarget(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockCloudClient := new(ontapRest.MockCloudClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-	getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-		return mockClient
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
 	}
 	ontapProvider := &OntapRestProvider{}
 
@@ -98,9 +117,11 @@ func TestCloudTargetGetReturnsValidTarget(t *testing.T) {
 func TestCloudTargetGetFailsOnInvalidName(t *testing.T) {
 	mockClient := new(ontapRest.MockRESTClient)
 	mockCloudClient := new(ontapRest.MockCloudClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-	getOntapClientFunc = func(params ontapRest.RESTClientParams) ontapRest.RESTClient {
-		return mockClient
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
 	}
 	ontapProvider := &OntapRestProvider{}
 
@@ -113,4 +134,19 @@ func TestCloudTargetGetFailsOnInvalidName(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Equal(t, expectedError, err)
+}
+
+func TestCloudTargetGetFails_getOntapClientFuncErr(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return nil, errors.New("getOntapClientFunc error")
+	}
+	ontapProvider := &OntapRestProvider{}
+
+	result, err := ontapProvider.CloudTargetGet(strPtr("invalidName"))
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Equal(t, "getOntapClientFunc error", err.Error())
 }

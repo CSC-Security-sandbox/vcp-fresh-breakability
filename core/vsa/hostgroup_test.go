@@ -16,8 +16,10 @@ func TestIGroupCreate_Success(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("SAN").Return(mockSAN)
 
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 	iGroupName := "testIGroup"
@@ -44,8 +46,10 @@ func TestIGroupCreate_Error(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("SAN").Return(mockSAN)
 
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 
@@ -74,8 +78,10 @@ func TestIgroupGet(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -104,8 +110,10 @@ func TestIgroupGet(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -125,8 +133,10 @@ func TestIgroupGet(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -149,8 +159,10 @@ func TestIgroupExists(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -177,8 +189,10 @@ func TestIgroupExists(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -199,8 +213,10 @@ func TestIgroupExists(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -221,8 +237,10 @@ func TestIgroupExists(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -245,9 +263,11 @@ func TestIgroupAddInitiator(t *testing.T) {
 		mockSAN := new(ontaprest.MockSANClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -268,8 +288,10 @@ func TestIgroupAddInitiator(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -290,8 +312,10 @@ func TestIgroupAddInitiator(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -314,8 +338,10 @@ func TestIgroupDeleteInitiator(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -337,8 +363,10 @@ func TestIgroupDeleteInitiator(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -360,8 +388,10 @@ func TestIgroupDeleteInitiator(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SAN").Return(mockSAN)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 

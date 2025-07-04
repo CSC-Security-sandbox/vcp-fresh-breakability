@@ -20,8 +20,10 @@ func TestCreateNetworkIpRoute(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Networking").Return(mockNetworking)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -40,8 +42,10 @@ func TestCreateNetworkIpRoute(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Networking").Return(mockNetworking)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -54,5 +58,19 @@ func TestCreateNetworkIpRoute(t *testing.T) {
 
 		mockNetworking.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRouteCreationFails_getOntapClientFuncError", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("getOntapClient error")
+		}
+		rc := &OntapRestProvider{}
+
+		err := rc.CreateNetworkIpRoute(params)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "getOntapClient error", err.Error())
 	})
 }

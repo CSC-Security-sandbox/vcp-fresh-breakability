@@ -1,22 +1,25 @@
 package vsa
 
 import (
+	"testing"
+
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
-	"testing"
 )
 
 func TestJobGet(t *testing.T) {
 	t.Run("onSuccessfulJobGet", func(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClusterClient := new(ontaprest.MockClusterClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 
 		mockClient.On("Cluster").Return(mockClusterClient)
@@ -35,9 +38,11 @@ func TestJobGet(t *testing.T) {
 	t.Run("onFailureJobGet", func(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClusterClient := new(ontaprest.MockClusterClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 
 		mockClient.On("Cluster").Return(mockClusterClient)

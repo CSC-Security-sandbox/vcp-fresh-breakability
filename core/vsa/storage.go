@@ -13,12 +13,15 @@ var (
 	getOntapClientFunc = getOntapClient
 )
 
-func getOntapClient(clientParams ontapRest.RESTClientParams) ontapRest.RESTClient {
+func getOntapClient(clientParams ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
 	return ontapRest.NewOntapRestClient(clientParams)
 }
 
 func (rc *OntapRestProvider) IsAggregateOnline(aggregateName string) (bool, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return false, err
+	}
 	aggr, err := client.Storage().AggregateFindByName(&ontapRest.AggregateCollectionGetParams{
 		BaseParams: ontapRest.BaseParams{
 			Fields: []string{"state"},
@@ -35,7 +38,10 @@ func (rc *OntapRestProvider) IsAggregateOnline(aggregateName string) (bool, erro
 }
 
 func (rc *OntapRestProvider) GetAggregateByName(name string) (*Aggregate, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	aggr, err := client.Storage().AggregateFindByName(&ontapRest.AggregateCollectionGetParams{
 		BaseParams: ontapRest.BaseParams{
 			Fields: []string{"uuid", "state"},
@@ -56,7 +62,10 @@ func (rc *OntapRestProvider) GetAggregateByName(name string) (*Aggregate, error)
 
 // LunCreate creates a LUN by calling the ONTAP REST Client
 func (rc *OntapRestProvider) LunCreate(params LunCreateParams) (*LunResponse, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	lun, err := client.SAN().LunCreate(&ontapRest.LunCreateParams{
 		Name:                           params.LunName,
 		SvmName:                        params.SvmName,
@@ -82,7 +91,10 @@ func (rc *OntapRestProvider) LunCreate(params LunCreateParams) (*LunResponse, er
 
 // LunGet retrieves a LUN by calling the ONTAP REST Client
 func (rc *OntapRestProvider) LunGet(params LunGetParams) (*LunResponse, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	lun, err := client.SAN().LunGet(&ontapRest.LunGetParams{
 		BaseParams: ontapRest.BaseParams{
 			Fields: []string{"status.*", "serial_number_hex", "class", "space.size", "location.*"},
@@ -109,7 +121,10 @@ func (rc *OntapRestProvider) LunGet(params LunGetParams) (*LunResponse, error) {
 
 // LunUpdate updates the LUN by calling the ONTAP REST Client
 func (rc *OntapRestProvider) LunUpdate(params LunUpdateParams) error {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
 	success, job, err := client.SAN().LunUpdate(&ontapRest.LunUpdateParams{
 		UUID:       params.UUID,
 		Name:       params.LunName,
@@ -132,7 +147,10 @@ func (rc *OntapRestProvider) LunUpdate(params LunUpdateParams) error {
 // LunMapCreate creates a LUN mapping by calling the ONTAP REST Client
 func (rc *OntapRestProvider) LunMapCreate(params LunMapCreateParams) error {
 	for i := 0; i < len(params.IGroupName); i++ {
-		client := getOntapClientFunc(rc.ClientParams)
+		client, err := getOntapClientFunc(rc.ClientParams)
+		if err != nil {
+			return err
+		}
 		if err := client.SAN().LunMapCreate(&ontapRest.LunMapCreateParams{
 			LunName:    params.LunName,
 			SvmName:    params.SvmName,
@@ -146,7 +164,10 @@ func (rc *OntapRestProvider) LunMapCreate(params LunMapCreateParams) error {
 
 // LunMapDelete deletes a LUN mapping by calling the ONTAP REST Client
 func (rc *OntapRestProvider) LunMapDelete(params LunMapDeleteParams) error {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
 	if err := client.SAN().LunMapDelete(&ontapRest.LunMapDeleteParams{
 		LunUUID:    params.LunUUID,
 		IGroupUUID: params.IGroupUUID,
@@ -158,8 +179,11 @@ func (rc *OntapRestProvider) LunMapDelete(params LunMapDeleteParams) error {
 
 // IscsiServiceCreate creates an iSCSI service by calling the ONTAP REST Client
 func (rc *OntapRestProvider) IscsiServiceCreate(svmUUID string) error {
-	client := getOntapClientFunc(rc.ClientParams)
-	err := client.SAN().IscsiServiceCreate(&ontapRest.IscsiCreateParams{
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+	err = client.SAN().IscsiServiceCreate(&ontapRest.IscsiCreateParams{
 		SvmUUID: svmUUID})
 	if err != nil {
 		return err
@@ -168,7 +192,10 @@ func (rc *OntapRestProvider) IscsiServiceCreate(svmUUID string) error {
 }
 
 func (rc *OntapRestProvider) SnapshotGet(snapshotUUID, volumeUUID, snapshotName string) (*ontapRest.Snapshot, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	snapshot, err := client.Storage().SnapshotGet(&ontapRest.SnapshotGetParams{
 		Name:       snapshotName,
 		UUID:       snapshotUUID,

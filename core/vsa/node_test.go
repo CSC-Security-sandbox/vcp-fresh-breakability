@@ -2,12 +2,12 @@ package vsa
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
 	"testing"
 
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
@@ -21,9 +21,11 @@ func TestAreAllNodeUpAndRunning(t *testing.T) {
 		mockCluster := new(ontaprest.MockClusterClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Cluster").Return(mockCluster)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 		uuid1 := strfmt.UUID("12345678-1234-5678-1234-567812345678")
@@ -62,9 +64,11 @@ func TestAreAllNodeUpAndRunning(t *testing.T) {
 		mockCluster := new(ontaprest.MockClusterClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Cluster").Return(mockCluster)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 
 		rc := &OntapRestProvider{
@@ -87,9 +91,11 @@ func TestAreAllNodeUpAndRunning(t *testing.T) {
 		mockCluster := new(ontaprest.MockClusterClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Cluster").Return(mockCluster)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -130,9 +136,11 @@ func TestAreAllNodeUpAndRunning(t *testing.T) {
 		mockCluster := new(ontaprest.MockClusterClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Cluster").Return(mockCluster)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -168,9 +176,11 @@ func TestGetNodeByName(t *testing.T) {
 		mockCluster := new(ontaprest.MockClusterClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Cluster").Return(mockCluster)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -204,9 +214,11 @@ func TestGetNodeByName(t *testing.T) {
 		mockCluster := new(ontaprest.MockClusterClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Cluster").Return(mockCluster)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -235,9 +247,11 @@ func TestGetNodeByName(t *testing.T) {
 		mockCluster := new(ontaprest.MockClusterClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Cluster").Return(mockCluster)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -265,9 +279,11 @@ func TestGetONTAPVersion(t *testing.T) {
 		mockCluster := new(ontaprest.MockClusterClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Cluster").Return(mockCluster)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -288,9 +304,11 @@ func TestGetONTAPVersion(t *testing.T) {
 		mockCluster := new(ontaprest.MockClusterClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Cluster").Return(mockCluster)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -316,9 +334,11 @@ func TestGetONTAPVersion(t *testing.T) {
 		mockCluster := new(ontaprest.MockClusterClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Cluster").Return(mockCluster)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -339,8 +359,10 @@ func TestPostClusterLicenseAccessToken(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Cluster").Return(mockCluster)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -368,8 +390,10 @@ func TestPostClusterLicenseAccessToken(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Cluster").Return(mockCluster)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -397,8 +421,10 @@ func TestPostClusterLicenseAccessToken(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Cluster").Return(mockCluster)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 

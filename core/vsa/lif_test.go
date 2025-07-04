@@ -25,8 +25,10 @@ func TestCreateDataLIF(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Networking").Return(mockNetworking)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -61,8 +63,11 @@ func TestCreateDataLIF(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Networking").Return(mockNetworking)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -91,8 +96,10 @@ func TestCreateDataLIF_InvalidLIFResponse(t *testing.T) {
 	mockClient := new(ontaprest.MockRESTClient)
 	mockClient.On("Networking").Return(mockNetworking)
 
-	getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-		return mockClient
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
 	}
 	rc := &OntapRestProvider{}
 

@@ -1,14 +1,18 @@
 package vsa
 
 import (
+	"strings"
+
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
-	"strings"
 )
 
 func (rc *OntapRestProvider) CreateKmsConfig(params CreateKmsConfigParams) (*CreateKmsConfigResponse, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	gcpKmsCreateParams := &ontapRest.GcpKmsCreateParams{
 		KeyName:                &params.KeyName,
 		KeyRingLocation:        &params.KeyRingLocation,
@@ -27,7 +31,10 @@ func (rc *OntapRestProvider) CreateKmsConfig(params CreateKmsConfigParams) (*Cre
 }
 
 func (rc *OntapRestProvider) IsGcpKmsReachable(params GetKmsConfigParams) (bool, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return false, err
+	}
 	getKmsConfigParams := &ontapRest.GcpKmsGetParams{
 		BaseParams: ontapRest.BaseParams{Fields: []string{"**"}},
 		UUID:       params.ExternalKmsConfigID,

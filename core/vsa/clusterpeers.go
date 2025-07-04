@@ -18,7 +18,10 @@ func (rc *OntapRestProvider) CreateClusterPeer(params CreateClusterPeerParams) (
 		IPSpace:            params.IPSpace,
 		ExpiryTime:         convertToOntapTime(params.ExpiryTime),
 	}
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	createdClusterPeer, err := client.Cluster().ClusterPeerCreate(createParams)
 	if err != nil {
 		return nil, err
@@ -49,7 +52,10 @@ func (rc *OntapRestProvider) AcceptClusterPeer(params CreateClusterPeerParams) (
 		ExpiryTime:         convertToOntapTime(params.ExpiryTime),
 		IPSpace:            params.IPSpace,
 	}
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	createdClusterPeer, err := client.Cluster().ClusterPeerAccept(createParams)
 	if err != nil {
 		return nil, err
@@ -66,8 +72,11 @@ func (rc *OntapRestProvider) AcceptClusterPeer(params CreateClusterPeerParams) (
 
 // DeleteClusterPeer deletes a cluster peer for the specific host
 func (rc *OntapRestProvider) DeleteClusterPeer(clusterPeerID string) error {
-	client := getOntapClientFunc(rc.ClientParams)
-	err := client.Cluster().ClusterPeerDelete(clusterPeerID)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+	err = client.Cluster().ClusterPeerDelete(clusterPeerID)
 	if err != nil {
 		return err
 	}
@@ -76,7 +85,10 @@ func (rc *OntapRestProvider) DeleteClusterPeer(clusterPeerID string) error {
 
 // GetClusterPeer Gets a single cluster peer by clusterPeerID
 func (rc *OntapRestProvider) GetClusterPeer(clusterPeerID string) (*ClusterPeer, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	peer, err := client.Cluster().ClusterPeerGet(clusterPeerID)
 	if err != nil {
 		return nil, err
@@ -94,7 +106,10 @@ func (rc *OntapRestProvider) GetClusterPeer(clusterPeerID string) (*ClusterPeer,
 
 // ListClusterPeers returns all cluster peers for the specific host
 func (rc *OntapRestProvider) ListClusterPeers() ([]*ClusterPeer, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	ontapClusterPeers, err := client.Cluster().ClusterPeersList()
 	if err != nil {
 		return nil, err

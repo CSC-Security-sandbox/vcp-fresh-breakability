@@ -6,7 +6,10 @@ import (
 )
 
 func (rc *OntapRestProvider) GetInterclusterLIFs(servicePolicyName string) ([]*InterclusterLif, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	networkIPInterfacesGetParams := &ontaprest.NetworkIPInterfacesGetParams{BaseParams: ontaprest.BaseParams{Fields: []string{"ip.address"}}, ServicePolicyName: &servicePolicyName}
 	icLif, err := client.Networking().InterclusterLifsGet(networkIPInterfacesGetParams)
 	if err != nil {

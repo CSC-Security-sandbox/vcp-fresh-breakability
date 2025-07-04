@@ -5,7 +5,10 @@ import (
 )
 
 func (rc *OntapRestProvider) JobGet(jobUUID string) (*OntapJob, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	job, err := client.Cluster().GetJob(jobUUID)
 	if err != nil {
 		return nil, err

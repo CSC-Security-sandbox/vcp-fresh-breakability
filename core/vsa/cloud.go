@@ -6,7 +6,10 @@ import (
 )
 
 func (rc *OntapRestProvider) CloudTargetCreate(name, containerName string) (*ontapRest.CloudTarget, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	_, job, err := client.Cloud().CloudTargetCreate(&ontapRest.CloudTargetCreateParams{
 		Name:      &name,
 		Container: &containerName,
@@ -26,7 +29,10 @@ func (rc *OntapRestProvider) CloudTargetCreate(name, containerName string) (*ont
 }
 
 func (rc *OntapRestProvider) CloudTargetGet(name *string) (*ontapRest.CloudTarget, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	cloudTarget, err := client.Cloud().CloudTargetGet(name)
 	if err != nil {
 		return nil, err

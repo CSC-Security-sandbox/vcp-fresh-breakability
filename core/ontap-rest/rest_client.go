@@ -63,7 +63,7 @@ var (
 	NewOntapRestClient = NewClient
 )
 
-func NewClient(params RESTClientParams) RESTClient {
+func NewClient(params RESTClientParams) (RESTClient, error) {
 	useCert := false
 
 	var lastErr error
@@ -112,7 +112,7 @@ func NewClient(params RESTClientParams) RESTClient {
 			security:                  &securityClient{api: &api.Security},
 		}
 		if err := TestConnection(rc); err == nil {
-			return rc
+			return rc, nil
 		} else {
 			lastErr = err
 			rClient = rc
@@ -123,7 +123,7 @@ func NewClient(params RESTClientParams) RESTClient {
 		params.Trace.Errorf("Failed to connect to any ONTAP REST API host: %v", lastErr)
 	}
 	params.Trace.Warnf("returning client with last tried host")
-	return rClient
+	return rClient, lastErr
 }
 
 // testConnection tries a simple API call to verify connectivity

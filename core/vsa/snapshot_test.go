@@ -14,13 +14,16 @@ import (
 )
 
 func TestCreateSnapshot(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
 	t.Run("CreateSnapshotSuccess", func(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -61,8 +64,8 @@ func TestCreateSnapshot(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -88,8 +91,8 @@ func TestCreateSnapshot(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -127,8 +130,8 @@ func TestCreateSnapshot(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -155,8 +158,8 @@ func TestCreateSnapshot(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -182,8 +185,8 @@ func TestCreateSnapshot(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -221,8 +224,8 @@ func TestCreateSnapshot(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -253,6 +256,9 @@ func TestCreateSnapshot(t *testing.T) {
 }
 
 func TestCreateSnapshotPolicy(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
 	t.Run("Success", func(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockStorage := new(ontaprest.MockStorageClient)
@@ -260,8 +266,8 @@ func TestCreateSnapshotPolicy(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		mockClient.On("Cluster").Return(mockCluster)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -328,8 +334,8 @@ func TestCreateSnapshotPolicy(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		mockClient.On("Cluster").Return(mockCluster)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -368,8 +374,8 @@ func TestCreateSnapshotPolicy(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		mockClient.On("Cluster").Return(mockCluster)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -411,8 +417,8 @@ func TestCreateSnapshotPolicy(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		mockClient.On("Cluster").Return(mockCluster)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -449,13 +455,16 @@ func TestCreateSnapshotPolicy(t *testing.T) {
 }
 
 func TestDeleteSnapshot(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
 	t.Run("DeleteSnapshotSuccess", func(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -489,8 +498,8 @@ func TestDeleteSnapshot(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 
 		rc := &OntapRestProvider{
@@ -519,8 +528,8 @@ func TestDeleteSnapshot(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -542,8 +551,8 @@ func TestDeleteSnapshot(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -571,8 +580,8 @@ func TestDeleteSnapshot(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -593,8 +602,8 @@ func TestDeleteSnapshot(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{
 			Logger: log.NewLogger().(*log.Slogger),
@@ -629,8 +638,8 @@ func TestDeleteSnapshot(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -662,13 +671,16 @@ func TestDeleteSnapshot(t *testing.T) {
 }
 
 func TestGetSnapshots(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
 	t.Run("GetSnapshotsSuccess", func(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Storage").Return(mockStorage)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -732,12 +744,15 @@ func TestGenerateNameForSchedule(t *testing.T) {
 }
 
 func TestDeleteSnapshotPolicy(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
 	t.Run("DeleteSnapshotPolicySuccess", func(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Storage").Return(mockStorage)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 
 		snapshotPolicyName := "testSnapshotPolicy"
@@ -756,8 +771,8 @@ func TestDeleteSnapshotPolicy(t *testing.T) {
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("Storage").Return(mockStorage)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 
 		rc := &OntapRestProvider{}
@@ -818,14 +833,17 @@ func TestEqualIntArrays(t *testing.T) {
 }
 
 func TestUpdateSnapshotPolicy(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
 	t.Run("UpdateSnapshotPolicySuccess", func(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockStorage := new(ontaprest.MockStorageClient)
 		mockClient.On("Storage").Return(mockStorage)
 		ctx := context.Background()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -869,8 +887,8 @@ func TestUpdateSnapshotPolicy(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		ctx := context.Background()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -982,6 +1000,9 @@ func Test_generateSnapshotPolicyScheduleUpdateStrategy(t *testing.T) {
 }
 
 func Test_updateSnapshotPolicy(t *testing.T) {
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
 	t.Run("Success with enabled change", func(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockStorage := new(ontaprest.MockStorageClient)
@@ -990,8 +1011,8 @@ func Test_updateSnapshotPolicy(t *testing.T) {
 		mockClient.On("Cluster").Return(mockCluster)
 		ctx := context.Background()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 
 		params := &UpdateSnapshotPolicyParams{
@@ -1044,8 +1065,8 @@ func Test_updateSnapshotPolicy(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		ctx := context.Background()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 
 		params := &UpdateSnapshotPolicyParams{
@@ -1065,8 +1086,8 @@ func Test_updateSnapshotPolicy(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		ctx := context.Background()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 
 		params := &UpdateSnapshotPolicyParams{
@@ -1098,8 +1119,8 @@ func Test_updateSnapshotPolicy(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		ctx := context.Background()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 
 		params := &UpdateSnapshotPolicyParams{
@@ -1143,8 +1164,8 @@ func Test_updateSnapshotPolicy(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		ctx := context.Background()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 
 		params := &UpdateSnapshotPolicyParams{
@@ -1196,8 +1217,8 @@ func Test_updateSnapshotPolicy(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		ctx := context.Background()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 
 		params := &UpdateSnapshotPolicyParams{
@@ -1255,8 +1276,8 @@ func Test_updateSnapshotPolicy(t *testing.T) {
 		mockClient.On("Storage").Return(mockStorage)
 		ctx := context.Background()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 
 		params := &UpdateSnapshotPolicyParams{

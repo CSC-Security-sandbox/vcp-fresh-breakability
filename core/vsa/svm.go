@@ -8,7 +8,10 @@ import (
 
 func (rc *OntapRestProvider) CreateSVM(params CreateSvmParams) (*ProviderResponse, error) {
 	// Create the SVM
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	svm, job, err := client.SVM().SvmCreate(&ontapRest.SvmCreateParams{
 		Name:    params.Name,
 		IPSpace: ipSpaceName,

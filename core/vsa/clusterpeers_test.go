@@ -8,6 +8,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 func TestCreateClusterPeer(t *testing.T) {
@@ -21,9 +22,11 @@ func TestCreateClusterPeer(t *testing.T) {
 	t.Run("WhenProviderFails", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClusterClient := new(ontaprest.MockClusterClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 
@@ -46,9 +49,11 @@ func TestCreateClusterPeer(t *testing.T) {
 	t.Run("WhenClusterPeerCreateSucceeds", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClusterClient := new(ontaprest.MockClusterClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 
@@ -87,9 +92,11 @@ func TestAcceptClusterPeer(t *testing.T) {
 	t.Run("WhenProviderFails", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClusterClient := new(ontaprest.MockClusterClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 
@@ -108,12 +115,27 @@ func TestAcceptClusterPeer(t *testing.T) {
 		_, err := ontapProvider.AcceptClusterPeer(acceptClusterPeerParams)
 		assert.Equal(tt, returnedError, err)
 	})
+	t.Run("WhenGetOntapClientFuncFails", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("getOntapClient Error")
+		}
+		ontapProvider := &OntapRestProvider{}
+
+		_, err := ontapProvider.AcceptClusterPeer(acceptClusterPeerParams)
+		assert.Error(tt, err)
+		assert.Equal(tt, err.Error(), "getOntapClient Error")
+	})
 	t.Run("WhenClusterPeerCreateSucceeds", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClusterClient := new(ontaprest.MockClusterClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 
@@ -145,9 +167,11 @@ func TestDeleteClusterPeer(t *testing.T) {
 	t.Run("WhenClusterPeerDeleteSucceeds", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClusterClient := new(ontaprest.MockClusterClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 
@@ -160,9 +184,10 @@ func TestDeleteClusterPeer(t *testing.T) {
 	t.Run("WhenClusterPeerDeleteFails", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClusterClient := new(ontaprest.MockClusterClient)
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 
@@ -174,6 +199,18 @@ func TestDeleteClusterPeer(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 	})
+	t.Run("WhenGetOntapClientFuncFails", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("getOntapClientFunc error")
+		}
+		ontapProvider := &OntapRestProvider{}
+
+		err := ontapProvider.DeleteClusterPeer("invalidClusterPeerID")
+		assert.Error(tt, err)
+		assert.Equal(tt, "getOntapClientFunc error", err.Error())
+	})
 }
 
 func TestGetClusterPeer(t *testing.T) {
@@ -181,8 +218,11 @@ func TestGetClusterPeer(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClusterClient := new(ontaprest.MockClusterClient)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		expectedPeer := &ontaprest.ClusterPeerResponse{
@@ -210,8 +250,10 @@ func TestGetClusterPeer(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClusterClient := new(ontaprest.MockClusterClient)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		expectedError := fmt.Errorf("peer not found")
@@ -223,6 +265,19 @@ func TestGetClusterPeer(t *testing.T) {
 		assert.Nil(tt, result)
 		assert.Equal(tt, expectedError, err)
 	})
+	t.Run("WhenGetOntapClientFails", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("getOntapClientFunc error")
+		}
+		ontapProvider := &OntapRestProvider{}
+
+		result, err := ontapProvider.GetClusterPeer("invalidClusterPeerID")
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "getOntapClientFunc error", err.Error())
+	})
 }
 
 func TestListClusterPeer(t *testing.T) {
@@ -230,8 +285,10 @@ func TestListClusterPeer(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClusterClient := new(ontaprest.MockClusterClient)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		expectedPeers := []*ontaprest.ClusterPeerResponse{
@@ -276,8 +333,10 @@ func TestListClusterPeer(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClusterClient := new(ontaprest.MockClusterClient)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		expectedError := fmt.Errorf("failed to list cluster peers")
@@ -293,8 +352,10 @@ func TestListClusterPeer(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClusterClient := new(ontaprest.MockClusterClient)
 
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		mockClient.On("Cluster").Return(mockClusterClient)
@@ -303,6 +364,19 @@ func TestListClusterPeer(t *testing.T) {
 		result, err := ontapProvider.ListClusterPeers()
 		assert.NoError(tt, err)
 		assert.Empty(tt, result)
+	})
+	t.Run("WhenGetOntapClientFails", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("getOntapClientFunc error")
+		}
+		ontapProvider := &OntapRestProvider{}
+
+		result, err := ontapProvider.ListClusterPeers()
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, errors.New("getOntapClientFunc error"), err)
 	})
 }
 

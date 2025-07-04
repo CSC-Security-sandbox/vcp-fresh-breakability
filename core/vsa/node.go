@@ -39,8 +39,11 @@ func (rc *OntapRestProvider) AreAllNodeUpAndRunning() (bool, error) {
 func (rc *OntapRestProvider) GetNodes() ([]*Node, error) {
 	var resultNodes []*Node
 	// Call the NodesGet method with proper parameters
-	client := getOntapClientFunc(rc.ClientParams)
-	err := client.Cluster().NodesGet(&ontapRest.NodesGetParams{
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	err = client.Cluster().NodesGet(&ontapRest.NodesGetParams{
 		BaseParams: ontapRest.BaseParams{
 			Fields: []string{"name", "uuid", "state"},
 		},
@@ -65,8 +68,11 @@ func (rc *OntapRestProvider) GetNodes() ([]*Node, error) {
 func (rc *OntapRestProvider) GetNodeByName(name string) (*Node, error) {
 	var resultNode *Node
 	// Call the NodesGet method with proper parameters
-	client := getOntapClientFunc(rc.ClientParams)
-	err := client.Cluster().NodesGet(&ontapRest.NodesGetParams{
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	err = client.Cluster().NodesGet(&ontapRest.NodesGetParams{
 		BaseParams: ontapRest.BaseParams{
 			Fields: []string{"name", "uuid"},
 		},
@@ -98,7 +104,10 @@ func (rc *OntapRestProvider) GetNodeByName(name string) (*Node, error) {
 }
 
 func (rc *OntapRestProvider) GetONTAPVersion() (*string, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	version, err := client.Cluster().GetONTAPVersion()
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrONTAPVersionFetchError, err)
@@ -107,7 +116,10 @@ func (rc *OntapRestProvider) GetONTAPVersion() (*string, error) {
 }
 
 func (rc *OntapRestProvider) PostClusterLicenseAccessToken(ctx context.Context, clientSecret string) (*string, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	version, err := client.Cluster().PostClusterLicenseAccessToken(ctx, clientSecret)
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrONTAPVersionFetchError, err)

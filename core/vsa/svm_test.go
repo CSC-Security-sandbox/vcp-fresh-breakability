@@ -24,9 +24,12 @@ func TestCreateSVM(t *testing.T) {
 		mockSVM := new(ontaprest.MockSVMClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SVM").Return(mockSVM)
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -54,9 +57,12 @@ func TestCreateSVM(t *testing.T) {
 		mockSVM := new(ontaprest.MockSVMClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SVM").Return(mockSVM)
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -75,9 +81,12 @@ func TestCreateSVM(t *testing.T) {
 		mockSVM := new(ontaprest.MockSVMClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SVM").Return(mockSVM)
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -91,6 +100,23 @@ func TestCreateSVM(t *testing.T) {
 
 		mockSVM.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSVMResponseIsInvalid_getOntapClientFuncError", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("getOntapClientFunc error")
+		}
+		rc := &OntapRestProvider{}
+
+		resp, err := rc.CreateSVM(params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.EqualError(tt, err, "getOntapClientFunc error")
 	})
 }
 
@@ -106,9 +132,12 @@ func TestCreateSVM_PollJob(t *testing.T) {
 		mockSVM := new(ontaprest.MockSVMClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SVM").Return(mockSVM)
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -142,9 +171,12 @@ func TestCreateSVM_PollJob(t *testing.T) {
 		mockSVM := new(ontaprest.MockSVMClient)
 		mockClient := new(ontaprest.MockRESTClient)
 		mockClient.On("SVM").Return(mockSVM)
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		rc := &OntapRestProvider{}
 
@@ -164,5 +196,21 @@ func TestCreateSVM_PollJob(t *testing.T) {
 
 		mockSVM.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenJobPollingFails_getOntapClientFuncError", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("getOntapClientFunc error")
+		}
+		rc := &OntapRestProvider{}
+		resp, err := rc.CreateSVM(params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.Equal(tt, "getOntapClientFunc error", err.Error())
 	})
 }

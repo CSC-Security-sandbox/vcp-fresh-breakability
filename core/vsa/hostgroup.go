@@ -9,7 +9,10 @@ import (
 
 // IgroupCreate creates an initiator group by calling the ONTAP REST Client
 func (rc *OntapRestProvider) IgroupCreate(params IgroupCreateParams) (string, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return "", err
+	}
 	iGroupName, err := client.SAN().IGroupCreate(&ontapRest.IgroupCreateParams{
 		Name:       params.IgroupName,
 		SvmName:    params.SvmName,
@@ -24,7 +27,10 @@ func (rc *OntapRestProvider) IgroupCreate(params IgroupCreateParams) (string, er
 
 // IgroupGet creates an initiator group by calling the ONTAP REST Client
 func (rc *OntapRestProvider) IgroupGet(name, svmName *string) (*ontapRest.Igroup, error) {
-	client := getOntapClientFunc(rc.ClientParams)
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
 	iGroup, err := client.SAN().IGroupGet(&ontapRest.IgroupGetParams{
 		BaseParams: ontapRest.BaseParams{
 			Fields: []string{"initiators"},
@@ -54,8 +60,11 @@ func (rc *OntapRestProvider) IgroupExists(name string, svm *string) (bool, *onta
 }
 
 func (rc *OntapRestProvider) IgroupAddInitiator(params IgroupAddInitiator) error {
-	client := getOntapClientFunc(rc.ClientParams)
-	err := client.SAN().IGroupAddInitiator(&ontapRest.IgroupAddInitiatorParams{
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+	err = client.SAN().IGroupAddInitiator(&ontapRest.IgroupAddInitiatorParams{
 		InitiatorQNs: params.Initiator,
 		IgroupUUID:   params.IgroupUUID,
 	})
@@ -68,8 +77,11 @@ func (rc *OntapRestProvider) IgroupAddInitiator(params IgroupAddInitiator) error
 }
 
 func (rc *OntapRestProvider) IgroupDeleteInitiator(params IgroupDeleteInitiator) error {
-	client := getOntapClientFunc(rc.ClientParams)
-	err := client.SAN().IGroupDeleteInitiator(&ontapRest.IgroupDeleteInitiatorParams{
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+	err = client.SAN().IGroupDeleteInitiator(&ontapRest.IgroupDeleteInitiatorParams{
 		InitiatorIQNName: params.InitiatorName,
 		IgroupUUID:       params.IgroupUUID,
 	})

@@ -17,8 +17,11 @@ func TestGetSvmPeer(t *testing.T) {
 	t.Run("WhenSvmPeerCollectionGetReturnsEmptyResponse", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		emptySvmPeerCollectionResponse := make([]*ontaprest.SvmPeer, 0)
@@ -33,8 +36,11 @@ func TestGetSvmPeer(t *testing.T) {
 	t.Run("WhenSvmPeerCollectionGetReturnsEmptyResponse", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		svmPeer1 := &ontaprest.SvmPeer{
@@ -60,8 +66,10 @@ func TestGetSvmPeer(t *testing.T) {
 	t.Run("WhenSvmPeerUUIDIsEmpty", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		svmPeerCollectionResponse := []*ontaprest.SvmPeer{
@@ -82,8 +90,11 @@ func TestGetSvmPeer(t *testing.T) {
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		localSVMUUID := "local-svm-uuid"
@@ -114,6 +125,18 @@ func TestGetSvmPeer(t *testing.T) {
 		assert.NotNil(tt, svmPeer)
 		assert.Equal(tt, *svmPeerCollectionResponse[0].UUID, svmPeer.UUID)
 	})
+	t.Run("OntapClientFuncError", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("OntapClientFuncError")
+		}
+		ontapProvider := &OntapRestProvider{}
+		svmPeer, err := ontapProvider.GetSVMPeer(&localSVMName, &remoteSVMName)
+		assert.Error(tt, err)
+		assert.Nil(tt, svmPeer)
+		assert.Equal(tt, errors.New("OntapClientFuncError"), err)
+	})
 }
 
 func TestCreateSVMPeer(t *testing.T) {
@@ -124,8 +147,11 @@ func TestCreateSVMPeer(t *testing.T) {
 	t.Run("WhenSvmPeerCollectionGetReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		expectedError := errors.New("some error")
@@ -138,14 +164,28 @@ func TestCreateSVMPeer(t *testing.T) {
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		mockClient.On("SVM").Return(mm)
 		mm.On("SvmPeerCreate", mock.Anything).Return(nil).Times(1)
 		err := ontapProvider.createSVMPeer(localSVMName, peerSVMName, peerClusterName, snapmirrorApplication)
 		assert.NoError(tt, err)
+	})
+	t.Run("OntapClientFuncError", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("OntapClientFunc error")
+		}
+		ontapProvider := &OntapRestProvider{}
+		err := ontapProvider.createSVMPeer(localSVMName, peerSVMName, peerClusterName, snapmirrorApplication)
+		assert.Error(tt, err)
+		assert.Equal(tt, errors.New("OntapClientFunc error"), err)
 	})
 }
 
@@ -154,8 +194,11 @@ func TestAcceptSvmPeer(t *testing.T) {
 	t.Run("WhenSvmPeerCollectionGetReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		expectedError := errors.New("some error")
@@ -168,8 +211,11 @@ func TestAcceptSvmPeer(t *testing.T) {
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		mockClient.On("SVM").Return(mm)
@@ -177,15 +223,28 @@ func TestAcceptSvmPeer(t *testing.T) {
 		err := ontapProvider.acceptSVMPeer(svmPeerUUID)
 		assert.NoError(tt, err)
 	})
+	t.Run("OntapClientFuncError", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("OntapClientFunc error")
+		}
+		ontapProvider := &OntapRestProvider{}
+		err := ontapProvider.acceptSVMPeer(svmPeerUUID)
+		assert.Error(tt, err)
+		assert.Equal(tt, errors.New("OntapClientFunc error"), err)
+	})
 }
 
 func TestDeleteSvmPeer(t *testing.T) {
 	svmPeerUUID := "peer-uuid"
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 	t.Run("WhenSvmPeerCollectionGetReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		expectedError := errors.New("some error")
@@ -198,14 +257,23 @@ func TestDeleteSvmPeer(t *testing.T) {
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		mockClient.On("SVM").Return(mm)
 		mm.On("SvmPeerDelete", mock.Anything).Return(nil).Times(1)
 		err := ontapProvider.DeleteSVMPeer(svmPeerUUID, false)
 		assert.NoError(tt, err)
+	})
+	t.Run("OntapClientFuncError", func(tt *testing.T) {
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("OntapClientFunc error")
+		}
+		ontapProvider := &OntapRestProvider{}
+		err := ontapProvider.DeleteSVMPeer(svmPeerUUID, false)
+		assert.Error(tt, err)
+		assert.Equal(tt, errors.New("OntapClientFunc error"), err)
 	})
 }
 
@@ -222,11 +290,14 @@ func TestCreateSvmPeering(t *testing.T) {
 	application := models.SvmPeerApplications("snapmirror")
 	var snapmirrorApplication = models.SvmPeerApplicationsSnapmirror
 
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
 	t.Run("WhenGetSvmPeerReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		expectedError := errors.New("some error")
@@ -239,8 +310,8 @@ func TestCreateSvmPeering(t *testing.T) {
 	t.Run("WhenCreateSvmPeerReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		expectedError := errors.NewNotFoundErr("not found", nil)
@@ -255,8 +326,8 @@ func TestCreateSvmPeering(t *testing.T) {
 	t.Run("WhenSvmPeerStatusIsPeered", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		svmPeerCollectionResponse := []*ontaprest.SvmPeer{
@@ -283,8 +354,8 @@ func TestCreateSvmPeering(t *testing.T) {
 	t.Run("WhenDeleteSvmPeerReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		expectedError := errors.New("Error deleting svm peer")
@@ -314,8 +385,8 @@ func TestCreateSvmPeering(t *testing.T) {
 	t.Run("WhenDeleteSvmPeerReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		expectedError := errors.New("Error deleting svm peer")
@@ -345,8 +416,8 @@ func TestCreateSvmPeering(t *testing.T) {
 	t.Run("WhenRecreatingSvmPeerReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		expectedError := errors.New("some error")
@@ -378,8 +449,8 @@ func TestCreateSvmPeering(t *testing.T) {
 	t.Run("WhenGetSvmPeerReturnsErrorAfterCreation", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		expectedError := errors.New("Error getting svm peer this time for some reason")
@@ -397,8 +468,8 @@ func TestCreateSvmPeering(t *testing.T) {
 	t.Run("WhenSvmPeerDeleteReturnsErrorAfterCreation", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		svmPeerCollectionResponse := []*ontaprest.SvmPeer{
@@ -432,8 +503,8 @@ func TestCreateSvmPeering(t *testing.T) {
 	t.Run("WhenSvmPeerDeleteReturnsErrorAfterCreation", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		svmPeerCollectionResponse := []*ontaprest.SvmPeer{
@@ -467,8 +538,8 @@ func TestCreateSvmPeering(t *testing.T) {
 	t.Run("WhenTimeoutDuringPeering", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		oldSvmPeerTimeoutMinutes := svmPeerTimeoutMinutes
@@ -502,6 +573,15 @@ func TestCreateSvmPeering(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Equal(tt, expectedError, err)
 	})
+	t.Run("OntapClientFuncError", func(tt *testing.T) {
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("OntapClientFunc error")
+		}
+		ontapProvider := &OntapRestProvider{}
+		err := ontapProvider.CreateSvmPeering(srcClusterName, srcSvmName, dstSvmName, snapmirrorApplication)
+		assert.Error(tt, err)
+		assert.Equal(tt, errors.New("OntapClientFunc error"), err)
+	})
 }
 
 func TestAcceptSvmPeering(t *testing.T) {
@@ -514,11 +594,14 @@ func TestAcceptSvmPeering(t *testing.T) {
 	remoteSVMName := "remote-svm"
 	clusterName := "cluster-name"
 	application := models.SvmPeerApplications("snapmirror")
+
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
 	t.Run("WhenGetSvmPeerReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 
@@ -532,8 +615,8 @@ func TestAcceptSvmPeering(t *testing.T) {
 	t.Run("WhenTimeoutDuringPeering", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		expectedError := errors.New("Timeout during peering infrastructure setup")
@@ -548,8 +631,8 @@ func TestAcceptSvmPeering(t *testing.T) {
 	t.Run("WhenSvmPeerStateReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		svmPeerCollectionResponse := []*ontaprest.SvmPeer{
@@ -578,8 +661,8 @@ func TestAcceptSvmPeering(t *testing.T) {
 	t.Run("WhenSvmPeerAcceptReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		svmPeerCollectionResponse := []*ontaprest.SvmPeer{
@@ -609,8 +692,8 @@ func TestAcceptSvmPeering(t *testing.T) {
 	t.Run("WhenStatusIsPeered", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		svmPeerCollectionResponse := []*ontaprest.SvmPeer{
@@ -637,8 +720,8 @@ func TestAcceptSvmPeering(t *testing.T) {
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mm := new(ontaprest.MockSVMClient)
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		ontapProvider := &OntapRestProvider{}
 		oldSvmPeerPollIntervalSeconds := svmPeerPollIntervalSeconds

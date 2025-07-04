@@ -2,13 +2,14 @@ package vsa
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
-	"testing"
 )
 
 func TestCreateKmsConfig(t *testing.T) {
@@ -17,8 +18,8 @@ func TestCreateKmsConfig(t *testing.T) {
 		mockSecurity := new(ontaprest.MockSecurityClient)
 		expectedUUID := "external-uuid"
 		origGetClient := getOntapClientFunc
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		response := []*ontaprest.GcpKms{{}}
 		response[0].UUID = nillable.ToPointer(expectedUUID)
@@ -43,8 +44,8 @@ func TestCreateKmsConfig(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSecurity := new(ontaprest.MockSecurityClient)
 		origGetClient := getOntapClientFunc
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		defer func() { getOntapClientFunc = origGetClient }()
 		mockClient.On("Security").Return(mockSecurity)
@@ -70,8 +71,8 @@ func TestIsGcpKmsReachable(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSecurity := new(ontaprest.MockSecurityClient)
 		origGetClient := getOntapClientFunc
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		defer func() { getOntapClientFunc = origGetClient }()
 		mockClient.On("Security").Return(mockSecurity)
@@ -92,8 +93,8 @@ func TestIsGcpKmsReachable(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSecurity := new(ontaprest.MockSecurityClient)
 		origGetClient := getOntapClientFunc
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		defer func() { getOntapClientFunc = origGetClient }()
 		mockClient.On("Security").Return(mockSecurity)
@@ -114,8 +115,8 @@ func TestIsGcpKmsReachable(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSecurity := new(ontaprest.MockSecurityClient)
 		origGetClient := getOntapClientFunc
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		defer func() { getOntapClientFunc = origGetClient }()
 		mockClient.On("Security").Return(mockSecurity)
@@ -143,8 +144,8 @@ func TestIsGcpKmsReachable(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSecurity := new(ontaprest.MockSecurityClient)
 		origGetClient := getOntapClientFunc
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		defer func() { getOntapClientFunc = origGetClient }()
 		mockClient.On("Security").Return(mockSecurity)
@@ -171,8 +172,8 @@ func TestIsGcpKmsReachable(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSecurity := new(ontaprest.MockSecurityClient)
 		origGetClient := getOntapClientFunc
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) ontaprest.RESTClient {
-			return mockClient
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
 		}
 		defer func() { getOntapClientFunc = origGetClient }()
 		mockClient.On("Security").Return(mockSecurity)
