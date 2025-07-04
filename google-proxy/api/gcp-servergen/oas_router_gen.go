@@ -994,6 +994,29 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 								}
 
+							case 'f': // Prefix: "finishProjectEvent"
+
+								if l := len("finishProjectEvent"); len(elem) >= l && elem[0:l] == "finishProjectEvent" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleV1betaFinishProjectEventRequest([2]string{
+											args[0],
+											args[1],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "POST")
+									}
+
+									return
+								}
+
 							case 'g': // Prefix: "getMultiple"
 
 								if l := len("getMultiple"); len(elem) >= l && elem[0:l] == "getMultiple" {
@@ -1160,76 +1183,113 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 								}
 
-							case 'h': // Prefix: "hostGroups"
+							case 'h': // Prefix: "h"
 
-								if l := len("hostGroups"); len(elem) >= l && elem[0:l] == "hostGroups" {
+								if l := len("h"); len(elem) >= l && elem[0:l] == "h" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
 								if len(elem) == 0 {
-									switch r.Method {
-									case "GET":
-										s.handleV1betaListHostGroupsRequest([2]string{
-											args[0],
-											args[1],
-										}, elemIsEscaped, w, r)
-									case "POST":
-										s.handleV1betaCreateHostGroupRequest([2]string{
-											args[0],
-											args[1],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, "GET,POST")
-									}
-
-									return
+									break
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/"
+								case 'a': // Prefix: "andleResourceEvent"
 
-									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									if l := len("andleResourceEvent"); len(elem) >= l && elem[0:l] == "andleResourceEvent" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
-									// Param: "hostGroupId"
-									// Leaf parameter, slashes are prohibited
-									idx := strings.IndexByte(elem, '/')
-									if idx >= 0 {
-										break
-									}
-									args[2] = elem
-									elem = ""
-
 									if len(elem) == 0 {
 										// Leaf node.
 										switch r.Method {
-										case "DELETE":
-											s.handleV1betaDeleteHostGroupRequest([3]string{
-												args[0],
-												args[1],
-												args[2],
-											}, elemIsEscaped, w, r)
-										case "GET":
-											s.handleV1betaDescribeHostGroupRequest([3]string{
-												args[0],
-												args[1],
-												args[2],
-											}, elemIsEscaped, w, r)
 										case "PUT":
-											s.handleV1betaUpdateHostGroupRequest([3]string{
+											s.handleV1betaResourceStateUpdateRequest([2]string{
 												args[0],
 												args[1],
-												args[2],
 											}, elemIsEscaped, w, r)
 										default:
-											s.notAllowed(w, r, "DELETE,GET,PUT")
+											s.notAllowed(w, r, "PUT")
 										}
 
 										return
+									}
+
+								case 'o': // Prefix: "ostGroups"
+
+									if l := len("ostGroups"); len(elem) >= l && elem[0:l] == "ostGroups" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										switch r.Method {
+										case "GET":
+											s.handleV1betaListHostGroupsRequest([2]string{
+												args[0],
+												args[1],
+											}, elemIsEscaped, w, r)
+										case "POST":
+											s.handleV1betaCreateHostGroupRequest([2]string{
+												args[0],
+												args[1],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "GET,POST")
+										}
+
+										return
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/"
+
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "hostGroupId"
+										// Leaf parameter, slashes are prohibited
+										idx := strings.IndexByte(elem, '/')
+										if idx >= 0 {
+											break
+										}
+										args[2] = elem
+										elem = ""
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "DELETE":
+												s.handleV1betaDeleteHostGroupRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											case "GET":
+												s.handleV1betaDescribeHostGroupRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											case "PUT":
+												s.handleV1betaUpdateHostGroupRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "DELETE,GET,PUT")
+											}
+
+											return
+										}
+
 									}
 
 								}
@@ -1364,128 +1424,165 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									return
 								}
 
-							case 's': // Prefix: "storage/kmsConfig"
+							case 's': // Prefix: "st"
 
-								if l := len("storage/kmsConfig"); len(elem) >= l && elem[0:l] == "storage/kmsConfig" {
+								if l := len("st"); len(elem) >= l && elem[0:l] == "st" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
 								if len(elem) == 0 {
-									switch r.Method {
-									case "GET":
-										s.handleV1betaListKmsConfigurationsRequest([2]string{
-											args[0],
-											args[1],
-										}, elemIsEscaped, w, r)
-									case "POST":
-										s.handleV1betaCreateKmsConfigurationRequest([2]string{
-											args[0],
-											args[1],
-										}, elemIsEscaped, w, r)
-									default:
-										s.notAllowed(w, r, "GET,POST")
-									}
-
-									return
+									break
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/"
+								case 'a': // Prefix: "artProjectEvent"
 
-									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									if l := len("artProjectEvent"); len(elem) >= l && elem[0:l] == "artProjectEvent" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
+										// Leaf node.
+										switch r.Method {
+										case "POST":
+											s.handleV1betaStartProjectEventRequest([2]string{
+												args[0],
+												args[1],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "POST")
+										}
+
+										return
+									}
+
+								case 'o': // Prefix: "orage/kmsConfig"
+
+									if l := len("orage/kmsConfig"); len(elem) >= l && elem[0:l] == "orage/kmsConfig" {
+										elem = elem[l:]
+									} else {
 										break
 									}
-									switch elem[0] {
-									case 'g': // Prefix: "getMultipleKmsConfigs"
-										origElem := elem
-										if l := len("getMultipleKmsConfigs"); len(elem) >= l && elem[0:l] == "getMultipleKmsConfigs" {
-											elem = elem[l:]
-										} else {
-											break
-										}
-
-										if len(elem) == 0 {
-											// Leaf node.
-											switch r.Method {
-											case "POST":
-												s.handleV1betaGetMultipleKmsConfigsRequest([2]string{
-													args[0],
-													args[1],
-												}, elemIsEscaped, w, r)
-											default:
-												s.notAllowed(w, r, "POST")
-											}
-
-											return
-										}
-
-										elem = origElem
-									}
-									// Param: "kmsConfigId"
-									// Match until "/"
-									idx := strings.IndexByte(elem, '/')
-									if idx < 0 {
-										idx = len(elem)
-									}
-									args[2] = elem[:idx]
-									elem = elem[idx:]
 
 									if len(elem) == 0 {
 										switch r.Method {
-										case "DELETE":
-											s.handleV1betaDeleteKmsConfigurationRequest([3]string{
-												args[0],
-												args[1],
-												args[2],
-											}, elemIsEscaped, w, r)
 										case "GET":
-											s.handleV1betaDescribeKmsConfigurationRequest([3]string{
+											s.handleV1betaListKmsConfigurationsRequest([2]string{
 												args[0],
 												args[1],
-												args[2],
 											}, elemIsEscaped, w, r)
-										case "PUT":
-											s.handleV1betaUpdateKmsConfigurationRequest([3]string{
+										case "POST":
+											s.handleV1betaCreateKmsConfigurationRequest([2]string{
 												args[0],
 												args[1],
-												args[2],
 											}, elemIsEscaped, w, r)
 										default:
-											s.notAllowed(w, r, "DELETE,GET,PUT")
+											s.notAllowed(w, r, "GET,POST")
 										}
 
 										return
 									}
 									switch elem[0] {
-									case '/': // Prefix: "/check"
+									case '/': // Prefix: "/"
 
-										if l := len("/check"); len(elem) >= l && elem[0:l] == "/check" {
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
 										if len(elem) == 0 {
-											// Leaf node.
+											break
+										}
+										switch elem[0] {
+										case 'g': // Prefix: "getMultipleKmsConfigs"
+											origElem := elem
+											if l := len("getMultipleKmsConfigs"); len(elem) >= l && elem[0:l] == "getMultipleKmsConfigs" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "POST":
+													s.handleV1betaGetMultipleKmsConfigsRequest([2]string{
+														args[0],
+														args[1],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "POST")
+												}
+
+												return
+											}
+
+											elem = origElem
+										}
+										// Param: "kmsConfigId"
+										// Match until "/"
+										idx := strings.IndexByte(elem, '/')
+										if idx < 0 {
+											idx = len(elem)
+										}
+										args[2] = elem[:idx]
+										elem = elem[idx:]
+
+										if len(elem) == 0 {
 											switch r.Method {
+											case "DELETE":
+												s.handleV1betaDeleteKmsConfigurationRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
 											case "GET":
-												s.handleV1betaCheckKmsConfigRequest([3]string{
+												s.handleV1betaDescribeKmsConfigurationRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											case "PUT":
+												s.handleV1betaUpdateKmsConfigurationRequest([3]string{
 													args[0],
 													args[1],
 													args[2],
 												}, elemIsEscaped, w, r)
 											default:
-												s.notAllowed(w, r, "GET")
+												s.notAllowed(w, r, "DELETE,GET,PUT")
 											}
 
 											return
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/check"
+
+											if l := len("/check"); len(elem) >= l && elem[0:l] == "/check" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "GET":
+													s.handleV1betaCheckKmsConfigRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "GET")
+												}
+
+												return
+											}
+
 										}
 
 									}
@@ -3007,6 +3104,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 								}
 
+							case 'f': // Prefix: "finishProjectEvent"
+
+								if l := len("finishProjectEvent"); len(elem) >= l && elem[0:l] == "finishProjectEvent" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = V1betaFinishProjectEventOperation
+										r.summary = "Finishes the project state update of a 1P account."
+										r.operationID = "v1beta_finishProjectEvent"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/finishProjectEvent"
+										r.args = args
+										r.count = 2
+										return r, true
+									default:
+										return
+									}
+								}
+
 							case 'g': // Prefix: "getMultiple"
 
 								if l := len("getMultiple"); len(elem) >= l && elem[0:l] == "getMultiple" {
@@ -3179,84 +3300,122 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 								}
 
-							case 'h': // Prefix: "hostGroups"
+							case 'h': // Prefix: "h"
 
-								if l := len("hostGroups"); len(elem) >= l && elem[0:l] == "hostGroups" {
+								if l := len("h"); len(elem) >= l && elem[0:l] == "h" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
 								if len(elem) == 0 {
-									switch method {
-									case "GET":
-										r.name = V1betaListHostGroupsOperation
-										r.summary = "List all HostGroups"
-										r.operationID = "v1beta_listHostGroups"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups"
-										r.args = args
-										r.count = 2
-										return r, true
-									case "POST":
-										r.name = V1betaCreateHostGroupOperation
-										r.summary = "Create a new HostGroup"
-										r.operationID = "v1beta_createHostGroup"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups"
-										r.args = args
-										r.count = 2
-										return r, true
-									default:
-										return
-									}
+									break
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/"
+								case 'a': // Prefix: "andleResourceEvent"
 
-									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									if l := len("andleResourceEvent"); len(elem) >= l && elem[0:l] == "andleResourceEvent" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
-									// Param: "hostGroupId"
-									// Leaf parameter, slashes are prohibited
-									idx := strings.IndexByte(elem, '/')
-									if idx >= 0 {
-										break
-									}
-									args[2] = elem
-									elem = ""
-
 									if len(elem) == 0 {
 										// Leaf node.
 										switch method {
-										case "DELETE":
-											r.name = V1betaDeleteHostGroupOperation
-											r.summary = "Delete a HostGroup"
-											r.operationID = "v1beta_deleteHostGroup"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}"
-											r.args = args
-											r.count = 3
-											return r, true
-										case "GET":
-											r.name = V1betaDescribeHostGroupOperation
-											r.summary = "Describe a HostGroup"
-											r.operationID = "v1beta_describeHostGroup"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}"
-											r.args = args
-											r.count = 3
-											return r, true
 										case "PUT":
-											r.name = V1betaUpdateHostGroupOperation
-											r.summary = "Update a HostGroup"
-											r.operationID = "v1beta_updateHostGroup"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}"
+											r.name = V1betaResourceStateUpdateOperation
+											r.summary = "Updates the resource state of GCP 1P resources."
+											r.operationID = "v1beta_resourceStateUpdate"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent"
 											r.args = args
-											r.count = 3
+											r.count = 2
 											return r, true
 										default:
 											return
 										}
+									}
+
+								case 'o': // Prefix: "ostGroups"
+
+									if l := len("ostGroups"); len(elem) >= l && elem[0:l] == "ostGroups" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										switch method {
+										case "GET":
+											r.name = V1betaListHostGroupsOperation
+											r.summary = "List all HostGroups"
+											r.operationID = "v1beta_listHostGroups"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups"
+											r.args = args
+											r.count = 2
+											return r, true
+										case "POST":
+											r.name = V1betaCreateHostGroupOperation
+											r.summary = "Create a new HostGroup"
+											r.operationID = "v1beta_createHostGroup"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups"
+											r.args = args
+											r.count = 2
+											return r, true
+										default:
+											return
+										}
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/"
+
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "hostGroupId"
+										// Leaf parameter, slashes are prohibited
+										idx := strings.IndexByte(elem, '/')
+										if idx >= 0 {
+											break
+										}
+										args[2] = elem
+										elem = ""
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "DELETE":
+												r.name = V1betaDeleteHostGroupOperation
+												r.summary = "Delete a HostGroup"
+												r.operationID = "v1beta_deleteHostGroup"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}"
+												r.args = args
+												r.count = 3
+												return r, true
+											case "GET":
+												r.name = V1betaDescribeHostGroupOperation
+												r.summary = "Describe a HostGroup"
+												r.operationID = "v1beta_describeHostGroup"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}"
+												r.args = args
+												r.count = 3
+												return r, true
+											case "PUT":
+												r.name = V1betaUpdateHostGroupOperation
+												r.summary = "Update a HostGroup"
+												r.operationID = "v1beta_updateHostGroup"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/hostGroups/{hostGroupId}"
+												r.args = args
+												r.count = 3
+												return r, true
+											default:
+												return
+											}
+										}
+
 									}
 
 								}
@@ -3400,137 +3559,175 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									}
 								}
 
-							case 's': // Prefix: "storage/kmsConfig"
+							case 's': // Prefix: "st"
 
-								if l := len("storage/kmsConfig"); len(elem) >= l && elem[0:l] == "storage/kmsConfig" {
+								if l := len("st"); len(elem) >= l && elem[0:l] == "st" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
 								if len(elem) == 0 {
-									switch method {
-									case "GET":
-										r.name = V1betaListKmsConfigurationsOperation
-										r.summary = "List all KMS configurations"
-										r.operationID = "v1beta_listKmsConfigurations"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig"
-										r.args = args
-										r.count = 2
-										return r, true
-									case "POST":
-										r.name = V1betaCreateKmsConfigurationOperation
-										r.summary = "Create KMS configuration"
-										r.operationID = "v1beta_CreateKmsConfiguration"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig"
-										r.args = args
-										r.count = 2
-										return r, true
-									default:
-										return
-									}
+									break
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/"
+								case 'a': // Prefix: "artProjectEvent"
 
-									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									if l := len("artProjectEvent"); len(elem) >= l && elem[0:l] == "artProjectEvent" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
+										// Leaf node.
+										switch method {
+										case "POST":
+											r.name = V1betaStartProjectEventOperation
+											r.summary = "Starts the project state update of a 1P account."
+											r.operationID = "v1beta_startProjectEvent"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent"
+											r.args = args
+											r.count = 2
+											return r, true
+										default:
+											return
+										}
+									}
+
+								case 'o': // Prefix: "orage/kmsConfig"
+
+									if l := len("orage/kmsConfig"); len(elem) >= l && elem[0:l] == "orage/kmsConfig" {
+										elem = elem[l:]
+									} else {
 										break
 									}
-									switch elem[0] {
-									case 'g': // Prefix: "getMultipleKmsConfigs"
-										origElem := elem
-										if l := len("getMultipleKmsConfigs"); len(elem) >= l && elem[0:l] == "getMultipleKmsConfigs" {
-											elem = elem[l:]
-										} else {
-											break
-										}
-
-										if len(elem) == 0 {
-											// Leaf node.
-											switch method {
-											case "POST":
-												r.name = V1betaGetMultipleKmsConfigsOperation
-												r.summary = "List specified KMS configurations"
-												r.operationID = "v1beta_getMultipleKmsConfigs"
-												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/getMultipleKmsConfigs"
-												r.args = args
-												r.count = 2
-												return r, true
-											default:
-												return
-											}
-										}
-
-										elem = origElem
-									}
-									// Param: "kmsConfigId"
-									// Match until "/"
-									idx := strings.IndexByte(elem, '/')
-									if idx < 0 {
-										idx = len(elem)
-									}
-									args[2] = elem[:idx]
-									elem = elem[idx:]
 
 									if len(elem) == 0 {
 										switch method {
-										case "DELETE":
-											r.name = V1betaDeleteKmsConfigurationOperation
-											r.summary = "Deletes a KMS configuration"
-											r.operationID = "v1beta_deleteKmsConfiguration"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
-											r.args = args
-											r.count = 3
-											return r, true
 										case "GET":
-											r.name = V1betaDescribeKmsConfigurationOperation
-											r.summary = "Describe KMS configuration"
-											r.operationID = "v1beta_describeKmsConfiguration"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+											r.name = V1betaListKmsConfigurationsOperation
+											r.summary = "List all KMS configurations"
+											r.operationID = "v1beta_listKmsConfigurations"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig"
 											r.args = args
-											r.count = 3
+											r.count = 2
 											return r, true
-										case "PUT":
-											r.name = V1betaUpdateKmsConfigurationOperation
-											r.summary = "Update a KMS configuration"
-											r.operationID = "v1beta_updateKmsConfiguration"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+										case "POST":
+											r.name = V1betaCreateKmsConfigurationOperation
+											r.summary = "Create KMS configuration"
+											r.operationID = "v1beta_CreateKmsConfiguration"
+											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig"
 											r.args = args
-											r.count = 3
+											r.count = 2
 											return r, true
 										default:
 											return
 										}
 									}
 									switch elem[0] {
-									case '/': // Prefix: "/check"
+									case '/': // Prefix: "/"
 
-										if l := len("/check"); len(elem) >= l && elem[0:l] == "/check" {
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
 										if len(elem) == 0 {
-											// Leaf node.
+											break
+										}
+										switch elem[0] {
+										case 'g': // Prefix: "getMultipleKmsConfigs"
+											origElem := elem
+											if l := len("getMultipleKmsConfigs"); len(elem) >= l && elem[0:l] == "getMultipleKmsConfigs" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "POST":
+													r.name = V1betaGetMultipleKmsConfigsOperation
+													r.summary = "List specified KMS configurations"
+													r.operationID = "v1beta_getMultipleKmsConfigs"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/getMultipleKmsConfigs"
+													r.args = args
+													r.count = 2
+													return r, true
+												default:
+													return
+												}
+											}
+
+											elem = origElem
+										}
+										// Param: "kmsConfigId"
+										// Match until "/"
+										idx := strings.IndexByte(elem, '/')
+										if idx < 0 {
+											idx = len(elem)
+										}
+										args[2] = elem[:idx]
+										elem = elem[idx:]
+
+										if len(elem) == 0 {
 											switch method {
+											case "DELETE":
+												r.name = V1betaDeleteKmsConfigurationOperation
+												r.summary = "Deletes a KMS configuration"
+												r.operationID = "v1beta_deleteKmsConfiguration"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+												r.args = args
+												r.count = 3
+												return r, true
 											case "GET":
-												r.name = V1betaCheckKmsConfigOperation
-												r.summary = "Verifies KMS configuration reachability"
-												r.operationID = "v1beta_checkKmsConfig"
-												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check"
+												r.name = V1betaDescribeKmsConfigurationOperation
+												r.summary = "Describe KMS configuration"
+												r.operationID = "v1beta_describeKmsConfiguration"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
+												r.args = args
+												r.count = 3
+												return r, true
+											case "PUT":
+												r.name = V1betaUpdateKmsConfigurationOperation
+												r.summary = "Update a KMS configuration"
+												r.operationID = "v1beta_updateKmsConfiguration"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}"
 												r.args = args
 												r.count = 3
 												return r, true
 											default:
 												return
 											}
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/check"
+
+											if l := len("/check"); len(elem) >= l && elem[0:l] == "/check" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "GET":
+													r.name = V1betaCheckKmsConfigOperation
+													r.summary = "Verifies KMS configuration reachability"
+													r.operationID = "v1beta_checkKmsConfig"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
+											}
+
 										}
 
 									}

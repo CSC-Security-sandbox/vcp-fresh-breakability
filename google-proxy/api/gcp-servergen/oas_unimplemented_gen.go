@@ -310,6 +310,15 @@ func (UnimplementedHandler) V1betaDescribeVolume(ctx context.Context, params V1b
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaFinishProjectEvent implements v1beta_finishProjectEvent operation.
+//
+// Finishes the project state for a 1P account based on the path parameter and project state value.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/finishProjectEvent
+func (UnimplementedHandler) V1betaFinishProjectEvent(ctx context.Context, req *StateUpdateV1beta, params V1betaFinishProjectEventParams) (r V1betaFinishProjectEventRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaGetMultipleActiveDirectories implements v1beta_getMultipleActiveDirectories operation.
 //
 // Returns descriptions of Active Directory credentials that is listed in request body.
@@ -629,6 +638,15 @@ func (UnimplementedHandler) V1betaListVolumes(ctx context.Context, params V1beta
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaResourceStateUpdate implements v1beta_resourceStateUpdate operation.
+//
+// Updates the resource state of GCP 1P resources based on the path and body parameters.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent
+func (UnimplementedHandler) V1betaResourceStateUpdate(ctx context.Context, req *ResourceStateUpdateV1beta, params V1betaResourceStateUpdateParams) (r V1betaResourceStateUpdateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaResumeReplication implements v1beta_resumeReplication operation.
 //
 // Resume a replication.
@@ -644,6 +662,15 @@ func (UnimplementedHandler) V1betaResumeReplication(ctx context.Context, params 
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication
 func (UnimplementedHandler) V1betaReverseAndResumeReplication(ctx context.Context, params V1betaReverseAndResumeReplicationParams) (r V1betaReverseAndResumeReplicationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaStartProjectEvent implements v1beta_startProjectEvent operation.
+//
+// Updates the project state for a 1P account based on the path parameter and project state value.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent
+func (UnimplementedHandler) V1betaStartProjectEvent(ctx context.Context, req *StateUpdateV1beta, params V1betaStartProjectEventParams) (r V1betaStartProjectEventRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

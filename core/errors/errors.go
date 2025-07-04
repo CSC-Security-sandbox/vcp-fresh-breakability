@@ -131,6 +131,8 @@ const (
 	ErrDescribingSDEJob                                              = 6057
 	ErrSDEJobNotFinished                                             = 6058
 	ErrSDEKmsDeleteJobFailed                                         = 6059
+	ErrCVPClientStartProjectEventError                               = 6060
+	ErrInvalidOperationName                                          = 6061
 )
 
 type Error interface {
@@ -255,6 +257,17 @@ func WrapAsTemporalApplicationError(err error) error {
 	var customError *CustomError
 	if As(err, &customError) {
 		return temporal.NewApplicationError(err.Error(), "CustomError", customError.TrackingID, customError.OriginalErr.Error())
+	}
+
+	return err
+}
+
+// WrapAsNonRetryableTemporalApplicationError wraps a given error as a Temporal application error and marks it as non-retryable if it is a CustomError.
+// Otherwise, it returns the original error unchanged.
+func WrapAsNonRetryableTemporalApplicationError(err error) error {
+	var customError *CustomError
+	if As(err, &customError) {
+		return temporal.NewNonRetryableApplicationError(err.Error(), "CustomError", err, customError.TrackingID, customError.OriginalErr.Error())
 	}
 
 	return err

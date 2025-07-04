@@ -5245,6 +5245,225 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent:
+    post:
+      operationId: v1beta_startProjectEvent
+      tags:
+        - resourceEvents
+      summary: Starts the project state update of a 1P account.
+      description: Updates the project state for a 1P account based on the path parameter
+        and project state value.
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameter to update the project state
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectStateUpdate_v1beta'
+        required: true
+      responses:
+        "201":
+          description: Started the project state update event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: true
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                response:
+                  jobs: null
+                  resourceId: b78e8675-7e6f-64ec-3ec2-163753add2d5
+        "202":
+          description: Starting the project state update event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                response:
+                  jobs:
+                    - ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                  resourceId: b78e8675-7e6f-64ec-3ec2-163753add2d5
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent:
+    put:
+      operationId: v1beta_resourceStateUpdate
+      tags:
+        - resourceEvents
+      summary: Updates the resource state of GCP 1P resources.
+      description: Updates the resource state of GCP 1P resources based on the path
+        and body parameters.
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameters to update the state of the volume for
+          a given volume ID
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceStateUpdate_v1beta'
+        required: true
+      responses:
+        "201":
+          description: Updated resource state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: true
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                response:
+                  jobs:
+                    - ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                  resourceId: 281ea02b-d22d-8115-4d96-f943038ac2a1
+                  ResourceType: Volume
+        "202":
+          description: Updating resource state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                response:
+                  jobs:
+                    - ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                  resourceId: 281ea02b-d22d-8115-4d96-f943038ac2a1
+                  ResourceType: Volume
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/finishProjectEvent:
+    post:
+      operationId: v1beta_finishProjectEvent
+      tags:
+        - resourceEvents
+      summary: Finishes the project state update of a 1P account.
+      description: Finishes the project state for a 1P account based on the path parameter
+        and project state value.
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The required parameter to finish the project state update event
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectStateUpdate_v1beta'
+        required: true
+      responses:
+        "201":
+          description: Finished the project state update event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: true
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+        "202":
+          description: Finishing the project state update event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        '503':
+          $ref: '#/components/responses/StandardError-503'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
 components:
   schemas:
     Health:
@@ -5274,6 +5493,68 @@ components:
       example:
         code: 1994.0
         message: Out of cheese error! Please reboot the Universe
+    StateUpdate_v1beta:
+      title: StateUpdate
+      required:
+        - state
+      type: object
+      properties:
+        state:
+          title: state
+          type: string
+          description: New state to be updated
+          nullable: false
+          example: DELETE
+          enum:
+            - "ON"
+            - "OFF"
+            - "DELETE"
+    ProjectStateUpdate_v1beta:
+      title: ProjectStateUpdate
+      allOf:
+        - $ref: '#/components/schemas/StateUpdate_v1beta'
+    ResourceStateUpdate_v1beta:
+      title: ResourceStateUpdate
+      allOf:
+        - $ref: '#/components/schemas/StateUpdate_v1beta'
+        - required:
+            - resourceID
+            - resourceType
+          type: object
+          properties:
+            resourceType:
+              title: resourceType
+              type: string
+              description: Resource type be updated
+              nullable: false
+              example: Volume
+              enum:
+                - ActiveDirectory
+                - Volume
+                - Snapshot
+                - StoragePool
+                - KmsConfig
+                - BackupPolicy
+            resourceID:
+              title: resourceID
+              type: string
+              description: The UUID of the resource
+              nullable: false
+              example: 281ea02b-d22d-8115-4d96-f943038ac2a1
+            parentResourceType:
+              title: parentResourceType
+              type: string
+              description: Parent resource Type
+              nullable: true
+              example: Volume
+              enum:
+                - Volume
+            parentResourceID:
+              title: parentResourceID
+              type: string
+              description: The UUID of the parent resource
+              nullable: true
+              example: 281ea02b-d22d-8115-4d96-f943038ac2a1
     VolumeReplicationInternal_v1beta:
       title: VolumeReplicationInternal
       type: object

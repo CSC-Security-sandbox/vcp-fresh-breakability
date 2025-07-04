@@ -239,9 +239,33 @@
     "retriable": false,
     "http_code": 500
   },
+  "6057": {
+    "description": "Error describing SDE Operation",
+    "message":  "Error describing SDE Operation",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6058": {
+    "description": "Error SDE job not done",
+    "message": "Error SDE job not done",
+    "retriable": false,
+    "http_code": 500
+  },
   "6059": {
     "description": "Delete Kms Job Failed",
     "message":  "Error while deleting KMS configuration",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6060": {
+    "description": "Client Error during StartProjectEvent",
+    "message": "Client Error during StartProjectEvent",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6061": {
+    "description": "Invalid Operation Name",
+    "message": "Invalid Operation Name",
     "retriable": false,
     "http_code": 500
   }

@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/jobmanageractivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
@@ -174,8 +175,9 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(replicationWorkflows.ResumeInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ResumeReplicationWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateHostGroupWorkflow)
+	worker.RegisterWorkflow(workflows.StartProjectEventOffStateWorkflow)
+	worker.RegisterWorkflow(workflows.StartProjectEventOnStateWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ReleaseVolumeReplicationInternalWorkflow)
-
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
@@ -196,5 +198,6 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&activities.HostGroupUpdateActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationResumeActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.ResumeVolumeReplicationActivity{SE: dbcon})
+	worker.RegisterActivity(&resource_events_activities.StartProjectEventActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationRowDeleteActivity{SE: dbcon})
 }

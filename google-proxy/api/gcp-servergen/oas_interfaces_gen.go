@@ -129,6 +129,10 @@ type V1betaDescribeVolumeRes interface {
 	v1betaDescribeVolumeRes()
 }
 
+type V1betaFinishProjectEventRes interface {
+	v1betaFinishProjectEventRes()
+}
+
 type V1betaGetMultipleActiveDirectoriesRes interface {
 	v1betaGetMultipleActiveDirectoriesRes()
 }
@@ -269,12 +273,20 @@ type V1betaListVolumesRes interface {
 	v1betaListVolumesRes()
 }
 
+type V1betaResourceStateUpdateRes interface {
+	v1betaResourceStateUpdateRes()
+}
+
 type V1betaResumeReplicationRes interface {
 	v1betaResumeReplicationRes()
 }
 
 type V1betaReverseAndResumeReplicationRes interface {
 	v1betaReverseAndResumeReplicationRes()
+}
+
+type V1betaStartProjectEventRes interface {
+	v1betaStartProjectEventRes()
 }
 
 type V1betaStopReplicationRes interface {

@@ -1969,6 +1969,66 @@ func (_c *MockHandler_V1betaDescribeVolume_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// V1betaFinishProjectEvent provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaFinishProjectEvent(ctx context.Context, req *StateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaFinishProjectEvent")
+	}
+
+	var r0 V1betaFinishProjectEventRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *StateUpdateV1beta, V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *StateUpdateV1beta, V1betaFinishProjectEventParams) V1betaFinishProjectEventRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaFinishProjectEventRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *StateUpdateV1beta, V1betaFinishProjectEventParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaFinishProjectEvent_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaFinishProjectEvent'
+type MockHandler_V1betaFinishProjectEvent_Call struct {
+	*mock.Call
+}
+
+// V1betaFinishProjectEvent is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *StateUpdateV1beta
+//   - params V1betaFinishProjectEventParams
+func (_e *MockHandler_Expecter) V1betaFinishProjectEvent(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaFinishProjectEvent_Call {
+	return &MockHandler_V1betaFinishProjectEvent_Call{Call: _e.mock.On("V1betaFinishProjectEvent", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaFinishProjectEvent_Call) Run(run func(ctx context.Context, req *StateUpdateV1beta, params V1betaFinishProjectEventParams)) *MockHandler_V1betaFinishProjectEvent_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*StateUpdateV1beta), args[2].(V1betaFinishProjectEventParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaFinishProjectEvent_Call) Return(_a0 V1betaFinishProjectEventRes, _a1 error) *MockHandler_V1betaFinishProjectEvent_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaFinishProjectEvent_Call) RunAndReturn(run func(context.Context, *StateUpdateV1beta, V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error)) *MockHandler_V1betaFinishProjectEvent_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaGetMultipleActiveDirectories provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaGetMultipleActiveDirectories(ctx context.Context, req *ActiveDirectoryIdListV1beta, params V1betaGetMultipleActiveDirectoriesParams) (V1betaGetMultipleActiveDirectoriesRes, error) {
 	ret := _m.Called(ctx, req, params)
@@ -4050,6 +4110,66 @@ func (_c *MockHandler_V1betaListVolumes_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
+// V1betaResourceStateUpdate provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaResourceStateUpdate(ctx context.Context, req *ResourceStateUpdateV1beta, params V1betaResourceStateUpdateParams) (V1betaResourceStateUpdateRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaResourceStateUpdate")
+	}
+
+	var r0 V1betaResourceStateUpdateRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ResourceStateUpdateV1beta, V1betaResourceStateUpdateParams) (V1betaResourceStateUpdateRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ResourceStateUpdateV1beta, V1betaResourceStateUpdateParams) V1betaResourceStateUpdateRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaResourceStateUpdateRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ResourceStateUpdateV1beta, V1betaResourceStateUpdateParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaResourceStateUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaResourceStateUpdate'
+type MockHandler_V1betaResourceStateUpdate_Call struct {
+	*mock.Call
+}
+
+// V1betaResourceStateUpdate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *ResourceStateUpdateV1beta
+//   - params V1betaResourceStateUpdateParams
+func (_e *MockHandler_Expecter) V1betaResourceStateUpdate(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaResourceStateUpdate_Call {
+	return &MockHandler_V1betaResourceStateUpdate_Call{Call: _e.mock.On("V1betaResourceStateUpdate", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaResourceStateUpdate_Call) Run(run func(ctx context.Context, req *ResourceStateUpdateV1beta, params V1betaResourceStateUpdateParams)) *MockHandler_V1betaResourceStateUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ResourceStateUpdateV1beta), args[2].(V1betaResourceStateUpdateParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaResourceStateUpdate_Call) Return(_a0 V1betaResourceStateUpdateRes, _a1 error) *MockHandler_V1betaResourceStateUpdate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaResourceStateUpdate_Call) RunAndReturn(run func(context.Context, *ResourceStateUpdateV1beta, V1betaResourceStateUpdateParams) (V1betaResourceStateUpdateRes, error)) *MockHandler_V1betaResourceStateUpdate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaResumeReplication provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1betaResumeReplication(ctx context.Context, params V1betaResumeReplicationParams) (V1betaResumeReplicationRes, error) {
 	ret := _m.Called(ctx, params)
@@ -4164,6 +4284,66 @@ func (_c *MockHandler_V1betaReverseAndResumeReplication_Call) Return(_a0 V1betaR
 }
 
 func (_c *MockHandler_V1betaReverseAndResumeReplication_Call) RunAndReturn(run func(context.Context, V1betaReverseAndResumeReplicationParams) (V1betaReverseAndResumeReplicationRes, error)) *MockHandler_V1betaReverseAndResumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaStartProjectEvent provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaStartProjectEvent(ctx context.Context, req *StateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaStartProjectEvent")
+	}
+
+	var r0 V1betaStartProjectEventRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *StateUpdateV1beta, V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *StateUpdateV1beta, V1betaStartProjectEventParams) V1betaStartProjectEventRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaStartProjectEventRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *StateUpdateV1beta, V1betaStartProjectEventParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaStartProjectEvent_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaStartProjectEvent'
+type MockHandler_V1betaStartProjectEvent_Call struct {
+	*mock.Call
+}
+
+// V1betaStartProjectEvent is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *StateUpdateV1beta
+//   - params V1betaStartProjectEventParams
+func (_e *MockHandler_Expecter) V1betaStartProjectEvent(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaStartProjectEvent_Call {
+	return &MockHandler_V1betaStartProjectEvent_Call{Call: _e.mock.On("V1betaStartProjectEvent", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaStartProjectEvent_Call) Run(run func(ctx context.Context, req *StateUpdateV1beta, params V1betaStartProjectEventParams)) *MockHandler_V1betaStartProjectEvent_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*StateUpdateV1beta), args[2].(V1betaStartProjectEventParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaStartProjectEvent_Call) Return(_a0 V1betaStartProjectEventRes, _a1 error) *MockHandler_V1betaStartProjectEvent_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaStartProjectEvent_Call) RunAndReturn(run func(context.Context, *StateUpdateV1beta, V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error)) *MockHandler_V1betaStartProjectEvent_Call {
 	_c.Call.Return(run)
 	return _c
 }

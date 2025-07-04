@@ -7598,6 +7598,69 @@ func (o OptNilPoolV1betaAssetLocationMetadata) Or(d PoolV1betaAssetLocationMetad
 	return d
 }
 
+// NewOptNilResourceStateUpdateV1betaParentResourceType returns new OptNilResourceStateUpdateV1betaParentResourceType with value set to v.
+func NewOptNilResourceStateUpdateV1betaParentResourceType(v ResourceStateUpdateV1betaParentResourceType) OptNilResourceStateUpdateV1betaParentResourceType {
+	return OptNilResourceStateUpdateV1betaParentResourceType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilResourceStateUpdateV1betaParentResourceType is optional nullable ResourceStateUpdateV1betaParentResourceType.
+type OptNilResourceStateUpdateV1betaParentResourceType struct {
+	Value ResourceStateUpdateV1betaParentResourceType
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilResourceStateUpdateV1betaParentResourceType was set.
+func (o OptNilResourceStateUpdateV1betaParentResourceType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilResourceStateUpdateV1betaParentResourceType) Reset() {
+	var v ResourceStateUpdateV1betaParentResourceType
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilResourceStateUpdateV1betaParentResourceType) SetTo(v ResourceStateUpdateV1betaParentResourceType) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilResourceStateUpdateV1betaParentResourceType) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilResourceStateUpdateV1betaParentResourceType) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v ResourceStateUpdateV1betaParentResourceType
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilResourceStateUpdateV1betaParentResourceType) Get() (v ResourceStateUpdateV1betaParentResourceType, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilResourceStateUpdateV1betaParentResourceType) Or(d ResourceStateUpdateV1betaParentResourceType) ResourceStateUpdateV1betaParentResourceType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptNilSimpleExportPolicyRuleV1betaHasRootAccess returns new OptNilSimpleExportPolicyRuleV1betaHasRootAccess with value set to v.
 func NewOptNilSimpleExportPolicyRuleV1betaHasRootAccess(v SimpleExportPolicyRuleV1betaHasRootAccess) OptNilSimpleExportPolicyRuleV1betaHasRootAccess {
 	return OptNilSimpleExportPolicyRuleV1betaHasRootAccess{
@@ -12851,6 +12914,225 @@ func (s *ReplicationVolumeInformationV1beta) SetVolumeId(val OptString) {
 	s.VolumeId = val
 }
 
+// Merged schema.
+// Ref: #/components/schemas/ResourceStateUpdate_v1beta
+type ResourceStateUpdateV1beta struct {
+	// New state to be updated.
+	State ResourceStateUpdateV1betaState `json:"state"`
+	// Resource type be updated.
+	ResourceType ResourceStateUpdateV1betaResourceType `json:"resourceType"`
+	// The UUID of the resource.
+	ResourceID string `json:"resourceID"`
+	// Parent resource Type.
+	ParentResourceType OptNilResourceStateUpdateV1betaParentResourceType `json:"parentResourceType"`
+	// The UUID of the parent resource.
+	ParentResourceID OptNilString `json:"parentResourceID"`
+}
+
+// GetState returns the value of State.
+func (s *ResourceStateUpdateV1beta) GetState() ResourceStateUpdateV1betaState {
+	return s.State
+}
+
+// GetResourceType returns the value of ResourceType.
+func (s *ResourceStateUpdateV1beta) GetResourceType() ResourceStateUpdateV1betaResourceType {
+	return s.ResourceType
+}
+
+// GetResourceID returns the value of ResourceID.
+func (s *ResourceStateUpdateV1beta) GetResourceID() string {
+	return s.ResourceID
+}
+
+// GetParentResourceType returns the value of ParentResourceType.
+func (s *ResourceStateUpdateV1beta) GetParentResourceType() OptNilResourceStateUpdateV1betaParentResourceType {
+	return s.ParentResourceType
+}
+
+// GetParentResourceID returns the value of ParentResourceID.
+func (s *ResourceStateUpdateV1beta) GetParentResourceID() OptNilString {
+	return s.ParentResourceID
+}
+
+// SetState sets the value of State.
+func (s *ResourceStateUpdateV1beta) SetState(val ResourceStateUpdateV1betaState) {
+	s.State = val
+}
+
+// SetResourceType sets the value of ResourceType.
+func (s *ResourceStateUpdateV1beta) SetResourceType(val ResourceStateUpdateV1betaResourceType) {
+	s.ResourceType = val
+}
+
+// SetResourceID sets the value of ResourceID.
+func (s *ResourceStateUpdateV1beta) SetResourceID(val string) {
+	s.ResourceID = val
+}
+
+// SetParentResourceType sets the value of ParentResourceType.
+func (s *ResourceStateUpdateV1beta) SetParentResourceType(val OptNilResourceStateUpdateV1betaParentResourceType) {
+	s.ParentResourceType = val
+}
+
+// SetParentResourceID sets the value of ParentResourceID.
+func (s *ResourceStateUpdateV1beta) SetParentResourceID(val OptNilString) {
+	s.ParentResourceID = val
+}
+
+// Parent resource Type.
+type ResourceStateUpdateV1betaParentResourceType string
+
+const (
+	ResourceStateUpdateV1betaParentResourceTypeVolume ResourceStateUpdateV1betaParentResourceType = "Volume"
+)
+
+// AllValues returns all ResourceStateUpdateV1betaParentResourceType values.
+func (ResourceStateUpdateV1betaParentResourceType) AllValues() []ResourceStateUpdateV1betaParentResourceType {
+	return []ResourceStateUpdateV1betaParentResourceType{
+		ResourceStateUpdateV1betaParentResourceTypeVolume,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResourceStateUpdateV1betaParentResourceType) MarshalText() ([]byte, error) {
+	switch s {
+	case ResourceStateUpdateV1betaParentResourceTypeVolume:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResourceStateUpdateV1betaParentResourceType) UnmarshalText(data []byte) error {
+	switch ResourceStateUpdateV1betaParentResourceType(data) {
+	case ResourceStateUpdateV1betaParentResourceTypeVolume:
+		*s = ResourceStateUpdateV1betaParentResourceTypeVolume
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Resource type be updated.
+type ResourceStateUpdateV1betaResourceType string
+
+const (
+	ResourceStateUpdateV1betaResourceTypeActiveDirectory ResourceStateUpdateV1betaResourceType = "ActiveDirectory"
+	ResourceStateUpdateV1betaResourceTypeVolume          ResourceStateUpdateV1betaResourceType = "Volume"
+	ResourceStateUpdateV1betaResourceTypeSnapshot        ResourceStateUpdateV1betaResourceType = "Snapshot"
+	ResourceStateUpdateV1betaResourceTypeStoragePool     ResourceStateUpdateV1betaResourceType = "StoragePool"
+	ResourceStateUpdateV1betaResourceTypeKmsConfig       ResourceStateUpdateV1betaResourceType = "KmsConfig"
+	ResourceStateUpdateV1betaResourceTypeBackupPolicy    ResourceStateUpdateV1betaResourceType = "BackupPolicy"
+)
+
+// AllValues returns all ResourceStateUpdateV1betaResourceType values.
+func (ResourceStateUpdateV1betaResourceType) AllValues() []ResourceStateUpdateV1betaResourceType {
+	return []ResourceStateUpdateV1betaResourceType{
+		ResourceStateUpdateV1betaResourceTypeActiveDirectory,
+		ResourceStateUpdateV1betaResourceTypeVolume,
+		ResourceStateUpdateV1betaResourceTypeSnapshot,
+		ResourceStateUpdateV1betaResourceTypeStoragePool,
+		ResourceStateUpdateV1betaResourceTypeKmsConfig,
+		ResourceStateUpdateV1betaResourceTypeBackupPolicy,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResourceStateUpdateV1betaResourceType) MarshalText() ([]byte, error) {
+	switch s {
+	case ResourceStateUpdateV1betaResourceTypeActiveDirectory:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaResourceTypeVolume:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaResourceTypeSnapshot:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaResourceTypeStoragePool:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaResourceTypeKmsConfig:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaResourceTypeBackupPolicy:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResourceStateUpdateV1betaResourceType) UnmarshalText(data []byte) error {
+	switch ResourceStateUpdateV1betaResourceType(data) {
+	case ResourceStateUpdateV1betaResourceTypeActiveDirectory:
+		*s = ResourceStateUpdateV1betaResourceTypeActiveDirectory
+		return nil
+	case ResourceStateUpdateV1betaResourceTypeVolume:
+		*s = ResourceStateUpdateV1betaResourceTypeVolume
+		return nil
+	case ResourceStateUpdateV1betaResourceTypeSnapshot:
+		*s = ResourceStateUpdateV1betaResourceTypeSnapshot
+		return nil
+	case ResourceStateUpdateV1betaResourceTypeStoragePool:
+		*s = ResourceStateUpdateV1betaResourceTypeStoragePool
+		return nil
+	case ResourceStateUpdateV1betaResourceTypeKmsConfig:
+		*s = ResourceStateUpdateV1betaResourceTypeKmsConfig
+		return nil
+	case ResourceStateUpdateV1betaResourceTypeBackupPolicy:
+		*s = ResourceStateUpdateV1betaResourceTypeBackupPolicy
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// New state to be updated.
+type ResourceStateUpdateV1betaState string
+
+const (
+	ResourceStateUpdateV1betaStateON     ResourceStateUpdateV1betaState = "ON"
+	ResourceStateUpdateV1betaStateOFF    ResourceStateUpdateV1betaState = "OFF"
+	ResourceStateUpdateV1betaStateDELETE ResourceStateUpdateV1betaState = "DELETE"
+)
+
+// AllValues returns all ResourceStateUpdateV1betaState values.
+func (ResourceStateUpdateV1betaState) AllValues() []ResourceStateUpdateV1betaState {
+	return []ResourceStateUpdateV1betaState{
+		ResourceStateUpdateV1betaStateON,
+		ResourceStateUpdateV1betaStateOFF,
+		ResourceStateUpdateV1betaStateDELETE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResourceStateUpdateV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case ResourceStateUpdateV1betaStateON:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaStateOFF:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaStateDELETE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResourceStateUpdateV1betaState) UnmarshalText(data []byte) error {
+	switch ResourceStateUpdateV1betaState(data) {
+	case ResourceStateUpdateV1betaStateON:
+		*s = ResourceStateUpdateV1betaStateON
+		return nil
+	case ResourceStateUpdateV1betaStateOFF:
+		*s = ResourceStateUpdateV1betaStateOFF
+		return nil
+	case ResourceStateUpdateV1betaStateDELETE:
+		*s = ResourceStateUpdateV1betaStateDELETE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type RestrictedActionsV1beta []RestrictedActionsV1betaItem
 
 type RestrictedActionsV1betaItem string
@@ -13582,6 +13864,71 @@ func (s *SnapshotV1betaSnapshotState) UnmarshalText(data []byte) error {
 		return nil
 	case SnapshotV1betaSnapshotStateERROR:
 		*s = SnapshotV1betaSnapshotStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/StateUpdate_v1beta
+type StateUpdateV1beta struct {
+	// New state to be updated.
+	State StateUpdateV1betaState `json:"state"`
+}
+
+// GetState returns the value of State.
+func (s *StateUpdateV1beta) GetState() StateUpdateV1betaState {
+	return s.State
+}
+
+// SetState sets the value of State.
+func (s *StateUpdateV1beta) SetState(val StateUpdateV1betaState) {
+	s.State = val
+}
+
+// New state to be updated.
+type StateUpdateV1betaState string
+
+const (
+	StateUpdateV1betaStateON     StateUpdateV1betaState = "ON"
+	StateUpdateV1betaStateOFF    StateUpdateV1betaState = "OFF"
+	StateUpdateV1betaStateDELETE StateUpdateV1betaState = "DELETE"
+)
+
+// AllValues returns all StateUpdateV1betaState values.
+func (StateUpdateV1betaState) AllValues() []StateUpdateV1betaState {
+	return []StateUpdateV1betaState{
+		StateUpdateV1betaStateON,
+		StateUpdateV1betaStateOFF,
+		StateUpdateV1betaStateDELETE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s StateUpdateV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case StateUpdateV1betaStateON:
+		return []byte(s), nil
+	case StateUpdateV1betaStateOFF:
+		return []byte(s), nil
+	case StateUpdateV1betaStateDELETE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *StateUpdateV1betaState) UnmarshalText(data []byte) error {
+	switch StateUpdateV1betaState(data) {
+	case StateUpdateV1betaStateON:
+		*s = StateUpdateV1betaStateON
+		return nil
+	case StateUpdateV1betaStateOFF:
+		*s = StateUpdateV1betaStateOFF
+		return nil
+	case StateUpdateV1betaStateDELETE:
+		*s = StateUpdateV1betaStateDELETE
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -14906,6 +15253,59 @@ func (*V1betaDescribeVolumeTooManyRequests) v1betaDescribeVolumeRes() {}
 type V1betaDescribeVolumeUnauthorized Error
 
 func (*V1betaDescribeVolumeUnauthorized) v1betaDescribeVolumeRes() {}
+
+type V1betaFinishProjectEventAccepted OperationV1beta
+
+func (*V1betaFinishProjectEventAccepted) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventBadRequest Error
+
+func (*V1betaFinishProjectEventBadRequest) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventConflict Error
+
+func (*V1betaFinishProjectEventConflict) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventCreated OperationV1beta
+
+func (*V1betaFinishProjectEventCreated) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventForbidden Error
+
+func (*V1betaFinishProjectEventForbidden) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventInternalServerError Error
+
+func (*V1betaFinishProjectEventInternalServerError) v1betaFinishProjectEventRes() {}
+
+// V1betaFinishProjectEventNoContent is response for V1betaFinishProjectEvent operation.
+type V1betaFinishProjectEventNoContent struct{}
+
+func (*V1betaFinishProjectEventNoContent) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventNotFound Error
+
+func (*V1betaFinishProjectEventNotFound) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventNotImplemented Error
+
+func (*V1betaFinishProjectEventNotImplemented) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventServiceUnavailable Error
+
+func (*V1betaFinishProjectEventServiceUnavailable) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventTooManyRequests Error
+
+func (*V1betaFinishProjectEventTooManyRequests) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventUnauthorized Error
+
+func (*V1betaFinishProjectEventUnauthorized) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventUnprocessableEntity Error
+
+func (*V1betaFinishProjectEventUnprocessableEntity) v1betaFinishProjectEventRes() {}
 
 type V1betaGetMultipleActiveDirectoriesBadRequest Error
 
@@ -16363,6 +16763,59 @@ type V1betaListVolumesUnauthorized Error
 
 func (*V1betaListVolumesUnauthorized) v1betaListVolumesRes() {}
 
+type V1betaResourceStateUpdateAccepted OperationV1beta
+
+func (*V1betaResourceStateUpdateAccepted) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateBadRequest Error
+
+func (*V1betaResourceStateUpdateBadRequest) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateConflict Error
+
+func (*V1betaResourceStateUpdateConflict) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateCreated OperationV1beta
+
+func (*V1betaResourceStateUpdateCreated) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateForbidden Error
+
+func (*V1betaResourceStateUpdateForbidden) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateInternalServerError Error
+
+func (*V1betaResourceStateUpdateInternalServerError) v1betaResourceStateUpdateRes() {}
+
+// V1betaResourceStateUpdateNoContent is response for V1betaResourceStateUpdate operation.
+type V1betaResourceStateUpdateNoContent struct{}
+
+func (*V1betaResourceStateUpdateNoContent) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateNotFound Error
+
+func (*V1betaResourceStateUpdateNotFound) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateNotImplemented Error
+
+func (*V1betaResourceStateUpdateNotImplemented) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateServiceUnavailable Error
+
+func (*V1betaResourceStateUpdateServiceUnavailable) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateTooManyRequests Error
+
+func (*V1betaResourceStateUpdateTooManyRequests) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateUnauthorized Error
+
+func (*V1betaResourceStateUpdateUnauthorized) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateUnprocessableEntity Error
+
+func (*V1betaResourceStateUpdateUnprocessableEntity) v1betaResourceStateUpdateRes() {}
+
 type V1betaResumeReplicationBadRequest Error
 
 func (*V1betaResumeReplicationBadRequest) v1betaResumeReplicationRes() {}
@@ -16418,6 +16871,59 @@ func (*V1betaReverseAndResumeReplicationUnauthorized) v1betaReverseAndResumeRepl
 type V1betaReverseAndResumeReplicationUnprocessableEntity Error
 
 func (*V1betaReverseAndResumeReplicationUnprocessableEntity) v1betaReverseAndResumeReplicationRes() {}
+
+type V1betaStartProjectEventAccepted OperationV1beta
+
+func (*V1betaStartProjectEventAccepted) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventBadRequest Error
+
+func (*V1betaStartProjectEventBadRequest) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventConflict Error
+
+func (*V1betaStartProjectEventConflict) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventCreated OperationV1beta
+
+func (*V1betaStartProjectEventCreated) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventForbidden Error
+
+func (*V1betaStartProjectEventForbidden) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventInternalServerError Error
+
+func (*V1betaStartProjectEventInternalServerError) v1betaStartProjectEventRes() {}
+
+// V1betaStartProjectEventNoContent is response for V1betaStartProjectEvent operation.
+type V1betaStartProjectEventNoContent struct{}
+
+func (*V1betaStartProjectEventNoContent) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventNotFound Error
+
+func (*V1betaStartProjectEventNotFound) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventNotImplemented Error
+
+func (*V1betaStartProjectEventNotImplemented) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventServiceUnavailable Error
+
+func (*V1betaStartProjectEventServiceUnavailable) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventTooManyRequests Error
+
+func (*V1betaStartProjectEventTooManyRequests) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventUnauthorized Error
+
+func (*V1betaStartProjectEventUnauthorized) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventUnprocessableEntity Error
+
+func (*V1betaStartProjectEventUnprocessableEntity) v1betaStartProjectEventRes() {}
 
 type V1betaStopReplicationBadRequest Error
 

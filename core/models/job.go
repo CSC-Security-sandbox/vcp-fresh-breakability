@@ -45,6 +45,8 @@ const (
 	JobTypeUpdateHostGroup                  JobType = "UPDATE_HOSTGROUP"
 	JobTypeMountCheck                       JobType = "MOUNT_VOLUME_REPLICATION_INTERNAL"
 	JobTypeRefreshAdminJobSpecs             JobType = "REFRESH_ADMIN_JOB_SPECS"
+	JobTypeStartProjectEventOffState        JobType = "START_PROJECT_EVENT_OFF_STATE"
+	JobTypeStartProjectEventOnState         JobType = "START_PROJECT_EVENT_ON_STATE"
 	JobTypeReleaseVolumeReplicationInternal JobType = "RELEASE_VOLUME_REPLICATION_INTERNAL"
 )
 
