@@ -137,6 +137,9 @@ profiles:
 deploy:
   kubectl:
     hooks:
+      before:
+        - host:
+            command: [ "sh", "-c", "./skaffold/scripts/before_deploy.sh" ]
       after:
         - host:
-            command: [ "sh", "-c", "./configure.sh" ]
+            command: [ "sh", "-c", "./skaffold/scripts/after_deploy.sh" ]

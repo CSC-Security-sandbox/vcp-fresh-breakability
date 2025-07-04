@@ -130,6 +130,8 @@ spec:
             - mountPath: "/etc/otel-collector-config"
               name: "otel-collector-config"
               readOnly: true
+      imagePullSecrets:
+        - name: ghcr-secret
       volumes:
         - configMap:
             name: otel-collector-config
@@ -195,3 +197,27 @@ data:
           exporters:
             - debug
             - googlecloud
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: harvest-farm-lease-reader
+  namespace: vcp
+rules:
+  - apiGroups: [ "coordination.k8s.io" ]
+    resources: [ "leases" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: harvest-farm-lease-reader-binding
+  namespace: vcp
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: vcp
+roleRef:
+  kind: Role
+  name: harvest-farm-lease-reader
+  apiGroup: rbac.authorization.k8s.io

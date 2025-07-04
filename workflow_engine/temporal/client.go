@@ -78,7 +78,7 @@ func (t *WorkflowEngine) InitializeClient(cfg workflow_engine.ClientConfig, logg
 	for {
 		temporalClient, err = dial(clientOptions)
 		if err != nil {
-			sleep(waitTime * time.Second)
+			sleep(waitTime)
 			continue
 		}
 
@@ -90,7 +90,7 @@ func (t *WorkflowEngine) InitializeClient(cfg workflow_engine.ClientConfig, logg
 			return nil
 		}
 		logger.Error("Failed to connect to Temporal server", "error", err.Error(), "retrying in 5 seconds")
-		sleep(waitTime * time.Second) // Retry after 5 seconds
+		sleep(waitTime) // Retry after 5 seconds
 		// Add a delay between retries to avoid overwhelming the temporal server
 	}
 }

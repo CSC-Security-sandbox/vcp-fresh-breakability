@@ -7,9 +7,8 @@ RUN go install github.com/air-verse/air@latest
 RUN mkdir /app
 WORKDIR /app
 
-# Inline Air config for live reload
-ENV AIR_CONFIG_CONTENT='[build]\n  bin = "/app/app"\n  follow_symlink = true\n  delay = 1000\n  include_dir = []\n  include_file = ["/app"]\n[log]\n  time = true\n\n'
-RUN echo "$AIR_CONFIG_CONTENT" > /app/air.toml
+# Copy Air config for live reload
+COPY common/air.toml /app/air.toml
 
 ENV GOTRACEBACK=all
 ENTRYPOINT ["air", "-c", "/app/air.toml"]

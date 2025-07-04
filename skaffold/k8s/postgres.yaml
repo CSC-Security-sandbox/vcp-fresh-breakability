@@ -1,10 +1,11 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: postgres
   labels:
     app: postgres
 spec:
+  serviceName: postgres
   replicas: 1
   selector:
     matchLabels:
@@ -29,12 +30,16 @@ spec:
             - name: POSTGRES_HOST_AUTH_METHOD
               value: scram-sha-256
           volumeMounts:
-            - mountPath: "/var/lib/postgresql/data1"
-              name: "data1"
-      volumes:
-        - hostPath:
-            path: "/home/docker/data1"
-          name: data1
+            - mountPath: "/var/lib/postgresql/data"
+              name: postgres-storage
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-storage
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 10Gi
 ---
 apiVersion: v1
 kind: Service
