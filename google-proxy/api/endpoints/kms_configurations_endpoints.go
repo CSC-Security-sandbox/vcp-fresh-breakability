@@ -918,19 +918,27 @@ func encodeKmsConfigV1(kmsConfigV1beta *gcpgenserver.KmsConfigV1beta) (jx.Raw, e
 
 // convertModelToKmsConfigV1Beta converts a vsaModel.KmsConfig to gcpgenserver.KmsConfigV1beta
 func convertModelToKmsConfigV1Beta(kmsConfig *coremodel.KmsConfig) *gcpgenserver.KmsConfigV1beta {
-	return &gcpgenserver.KmsConfigV1beta{
-		UUID:                gcpgenserver.NewOptString(kmsConfig.UUID),
-		ServiceAccountEmail: gcpgenserver.NewOptString(kmsConfig.KmsAttributes.SdeServiceAccountEmail),
-		KmsState:            gcpgenserver.NewOptKmsConfigV1betaKmsState(gcpgenserver.KmsConfigV1betaKmsState(kmsConfig.State)),
-		KmsStateDetails:     gcpgenserver.NewOptString(kmsConfig.StateDetails),
-		Description:         gcpgenserver.NewOptString(kmsConfig.Description),
+	model := &gcpgenserver.KmsConfigV1beta{
+		UUID:            gcpgenserver.NewOptString(kmsConfig.UUID),
+		KmsState:        gcpgenserver.NewOptKmsConfigV1betaKmsState(gcpgenserver.KmsConfigV1betaKmsState(kmsConfig.State)),
+		KmsStateDetails: gcpgenserver.NewOptString(kmsConfig.StateDetails),
 		KeyFullPath: utils.ParsedKeyFullPathResource{ProjectID: kmsConfig.CustomerProjectID,
 			KeyRing: kmsConfig.KeyRing, Location: kmsConfig.KeyRingLocation, CryptoKey: kmsConfig.KeyName}.String(),
-		ResourceId:   gcpgenserver.NewOptString(kmsConfig.ResourceID),
-		CreatedTime:  gcpgenserver.NewOptDateTime(kmsConfig.CreatedAt),
-		UpdatedTime:  gcpgenserver.NewOptDateTime(kmsConfig.UpdatedAt),
-		Instructions: gcpgenserver.NewOptString(getKmsInstructions(kmsConfig)),
+		ResourceId:  gcpgenserver.NewOptString(kmsConfig.ResourceID),
+		CreatedTime: gcpgenserver.NewOptDateTime(kmsConfig.CreatedAt),
+		UpdatedTime: gcpgenserver.NewOptDateTime(kmsConfig.UpdatedAt),
 	}
+	if kmsConfig.KmsAttributes.SdeServiceAccountEmail != "" {
+		model.ServiceAccountEmail = gcpgenserver.NewOptString(kmsConfig.KmsAttributes.SdeServiceAccountEmail)
+	}
+	if kmsConfig.Description != "" {
+		model.Description = gcpgenserver.NewOptString(kmsConfig.Description)
+	}
+	instruction := getKmsInstructions(kmsConfig)
+	if instruction != "" {
+		model.Instructions = gcpgenserver.NewOptString(instruction)
+	}
+	return model
 }
 
 func _parseKmsConfigResponse(payloadResponse interface{}) (*models.KmsConfigV1beta, error) {

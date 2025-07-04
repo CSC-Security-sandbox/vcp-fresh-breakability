@@ -58,6 +58,9 @@ func _pollCvpOperationForWorkflow(ctx context.Context, cvpClient cvpapi.Cvp, ope
 	if !*operationResponse.Payload.Done {
 		logger.Debug("Operation in progress ", operationParams.OperationID)
 		return nil, errors.New(fmt.Sprintf("operation %s in progress, trying again", operationParams.OperationID))
+	} else if operationResponse.Payload.Error != nil {
+		msg := fmt.Errorf("operation failed: %v", operationResponse.Payload.Error)
+		return nil, temporal.NewNonRetryableApplicationError("operation failed", "OperationError", msg)
 	}
 	return operationResponse.Payload, nil
 }

@@ -99,7 +99,7 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	if err != nil {
 		return nil, err
 	}
-	ctx = workflow.WithValue(ctx, middleware.AuthToken, jwtToken)
+	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
 	rollbackManager := common.NewRollbackManager()
 	rollbackManager.AddActivity(kmsConfigActivity.FailedKmsConfigCreateActivity, kmsConfig)
 	defer func() {

@@ -36,7 +36,7 @@ func NewContextMapPropagator() workflow.ContextPropagator {
 		case "logParam":
 			keyMap[key] = middleware.TemporalSLoggerKey
 		case "Authorization":
-			keyMap[key] = middleware.AuthToken
+			keyMap[key] = middleware.AuthorizationToken
 		default:
 			keyMap[key] = key
 		}

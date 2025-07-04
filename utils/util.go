@@ -510,7 +510,7 @@ func GetRequestIDFromContext(ctx context.Context) string {
 
 // GetAuthTokenFromContext gets the JWT token from the context
 func GetAuthTokenFromContext(ctx context.Context) string {
-	if token, ok := ctx.Value(middleware.AuthToken).(string); ok {
+	if token, ok := ctx.Value(middleware.AuthorizationToken).(string); ok {
 		return token
 	}
 	return ""

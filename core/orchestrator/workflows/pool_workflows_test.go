@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,8 +53,12 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		SecretID: "",
 	}
 	defer func() {
+		getSignedJwtToken = auth.GetSignedJwtToken
 		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
 	}()
+	getSignedJwtToken = func(projectNumber string) (string, error) {
+		return "", nil
+	}
 	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
 		return nil
 	}
@@ -349,6 +354,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SecretID: "",
 		}
 
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+
 		if secretManagerEnabled {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
@@ -424,9 +436,17 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 		cvpKmsConfig := &cvpModels.KmsConfigV1beta{}
 
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+
 		if secretManagerEnabled {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
+
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
@@ -502,6 +522,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SecretID: "",
 		}
 		cvpKmsConfig := &cvpModels.KmsConfigV1beta{}
+
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
 
 		if secretManagerEnabled {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
@@ -583,6 +610,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 		cvpKmsConfig := &cvpModels.KmsConfigV1beta{}
 
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+
 		if secretManagerEnabled {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
@@ -662,6 +696,20 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 		cvpKmsConfig := &cvpModels.KmsConfigV1beta{}
 
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+
 		if secretManagerEnabled {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
@@ -738,6 +786,14 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			Password: "test-password",
 			SecretID: "",
 		}
+
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+
 		if secretManagerEnabled {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
@@ -813,6 +869,14 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			Password: "test-password",
 			SecretID: "",
 		}
+
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+
 		if secretManagerEnabled {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
@@ -886,6 +950,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			Username: "test-user",
 			Password: "test-password",
 			SecretID: "",
+		}
+
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", nil
 		}
 
 		if secretManagerEnabled {
@@ -962,6 +1033,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			Username: "test-user",
 			Password: "test-password",
 			SecretID: "",
+		}
+
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", nil
 		}
 
 		if secretManagerEnabled {
@@ -1042,6 +1120,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SecretID: "",
 		}
 
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", nil
+		}
+
 		if secretManagerEnabled {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
@@ -1118,6 +1203,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			Username: "test-user",
 			Password: "test-password",
 			SecretID: "",
+		}
+
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "", nil
 		}
 
 		if secretManagerEnabled {

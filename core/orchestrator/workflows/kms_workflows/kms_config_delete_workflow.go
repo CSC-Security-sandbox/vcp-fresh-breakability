@@ -95,7 +95,7 @@ func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}
 	if err != nil {
 		return nil, err
 	}
-	ctx = workflow.WithValue(ctx, middleware.AuthToken, jwtToken)
+	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
 	sdeJobRetryOpts := defaultActivityOpts
 	sdeJobRetryOpts.RetryPolicy.MaximumAttempts = int32(SdeKmsJobRetryMaxAttempts)
 	ctx1 := workflow.WithActivityOptions(ctx, sdeJobRetryOpts)

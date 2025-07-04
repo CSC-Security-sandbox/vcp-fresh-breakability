@@ -114,33 +114,6 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	return convertDatastoreKmsConfigToModel(dbKmsConfig), createdJob.UUID, nil
 }
 
-func convertDatastoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.KmsConfig {
-	return &models.KmsConfig{
-		BaseModel: models.BaseModel{
-			UUID:      kmsConfig.UUID,
-			CreatedAt: kmsConfig.CreatedAt,
-			UpdatedAt: kmsConfig.UpdatedAt,
-		},
-		CustomerProjectID: kmsConfig.CustomerProjectID,
-		KeyProjectID:      kmsConfig.KeyProjectID,
-		State:             kmsConfig.State,
-		StateDetails:      kmsConfig.StateDetails,
-		Description:       kmsConfig.Description,
-		ResourceID:        kmsConfig.ResourceID,
-		AccountID:         kmsConfig.AccountID,
-		ServiceAccountID:  kmsConfig.ServiceAccountID,
-		KmsAttributes: &models.KmsAttributes{
-			SdeKmsConfigUUID:       kmsConfig.KmsAttributes.SdeKmsConfigUUID,
-			SdeServiceAccountEmail: kmsConfig.KmsAttributes.SdeServiceAccountEmail,
-			Instructions:           kmsConfig.KmsAttributes.Instructions,
-		},
-		Name:            kmsConfig.Name,
-		KeyRing:         kmsConfig.KeyRing,
-		KeyRingLocation: kmsConfig.KeyRingLocation,
-		KeyName:         kmsConfig.KeyName,
-	}
-}
-
 // GetKmsConfig retrieves a KMS configuration by its UUID.
 func (o *Orchestrator) GetKmsConfig(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
 	return getKmsConfig(ctx, o.storage, o.temporal, params)
@@ -478,4 +451,54 @@ func _getKmsConfigByKeyFullPath(ctx context.Context, se database.Storage, params
 		return nil, err
 	}
 	return convertDatastoreKmsConfigToModel(dbKmsConfig), nil
+}
+
+func convertDatastoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.KmsConfig {
+	return &models.KmsConfig{
+		BaseModel: models.BaseModel{
+			UUID:      kmsConfig.UUID,
+			CreatedAt: kmsConfig.CreatedAt,
+			UpdatedAt: kmsConfig.UpdatedAt,
+		},
+		CustomerProjectID: kmsConfig.CustomerProjectID,
+		KeyProjectID:      kmsConfig.KeyProjectID,
+		State:             kmsConfig.State,
+		StateDetails:      kmsConfig.StateDetails,
+		Description:       kmsConfig.Description,
+		ResourceID:        kmsConfig.ResourceID,
+		AccountID:         kmsConfig.AccountID,
+		ServiceAccountID:  kmsConfig.ServiceAccountID,
+		KmsAttributes: &models.KmsAttributes{
+			SdeKmsConfigUUID:       kmsConfig.KmsAttributes.SdeKmsConfigUUID,
+			SdeServiceAccountEmail: kmsConfig.KmsAttributes.SdeServiceAccountEmail,
+			Instructions:           kmsConfig.KmsAttributes.Instructions,
+		},
+		ServiceAccount:  convertDatastoreServiceAccountToModel(kmsConfig.ServiceAccount),
+		Name:            kmsConfig.Name,
+		KeyRing:         kmsConfig.KeyRing,
+		KeyRingLocation: kmsConfig.KeyRingLocation,
+		KeyName:         kmsConfig.KeyName,
+	}
+}
+
+func convertDatastoreServiceAccountToModel(sa *datamodel.ServiceAccount) *models.ServiceAccount {
+	if sa == nil {
+		return nil
+	}
+	return &models.ServiceAccount{
+		BaseModel: models.BaseModel{
+			UUID:      sa.UUID,
+			CreatedAt: sa.CreatedAt,
+			UpdatedAt: sa.UpdatedAt,
+			DeletedAt: DeletedAtOrNil(sa.DeletedAt),
+		},
+		Name:                           sa.Name,
+		Description:                    sa.Description,
+		State:                          sa.State,
+		StateDetails:                   sa.StateDetails,
+		AccountID:                      sa.AccountID,
+		ServiceName:                    sa.ServiceName,
+		ServiceAccountEmail:            sa.ServiceAccountEmail,
+		ServiceAccountPasswordLocation: sa.ServiceAccountPasswordLocation,
+	}
 }

@@ -15,7 +15,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -29,6 +31,7 @@ var (
 	setupNwHeartbeatTimeout                            = env.GetUint64("SETUP_NW_HEARTBEAT_TIMEOUT_SEC", 300)
 	vmrsConfigPath                                     = env.GetString("VMRS_CONFIG_PATH", "config/vmrs_gcp.yaml")
 	configureKmsConfigForSvmActivity                   = _configureKmsConfigForSvmActivity
+	getSignedJwtToken                                  = auth.GetSignedJwtToken
 )
 
 type createPoolWorkflow struct {
@@ -100,6 +103,13 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	jwtToken, err := getSignedJwtToken(params.AccountName)
+	if err != nil {
+		return nil, err
+	}
+	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
+
 	dbPool := pool
 
 	rollbackManager := common.NewRollbackManager()

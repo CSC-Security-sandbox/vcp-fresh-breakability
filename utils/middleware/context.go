@@ -12,5 +12,5 @@ const (
 	TemporalSLoggerKey    ContextString = "fields"
 	RequestCorrelationID  ContextString = "requestCorrelationID"
 	RequestID             ContextString = "requestID"
-	AuthToken             ContextString = "Authorization"
+	AuthorizationToken    ContextString = "Authorization"
 )

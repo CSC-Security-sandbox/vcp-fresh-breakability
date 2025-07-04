@@ -47,7 +47,7 @@ func (j *KmsConfigActivity) ConfigureKmsForSvmActivity(ctx context.Context, svm 
 		KeyName:           kmsConfig.KeyName,
 		KeyRingLocation:   kmsConfig.KeyRingLocation,
 		KeyRingName:       kmsConfig.KeyRing,
-		ProjectID:         kmsConfig.CustomerProjectID,
+		ProjectID:         kmsConfig.KeyProjectID,                          // project id of keyfull path
 		Credentials:       nillable.ToPointer(strfmt.Password(decodedKey)), // Use the long-term service account of SDE i.e., VCP service account Key
 		PrivilegedAccount: kmsConfig.KmsAttributes.SdeServiceAccountEmail,  // Use SDE service account email for privileged operations i.e., impersonation
 	})

@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 	googleOauth2 "golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudkms/v1"
+	"net/http"
 	"testing"
 	"time"
 
@@ -750,5 +751,114 @@ func Test_synchronizeServiceAccountKeys(t *testing.T) {
 		key, err := _synchronizeServiceAccountKeys(ctx, mockGCPService, email)
 		assert.Error(t, err)
 		assert.Nil(t, key)
+	})
+}
+
+func TestPollCvpOperationForWorkflow(t *testing.T) {
+	t.Run("WhenV1betaDescribeOperationFails", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+		params := &async.V1betaDescribeOperationParams{}
+		mockAsyncClient := async.NewMockClientService(t)
+		// Set up the mock client behavior
+
+		cvpClient := &cvpapi.Cvp{Async: mockAsyncClient}
+		originalCreateClient := createClient
+		defer func() {
+			createClient = originalCreateClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		mockAsyncClient.On("V1betaDescribeOperation", mock.Anything).Return(nil, errors.New("some error")).Once()
+		resp, err := pollCvpOperationForWorkflow(ctx, *cvpClient, params)
+		assert.NotNil(tt, err)
+		assert.Nil(t, resp)
+	})
+	t.Run("WhenDoneButOperationFailed", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+		params := &async.V1betaDescribeOperationParams{}
+		mockAsyncClient := async.NewMockClientService(t)
+		// Set up the mock client behavior
+		done := true
+		mockOp := cvpModels.OperationV1beta{
+			Done: &done,
+			Error: &cvpModels.StatusV1Beta{
+				Code:    http.StatusConflict,
+				Message: "Failed",
+			},
+		}
+		mockResp := &async.V1betaDescribeOperationOK{
+			Payload: &mockOp,
+		}
+		cvpClient := &cvpapi.Cvp{Async: mockAsyncClient}
+		originalCreateClient := createClient
+		defer func() {
+			createClient = originalCreateClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		mockAsyncClient.On("V1betaDescribeOperation", mock.Anything).Return(mockResp, nil).Once()
+		resp, err := pollCvpOperationForWorkflow(ctx, *cvpClient, params)
+		assert.NotNil(tt, err)
+		assert.Nil(t, resp)
+	})
+	t.Run("WhenDoneAndOperationSuccess", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+		params := &async.V1betaDescribeOperationParams{}
+		mockAsyncClient := async.NewMockClientService(t)
+		// Set up the mock client behavior
+		done := true
+		mockOp := cvpModels.OperationV1beta{
+			Done: &done,
+		}
+		mockResp := &async.V1betaDescribeOperationOK{
+			Payload: &mockOp,
+		}
+		cvpClient := &cvpapi.Cvp{Async: mockAsyncClient}
+		originalCreateClient := createClient
+		defer func() {
+			createClient = originalCreateClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		mockAsyncClient.On("V1betaDescribeOperation", mock.Anything).Return(mockResp, nil).Once()
+		resp, err := pollCvpOperationForWorkflow(ctx, *cvpClient, params)
+		assert.Nil(tt, err)
+		assert.NotNil(t, resp)
+	})
+	t.Run("WhenNotDoneAndOperationSuccess", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+		params := &async.V1betaDescribeOperationParams{}
+		mockAsyncClient := async.NewMockClientService(t)
+		// Set up the mock client behavior
+		done := false
+		mockOp := cvpModels.OperationV1beta{
+			Done: &done,
+			Error: &cvpModels.StatusV1Beta{
+				Code:    http.StatusConflict,
+				Message: "Failed",
+			},
+		}
+		mockResp := &async.V1betaDescribeOperationOK{
+			Payload: &mockOp,
+		}
+		cvpClient := &cvpapi.Cvp{Async: mockAsyncClient}
+		originalCreateClient := createClient
+		defer func() {
+			createClient = originalCreateClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		mockAsyncClient.On("V1betaDescribeOperation", mock.Anything).Return(mockResp, nil).Once()
+		resp, err := pollCvpOperationForWorkflow(ctx, *cvpClient, params)
+		assert.NotNil(tt, err)
+		assert.Nil(t, resp)
 	})
 }

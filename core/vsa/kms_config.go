@@ -37,7 +37,7 @@ func (rc *OntapRestProvider) IsGcpKmsReachable(params GetKmsConfigParams) (bool,
 		return false, err
 	}
 
-	if !nillable.GetBool(gcpKmsResponse.GoogleReachability.Reachable, false) {
+	if gcpKmsResponse.GoogleReachability != nil && !nillable.GetBool(gcpKmsResponse.GoogleReachability.Reachable, false) {
 		if strings.Contains(strings.ToLower(*gcpKmsResponse.GoogleReachability.Message), "permission_denied") {
 			return false, errors.New("permission_denied")
 		}
