@@ -177,3 +177,13 @@ func CheckForHFfinalName() bool {
 		return true
 	}
 }
+
+func GetTagSHAFromGitHub(tag string) (string, error) {
+	cmd := exec.Command("gh", "api", "repos/VCP-VSA-control-Plane/vsa-control-plane/git/refs/tags/"+tag, "--jq", ".object.sha")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get tag SHA: %v", err)
+	}
+	log.Printf("Successfully got tag SHA: %s\n", string(output))
+	return strings.TrimSpace(string(output)), nil
+}

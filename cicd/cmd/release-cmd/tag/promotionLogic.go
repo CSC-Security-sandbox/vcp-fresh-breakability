@@ -84,17 +84,18 @@ func PromotionalCreation() {
 		log.Fatalf("Error cleaning working directory: %v", err)
 	}
 
-	errGitTag := CreateGitTag(SetupConfigobject.FinalRelease, SetupConfigobject.BaseRelease)
-	if errGitTag != nil {
-		log.Fatalf("Error creating git tag: %v", errGitTag)
+	log.Printf("Created tag %s from base tag %s", SetupConfigobject.FinalRelease, SetupConfigobject.BaseRelease)
+
+	ShaOfBaseTag, errSha := GetTagSHAFromGitHub(SetupConfigobject.BaseRelease)
+	if errSha != nil {
+		log.Fatalf("Error getting SHA of base tag: %v", errSha)
 	}
 
-	errGitPush := GitPush(SetupConfigobject.FinalRelease)
-	if errGitPush != nil {
-		log.Fatalf("Error pushing git tag: %v", errGitPush)
+	if _, errWrite := file.WriteString(fmt.Sprintf("BASE_TAG_SHA=%s\n", ShaOfBaseTag)); errWrite != nil {
+		log.Fatalf("Error writing BASE_TAG_SHA: %v", errWrite)
 	}
+
 	sprint := strings.Split(SetupConfigobject.FinalRelease, ".")[0]
-
 	branchName := "release/" + sprint
 
 	if _, errWrite := file.WriteString(fmt.Sprintf("FINAL_TAG=%s\n", SetupConfigobject.FinalRelease)); errWrite != nil {
