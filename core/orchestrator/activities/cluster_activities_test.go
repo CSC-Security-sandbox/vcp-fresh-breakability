@@ -23,8 +23,8 @@ func TestAcceptClusterPeer(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := activities.ClusterPeerActivity{
@@ -46,8 +46,8 @@ func TestAcceptClusterPeer(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := activities.ClusterPeerActivity{
@@ -68,8 +68,8 @@ func TestAcceptClusterPeer(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := activities.ClusterPeerActivity{
@@ -109,8 +109,8 @@ func TestCreateClusterPeer(t *testing.T) {
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 		// Mock GetProviderByNode to return the mock provider
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := activities.ClusterPeerActivity{
@@ -142,8 +142,8 @@ func TestCreateClusterPeer(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := activities.ClusterPeerActivity{

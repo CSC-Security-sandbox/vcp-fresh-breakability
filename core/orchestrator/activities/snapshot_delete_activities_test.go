@@ -55,8 +55,8 @@ func TestDeleteSnapshotInONTAP_Success(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.SnapshotDeleteActivity{}
@@ -91,8 +91,8 @@ func TestDeleteSnapshotInONTAP_Failure(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.SnapshotDeleteActivity{}
@@ -121,6 +121,38 @@ func TestDeleteSnapshotInONTAP_Failure(t *testing.T) {
 	assert.Error(t, err)
 	assert.EqualError(t, err, expectedError.Error())
 	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteSnapshotInONTAP_GetproviderByNodeFailure(t *testing.T) {
+	originalGetProviderByNode := activities.GetProviderByNode
+	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, errors.New("failed to get provider by node")
+	}
+
+	activity := activities.SnapshotDeleteActivity{}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	snapshot := &datamodel.Snapshot{
+		SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "uuid-123"},
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-snapshot-id",
+		},
+		Volume: &datamodel.Volume{
+			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "volume-uuid-123"},
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-id",
+			},
+		},
+		Name: "test-snapshot",
+	}
+	node := &models.Node{}
+
+	err := activity.DeleteSnapshotInONTAP(ctx, snapshot, node)
+
+	assert.Error(t, err)
+	assert.EqualError(t, err, "failed to get provider by node")
 }
 
 func TestUpdateDeleteSnapshotDetails_Failure(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -53,7 +54,10 @@ func (a *BackupActivity) UpdateBackupError(ctx context.Context, backup *datamode
 }
 
 func (a *BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *models.Node, name, containerName string) (*commonparams.CloudTarget, error) {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	// Handle both return values from CloudTargetGet
 	objectStore, err := provider.CloudTargetGet(&name)
 	// Check if the error is nil, which means the object store already exists
@@ -72,7 +76,10 @@ func (a *BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *model
 
 func (a *BackupActivity) SnapmirrorGetorCreate(ctx context.Context, node *models.Node, sourcePath, destinationPath string) (*commonparams.SnapmirrorRelationship, error) {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	snapmirror, err := provider.SnapmirrorRelationshipGet(destinationPath, sourcePath)
 	if err != nil {
 		// Log the error but continue to create a new snapmirror relationship
@@ -112,7 +119,10 @@ func (a *BackupActivity) SnapmirrorGetorCreate(ctx context.Context, node *models
 }
 
 func (a *BackupActivity) GetObjectStore(ctx context.Context, node *models.Node, name string) (*commonparams.CloudTarget, error) {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	// Handle both return values from CloudTargetGet
 	objectStore, err := provider.CloudTargetGet(&name)
 	if err != nil {
@@ -123,7 +133,10 @@ func (a *BackupActivity) GetObjectStore(ctx context.Context, node *models.Node, 
 }
 
 func (a *BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, sourcePath, destinationPath string) (*commonparams.SnapmirrorRelationship, error) {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	snapmirror, err := provider.SnapmirrorRelationshipGet(destinationPath, sourcePath)
 	if err != nil {
 		return nil, errors.New("failed to get snapmirror relationship: " + err.Error())
@@ -137,7 +150,10 @@ func (a *BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, s
 }
 
 func (a *BackupActivity) SnapshotCreate(ctx context.Context, node *models.Node, volumeUUID, name, comment string) (*vsa.SnapshotProviderResponse, error) {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	return provider.CreateSnapshot(vsa.CreateSnapshotParams{
 		VolumeUUID: volumeUUID,
 		Name:       name,
@@ -147,7 +163,10 @@ func (a *BackupActivity) SnapshotCreate(ctx context.Context, node *models.Node, 
 
 func (a *BackupActivity) SnapmirrorTransfer(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) error {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	// Remove this once we start using cache to store token
 	smcLicense, err := GetSmcLicenseFromCloud(ctx)
 	if err != nil {
@@ -167,7 +186,10 @@ func (a *BackupActivity) SnapmirrorTransfer(ctx context.Context, node *models.No
 }
 
 func (a *BackupActivity) SnapmirrorTransferPoll(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) error {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	// Start polling for the snapmirror transfer status
 	// Keep polling until the transfer is either successful or failed
 	for {
@@ -190,7 +212,10 @@ func (a *BackupActivity) SnapmirrorTransferPoll(ctx context.Context, node *model
 }
 
 func (a *BackupActivity) DeleteBackupSnapshot(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	return provider.DeleteSnapshot(snapshotUUID, volumeUUID)
 }
 
@@ -227,22 +252,34 @@ func (a *BackupActivity) GetBackupCountByVolumeUUID(ctx context.Context, volumeU
 }
 
 func (a *BackupActivity) DeleteSnapshotFromObjectStore(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID, snapshotUUID string) (*vsa.OntapAsyncResponse, error) {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	return provider.SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID, EndpointUUID, snapshotUUID)
 }
 
 func (a *BackupActivity) DeleteSnapmirror(ctx context.Context, node *models.Node, snapmirrorUUID string) (*vsa.OntapAsyncResponse, error) {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	return provider.SnapmirrorRelationshipDelete(snapmirrorUUID)
 }
 
 func (a *BackupActivity) DeleteCloudEndpoint(ctx context.Context, node *models.Node, objectStoreUUID string, EndpointUUID string) (*vsa.OntapAsyncResponse, error) {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	return provider.SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, EndpointUUID)
 }
 
 func (a *BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	return provider.DeleteSnapshot(snapshotUUID, volumeUUID)
 }
 

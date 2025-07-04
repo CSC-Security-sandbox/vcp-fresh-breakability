@@ -52,7 +52,10 @@ func (a VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamode
 
 func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	volumeType := VolumeTypeRW
 	if volume.VolumeAttributes.IsDataProtection {
 		volumeType = VolumeTypeDP
@@ -123,7 +126,10 @@ func HandleVolumeCreateConflict(volume *datamodel.Volume, provider vsa.Provider)
 
 func (a VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamodel.Volume, hostParams []*common.HostParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	// FixMe: What if a new host is added to the host group?
 	for _, host := range hostParams {
 		igroupExists, _, err := provider.IgroupExists(host.HostName, &volume.Svm.Name)
@@ -154,7 +160,10 @@ func (a VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.V
 		logger.Info("Skipping lun creation for data protection volume")
 		return &vsa.LunResponse{}, nil
 	}
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	lunName := utils.GetLunName(volume.Name)
 
 	lun, err := provider.LunCreate(vsa.LunCreateParams{
@@ -211,8 +220,11 @@ func (a VolumeCreateActivity) CreateLunMap(ctx context.Context, volume *datamode
 		logger.Info("Skipping CreateLunMap for data protection volume")
 		return nil
 	}
-	var provider = GetProviderByNode(ctx, node)
-	err := provider.LunMapCreate(vsa.LunMapCreateParams{
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	err = provider.LunMapCreate(vsa.LunMapCreateParams{
 		LunName:    params.LunName,
 		SvmName:    params.SvmName,
 		IGroupName: params.HostNames,
@@ -585,8 +597,11 @@ func _getResourceNamesForBackup(gcpRegion, region, tenantProjectNumber, bvID str
 func (a VolumeCreateActivity) CreateSnapshotPolicyInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
 	if node != nil && volume != nil && volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
 		logger := util.GetLogger(ctx)
-		var provider = GetProviderByNode(ctx, node)
-		err := provider.CreateSnapshotPolicy(&vsa.SnapshotPolicy{
+		provider, err := GetProviderByNode(ctx, node)
+		if err != nil {
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		err = provider.CreateSnapshotPolicy(&vsa.SnapshotPolicy{
 			Name:      volume.SnapshotPolicy.Name,
 			IsEnabled: volume.SnapshotPolicy.IsEnabled,
 			Schedules: ConvertToVSASnapshotPolicySchedules(volume.SnapshotPolicy.Schedules),
@@ -605,12 +620,15 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 		return nil
 	}
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	updateVolumeParams := &vsa.UpdateVolumeParams{
 		UUID:          volume.VolumeAttributes.ExternalUUID,
 		InitiateSplit: true,
 	}
-	err := updateVolume(ctx, provider, *updateVolumeParams)
+	err = updateVolume(ctx, provider, *updateVolumeParams)
 	if err != nil {
 		logger.Errorf("Failed to initiate split %s in ontap: %v", volume.Name, err)
 		return err

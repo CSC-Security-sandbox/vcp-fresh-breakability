@@ -311,7 +311,10 @@ func _getOntapRestProviderForPool(ctx context.Context, se database.Storage, pool
 		Password:        pool.Password,
 	}
 
-	provider := activities.GetProviderByNode(ctx, node)
+	provider, err := activities.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	return provider, nil
 }
 

@@ -21,8 +21,8 @@ func TestCreateSnapshotInONTAP(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := activities.SnapshotCreateActivity{}
@@ -63,8 +63,8 @@ func TestCreateSnapshotInONTAP(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := activities.SnapshotCreateActivity{}
@@ -105,8 +105,8 @@ func TestCreateSnapshotInONTAP(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := activities.SnapshotCreateActivity{}
@@ -135,6 +135,34 @@ func TestCreateSnapshotInONTAP(t *testing.T) {
 		assert.Nil(t, result)
 		assert.EqualError(t, err, expectedError.Error())
 		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetProviderByNodeFails", func(t *testing.T) {
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("failed to get provider by node")
+		}
+
+		activity := activities.SnapshotCreateActivity{}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		snapshot := &datamodel.Snapshot{
+			Name:        "test-snapshot",
+			Description: "test-description",
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "volume-uuid",
+				},
+			},
+		}
+		node := &models.Node{}
+
+		result, err := activity.CreateSnapshotInONTAP(ctx, snapshot, node)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.EqualError(t, err, "failed to get provider by node")
 	})
 }
 

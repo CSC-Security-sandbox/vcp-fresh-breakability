@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -20,7 +21,10 @@ type InternalVolumeReplicationActivity struct {
 
 func (a *InternalVolumeReplicationActivity) CreateVolumeReplicationInternal(ctx context.Context, params *common.CreateVolumeReplicationInternalParams, node *models.Node, volumeExternalUUID string) (*vsa.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
-	provider := activities.GetProviderByNode(ctx, node)
+	provider, err := activities.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	vsaCreateVolumeReplicationParams := prepareCreateVolumeReplicationParamsVSA(params, volumeExternalUUID)
 	res, err := provider.CreateVolumeReplication(vsaCreateVolumeReplicationParams)
 	if err != nil {

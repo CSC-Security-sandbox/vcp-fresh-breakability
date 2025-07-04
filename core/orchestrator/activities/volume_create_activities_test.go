@@ -74,8 +74,8 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 		// Mock GetProviderByNode to return the mock provider
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := activities.VolumeCreateActivity{
@@ -108,8 +108,8 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 		// Mock GetProviderByNode to return the mock provider
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := activities.VolumeCreateActivity{
@@ -149,8 +149,8 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 		// Mock GetProviderByNode to return the mock provider
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := activities.VolumeCreateActivity{
@@ -196,8 +196,8 @@ func TestCreateVolumeInONTAP_Success_AlreadyCreated(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.VolumeCreateActivity{
@@ -230,8 +230,8 @@ func TestCreateVolumeInONTAP_Failure(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.VolumeCreateActivity{
@@ -265,8 +265,8 @@ func TestCreateIgroup_Success(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	mockStorage := database.NewMockStorage(t)
@@ -302,8 +302,8 @@ func TestCreateIgroup_Exists(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	mockStorage := database.NewMockStorage(t)
@@ -333,8 +333,8 @@ func TestCreateIgroup_Failure_IgroupExists(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	mockStorage := database.NewMockStorage(t)
@@ -365,8 +365,8 @@ func TestCreateIgroup_Failure_IgroupCreate(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 	mockStorage := database.NewMockStorage(t)
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
@@ -402,8 +402,8 @@ func TestCreateLun_Success(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.VolumeCreateActivity{}
@@ -451,8 +451,8 @@ func TestCreateLun_Success_AlreadyExists(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.VolumeCreateActivity{}
@@ -495,8 +495,8 @@ func TestCreateLun_Failure(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.VolumeCreateActivity{}
@@ -536,8 +536,8 @@ func TestCreateLun_SkipForDataProtectionVolume(t *testing.T) {
 	originalGetProviderByNode := activities.GetProviderByNode
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.VolumeCreateActivity{}
@@ -565,8 +565,8 @@ func TestCreateLun_LunGetError(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.VolumeCreateActivity{}
@@ -606,8 +606,8 @@ func TestCreateLunMap_Success(t *testing.T) {
 		SizeInBytes: 107374182400, // minimum value 100 GiB
 	}
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.VolumeCreateActivity{}
@@ -641,8 +641,8 @@ func TestCreateLunMap_Success_AlreadyExists(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.VolumeCreateActivity{}
@@ -680,8 +680,8 @@ func TestCreateLunMap_Failure(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.VolumeCreateActivity{}
@@ -890,8 +890,8 @@ func TestCreateVolumeInONTAP_CheckVolumeExistsError(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.VolumeCreateActivity{
@@ -1009,8 +1009,8 @@ func TestCreateLunMap_SkipForDataProtectionVolume(t *testing.T) {
 	originalGetProviderByNode := activities.GetProviderByNode
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.VolumeCreateActivity{}
@@ -1036,8 +1036,8 @@ func TestCreateVolumeInONTAP_DataProtectionVolume(t *testing.T) {
 	originalGetProviderByNode := activities.GetProviderByNode
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.VolumeCreateActivity{
@@ -1070,8 +1070,8 @@ func TestCreateVolumeInONTAP_ClonedVolume(t *testing.T) {
 	originalGetProviderByNode := activities.GetProviderByNode
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.VolumeCreateActivity{
@@ -1802,8 +1802,8 @@ func TestCreateSnapshotPolicyInONTAP(t *testing.T) {
 	originalGetProviderByNode := activities.GetProviderByNode
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	ctx := context.Background()
@@ -1918,14 +1918,6 @@ func TestUpdateVolumeStateInDB_Error(t *testing.T) {
 }
 
 func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
-	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := activities.GetProviderByNode
-	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
-	}
-
 	ctx := context.Background()
 	activity := activities.VolumeCreateActivity{}
 	node := &models.Node{}
@@ -1950,7 +1942,28 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 		},
 	}
 
+	t.Run("GetProviderByNode Error", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider error")
+		}
+		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "provider error")
+		mockProvider.AssertExpectations(tt)
+	})
+
 	t.Run("Success", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
 		mockProvider.On("UpdateVolume", mock.Anything).Return(nil)
 		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
 		assert.NoError(tt, err)
@@ -1958,6 +1971,13 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 	})
 
 	t.Run("NilSnapshot", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
 		err := activity.InitiateSplitForVolume(ctx, volume, node, nil)
 		assert.NoError(tt, err)
 	})

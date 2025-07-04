@@ -55,8 +55,10 @@ func (hgu *HostGroupUpdateActivity) UpdateIGroups(ctx context.Context, hg *datam
 			continue
 		}
 
-		provider := GetProviderByNode(ctx, common.CreateNodeForProvider(common.NodeProviderInput{Nodes: nodes, Username: volume.Pool.Username, Password: volume.Pool.Password, SecretID: volume.Pool.SecretID}))
-
+		provider, getErr := GetProviderByNode(ctx, common.CreateNodeForProvider(common.NodeProviderInput{Nodes: nodes, Username: volume.Pool.Username, Password: volume.Pool.Password, SecretID: volume.Pool.SecretID}))
+		if getErr != nil {
+			return vsaerrors.WrapAsTemporalApplicationError(getErr)
+		}
 		err = handleQNsInHostGroup(logger, hg, provider)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -87,8 +89,10 @@ func (hgu *HostGroupUpdateActivity) UpdateIGroups(ctx context.Context, hg *datam
 			logger.Errorf("Failed to get nodes for pool %d: %v", pool.ID, err)
 			continue
 		}
-		provider := GetProviderByNode(ctx, common.CreateNodeForProvider(common.NodeProviderInput{Nodes: nodes, Username: pool.Username, Password: pool.Password, SecretID: pool.SecretID}))
-
+		provider, getErr := GetProviderByNode(ctx, common.CreateNodeForProvider(common.NodeProviderInput{Nodes: nodes, Username: pool.Username, Password: pool.Password, SecretID: pool.SecretID}))
+		if getErr != nil {
+			return vsaerrors.WrapAsTemporalApplicationError(getErr)
+		}
 		err = handleQNsInHostGroup(logger, hg, provider)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)

@@ -22,8 +22,8 @@ func TestResumeVolumeReplication(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := InternalVolumeReplicationResumeActivity{
@@ -49,13 +49,44 @@ func TestResumeVolumeReplication(t *testing.T) {
 		assert.Equal(t, "provider error", err.Error())
 		mockProvider.AssertExpectations(t)
 	})
+	t.Run("WhenGetProviderByNodeError", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("get provider error")
+		}
+
+		activity := InternalVolumeReplicationResumeActivity{
+			SE: database.NewMockStorage(t),
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		mirrorState := "broken_off"
+		params := &datamodel.VolumeReplication{
+			MirrorState: &mirrorState,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+			Volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "volume-external-uuid",
+				},
+			},
+		}
+		_, err := activity.ResumeVolumeReplication(ctx, params, node, false)
+		assert.Error(t, err)
+		assert.Equal(t, "get provider error", err.Error())
+		mockProvider.AssertExpectations(t)
+	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := InternalVolumeReplicationResumeActivity{
@@ -86,13 +117,39 @@ func TestResumeVolumeReplication(t *testing.T) {
 }
 
 func TestGetSnapmirrorDetails(t *testing.T) {
+	t.Run("WhenGetProviderByNodeError", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("get provider error")
+		}
+
+		activity := InternalVolumeReplicationResumeActivity{
+			SE: database.NewMockStorage(t),
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		params := &datamodel.VolumeReplication{
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID:          "external-uuid",
+				DestinationVolumeName: "destination-volume-name",
+				DestinationSvmName:    "destination-svm-name",
+			},
+		}
+		_, err := activity.GetSnapmirrorDetails(ctx, params, node)
+		assert.Error(t, err)
+		assert.Equal(t, "get provider error", err.Error())
+		mockProvider.AssertExpectations(t)
+	})
 	t.Run("WhenError", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := InternalVolumeReplicationResumeActivity{
@@ -118,8 +175,8 @@ func TestGetSnapmirrorDetails(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := InternalVolumeReplicationResumeActivity{

@@ -18,13 +18,49 @@ import (
 )
 
 func TestCreateVolumeReplicationInternal(t *testing.T) {
+	t.Run("WhenGetProviderByNodeError", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("get provider error")
+		}
+
+		activity := InternalVolumeReplicationActivity{
+			SE: database.NewMockStorage(t),
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+
+		params := &commonparams.CreateVolumeReplicationInternalParams{
+			VolumeReplication: &models.VolumeReplication{
+				ReplicationAttributes: &models.ReplicationDetails{
+					EndpointType:          "dst",
+					SourceHostName:        "source-host",
+					SourceSvmName:         "source-svm",
+					SourceVolumeName:      "source-volume",
+					DestinationHostName:   "destination-host",
+					DestinationSvmName:    "destination-svm",
+					ReplicationSchedule:   "daily",
+					ReplicationPolicy:     "replication-policy",
+					DestinationVolumeName: "destination-volume",
+				},
+			},
+		}
+		_, err := activity.CreateVolumeReplicationInternal(ctx, params, node, "volume-external-uuid")
+
+		assert.Error(t, err)
+		assert.Equal(t, "get provider error", err.Error())
+		mockProvider.AssertExpectations(t)
+	})
 	t.Run("WhenError", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := InternalVolumeReplicationActivity{
@@ -60,8 +96,8 @@ func TestCreateVolumeReplicationInternal(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := InternalVolumeReplicationActivity{

@@ -4,22 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-openapi/strfmt"
-	"github.com/stretchr/testify/mock"
-	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	oModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestCreateBackup_Success(t *testing.T) {
@@ -209,8 +209,8 @@ func TestGetOrCreateObjectStore(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 	ct := oModels.CloudTarget{
 		Name:      nillable.ToPointer("targetName"),
@@ -250,8 +250,8 @@ func TestSnapmirrorGetorCreate_Success(t *testing.T) {
 		activities.GenerateTokenForNode = originalGenerateTokenForNode
 	}()
 
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 	activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
 		return "mock-license", nil
@@ -276,6 +276,34 @@ func TestSnapmirrorGetorCreate_Success(t *testing.T) {
 	mockProvider.AssertExpectations(t)
 }
 
+func TestSnapmirrorGetorCreate_GetProviderByNode(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider)
+	mockStorage := database.NewMockStorage(t)
+	originalGetProviderByNode := activities.GetProviderByNode
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	activity := activities.BackupActivity{SE: mockStorage}
+	defer func() {
+		activities.GetProviderByNode = originalGetProviderByNode
+	}()
+
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, errors.New("provider-error")
+	}
+	node := &models.Node{}
+	sourcePath := "source-path"
+	destinationPath := "destination-path"
+
+	// Act
+	result, err := activity.SnapmirrorGetorCreate(ctx, node, sourcePath, destinationPath)
+
+	// Assert
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "provider-error")
+	mockProvider.AssertExpectations(t)
+}
+
 func TestSnapmirrorGetorCreate_CreateNew(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider)
@@ -291,8 +319,8 @@ func TestSnapmirrorGetorCreate_CreateNew(t *testing.T) {
 		activities.GenerateTokenForNode = originalGenerateTokenForNode
 	}()
 
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 	activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
 		return "mock-license", nil
@@ -327,8 +355,8 @@ func TestSnapshotCreate_Success(t *testing.T) {
 	activity := activities.BackupActivity{SE: mockStorage}
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -362,8 +390,8 @@ func TestSnapshotCreate_Failure(t *testing.T) {
 	activity := activities.BackupActivity{SE: mockStorage}
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -396,8 +424,8 @@ func TestGetOrCreateObjectStore_Success(t *testing.T) {
 	activity := activities.BackupActivity{SE: mockStorage}
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -420,6 +448,31 @@ func TestGetOrCreateObjectStore_Success(t *testing.T) {
 	assert.Equal(t, *expectedResponse.Name, result.Name)
 	mockProvider.AssertExpectations(t)
 }
+func TestGetOrCreateObjectStore_GetProviderByNodeFailure(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider)
+	mockStorage := database.NewMockStorage(t)
+	originalGetProviderByNode := activities.GetProviderByNode
+
+	activity := activities.BackupActivity{SE: mockStorage}
+	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, errors.New("get-povider-error")
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &models.Node{}
+	objStoreName := "test-objstore"
+	bucketName := "test-bucket"
+	// Act
+	_, err := activity.GetOrCreateObjectStore(ctx, node, objStoreName, bucketName)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "get-povider-error")
+	mockProvider.AssertExpectations(t)
+}
 
 func TestGetOrCreateObjectStore_CreateNew(t *testing.T) {
 	// Arrange
@@ -430,8 +483,8 @@ func TestGetOrCreateObjectStore_CreateNew(t *testing.T) {
 	activity := activities.BackupActivity{SE: mockStorage}
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -461,8 +514,8 @@ func TestGetOrCreateObjectStore_Failure(t *testing.T) {
 	activity := activities.BackupActivity{SE: mockStorage}
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -495,8 +548,8 @@ func TestSnapshotActivities(t *testing.T) {
 			activities.GenerateTokenForNode = originalGenerateTokenForNode
 		}()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
 			return "mock-license", nil
@@ -505,8 +558,8 @@ func TestSnapshotActivities(t *testing.T) {
 			token := "mock-token"
 			return &token, nil
 		}
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		node := &models.Node{}
@@ -533,8 +586,8 @@ func TestSnapshotActivities(t *testing.T) {
 			activities.GenerateTokenForNode = originalGenerateTokenForNode
 		}()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
 			return "mock-license", nil
@@ -543,8 +596,8 @@ func TestSnapshotActivities(t *testing.T) {
 			token := "mock-token"
 			return &token, nil
 		}
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		node := &models.Node{}
@@ -565,8 +618,8 @@ func TestSnapshotActivities(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		node := &models.Node{}
@@ -586,8 +639,8 @@ func TestSnapshotActivities(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		node := &models.Node{}
@@ -609,8 +662,8 @@ func TestSnapshotActivities(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		node := &models.Node{}
@@ -630,8 +683,8 @@ func TestSnapshotActivities(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		node := &models.Node{}
@@ -658,8 +711,8 @@ func TestSnapshotActivities(t *testing.T) {
 			activities.GenerateTokenForNode = originalGenerateTokenForNode
 		}()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
 			return "", errors.New("smc license error")
@@ -692,8 +745,8 @@ func TestSnapshotActivities(t *testing.T) {
 			activities.GenerateTokenForNode = originalGenerateTokenForNode
 		}()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
 			return "mock-license", nil
@@ -725,8 +778,8 @@ func TestSnapshotActivities(t *testing.T) {
 			activities.GenerateTokenForNode = originalGenerateTokenForNode
 		}()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
 			return "mock-license", nil
@@ -758,8 +811,8 @@ func TestSnapshotActivities(t *testing.T) {
 			activities.GenerateTokenForNode = originalGenerateTokenForNode
 		}()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		activities.GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
 			return "mock-license", nil
@@ -781,14 +834,55 @@ func TestSnapshotActivities(t *testing.T) {
 	})
 }
 
+func TestGetObjectStore_GetProviderByNodeFailure(t *testing.T) {
+	t.Run("onSuccess", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider error")
+		}
+
+		bucketName := "test-bucket"
+		mockProvider.On("CloudTargetGet", &bucketName).Return(&ontap_rest.CloudTarget{
+			CloudTarget: oModels.CloudTarget{
+				Name: nillable.ToPointer("test-container"),
+				UUID: nillable.ToPointer("123e4567-e89b-12d3-a456-426614174000"),
+			},
+		}, nil)
+
+		objectStore, err := activity.GetObjectStore(context.Background(), &models.Node{}, bucketName)
+		assert.Nil(t, objectStore)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "provider error")
+	})
+	t.Run("onFailure", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		bucketName := "test-bucket"
+		mockProvider.On("CloudTargetGet", &bucketName).Return(nil, errors.New("failed"))
+
+		objectStore, err := activity.GetObjectStore(context.Background(), &models.Node{}, "test-bucket")
+		assert.NotNil(t, err)
+		assert.Nil(t, objectStore)
+		assert.EqualError(t, err, "object store does not exist")
+	})
+}
 func TestGetObjectStore(t *testing.T) {
 	t.Run("onSuccess", func(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		bucketName := "test-bucket"
@@ -809,8 +903,8 @@ func TestGetObjectStore(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		bucketName := "test-bucket"
@@ -829,8 +923,8 @@ func TestGetSnapmirror(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		sourcePath := "source-path"
 		destinationPath := "destination-path"
@@ -849,8 +943,8 @@ func TestGetSnapmirror(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		sourcePath := "source-path"
 		destinationPath := "destination-path"
@@ -859,6 +953,20 @@ func TestGetSnapmirror(t *testing.T) {
 		assert.NotNil(t, err)
 		assert.Nil(t, snapmirror)
 		assert.EqualError(t, err, "failed to get snapmirror relationship: not found")
+	})
+	t.Run("onGetProviderByNodeFailure", func(t *testing.T) {
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider error")
+		}
+		sourcePath := "source-path"
+		destinationPath := "destination-path"
+		snapmirror, err := activity.GetSnapmirror(context.Background(), &models.Node{}, sourcePath, destinationPath)
+		assert.Error(t, err)
+		assert.Nil(t, snapmirror)
+		assert.EqualError(t, err, "provider error")
 	})
 }
 
@@ -1005,8 +1113,8 @@ func TestDeleteSnapshotFromObjectStore(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -1027,8 +1135,8 @@ func TestDeleteSnapshotFromObjectStore(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -1045,8 +1153,8 @@ func TestDeleteSnapshotFromObjectStore(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -1059,6 +1167,23 @@ func TestDeleteSnapshotFromObjectStore(t *testing.T) {
 		assert.Nil(t, job)
 		assert.EqualError(t, err, "delete failed")
 	})
+	t.Run("onGetProviderbyNodeFailure", func(t *testing.T) {
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("failed to get provider")
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		snapshotUUID := "snapshot-uuid"
+		endpointUUID := "endpoint-uuid"
+		objectStoreUUID := "object-store-uuid"
+		job, err := activity.DeleteSnapshotFromObjectStore(ctx, node, objectStoreUUID, endpointUUID, snapshotUUID)
+		assert.Error(t, err)
+		assert.Nil(t, job)
+		assert.EqualError(t, err, "failed to get provider")
+	})
 }
 
 func TestDeleteSnapmirror(t *testing.T) {
@@ -1067,8 +1192,8 @@ func TestDeleteSnapmirror(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -1086,8 +1211,8 @@ func TestDeleteSnapmirror(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -1102,8 +1227,8 @@ func TestDeleteSnapmirror(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -1114,6 +1239,21 @@ func TestDeleteSnapmirror(t *testing.T) {
 		assert.Nil(t, job)
 		assert.EqualError(t, err, "delete failed")
 	})
+	t.Run("onGetProviderbyNodeFailure", func(t *testing.T) {
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("failed to get provider")
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		snapmirrorUUID := "snapmirror-uuid"
+		job, err := activity.DeleteSnapmirror(ctx, node, snapmirrorUUID)
+		assert.Error(t, err)
+		assert.Nil(t, job)
+		assert.EqualError(t, err, "failed to get provider")
+	})
 }
 
 func TestDeleteCloudEndpoint(t *testing.T) {
@@ -1122,8 +1262,8 @@ func TestDeleteCloudEndpoint(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -1142,8 +1282,8 @@ func TestDeleteCloudEndpoint(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -1159,8 +1299,8 @@ func TestDeleteCloudEndpoint(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -1172,6 +1312,22 @@ func TestDeleteCloudEndpoint(t *testing.T) {
 		assert.Nil(t, job)
 		assert.EqualError(t, err, "delete failed")
 	})
+	t.Run("onGetProviderByNodeFailure", func(t *testing.T) {
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("failed to get provider")
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		endpointUUID := "endpoint-uuid"
+		objectStoreUUID := "object-store-uuid"
+		job, err := activity.DeleteCloudEndpoint(ctx, node, objectStoreUUID, endpointUUID)
+		assert.Error(t, err)
+		assert.Nil(t, job)
+		assert.EqualError(t, err, "failed to get provider")
+	})
 }
 
 func TestDeleteSnapshotForBackup(t *testing.T) {
@@ -1180,8 +1336,8 @@ func TestDeleteSnapshotForBackup(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -1196,8 +1352,8 @@ func TestDeleteSnapshotForBackup(t *testing.T) {
 		activity := activities.BackupActivity{}
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		node := &models.Node{}
@@ -1207,5 +1363,20 @@ func TestDeleteSnapshotForBackup(t *testing.T) {
 		err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "delete failed")
+	})
+	t.Run("onGetProviderByNodeFailure", func(t *testing.T) {
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("failed to get provider")
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		node := &models.Node{}
+		snapshotUUID := "snapshot-uuid"
+		volumeUUID := "volume-uuid"
+		err := activity.DeleteSnapshotForBackup(ctx, node, snapshotUUID, volumeUUID)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "failed to get provider")
 	})
 }

@@ -31,8 +31,10 @@ type VolumeReplicationCreateActivity struct {
 func (a *VolumeReplicationCreateActivity) GetSourceInterclusterLifs(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("GetSourcePoolDetails for pool: %s", result.Event.SourcePool.Name)
-	provider := activities.GetProviderByNode(ctx, result.SrcNode)
-
+	provider, err := activities.GetProviderByNode(ctx, result.SrcNode)
+	if err != nil {
+		return nil, errors.WrapAsTemporalApplicationError(err)
+	}
 	interClusterLifs, err := provider.GetInterclusterLIFs("default-intercluster")
 	if err != nil {
 		logger.Error("Failed to get interCluster lifs", "error", err)
@@ -250,8 +252,10 @@ func (a *VolumeReplicationCreateActivity) UpdateReplicationDetails(ctx context.C
 
 func (a *VolumeReplicationCreateActivity) AcceptSvmPeer(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	provider := activities.GetProviderByNode(ctx, result.SrcNode)
-
+	provider, err := activities.GetProviderByNode(ctx, result.SrcNode)
+	if err != nil {
+		return nil, errors.WrapAsTemporalApplicationError(err)
+	}
 	svmPeer, err := provider.GetSVMPeer(result.SrcSvm, result.DstSvm)
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrGettingSvmPeer, err)

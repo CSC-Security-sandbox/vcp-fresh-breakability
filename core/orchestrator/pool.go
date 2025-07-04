@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -462,7 +463,10 @@ func _getPoolByName(ctx context.Context, se database.Storage, poolName string, a
 func _getInterClusterLifsFromONTAP(ctx context.Context, nodes []*datamodel.Node, pools *datamodel.PoolView) ([]*vsa.InterclusterLif, error) {
 	logger := util.GetLogger(ctx)
 	node := prepareNodeForProvider(nodes[0], pools)
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 
 	interClusterLifs, err := provider.GetInterclusterLIFs("default-intercluster")
 	if err != nil {

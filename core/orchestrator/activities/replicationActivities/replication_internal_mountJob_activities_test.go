@@ -3,7 +3,6 @@ package replicationActivities
 import (
 	"context"
 	"errors"
-	"gorm.io/gorm"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,14 +13,15 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"gorm.io/gorm"
 )
 
 func TestCheckMountJob(t *testing.T) {
 	t.Run("ReturnsErrorWhenGetVolumeReplicationFails", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockProvider.On("GetVolumeReplication", mock.Anything).Return(nil, errors.New("failed to get volume replication"))
-		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := &MountJobActivity{}
@@ -61,8 +61,8 @@ func TestCheckMountJob(t *testing.T) {
 	t.Run("ReturnsNilWhenMirrorStateIsSnapmirrored", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockProvider.On("GetVolumeReplication", mock.Anything).Return(&vsa.VolumeReplication{MirrorState: "snapmirrored"}, nil)
-		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := &MountJobActivity{}
@@ -98,12 +98,49 @@ func TestCheckMountJob(t *testing.T) {
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
+	t.Run("ReturnsErrorWhenGetProviderByNodeError", func(tt *testing.T) {
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("failed to get provider")
+		}
 
+		activity := &MountJobActivity{}
+		node := &models.Node{}
+		dbRep := &datamodel.VolumeReplication{
+			Account: &datamodel.Account{Name: "test-account"},
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "replication-uuid-1",
+			},
+			AccountID: 1,
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{
+					ID:   1,
+					UUID: "volume-uuid-1",
+				},
+				PoolID: 1,
+				Pool: &datamodel.Pool{
+					Username: "username-1",
+					Password: "password-1",
+				},
+			},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationVolumeName: "destination-volume-name-1",
+				DestinationHostName:   "destination-host-name-1",
+				DestinationSvmName:    "destination-svm-name-1",
+				ExternalUUID:          "external-uuid-1",
+				ReplicationSchedule:   "10minutely",
+			},
+		}
+		err := activity.CheckMountJob(context.Background(), dbRep, node, "test-account")
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get provider")
+	})
 	t.Run("ReturnsErrorWhenMirrorStateIsNotSnapmirrored", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockProvider.On("GetVolumeReplication", mock.Anything).Return(&vsa.VolumeReplication{MirrorState: "initializing"}, nil)
-		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := &MountJobActivity{}
@@ -146,8 +183,8 @@ func TestGetReplicationFromOntap(t *testing.T) {
 	t.Run("ReturnsReplicationWhenGetReplicationDetailsSucceeds", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockProvider.On("GetReplicationDetails", mock.Anything).Return(&vsa.VolumeReplication{}, nil)
-		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := &MountJobActivity{}
@@ -167,8 +204,8 @@ func TestGetReplicationFromOntap(t *testing.T) {
 	t.Run("ReturnsErrorWhenGetReplicationDetailsFails", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		mockProvider.On("GetReplicationDetails", mock.Anything).Return(nil, errors.New("failed to get replication details"))
-		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := &MountJobActivity{}

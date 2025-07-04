@@ -81,8 +81,8 @@ func TestDeleteVolumeInONTAP_Success(t *testing.T) {
 	defer func() { GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := VolumeDeleteActivity{}
@@ -110,8 +110,8 @@ func TestDeleteVolumeInONTAP_Failure(t *testing.T) {
 	defer func() { GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := VolumeDeleteActivity{}
@@ -141,8 +141,8 @@ func TestDeleteSnapshotPolicyInONTAP_Success(t *testing.T) {
 	defer func() { GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := VolumeDeleteActivity{}
@@ -184,8 +184,8 @@ func TestDeleteSnapshotPolicyInONTAP_Failure(t *testing.T) {
 	defer func() { GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := VolumeDeleteActivity{}

@@ -23,8 +23,10 @@ type MountJobActivity struct {
 
 func (j *MountJobActivity) CheckMountJob(ctx context.Context, dbReplication *datamodel.VolumeReplication, node *models.Node, accountName string) error {
 	logger := util.GetLogger(ctx)
-	provider := activitiesGetProviderByNode(ctx, node)
-
+	provider, err := activitiesGetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	replication := convertToSnapmirrorGetParams(dbReplication, accountName)
 	snapmirror, err := provider.GetVolumeReplication(replication)
 	if err != nil {
@@ -48,7 +50,10 @@ func (j *MountJobActivity) CheckMountJob(ctx context.Context, dbReplication *dat
 
 func (j *MountJobActivity) GetReplicationFromOntap(ctx context.Context, dbReplication *datamodel.VolumeReplication, node *models.Node, accountName string) (*datamodel.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
-	provider := activitiesGetProviderByNode(ctx, node)
+	provider, err := activitiesGetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	replicationParams := convertToSnapmirrorGetParams(dbReplication, accountName)
 	ontapRep, err := provider.GetReplicationDetails(replicationParams)
 	if err != nil {

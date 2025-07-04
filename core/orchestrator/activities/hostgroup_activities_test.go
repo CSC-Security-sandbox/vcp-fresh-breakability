@@ -80,8 +80,8 @@ func TestUpdateIGroups(t *testing.T) {
 
 		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodes, nil)
 
-		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := HostGroupUpdateActivity{
@@ -161,8 +161,8 @@ func TestUpdateIGroups(t *testing.T) {
 		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{pool2}, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodes, nil)
 
-		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := HostGroupUpdateActivity{
@@ -282,8 +282,8 @@ func TestUpdateIGroups(t *testing.T) {
 		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{}, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodes, nil)
 
-		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := HostGroupUpdateActivity{
@@ -373,8 +373,8 @@ func TestUpdateIGroups(t *testing.T) {
 
 		mockStorage.On("GetAllVolumesForHG", ctx, mock.Anything, mock.Anything).Return(volumes, nil)
 		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{}, nil)
-		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := HostGroupUpdateActivity{
@@ -440,8 +440,8 @@ func TestUpdateIGroups(t *testing.T) {
 
 		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodes, nil)
 
-		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := HostGroupUpdateActivity{

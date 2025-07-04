@@ -2,22 +2,22 @@ package activities
 
 import (
 	"context"
-	"github.com/stretchr/testify/mock"
-	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
-	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestUpdateVolumeInONTAP_Success(t *testing.T) {
@@ -25,8 +25,8 @@ func TestUpdateVolumeInONTAP_Success(t *testing.T) {
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
@@ -61,8 +61,8 @@ func TestUpdateVolumeInONTAP_Failure(t *testing.T) {
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
@@ -96,8 +96,8 @@ func TestUpdateLun_Success(t *testing.T) {
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
@@ -134,8 +134,8 @@ func TestUpdateLun_Failure(t *testing.T) {
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
@@ -214,8 +214,8 @@ func TestUpdateLun_ConflictError(t *testing.T) {
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
@@ -578,10 +578,9 @@ func TestDeleteLunIGroupMap(t *testing.T) {
 			originalGetProviderByNode := GetProviderByNode
 			defer func() { GetProviderByNode = originalGetProviderByNode }()
 
-			GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-				return mockProvider
+			GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+				return mockProvider, nil
 			}
-
 			tt.mockSetup(mockStorage, mockProvider)
 
 			activity := &VolumeUpdateActivity{
@@ -635,8 +634,8 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		mockProvider := vsa.NewMockProvider(t)
 		defer func() { GetProviderByNode = _getProviderByNode }()
 
-		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := &VolumeUpdateActivity{
@@ -669,8 +668,8 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		defer func() { GetProviderByNode = _getProviderByNode }()
-		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := &VolumeUpdateActivity{
@@ -693,10 +692,14 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		mockProvider.AssertExpectations(t)
 	})
 	t.Run("returns error when GetMultipleHostGroups fails", func(t *testing.T) {
+		mockProvider := vsa.NewMockProvider(t)
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(t)
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
+		}
+		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(nil, errors.New("failed to fetch host groups"))
 
@@ -710,8 +713,8 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		defer func() { GetProviderByNode = _getProviderByNode }()
-		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
@@ -730,8 +733,8 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		defer func() { GetProviderByNode = _getProviderByNode }()
-		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
@@ -755,8 +758,8 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		defer func() { GetProviderByNode = _getProviderByNode }()
-		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
@@ -780,8 +783,8 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
 		defer func() { GetProviderByNode = _getProviderByNode }()
-		GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
@@ -819,8 +822,8 @@ func TestGetVolumeFromONTAP_Success(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
-	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
@@ -851,8 +854,8 @@ func TestGetVolumeFromONTAP_Error(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
-	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
@@ -885,8 +888,8 @@ func TestUpdateSnapshotPolicyInOntap_Success(t *testing.T) {
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
@@ -930,9 +933,8 @@ func TestUpdateSnapshotPolicyInOntap_Error(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := GetProviderByNode
 	defer func() { GetProviderByNode = originalGetProviderByNode }()
-
-	GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-		return mockProvider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}

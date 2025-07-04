@@ -381,12 +381,74 @@ func TestGetNodesForPools(t *testing.T) {
 }
 
 func TestGetReplicationsFromOntap(t *testing.T) {
+	t.Run("WhenGetProviderByNodeError", func(tt *testing.T) {
+		defer func() { activitiesGetProviderByNode = activities.GetProviderByNode }()
+
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider error")
+		}
+
+		activity := ReplicationInternalGetMultipleActivity{
+			SE: database.NewMockStorage(t),
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		expectedNode1 := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "node-uuid-1",
+			},
+			Name:            "node-name-1",
+			EndpointAddress: "10.0.0.0",
+		}
+
+		params := &common.ReplicationInternalGetMultipleParams{
+			ReplicationsFromDB: []*datamodel.VolumeReplication{
+				{
+					BaseModel: datamodel.BaseModel{
+						ID:   1,
+						UUID: "replication-uuid-1",
+					},
+					AccountID: 1,
+					Volume: &datamodel.Volume{
+						BaseModel: datamodel.BaseModel{
+							ID:   1,
+							UUID: "volume-uuid-1",
+						},
+						PoolID: 1,
+						Pool: &datamodel.Pool{
+							Username: "username-1",
+							Password: "password-1",
+						},
+					},
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationVolumeName: "destination-volume-name-1",
+						DestinationHostName:   "destination-host-name-1",
+						DestinationSvmName:    "destination-svm-name-1",
+						ExternalUUID:          "external-uuid-1",
+						ReplicationSchedule:   "hourly",
+					},
+				},
+			},
+			ReplicationUUIDs:    []string{"replication-uuid-1", "replication-uuid-2"},
+			AccountName:         "deathstar",
+			PoolUUIDs:           nil,
+			PoolNodeMap:         map[int64]*datamodel.Node{1: expectedNode1},
+			PoolReplicationsMap: nil,
+			UpdatedReplications: nil,
+		}
+
+		_, err := activity.GetReplicationsFromOntap(ctx, params)
+
+		assert.Error(t, err)
+		assert.Equal(t, err.Error(), "provider error")
+	})
 	t.Run("WhenGetGetReplicationDetailsReturnsError", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		defer func() { activitiesGetProviderByNode = activities.GetProviderByNode }()
 
-		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := ReplicationInternalGetMultipleActivity{
@@ -451,8 +513,8 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		defer func() { activitiesGetProviderByNode = activities.GetProviderByNode }()
 
-		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := ReplicationInternalGetMultipleActivity{
@@ -518,8 +580,8 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		defer func() { activitiesGetProviderByNode = activities.GetProviderByNode }()
 
-		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := ReplicationInternalGetMultipleActivity{
@@ -604,8 +666,8 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
 		defer func() { activitiesGetProviderByNode = activities.GetProviderByNode }()
 
-		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		activity := ReplicationInternalGetMultipleActivity{

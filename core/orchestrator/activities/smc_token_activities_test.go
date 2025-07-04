@@ -3,7 +3,7 @@ package activities_test
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
@@ -11,7 +11,7 @@ import (
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
-	"testing"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 )
 
 func Test_getSMCLicenseFromCloud_Success(t *testing.T) {
@@ -45,8 +45,8 @@ func Test_generateTokenForNode_Success(t *testing.T) {
 	clientSecret := "secret"
 	origGetProviderByNode := activities.GetProviderByNode
 	mockProvider := new(vsa.MockProvider)
-	activities.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 	defer func() { activities.GetProviderByNode = origGetProviderByNode }()
 	mockProvider.On("PostClusterLicenseAccessToken", context.Background(), clientSecret).Return(&tokenValue, nil)
@@ -62,8 +62,8 @@ func Test_generateTokenForNode_NilToken(t *testing.T) {
 	clientSecret := "secret"
 	origGetProviderByNode := activities.GetProviderByNode
 	mockProvider := new(vsa.MockProvider)
-	activities.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 	defer func() { activities.GetProviderByNode = origGetProviderByNode }()
 	mockProvider.On("PostClusterLicenseAccessToken", context.Background(), clientSecret).Return(nil, nil)
@@ -79,14 +79,29 @@ func Test_generateTokenForNode_EmptyToken(t *testing.T) {
 	clientSecret := "secret"
 	origGetProviderByNode := activities.GetProviderByNode
 	mockProvider := new(vsa.MockProvider)
-	activities.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 	defer func() { activities.GetProviderByNode = origGetProviderByNode }()
 	mockProvider.On("PostClusterLicenseAccessToken", context.Background(), clientSecret).Return(&tokenValue, nil)
 
 	token, err := activities.GenerateTokenForNode(context.Background(), node, &clientSecret)
 	assert.Error(t, err)
+	assert.Nil(t, token)
+}
+
+func Test_generateTokenForNode_GetProviderByNodeError(t *testing.T) {
+	node := &coremodels.Node{Name: "node1"}
+	clientSecret := "secret"
+	origGetProviderByNode := activities.GetProviderByNode
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
+		return nil, fmt.Errorf("getProviderByNode error")
+	}
+	defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+
+	token, err := activities.GenerateTokenForNode(context.Background(), node, &clientSecret)
+	assert.Error(t, err)
+	assert.Equal(t, "getProviderByNode error", err.Error())
 	assert.Nil(t, token)
 }
 

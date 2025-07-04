@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/go-openapi/strfmt"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -22,7 +23,10 @@ type ClusterPeerActivity struct {
 }
 
 func (j *ClusterPeerActivity) AcceptClusterPeer(ctx context.Context, params *commonparams.ClusterPeerParams, node *models.Node) (*commonparams.ClusterPeerParams, error) {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	var expiryTime *strfmt.DateTime
 	if params.ExpiryTime != nil {
 		convertedTime := strfmt.DateTime(*params.ExpiryTime)
@@ -71,7 +75,10 @@ func (j *ClusterPeerActivity) CreateClusterPeer(ctx context.Context, params *com
 }
 
 func CreateClusterPeer(ctx context.Context, params *commonparams.ClusterPeerParams, node *models.Node) (*commonparams.ClusterPeerParams, error) {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	clusterPeers, err := provider.ListClusterPeers()
 	if err != nil {
 		return nil, err

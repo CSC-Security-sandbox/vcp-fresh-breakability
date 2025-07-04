@@ -79,7 +79,7 @@ func (ca CommonActivities) GetNode(ctx context.Context, poolId int64) ([]*datamo
 	return nodes, nil
 }
 
-func _getProviderByNode(ctx context.Context, node *models.Node) vsa.Provider {
+func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 	var password string
 	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
 		password = GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
@@ -90,7 +90,7 @@ func _getProviderByNode(ctx context.Context, node *models.Node) vsa.Provider {
 	// if ipAddress in empty, populate it with the node's endpoint address
 	if len(node.EndpointAddresses) == 0 {
 		if node.EndpointAddress == "" {
-			return nil
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterNodeIPAddressNotFound, errors.New("node endpoint address is empty"))
 		}
 		node.EndpointAddresses = []string{node.EndpointAddress}
 	}
@@ -101,11 +101,14 @@ func _getProviderByNode(ctx context.Context, node *models.Node) vsa.Provider {
 		Password:    password,
 		// TODO : need to fix once we have certs
 		InsecureSkipVerify: true,
-	})
+	}), nil
 }
 
 func (j CommonActivities) GetOntapJob(ctx context.Context, jobUUID string, node *models.Node) (*vsa.OntapJob, error) {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	job, err := provider.JobGet(jobUUID)
 	if err != nil {
 		return nil, err

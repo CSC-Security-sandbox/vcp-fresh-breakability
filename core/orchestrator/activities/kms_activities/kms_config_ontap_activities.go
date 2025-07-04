@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-openapi/strfmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -18,7 +19,10 @@ import (
 
 func (j *KmsConfigActivity) ConfigureKmsForSvmActivity(ctx context.Context, svm *datamodel.Svm, node *coreModels.Node, params commonparams.CreatePoolParams) (*datamodel.Svm, error) {
 	se := j.SE
-	provider := activities.GetProviderByNode(ctx, node)
+	provider, err := activities.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	if provider == nil {
 		return nil, errors.New("provider not found")
 	}
@@ -66,13 +70,16 @@ func (j *KmsConfigActivity) ConfigureKmsForSvmActivity(ctx context.Context, svm 
 }
 
 func (j *KmsConfigActivity) CheckVsaKmsConfigReachableActivity(ctx context.Context, svm *datamodel.Svm, node *coreModels.Node) error {
-	provider := activities.GetProviderByNode(ctx, node)
+	provider, err := activities.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	if provider == nil {
 		return errors.New("provider not found")
 	}
 
 	// Check the KMS configuration using the provider i.e ONTAP REST client on vsa cluster
-	_, err := provider.IsGcpKmsReachable(vsa.GetKmsConfigParams{
+	_, err = provider.IsGcpKmsReachable(vsa.GetKmsConfigParams{
 		ExternalKmsConfigID: svm.SvmDetails.ExternalKmsConfigUUID,
 	})
 

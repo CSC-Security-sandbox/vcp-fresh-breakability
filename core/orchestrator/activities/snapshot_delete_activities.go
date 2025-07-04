@@ -17,8 +17,11 @@ type SnapshotDeleteActivity struct {
 
 func (a *SnapshotDeleteActivity) DeleteSnapshotInONTAP(ctx context.Context, snapshot *datamodel.Snapshot, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx, node)
-	err := provider.DeleteSnapshot(snapshot.SnapshotAttributes.ExternalUUID, snapshot.Volume.VolumeAttributes.ExternalUUID)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	err = provider.DeleteSnapshot(snapshot.SnapshotAttributes.ExternalUUID, snapshot.Volume.VolumeAttributes.ExternalUUID)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}

@@ -385,7 +385,10 @@ func _getVLMClient(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.
 }
 
 func (j *PoolActivity) GetOntapVersion(ctx context.Context, node *models.Node) (*string, error) {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	version, err := provider.GetONTAPVersion()
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -635,7 +638,10 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlmconf
 	} else {
 		node.Password = deploymentConfig.OntapCredentials.Password
 	}
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 
 	vsaNode, err := provider.GetNodeByName(node.Name)
 	if err != nil {

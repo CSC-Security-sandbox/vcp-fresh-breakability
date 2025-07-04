@@ -46,11 +46,12 @@ const (
 	ErrGCPResourceDeprovisionError   = 3005
 	ErrGCPResourceAlreadyExistsError = 3006
 
-	ErrVSAClusterCreateError          = 4001
-	ErrCouldNotFetchVSAClusterDetails = 4002
-	ErrVSAClusterDeleteError          = 4003
-	ErrIncorrectVSAClusterState       = 4004
-	ErrVSAClusterNodeNotFound         = 4005
+	ErrVSAClusterCreateError           = 4001
+	ErrCouldNotFetchVSAClusterDetails  = 4002
+	ErrVSAClusterDeleteError           = 4003
+	ErrIncorrectVSAClusterState        = 4004
+	ErrVSAClusterNodeNotFound          = 4005
+	ErrVSAClusterNodeIPAddressNotFound = 4006
 
 	ErrONTAPVersionFetchError         = 5001
 	ErrCreatingSVM                    = 5002

@@ -18,7 +18,10 @@ type SnapshotCreateActivity struct {
 
 func (a *SnapshotCreateActivity) CreateSnapshotInONTAP(ctx context.Context, snapshot *datamodel.Snapshot, node *models.Node) (*vsa.SnapshotProviderResponse, error) {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	res, err := provider.CreateSnapshot(vsa.CreateSnapshotParams{
 		VolumeUUID: snapshot.Volume.VolumeAttributes.ExternalUUID,
 		Name:       snapshot.Name,

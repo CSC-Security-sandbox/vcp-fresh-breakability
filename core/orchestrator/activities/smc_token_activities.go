@@ -6,6 +6,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -56,7 +57,10 @@ func _getSecretWithVersion(gcpService hyperscaler.GoogleServices, gcpProjectId, 
 }
 
 func _generateTokenForNode(ctx context.Context, node *models.Node, clientSecret *string) (*string, error) {
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	token, err := provider.PostClusterLicenseAccessToken(ctx, *clientSecret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token for node %s: %w", node.Name, err)

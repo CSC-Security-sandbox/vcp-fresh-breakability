@@ -1647,3 +1647,53 @@ func TestConvertDatastorePoolsToModelWithoutAccountNameParam_ReturnsCorrectModel
 	assert.Equal(t, "mock-pool", result[0].Name)
 	assert.Equal(t, "mock-account", result[0].AccountName)
 }
+
+func Test_getInterClusterLifsFromONTAP(t *testing.T) {
+	origGetProviderByNode := GetProviderByNode
+	defer func() { GetProviderByNode = origGetProviderByNode }()
+
+	node := &datamodel.Node{
+		Name:            "test-node",
+		EndpointAddress: "10.0.0.1",
+		NodeAttributes: &datamodel.NodeDetails{
+			InstanceType: "InstanceType",
+		},
+		ZoneName: "zone",
+	}
+	pool := &datamodel.PoolView{Pool: datamodel.Pool{
+		Username: "user",
+	}}
+	nodes := []*datamodel.Node{node}
+
+	t.Run("success", func(t *testing.T) {
+		mockProv := new(vsa.MockProvider)
+		expectedLifs := []*vsa.InterclusterLif{{}}
+		GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProv, nil
+		}
+		mockProv.On("GetInterclusterLIFs", "default-intercluster").Return(expectedLifs, nil)
+		lifs, err := _getInterClusterLifsFromONTAP(context.Background(), nodes, pool)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedLifs, lifs)
+	})
+
+	t.Run("provider error", func(t *testing.T) {
+		GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider error")
+		}
+		lifs, err := _getInterClusterLifsFromONTAP(context.Background(), nodes, pool)
+		assert.Error(t, err)
+		assert.Nil(t, lifs)
+	})
+
+	t.Run("GetInterclusterLIFs error", func(t *testing.T) {
+		mockProv := new(vsa.MockProvider)
+		GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+			return mockProv, nil
+		}
+		mockProv.On("GetInterclusterLIFs", "default-intercluster").Return(nil, errors.New("lif error"))
+		lifs, err := _getInterClusterLifsFromONTAP(context.Background(), nodes, pool)
+		assert.Error(t, err)
+		assert.Nil(t, lifs)
+	})
+}

@@ -27,7 +27,10 @@ type VolumeUpdateActivity struct {
 // UpdateVolumeInONTAP updates the volume in ONTAP
 func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, params *common.UpdateVolumeParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	snapshotPolicyName := SnapshotPolicyNone
 	if volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
 		snapshotPolicyName = volume.SnapshotPolicy.Name
@@ -37,7 +40,7 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 		Size:               params.QuotaInBytes,
 		SnapshotPolicyName: snapshotPolicyName,
 	}
-	err := updateVolume(ctx, provider, *updateVolumeParams)
+	err = updateVolume(ctx, provider, *updateVolumeParams)
 	if err != nil {
 		logger.Errorf("Failed to update volume %s in ontap: %v", volume.Name, err)
 		return err
@@ -59,8 +62,10 @@ func updateVolume(ctx context.Context, provider vsa.Provider, params vsa.UpdateV
 // GetVolumeFromONTAP retrieves the volume from ONTAP
 func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx, node)
-
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	volumeRes, err := provider.GetVolume(vsa.GetVolumeParams{
 		UUID:       volume.VolumeAttributes.ExternalUUID,
 		VolumeName: volume.Name,
@@ -77,9 +82,12 @@ func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *d
 // UpdateLun updates the LUN associated with the volume in the VSA cluster
 func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.Volume, quotaInBytes int64, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	lunName := utils.GetLunName(volume.Name)
-	err := provider.LunUpdate(vsa.LunUpdateParams{
+	err = provider.LunUpdate(vsa.LunUpdateParams{
 		// Set the necessary parameters for updating the volume
 		UUID:       volume.VolumeAttributes.BlockProperties.LunUUID,
 		LunName:    lunName,
@@ -102,8 +110,10 @@ func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.
 
 func (a *VolumeUpdateActivity) EnsureHostGroupsExistsAndMapDisk(ctx context.Context, volume *datamodel.Volume, iGroups []string, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx, node)
-
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	hgs, err := a.SE.GetMultipleHostGroups(ctx, iGroups, volume.AccountID)
 	if err != nil {
 		return err
@@ -153,7 +163,10 @@ func (a *VolumeUpdateActivity) EnsureHostGroupsExistsAndMapDisk(ctx context.Cont
 // UnmapHostGroupFromDisk deletes the Disk HostGroup map
 func (a *VolumeUpdateActivity) UnmapHostGroupFromDisk(ctx context.Context, volume *datamodel.Volume, iGroupUUIDs []string, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 
 	for _, iGroupUUID := range iGroupUUIDs {
 		hgMapsToDelete, err := a.SE.GetHostGroup(ctx, iGroupUUID, volume.AccountID)
@@ -287,9 +300,12 @@ func _getHostGroup(se database.Storage, ctx context.Context, uuid string, accoun
 // UpdateSnapshotPolicyInOntap updates the snapshot policy for the given volume in ONTAP.
 func (a *VolumeUpdateActivity) UpdateSnapshotPolicyInOntap(ctx context.Context, node *models.Node, currentPolicy, updatingPolicy *datamodel.SnapshotPolicy) error {
 	logger := util.GetLogger(ctx)
-	provider := GetProviderByNode(ctx, node)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 
-	err := provider.UpdateSnapshotPolicy(ctx, &vsa.UpdateSnapshotPolicyParams{
+	err = provider.UpdateSnapshotPolicy(ctx, &vsa.UpdateSnapshotPolicyParams{
 		CurrentSnapshotPolicy: &vsa.SnapshotPolicy{
 			Name:      currentPolicy.Name,
 			IsEnabled: currentPolicy.IsEnabled,

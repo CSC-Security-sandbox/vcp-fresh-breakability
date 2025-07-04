@@ -1056,8 +1056,8 @@ func TestGetOntapRestProviderForPool(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 		mockProvider := new(vsa.MockProvider)
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) vsa.Provider {
-			return mockProvider
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
 		provider, err := GetOntapRestProviderForPool(ctx, mockStorage, pool)

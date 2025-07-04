@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -19,7 +20,10 @@ type InternalVolumeReplicationResumeActivity struct {
 
 func (a *InternalVolumeReplicationResumeActivity) ResumeVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node, forceResume bool) (*vsa.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
-	provider := activities.GetProviderByNode(ctx, node)
+	provider, err := activities.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	vsaResumeParams := &vsa.VolumeReplication{
 		MirrorState:    *replication.MirrorState,
 		RelationshipID: replication.ReplicationAttributes.ExternalUUID,
@@ -42,7 +46,10 @@ func (a *InternalVolumeReplicationResumeActivity) ResumeVolumeReplication(ctx co
 
 func (a *InternalVolumeReplicationResumeActivity) GetSnapmirrorDetails(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) (*vsa.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
-	provider := activities.GetProviderByNode(ctx, node)
+	provider, err := activities.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	vsaResumeParams := &vsa.VolumeReplication{
 		DestinationVolumeName: replication.ReplicationAttributes.DestinationVolumeName,
 		DestinationSVMName:    replication.ReplicationAttributes.DestinationSvmName,

@@ -441,8 +441,8 @@ func TestGetONTAPProvider_Success(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.PoolActivity{
@@ -467,8 +467,8 @@ func TestGetONTAPProvider_Failure(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 
 	activity := activities.PoolActivity{
@@ -904,8 +904,8 @@ func Test_SaveNodeDetails_Success(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
@@ -943,8 +943,8 @@ func Test_SaveNodeDetails_FailsToCreateNode(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
@@ -982,8 +982,8 @@ func Test_SaveNodeDetails_FailsToFetchNodeByName(t *testing.T) {
 	defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 	// Mock GetProviderByNode to return the mock provider
-	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) vsa.Provider {
-		return mockProvider
+	activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
