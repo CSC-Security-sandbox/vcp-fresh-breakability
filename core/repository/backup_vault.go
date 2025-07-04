@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -15,6 +16,7 @@ import (
 
 var (
 	getBackupVaultWithDetails = _getBackupVaultWithDetails
+	checkBVExists             = _checkBVExists
 )
 
 func (d *DataStoreRepository) CreateBackupVault(ctx context.Context, bv *datamodel.BackupVault, vcpBvParams *datamodel.BackupVault) (*datamodel.BackupVault, error) {
@@ -76,6 +78,12 @@ func _getBackupVaultWithDetails(db *gorm.DB, query *datamodel.BackupVault) (*dat
 	return bv, nil
 }
 
+func _checkBVExists(tx *gorm.DB, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	bvDetails := &datamodel.BackupVault{}
+	err1 := tx.Where("uuid = ? and account_id = ?", bv.UUID, bv.AccountID).First(&bvDetails).Error
+	return bvDetails, err1
+}
+
 func (d *DataStoreRepository) GetBackupVault(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error) {
 	var bv datamodel.BackupVault
 	err := d.db.GORM().WithContext(ctx).Preload("Account").Where("uuid = ?", backupVaultId).First(&bv).Error
@@ -113,27 +121,30 @@ func (d *DataStoreRepository) CreateBackupVaultEntryInVCP(ctx context.Context, b
 		return nil, err
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-			panic(r)
-		} else if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	bvDetails, err1 := checkBVExists(tx, bv)
+	if errors.Is(err1, gorm.ErrRecordNotFound) {
+		err = tx.Create(bv).Error
+		if err != nil {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
 		}
-	}()
-
-	err = tx.Create(bv).Error
-	if err != nil {
-		return nil, err
+		err := tx.Where("uuid = ? and account_id = ?", bv.UUID, bv.AccountID).First(&bvDetails).Error
+		if err != nil {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+		}
+		return bvDetails, nil
+	} else if err1 != nil {
+		logger.Errorf("Error while Attaching BackupVault: %v", err1)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err1)
 	}
 
-	dbBackupVault, err := getBackupVaultWithDetails(tx, bv)
+	backupVaultDetails, err := getBackupVaultWithDetails(db, &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: bv.UUID}})
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
-	return dbBackupVault, nil
+	return backupVaultDetails, nil
 }
 
 func (d *DataStoreRepository) UpdateBackupVault(ctx context.Context, bv *datamodel.BackupVault) error {
