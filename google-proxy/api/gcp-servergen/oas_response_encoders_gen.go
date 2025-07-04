@@ -9684,6 +9684,12 @@ func encodeV1betaInternalReleaseVolumeReplicationResponse(response V1betaInterna
 
 		return nil
 
+	case *V1betaInternalReleaseVolumeReplicationNoContent:
+		w.WriteHeader(204)
+		span.SetStatus(codes.Ok, http.StatusText(204))
+
+		return nil
+
 	case *V1betaInternalReleaseVolumeReplicationBadRequest:
 		if err := func() error {
 			if err := response.Validate(); err != nil {

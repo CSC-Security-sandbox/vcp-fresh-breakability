@@ -337,9 +337,9 @@ type Handler interface {
 	V1betaInternalMountVolumeReplication(ctx context.Context, params V1betaInternalMountVolumeReplicationParams) (V1betaInternalMountVolumeReplicationRes, error)
 	// V1betaInternalReleaseVolumeReplication implements v1beta_internalReleaseVolumeReplication operation.
 	//
-	// Release a volume replication on the source.
+	// Release a volume replication source endpoint.
 	//
-	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/release
+	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplicationRow/{volumeReplicationId}/release
 	V1betaInternalReleaseVolumeReplication(ctx context.Context, params V1betaInternalReleaseVolumeReplicationParams) (V1betaInternalReleaseVolumeReplicationRes, error)
 	// V1betaInternalResumeVolumeReplication implements v1beta_internalResumeVolumeReplication operation.
 	//

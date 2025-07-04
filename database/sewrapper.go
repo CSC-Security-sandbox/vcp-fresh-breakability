@@ -665,11 +665,11 @@ func (re *retryEngine) UpdateVolumeReplicationTransferStats(ctx context.Context,
 	return err
 }
 
-func (re *retryEngine) DeleteVolumeReplication(ctx context.Context, volumeReplicationID string) (*datamodel.VolumeReplication, error) {
+func (re *retryEngine) DeleteVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error) {
 	var var0 *datamodel.VolumeReplication
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.DeleteVolumeReplication(ctx, volumeReplicationID)
+		var0, err = re.dataStore.DeleteVolumeReplication(ctx, replication)
 		if err != nil {
 			re.logError("DeleteVolumeReplication", err)
 			if !isTransientErr(err) {

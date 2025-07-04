@@ -54,6 +54,9 @@ type OrchestratorFactory interface {
 	PerformMountCheck(ctx context.Context, replicationUUID string, accountName string) (*models.Job, error)
 	ResumeReplication(ctx context.Context, params *commonparams.ResumeReplicationParams) (*models.VolumeReplication, string, error)
 	ResumeReplicationInternal(ctx context.Context, volumeReplicationId, accountName string, forceResume bool) (*models.VolumeReplication, *datamodel.Job, error)
+	GetReplication(ctx context.Context, volumeReplicationId string) (*models.VolumeReplication, error)
+	ReleaseVolumeReplication(ctx context.Context, replicationUUID string) (*models.VolumeReplication, *datamodel.Job, error)
+
 
 	// KMS Config related methods
 	KmsConfigInterface

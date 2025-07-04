@@ -501,9 +501,9 @@ func (UnimplementedHandler) V1betaInternalMountVolumeReplication(ctx context.Con
 
 // V1betaInternalReleaseVolumeReplication implements v1beta_internalReleaseVolumeReplication operation.
 //
-// Release a volume replication on the source.
+// Release a volume replication source endpoint.
 //
-// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/release
+// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplicationRow/{volumeReplicationId}/release
 func (UnimplementedHandler) V1betaInternalReleaseVolumeReplication(ctx context.Context, params V1betaInternalReleaseVolumeReplicationParams) (r V1betaInternalReleaseVolumeReplicationRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

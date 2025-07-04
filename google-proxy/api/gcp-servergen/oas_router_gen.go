@@ -454,66 +454,28 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 													return
 												}
 
-											case 'r': // Prefix: "re"
+											case 'r': // Prefix: "resume"
 
-												if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
+												if l := len("resume"); len(elem) >= l && elem[0:l] == "resume" {
 													elem = elem[l:]
 												} else {
 													break
 												}
 
 												if len(elem) == 0 {
-													break
-												}
-												switch elem[0] {
-												case 'l': // Prefix: "lease"
-
-													if l := len("lease"); len(elem) >= l && elem[0:l] == "lease" {
-														elem = elem[l:]
-													} else {
-														break
+													// Leaf node.
+													switch r.Method {
+													case "POST":
+														s.handleV1betaInternalResumeVolumeReplicationRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "POST")
 													}
 
-													if len(elem) == 0 {
-														// Leaf node.
-														switch r.Method {
-														case "POST":
-															s.handleV1betaInternalReleaseVolumeReplicationRequest([3]string{
-																args[0],
-																args[1],
-																args[2],
-															}, elemIsEscaped, w, r)
-														default:
-															s.notAllowed(w, r, "POST")
-														}
-
-														return
-													}
-
-												case 's': // Prefix: "sume"
-
-													if l := len("sume"); len(elem) >= l && elem[0:l] == "sume" {
-														elem = elem[l:]
-													} else {
-														break
-													}
-
-													if len(elem) == 0 {
-														// Leaf node.
-														switch r.Method {
-														case "POST":
-															s.handleV1betaInternalResumeVolumeReplicationRequest([3]string{
-																args[0],
-																args[1],
-																args[2],
-															}, elemIsEscaped, w, r)
-														default:
-															s.notAllowed(w, r, "POST")
-														}
-
-														return
-													}
-
+													return
 												}
 
 											case 's': // Prefix: "stop"
@@ -540,6 +502,53 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 													return
 												}
 
+											}
+
+										}
+
+									case 'R': // Prefix: "Row/"
+
+										if l := len("Row/"); len(elem) >= l && elem[0:l] == "Row/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "volumeReplicationId"
+										// Match until "/"
+										idx := strings.IndexByte(elem, '/')
+										if idx < 0 {
+											idx = len(elem)
+										}
+										args[2] = elem[:idx]
+										elem = elem[idx:]
+
+										if len(elem) == 0 {
+											break
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/release"
+
+											if l := len("/release"); len(elem) >= l && elem[0:l] == "/release" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "DELETE":
+													s.handleV1betaInternalReleaseVolumeReplicationRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "DELETE")
+												}
+
+												return
 											}
 
 										}
@@ -2430,66 +2439,28 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													}
 												}
 
-											case 'r': // Prefix: "re"
+											case 'r': // Prefix: "resume"
 
-												if l := len("re"); len(elem) >= l && elem[0:l] == "re" {
+												if l := len("resume"); len(elem) >= l && elem[0:l] == "resume" {
 													elem = elem[l:]
 												} else {
 													break
 												}
 
 												if len(elem) == 0 {
-													break
-												}
-												switch elem[0] {
-												case 'l': // Prefix: "lease"
-
-													if l := len("lease"); len(elem) >= l && elem[0:l] == "lease" {
-														elem = elem[l:]
-													} else {
-														break
+													// Leaf node.
+													switch method {
+													case "POST":
+														r.name = V1betaInternalResumeVolumeReplicationOperation
+														r.summary = "Resume a volume replication"
+														r.operationID = "v1beta_internalResumeVolumeReplication"
+														r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/resume"
+														r.args = args
+														r.count = 3
+														return r, true
+													default:
+														return
 													}
-
-													if len(elem) == 0 {
-														// Leaf node.
-														switch method {
-														case "POST":
-															r.name = V1betaInternalReleaseVolumeReplicationOperation
-															r.summary = "Release a volume replication on the source"
-															r.operationID = "v1beta_internalReleaseVolumeReplication"
-															r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/release"
-															r.args = args
-															r.count = 3
-															return r, true
-														default:
-															return
-														}
-													}
-
-												case 's': // Prefix: "sume"
-
-													if l := len("sume"); len(elem) >= l && elem[0:l] == "sume" {
-														elem = elem[l:]
-													} else {
-														break
-													}
-
-													if len(elem) == 0 {
-														// Leaf node.
-														switch method {
-														case "POST":
-															r.name = V1betaInternalResumeVolumeReplicationOperation
-															r.summary = "Resume a volume replication"
-															r.operationID = "v1beta_internalResumeVolumeReplication"
-															r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/resume"
-															r.args = args
-															r.count = 3
-															return r, true
-														default:
-															return
-														}
-													}
-
 												}
 
 											case 's': // Prefix: "stop"
@@ -2516,6 +2487,53 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													}
 												}
 
+											}
+
+										}
+
+									case 'R': // Prefix: "Row/"
+
+										if l := len("Row/"); len(elem) >= l && elem[0:l] == "Row/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "volumeReplicationId"
+										// Match until "/"
+										idx := strings.IndexByte(elem, '/')
+										if idx < 0 {
+											idx = len(elem)
+										}
+										args[2] = elem[:idx]
+										elem = elem[idx:]
+
+										if len(elem) == 0 {
+											break
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/release"
+
+											if l := len("/release"); len(elem) >= l && elem[0:l] == "/release" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "DELETE":
+													r.name = V1betaInternalReleaseVolumeReplicationOperation
+													r.summary = "Release volume replication source endpoint"
+													r.operationID = "v1beta_internalReleaseVolumeReplication"
+													r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplicationRow/{volumeReplicationId}/release"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
 											}
 
 										}

@@ -8917,16 +8917,16 @@ func (s *Server) handleV1betaInternalMountVolumeReplicationRequest(args [3]strin
 
 // handleV1betaInternalReleaseVolumeReplicationRequest handles v1beta_internalReleaseVolumeReplication operation.
 //
-// Release a volume replication on the source.
+// Release a volume replication source endpoint.
 //
-// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/release
+// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplicationRow/{volumeReplicationId}/release
 func (s *Server) handleV1betaInternalReleaseVolumeReplicationRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1beta_internalReleaseVolumeReplication"),
-		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/release"),
+		semconv.HTTPRequestMethodKey.String("DELETE"),
+		semconv.HTTPRouteKey.String("/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplicationRow/{volumeReplicationId}/release"),
 	}
 
 	// Start a span for this request.
@@ -9005,10 +9005,14 @@ func (s *Server) handleV1betaInternalReleaseVolumeReplicationRequest(args [3]str
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    V1betaInternalReleaseVolumeReplicationOperation,
-			OperationSummary: "Release a volume replication on the source",
+			OperationSummary: "Release volume replication source endpoint",
 			OperationID:      "v1beta_internalReleaseVolumeReplication",
 			Body:             nil,
 			Params: middleware.Parameters{
+				{
+					Name: "volumeReplicationId",
+					In:   "path",
+				}: params.VolumeReplicationId,
 				{
 					Name: "projectNumber",
 					In:   "path",
@@ -9017,10 +9021,6 @@ func (s *Server) handleV1betaInternalReleaseVolumeReplicationRequest(args [3]str
 					Name: "locationId",
 					In:   "path",
 				}: params.LocationId,
-				{
-					Name: "volumeReplicationId",
-					In:   "path",
-				}: params.VolumeReplicationId,
 				{
 					Name: "X-Correlation-ID",
 					In:   "header",

@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -2124,5 +2125,262 @@ func TestResumeReplicationInternal(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.Equal(tt, jobResponse, job)
 		assert.Equal(tt, expectedResponse, resp)
+	})
+}
+
+func Test_deleteVolumeReplicationRow(t *testing.T) {
+	t.Run("GetVolumeReplicationFailsDueToNotFoundError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		mockStorage.On("GetVolumeReplication", ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+
+		_, _, err := _releaseVolumeReplication(ctx, mockStorage, mockTemporal, "volumeReplication")
+		assert.NotNil(tt, err)
+		assert.True(tt, strings.Contains(err.Error(), "VolumeReplication not found"))
+	})
+	t.Run("GetVolumeReplication fails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		mockStorage.On("GetVolumeReplication", ctx, mock.Anything).Return(nil, errors.New("failed to get volume replication"))
+
+		_, _, err := _releaseVolumeReplication(ctx, mockStorage, mockTemporal, "volumeReplication")
+		assert.NotNil(tt, err)
+		assert.True(tt, strings.Contains(err.Error(), "failed to get volume replication"))
+	})
+	t.Run("WhenReplicationInTransitionState", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		dbVolumeReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "replication-uuid",
+			},
+			Name:      "test-replication",
+			AccountID: 1,
+			State:     models.LifeCycleStateDeleting,
+		}
+		mockStorage.On("GetVolumeReplication", ctx, mock.Anything).Return(dbVolumeReplication, nil)
+
+		_, _, err := _releaseVolumeReplication(ctx, mockStorage, mockTemporal, "test-replication")
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "Error releasing volume Replication - Volume replication is already transitioning between states", err.Error())
+	})
+	t.Run("WhenCreateJobFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		dbVolumeReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "replication-uuid",
+			},
+			Name:      "test-replication",
+			AccountID: 1,
+			State:     models.LifeCycleStateREADY,
+		}
+		mockStorage.On("GetVolumeReplication", ctx, mock.Anything).Return(dbVolumeReplication, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("failed to create job"))
+
+		_, _, err := _releaseVolumeReplication(ctx, mockStorage, mockTemporal, "test-replication")
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "failed to create job", err.Error())
+	})
+	t.Run("WhenUpdateVolumeReplicationStatesFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		dbVolumeReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "replication-uuid",
+			},
+			Name:      "test-replication",
+			AccountID: 1,
+			State:     models.LifeCycleStateREADY,
+		}
+		mockStorage.On("GetVolumeReplication", ctx, mock.Anything).Return(dbVolumeReplication, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{WorkflowID: "workflow-id"}, nil)
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(errors.New("update error"))
+
+		_, _, err := _releaseVolumeReplication(ctx, mockStorage, mockTemporal, "test-replication")
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "update error", err.Error())
+	})
+
+	t.Run("WhenExecuteWorkflowFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		dbVolumeReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "replication-uuid",
+			},
+			Name:      "test-replication",
+			AccountID: 1,
+			State:     models.LifeCycleStateREADY,
+		}
+		mockStorage.On("GetVolumeReplication", ctx, mock.Anything).Return(dbVolumeReplication, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{WorkflowID: "workflow-id"}, nil)
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+		_, _, err := _releaseVolumeReplication(ctx, mockStorage, mockTemporal, "test-replication")
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "failed to execute workflow", err.Error())
+	})
+	t.Run("Success", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			WorkflowID: "workflow-id",
+		}
+		params := &commonparams.CreateVolumeReplicationInternalParams{
+			VolumeReplication: &models.VolumeReplication{
+				Account: &models.Account{
+					BaseModel: models.BaseModel{
+						ID: 1,
+					},
+					Name: "test-account",
+				},
+				Name: "test-replication",
+				ReplicationAttributes: &models.ReplicationDetails{
+					DestinationVolumeUUID: "test-volume-uuid",
+				},
+			},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "test-account",
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		}
+		replicationDb := &datamodel.VolumeReplication{
+			Name:        params.VolumeReplication.Name,
+			Description: params.VolumeReplication.Description,
+			Uri:         params.VolumeReplication.Uri,
+			RemoteUri:   params.VolumeReplication.RemoteUri,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType:               params.VolumeReplication.ReplicationAttributes.EndpointType,
+				ReplicationType:            params.VolumeReplication.ReplicationAttributes.ReplicationType,
+				ReplicationSchedule:        params.VolumeReplication.ReplicationAttributes.ReplicationSchedule,
+				SourceVolumeUUID:           params.VolumeReplication.ReplicationAttributes.SourceVolumeUUID,
+				SourceLocation:             params.VolumeReplication.ReplicationAttributes.SourceRegion,
+				SourceHostName:             params.VolumeReplication.ReplicationAttributes.SourceHostName,
+				SourceReplicationUUID:      params.VolumeReplication.ReplicationAttributes.SourceReplicationUUID,
+				SourceSvmName:              params.VolumeReplication.ReplicationAttributes.SourceSvmName,
+				SourceVolumeName:           params.VolumeReplication.ReplicationAttributes.SourceVolumeName,
+				DestinationVolumeUUID:      params.VolumeReplication.ReplicationAttributes.DestinationVolumeUUID,
+				DestinationLocation:        params.VolumeReplication.ReplicationAttributes.DestinationRegion,
+				DestinationHostName:        params.VolumeReplication.ReplicationAttributes.DestinationHostName,
+				DestinationReplicationUUID: params.VolumeReplication.ReplicationAttributes.DestinationReplicationUUID,
+				DestinationSvmName:         params.VolumeReplication.ReplicationAttributes.DestinationSvmName,
+				DestinationVolumeName:      params.VolumeReplication.ReplicationAttributes.DestinationVolumeName,
+			},
+			MirrorState:           params.VolumeReplication.MirrorState,
+			RelationshipStatus:    params.VolumeReplication.RelationshipStatus,
+			TotalProgress:         params.VolumeReplication.TotalProgress,
+			TotalTransferBytes:    params.VolumeReplication.TotalTransferBytes,
+			TotalTransferTimeSecs: params.VolumeReplication.TotalTransferTimeSecs,
+			LastTransferSize:      params.VolumeReplication.LastTransferSize,
+			LastTransferError:     params.VolumeReplication.LastTransferError,
+			LastTransferDuration:  params.VolumeReplication.LastTransferDuration,
+			LastTransferEndTime:   params.VolumeReplication.LastTransferEndTime,
+			ProgressLastUpdated:   params.VolumeReplication.ProgressLastUpdated,
+			LastUpdatedFromOntap:  params.VolumeReplication.LastUpdatedFromOntap,
+			LagTime:               params.VolumeReplication.LagTime,
+			AccountID:             account.ID,
+			Account:               account,
+			VolumeID:              params.VolumeReplication.VolumeID,
+			Volume:                volume,
+		}
+
+		expectedResponse := convertDataStoreReplicationToModel(replicationDb)
+
+		mockStorage.On("GetVolumeReplication", ctx, expectedResponse.UUID).Return(replicationDb, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		_, jobActualResponse, err := _releaseVolumeReplication(ctx, mockStorage, mockTemporal, expectedResponse.UUID)
+		assert.Nil(tt, err)
+		assert.Equal(tt, jobResponse, jobActualResponse)
+	})
+}
+
+func TestGetReplication(t *testing.T) {
+	t.Run("WhenGetReplicationReturnSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockOrchestrator := &Orchestrator{storage: mockStorage}
+
+		replicationDb := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "replication-uuid",
+			},
+			Name:         "test-volume",
+			AccountID:    1,
+			VolumeID:     1,
+			Description:  "test replication",
+			Uri:          "test-uri",
+			RemoteUri:    "test-remote-uri",
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType:               "test-endpoint",
+				ReplicationType:            "test-replication-type",
+				ReplicationSchedule:        "test-schedule",
+				SourceVolumeUUID:           "source-volume-uuid",
+				SourceLocation:             "source-region",
+				SourceHostName:             "source-host",
+				SourceReplicationUUID:      "source-replication-uuid",
+				SourceSvmName:              "source-svm",
+				SourceVolumeName:           "source-volume",
+				DestinationVolumeUUID:      "destination-volume-uuid",
+				DestinationLocation:        "destination-region",
+				DestinationHostName:        "destination-host",
+				DestinationReplicationUUID: "destination-replication-uuid",
+				DestinationSvmName:         "destination-svm",
+				DestinationVolumeName:      "destination-volume",
+			},
+		}
+		mockStorage.On("GetVolumeReplication", ctx, mock.Anything).Return(replicationDb, nil)
+		actualResponse, err := mockOrchestrator.GetReplication(ctx, replicationDb.UUID)
+		expectedResponse := convertDataStoreReplicationToModel(replicationDb)
+
+		assert.Nil(tt, err)
+		assert.Equal(tt, expectedResponse, actualResponse)
+	})
+
+	t.Run("WhenGetReplicationError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockOrchestrator := &Orchestrator{storage: mockStorage}
+
+		expectedError := errors.New("database error")
+
+		mockStorage.On("GetVolumeReplication", ctx, mock.Anything).Return(nil, expectedError)
+
+		_, err := mockOrchestrator.GetReplication(ctx, "repl-1")
+		assert.NotNil(tt, err)
+		assert.Equal(tt, expectedError, err)
 	})
 }

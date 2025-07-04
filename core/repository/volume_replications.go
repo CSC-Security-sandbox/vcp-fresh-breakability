@@ -75,7 +75,7 @@ func (d *DataStoreRepository) GetVolumeReplicationByProjectId(ctx context.Contex
 
 func _getVolumeReplicationDetails(db *gorm.DB, query *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error) {
 	vr := &datamodel.VolumeReplication{}
-	err := db.Preload("Volume").Preload("Volume.Pool").First(&vr, query).Error
+	err := db.Preload("Volume").Preload("Volume.Pool").Preload("Account").First(&vr, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customerrors.NewNotFoundErr("volume replication", nil)
@@ -182,27 +182,26 @@ func (d *DataStoreRepository) UpdateVolumeReplicationTransferStats(ctx context.C
 }
 
 // DeleteVolumeReplication deletes replication based on UUID
-func (d *DataStoreRepository) DeleteVolumeReplication(ctx context.Context, volumeReplicationID string) (*datamodel.VolumeReplication, error) {
+func (d *DataStoreRepository) DeleteVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
 		return nil, err
 	}
 	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
-
-	volumeRep, err := getVolumeReplicationDetails(tx, &datamodel.VolumeReplication{BaseModel: datamodel.BaseModel{UUID: volumeReplicationID}})
+	mirrorState := models.OntapUninitialized
+	replicationStatus := models.SnapmirrorRelationshipIdle
+	replication.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
+	replication.MirrorState = &mirrorState
+	replication.RelationshipStatus = &replicationStatus
+	replication.State = models.LifeCycleStateDeleted
+	replication.StateDetails = models.LifeCycleStateDeletedDetails
+	err = tx.Save(replication).Error
 	if err != nil {
 		return nil, err
 	}
-	volumeRep.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-	volumeRep.State = models.LifeCycleStateDeleted
-	volumeRep.StateDetails = ""
-	err = tx.Save(volumeRep).Error
-	if err != nil {
-		return nil, err
-	}
 
-	return volumeRep, nil
+	return replication, nil
 }
 
 func (d *DataStoreRepository) GetVolumeReplicationCount(ctx context.Context, accountName string) (int64, error) {

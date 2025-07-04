@@ -447,8 +447,8 @@ func (s *PersistenceStore) UpdateVolumeReplicationTransferStats(ctx context.Cont
 	return s.dataStore.UpdateVolumeReplicationTransferStats(ctx, volumeRep)
 }
 
-func (s *PersistenceStore) DeleteVolumeReplication(ctx context.Context, volumeReplicationID string) (*datamodel.VolumeReplication, error) {
-	return s.dataStore.DeleteVolumeReplication(ctx, volumeReplicationID)
+func (s *PersistenceStore) DeleteVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error) {
+	return s.dataStore.DeleteVolumeReplication(ctx, replication)
 }
 
 func (s *PersistenceStore) GetVolumeReplicationByProjectId(ctx context.Context, accountId int64) ([]*datamodel.VolumeReplication, error) {

@@ -252,37 +252,26 @@ func TestDeleteVolumeReplication(t *testing.T) {
 		}
 
 		volumeRep := &datamodel.VolumeReplication{
-			BaseModel: datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
-			Name:      "test_volume_rep",
-			Account:   account,
-			Volume:    volume,
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-rep-uuid"},
+			Name:         "test_volume_rep",
+			Account:      account,
+			Volume:       volume,
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateAvailableDetails,
 		}
 		err = store.db.Create(volumeRep).Error()
 		if err != nil {
 			tt.Fatalf("Failed to create volume replication: %v", err)
 		}
 
-		deletedVolumeRep, err := store.DeleteVolumeReplication(context.Background(), volumeRep.UUID)
+		deletedVolumeRep, err := store.DeleteVolumeReplication(context.Background(), volumeRep)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, volumeRep.Name, deletedVolumeRep.Name, "Expected volume name %v, got %v", volumeRep.Name, deletedVolumeRep.Name)
 		assert.NotNil(tt, deletedVolumeRep.DeletedAt, "Expected volume to be deleted, got %v", deletedVolumeRep.DeletedAt)
 		assert.Equal(tt, models.LifeCycleStateDeleted, deletedVolumeRep.State, "Expected volume state %v, got %v", models.LifeCycleStateDeleted, deletedVolumeRep.State)
-		assert.Equal(tt, "", deletedVolumeRep.StateDetails, "Expected volume state details %v, got %v", "", deletedVolumeRep.StateDetails)
+		assert.Equal(tt, models.LifeCycleStateDeletedDetails, deletedVolumeRep.StateDetails, "Expected volume state details %v, got %v", models.LifeCycleStateDeletedDetails, deletedVolumeRep.StateDetails)
 
 		_, err = store.GetVolumeReplication(context.Background(), volumeRep.UUID)
-		assert.EqualError(tt, err, "volume replication not found", "Expected no error, got %v", err)
-	})
-	t.Run("WhenVolumeReplicationIsNotFound", func(tt *testing.T) {
-		db, err := SetupTestDB()
-		assert.NoError(tt, err, "Failed to set up test database")
-		wrapper := gormwrapper.New(db)
-		store := NewDataStoreRepository(wrapper)
-
-		err = ClearInMemoryDB(store.db.GORM())
-		assert.NoError(tt, err, "Failed to clean up test database")
-
-		deletedVolumeRep, err := store.DeleteVolumeReplication(context.Background(), "dummy")
-		assert.Nil(tt, deletedVolumeRep, "Expected nil volume replication, got %v", deletedVolumeRep)
 		assert.EqualError(tt, err, "volume replication not found", "Expected no error, got %v", err)
 	})
 }

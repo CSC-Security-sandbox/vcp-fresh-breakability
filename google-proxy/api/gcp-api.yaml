@@ -4594,6 +4594,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplicationRow/{volumeReplicationId}/release:
+    delete:
+      operationId: v1beta_internalReleaseVolumeReplication
+      summary: Release volume replication source endpoint
+      description: Release a volume replication source endpoint.
+      tags:
+        - v1Beta_internal
+      parameters:
+        - $ref: '#/components/parameters/volumeReplicationIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '202':
+          description: Deleting volume replication row
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeReplicationInternal_v1beta'
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '405':
+          $ref: '#/components/responses/StandardError-405'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
   /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/stop:
     post:
       operationId: v1beta_internalStopVolumeReplication
@@ -4677,49 +4721,6 @@ paths:
       responses:
         '202':
           description: Resume volume replication
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VolumeReplicationInternal_v1beta'
-        '400':
-          $ref: '#/components/responses/StandardError-400'
-        '401':
-          $ref: '#/components/responses/StandardError-401'
-        '403':
-          $ref: '#/components/responses/StandardError-403'
-        '404':
-          $ref: '#/components/responses/StandardError-404'
-        '405':
-          $ref: '#/components/responses/StandardError-405'
-        '409':
-          $ref: '#/components/responses/StandardError-409'
-        '422':
-          $ref: '#/components/responses/StandardError-422'
-        '500':
-          $ref: '#/components/responses/StandardError-500'
-        default:
-          description: Unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      x-codegen-request-body-name: body
-  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/release:
-    post:
-      operationId: v1beta_internalReleaseVolumeReplication
-      summary: Release a volume replication on the source
-      description: >-
-        Release a volume replication on the source
-      tags:
-        - v1Beta_internal
-      parameters:
-        - $ref: '#/components/parameters/projectNumberPathParameter'
-        - $ref: '#/components/parameters/locationIdPathParameter'
-        - $ref: '#/components/parameters/volumeReplicationIdPathParameter'
-        - $ref: '#/components/parameters/xCorrelationIdHeader'
-      responses:
-        '202':
-          description: Releasing volume replication
           content:
             application/json:
               schema:

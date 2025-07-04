@@ -15796,6 +15796,11 @@ type V1betaInternalReleaseVolumeReplicationMethodNotAllowed Error
 func (*V1betaInternalReleaseVolumeReplicationMethodNotAllowed) v1betaInternalReleaseVolumeReplicationRes() {
 }
 
+// V1betaInternalReleaseVolumeReplicationNoContent is response for V1betaInternalReleaseVolumeReplication operation.
+type V1betaInternalReleaseVolumeReplicationNoContent struct{}
+
+func (*V1betaInternalReleaseVolumeReplicationNoContent) v1betaInternalReleaseVolumeReplicationRes() {}
+
 type V1betaInternalReleaseVolumeReplicationNotFound Error
 
 func (*V1betaInternalReleaseVolumeReplicationNotFound) v1betaInternalReleaseVolumeReplicationRes() {}

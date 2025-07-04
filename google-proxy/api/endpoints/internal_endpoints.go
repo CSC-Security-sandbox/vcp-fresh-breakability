@@ -80,6 +80,28 @@ func (h Handler) V1betaInternalCreateVolumeReplication(ctx context.Context, req 
 	return ans, nil
 }
 
+func (h Handler) V1betaInternalReleaseVolumeReplication(ctx context.Context, params gcpgenserver.V1betaInternalReleaseVolumeReplicationParams) (gcpgenserver.V1betaInternalReleaseVolumeReplicationRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	volumeReplication, job, err := h.Orchestrator.ReleaseVolumeReplication(ctx, params.VolumeReplicationId)
+	if err != nil {
+		logger.Error("Failed to release volume replication", "error", err.Error())
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalReleaseVolumeReplicationBadRequest{
+				Code:    404,
+				Message: "Volume replication not found",
+			}, nil
+		}
+		return &gcpgenserver.V1betaInternalReleaseVolumeReplicationInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+	ans := convertToInternalV1betaVolumeReplication(volumeReplication, job)
+	return ans, nil
+}
+
 func convertToInternalV1betaVolumeReplication(volumeReplication *models.VolumeReplication, job *datamodel.Job) *gcpgenserver.VolumeReplicationInternalV1beta {
 	return &gcpgenserver.VolumeReplicationInternalV1beta{
 		VolumeReplicationUuid: gcpgenserver.NewOptString(volumeReplication.UUID),
