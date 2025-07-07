@@ -40,7 +40,7 @@ spec:
     spec:
       containers:
         - name: harvest-farm
-          image: ghcr.io/vcp-vsa-control-plane/harvest-multi:25.07.03-1
+          image: ghcr.io/vcp-vsa-control-plane/harvest-multi:25.07.05-1
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -85,6 +85,8 @@ spec:
           volumeMounts:
             - mountPath: "/configs/harvest"
               name: "harvest-configs"
+            - mountPath: "/shared-data"
+              name: harvest-farm-shared
         - name: otel-collector
           image: otel/opentelemetry-collector-contrib:latest
           args:
@@ -130,6 +132,8 @@ spec:
             - mountPath: "/etc/otel-collector-config"
               name: "otel-collector-config"
               readOnly: true
+            - mountPath: "/shared-data"
+              name: harvest-farm-shared
       imagePullSecrets:
         - name: ghcr-secret
       volumes:
@@ -139,6 +143,9 @@ spec:
         - hostPath:
             path: "/home/docker/harvest-configs"
           name: "harvest-configs"
+        - name: harvest-farm-shared
+          persistentVolumeClaim:
+            claimName: harvest-farm-shared-pvc
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -221,3 +228,37 @@ roleRef:
   kind: Role
   name: harvest-farm-lease-reader
   apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: harvest-farm-shared-pvc
+  namespace: vcp
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  # storageClassName: <your-rwx-storage-class> # Uncomment and set if needed
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: harvest-farm-hpa
+  namespace: vcp
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: harvest-farm
+  minReplicas: 1
+  maxReplicas: 20
+  metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: harvest_leases_total
+        target:
+          type: AverageValue
+          averageValue: "1"

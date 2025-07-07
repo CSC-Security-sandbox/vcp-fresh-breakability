@@ -41,7 +41,6 @@ spec:
       containers:
         - name: metrics-processer
           image: telemetry
-          imagePullPolicy: Never
           ports:
             - containerPort: 8080
               name: http

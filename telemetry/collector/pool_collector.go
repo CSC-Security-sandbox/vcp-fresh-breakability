@@ -15,9 +15,8 @@ import (
 
 // GetPoolMetrics retrieves metrics for all pools from the database and returns them as a slice of HydratedMetric.
 func GetPoolMetrics(ctx context.Context, vcpDB database.Storage, config *common.TelemetryConfig) ([]entity.HydratedMetric, error) {
-	conditions := [][]interface{}{{"deleted_at = ?", nil}}
 	logger := util.GetLogger(ctx)
-	pools, err := vcpDB.ListPools(ctx, conditions)
+	pools, err := vcpDB.ListPools(ctx, nil)
 	if err != nil {
 		logger.Error("Failed to list pools", "error", err.Error())
 		return []entity.HydratedMetric{}, err
