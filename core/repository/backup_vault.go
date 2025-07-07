@@ -19,56 +19,34 @@ var (
 	checkBVExists             = _checkBVExists
 )
 
-func (d *DataStoreRepository) CreateBackupVault(ctx context.Context, bv *datamodel.BackupVault, vcpBvParams *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+func (d *DataStoreRepository) UpdateBackupVaultInVCP(ctx context.Context, sdeBackupVault *datamodel.BackupVault, dbBackupVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
 		return nil, err
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-			panic(r)
-		} else if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-	}()
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
 
-	vcpBvParams, err = getBackupVaultWithDetails(tx, &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: vcpBvParams.UUID}})
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, errors.New("entry not found")
-	} else if err != nil {
-		return nil, err
-	}
-	if bv.LifeCycleState == models.LifeCycleStateREADY {
-		bv.LifeCycleState = models.LifeCycleStateAvailable
-	}
-
-	// Update vcpBvParams with bv details
-	vcpBvParams.Name = bv.Name
-	vcpBvParams.Description = bv.Description
-	vcpBvParams.BackupRegionName = bv.BackupRegionName
-	vcpBvParams.ImmutableAttributes = bv.ImmutableAttributes
-	vcpBvParams.BackupVaultType = bv.BackupVaultType
-	vcpBvParams.SourceRegionName = bv.SourceRegionName
-	vcpBvParams.CrossRegionBackupVaultName = bv.CrossRegionBackupVaultName
-	vcpBvParams.AccountVendorID = bv.AccountVendorID
-	vcpBvParams.LifeCycleState = bv.LifeCycleState
-	vcpBvParams.LifeCycleStateDetails = bv.LifeCycleStateDetails
-	vcpBvParams.UpdatedAt = time.Now()
-	vcpBvParams.UUID = bv.UUID
-
-	// Save the updated entry back to the database
-	if err := tx.Save(&vcpBvParams).Error; err != nil {
+	dbBackupVault, err = getBackupVaultWithDetails(tx, &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: dbBackupVault.UUID}})
+	if err != nil {
 		return nil, err
 	}
 
-	return vcpBvParams, nil
+	dbBackupVault.Description = sdeBackupVault.Description
+	dbBackupVault.ImmutableAttributes = sdeBackupVault.ImmutableAttributes
+	dbBackupVault.LifeCycleState = sdeBackupVault.LifeCycleState
+	dbBackupVault.LifeCycleStateDetails = sdeBackupVault.LifeCycleStateDetails
+	dbBackupVault.UpdatedAt = time.Now()
+
+	err = tx.Updates(dbBackupVault).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return dbBackupVault, nil
 }
-
 func _getBackupVaultWithDetails(db *gorm.DB, query *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	bv := &datamodel.BackupVault{}
 	err := db.Preload("Account").First(&bv, query).Error
@@ -170,6 +148,28 @@ func (d *DataStoreRepository) UpdateBackupVault(ctx context.Context, bv *datamod
 	return nil
 }
 
+func (d *DataStoreRepository) UpdateBackupVaultState(ctx context.Context, bv *datamodel.BackupVault, state, stateDetails string) (*datamodel.BackupVault, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	bv.LifeCycleState = state
+	bv.LifeCycleStateDetails = stateDetails
+	err = tx.Save(bv).Error
+	if err != nil {
+		return nil, err
+	}
+
+	dbBackupVault, err := getBackupVaultWithDetails(tx, bv)
+	if err != nil {
+		return nil, err
+	}
+	return dbBackupVault, nil
+}
 func (d *DataStoreRepository) ListBackupVaults(ctx context.Context, accountID int64) ([]*datamodel.BackupVault, error) {
 	db := d.db.GORM().WithContext(ctx)
 	var backupVaults []*datamodel.BackupVault

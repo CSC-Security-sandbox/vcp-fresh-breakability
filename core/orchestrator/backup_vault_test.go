@@ -3,6 +3,10 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"github.com/stretchr/testify/mock"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	workflow_engine_mock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	"gorm.io/gorm"
 	"testing"
 	"time"
 
@@ -269,5 +273,252 @@ func TestListBackupVaultsByOwnerID(t *testing.T) {
 		bvs, err := ListBackupVaultsByOwnerID(ctx, mockStorage, 1)
 		assert.NoError(t, err)
 		assert.NotNil(t, bvs)
+	})
+}
+
+func TestGetBackupVaultByUUID(tt *testing.T) {
+	mockLogger := log.NewLogger()
+	_, err := database.NewTestStorage(mockLogger)
+	assert.NoError(tt, err, "Failed to create test storage")
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+
+	mockStorage := new(database.MockStorage)
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", context.Background(), "backup-vault-uuid", int64(account.ID)).Return(nil, gorm.ErrRecordNotFound)
+
+	res, err := GetBackupVaultByUUIDAndOwnerID(context.Background(), mockStorage, "backup-vault-uuid", account.ID)
+
+	assert.Error(tt, err, "Expected error when backup vault not found")
+	assert.Nil(tt, res, "Expected result to be nil")
+}
+
+func TestGetBackupVaultByUUIDAndOwnerIDSuccess(tt *testing.T) {
+	mockLogger := log.NewLogger()
+	_, err := database.NewTestStorage(mockLogger)
+	assert.NoError(tt, err, "Failed to create test storage")
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+
+	desc := "desc"
+	bRegionName := "us-central1"
+	sRegionName := "us-west1"
+	minEnforcedDuration := int64(10)
+	bv := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "uuid1", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		Name:      "vault-1",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+		},
+		AccountID:             1,
+		RegionName:            "us-east1",
+		BackupRegionName:      &bRegionName,
+		SourceRegionName:      &sRegionName,
+		LifeCycleState:        "Available",
+		LifeCycleStateDetails: "Available for use",
+		BackupVaultType:       "IN_REGION",
+		AccountVendorID:       "vendor1",
+		Description:           &desc,
+		ImmutableAttributes: &datamodel.ImmutableAttributes{
+			BackupMinimumEnforcedRetentionDuration: &minEnforcedDuration,
+			IsDailyBackupImmutable:                 false,
+			IsWeeklyBackupImmutable:                false,
+			IsMonthlyBackupImmutable:               false,
+			IsAdhocBackupImmutable:                 false,
+		},
+	}
+	mockStorage := new(database.MockStorage)
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", context.Background(), "backup-vault-uuid", int64(account.ID)).Return(bv, nil)
+
+	res, err := GetBackupVaultByUUIDAndOwnerID(context.Background(), mockStorage, "backup-vault-uuid", account.ID)
+
+	assert.NoError(tt, err, "Expected error when backup vault not found")
+	assert.NotNil(tt, res, "Expected result to be nil")
+}
+
+func TestGetBackupVaultByUUIDError(tt *testing.T) {
+	mockLogger := log.NewLogger()
+	_, err := database.NewTestStorage(mockLogger)
+	assert.NoError(tt, err, "Failed to create test storage")
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+
+	mockStorage := new(database.MockStorage)
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", context.Background(), "backup-vault-uuid", int64(account.ID)).Return(nil, gorm.ErrCheckConstraintViolated)
+
+	res, err := GetBackupVaultByUUIDAndOwnerID(context.Background(), mockStorage, "backup-vault-uuid", account.ID)
+
+	assert.Error(tt, err, "Expected error when backup vault not found")
+	assert.Nil(tt, res, "Expected result to be nil")
+}
+
+func TestGetBackupVaultByUUIDGetOrCreateError(tt *testing.T) {
+	mockLogger := log.NewLogger()
+	se, err := database.NewTestStorage(mockLogger)
+	assert.NoError(tt, err, "Failed to create test storage")
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return nil, errors.New("account not found")
+	}
+
+	o := &Orchestrator{storage: se}
+	res, err := o.GetBackupVaultByUUID(context.Background(), "backup-vault-uuid", account.UUID)
+
+	assert.Error(tt, err, "Expected error when backup vault not found")
+	assert.Nil(tt, res, "Expected result to be nil")
+}
+
+func TestCreateBackupVault(t *testing.T) {
+	t.Run("WhenAccountNotFound", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		se, err := database.NewTestStorage(mockLogger)
+		assert.NoError(t, err, "Failed to create test storage")
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		mrd := int64(30)
+		daily := true
+		monthly := true
+		weekly := false
+		manual := false
+		params := &commonparams.BackupVaultParams{
+			OwnerID: "owner-uuid",
+			Name:    "backup-vault-name",
+			Region:  "us-central1",
+			BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{
+				BackupMinimumEnforcedRetentionDuration: &mrd,
+				IsDailyBackupImmutable:                 &daily,
+				IsWeeklyBackupImmutable:                &weekly,
+				IsMonthlyBackupImmutable:               &monthly,
+				IsAdhocBackupImmutable:                 &manual,
+			},
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+
+		bv, _, err := updateBackupVault(ctx, se, temporal, params)
+		assert.Error(t, err, "Expected error when account not found")
+		assert.Nil(t, bv, "Expected backup vault to be nil")
+	})
+	t.Run("WhenCreateJobFails", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		se, err := database.NewTestStorage(mockLogger)
+		assert.NoError(t, err, "Failed to create test storage")
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		mrd := int64(30)
+		daily := true
+		monthly := true
+		weekly := false
+		manual := false
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		params := &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			Name:          "backup-vault-name",
+			Region:        "us-central1",
+			BackupVaultID: "backup-vault-uuid",
+			BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{
+				BackupMinimumEnforcedRetentionDuration: &mrd,
+				IsDailyBackupImmutable:                 &daily,
+				IsWeeklyBackupImmutable:                &weekly,
+				IsMonthlyBackupImmutable:               &monthly,
+				IsAdhocBackupImmutable:                 &manual,
+			},
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		mockStorage := new(database.MockStorage)
+
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("failed to create job"))
+
+		bv, _, err := updateBackupVault(ctx, se, temporal, params)
+		assert.Error(t, err, "Expected error when validation fails")
+		assert.Nil(t, bv, "Expected backup vault to be nil")
+	})
+	t.Run("WhenGetBackupVaultByUUIDndOwnerIDFails", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		se, err := database.NewTestStorage(mockLogger)
+		assert.NoError(t, err, "Failed to create test storage")
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		mrd := int64(30)
+		daily := true
+		monthly := true
+		weekly := false
+		manual := false
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		params := &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			Name:          "backup-vault-name",
+			Region:        "us-central1",
+			BackupVaultID: "backup-vault-uuid",
+			BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{
+				BackupMinimumEnforcedRetentionDuration: &mrd,
+				IsDailyBackupImmutable:                 &daily,
+				IsWeeklyBackupImmutable:                &weekly,
+				IsMonthlyBackupImmutable:               &monthly,
+				IsAdhocBackupImmutable:                 &manual,
+			},
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		mockStorage := new(database.MockStorage)
+
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, params.BackupVaultID, int64(account.ID)).Return(nil, gorm.ErrRecordNotFound)
+
+		bv, _, err := updateBackupVault(ctx, se, temporal, params)
+		assert.Error(t, err, "Expected error when validation fails")
+		assert.Nil(t, bv, "Expected backup vault to be nil")
+	})
+	t.Run("WhenUpdatingBackupVaultStateFails", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		se, err := database.NewTestStorage(mockLogger)
+		assert.NoError(t, err, "Failed to create test storage")
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		mrd := int64(30)
+		daily := true
+		monthly := true
+		weekly := false
+		manual := false
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		params := &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			Name:          "backup-vault-name",
+			Region:        "us-central1",
+			BackupVaultID: "backup-vault-uuid",
+			BackupRetentionPolicy: commonparams.BackupRetentionPolicyParams{
+				BackupMinimumEnforcedRetentionDuration: &mrd,
+				IsDailyBackupImmutable:                 &daily,
+				IsWeeklyBackupImmutable:                &weekly,
+				IsMonthlyBackupImmutable:               &monthly,
+				IsAdhocBackupImmutable:                 &manual,
+			},
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		mockStorage := new(database.MockStorage)
+
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+		bvResp := &datamodel.BackupVault{}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, params.BackupVaultID, int64(account.ID)).Return(bvResp, nil)
+		mockStorage.On("UpdatingBackupVaultState", ctx, mock.Anything).Return(nil, errors.New("failed to update backup vault state"))
+
+		bv, _, err := updateBackupVault(ctx, se, temporal, params)
+		assert.Error(t, err, "Expected error when validation fails")
+		assert.Nil(t, bv, "Expected backup vault to be nil")
 	})
 }

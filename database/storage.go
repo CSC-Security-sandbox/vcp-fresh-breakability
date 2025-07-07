@@ -754,8 +754,12 @@ func (s *PersistenceStore) ListBackupVaults(ctx context.Context, accountID int64
 	return s.dataStore.ListBackupVaults(ctx, accountID)
 }
 
-func (s *PersistenceStore) CreateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault, vcpVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
-	return s.dataStore.CreateBackupVault(ctx, backupVault, vcpVault)
+func (s *PersistenceStore) UpdateBackupVaultInVCP(ctx context.Context, backupVault *datamodel.BackupVault, vcpVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	return s.dataStore.UpdateBackupVaultInVCP(ctx, backupVault, vcpVault)
+}
+
+func (s *PersistenceStore) UpdateBackupVaultState(ctx context.Context, bv *datamodel.BackupVault, state, stateDetails string) (*datamodel.BackupVault, error) {
+	return s.dataStore.UpdateBackupVaultState(ctx, bv, state, stateDetails)
 }
 
 func (s *PersistenceStore) CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {

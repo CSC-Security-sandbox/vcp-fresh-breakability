@@ -469,66 +469,6 @@ func (_c *MockStorage_CreateBackupPolicyEntryInVCP_Call) RunAndReturn(run func(c
 	return _c
 }
 
-// CreateBackupVault provides a mock function with given fields: ctx, vault, vcpVault
-func (_m *MockStorage) CreateBackupVault(ctx context.Context, vault *datamodel.BackupVault, vcpVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
-	ret := _m.Called(ctx, vault, vcpVault)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CreateBackupVault")
-	}
-
-	var r0 *datamodel.BackupVault
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault, *datamodel.BackupVault) (*datamodel.BackupVault, error)); ok {
-		return rf(ctx, vault, vcpVault)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault, *datamodel.BackupVault) *datamodel.BackupVault); ok {
-		r0 = rf(ctx, vault, vcpVault)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.BackupVault)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.BackupVault, *datamodel.BackupVault) error); ok {
-		r1 = rf(ctx, vault, vcpVault)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockStorage_CreateBackupVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBackupVault'
-type MockStorage_CreateBackupVault_Call struct {
-	*mock.Call
-}
-
-// CreateBackupVault is a helper method to define mock.On call
-//   - ctx context.Context
-//   - vault *datamodel.BackupVault
-//   - vcpVault *datamodel.BackupVault
-func (_e *MockStorage_Expecter) CreateBackupVault(ctx interface{}, vault interface{}, vcpVault interface{}) *MockStorage_CreateBackupVault_Call {
-	return &MockStorage_CreateBackupVault_Call{Call: _e.mock.On("CreateBackupVault", ctx, vault, vcpVault)}
-}
-
-func (_c *MockStorage_CreateBackupVault_Call) Run(run func(ctx context.Context, vault *datamodel.BackupVault, vcpVault *datamodel.BackupVault)) *MockStorage_CreateBackupVault_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.BackupVault), args[2].(*datamodel.BackupVault))
-	})
-	return _c
-}
-
-func (_c *MockStorage_CreateBackupVault_Call) Return(_a0 *datamodel.BackupVault, _a1 error) *MockStorage_CreateBackupVault_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockStorage_CreateBackupVault_Call) RunAndReturn(run func(context.Context, *datamodel.BackupVault, *datamodel.BackupVault) (*datamodel.BackupVault, error)) *MockStorage_CreateBackupVault_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // CreateBackupVaultEntryInVCP provides a mock function with given fields: ctx, bv
 func (_m *MockStorage) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	ret := _m.Called(ctx, bv)
@@ -6090,6 +6030,127 @@ func (_c *MockStorage_UpdateBackupVault_Call) Return(_a0 error) *MockStorage_Upd
 }
 
 func (_c *MockStorage_UpdateBackupVault_Call) RunAndReturn(run func(context.Context, *datamodel.BackupVault) error) *MockStorage_UpdateBackupVault_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateBackupVaultInVCP provides a mock function with given fields: ctx, vault, vcpVault
+func (_m *MockStorage) UpdateBackupVaultInVCP(ctx context.Context, vault *datamodel.BackupVault, vcpVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, vault, vcpVault)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateBackupVaultInVCP")
+	}
+
+	var r0 *datamodel.BackupVault
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault, *datamodel.BackupVault) (*datamodel.BackupVault, error)); ok {
+		return rf(ctx, vault, vcpVault)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault, *datamodel.BackupVault) *datamodel.BackupVault); ok {
+		r0 = rf(ctx, vault, vcpVault)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupVault)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.BackupVault, *datamodel.BackupVault) error); ok {
+		r1 = rf(ctx, vault, vcpVault)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UpdateBackupVaultInVCP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupVaultInVCP'
+type MockStorage_UpdateBackupVaultInVCP_Call struct {
+	*mock.Call
+}
+
+// UpdateBackupVaultInVCP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - vault *datamodel.BackupVault
+//   - vcpVault *datamodel.BackupVault
+func (_e *MockStorage_Expecter) UpdateBackupVaultInVCP(ctx interface{}, vault interface{}, vcpVault interface{}) *MockStorage_UpdateBackupVaultInVCP_Call {
+	return &MockStorage_UpdateBackupVaultInVCP_Call{Call: _e.mock.On("UpdateBackupVaultInVCP", ctx, vault, vcpVault)}
+}
+
+func (_c *MockStorage_UpdateBackupVaultInVCP_Call) Run(run func(ctx context.Context, vault *datamodel.BackupVault, vcpVault *datamodel.BackupVault)) *MockStorage_UpdateBackupVaultInVCP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.BackupVault), args[2].(*datamodel.BackupVault))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateBackupVaultInVCP_Call) Return(_a0 *datamodel.BackupVault, _a1 error) *MockStorage_UpdateBackupVaultInVCP_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UpdateBackupVaultInVCP_Call) RunAndReturn(run func(context.Context, *datamodel.BackupVault, *datamodel.BackupVault) (*datamodel.BackupVault, error)) *MockStorage_UpdateBackupVaultInVCP_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateBackupVaultState provides a mock function with given fields: ctx, bv, state, stateDetails
+func (_m *MockStorage) UpdateBackupVaultState(ctx context.Context, bv *datamodel.BackupVault, state string, stateDetails string) (*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, bv, state, stateDetails)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateBackupVaultState")
+	}
+
+	var r0 *datamodel.BackupVault
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault, string, string) (*datamodel.BackupVault, error)); ok {
+		return rf(ctx, bv, state, stateDetails)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault, string, string) *datamodel.BackupVault); ok {
+		r0 = rf(ctx, bv, state, stateDetails)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupVault)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.BackupVault, string, string) error); ok {
+		r1 = rf(ctx, bv, state, stateDetails)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UpdateBackupVaultState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupVaultState'
+type MockStorage_UpdateBackupVaultState_Call struct {
+	*mock.Call
+}
+
+// UpdateBackupVaultState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - bv *datamodel.BackupVault
+//   - state string
+//   - stateDetails string
+func (_e *MockStorage_Expecter) UpdateBackupVaultState(ctx interface{}, bv interface{}, state interface{}, stateDetails interface{}) *MockStorage_UpdateBackupVaultState_Call {
+	return &MockStorage_UpdateBackupVaultState_Call{Call: _e.mock.On("UpdateBackupVaultState", ctx, bv, state, stateDetails)}
+}
+
+func (_c *MockStorage_UpdateBackupVaultState_Call) Run(run func(ctx context.Context, bv *datamodel.BackupVault, state string, stateDetails string)) *MockStorage_UpdateBackupVaultState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.BackupVault), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateBackupVaultState_Call) Return(_a0 *datamodel.BackupVault, _a1 error) *MockStorage_UpdateBackupVaultState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UpdateBackupVaultState_Call) RunAndReturn(run func(context.Context, *datamodel.BackupVault, string, string) (*datamodel.BackupVault, error)) *MockStorage_UpdateBackupVaultState_Call {
 	_c.Call.Return(run)
 	return _c
 }

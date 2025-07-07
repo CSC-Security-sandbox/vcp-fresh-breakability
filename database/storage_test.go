@@ -809,17 +809,6 @@ func TestGetKmsConfigByUUIDReturnsErrorIfNotFound(t *testing.T) {
 	assert.Nil(t, found)
 }
 
-func TestCreatingBackupVault(t *testing.T) {
-	logger := &log.MockLogger{}
-	store, _ := NewTestStorage(logger)
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	bv := &datamodel.BackupVault{Name: "backupVault", Account: &datamodel.Account{}}
-	created, err := store.CreatingBackupVault(ctx, bv)
-	assert.NoError(t, err)
-	assert.NotNil(t, created)
-}
-
 func TestCreateBackupVaultEntryInVCP(t *testing.T) {
 	logger := &log.MockLogger{}
 	store, _ := NewTestStorage(logger)
@@ -1011,11 +1000,9 @@ func TestGetBackup(t *testing.T) {
 	bv := &datamodel.BackupVault{Name: "backupVault", AccountID: createdAcc.ID}
 	creatingBv, err := store.CreatingBackupVault(ctx, bv)
 	assert.NoError(t, err)
-	createdBv, err := store.CreateBackupVault(ctx, creatingBv, bv)
-	assert.NoError(t, err)
 
 	// Create a backup
-	backup := &datamodel.Backup{VolumeUUID: "uuid", State: "new", BackupVaultID: createdBv.ID}
+	backup := &datamodel.Backup{VolumeUUID: "uuid", State: "new", BackupVaultID: creatingBv.ID}
 	created, err := store.CreateBackup(ctx, backup)
 	assert.NoError(t, err)
 

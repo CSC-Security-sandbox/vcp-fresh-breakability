@@ -1933,26 +1933,6 @@ func (re *retryEngine) ListBackupVaults(ctx context.Context, accountID int64) ([
 	return var0, err
 }
 
-func (re *retryEngine) CreateBackupVault(ctx context.Context, vault *datamodel.BackupVault, vcpVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
-	var var0 *datamodel.BackupVault
-	err := retry.Do(func(attempt int) (bool, error) {
-		var err error
-		var0, err = re.dataStore.CreateBackupVault(ctx, vault, vcpVault)
-		if err != nil {
-			re.logError("CreateBackupVault", err)
-			if !isTransientErr(err) {
-				return false, err
-			}
-		}
-		return true, err
-	})
-	if isTransientErr(err) {
-		err = errors.NewTransientErr("Internal error. Please try again later.")
-	}
-
-	return var0, err
-}
-
 func (re *retryEngine) GetBackupVaultByUUIDndOwnerID(ctx context.Context, backupVaultUUID string, accountID int64) (*datamodel.BackupVault, error) {
 	var var0 *datamodel.BackupVault
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -2019,6 +1999,46 @@ func (re *retryEngine) GetBackupVault(ctx context.Context, backupVaultId string)
 		var0, err = re.dataStore.GetBackupVault(ctx, backupVaultId)
 		if err != nil {
 			re.logError("GetBackupVault", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) UpdateBackupVaultState(ctx context.Context, bv *datamodel.BackupVault, state, stateDetails string) (*datamodel.BackupVault, error) {
+	var var0 *datamodel.BackupVault
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateBackupVaultState(ctx, bv, state, stateDetails)
+		if err != nil {
+			re.logError("UpdateBackupVaultState", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) UpdateBackupVaultInVCP(ctx context.Context, vault *datamodel.BackupVault, vcpVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	var var0 *datamodel.BackupVault
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateBackupVaultInVCP(ctx, vault, vcpVault)
+		if err != nil {
+			re.logError("UpdateBackupVaultInVCP", err)
 			if !isTransientErr(err) {
 				return false, err
 			}
