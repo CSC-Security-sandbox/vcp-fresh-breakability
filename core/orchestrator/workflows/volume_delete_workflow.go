@@ -1,10 +1,14 @@
 package workflows
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -108,6 +112,18 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: volume.Pool.Username, Password: volume.Pool.Password, SecretID: volume.Pool.SecretID})
+
+	var ontapAsyncResponse *vsa.OntapAsyncResponse
+	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapmirrorInONTAP, volume.UUID, &node).Get(ctx, &ontapAsyncResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete snapmirror in ontap: %w", err)
+	}
+
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolumeInONTAP, volume.VolumeAttributes.ExternalUUID, volume.Name, node).Get(ctx, nil)
 	if err != nil {
 		return nil, err

@@ -66,3 +66,26 @@ func (va VolumeDeleteActivity) DeleteSnapshotPolicyInONTAP(ctx context.Context, 
 	}
 	return nil
 }
+
+func (va VolumeDeleteActivity) DeleteSnapmirrorInONTAP(ctx context.Context, volumeUUID string, node *models.Node) (*vsa.OntapAsyncResponse, error) {
+	logger := util.GetLogger(ctx)
+	if node != nil && volumeUUID != "" {
+		provider, err := GetProviderByNode(ctx, node)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+
+		se := va.SE
+		backupsCount, err := se.BackupCountByVolumeID(ctx, volumeUUID)
+		if err != nil {
+			logger.Errorf("failed to get backups count for volume %s: %v", volumeUUID, err)
+			return nil, err
+		}
+		if backupsCount != 0 {
+			return provider.SnapmirrorRelationshipDelete(volumeUUID)
+		} else {
+			logger.Debugf("no snapmirror relationship found for volume %s, skipping deletion", volumeUUID)
+		}
+	}
+	return nil, nil
+}

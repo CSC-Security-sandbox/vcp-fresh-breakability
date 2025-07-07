@@ -221,3 +221,109 @@ func TestDeleteSnapshotPolicyInONTAP_Failure(t *testing.T) {
 	assert.EqualError(t, err, expectedError.Error())
 	mockProvider.AssertExpectations(t)
 }
+
+func TestSnapmirrorInONTAPDeletesWhenBackupsExist(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	mockStorage := database.NewMockStorage(t)
+	originalGetProviderByNode := GetProviderByNode
+	defer func() { GetProviderByNode = originalGetProviderByNode }()
+
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "test-volume-uuid"
+	node := &models.Node{}
+
+	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(1), nil)
+	mockProvider.On("SnapmirrorRelationshipDelete", volumeUUID).Return(&vsa.OntapAsyncResponse{}, nil)
+
+	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volumeUUID, node)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestSnapmirrorInONTAPSkipsWhenNoBackupsExist(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	mockStorage := database.NewMockStorage(t)
+	originalGetProviderByNode := GetProviderByNode
+	defer func() { GetProviderByNode = originalGetProviderByNode }()
+
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "test-volume-uuid"
+	node := &models.Node{}
+
+	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(0), nil)
+
+	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volumeUUID, node)
+
+	assert.NoError(t, err)
+	assert.Nil(t, resp)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestSnapmirrorInONTAPFailsWhenBackupCountFails(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	mockStorage := database.NewMockStorage(t)
+	originalGetProviderByNode := GetProviderByNode
+	defer func() { GetProviderByNode = originalGetProviderByNode }()
+
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "test-volume-uuid"
+	node := &models.Node{}
+	expectedError := errors.New("failed to fetch backup count")
+
+	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(0), expectedError)
+
+	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volumeUUID, node)
+
+	assert.Error(t, err)
+	assert.EqualError(t, err, expectedError.Error())
+	assert.Nil(t, resp)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestSnapmirrorInONTAPFailsWhenDeleteFails(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	mockStorage := database.NewMockStorage(t)
+	originalGetProviderByNode := GetProviderByNode
+	defer func() { GetProviderByNode = originalGetProviderByNode }()
+
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "test-volume-uuid"
+	node := &models.Node{}
+	expectedError := errors.New("failed to delete snapmirror relationship")
+
+	mockStorage.On("BackupCountByVolumeID", ctx, volumeUUID).Return(int64(1), nil)
+	mockProvider.On("SnapmirrorRelationshipDelete", volumeUUID).Return(nil, expectedError)
+
+	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volumeUUID, node)
+
+	assert.Error(t, err)
+	assert.EqualError(t, err, expectedError.Error())
+	assert.Nil(t, resp)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}

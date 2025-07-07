@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -62,6 +63,8 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_Success() {
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -326,4 +329,70 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteSnapshotPolicyIn
 
 func TestVolumeDeleteTestSuite(t *testing.T) {
 	suite.Run(t, new(VolumeDeleteTestSuite))
+}
+
+func (s *VolumeDeleteTestSuite) Test_DeleteSnapmirrorInONTAPFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to delete snapmirror"))
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to delete snapmirror")
+}
+
+func (s *VolumeDeleteTestSuite) Test_WaitForONTAPJobFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{
+		State: "failure",
+	}, errors.New("ONTAP job failed"))
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
