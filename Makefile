@@ -52,7 +52,7 @@ GOCACHE := $(shell go env GOCACHE)
 
 .PHONY: build-all-binaries-dev
 build-all-binaries-dev:
-	docker build --build-arg GHVSA_PAT=$(GHVSA_PAT) -f builder/Dockerfile.build-all -t vsa-binaries-builder builder
+	docker build --build-arg GHVSA_PAT=$(GHVSA_PAT) -f builder/Dockerfile.build-all.dev -t vsa-binaries-builder builder
 	mkdir -p artifacts
 	docker run --rm \
 		-e GHVSA_PAT=$(GHVSA_PAT) \
@@ -70,5 +70,27 @@ build-all-binaries-dev:
 skaffold-dev:
 	export $(cat skaffold.env | xargs)
 	skaffold dev -p dev
-%:
-	@:
+
+.PHONY: build-all-binaries-prod
+build-all-binaries-prod:
+	docker build --build-arg GHVSA_PAT=$(GHVSA_PAT) -f builder/Dockerfile.build-all -t vsa-binaries-builder .
+	mkdir -p artifacts
+	docker rm -f vsa-binaries-builder-run || true
+	docker run --name vsa-binaries-builder-run \
+		-e GHVSA_PAT=$(GHVSA_PAT) \
+		-v $(GOCACHE):/go-build-cache \
+		-v $(GOMODCACHE):/go/pkg/mod \
+		-e GOCACHE=/go-build-cache \
+		-e GOMODCACHE=/go/pkg/mod \
+		vsa-binaries-builder sh -c '\
+		go build -o /src/artifacts/vcp-worker ./worker/ && \
+		go build -o /src/artifacts/google-proxy ./google-proxy/ && \
+		go build -o /src/artifacts/core ./core && \
+		go build -o /src/artifacts/telemetry ./telemetry/'
+	docker cp vsa-binaries-builder-run:/src/artifacts/. ./artifacts/
+	ls artifacts
+	docker rm vsa-binaries-builder-run
+
+.PHONY: clean-artifacts
+clean-artifacts:
+	rm -rf artifacts

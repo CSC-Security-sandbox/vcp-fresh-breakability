@@ -237,6 +237,7 @@ jobs:
           IMAGES_TAG: "test-build" # Use a temporary tag for verification
           GHVSA_PAT: ${{ secrets.GHVSA_PAT }}
         run: |
+          make clean-artifacts build-all-binaries-prod || exit 1
           skaffold config set default-repo ""
           skaffold build || exit 1
           make vcp-db-migrate-image imageVersion=test-build || exit 1
