@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -93,6 +94,13 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, options)
+	var token string
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, params.AccountName).Get(ctx, &token)
+	if err != nil {
+		log.Errorf("Failed to get token for account %s: %v", params.AccountName, err)
+		return nil, err
+	}
+	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, token)
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {

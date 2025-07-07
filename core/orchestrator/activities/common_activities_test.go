@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/gorm"
@@ -269,5 +270,38 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		job, err := activity.GetOntapJob(context.Background(), "test-job-uuid", node)
 		assert.Error(t, err)
 		assert.Nil(t, job)
+	})
+}
+
+func TestGetToken(t *testing.T) {
+	t.Run("WhenGenerateFailed", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := CommonActivities{SE: mockStorage}
+		getSignedJwtToken = func(accountName string) (string, error) {
+			return "", gorm.ErrInvalidDB
+		}
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+
+		ctx := context.Background()
+		token, err := activity.GetAuthJWTToken(ctx, "test-account")
+		assert.Error(t, err)
+		assert.NotNil(t, token)
+	})
+	t.Run("WhenSuccess", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := CommonActivities{SE: mockStorage}
+		getSignedJwtToken = func(accountName string) (string, error) {
+			return "token", nil
+		}
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+
+		ctx := context.Background()
+		token, err := activity.GetAuthJWTToken(ctx, "test-account")
+		assert.NoError(t, err)
+		assert.NotNil(t, token)
 	})
 }

@@ -324,7 +324,7 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 	bvParams := &datamodel.BackupVault{}
 
 	logger := util.GetLogger(ctx)
-	GetSignedJwtToken := utils.GetJWTTokenFromContext(ctx)
+	GetSignedJwtToken := utils.GetAuthTokenFromContext(ctx)
 	cvpClient := CvpCreateClient(logger, GetSignedJwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 	vaults, err := cvpClient.BackupVault.V1betaListBackupVaults(&backup_vault.V1betaListBackupVaultsParams{

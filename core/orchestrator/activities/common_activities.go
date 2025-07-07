@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -20,6 +21,7 @@ type CommonActivities struct {
 
 var (
 	GetProviderByNode = _getProviderByNode
+	getSignedJwtToken = auth.GetSignedJwtToken
 )
 
 func (ca CommonActivities) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
@@ -114,4 +116,14 @@ func (j CommonActivities) GetOntapJob(ctx context.Context, jobUUID string, node 
 		return nil, err
 	}
 	return job, nil
+}
+
+func (j CommonActivities) GetAuthJWTToken(ctx context.Context, accountName string) (string, error) {
+	logger := util.GetLogger(ctx)
+	jwtToken, err := getSignedJwtToken(accountName)
+	if err != nil {
+		logger.Errorf("failed to get token for account %s: %v", accountName, err)
+		return "", errors.New("failed to get token")
+	}
+	return jwtToken, nil
 }
