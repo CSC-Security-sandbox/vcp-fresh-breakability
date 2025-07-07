@@ -850,6 +850,10 @@ func (s *PersistenceStore) GetBackupPolicyByNameAndOwnerID(ctx context.Context, 
 	return s.dataStore.GetBackupPolicyByNameAndOwnerID(ctx, backupPolicyName, accountID)
 }
 
+func (s *PersistenceStore) ListBackupPolicyVolumeCount(ctx context.Context, conditions [][]interface{}) (map[string]int64, error) {
+	return s.dataStore.ListBackupPolicyVolumeCount(ctx, conditions)
+}
+
 func (s *PersistenceStore) CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
 	return s.dataStore.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
 }

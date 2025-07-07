@@ -103,6 +103,149 @@ func TestGetBackupPolicyByUUIDAndOwnerID(t *testing.T) {
 	})
 }
 
+func TestListBackupPolicyVolumeCount(t *testing.T) {
+	t.Run("WhenListBackupPolicyVolumeCountReturnsValidBackupPolicies", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 60, UUID: "test-account-uuid-6"},
+			Name:      "test_account_6",
+		}
+
+		// Create another accounts with different UUID
+		account2 := account
+		account2.UUID = "test-account-uuid-7"
+		account2.ID = 61
+
+		err = store.db.Create(&account).Error()
+		assert.NoError(tt, err, "Expected no error when creating account")
+		err = store.db.Create(&account2).Error()
+		assert.NoError(tt, err, "Expected no error when creating account2")
+
+		dataProtection := datamodel.DataProtection{
+			BackupPolicyID: "test-backup-policy-uuid-1",
+		}
+		volume := datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:           "test_volume",
+			AccountID:      account.ID,
+			Account:        &account,
+			DataProtection: &dataProtection,
+		}
+		err = store.db.Create(&volume).Error()
+		assert.NoError(tt, err, "Expected no error when creating volume")
+
+		// Volume with same AccountID and no BackupPolicyID
+		volume2 := volume
+		volume2.ID = 2
+		volume2.BaseModel = datamodel.BaseModel{UUID: "test-volume-uuid-2"}
+		volume2.DataProtection = nil
+		err = store.db.Create(&volume2).Error()
+		assert.NoError(tt, err, "Expected no error when creating volume 2")
+
+		// Volume with different AccountID and BackupPolicyID
+		volume3 := volume
+		volume3.ID = 3
+		volume3.BaseModel = datamodel.BaseModel{UUID: "test-volume-uuid-3"}
+		volume3.AccountID = account2.ID
+		volume3.Account = &account2
+		dataProtection.BackupPolicyID = "test-backup-policy-uuid-2"
+		volume3.DataProtection = &dataProtection
+		err = store.db.Create(&volume3).Error()
+		assert.NoError(tt, err, "Expected no error when creating volume 3")
+
+		conditions := [][]interface{}{{"account_id = ?", account.ID}}
+		result, err := store.ListBackupPolicyVolumeCount(context.Background(), conditions)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, int64(1), result["test-backup-policy-uuid-1"], "Expected backup policy volume count to match")
+	})
+
+	t.Run("WhenListBackupPolicyVolumeCountWithUUIDsReturnsValidBackupPolicies", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 60, UUID: "test-account-uuid-6"},
+			Name:      "test_account_6",
+		}
+
+		// Create another accounts with different UUID
+		account2 := account
+		account2.UUID = "test-account-uuid-7"
+		account2.ID = 61
+
+		err = store.db.Create(&account).Error()
+		assert.NoError(tt, err, "Expected no error when creating account")
+		err = store.db.Create(&account2).Error()
+		assert.NoError(tt, err, "Expected no error when creating account2")
+
+		backupPolicyUUIDs := []string{"test-backup-policy-uuid-1", "test-backup-policy-uuid-2"}
+
+		dataProtection := datamodel.DataProtection{
+			BackupPolicyID: backupPolicyUUIDs[0],
+		}
+		volume := datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:           "test_volume",
+			AccountID:      account.ID,
+			Account:        &account,
+			DataProtection: &dataProtection,
+		}
+		err = store.db.Create(&volume).Error()
+		assert.NoError(tt, err, "Expected no error when creating volume")
+
+		// Volume with same AccountID and different BackupPolicyID
+		volume2 := volume
+		volume2.ID = 3
+		volume2.BaseModel = datamodel.BaseModel{UUID: "test-volume-uuid-2"}
+		dataProtection.BackupPolicyID = backupPolicyUUIDs[1]
+		volume2.DataProtection = &dataProtection
+		err = store.db.Create(&volume2).Error()
+		assert.NoError(tt, err, "Expected no error when creating volume 2")
+
+		conditions := [][]interface{}{{"account_id = ?", account.ID}, {"data_protection->>'backup_policy_id' IN ?", backupPolicyUUIDs}}
+		result, err := store.ListBackupPolicyVolumeCount(context.Background(), conditions)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2)
+		assert.Equal(tt, int64(1), result["test-backup-policy-uuid-1"], "Expected backup policy volume count to match")
+		assert.Equal(tt, int64(1), result["test-backup-policy-uuid-2"], "Expected backup policy volume count to match")
+	})
+
+	t.Run("ReturnsEmptyBackupPoliciesWhenNoBackupPoliciesExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 60, UUID: "test-account-uuid-6"},
+			Name:      "test_account_6",
+		}
+		err = store.db.Create(&account).Error()
+		assert.NoError(tt, err, "Expected no error when creating account")
+
+		conditions := [][]interface{}{{"account_id = ?", account.ID}}
+		result, err := store.ListBackupPolicyVolumeCount(context.Background(), conditions)
+		assert.NoError(tt, err)
+		assert.Empty(tt, result)
+	})
+}
+
 func TestCreateBackupPolicyEntryInVCP(t *testing.T) {
 	t.Run("WhenCreateBackupPolicyEntryInVCPSucceeds", func(tt *testing.T) {
 		db, err := SetupTestDB()

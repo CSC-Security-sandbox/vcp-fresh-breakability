@@ -39,6 +39,29 @@ func (d *DataStoreRepository) GetBackupPolicyByUUIDAndOwnerID(ctx context.Contex
 	return dbBackupPolicy, nil
 }
 
+func (d *DataStoreRepository) ListBackupPolicyVolumeCount(ctx context.Context, conditions [][]interface{}) (map[string]int64, error) {
+	var backupPolicies []struct {
+		BackupPolicyID string `json:"backup_policy_id"`
+		Count          int64  `json:"count"`
+	}
+	db := d.db.ApplyFilter(conditions).GORM().WithContext(ctx)
+	err := db.Model(&datamodel.Volume{}).
+		Select("data_protection->>'backup_policy_id' as backup_policy_id, count(*) as count").
+		Where("data_protection->>'backup_policy_id' != ''").
+		Group("data_protection->>'backup_policy_id'").
+		Scan(&backupPolicies).Error
+	if err != nil {
+		return nil, err
+	}
+	backupPoliciesMap := make(map[string]int64)
+	for _, bp := range backupPolicies {
+		if bp.BackupPolicyID != "" {
+			backupPoliciesMap[bp.BackupPolicyID] = bp.Count
+		}
+	}
+	return backupPoliciesMap, nil
+}
+
 func (d *DataStoreRepository) CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)

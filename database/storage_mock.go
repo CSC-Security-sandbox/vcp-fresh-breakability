@@ -5294,6 +5294,65 @@ func (_c *MockStorage_IsLatestBackup_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
+// ListBackupPolicyVolumeCount provides a mock function with given fields: ctx, conditions
+func (_m *MockStorage) ListBackupPolicyVolumeCount(ctx context.Context, conditions [][]interface{}) (map[string]int64, error) {
+	ret := _m.Called(ctx, conditions)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListBackupPolicyVolumeCount")
+	}
+
+	var r0 map[string]int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) (map[string]int64, error)); ok {
+		return rf(ctx, conditions)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) map[string]int64); ok {
+		r0 = rf(ctx, conditions)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]int64)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}) error); ok {
+		r1 = rf(ctx, conditions)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListBackupPolicyVolumeCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBackupPolicyVolumeCount'
+type MockStorage_ListBackupPolicyVolumeCount_Call struct {
+	*mock.Call
+}
+
+// ListBackupPolicyVolumeCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+func (_e *MockStorage_Expecter) ListBackupPolicyVolumeCount(ctx interface{}, conditions interface{}) *MockStorage_ListBackupPolicyVolumeCount_Call {
+	return &MockStorage_ListBackupPolicyVolumeCount_Call{Call: _e.mock.On("ListBackupPolicyVolumeCount", ctx, conditions)}
+}
+
+func (_c *MockStorage_ListBackupPolicyVolumeCount_Call) Run(run func(ctx context.Context, conditions [][]interface{})) *MockStorage_ListBackupPolicyVolumeCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListBackupPolicyVolumeCount_Call) Return(_a0 map[string]int64, _a1 error) *MockStorage_ListBackupPolicyVolumeCount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListBackupPolicyVolumeCount_Call) RunAndReturn(run func(context.Context, [][]interface{}) (map[string]int64, error)) *MockStorage_ListBackupPolicyVolumeCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListBackupVaults provides a mock function with given fields: ctx, accountID
 func (_m *MockStorage) ListBackupVaults(ctx context.Context, accountID int64) ([]*datamodel.BackupVault, error) {
 	ret := _m.Called(ctx, accountID)

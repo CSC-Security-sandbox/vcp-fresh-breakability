@@ -87,6 +87,70 @@ func TestGetBackupPolicyByNameAndOwnerID(tt *testing.T) {
 	})
 }
 
+func TestListBackupPolicyVolumeCount(tt *testing.T) {
+	tt.Run("WhenBackupPoliciesExist", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		se, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		dbBackupPolicy := make(map[string]int64)
+		dbBackupPolicy["backup-policy-uuid"] = 5
+		oldGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = oldGetAccountWithName }()
+		oldListBackupPolicyVolumeCount := listBackupPolicyVolumeCount
+		listBackupPolicyVolumeCount = func(ctx context.Context, se database.Storage, ownerID string, backupPolicyUUIDs []string) (map[string]int64, error) {
+			return dbBackupPolicy, nil
+		}
+		defer func() { listBackupPolicyVolumeCount = oldListBackupPolicyVolumeCount }()
+
+		o := &Orchestrator{storage: se}
+		result, err := o.ListBackupPolicyVolumeCount(context.Background(), account.UUID, nil)
+		assert.NoError(tt, err, "Expected no error")
+		assert.Len(tt, result, 1, "Expected one backup policy")
+		assert.Equal(tt, int64(5), result["backup-policy-uuid"], "Expected backup policy volume count to match")
+	})
+	tt.Run("WhenNoBackupPoliciesExist", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		se, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		oldGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = oldGetAccountWithName }()
+		oldListBackupPolicyVolumeCount := listBackupPolicyVolumeCount
+		listBackupPolicyVolumeCount = func(ctx context.Context, se database.Storage, ownerID string, backupPolicyUUIDs []string) (map[string]int64, error) {
+			return nil, nil
+		}
+		defer func() { listBackupPolicyVolumeCount = oldListBackupPolicyVolumeCount }()
+
+		o := &Orchestrator{storage: se}
+		result, err := o.ListBackupPolicyVolumeCount(context.Background(), account.UUID, nil)
+		assert.NoError(tt, err, "Expected no error")
+		assert.Len(tt, result, 0, "Expected no backup policies")
+	})
+	tt.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		se, err := database.NewTestStorage(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+		oldGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+		defer func() { getAccountWithName = oldGetAccountWithName }()
+
+		o := &Orchestrator{storage: se}
+		result, err := o.ListBackupPolicyVolumeCount(context.Background(), "non-existent-owner-uuid", nil)
+		assert.Error(tt, err, "Expected error")
+		assert.Nil(tt, result, "Expected result to be nil")
+		assert.Equal(tt, "account not found", err.Error(), "Expected error message to match")
+	})
+}
+
 func Test_convertDatastoreBackupPolicyToModel(t *testing.T) {
 	t.Run("WhenBackupPolicyContainsAllFields", func(t *testing.T) {
 		createdAt := time.Now()

@@ -240,15 +240,20 @@ func (h Handler) V1betaDescribeBackupPolicy(ctx context.Context, params gcpgense
 
 func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpgenserver.BackupPolicyIdListV1beta, params gcpgenserver.V1betaGetMultipleBackupPoliciesParams) (gcpgenserver.V1betaGetMultipleBackupPoliciesRes, error) {
 	logger := util.GetLogger(ctx)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaGetMultipleBackupPoliciesBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 
-	var backupPolicyUUIDs []string
-	backupPolicyUUIDs = append(backupPolicyUUIDs, req.BackupPolicyUuids...)
-
 	body := &models.BackupPolicyIDListV1beta{
-		BackupPolicyUUIDs: backupPolicyUUIDs,
+		BackupPolicyUUIDs: req.BackupPolicyUuids,
 	}
 	getMultipleBackupPoliciesParams := &backup_policy.V1betaGetMultipleBackupPoliciesParams{
 		Body:           body,
@@ -256,6 +261,7 @@ func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpge
 		ProjectNumber:  params.ProjectNumber,
 		XCorrelationID: &params.XCorrelationID.Value,
 	}
+
 	res, err := cvpClient.BackupPolicy.V1betaGetMultipleBackupPolicies(getMultipleBackupPoliciesParams)
 	if err != nil {
 		switch e := err.(type) {
@@ -302,10 +308,28 @@ func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpge
 			Message: "unknown error during the get multiple backup policies",
 		}, nil
 	}
+
+	vcpBackupPolicies, err := h.Orchestrator.ListBackupPolicyVolumeCount(ctx, params.ProjectNumber, req.BackupPolicyUuids)
+	if err != nil {
+		logger.Errorf("Failed to get multiple backup policy volume count: %v", err)
+		return &gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError{
+			Code:    500,
+			Message: "Failed to get multiple backup policy volume count",
+		}, nil
+	}
+
 	operationResponse := gcpgenserver.V1betaGetMultipleBackupPoliciesOK{
 		BackupPolicies: []gcpgenserver.BackupPolicyV1beta{},
 	}
 	for _, bp := range res.Payload.BackupPolicies {
+		if vcpBackupPolicies[bp.BackupPolicyID] > 0 {
+			// Update the backup policy's volume count if volumes are assigned to this policy in VCP
+			totalVolumesAssigned := vcpBackupPolicies[bp.BackupPolicyID]
+			if bp.VolumeCount != nil {
+				totalVolumesAssigned += *bp.VolumeCount
+			}
+			bp.VolumeCount = &totalVolumesAssigned
+		}
 		operationResponse.BackupPolicies = append(operationResponse.BackupPolicies, convertToBackupPolicyV1beta(bp))
 	}
 	return &operationResponse, nil
@@ -313,6 +337,14 @@ func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpge
 
 func (h Handler) V1betaListBackupPolicies(ctx context.Context, params gcpgenserver.V1betaListBackupPoliciesParams) (gcpgenserver.V1betaListBackupPoliciesRes, error) {
 	logger := util.GetLogger(ctx)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaListBackupPoliciesBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
@@ -367,10 +399,28 @@ func (h Handler) V1betaListBackupPolicies(ctx context.Context, params gcpgenserv
 			Message: "unknown error during the list backup policies",
 		}, nil
 	}
+
+	vcpBackupPolicies, err := h.Orchestrator.ListBackupPolicyVolumeCount(ctx, params.ProjectNumber, nil)
+	if err != nil {
+		logger.Errorf("Failed to list backup policy volume count: %v", err)
+		return &gcpgenserver.V1betaListBackupPoliciesInternalServerError{
+			Code:    500,
+			Message: "Failed to list backup policy volume count",
+		}, nil
+	}
+
 	operationResponse := gcpgenserver.V1betaListBackupPoliciesOK{
 		BackupPolicies: []gcpgenserver.BackupPolicyV1beta{},
 	}
 	for _, bp := range res.Payload.BackupPolicies {
+		if vcpBackupPolicies[bp.BackupPolicyID] > 0 {
+			// Update the backup policy's volume count if volumes are assigned to this policy in VCP
+			totalVolumesAssigned := vcpBackupPolicies[bp.BackupPolicyID]
+			if bp.VolumeCount != nil {
+				totalVolumesAssigned += *bp.VolumeCount
+			}
+			bp.VolumeCount = &totalVolumesAssigned
+		}
 		operationResponse.BackupPolicies = append(operationResponse.BackupPolicies, convertToBackupPolicyV1beta(bp))
 	}
 	return &operationResponse, nil
