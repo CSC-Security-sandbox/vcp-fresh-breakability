@@ -121,3 +121,36 @@ func TestUpdateVolumeReplicationDetailsForDelete(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 }
+
+func TestUpdateReplicationStateInDB(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := InternalVolumeReplicationDeleteActivity{
+		SE: mockStorage,
+	}
+	ctx := context.Background()
+	volumeRep := &datamodel.VolumeReplication{}
+
+	mockStorage.On("UpdateVolumeReplicationStates", ctx, volumeRep).Return(nil)
+
+	err := activity.UpdateReplicationStateInDBForDelete(ctx, volumeRep)
+	assert.NoError(t, err)
+	assert.Equal(t, models.LifeCycleStateError, volumeRep.State)
+	assert.Equal(t, models.LifeCycleStateCreationErrorDetails, volumeRep.StateDetails)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateReplicationStateInDB_Error(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := InternalVolumeReplicationDeleteActivity{
+		SE: mockStorage,
+	}
+	ctx := context.Background()
+	volumeRep := &datamodel.VolumeReplication{}
+
+	mockStorage.On("UpdateVolumeReplicationStates", ctx, volumeRep).Return(errors.New("db error"))
+
+	err := activity.UpdateReplicationStateInDBForDelete(ctx, volumeRep)
+	assert.Error(t, err)
+	assert.Equal(t, "db error", err.Error())
+	mockStorage.AssertExpectations(t)
+}

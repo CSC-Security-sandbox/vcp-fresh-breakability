@@ -90,7 +90,7 @@ func (wf *internalVolumeReplicationDeleteWorkflow) Run(ctx workflow.Context, arg
 
 	defer func() {
 		if err != nil {
-			err2 := workflow.ExecuteActivity(ctx, replicationActivity.UpdateReplicationStateInDB, replication).Get(ctx, nil)
+			err2 := workflow.ExecuteActivity(ctx, replicationActivity.UpdateReplicationStateInDBForDelete, replication).Get(ctx, nil)
 			if err2 != nil {
 				log.Errorf("Failed to update volume state in DB to error: %v", err2)
 			}

@@ -1,6 +1,7 @@
 package replicationWorkflows
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -64,6 +65,53 @@ func TestReleaseVolumeReplicationInternalWorkflow(t *testing.T) {
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		assert.Nil(tt, err)
 		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
+}
+
+func TestReleaseVolumeReplicationInternalWorkflowFailure(t *testing.T) {
+	t.Run("TestReleaseVolumeReplicationInternalWorkflowFailure", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		internalVolumeCreateReplicationActivity := replicationActivities.InternalVolumeReplicationRowDeleteActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(internalVolumeCreateReplicationActivity.DeleteVolumeReplicationRow)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "test-account",
+		}
+		volume := &datamodel.Volume{
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+			Svm:              &datamodel.Svm{Name: "svm_test"},
+			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+		}
+		replicationDb := &datamodel.VolumeReplication{
+			Name: "test-replication",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				DestinationVolumeUUID: "test-volume-uuid",
+			},
+			AccountID: account.ID,
+			Account:   account,
+			VolumeID:  1,
+			Volume:    volume,
+		}
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteVolumeReplicationRow", mock.Anything, mock.Anything).Return(errors.New("error"))
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.ExecuteWorkflow(ReleaseVolumeReplicationInternalWorkflow, replicationDb)
 		assert.NoError(tt, env.GetWorkflowError())
 	})
 }

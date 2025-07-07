@@ -20,7 +20,7 @@ func (a *InternalVolumeReplicationRowDeleteActivity) DeleteVolumeReplicationRow(
 	return nil
 }
 
-func (a InternalVolumeReplicationRowDeleteActivity) UpdateReplicationStateInDB(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
+func (a *InternalVolumeReplicationRowDeleteActivity) UpdateReplicationStateInDBForRelease(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
 	se := a.SE
 	volumeRep.State = models.LifeCycleStateError
 	volumeRep.StateDetails = models.LifeCycleStateCreationErrorDetails
