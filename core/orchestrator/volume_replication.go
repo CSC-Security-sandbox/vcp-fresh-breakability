@@ -46,6 +46,7 @@ var (
 	GetProjectNumberForRegion         = _getProjectNumberForRegion
 	authGetSignedJwtToken             = auth.GetSignedJwtToken
 	releaseVolumeReplication          = _releaseVolumeReplication
+	deleteVolumeReplication           = _deleteVolumeReplication
 )
 
 func (o *Orchestrator) CreateVolumeReplicationInternal(ctx context.Context, params *commonparams.CreateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error) {
@@ -808,4 +809,67 @@ func (o *Orchestrator) GetReplication(ctx context.Context, volumeReplicationId s
 	}
 
 	return convertDataStoreReplicationToModel(replication), nil
+}
+
+func (o *Orchestrator) DeleteVolumeReplication(ctx context.Context, volumeReplicationId string) (*models.VolumeReplication, *datamodel.Job, error) {
+	return deleteVolumeReplication(ctx, o.storage, o.temporal, volumeReplicationId)
+}
+
+func _deleteVolumeReplication(ctx context.Context, se database.Storage, temporal client.Client, volumeReplicationId string) (*models.VolumeReplication, *datamodel.Job, error) {
+	logger := util.GetLogger(ctx)
+
+	dbVolumeReplication, err := se.GetVolumeReplication(ctx, volumeReplicationId)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			logger.Warn("Volume replication not found", "volumeReplicationId", volumeReplicationId)
+			return nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, errors.NewNotFoundErr("replication", nil))
+		}
+		return nil, nil, err
+	}
+
+	if dbVolumeReplication.State == models.LifeCycleStateCreating ||
+		dbVolumeReplication.State == models.LifeCycleStateUpdating ||
+		dbVolumeReplication.State == models.LifeCycleStateDeleting {
+		return nil, nil, errors.New("Error deleting volume Replication - Volume replication is already transitioning between states")
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeDeleteVolumeReplicationInternal),
+		State:        string(models.JobsStateNEW),
+		ResourceName: dbVolumeReplication.Name,
+		AccountID:    sql.NullInt64{Int64: dbVolumeReplication.AccountID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: dbVolumeReplication.UUID,
+			PoolUUID:     dbVolumeReplication.Volume.Pool.UUID,
+		},
+	}
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, nil, err
+	}
+
+	dbVolumeReplication.State = models.LifeCycleStateDeleting
+	dbVolumeReplication.StateDetails = models.LifeCycleStateDeletingDetails
+
+	if err = se.UpdateVolumeReplicationStates(ctx, dbVolumeReplication); err != nil {
+		return nil, nil, err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		replicationWorkflows.DeleteInternalVolumeReplicationWorkflow,
+		dbVolumeReplication,
+	)
+
+	if err != nil {
+		logger.Error("Failed to execute workflow for volume replication deletion", "error", err)
+		return nil, nil, err
+	}
+
+	return convertDataStoreReplicationToModel(dbVolumeReplication), createdJob, nil
 }

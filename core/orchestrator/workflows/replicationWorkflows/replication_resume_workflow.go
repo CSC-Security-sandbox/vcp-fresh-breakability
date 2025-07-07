@@ -81,13 +81,13 @@ func (wf *ReplicationResumeWorkflow) Run(ctx workflow.Context, args ...interface
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
-			NonRetryableErrorTypes: []string{"NonRetryableError"},
+			NonRetryableErrorTypes: []string{"NonRetryableErr"},
 		},
 	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
 	ao1 := ao
 	ao1.RetryPolicy.MaximumAttempts = int32(ReplicationJobsRetryMaxAttempts)
 
-	ctx = workflow.WithActivityOptions(ctx, ao)
 	ctx1 := workflow.WithActivityOptions(ctx, ao1)
 
 	replicationResult := replication.ResumeReplicationResult{

@@ -102,6 +102,27 @@ func (h Handler) V1betaInternalReleaseVolumeReplication(ctx context.Context, par
 	return ans, nil
 }
 
+func (h Handler) V1betaInternalDeleteVolumeReplication(ctx context.Context, params gcpgenserver.V1betaInternalDeleteVolumeReplicationParams) (gcpgenserver.V1betaInternalDeleteVolumeReplicationRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	volumeReplication, job, err := h.Orchestrator.DeleteVolumeReplication(ctx, params.VolumeReplicationId)
+	if err != nil {
+		logger.Error("Failed to delete replication", "error", err.Error())
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalDeleteVolumeReplicationBadRequest{
+				Code:    404,
+				Message: "Volume replication not found",
+			}, nil
+		}
+		return &gcpgenserver.V1betaInternalDeleteVolumeReplicationInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+	ans := convertToInternalV1betaVolumeReplication(volumeReplication, job)
+	return ans, nil
+}
+
 func convertToInternalV1betaVolumeReplication(volumeReplication *models.VolumeReplication, job *datamodel.Job) *gcpgenserver.VolumeReplicationInternalV1beta {
 	return &gcpgenserver.VolumeReplicationInternalV1beta{
 		VolumeReplicationUuid: gcpgenserver.NewOptString(volumeReplication.UUID),

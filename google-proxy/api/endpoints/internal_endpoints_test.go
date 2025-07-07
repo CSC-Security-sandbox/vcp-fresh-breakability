@@ -698,3 +698,135 @@ func TestV1betaInternalDeleteVolumeReplicationRow(t *testing.T) {
 		assert.Equal(tt, expectedResponse, resp)
 	})
 }
+
+func TestV1betaInternalDeleteVolumeReplication(t *testing.T) {
+	t.Run("ReturnsInternalServerErrorWhenDeleteFails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		ctx := context.Background()
+		params := gcpgenserver.V1betaInternalDeleteVolumeReplicationParams{
+			ProjectNumber:       "test-project",
+			LocationId:          "test-location",
+			VolumeReplicationId: "test-replication-id",
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		mockOrchestrator.EXPECT().DeleteVolumeReplication(ctx, params.VolumeReplicationId).Return(nil, nil, errors.New("delete error"))
+		resp, err := handler.V1betaInternalDeleteVolumeReplication(ctx, params)
+		assert.NoError(tt, err)
+		assert.IsType(tt, &gcpgenserver.V1betaInternalDeleteVolumeReplicationInternalServerError{}, resp)
+		assert.Equal(tt, float64(500), resp.(*gcpgenserver.V1betaInternalDeleteVolumeReplicationInternalServerError).Code)
+	})
+	t.Run("WhenVolumeReplicationNotFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		ctx := context.Background()
+		params := gcpgenserver.V1betaInternalDeleteVolumeReplicationParams{
+			ProjectNumber:       "test-project",
+			LocationId:          "test-location",
+			VolumeReplicationId: "test-replication-id",
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		mockOrchestrator.EXPECT().DeleteVolumeReplication(ctx, params.VolumeReplicationId).Return(nil, nil, errors.NewNotFoundErr("Volume replication not found", nil))
+		resp, err := handler.V1betaInternalDeleteVolumeReplication(ctx, params)
+		assert.NoError(tt, err)
+		assert.IsType(tt, &gcpgenserver.V1betaInternalDeleteVolumeReplicationBadRequest{}, resp)
+		assert.Equal(tt, float64(404), resp.(*gcpgenserver.V1betaInternalDeleteVolumeReplicationBadRequest).Code)
+	})
+	t.Run("ReturnsOKWhenSuccess", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		ctx := context.Background()
+		params := gcpgenserver.V1betaInternalDeleteVolumeReplicationParams{
+			ProjectNumber:       "test-project",
+			LocationId:          "test-location",
+			VolumeReplicationId: "test-replication-id",
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		volumeReplication := &models.VolumeReplication{
+			BaseModel: models.BaseModel{
+				UUID: "uuid-1",
+			},
+			Name:        "test-replication",
+			Description: "Test replication",
+			Uri:         "test-uri",
+			RemoteUri:   "test-remote-uri",
+			ReplicationAttributes: &models.ReplicationDetails{
+				EndpointType:               "dst",
+				ReplicationType:            "test-replication-type",
+				ReplicationSchedule:        "test-schedule",
+				SourceVolumeUUID:           "test-source-volume-uuid",
+				SourceRegion:               "test-source-region",
+				SourceHostName:             "test-source-host",
+				SourceReplicationUUID:      "test-source-replication-uuid",
+				SourceSvmName:              "test-source-svm",
+				SourceVolumeName:           "test-source-volume",
+				DestinationVolumeUUID:      "test-destination-volume-uuid",
+				DestinationRegion:          "test-destination-region",
+				DestinationHostName:        "test-destination-host",
+				DestinationReplicationUUID: "test-destination-replication-uuid",
+				DestinationSvmName:         "test-destination-svm",
+				DestinationVolumeName:      "test-destination-volume",
+			},
+		}
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-job-uuid",
+				CreatedAt: time.Now(),
+			},
+			WorkflowID: "test-workflow-id",
+			Type:       "job-type-create-volume-replication",
+			State:      "job-state-processing",
+		}
+		expectedResponse := &gcpgenserver.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: gcpgenserver.NewOptString(volumeReplication.UUID),
+			EndpointType:          gcpgenserver.VolumeReplicationInternalV1betaEndpointType(volumeReplication.ReplicationAttributes.EndpointType),
+			RemoteRegion:          volumeReplication.ReplicationAttributes.SourceRegion,
+			SourceHostName:        volumeReplication.ReplicationAttributes.SourceHostName,
+			SourceServerName:      volumeReplication.ReplicationAttributes.SourceSvmName,
+			SourceVolumeName:      volumeReplication.ReplicationAttributes.SourceVolumeName,
+			SourceVolumeUuid:      gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.SourceVolumeUUID),
+			SourcePoolUuid:        gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.SourcePoolUUID),
+			DestinationHostName:   volumeReplication.ReplicationAttributes.DestinationHostName,
+			DestinationServerName: volumeReplication.ReplicationAttributes.DestinationSvmName,
+			DestinationVolumeName: volumeReplication.ReplicationAttributes.DestinationVolumeName,
+			DestinationVolumeUuid: gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.DestinationVolumeUUID),
+			DestinationPoolUuid:   gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.DestinationPoolUUID),
+			ReplicationType: gcpgenserver.OptVolumeReplicationInternalV1betaReplicationType{
+				Value: gcpgenserver.VolumeReplicationInternalV1betaReplicationType(volumeReplication.ReplicationAttributes.ReplicationType),
+				Set:   true,
+			},
+			Jobs: []gcpgenserver.JobV1beta{
+				{
+					JobId:    gcpgenserver.NewOptString(job.UUID),
+					Created:  gcpgenserver.NewOptDateTime(job.CreatedAt),
+					WorkerId: gcpgenserver.NewOptString(job.WorkflowID),
+				},
+			},
+		}
+		mockOrchestrator.EXPECT().DeleteVolumeReplication(ctx, mock.Anything).Return(volumeReplication, job, nil)
+		resp, err := handler.V1betaInternalDeleteVolumeReplication(ctx, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedResponse, resp)
+	})
+}

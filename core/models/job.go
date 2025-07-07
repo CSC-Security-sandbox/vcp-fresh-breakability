@@ -32,6 +32,7 @@ const (
 	JobTypeDeleteKmsConfig                  JobType = "DELETE_KMS_CONFIG"
 	JobTypeCreateVolumeReplication          JobType = "CREATE_VOLUME_REPLICATION"
 	JobTypeCreateVolumeReplicationInternal  JobType = "CREATE_VOLUME_REPLICATION_INTERNAL"
+	JobTypeDeleteVolumeReplicationInternal  JobType = "DELETE_VOLUME_REPLICATION_INTERNAL"
 	JobTypeCreateBackupVault                JobType = "CREATE_BACKUP_VAULT"
 	JobTypeDeleteVolumeReplication          JobType = "DELETE_VOLUME_REPLICATION"
 	JobTypeUpdateVolumeReplication          JobType = "UPDATE_VOLUME_REPLICATION"

@@ -74,7 +74,7 @@ type ReplicationDetails struct {
 	DestinationSvmName         string
 	DestinationVolumeName      string
 	ReplicationPolicy          string
-	RemoteResourceID           string
+	ExternalUUID               string
 }
 
 type GcpHydrateCreate struct {

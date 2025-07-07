@@ -178,6 +178,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(workflows.StartProjectEventOffStateWorkflow)
 	worker.RegisterWorkflow(workflows.StartProjectEventOnStateWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ReleaseVolumeReplicationInternalWorkflow)
+	worker.RegisterWorkflow(replicationWorkflows.DeleteInternalVolumeReplicationWorkflow)
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
@@ -200,4 +201,5 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&replicationActivities.ResumeVolumeReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&resource_events_activities.StartProjectEventActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationRowDeleteActivity{SE: dbcon})
+	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationDeleteActivity{SE: dbcon})
 }

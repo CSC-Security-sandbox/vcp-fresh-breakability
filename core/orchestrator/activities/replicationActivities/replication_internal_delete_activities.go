@@ -1,0 +1,75 @@
+package replicationActivities
+
+import (
+	"context"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+)
+
+type InternalVolumeReplicationDeleteActivity struct {
+	SE database.Storage
+}
+
+func (a *InternalVolumeReplicationDeleteActivity) DeleteVolumeReplication(ctx context.Context, replication *datamodel.VolumeReplication, node *models.Node) (*vsa.VolumeReplication, error) {
+	logger := util.GetLogger(ctx)
+	provider, err := activities.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	vsaDeleteVolumeReplicationParams := prepareDeleteVolumeReplicationParamsVSA(replication)
+	res, err := provider.DeleteVolumeReplication(vsaDeleteVolumeReplicationParams)
+	if err != nil {
+		if errors.IsConflictErr(err) {
+			logger.Error("Failed to delete volume replication", "error", err)
+			return nil, errors.NewNonRetryableErr(err.Error())
+		}
+		logger.Error("Failed to delete volume replication", "error", err)
+		return nil, err
+	}
+	return res, nil
+}
+
+func (a *InternalVolumeReplicationDeleteActivity) UpdateVolumeReplicationDetailsForDelete(ctx context.Context, replication *datamodel.VolumeReplication) error {
+	se := a.SE
+	if _, err := se.DeleteVolumeReplication(ctx, replication); err != nil {
+		return err
+	}
+	return nil
+}
+
+func prepareDeleteVolumeReplicationParamsVSA(volumeReplication *datamodel.VolumeReplication) *vsa.DeleteVolumeReplicationParams {
+	params := false
+	replication := &vsa.VolumeReplication{
+		EndpointType:          volumeReplication.ReplicationAttributes.EndpointType,
+		SourceHostName:        volumeReplication.ReplicationAttributes.SourceHostName,
+		SourceSVMName:         volumeReplication.ReplicationAttributes.SourceSvmName,
+		SourceVolumeName:      volumeReplication.ReplicationAttributes.SourceVolumeName,
+		DestinationHostName:   volumeReplication.ReplicationAttributes.DestinationHostName,
+		DestinationSVMName:    volumeReplication.ReplicationAttributes.DestinationSvmName,
+		ReplicationSchedule:   volumeReplication.ReplicationAttributes.ReplicationSchedule,
+		DestinationVolumeName: volumeReplication.ReplicationAttributes.DestinationVolumeName,
+		RelationshipID:        volumeReplication.ReplicationAttributes.ExternalUUID,
+	}
+	return &vsa.DeleteVolumeReplicationParams{
+		VolumeReplication: replication,
+		DestinationOnly:   &params,
+		SourceOnly:        &params,
+	}
+}
+
+func (a InternalVolumeReplicationDeleteActivity) UpdateReplicationStateInDB(ctx context.Context, volumeRep *datamodel.VolumeReplication) error {
+	se := a.SE
+	volumeRep.State = models.LifeCycleStateError
+	volumeRep.StateDetails = models.LifeCycleStateCreationErrorDetails
+	if err := se.UpdateVolumeReplicationStates(ctx, volumeRep); err != nil {
+		return err
+	}
+	return nil
+}

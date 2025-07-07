@@ -1174,6 +1174,74 @@ func (_c *MockOrchestratorFactory_DeleteVolume_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// DeleteVolumeReplication provides a mock function with given fields: ctx, volumeReplicationId
+func (_m *MockOrchestratorFactory) DeleteVolumeReplication(ctx context.Context, volumeReplicationId string) (*models.VolumeReplication, *datamodel.Job, error) {
+	ret := _m.Called(ctx, volumeReplicationId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteVolumeReplication")
+	}
+
+	var r0 *models.VolumeReplication
+	var r1 *datamodel.Job
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*models.VolumeReplication, *datamodel.Job, error)); ok {
+		return rf(ctx, volumeReplicationId)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *models.VolumeReplication); ok {
+		r0 = rf(ctx, volumeReplicationId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) *datamodel.Job); ok {
+		r1 = rf(ctx, volumeReplicationId)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*datamodel.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string) error); ok {
+		r2 = rf(ctx, volumeReplicationId)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_DeleteVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteVolumeReplication'
+type MockOrchestratorFactory_DeleteVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// DeleteVolumeReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeReplicationId string
+func (_e *MockOrchestratorFactory_Expecter) DeleteVolumeReplication(ctx interface{}, volumeReplicationId interface{}) *MockOrchestratorFactory_DeleteVolumeReplication_Call {
+	return &MockOrchestratorFactory_DeleteVolumeReplication_Call{Call: _e.mock.On("DeleteVolumeReplication", ctx, volumeReplicationId)}
+}
+
+func (_c *MockOrchestratorFactory_DeleteVolumeReplication_Call) Run(run func(ctx context.Context, volumeReplicationId string)) *MockOrchestratorFactory_DeleteVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteVolumeReplication_Call) Return(_a0 *models.VolumeReplication, _a1 *datamodel.Job, _a2 error) *MockOrchestratorFactory_DeleteVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteVolumeReplication_Call) RunAndReturn(run func(context.Context, string) (*models.VolumeReplication, *datamodel.Job, error)) *MockOrchestratorFactory_DeleteVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DescribePool provides a mock function with given fields: ctx, poolId, accountName
 func (_m *MockOrchestratorFactory) DescribePool(ctx context.Context, poolId string, accountName string) (*models.Pool, error) {
 	ret := _m.Called(ctx, poolId, accountName)

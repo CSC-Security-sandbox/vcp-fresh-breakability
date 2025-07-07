@@ -89,10 +89,10 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
 		},
 	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
 	ao1 := ao
 	ao1.RetryPolicy.MaximumAttempts = int32(ReplicationJobsRetryMaxAttempts)
 
-	ctx = workflow.WithActivityOptions(ctx, ao)
 	ctx1 := workflow.WithActivityOptions(ctx, ao1)
 	dbVolumeRep := volumeReplication
 
