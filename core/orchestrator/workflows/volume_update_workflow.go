@@ -94,13 +94,16 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, options)
-	var token string
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, params.AccountName).Get(ctx, &token)
-	if err != nil {
-		log.Errorf("Failed to get token for account %s: %v", params.AccountName, err)
-		return nil, err
+	if runningEnv != "local" {
+		var token string
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, params.AccountName).Get(ctx, &token)
+		if err != nil {
+			log.Errorf("Failed to get token for account %s: %v", params.AccountName, err)
+			return nil, err
+		}
+		ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, token)
 	}
-	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, token)
+
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {
