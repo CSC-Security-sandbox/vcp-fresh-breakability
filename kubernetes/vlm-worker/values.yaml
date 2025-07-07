@@ -1,0 +1,49 @@
+global:
+  primaryImageRegistry: ghcr.io
+  primaryImageRegistryPath: vcp-vsa-control-plane
+  primaryImageRegistryPasswordAuth: true
+  primaryImagePullSecretName: ghcr.io
+  secondaryImageRegistry: "europe-north1-docker.pkg.dev/gcnv-artifact-registry-nonprod"
+  secondaryImageRegistryPath: "vcp-container-images-us"
+  secondaryImageRegistryPasswordAuth: false
+  useTags: true
+  nodeSelector:
+    nodeType: vsacp-nodes
+  chartPrimaryImageRegistry: ""
+  chartSecondaryImageRegistry: ""
+  environment: gcp
+
+# Application configuration
+app:
+  name: "vlm-worker"
+  replicas: 1
+
+serviceAccount:
+  name: "vlm-worker-ksa"
+
+# Image configuration
+images:
+  vlmWorker:
+    name: vlm-worker
+    tag: 0.0.0
+    digest: ""
+    secondary: true
+    pullPolicy: IfNotPresent
+
+# Ontap Version
+ontapVersion: "0.0.0"
+
+podAnnotations: {}
+
+initContainers: []
+
+# Worker configuration
+workerConfig:
+  provider: "gcp"
+  temporalHost: "temporal-frontend.temporal.svc.cluster.local"
+  temporalPort: "7233"
+  taskQueuePrefix: "vsa-lifecycle-manager"
+  debug: "false"
+  maxConcurrentActivities: "1000"
+  maxConcurrentWorkflow: "1000"
+  maxConcurrentWorkflowTaskPollers: "2"

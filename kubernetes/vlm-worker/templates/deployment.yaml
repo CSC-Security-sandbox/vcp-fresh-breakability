@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.app.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Values.app.name }}
+spec:
+  replicas: {{ .Values.app.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- with $.Values.initContainers }}
+      initContainers:
+        {{- toYaml .| nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Values.app.name }}
+          {{- if .Values.images.vlmWorker.secondary }}
+          image: "{{- include "containerImage" (list . (dict "name" "vlmWorker" "secondary" true)) | trim -}}"
+          {{- else }}
+          image: "{{- include "containerImage" (list . (dict "name" "vlmWorker" "secondary" false)) | trim -}}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.images.vlmWorker.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "vlm-worker.configMapName" . }}
