@@ -129,6 +129,7 @@ jobs:
           GHVSA_PAT: ${{ secrets.GHVSA_PAT }}
         run: |
           skaffold config set default-repo ""
+          make build-all-binaries-prod 
           skaffold build 
           make vcp-db-migrate-image imageVersion=${{ inputs.tag }}
 
