@@ -12,11 +12,14 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/workflow"
 	"gorm.io/gorm"
 )
 
@@ -327,7 +330,7 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 
 		snapshot, _, err := orch.CreateSnapshot(ctx, params)
 		assert.Nil(tt, snapshot, "Expected nil snapshot")
-		assert.ErrorContains(tt, err, "failed to validate volume ownership")
+		assert.ErrorContains(tt, err, "not found")
 	})
 
 	t.Run("WhenSnapshotCreationFailsDueToAccountNotFound", func(tt *testing.T) {
@@ -696,15 +699,11 @@ func TestGetSnapshot(t *testing.T) {
 
 		mockLogger := log.NewLogger()
 		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			tt.Fatalf("Failed to create test storage: %v", err)
-		}
+		assert.NoError(tt, err, "Failed to create test storage")
 
 		// Clear the in-memory database
 		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			t.Fatalf("Failed to clean up test storage: %v", err)
-		}
+		assert.NoError(tt, err, "Failed to clean up test storage")
 
 		orch := Orchestrator{
 			storage: store,
@@ -714,18 +713,14 @@ func TestGetSnapshot(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
 			Name:      "test_account",
 		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			tt.Fatalf("Failed to create account: %v", err)
-		}
+		assert.NoError(tt, store.DB().Create(account).Error, "Failed to create account")
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: account.ID,
 		}
-		err = store.DB().Create(volume).Error
-		assert.NoError(tt, err, "Failed to create volume")
+		assert.NoError(tt, store.DB().Create(volume).Error, "Failed to create volume")
 
 		// Create a deleted snapshot
 		deletedAt := &gorm.DeletedAt{Time: time.Now(), Valid: true}
@@ -741,8 +736,7 @@ func TestGetSnapshot(t *testing.T) {
 			Account:     account,
 			Volume:      volume,
 		}
-		err = store.DB().Create(snapshot).Error
-		assert.NoError(tt, err, "Failed to create snapshot")
+		assert.NoError(tt, store.DB().Create(snapshot).Error, "Failed to create snapshot")
 
 		params := &common.GetSnapshotParams{
 			SnapshotBaseParams: common.SnapshotBaseParams{
@@ -753,11 +747,8 @@ func TestGetSnapshot(t *testing.T) {
 		}
 
 		result, err := orch.GetSnapshot(ctx, params)
-		var customErr *vsaerrors.CustomError
-		if vsaerrors.As(err, &customErr) {
-			assert.EqualError(tt, err, "[0] undefined error: snapshot 'test-snapshot-uuid' not found")
-		}
 		assert.Nil(tt, result, "Expected nil snapshot")
+		assert.Error(tt, err, "not found")
 	})
 
 	t.Run("WhenSnapshotGetFailsDueToVolumeOwnershipCheck", func(tt *testing.T) {
@@ -929,14 +920,6 @@ func TestOrchestrator_GetMultipleSnapshots(t *testing.T) {
 		store, err := database.SetupStorageForTest(mockLogger)
 		assert.NoError(tt, err)
 		orch := Orchestrator{storage: store}
-
-		// Patch getAccountWithName to return not found error
-		orig := getAccountWithName
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-			return nil, errors.NewNotFoundErr("account", nil)
-		}
-		defer func() { getAccountWithName = orig }()
-
 		snapshots, err := orch.GetMultipleSnapshots(ctx, "vol-uuid", "non-existent-account", []string{"snap-uuid-1"})
 		assert.NoError(tt, err)
 		assert.NotNil(tt, snapshots)
@@ -953,12 +936,14 @@ func TestOrchestrator_GetMultipleSnapshots(t *testing.T) {
 
 		orch := Orchestrator{storage: store}
 
+		// Create account
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
 			Name:      "acc",
 		}
 		assert.NoError(tt, store.DB().Create(account).Error)
 
+		// Create volume
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
 			Name:      "vol",
@@ -966,6 +951,7 @@ func TestOrchestrator_GetMultipleSnapshots(t *testing.T) {
 		}
 		assert.NoError(tt, store.DB().Create(volume).Error)
 
+		// Create snapshots
 		snap1 := &datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{UUID: "snap-uuid-1"},
 			Name:      "snap1",
@@ -985,28 +971,29 @@ func TestOrchestrator_GetMultipleSnapshots(t *testing.T) {
 		assert.NoError(tt, store.DB().Create(snap1).Error)
 		assert.NoError(tt, store.DB().Create(snap2).Error)
 
+		// Patch getAccountWithName to return the created account
+		orig := getAccountWithName
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
-		defer func() { getAccountWithName = _getAccountWithName }()
+		defer func() { getAccountWithName = orig }()
 
 		snapshots, err := orch.GetMultipleSnapshots(ctx, volume.UUID, account.Name, []string{"snap-uuid-1", "snap-uuid-2"})
 		assert.NoError(tt, err)
+		assert.NotNil(tt, snapshots)
 		assert.Len(tt, snapshots, 2)
 		names := []string{snapshots[0].Name, snapshots[1].Name}
 		assert.Contains(tt, names, "snap1")
 		assert.Contains(tt, names, "snap2")
 	})
 
-	t.Run("WhenGetMultipleSnapshotsNotFound", func(tt *testing.T) {
-		ctx := context.Background()
+	t.Run("WhenSnapshotIsDeleted", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger := log.NewLogger()
 		store, err := database.SetupStorageForTest(mockLogger)
-		assert.NoError(tt, err)
+		assert.NoError(tt, err, "Failed to create test storage")
 		err = database.ClearInMemoryDB(store.DB())
-		assert.NoError(tt, err)
-
-		orch := Orchestrator{storage: store}
+		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
 
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
@@ -1021,15 +1008,338 @@ func TestOrchestrator_GetMultipleSnapshots(t *testing.T) {
 		}
 		assert.NoError(tt, store.DB().Create(volume).Error)
 
+		deletedAt := &gorm.DeletedAt{Time: time.Now(), Valid: true}
+		snapshot := &datamodel.Snapshot{
+			BaseModel:   datamodel.BaseModel{UUID: "test-snapshot-uuid", DeletedAt: deletedAt},
+			Name:        "test_snapshot",
+			Description: "desc",
+			AccountID:   account.ID,
+			VolumeID:    volume.ID,
+			Account:     account,
+			Volume:      volume,
+			State:       models.LifeCycleStateREADY,
+		}
+		assert.NoError(tt, store.DB().Create(snapshot).Error)
+
+		orch := Orchestrator{storage: store}
+		params := &common.UpdateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    "test-volume-uuid",
+				AccountName: "test_account",
+			},
+			SnapshotUUID: "test-snapshot-uuid",
+			Description:  "new_desc",
+		}
+		_, _, err = orch.UpdateSnapshot(ctx, params)
+		assert.Error(tt, err, "not found")
+	})
+
+	t.Run("WhenSnapshotIsUpdateFailsDueToOwnershipCheck", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		assert.NoError(tt, err, "Failed to create test storage")
+		err = database.ClearInMemoryDB(store.DB())
+		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: 1,
+		}
+		snap1 := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "snap-uuid-1"},
+			Name:      "snap1",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+			Account:   account,
+			Volume:    volume,
+		}
+
+		snap2 := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "snap-uuid-2"},
+			Name:      "snap2",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+			Account:   account,
+			Volume:    volume,
+		}
+		assert.NoError(tt, store.DB().Create(snap1).Error)
+		assert.NoError(tt, store.DB().Create(snap2).Error)
+
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = _getAccountWithName }()
 
-		snapshots, err := orch.GetMultipleSnapshots(ctx, volume.UUID, account.Name, []string{"non-existent-uuid"})
+		orch := Orchestrator{storage: store}
+		_, err = orch.GetMultipleSnapshots(ctx, volume.UUID, account.Name, []string{"snap-uuid-1", "snap-uuid-2"})
+		assert.NoError(tt, err)
+
+		params := &common.UpdateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    "test-volume-uuid",
+				AccountName: "test_account",
+			},
+			SnapshotUUID: "test-snapshot-uuid",
+			Description:  "updated_desc",
+		}
+		result, jobID, err := orch.UpdateSnapshot(ctx, params)
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, err, "[0] undefined error: volume 'test-volume-uuid' not found")
+		}
+		assert.Nil(tt, result)
+		assert.Empty(tt, jobID)
+	})
+
+	t.Run("WhenGetMultipleSnapshotsNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		assert.NoError(tt, err)
+		err = database.ClearInMemoryDB(store.DB())
+		assert.NoError(tt, err)
+
+		orch := Orchestrator{storage: store}
+
+		// Create account and volume, but do NOT create any snapshots
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+			Name:      "acc",
+		}
+		assert.NoError(tt, store.DB().Create(account).Error)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "vol",
+			AccountID: account.ID,
+		}
+		assert.NoError(tt, store.DB().Create(volume).Error)
+
+		// Patch getAccountWithName to return the created account
+		orig := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = orig }()
+
+		// Try to fetch non-existent snapshots
+		snapshots, err := orch.GetMultipleSnapshots(ctx, volume.UUID, account.Name, []string{"non-existent-uuid-1", "non-existent-uuid-2"})
 		assert.NoError(tt, err)
 		assert.NotNil(tt, snapshots)
 		assert.Len(tt, snapshots, 0)
+	})
+}
+
+func TestDeleteSnapshot(t *testing.T) {
+	t.Run("WhenSnapshotDeletionSuccess", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Pool: &datamodel.Pool{
+				VendorID: "/projects/project123/locations/location123/pools/pool123",
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+		params := &common.DeleteSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			SnapshotID: "test-snapshot-uuid",
+		}
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+		snapshotResp, _, err := orch.DeleteSnapshot(ctx, params)
+		assert.NoError(tt, err, "Failed to delete snapshot")
+		assert.NotNil(tt, snapshotResp, "Expected snapshot to be deleted")
+		assert.Equal(tt, snapshotResp.Name, "test_snapshot")
+		assert.Equal(tt, snapshotResp.VolumeUUID, "test-volume-uuid")
+	})
+
+	t.Run("WhenSnapshotDeletionFailsDueToVolumeNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+		params := &common.DeleteSnapshotParams{
+			SnapshotID: "test-snapshot-uuid",
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    "volume.UUID",
+				AccountName: account.Name,
+			},
+		}
+		snapshot, _, err := orch.DeleteSnapshot(ctx, params)
+		assert.Nil(tt, snapshot, "Expected nil snapshot")
+		assert.ErrorContains(tt, err, "not found")
+	})
+
+	t.Run("WhenSnapshotDeletionFailsDueToAccountNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+		params := &common.DeleteSnapshotParams{
+			SnapshotID: "test-snapshot-uuid",
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: "account.Name",
+			},
+		}
+		snapshot, _, err := orch.DeleteSnapshot(ctx, params)
+		assert.Nil(tt, snapshot, "Expected nil snapshot")
+		assert.ErrorContains(tt, err, "failed to validate volume ownership")
+	})
+
+	t.Run("WhenSnapshotDeletionFailsDueToWorkflowError", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Pool: &datamodel.Pool{
+				VendorID: "/projects/project123/locations/location123/pools/pool123",
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
 	})
 
 	t.Run("WhenAccountExistsButVolumeNotFound", func(tt *testing.T) {

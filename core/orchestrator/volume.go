@@ -112,6 +112,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			Protocols:        params.Protocols,
 			VendorSubnetID:   params.Network,
 			IsDataProtection: params.IsDataProtection,
+			SnapReserve:      params.SnapReserve,
 		},
 	}
 
@@ -382,6 +383,7 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 		Zone:                  volume.Pool.PoolAttributes.PrimaryZone,
 		UsedBytes:             volume.UsedBytes,
 		EncryptionType:        utils.GetEncryptionType(nil), // pass volume.Pool.KmsConfigID when association is implemented
+		SnapReserve:           volume.VolumeAttributes.SnapReserve,
 	}
 	attributes := volume.VolumeAttributes
 	res.VendorSubnetID = attributes.VendorSubnetID
@@ -655,6 +657,12 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 	// When just enabling or disabling the snapshot policy, we need to check if there is an existing snapshot policy
 	if params.SnapshotPolicy != nil && len(params.SnapshotPolicy.Schedules) == 0 && (volume.SnapshotPolicy == nil || volume.SnapshotPolicy.Name == "") {
 		return customerrors.NewUserInputValidationErr("no existing snapshot policy found for the volume and no schedules provided in the update request. Cannot create a new snapshot policy without schedules")
+	}
+
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.IsDataProtection {
+		if params.SnapReserve != nil && *params.SnapReserve != volume.VolumeAttributes.SnapReserve {
+			return customerrors.NewUserInputValidationErr("Cannot update snapshotReserve on a Data Protection Volume")
+		}
 	}
 
 	return nil

@@ -595,7 +595,7 @@ func TestVolumeModifyParamsToONTAP(t *testing.T) {
 	t.Run("WhenSizeAndLogicalSpaceAndSnapReserveAndMaxAutoSizeSet_ThenSpaceIsSet", func(tt *testing.T) {
 		size := uint64(100)
 		logical := true
-		snap := 5
+		snap := int64(5)
 		maxAuto := uint64(200)
 		params := &VolumeModifyParams{
 			UUID:                    "uuid",

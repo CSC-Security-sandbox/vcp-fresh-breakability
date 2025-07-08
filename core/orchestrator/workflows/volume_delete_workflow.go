@@ -135,6 +135,11 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, err
 	}
 
+	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolumeAssociatedSnapshots, volume.ID).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolume, &volume).Get(ctx, nil)
 	if err != nil {
 		return nil, err

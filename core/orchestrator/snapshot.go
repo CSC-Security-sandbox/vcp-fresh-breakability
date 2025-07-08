@@ -79,11 +79,13 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	if len(existingSnapshots) > 0 {
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
+	if len(existingSnapshots) > 0 { // Check if there are any existing snapshot creation with the same name
+		filter = utils.CreateFilterWithConditions([]*utils.FilterCondition{
 			utils.NewFilterCondition().WithConditions("resource_name", "=", params.Name),
 			utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
-			utils.NewFilterCondition().WithConditions("type", "=", string(models.JobTypeCreateSnapshot))})
+			utils.NewFilterCondition().WithConditions("type", "=", string(models.JobTypeCreateSnapshot)),
+			utils.NewFilterCondition().WithConditions("state", "!=", string(models.JobsStateDONE)),
+			utils.NewFilterCondition().WithConditions("state", "!=", string(models.JobsStateERROR))})
 
 		jobs, err := se.GetJobsWithCondition(ctx, *filter)
 		if err != nil {
@@ -91,10 +93,15 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 			return nil, "", err
 		}
 		if len(jobs) > 0 {
-			job := jobs[0]
-			logger.Infof("Found ongoing snapshot creation job for account %s with name %s. Job UUID: %s", params.AccountName, params.Name, job.UUID)
-			dataStoreSnap := ConvertDatastoreSnapshotToModel(existingSnapshots[0])
-			return dataStoreSnap, job.UUID, nil
+			for _, job := range jobs {
+				for _, snapshot := range existingSnapshots {
+					if snapshot.Name == job.ResourceName {
+						logger.Infof("Found ongoing snapshot creation job for account %s with name %s. Job UUID: %s", params.AccountName, params.Name, job.UUID)
+						dataStoreSnap := ConvertDatastoreSnapshotToModel(snapshot)
+						return dataStoreSnap, job.UUID, nil
+					}
+				}
+			}
 		}
 	}
 
@@ -272,7 +279,7 @@ func _updateSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeUpdateSnapshot),
 		State:         string(models.JobsStateNEW),
-		ResourceName:  params.Name,
+		ResourceName:  snapshot.Name,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
@@ -284,8 +291,7 @@ func _updateSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	snapshot.Name = params.Name
-	snapshot.Description = params.Description
+	snapshot.Description = params.Description // Only snapshot description is allowed to be updated in GCNV
 
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
@@ -426,6 +432,10 @@ func _volumeOwnershipCheck(ctx context.Context, se database.Storage, volumeUUID 
 
 	volume, err := se.VerifyVolumeOwnership(ctx, volumeUUID, accountName)
 	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			logger.Errorf("Volume %s not found for account %s", volumeUUID, accountName)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, customerrors.NewNotFoundErr("volume", &volumeUUID))
+		}
 		logger.Errorf("Failed to verify volume ownership: %v", err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, customerrors.NewUserInputValidationErr("failed to validate volume ownership"))
 	}

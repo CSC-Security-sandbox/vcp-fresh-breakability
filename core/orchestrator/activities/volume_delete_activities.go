@@ -89,3 +89,25 @@ func (va VolumeDeleteActivity) DeleteSnapmirrorInONTAP(ctx context.Context, volu
 	}
 	return nil, nil
 }
+
+func (va VolumeDeleteActivity) DeleteVolumeAssociatedSnapshots(ctx context.Context, volumeID int64) error {
+	logger := util.GetLogger(ctx)
+	se := va.SE
+	snapshots, err := se.GetSnapshotsByVolumeID(ctx, volumeID)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			logger.Debugf("no snapshots found for volumeID: %d", volumeID)
+			return nil // No snapshots to delete
+		}
+		logger.Errorf("failed to get snapshot by volumeID: %v", err)
+		return err
+	}
+
+	for _, snapshot := range snapshots {
+		_, err = se.DeleteSnapshot(ctx, snapshot.UUID)
+		if err != nil {
+			logger.Warnf("failed to mark snapshot %s as deleted because of error: %v", snapshot.Name, err)
+		}
+	}
+	return nil
+}

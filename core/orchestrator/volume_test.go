@@ -5039,3 +5039,41 @@ func TestConvertToDBSnapshotPolicySchedule(t *testing.T) {
 		assert.Equal(tt, []int{2}, result[1].DaysOfWeek)
 	})
 }
+
+func Test_validateUpdateVolumeRequest(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := &database.MockStorage{}
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			AllowAutoTiering: true,
+		},
+	}
+
+	t.Run("FailsIfVolumeInTransitionalState", func(tt *testing.T) {
+		volume := &datamodel.Volume{State: "UPDATING"}
+		params := &common.UpdateVolumeParams{QuotaInBytes: 200}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume is not in a valid state for update")
+	})
+
+	t.Run("FailsIfQuotaReduced", func(tt *testing.T) {
+		volume := &datamodel.Volume{State: "READY", SizeInBytes: 1000}
+		params := &common.UpdateVolumeParams{QuotaInBytes: 500}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume size cannot be reduced")
+	})
+
+	t.Run("FailsIfSnapReserveUpdatedForDPVol", func(tt *testing.T) {
+		volume := &datamodel.Volume{State: "READY", SizeInBytes: 1000, VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: true,
+			SnapReserve:      40,
+		}}
+		newSnapReserve := int64(50)
+		params := &common.UpdateVolumeParams{QuotaInBytes: 1000, SnapReserve: &newSnapReserve}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Cannot update snapshotReserve on a Data Protection Volume")
+	})
+}

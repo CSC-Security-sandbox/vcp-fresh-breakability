@@ -1494,3 +1494,34 @@ func TestActionString(t *testing.T) {
 	assert.Equal(t, "rem", rem.String())
 	assert.Equal(t, "mod", mod.String())
 }
+
+func TestDeleteSnapshot_SnapshotNotFound(t *testing.T) {
+	mockClient := new(ontaprest.MockRESTClient)
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient.On("Storage").Return(mockStorage)
+
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{
+		Logger: log.NewLogger().(*log.Slogger),
+	}
+
+	snapshotUUID := "nonexistent-snapshot-uuid"
+	volumeUUID := "test-volume-uuid"
+
+	// Simulate SnapshotGet returns nil snapshot and a not found error
+	mockStorage.On("SnapshotGet", mock.Anything).Return(nil, errors.NewNotFoundErr("Snapshot", nil))
+	// Simulate VolumeGet returns a valid online volume
+	mockVolume := &ontaprest.Volume{
+		Volume: models.Volume{
+			State: nillable.ToPointer("online"),
+		},
+	}
+	mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+
+	err := rc.DeleteSnapshot(snapshotUUID, volumeUUID)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}

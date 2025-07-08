@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -23,10 +24,10 @@ func TestDeleteVolume_Success(t *testing.T) {
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volumeID := "test-volume-id"
-	expectedVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volumeID}}
+	expectedVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{ID: 10, UUID: volumeID}}
 
 	mockStorage.On("DeleteVolume", ctx, volumeID).Return(expectedVolume, nil)
-
+	mockStorage.On("DeleteSnapshot", ctx, mock.Anything).Return(&datamodel.Snapshot{}, nil).Maybe()
 	// Act
 	err := activity.DeleteVolume(ctx, expectedVolume)
 
@@ -326,4 +327,73 @@ func TestSnapmirrorInONTAPFailsWhenDeleteFails(t *testing.T) {
 	assert.Nil(t, resp)
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteVolumeAssociatedSnapshots_NoSnapshotsFound(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeID := int64(123)
+
+	mockStorage.On("GetSnapshotsByVolumeID", mock.Anything, volumeID).
+		Return(nil, utilErrors.NewNotFoundErr("snapshot", nil))
+
+	err := activity.DeleteVolumeAssociatedSnapshots(ctx, volumeID)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteVolumeAssociatedSnapshots_GetSnapshotsError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeID := int64(123)
+
+	mockStorage.On("GetSnapshotsByVolumeID", mock.Anything, volumeID).
+		Return(nil, errors.New("db error"))
+
+	err := activity.DeleteVolumeAssociatedSnapshots(ctx, volumeID)
+	assert.Error(t, err)
+	assert.EqualError(t, err, "db error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteVolumeAssociatedSnapshots_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeID := int64(123)
+	snapshots := []*datamodel.Snapshot{
+		{BaseModel: datamodel.BaseModel{UUID: "snap-1"}, Name: "snap1"},
+		{BaseModel: datamodel.BaseModel{UUID: "snap-2"}, Name: "snap2"},
+	}
+
+	mockStorage.On("GetSnapshotsByVolumeID", mock.Anything, volumeID).
+		Return(snapshots, nil)
+	mockStorage.On("DeleteSnapshot", ctx, "snap-1").Return(&datamodel.Snapshot{}, nil)
+	mockStorage.On("DeleteSnapshot", ctx, "snap-2").Return(&datamodel.Snapshot{}, nil)
+
+	err := activity.DeleteVolumeAssociatedSnapshots(ctx, volumeID)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteVolumeAssociatedSnapshots_DeleteSnapshotError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeID := int64(123)
+	snapshots := []*datamodel.Snapshot{
+		{BaseModel: datamodel.BaseModel{UUID: "snap-1"}, Name: "snap1"},
+		{BaseModel: datamodel.BaseModel{UUID: "snap-2"}, Name: "snap2"},
+	}
+
+	mockStorage.On("GetSnapshotsByVolumeID", mock.Anything, volumeID).
+		Return(snapshots, nil)
+	mockStorage.On("DeleteSnapshot", ctx, "snap-1").Return(&datamodel.Snapshot{}, errors.New("delete error"))
+	mockStorage.On("DeleteSnapshot", ctx, "snap-2").Return(&datamodel.Snapshot{}, nil)
+
+	err := activity.DeleteVolumeAssociatedSnapshots(ctx, volumeID)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
 }

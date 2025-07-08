@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
@@ -25,13 +26,13 @@ func UpdateSnapshotWorkflow(ctx workflow.Context, snapshot *datamodel.Snapshot) 
 	err := snapshotWf.Setup(ctx, snapshot)
 	if err != nil {
 		logger.Infof("Snapshot update workflow setup executed with error: %v", err)
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	snapshotWf.Status = WorkflowStatusRunning
 	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
 		logger.Infof("Update job status for snapshot executed with error: %v", err)
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	defer func() {
 		if err == nil {
@@ -45,7 +46,7 @@ func UpdateSnapshotWorkflow(ctx workflow.Context, snapshot *datamodel.Snapshot) 
 	_, err = snapshotWf.Run(ctx, snapshot)
 	if err != nil {
 		logger.Infof("Snapshot update workflow run executed with error: %v", err)
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Debug("Snapshot update workflow completed successfully")
 	return nil, nil

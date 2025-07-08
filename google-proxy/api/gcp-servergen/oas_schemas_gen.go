@@ -19577,32 +19577,20 @@ func (s *VolumeSnapshotCreateV1beta) SetIsAppConsistent(val OptBool) {
 	s.IsAppConsistent = val
 }
 
-// Merged schema.
+// Request object for updating snapshots from a volume.
 // Ref: #/components/schemas/VolumeSnapshotUpdate_v1beta
 type VolumeSnapshotUpdateV1beta struct {
-	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
-	// the first character a letter, the last a letter or a number, and a 63 character maximum.
-	ResourceId  string    `json:"resourceId"`
-	Description OptString `json:"description"`
-}
-
-// GetResourceId returns the value of ResourceId.
-func (s *VolumeSnapshotUpdateV1beta) GetResourceId() string {
-	return s.ResourceId
+	// Description of the snapshot.
+	Description string `json:"description"`
 }
 
 // GetDescription returns the value of Description.
-func (s *VolumeSnapshotUpdateV1beta) GetDescription() OptString {
+func (s *VolumeSnapshotUpdateV1beta) GetDescription() string {
 	return s.Description
 }
 
-// SetResourceId sets the value of ResourceId.
-func (s *VolumeSnapshotUpdateV1beta) SetResourceId(val string) {
-	s.ResourceId = val
-}
-
 // SetDescription sets the value of Description.
-func (s *VolumeSnapshotUpdateV1beta) SetDescription(val OptString) {
+func (s *VolumeSnapshotUpdateV1beta) SetDescription(val string) {
 	s.Description = val
 }
 

@@ -36,9 +36,11 @@ type ProviderResponse struct {
 
 type VolumeResponse struct {
 	ProviderResponse
-	AvailableSpace int64
-	Size           int64
-	State          string
+	AvailableSpace     int64
+	Size               int64
+	State              string
+	SnapshotPolicyName string
+	SnapReserve        int64
 }
 
 type CreateLifParams struct {
@@ -102,6 +104,7 @@ type CreateVolumeParams struct {
 	SnapshotPolicyName string
 	// Reference to a snapshot for restore/clone
 	RestoreFromSnapshot *RestoreFromSnapshotParams // Optional: parameters for restoring from a snapshot
+	SnapReserve         int64
 	TieringPolicy       *TieringPolicy
 }
 
@@ -121,6 +124,7 @@ type UpdateVolumeParams struct {
 	SnapshotPolicyName string
 	InitiateSplit      bool // Indicates whether to initiate a split for volume restore or clone
 	TieringPolicy      *TieringPolicy
+	SnapReserve        *int64
 }
 
 type GetVolumeParams struct {

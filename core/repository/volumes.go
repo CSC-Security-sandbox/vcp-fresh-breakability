@@ -234,6 +234,9 @@ func (d *DataStoreRepository) VerifyVolumeOwnership(ctx context.Context, volumeU
 	}
 	var volume *datamodel.Volume
 	if err := db.Preload("Account").Preload("Pool").Preload("Svm").Where("uuid = ?", volumeUUID).Where("account_id= ?", account.ID).First(&volume).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.NewNotFoundErr("volume", &volumeUUID)
+		}
 		return nil, err
 	}
 	return volume, nil

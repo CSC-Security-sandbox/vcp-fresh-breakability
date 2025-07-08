@@ -156,6 +156,7 @@ type VolumeAttributes struct {
 	ExternalUUID     string           `json:"external_uuid"`
 	BlockProperties  *BlockProperties `json:"block_properties"`
 	IsDataProtection bool             `json:"is_data_protection"`
+	SnapReserve      int64            `json:"snap_reserve"`
 	Labels           *JSONB           `json:"labels"`
 }
 

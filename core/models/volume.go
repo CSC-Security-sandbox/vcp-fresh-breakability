@@ -25,6 +25,7 @@ type Volume struct {
 	Zone                  string
 	UsedBytes             uint64
 	EncryptionType        string
+	SnapReserve           int64
 	TieringPolicy         *TieringPolicy
 }
 

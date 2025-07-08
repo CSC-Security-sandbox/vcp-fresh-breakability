@@ -397,6 +397,9 @@ func TestGetVolume_WhenVolumeIsFound_ThenReturnVolumeResponse(t *testing.T) {
 				Size:      nillable.GetInt64Ptr(200000), // Example total size
 			},
 			State: nillable.ToPointer(models.VolumeStateOnline),
+			SnapshotPolicy: &models.VolumeInlineSnapshotPolicy{
+				Name: nillable.GetStringPtr("none"), // Example snapshot policy
+			},
 		},
 	}
 	mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)

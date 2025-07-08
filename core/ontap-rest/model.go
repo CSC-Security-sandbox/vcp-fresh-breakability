@@ -939,7 +939,7 @@ type VolumeModifyParams struct {
 	Comment                        *string
 	SecurityStyle                  *string
 	UnixPermissions                *string
-	SnapReserve                    *int
+	SnapReserve                    *int64
 	MaxFiles                       *uint64
 	MaxAutoSize                    *uint64
 	Size                           *uint64
@@ -1043,7 +1043,7 @@ func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModify
 			info.Space.LogicalSpace = &models.VolumeInlineSpaceInlineLogicalSpace{Enforcement: params.LogicalSpaceEnforcement}
 		}
 		if params.SnapReserve != nil {
-			info.Space.Snapshot = &models.VolumeInlineSpaceInlineSnapshot{ReservePercent: nillable.ToPointer(int64(*params.SnapReserve))}
+			info.Space.Snapshot = &models.VolumeInlineSpaceInlineSnapshot{ReservePercent: nillable.ToPointer(*params.SnapReserve)}
 		}
 	}
 
@@ -1354,9 +1354,10 @@ type Flexcache struct {
 // VolumeGetParams is the input param struct for storageClient.VolumeGet
 type VolumeGetParams struct {
 	BaseParams
-	UUID    string
-	Name    string
-	SvmName *string
+	UUID        string
+	Name        string
+	SvmName     *string
+	SnapReserve *int64
 }
 
 func volumeGetParamsToONTAP(params *VolumeGetParams) *storage.VolumeGetParams {

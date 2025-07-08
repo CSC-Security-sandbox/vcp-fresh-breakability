@@ -41,6 +41,7 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 		UUID:               volume.VolumeAttributes.ExternalUUID,
 		Size:               params.QuotaInBytes,
 		SnapshotPolicyName: snapshotPolicyName,
+		SnapReserve:        params.SnapReserve,
 	}
 	if params.TieringPolicy != nil {
 		updateVolumeParams.TieringPolicy = &vsa.TieringPolicy{}
@@ -309,6 +310,14 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 	}
 
 	updates["volume_attributes"] = volume.VolumeAttributes
+	if params.SnapReserve != nil {
+		if volume.VolumeAttributes == nil {
+			volume.VolumeAttributes = &datamodel.VolumeAttributes{}
+		}
+		volume.VolumeAttributes.SnapReserve = *params.SnapReserve
+		updates["volume_attributes"] = volume.VolumeAttributes
+	}
+
 	updates["state"] = models.LifeCycleStateREADY
 	updates["state_details"] = models.LifeCycleStateAvailableDetails
 

@@ -79,6 +79,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	params := args[0].(*common.UpdateVolumeParams)
 	volume := args[1].(*datamodel.Volume)
 	updateActivity := &activities.VolumeUpdateActivity{}
+	deleteActivity := &activities.VolumeDeleteActivity{}
 
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -137,6 +138,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if err != nil {
 				return nil, err
 			}
+			rollbackManager.AddActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, volume.SnapshotPolicy.Name, node)
 		} else // If the volume has an existing snapshot policy, we need to update it with only the changes
 		{
 			if len(updatingPolicy.Schedules) == 0 {
@@ -150,6 +152,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if err != nil {
 				return nil, err
 			}
+			rollbackManager.AddActivity(updateActivity.UpdateSnapshotPolicyInOntap, node, updatingPolicy, &volume.SnapshotPolicy)
 			volume.SnapshotPolicy = updatingPolicy
 		}
 	}
@@ -266,6 +269,12 @@ func populateSnapshotPolicyFromParams(params *models.SnapshotPolicy) *datamodel.
 
 func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeParams, existingVolume *datamodel.Volume) bool {
 	if response.Size < params.QuotaInBytes {
+		return true
+	}
+	if params.SnapshotPolicy != nil && params.SnapshotPolicy.Name != response.SnapshotPolicyName {
+		return true
+	}
+	if params.SnapReserve != nil && response.SnapReserve != *params.SnapReserve {
 		return true
 	}
 

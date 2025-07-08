@@ -22,6 +22,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -265,6 +266,21 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 	if req.SnapshotId.IsSet() {
 		param.SnapshotID = req.SnapshotId.Value
 	}
+
+	if req.Volume.SnapReserve.IsSet() {
+		snapReserve, ok := req.Volume.SnapReserve.Get()
+		if !ok {
+			return nil, errors.NewUserInputValidationErr("SnapReserve must be a valid number")
+		}
+		if snapReserve < 0 {
+			return nil, errors.NewUserInputValidationErr("SnapReserve cannot be negative")
+		}
+		if snapReserve > 90 { // ONTAP allows a maximum of 90% for snapshot reserve during creation
+			return nil, errors.NewUserInputValidationErr("Maximum allowed snapshot-reserve-percentage value during create is 90.Use volume update to set it to a higher value after the volume has been created.")
+		}
+		param.SnapReserve = int64(snapReserve)
+	}
+
 	return param, nil
 }
 
@@ -408,6 +424,16 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		param.SnapshotPolicy = snapShotPolicy
 	}
 
+	if req.SnapReserve.IsSet() {
+		snapReserve := int64(req.SnapReserve.Value)
+		if snapReserve > 100 {
+			return nil, errors.NewUserInputValidationErr("SnapReserve cannot be greater than 100")
+		}
+		param.SnapReserve = nillable.ToPointer(snapReserve)
+	} else {
+		param.SnapReserve = nil
+	}
+
 	return param, nil
 }
 
@@ -501,7 +527,7 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		IsDataProtection:   gcpgenserver.NewOptBool(volume.IsDataProtection),
 		EncryptionType:     gcpgenserver.NewOptVolumeV1betaEncryptionType(gcpgenserver.VolumeV1betaEncryptionType(volume.EncryptionType)),
 		SnapshotDirectory:  gcpgenserver.NewOptBool(false),
-		SnapReserve:        gcpgenserver.NewOptFloat64(0), // default value for now
+		SnapReserve:        gcpgenserver.NewOptFloat64(float64(volume.SnapReserve)),
 		Zone:               gcpgenserver.NewOptString(volume.Zone),
 		UsedBytes:          gcpgenserver.NewOptNilFloat64(float64(volume.UsedBytes)), // default value for now
 	}

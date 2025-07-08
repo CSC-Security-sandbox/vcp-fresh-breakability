@@ -23,7 +23,7 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		Svm:                    params.SvmName,
 		Aggregates:             []string{params.AggregateName},
 		SnapshotPolicy:         params.SnapshotPolicyName,
-		SnapshotReservePercent: 0, // Setting it to 0, yields more available space
+		SnapshotReservePercent: params.SnapReserve,
 	}
 	if params.RestoreFromSnapshot != nil && params.RestoreFromSnapshot.SnapshotUUID != "" {
 		volumeCreateParams.RestoreFromSnapshot = &ontapRest.RestoreFromSnapshotParams{
@@ -110,7 +110,8 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 	if vol == nil || vol.Name == nil || vol.UUID == nil {
 		return nil, errors.NewNotFoundErr("volume", nil)
 	}
-	return &VolumeResponse{
+
+	res := &VolumeResponse{
 		ProviderResponse: ProviderResponse{
 			Name:         *vol.Name,
 			ExternalUUID: *vol.UUID,
@@ -118,7 +119,13 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 		AvailableSpace: *vol.Space.Available,
 		Size:           *vol.Space.Size,
 		State:          *vol.State,
-	}, nil
+		// by default, volume will always have none as the snapshot policy
+		SnapshotPolicyName: *vol.SnapshotPolicy.Name,
+	}
+	if vol.Space.SizeAvailableForSnapshots != nil {
+		res.SnapReserve = *vol.Space.SizeAvailableForSnapshots
+	}
+	return res, nil
 }
 
 func (rc *OntapRestProvider) GetVolumes() ([]*Volume, error) {
@@ -163,7 +170,8 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 		return err
 	}
 	volumeModifyParams := &ontapRest.VolumeModifyParams{
-		UUID: params.UUID,
+		UUID:        params.UUID,
+		SnapReserve: params.SnapReserve,
 	}
 
 	if params.TieringPolicy != nil {

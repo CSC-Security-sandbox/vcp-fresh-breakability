@@ -83,6 +83,7 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 		VolumeType:          volumeType,
 		SnapshotPolicyName:  snapshotPolicyName,
 		RestoreFromSnapshot: &restoreFromSnapshotParam,
+		SnapReserve:         volume.VolumeAttributes.SnapReserve,
 		TieringPolicy: &vsa.TieringPolicy{
 			CoolAccessTieringPolicy: ontapModels.VolumeInlineTieringPolicyNone,
 		},

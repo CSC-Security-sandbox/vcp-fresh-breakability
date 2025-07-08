@@ -426,6 +426,32 @@ func TestVerifyVolumeOwnership(t *testing.T) {
 		assert.Nil(tt, result, "Expected nil volume, got %v", result)
 		assert.Error(tt, err, "Expected error for missing volume")
 	})
+
+	t.Run("WhenVolumeIsNotFoundForAccount_ReturnsNotFoundErr", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Do NOT create a volume for this account
+
+		result, err := store.VerifyVolumeOwnership(context.Background(), "nonexistent-volume-uuid", "test_account")
+		assert.Nil(tt, result, "Expected nil volume, got %v", result)
+		assert.Error(tt, err, "Expected error for missing volume")
+		assert.True(tt, customerrors.IsNotFoundErr(err), "Expected NotFoundErr, got %v", err)
+	})
 }
 
 func TestUpdateVolumeFields(t *testing.T) {

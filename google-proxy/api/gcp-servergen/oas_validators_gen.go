@@ -2618,7 +2618,7 @@ func (s *DailyScheduleV1beta) Validate() error {
 					MinSet:        true,
 					Min:           0,
 					MaxSet:        true,
-					Max:           255,
+					Max:           1024,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
@@ -3374,7 +3374,7 @@ func (s *HourlyScheduleV1beta) Validate() error {
 					MinSet:        true,
 					Min:           0,
 					MaxSet:        true,
-					Max:           255,
+					Max:           1024,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
@@ -4122,7 +4122,7 @@ func (s *MonthlyScheduleV1beta) Validate() error {
 					MinSet:        true,
 					Min:           0,
 					MaxSet:        true,
-					Max:           255,
+					Max:           1024,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,
@@ -14264,63 +14264,6 @@ func (s *VolumeSnapshotCreateV1beta) Validate() error {
 	return nil
 }
 
-func (s *VolumeSnapshotUpdateV1beta) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:    1,
-			MinLengthSet: true,
-			MaxLength:    63,
-			MaxLengthSet: true,
-			Email:        false,
-			Hostname:     false,
-			Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
-		}).Validate(string(s.ResourceId)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "resourceId",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if value, ok := s.Description.Get(); ok {
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:    0,
-					MinLengthSet: false,
-					MaxLength:    2048,
-					MaxLengthSet: true,
-					Email:        false,
-					Hostname:     false,
-					Regex:        nil,
-				}).Validate(string(value)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "description",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
 func (s *VolumeUpdateV1beta) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -15245,7 +15188,7 @@ func (s *WeeklyScheduleV1beta) Validate() error {
 					MinSet:        true,
 					Min:           0,
 					MaxSet:        true,
-					Max:           255,
+					Max:           1024,
 					MinExclusive:  false,
 					MaxExclusive:  false,
 					MultipleOfSet: false,

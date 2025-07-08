@@ -560,7 +560,7 @@ func TestHandler_V1betaUpdateSnapshot(t *testing.T) {
 			LocationId:    "location-id",
 		}
 		req := &gcpserver.VolumeSnapshotUpdateV1beta{
-			Description: gcpserver.NewOptString("snapshot-description"),
+			Description: "snapshot-description",
 		}
 		snapshot := &coremodels.Snapshot{
 			BaseModel: coremodels.BaseModel{
@@ -632,8 +632,7 @@ func TestHandler_V1betaUpdateSnapshot(t *testing.T) {
 			LocationId:    "location-id",
 		}
 		req := &gcpserver.VolumeSnapshotUpdateV1beta{
-			ResourceId:  "snapshot-id",
-			Description: gcpserver.NewOptString("snapshot-description"),
+			Description: "snapshot-description",
 		}
 
 		handler := Handler{

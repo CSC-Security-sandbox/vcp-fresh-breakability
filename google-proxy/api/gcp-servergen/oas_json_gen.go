@@ -48001,20 +48001,13 @@ func (s *VolumeSnapshotUpdateV1beta) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *VolumeSnapshotUpdateV1beta) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("resourceId")
-		e.Str(s.ResourceId)
-	}
-	{
-		if s.Description.Set {
-			e.FieldStart("description")
-			s.Description.Encode(e)
-		}
+		e.FieldStart("description")
+		e.Str(s.Description)
 	}
 }
 
-var jsonFieldsNameOfVolumeSnapshotUpdateV1beta = [2]string{
-	0: "resourceId",
-	1: "description",
+var jsonFieldsNameOfVolumeSnapshotUpdateV1beta = [1]string{
+	0: "description",
 }
 
 // Decode decodes VolumeSnapshotUpdateV1beta from json.
@@ -48026,22 +48019,12 @@ func (s *VolumeSnapshotUpdateV1beta) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "resourceId":
+		case "description":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
-				s.ResourceId = string(v)
+				s.Description = string(v)
 				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"resourceId\"")
-			}
-		case "description":
-			if err := func() error {
-				s.Description.Reset()
-				if err := s.Description.Decode(d); err != nil {
 					return err
 				}
 				return nil

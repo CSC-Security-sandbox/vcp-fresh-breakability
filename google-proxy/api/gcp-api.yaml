@@ -7197,7 +7197,7 @@ components:
       type: object
       properties:
         snapshotsToKeep:
-          maximum: 255
+          maximum: 1024
           minimum: 0
           type: number
           description: The maximum number of snapshots to keep for the hourly schedule
@@ -7220,7 +7220,7 @@ components:
       type: object
       properties:
         snapshotsToKeep:
-          maximum: 255
+          maximum: 1024
           minimum: 0
           type: number
           description: The maximum number of snapshots to keep for the daily schedule
@@ -7253,7 +7253,7 @@ components:
       type: object
       properties:
         snapshotsToKeep:
-          maximum: 255
+          maximum: 1024
           minimum: 0
           type: number
           description: The maximum number of snapshots to keep for the weekly schedule
@@ -7294,7 +7294,7 @@ components:
       type: object
       properties:
         snapshotsToKeep:
-          maximum: 255
+          maximum: 1024
           minimum: 0
           type: number
           description: The maximum number of snapshots to keep for the monthly schedule
@@ -9979,9 +9979,14 @@ components:
     VolumeSnapshotUpdate_v1beta:
       type: object
       description: Request object for updating snapshots from a volume
-      allOf:
-        - $ref: '#/components/schemas/ResourceName_v1beta'
-        - $ref: '#/components/schemas/Description_v1beta'
+      required:
+        - description
+      properties:
+        description:
+          type: string
+          description: Description of the snapshot
+          example: My Snapshot Description
+          x-nullable: false
   responses:
     StandardError-400:
       description: Bad request

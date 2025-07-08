@@ -138,6 +138,14 @@ func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID stri
 		return nil
 	}
 
+	if snapshot.UUID == nil {
+		rc.Logger.With(log.Fields{
+			"snapshotUUID":       snapshotUUID,
+			"volumeExternalUUID": volumeUUID,
+		}).Warn("Snapshot not found, it may have already been deleted")
+		return nil
+	}
+
 	if len(snapshot.Owners) != 0 {
 		return errors.NewConflictErrWithTrackingID("Cannot delete a snapshot that is being actively used in a Volume Replication relationship or a file clone split triggered by Snapshot RestoreFiles operation or used a reference snapshot for a backup.", errors.CannotDeleteSnapshotInUse)
 	}

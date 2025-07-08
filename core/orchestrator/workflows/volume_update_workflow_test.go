@@ -2,13 +2,13 @@ package workflows
 
 import (
 	"errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -1169,4 +1169,275 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_AutoTier() {
 
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 4)
+}
+
+func TestIsUpdateRequired(t *testing.T) {
+	tests := []struct {
+		name           string
+		response       *vsa.VolumeResponse
+		params         *common.UpdateVolumeParams
+		existingVolume *datamodel.Volume
+		want           bool
+	}{
+		{
+			name: "Size increased - update required",
+			response: &vsa.VolumeResponse{
+				Size: 100,
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes: 200,
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess: false,
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccess: false,
+			},
+			want: true,
+		},
+		{
+			name: "Size same - no update required",
+			response: &vsa.VolumeResponse{
+				Size: 200,
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes: 200,
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess: false,
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccess: false,
+			},
+			want: false,
+		},
+		{
+			name: "SnapReserve changed - update required",
+			response: &vsa.VolumeResponse{
+				Size:        150,
+				SnapReserve: 10,
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes: 150,
+				SnapReserve:  &[]int64{20}[0],
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess: false,
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccess: false,
+			},
+			want: true,
+		},
+		{
+			name: "SnapReserve same - no update required",
+			response: &vsa.VolumeResponse{
+				Size:        150,
+				SnapReserve: 10,
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes: 150,
+				SnapReserve:  &[]int64{10}[0],
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess: false,
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccess: false,
+			},
+			want: false,
+		},
+		{
+			name: "SnapshotPolicy name changed - update required",
+			response: &vsa.VolumeResponse{
+				Size:               150,
+				SnapshotPolicyName: "old-policy",
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes:   150,
+				SnapshotPolicy: &models.SnapshotPolicy{Name: "new-policy"},
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess: false,
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccess: false,
+			},
+			want: true,
+		},
+		{
+			name: "SnapshotPolicy name same - no update required",
+			response: &vsa.VolumeResponse{
+				Size:               150,
+				SnapshotPolicyName: "policy1",
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes:   150,
+				SnapshotPolicy: &models.SnapshotPolicy{Name: "policy1"},
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess: false,
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccess: false,
+			},
+			want: false,
+		},
+		{
+			name: "CoolAccess changed from false to true - update required",
+			response: &vsa.VolumeResponse{
+				Size: 150,
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes: 150,
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess:     true,
+					CoolnessPeriod: 10,
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccess:     false,
+				CoolnessPeriod: 5,
+			},
+			want: true,
+		},
+		{
+			name: "CoolAccess changed from true to false - update required",
+			response: &vsa.VolumeResponse{
+				Size: 150,
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes: 150,
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess: false,
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccess:     true,
+				CoolnessPeriod: 10,
+			},
+			want: true,
+		},
+		{
+			name: "CoolnessPeriod changed when CoolAccess is true - update required",
+			response: &vsa.VolumeResponse{
+				Size: 150,
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes: 150,
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess:     true,
+					CoolnessPeriod: 15,
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccess:     true,
+				CoolnessPeriod: 10,
+			},
+			want: true,
+		},
+		{
+			name: "CoolnessPeriod changed when CoolAccess is false - no update required",
+			response: &vsa.VolumeResponse{
+				Size: 150,
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes: 150,
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess:     false,
+					CoolnessPeriod: 15,
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccess:     false,
+				CoolnessPeriod: 10,
+			},
+			want: false,
+		},
+		{
+			name: "No changes - no update required",
+			response: &vsa.VolumeResponse{
+				Size:               150,
+				SnapReserve:        10,
+				SnapshotPolicyName: "policy1",
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes:   150,
+				SnapReserve:    &[]int64{10}[0],
+				SnapshotPolicy: &models.SnapshotPolicy{Name: "policy1"},
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess:     true,
+					CoolnessPeriod: 10,
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccess:     true,
+				CoolnessPeriod: 10,
+			},
+			want: false,
+		},
+		{
+			name: "Multiple changes - update required",
+			response: &vsa.VolumeResponse{
+				Size:               100,
+				SnapReserve:        5,
+				SnapshotPolicyName: "old-policy",
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes:   200,
+				SnapReserve:    &[]int64{15}[0],
+				SnapshotPolicy: &models.SnapshotPolicy{Name: "new-policy"},
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess:     true,
+					CoolnessPeriod: 20,
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccess:     false,
+				CoolnessPeriod: 10,
+			},
+			want: true,
+		},
+		{
+			name: "No SnapReserve or SnapshotPolicy in params - no update required",
+			response: &vsa.VolumeResponse{
+				Size:               150,
+				SnapReserve:        5,
+				SnapshotPolicyName: "policy1",
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes: 150,
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess: false,
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccess: false,
+			},
+			want: false,
+		},
+		{
+			name: "Size decreased but params has changes - no update required for size",
+			response: &vsa.VolumeResponse{
+				Size: 200,
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes: 100,
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess: false,
+				},
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccess: false,
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isUpdateRequired(tt.response, tt.params, tt.existingVolume)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

@@ -50,7 +50,7 @@ func TestVolumeAttributes_Value(t *testing.T) {
 	va := VolumeAttributes{CreationToken: "token"}
 	val, err := va.Value()
 	assert.NoError(t, err)
-	assert.Equal(t, `{"creation_token":"token","protocols":null,"vendor_subnet_id":"","external_uuid":"","block_properties":null,"is_data_protection":false,"labels":null}`, string(val.([]byte)))
+	assert.Equal(t, `{"creation_token":"token","protocols":null,"vendor_subnet_id":"","external_uuid":"","block_properties":null,"is_data_protection":false,"snap_reserve":0,"labels":null}`, string(val.([]byte)))
 }
 
 func TestReplicationDetails_Scan(t *testing.T) {

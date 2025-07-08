@@ -70,6 +70,7 @@ type CreateVolumeParams struct {
 	IsDataProtection bool
 	Protocols        []string
 	BlockProperties  *BlockPropertiesRequest
+	SnapReserve      int64
 	DataProtection   *models.DataProtection
 	SnapshotID       string
 	SnapshotPolicy   *models.SnapshotPolicy
@@ -113,6 +114,7 @@ type UpdateVolumeParams struct {
 	QuotaInBytes    int64
 	Protocols       []string
 	Labels          map[string]string
+	SnapReserve     *int64
 	BlockProperties *BlockPropertiesRequest
 	SnapshotPolicy  *models.SnapshotPolicy
 	DataProtection  *models.DataProtection
@@ -162,7 +164,6 @@ type ListSnapshotsParams struct {
 type UpdateSnapshotParams struct {
 	SnapshotBaseParams
 	SnapshotUUID string
-	Name         string
 	Description  string
 }
 

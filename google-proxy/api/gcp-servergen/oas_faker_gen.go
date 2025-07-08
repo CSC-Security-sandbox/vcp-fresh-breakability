@@ -10734,12 +10734,7 @@ func (s *VolumeSnapshotCreateV1beta) SetFake() {
 func (s *VolumeSnapshotUpdateV1beta) SetFake() {
 	{
 		{
-			s.ResourceId = "string"
-		}
-	}
-	{
-		{
-			s.Description.SetFake()
+			s.Description = "string"
 		}
 	}
 }

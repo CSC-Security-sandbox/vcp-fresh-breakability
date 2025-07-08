@@ -1106,3 +1106,19 @@ func TestUpdateSnapshotPolicyInOntap_Error(t *testing.T) {
 	assert.EqualError(t, err, expectedErr.Error())
 	mockProvider.AssertExpectations(t)
 }
+
+func TestGetUpdatedFieldsFromParams_SnapReserve(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	volume := &datamodel.Volume{
+		VolumeAttributes: &datamodel.VolumeAttributes{},
+	}
+	snapReserve := int64(25)
+	params := &common.UpdateVolumeParams{
+		SnapReserve: &snapReserve,
+	}
+	fields, err := getUpdatedFieldsFromParams(context.Background(), mockStorage, volume, params)
+	assert.NoError(t, err)
+	va, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
+	assert.True(t, ok)
+	assert.Equal(t, snapReserve, va.SnapReserve)
+}

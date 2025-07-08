@@ -137,6 +137,70 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, expected, result)
 	})
+	t.Run("SnapReserveIsSet_ValidValue", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test-volume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+				SnapReserve:   gcpgenserver.NewOptFloat64(50),
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		result, err := prepareCreateVolumeParams(req, params, region)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(50), result.SnapReserve)
+	})
+
+	t.Run("SnapReserveIsSet_NegativeValue", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test-volume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+				SnapReserve:   gcpgenserver.NewOptFloat64(-1),
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		result, err := prepareCreateVolumeParams(req, params, region)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "SnapReserve cannot be negative")
+	})
+
+	t.Run("SnapReserveIsSet_TooLargeValue", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test-volume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+				SnapReserve:   gcpgenserver.NewOptFloat64(91),
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+		result, err := prepareCreateVolumeParams(req, params, region)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Maximum allowed snapshot-reserve-percentage value during create is 90")
+	})
 
 	t.Run("WhenTieringPolicyIsEnabled", func(tt *testing.T) {
 		// Save and restore the original value
@@ -2031,4 +2095,44 @@ func TestPrepareCreateVolumeParams_WithAutoTieringFeatureDisabled(t *testing.T) 
 	_, err := _prepareCreateVolumeParams(req, params, region)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Auto-Tiering feature is currently not enabled.")
+}
+
+func TestPrepareCreateVolumeParams_SnapReserveMustBePositiveNumber(t *testing.T) {
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "test-volume",
+			CreationToken: gcpgenserver.NewOptString("test-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+			Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			// SnapReserve is set but Get() will return (0, false)
+			SnapReserve: gcpgenserver.OptFloat64{Set: true, Value: -1},
+		},
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+	result, err := _prepareCreateVolumeParams(req, params, region)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "SnapReserve cannot be negative")
+}
+
+func TestPrepareUpdateVolumeParams_SnapReserveCannotBeGreaterThan100(t *testing.T) {
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "proj",
+		LocationId:    "loc",
+		VolumeId:      "vol",
+	}
+	region := "region"
+
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		SnapReserve: gcpgenserver.NewOptNilFloat64(101),
+	}
+	result, err := _prepareUpdateVolumeParams(req, params, region)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "SnapReserve cannot be greater than 100")
 }

@@ -232,10 +232,7 @@ func (h Handler) V1betaUpdateSnapshot(ctx context.Context, req *gcpgenserver.Vol
 			VolumeID:    params.VolumeId,
 		},
 		SnapshotUUID: params.SnapshotId,
-		Name:         req.GetResourceId(),
-	}
-	if req.Description.IsSet() {
-		updateParams.Description = req.GetDescription().Value
+		Description:  req.Description,
 	}
 
 	snapshot, jobUUID, err := h.Orchestrator.UpdateSnapshot(ctx, updateParams)
