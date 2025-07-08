@@ -80,7 +80,7 @@ func NewTestStorage(logger log.Logger) (Storage, error) {
 // SetupInMemoryDB sets up an in-memory SQLite database for testing.
 func SetupInMemoryDB() (*gorm.DB, error) {
 	// Use ":memory:" for an in-memory database
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := repository.SetupTestDB()
 	if err != nil {
 		return nil, err
 	}

@@ -1,16 +1,35 @@
 package repository
 
 import (
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	"os"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/sqllite"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func SetupTestDB() (*gorm.DB, error) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	// This function sets up an in-memory SQLite database for testing purposes.
+	return SetupSqliteTestDB("")
+}
+
+func SetupTestFileDB() (*gorm.DB, string, error) {
+	dbname := "/tmp/testdb-" + utils.GenerateRandomAlphanumeric(16) + ".sqlite"
+
+	// Append journal_mode=WAL and synchronous=NORMAL for concurrency and durability
+	dsn := dbname + "?_journal_mode=WAL&_synchronous=NORMAL&_txlock=immediate&cache=shared"
+	db, err := SetupSqliteTestDB(dsn)
+	return db, dbname, err
+}
+
+func SetupSqliteTestDB(dbname string) (*gorm.DB, error) {
+	if dbname == "" {
+		dbname = ":memory:"
+	}
+	db, err := gorm.Open(sqlite.Open(dbname), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
@@ -40,6 +59,14 @@ func SetupTestDB() (*gorm.DB, error) {
 		return nil, err
 	}
 	return db, nil
+}
+
+// cleanupTestDBFile closes the DB and removes the file.
+func cleanupTestDBFile(db *gorm.DB, fileName string) {
+	_ = db.Exec("PRAGMA wal_checkpoint; PRAGMA journal_mode=DELETE;")
+	dbConn, _ := db.DB()
+	_ = dbConn.Close()
+	_ = os.Remove(fileName)
 }
 
 // ClearInMemoryDB deletes all data from the in-memory database.

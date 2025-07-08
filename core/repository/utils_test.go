@@ -7,12 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 func Test_startTransaction(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := SetupTestDB()
 	assert.NoError(t, err)
 
 	t.Run("success", func(t *testing.T) {
@@ -29,7 +28,7 @@ func Test_startTransaction(t *testing.T) {
 }
 
 func Test_commitOrRollbackTransaction(t *testing.T) {
-	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, _ := SetupTestDB()
 	logger := &log.MockLogger{}
 
 	t.Run("commit", func(t *testing.T) {
@@ -67,7 +66,7 @@ func Test_commitOrRollbackTransaction(t *testing.T) {
 }
 
 func Test_commitOrRollbackOnError(t *testing.T) {
-	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, _ := SetupTestDB()
 	logger := &log.MockLogger{}
 
 	t.Run("panic", func(t *testing.T) {
@@ -105,7 +104,7 @@ func Test_commitOrRollbackOnError(t *testing.T) {
 }
 
 func Test_parseDBError(t *testing.T) {
-	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, _ := SetupTestDB()
 	tx := db.Begin()
 	assert.NoError(t, parseDBError(tx))
 	assert.Error(t, parseDBError(nil))

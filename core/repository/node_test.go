@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -278,4 +279,43 @@ func TestDeletingNode(t *testing.T) {
 			tt.Errorf("Expected state details %v, got %v", models.LifeCycleStateDeletingDetails, updatedNode.StateDetails)
 		}
 	})
+}
+
+func TestCreateNode_Parallel_FileBased(t *testing.T) {
+	db, fileName, err := SetupTestFileDB()
+	assert.NoError(t, err, "Failed to set up file-based test database")
+	defer cleanupTestDBFile(db, fileName)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	ctx := context.Background()
+	numParallel := 5
+	names := []string{"nodeA", "nodeB", "nodeC", "nodeD", "nodeE"}
+	var wg sync.WaitGroup
+	errs := make([]error, numParallel)
+	results := make([]*datamodel.Node, numParallel)
+	for i := 0; i < numParallel; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			node := &datamodel.Node{
+				Name:      names[idx],
+				AccountID: int64(idx + 1),
+			}
+			created, err := store.CreateNode(ctx, node)
+			errs[idx] = err
+			results[idx] = created
+		}(i)
+	}
+	wg.Wait()
+	for i, err := range errs {
+		assert.NoError(t, err, "goroutine %d failed", i)
+		assert.NotNil(t, results[i], "goroutine %d result nil", i)
+		if results[i] != nil {
+			t.Logf("Node %s created with ID %d, UUID %s", results[i].Name, results[i].ID, results[i].UUID)
+		}
+	}
+	// Validate all nodes exist in DB
+	var count int64
+	db.Model(&datamodel.Node{}).Count(&count)
+	assert.Equal(t, int64(numParallel), count)
 }
