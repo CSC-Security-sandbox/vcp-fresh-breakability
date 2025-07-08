@@ -85,22 +85,25 @@ jobs:
           
             # List all images and process them
             gcloud artifacts docker images list "$REPO/$IMAGE" --include-tags \
-              --format="value(IMAGE,DIGEST,TAGS,CREATE_TIME)" | while read -r line; do
+              --format="value(IMAGE,DIGEST,TAGS,UPDATE_TIME)" | while read -r line; do
           
               image=$(echo "$line" | awk '{print $1}')
               digest=$(echo "$line" | awk '{print $2}')
               tags_arr=$(echo "$line" | awk '{print $3}')
-              create_time=$(echo "$line" | awk '{print $4}')
-              IFS=',' read -r -a tags <<< "$tags_arr"
-              if [[ -z "$digest" || -z "$create_time" ]]; then
-                echo "Skipping invalid entry: $line"
+              update_time=$(echo "$line" | awk '{print $4}')
+              TAGS_EXIST=1
+              if [[ -z "$update_time" ]]; then
+                TAGS_EXIST=0
+                update_time=$tags_arr
+              fi   
+              # Convert update_time to epoch
+              update_time_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$update_time" +%s 2>/dev/null || date -d "$update_time" +%s)
+              age_days=$(( (current_date - update_time_epoch) / 86400 ))          
+              if [[ $TAGS_EXIST -eq 0 &&  $age_days -gt ${{ vars.AR_RETENTION_WINDOW_IN_DAYS }} && "$digest" != "$LATEST_DIGEST" ]]; then
+                gcloud artifacts docker images delete "$image@$digest"  --quiet
                 continue
               fi
-          
-              # Convert create_time to epoch
-              create_time_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$create_time" +%s 2>/dev/null || date -d "$create_time" +%s)
-              age_days=$(( (current_date - create_time_epoch) / 86400 ))
-          
+              IFS=',' read -r -a tags <<< "$tags_arr"
               # Delete old digests except the latest
               if [[ $age_days -gt ${{ vars.AR_RETENTION_WINDOW_IN_DAYS }} && "$digest" != "$LATEST_DIGEST" ]]; then
                 echo "Deleting tags for image: $image@$digest"
@@ -146,23 +149,25 @@ jobs:
             echo "Latest digest for $CHART: $LATEST_DIGEST"
           
             gcloud artifacts docker images list "$REPO/$CHART" --include-tags \
-              --format="value(IMAGE,DIGEST,TAGS,CREATE_TIME)" | while read -r line; do
+              --format="value(IMAGE,DIGEST,TAGS,UPDATE_TIME)" | while read -r line; do
           
               chart=$(echo "$line" | awk '{print $1}')
               digest=$(echo "$line" | awk '{print $2}')
               tags_arr=$(echo "$line" | awk '{print $3}')
-              create_time=$(echo "$line" | awk '{print $4}')
-              IFS=',' read -r -a tags <<< "$tags_arr"
-          
-              if [[ -z "$digest" || -z "$create_time" ]]; then
-                echo "Skipping invalid entry: $line"
+              update_time=$(echo "$line" | awk '{print $4}')
+              TAGS_EXIST=1
+              if [[ -z "$update_time" ]]; then
+                TAGS_EXIST=0
+                update_time=$tags_arr
+              fi   
+              # Convert update_time to epoch
+              update_time_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$update_time" +%s 2>/dev/null || date -d "$update_time" +%s)
+              age_days=$(( (current_date - update_time_epoch) / 86400 ))            
+              if [[ $TAGS_EXIST -eq 0 &&  $age_days -gt ${{ vars.AR_RETENTION_WINDOW_IN_DAYS }} && "$digest" != "$LATEST_DIGEST" ]]; then
+                gcloud artifacts docker images delete "$chart@$digest"  --quiet
                 continue
               fi
-          
-              # Convert create_time to epoch
-              create_time_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$create_time" +%s 2>/dev/null || date -d "$create_time" +%s)
-              age_days=$(( (current_date - create_time_epoch) / 86400 ))
-          
+              IFS=',' read -r -a tags <<< "$tags_arr"
               # Delete old digests except the latest
               if [[ $age_days -gt ${{ vars.AR_RETENTION_WINDOW_IN_DAYS  }} && "$digest" != "$LATEST_DIGEST" ]]; then
                 echo "Deleting chart: $chart@$digest"
