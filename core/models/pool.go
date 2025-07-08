@@ -26,6 +26,7 @@ type Pool struct {
 	CustomPerformanceParams *CustomPerformanceParams
 	AutoTierBucketName      string
 	SaAccountID             string
+	DeploymentName          string
 }
 
 // PoolAttributes describes the attributes of a pool model

@@ -5745,12 +5745,12 @@ func (_c *MockStorage_Rollback_Call) RunAndReturn(run func(context.Context) erro
 	return _c
 }
 
-// SavePoolWithVsaClusterDetails provides a mock function with given fields: ctx, pool, cluster
-func (_m *MockStorage) SavePoolWithVsaClusterDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
+// SavePoolWithVsaDetails provides a mock function with given fields: ctx, pool, cluster
+func (_m *MockStorage) SavePoolWithVsaDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
 	ret := _m.Called(ctx, pool, cluster)
 
 	if len(ret) == 0 {
-		panic("no return value specified for SavePoolWithVsaClusterDetails")
+		panic("no return value specified for SavePoolWithVsaDetails")
 	}
 
 	var r0 error
@@ -5763,32 +5763,32 @@ func (_m *MockStorage) SavePoolWithVsaClusterDetails(ctx context.Context, pool *
 	return r0
 }
 
-// MockStorage_SavePoolWithVsaClusterDetails_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SavePoolWithVsaClusterDetails'
-type MockStorage_SavePoolWithVsaClusterDetails_Call struct {
+// MockStorage_SavePoolWithVsaDetails_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SavePoolWithVsaDetails'
+type MockStorage_SavePoolWithVsaDetails_Call struct {
 	*mock.Call
 }
 
-// SavePoolWithVsaClusterDetails is a helper method to define mock.On call
+// SavePoolWithVsaDetails is a helper method to define mock.On call
 //   - ctx context.Context
 //   - pool *datamodel.Pool
 //   - cluster *datamodel.ClusterDetails
-func (_e *MockStorage_Expecter) SavePoolWithVsaClusterDetails(ctx interface{}, pool interface{}, cluster interface{}) *MockStorage_SavePoolWithVsaClusterDetails_Call {
-	return &MockStorage_SavePoolWithVsaClusterDetails_Call{Call: _e.mock.On("SavePoolWithVsaClusterDetails", ctx, pool, cluster)}
+func (_e *MockStorage_Expecter) SavePoolWithVsaDetails(ctx interface{}, pool interface{}, cluster interface{}) *MockStorage_SavePoolWithVsaDetails_Call {
+	return &MockStorage_SavePoolWithVsaDetails_Call{Call: _e.mock.On("SavePoolWithVsaDetails", ctx, pool, cluster)}
 }
 
-func (_c *MockStorage_SavePoolWithVsaClusterDetails_Call) Run(run func(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails)) *MockStorage_SavePoolWithVsaClusterDetails_Call {
+func (_c *MockStorage_SavePoolWithVsaDetails_Call) Run(run func(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails)) *MockStorage_SavePoolWithVsaDetails_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(*datamodel.Pool), args[2].(*datamodel.ClusterDetails))
 	})
 	return _c
 }
 
-func (_c *MockStorage_SavePoolWithVsaClusterDetails_Call) Return(_a0 error) *MockStorage_SavePoolWithVsaClusterDetails_Call {
+func (_c *MockStorage_SavePoolWithVsaDetails_Call) Return(_a0 error) *MockStorage_SavePoolWithVsaDetails_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockStorage_SavePoolWithVsaClusterDetails_Call) RunAndReturn(run func(context.Context, *datamodel.Pool, *datamodel.ClusterDetails) error) *MockStorage_SavePoolWithVsaClusterDetails_Call {
+func (_c *MockStorage_SavePoolWithVsaDetails_Call) RunAndReturn(run func(context.Context, *datamodel.Pool, *datamodel.ClusterDetails) error) *MockStorage_SavePoolWithVsaDetails_Call {
 	_c.Call.Return(run)
 	return _c
 }

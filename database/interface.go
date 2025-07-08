@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"gorm.io/gorm"
 )
@@ -45,7 +45,6 @@ type (
 		ConnectionTimeout int
 		AdminUser         string
 		AdminPassword     string
-		MigrationPath     string
 	}
 )
 
@@ -62,10 +61,10 @@ type DataStore interface {
 	ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error)
 	GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.PoolView, error)
 	GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error)
-	SavePoolWithVsaClusterDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error
+	SavePoolWithVsaDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error
 	UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error)
 
-	CreateVolume(ctx context.Context, volume *datamodel.Volume, params *commonparams.CreateVolumeParams) (*datamodel.Volume, error)
+	CreateVolume(ctx context.Context, volume *datamodel.Volume, params *common.CreateVolumeParams) (*datamodel.Volume, error)
 	GetVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 	GetVolumeWithAccountID(ctx context.Context, id string, accountID int64) (*datamodel.Volume, error)
 	GetVolumeCount(ctx context.Context, accountName string) (int64, error)

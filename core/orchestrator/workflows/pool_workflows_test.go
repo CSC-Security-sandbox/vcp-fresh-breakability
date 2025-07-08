@@ -85,7 +85,6 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
 	// Execute workflow
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 

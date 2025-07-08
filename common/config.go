@@ -50,9 +50,6 @@ type Config struct {
 	UsernameFile   string // Path to a file containing the database username.
 	PasswordFile   string // Path to a file containing the database password.
 
-	// Migration settings
-	MigrationPath string // Path to database migration files (e.g., "./migrations").
-
 	// Admin database credentials (Use only when necessary)
 	DBAdminUser     string // Admin user for privileged operations.
 	DBAdminPassword string // Admin password (Avoid hardcoding, use secret management tools).
@@ -84,7 +81,6 @@ func LoadConfig() *Config {
 	dbMaxOpenConns := env.GetInt("DB_MAX_OPEN_CONNS", 25)
 	dbMaxIdleConns := env.GetInt("DB_MAX_IDLE_CONNS", 25)
 	dbConnMaxLifetime := parseDuration(env.GetString("DB_CONN_MAX_LIFETIME", "1h"))
-	MigrationPath := env.GetString("MIGRATION_PATH", "migrations/core")
 	dbAdminUser := env.GetString("DB_ADMIN_USER", "")
 	dbAdminPassword := env.GetString("DB_ADMIN_PASSWORD", "")
 	dbMSIUser := env.GetString("DB_MSI_USER", "")
@@ -116,7 +112,6 @@ func LoadConfig() *Config {
 		DBMaxOpenConns:       dbMaxOpenConns,
 		DBMaxIdleConns:       dbMaxIdleConns,
 		DBConnMaxLifetime:    dbConnMaxLifetime,
-		MigrationPath:        MigrationPath,
 		DBAdminUser:          dbAdminUser,
 		DBAdminPassword:      dbAdminPassword,
 		MSIEnabled:           msiEnabled,

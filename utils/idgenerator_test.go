@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"github.com/stretchr/testify/assert"
 	"regexp"
 	"testing"
 )
@@ -122,4 +123,45 @@ func TestGetOperationUUID(t *testing.T) {
 			t.Errorf("expected %s, got %s", expectedUUID, got)
 		}
 	})
+}
+
+func TestGenerateDeterministicDeploymentName(t *testing.T) {
+	accountID := int64(12345)
+	poolID := "test-pool"
+	region := "us-central1"
+	name := GenerateDeterministicDeploymentName(accountID, poolID, region)
+
+	// Check length
+	if len(name) != 20 {
+		t.Errorf("Expected length 20, got %d", len(name))
+	}
+
+	// Check prefix
+	if name[:5] != "gcnv-" {
+		t.Errorf("Expected prefix 'gcnv-', got %s", name[:5])
+	}
+
+	// Check hex part
+	hexPart := name[5:]
+	if len(hexPart) != 15 {
+		t.Errorf("Expected hex part length 15, got %d", len(hexPart))
+	}
+	hexRegex := regexp.MustCompile("^[0-9a-f]{15}$")
+	if !hexRegex.MatchString(hexPart) {
+		t.Errorf("Hex part contains invalid characters: %s", hexPart)
+	}
+
+	// Check determinism
+	name2 := GenerateDeterministicDeploymentName(accountID, poolID, region)
+	assert.Equal(t, name, name2, "Expected deterministic output to be the same for the same inputs")
+
+	// Check uniqueness for different inputs
+	name3 := GenerateDeterministicDeploymentName(accountID+1, poolID, region)
+	assert.NotEqual(t, name, name3, "Expected different output for different accountID")
+
+	name4 := GenerateDeterministicDeploymentName(accountID, poolID+"-diff", region)
+	assert.NotEqual(t, name, name4, "Expected different output for different poolID")
+
+	name5 := GenerateDeterministicDeploymentName(accountID, poolID, region+"-diff")
+	assert.NotEqual(t, name, name5, "Expected different output for different region")
 }

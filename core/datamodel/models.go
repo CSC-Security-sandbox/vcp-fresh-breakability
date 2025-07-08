@@ -24,7 +24,7 @@ type Pool struct {
 	AllowAutoTiering        bool            `gorm:"column:allow_auto_tiering;default:false"`
 	HotTierSizeInBytes      int64           `gorm:"column:hot_tier_size_in_bytes"`
 	EnableHotTierAutoResize bool            `gorm:"column:enable_hot_tier_auto_resize;default:false"`
-	AccountID               int64           `gorm:"column:account_id"`
+	AccountID               int64           `gorm:"column:account_id;uniqueIndex:idx_account_deployment"`
 	Account                 *Account        `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	PoolAttributes          *PoolAttributes `gorm:"column:pool_attributes;type:jsonb"`
 	ClusterDetails          ClusterDetails  `gorm:"column:cluster_details;type:jsonb"`
@@ -34,6 +34,7 @@ type Pool struct {
 	AutoTierBucketName      string          `gorm:"column:auto_tier_bucket_name;type:text"`
 	ServiceAccountId        string          `gorm:"column:service_account_id;type:text"`
 	SecretID                string          `gorm:"column:secret_id"`
+	DeploymentName          string          `gorm:"column:deployment_name;uniqueIndex:idx_account_deployment"`
 	KmsConfigID             sql.NullInt64   `gorm:"index"`
 	KmsConfig               *KmsConfig      `gorm:"ForeignKey:KmsConfigID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 }

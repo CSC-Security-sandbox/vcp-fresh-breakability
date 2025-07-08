@@ -416,8 +416,8 @@ func (s *PersistenceStore) GetPoolByName(ctx context.Context, conditions [][]int
 	return s.dataStore.GetPoolByName(ctx, conditions)
 }
 
-func (s *PersistenceStore) SavePoolWithVsaClusterDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
-	return s.dataStore.SavePoolWithVsaClusterDetails(ctx, pool, cluster)
+func (s *PersistenceStore) SavePoolWithVsaDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
+	return s.dataStore.SavePoolWithVsaDetails(ctx, pool, cluster)
 }
 
 func (s *PersistenceStore) UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error) {

@@ -23,7 +23,6 @@ data:
   DB_MAX_IDLE_CONNS: {{ .Values.workerConfig.database.maxIdleConns | quote }}
   DB_CONN_MAX_LIFETIME: {{ .Values.workerConfig.database.maxConnLifetime | quote }}
   RUN_MIGRATION_ON_START: {{ .Values.workerConfig.database.runMigrationOnStart | quote }}
-  MIGRATION_PATH: {{ .Values.workerConfig.database.migrationPath | quote }}
   GCE_METADATA_HOST: {{ .Values.workerConfig.gceMetadataHost | quote }}
   GCP_CONSUMER_MGMT_ENDPOINT_URL: {{ .Values.workerConfig.gcpConsumerMgmtEndpointUrl | quote }}
   GCP_SERVICE_NETWORKING_ENDPOINT_URL: {{ .Values.workerConfig.gcpServiceNetworkingEndpointUrl | quote }}

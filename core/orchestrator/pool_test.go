@@ -1148,6 +1148,7 @@ func TestMultiplePools(t *testing.T) {
 				Iops:            1024,
 				PrimaryZone:     "us-central1-a",
 			},
+			DeploymentName: "dep1",
 		}
 		pool2 := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid2"},
@@ -1158,6 +1159,7 @@ func TestMultiplePools(t *testing.T) {
 				Iops:            2048,
 				PrimaryZone:     "us-central1-b",
 			},
+			DeploymentName: "dep2",
 		}
 		err = store.DB().Create(pool1).Error
 		if err != nil {
@@ -1287,6 +1289,7 @@ func TestListPools(t *testing.T) {
 				Iops:            1024,
 				PrimaryZone:     "us-central1-a",
 			},
+			DeploymentName: "dep1",
 		}
 		pool2 := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid2"},
@@ -1298,6 +1301,7 @@ func TestListPools(t *testing.T) {
 				PrimaryZone:     "us-central1-b",
 				SecondaryZone:   "us-central1-c",
 			},
+			DeploymentName: "dep2",
 		}
 		err = store.DB().Create(pool1).Error
 		if err != nil {
@@ -1356,12 +1360,14 @@ func TestListAllPools(t *testing.T) {
 		Name:           "test_pool_1",
 		AccountID:      account.ID,
 		PoolAttributes: &datamodel.PoolAttributes{},
+		DeploymentName: "dep1",
 	}
 	pool2 := &datamodel.Pool{
 		BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid2", DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true}},
 		Name:           "test_pool_2",
 		AccountID:      account.ID,
 		PoolAttributes: &datamodel.PoolAttributes{},
+		DeploymentName: "dep2",
 	}
 	err = store.DB().Create(pool1).Error
 	if err != nil {

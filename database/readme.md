@@ -22,7 +22,6 @@ func main() {
         AdminUser:     "postgres",
         AdminPassword: "postgrespass",
         SSLMode:       "disable",
-        MigrationPath: "migrations",
     }
 
     db, err := database.New(config)

@@ -98,7 +98,7 @@ func TestSavePoolWithClusterDetails_Success(t *testing.T) {
 	pool := &datamodel.Pool{Name: "test-pool"}
 	cluster := &datamodel.ClusterDetails{}
 
-	mockStorage.On("SavePoolWithVsaClusterDetails", ctx, pool, cluster).Return(nil)
+	mockStorage.On("SavePoolWithVsaDetails", ctx, pool, cluster).Return(nil)
 
 	// Act
 	err := activity.SavePoolWithClusterDetails(ctx, pool, cluster)
@@ -116,7 +116,7 @@ func TestSavePoolWithClusterDetails_Failure(t *testing.T) {
 	pool := &datamodel.Pool{Name: "test-pool"}
 	cluster := &datamodel.ClusterDetails{}
 
-	mockStorage.On("SavePoolWithVsaClusterDetails", ctx, pool, cluster).Return(gorm.ErrInvalidData)
+	mockStorage.On("SavePoolWithVsaDetails", ctx, pool, cluster).Return(gorm.ErrInvalidData)
 
 	// Act
 	err := activity.SavePoolWithClusterDetails(ctx, pool, cluster)
@@ -424,7 +424,7 @@ func TestPoolActivity_SaveNodeDetails(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{Name: "test-pool"}
 
-	mockStorage.On("SavePoolWithVsaClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("SavePoolWithVsaDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Act
 	err := activity.SavePoolWithClusterDetails(ctx, pool, &datamodel.ClusterDetails{})
@@ -1915,19 +1915,6 @@ func Test_DeletesPoolResourcesSuccessfully(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, pool, result)
-}
-
-func Test_ReturnsErrorWhenClusterDetailsAreMissing(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: ""}}
-
-	result, err := activity.DeleteVSADeployment(ctx, pool)
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "pool cannot be deleted with active clusters")
 }
 
 func Test_ReturnsErrorWhenVLMConfigPreparationFails(t *testing.T) {

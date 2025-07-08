@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"math/rand"
 	"regexp"
 	"time"
@@ -75,4 +78,11 @@ func GetOperationUUID(operationID string) string {
 		return parts[len(parts)-1]
 	}
 	return ""
+}
+
+// GenerateDeterministicDeploymentName generates a deterministic deployment name based on accountID and poolID
+func GenerateDeterministicDeploymentName(accountID int64, poolID string, region string) string {
+	data := fmt.Sprintf("%d-%s-%s", accountID, poolID, region)
+	hash := sha256.Sum256([]byte(data))
+	return "gcnv-" + hex.EncodeToString(hash[:8])[:15]
 }

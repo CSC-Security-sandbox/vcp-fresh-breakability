@@ -372,7 +372,7 @@ func (j *PoolActivity) DeployDeploymentManager(ctx context.Context, deploymentNa
 
 func (j *PoolActivity) SavePoolWithClusterDetails(ctx context.Context, dbPool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
 	se := j.SE
-	err := se.SavePoolWithVsaClusterDetails(ctx, dbPool, cluster)
+	err := se.SavePoolWithVsaDetails(ctx, dbPool, cluster)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -569,10 +569,7 @@ func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, primary
 }
 
 func (j *PoolActivity) DeleteVSADeployment(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
-	if pool.ClusterDetails.ExternalName == "" {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("pool cannot be deleted with active clusters")))
-	}
-	deploymentName := pool.ClusterDetails.ExternalName
+	deploymentName := pool.DeploymentName
 
 	logger := util.GetLogger(ctx)
 	cfg := &vlmconfig.VLMConfig{}

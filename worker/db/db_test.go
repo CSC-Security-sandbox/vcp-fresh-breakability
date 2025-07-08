@@ -25,7 +25,6 @@ func TestGetDBConfig(t *testing.T) {
 		DBMaxOpenConns:    10,
 		DBMaxIdleConns:    5,
 		DBConnMaxLifetime: 30 * time.Minute,
-		MigrationPath:     "./migrations",
 		DBAdminUser:       "admin",
 		DBAdminPassword:   "adminpass",
 		MSIEnabled:        false,
@@ -136,7 +135,6 @@ func TestInitializeDatabase(t *testing.T) {
 		DBMaxOpenConns:    10,
 		DBMaxIdleConns:    5,
 		DBConnMaxLifetime: 30 * time.Minute,
-		MigrationPath:     "./migrations",
 	}
 
 	originalDoConnect := db.DoConnect

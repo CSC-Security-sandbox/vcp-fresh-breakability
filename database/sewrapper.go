@@ -6,8 +6,8 @@ package database
 
 import (
 	"context"
-	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-
+	
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -232,12 +232,12 @@ func (re *retryEngine) GetPoolByName(ctx context.Context, conditions [][]interfa
 	return var0, err
 }
 
-func (re *retryEngine) SavePoolWithVsaClusterDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
+func (re *retryEngine) SavePoolWithVsaDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		err = re.dataStore.SavePoolWithVsaClusterDetails(ctx, pool, cluster)
+		err = re.dataStore.SavePoolWithVsaDetails(ctx, pool, cluster)
 		if err != nil {
-			re.logError("SavePoolWithVsaClusterDetails", err)
+			re.logError("SavePoolWithVsaDetails", err)
 			if !isTransientErr(err) {
 				return false, err
 			}
@@ -271,7 +271,7 @@ func (re *retryEngine) UpdatePoolWithKmsConfigID(ctx context.Context, pool *data
 	return var0, err
 }
 
-func (re *retryEngine) CreateVolume(ctx context.Context, volume *datamodel.Volume, params *commonparams.CreateVolumeParams) (*datamodel.Volume, error) {
+func (re *retryEngine) CreateVolume(ctx context.Context, volume *datamodel.Volume, params *common.CreateVolumeParams) (*datamodel.Volume, error) {
 	var var0 *datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

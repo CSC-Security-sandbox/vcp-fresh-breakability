@@ -83,6 +83,9 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 	saTimestamp := time.Now().Format("20060102150405")
 	serviceAccountID := fmt.Sprintf("vsa-sa-%s", saTimestamp)
 	poolObj := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: utils.RandomUUID(),
+		},
 		Name:                    params.Name,
 		Account:                 account,
 		AccountID:               account.ID,
@@ -106,6 +109,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 			SecondaryZone:   params.SecondaryZone,
 		},
 	}
+	poolObj.DeploymentName = utils.GenerateDeterministicDeploymentName(poolObj.AccountID, poolObj.UUID, params.Region)
 
 	if commonparams.AuthType == commonparams.USERNAME_PWD_SEC_MGR {
 		poolObj.SecretID = utils.RandomUUID()
@@ -117,6 +121,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 
 	dbPool, err := se.CreatingPool(ctx, poolObj)
 	if err != nil {
+		logger.Error("Failed to create pool in database", "error", err)
 		return nil, "", err
 	}
 
@@ -554,6 +559,7 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 		QosType:                 pool.QosType,
 		HotTierSizeInBytes:      uint64(pool.HotTierSizeInBytes),
 		EnableHotTierAutoResize: pool.EnableHotTierAutoResize,
+		DeploymentName:          pool.DeploymentName,
 		PoolAttributes: &models.PoolAttributes{
 			AllocatedBytes:  float64(pool.QuotaInBytes),
 			NumberOfVolumes: pool.VolumeCount,

@@ -35,7 +35,6 @@ func main() {
 		MaxOpenConns:    cfg.DBMaxOpenConns,
 		MaxIdleConns:    cfg.DBMaxIdleConns,
 		ConnMaxLifetime: cfg.DBConnMaxLifetime,
-		MigrationPath:   cfg.MigrationPath,
 		AdminUser:       *adminUser,
 		AdminPassword:   *adminPass,
 	}

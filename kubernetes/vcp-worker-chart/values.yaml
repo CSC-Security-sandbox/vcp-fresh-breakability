@@ -73,7 +73,6 @@ workerConfig:
     sslMode: "disable"
     timezone: "UTC"
     runMigrationOnStart: "true"
-    migrationPath: "migrations/core"
     host: cloud-sql-proxy.sde.svc.cluster.local
     port: 5432
     user: postgres

@@ -403,7 +403,7 @@ func TestSavePoolWithVsaClusterDetails(t *testing.T) {
 			OntapVersion: "9.10.1",
 		}
 
-		err = store.SavePoolWithVsaClusterDetails(context.Background(), pool, clusterDetails)
+		err = store.SavePoolWithVsaDetails(context.Background(), pool, clusterDetails)
 		if err != nil {
 			tt.Errorf("Expected no error, got %v", err)
 		}

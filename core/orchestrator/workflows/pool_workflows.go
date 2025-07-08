@@ -163,7 +163,8 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		vsaClusterPassword = pool.Password
 	}
 
-	clusterName := params.Name + "-" + params.AccountName
+	// Use deployment name as cluster name
+	deploymentName := dbPool.DeploymentName
 	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
 	// Convert CustomPerformanceParams to CustomerRequestedPerformance.
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
@@ -177,13 +178,13 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	poolWithClusterDetails := dbPool
 	poolWithClusterDetails.ClusterDetails = datamodel.ClusterDetails{
-		ExternalName:          clusterName,
+		ExternalName:          "",
 		RegionalTenantProject: tenancyDetails.RegionalTenantProject,
 		SnHostProject:         tenancyDetails.SnHostProject,
 		Network:               tenancyDetails.Network}
 	rollbackManager.AddActivity(poolActivity.DeleteVSADeployment, poolWithClusterDetails)
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, clusterName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkName, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, vsaClusterPassword, serviceAccount.Email, pool.AutoTierBucketName).Get(ctx, vlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, deploymentName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkName, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, vsaClusterPassword, serviceAccount.Email, pool.AutoTierBucketName).Get(ctx, vlmConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +220,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	clusterDetails := &datamodel.ClusterDetails{
-		ExternalName:          clusterName,
+		ExternalName:          vlmConfig.Deployment.DeploymentName + "-cluster", // FIXME: Replace with cluster name from VLM config instead of deployment name
 		OntapVersion:          ontapVersion,
 		RegionalTenantProject: tenancyDetails.RegionalTenantProject,
 		SnHostProject:         tenancyDetails.SnHostProject,

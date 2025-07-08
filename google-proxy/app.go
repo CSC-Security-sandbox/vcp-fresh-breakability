@@ -135,7 +135,6 @@ func GetDBConfig(cfg *common.Config) database.DbConfig {
 		MaxOpenConns:    cfg.DBMaxOpenConns,
 		MaxIdleConns:    cfg.DBMaxIdleConns,
 		ConnMaxLifetime: cfg.DBConnMaxLifetime,
-		MigrationPath:   cfg.MigrationPath,
 		AdminUser:       cfg.DBAdminUser,
 		AdminPassword:   cfg.DBAdminPassword,
 	}

@@ -69,7 +69,9 @@ func (d *DataStoreRepository) CreatingPool(ctx context.Context, pool *datamodel.
 	var dbPool *datamodel.Pool
 	err1 := tx.Where("name = ?", pool.Name).Where("account_id = ?", pool.AccountID).First(&dbPool).Error
 	if errors.Is(err1, gorm.ErrRecordNotFound) {
-		pool.UUID = utils.RandomUUID()
+		if pool.UUID == "" {
+			pool.UUID = utils.RandomUUID()
+		}
 		pool.State = models.LifeCycleStateCreating
 		pool.StateDetails = models.LifeCycleStateCreatingDetails
 		pool.CreatedAt = time.Now()
@@ -251,7 +253,7 @@ func _listPoolWithDetails(db *gorm.DB) ([]*datamodel.PoolView, error) {
 	return pools, nil
 }
 
-func (d *DataStoreRepository) SavePoolWithVsaClusterDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
+func (d *DataStoreRepository) SavePoolWithVsaDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
@@ -260,9 +262,7 @@ func (d *DataStoreRepository) SavePoolWithVsaClusterDetails(ctx context.Context,
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 	pool.ClusterDetails = *cluster
-	err = tx.Model(&pool).Updates(map[string]interface{}{
-		"cluster_details": pool.ClusterDetails,
-	}).Error
+	err = tx.Updates(pool).Error
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
@@ -298,6 +298,7 @@ func ConvertPoolViewToPool(view *datamodel.PoolView) *datamodel.Pool {
 		AutoTierBucketName:      view.AutoTierBucketName,
 		ServiceAccountId:        view.ServiceAccountId,
 		SecretID:                view.SecretID,
+		DeploymentName:          view.DeploymentName,
 	}
 }
 

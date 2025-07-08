@@ -1,3 +1,7 @@
+// Package postgres provides database migration functionality for PostgreSQL.
+// It supports a two-phase migration approach:
+// 1. Pre-migrations: Run before GORM AutoMigrate (schema changes)
+// 2. Post-migrations: Run after GORM AutoMigrate (data changes)
 package postgres
 
 import (
@@ -17,7 +21,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
-//go:embed migrations/core/*.sql
+//go:embed migrations/core/pre/*.sql migrations/core/post/*.sql
 var migrationsFS embed.FS
 
 type Migrator struct {
@@ -26,14 +30,9 @@ type Migrator struct {
 }
 
 func (m *Migrator) Migrate(db *gormwrapper.Wrapper, ctx context.Context) error {
-	// Step 1: Run SQL migrations
-	sqlMig, err := m.createMigrator(db, "migrations/core")
-	if err != nil {
-		return fmt.Errorf("failed to create migrator: %w", err)
-	}
-
-	if err := m.runSQLMigrations(ctx, sqlMig); err != nil {
-		return fmt.Errorf("SQL migrations failed: %w", err)
+	// Step 1: Run pre-migration SQL files
+	if err := m.runPreMigrations(db, ctx); err != nil {
+		return fmt.Errorf("pre-migration SQL files failed: %w", err)
 	}
 
 	// Step 2: Run GORM AutoMigrate
@@ -41,7 +40,12 @@ func (m *Migrator) Migrate(db *gormwrapper.Wrapper, ctx context.Context) error {
 		return fmt.Errorf("AutoMigrate failed: %w", err)
 	}
 
-	// Step 3: Run post-migration fixes
+	// Step 3: Run post-migration SQL files
+	if err := m.runPostMigrations(db, ctx); err != nil {
+		return fmt.Errorf("post-migration SQL files failed: %w", err)
+	}
+
+	// Step 4: Run post-migration fixes
 	if err := m.postMigrationFixes(ctx); err != nil {
 		return fmt.Errorf("post-migration fixes failed: %w", err)
 	}
@@ -49,29 +53,64 @@ func (m *Migrator) Migrate(db *gormwrapper.Wrapper, ctx context.Context) error {
 	return nil
 }
 
-func (m *Migrator) createMigrator(db *gormwrapper.Wrapper, migrationPath string) (*migrate.Migrate, error) {
+func (m *Migrator) runPreMigrations(db *gormwrapper.Wrapper, ctx context.Context) error {
 	sqlDB, err := db.DB()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get sql.DB: %w", err)
+		return fmt.Errorf("failed to get sql.DB: %w", err)
 	}
 
 	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create migration driver: %w", err)
+		return fmt.Errorf("failed to create migration driver: %w", err)
 	}
 
-	source, err := iofs.New(migrationsFS, migrationPath)
+	source, err := iofs.New(migrationsFS, "migrations/core/pre")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create migration source: %w", err)
+		return fmt.Errorf("failed to create migration source: %w", err)
 	}
 
-	return migrate.NewWithInstance("iofs", source, "postgres", driver)
+	mig, err := migrate.NewWithInstance("iofs", source, "postgres", driver)
+	if err != nil {
+		return fmt.Errorf("failed to create migrator: %w", err)
+	}
+
+	if err := mig.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to run pre-migrations: %w", err)
+	}
+
+	m.Logger.InfoContext(ctx, "Successfully executed pre-migrations")
+	return nil
 }
 
-func (m *Migrator) runSQLMigrations(ctx context.Context, mig *migrate.Migrate) error {
-	if err := mig.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("failed to run migrations: %w", err)
+func (m *Migrator) runPostMigrations(db *gormwrapper.Wrapper, ctx context.Context) error {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get sql.DB: %w", err)
 	}
+
+	// Use a separate schema_migrations table for post-migrations to avoid conflicts
+	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{
+		MigrationsTable: "schema_migrations_post",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create migration driver: %w", err)
+	}
+
+	source, err := iofs.New(migrationsFS, "migrations/core/post")
+	if err != nil {
+		return fmt.Errorf("failed to create migration source: %w", err)
+	}
+
+	mig, err := migrate.NewWithInstance("iofs", source, "postgres", driver)
+	if err != nil {
+		return fmt.Errorf("failed to create migrator: %w", err)
+	}
+
+	if err := mig.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to run post-migrations: %w", err)
+	}
+
+	m.Logger.InfoContext(ctx, "Successfully executed post-migrations")
 	return nil
 }
 
@@ -103,10 +142,26 @@ func (m *Migrator) postMigrationFixes(ctx context.Context) error {
 }
 
 func (m *Migrator) Rollback(db *gormwrapper.Wrapper, ctx context.Context) error {
-	sqlMig, err := m.createMigrator(db, "migrations/core")
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get sql.DB: %w", err)
+	}
+
+	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create migration driver: %w", err)
+	}
+
+	source, err := iofs.New(migrationsFS, "migrations/core/pre")
+	if err != nil {
+		return fmt.Errorf("failed to create migration source: %w", err)
+	}
+
+	sqlMig, err := migrate.NewWithInstance("iofs", source, "postgres", driver)
 	if err != nil {
 		return fmt.Errorf("failed to create migrator: %w", err)
 	}
+
 	// Check if there are any migrations to rollback
 	version, dirty, err := sqlMig.Version()
 	if err != nil && !errors.Is(err, migrate.ErrNilVersion) {
