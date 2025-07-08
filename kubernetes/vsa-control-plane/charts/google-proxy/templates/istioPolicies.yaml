@@ -1,0 +1,46 @@
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: istio-peer-authentication-{{ .Release.Namespace }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: istio-peer-authentication-google-proxy
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: google-proxy
+  mtls:
+    mode: PERMISSIVE # CCFE should be able to invoke google-proxy api hence mode is set as PERMISSIVE here.
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-to-google-proxy
+  namespace: {{ .Release.Namespace }}
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: google-proxy
+  rules:
+    - {}   # Matches all sources (internal and external)
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-internal-from-specific-namespaces
+  namespace: {{ .Release.Namespace }}
+spec:
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            namespaces: ["temporal", "otel", {{ .Release.Namespace | quote}}]
