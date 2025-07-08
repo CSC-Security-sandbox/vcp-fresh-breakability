@@ -9,6 +9,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cloud"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/name_services"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/networking"
 	san "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/s_a_n"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/security"
@@ -2922,5 +2923,31 @@ func snapmirrorCloudSnapshotDeleteParamsToONTAP(params *SnapmirrorCloudSnapshotD
 	if params.SnapshotUUID != "" {
 		otParams.SetUUID(params.SnapshotUUID)
 	}
+	return otParams
+}
+
+func dnsCreateParamsToONTAP(params *DNSCreateParams) *name_services.DNSCreateParams {
+	otParams := name_services.NewDNSCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	rr := "true"
+	otParams.SetReturnRecords(&rr)
+
+	dnsDomains := make(models.DNSDomainsArrayInline, len(params.Domains))
+	for i, domain := range params.Domains {
+		dnsDomains[i] = nillable.ToPointer(domain)
+	}
+
+	dnsServers := make(models.NameServersArrayInline, len(params.DNSServers))
+	for i, server := range params.DNSServers {
+		dnsServers[i] = nillable.ToPointer(server)
+	}
+	otParams.SetInfo(
+		&models.DNS{
+			Domains: dnsDomains,
+			Servers: dnsServers,
+		})
 	return otParams
 }

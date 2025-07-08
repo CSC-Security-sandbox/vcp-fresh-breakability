@@ -478,6 +478,52 @@ func (_c *MockProvider_CreateDataLIF_Call) RunAndReturn(run func(CreateLifParams
 	return _c
 }
 
+// CreateDns provides a mock function with given fields: params
+func (_m *MockProvider) CreateDns(params CreateDnsParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateDns")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(CreateDnsParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_CreateDns_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateDns'
+type MockProvider_CreateDns_Call struct {
+	*mock.Call
+}
+
+// CreateDns is a helper method to define mock.On call
+//   - params CreateDnsParams
+func (_e *MockProvider_Expecter) CreateDns(params interface{}) *MockProvider_CreateDns_Call {
+	return &MockProvider_CreateDns_Call{Call: _e.mock.On("CreateDns", params)}
+}
+
+func (_c *MockProvider_CreateDns_Call) Run(run func(params CreateDnsParams)) *MockProvider_CreateDns_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(CreateDnsParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateDns_Call) Return(_a0 error) *MockProvider_CreateDns_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_CreateDns_Call) RunAndReturn(run func(CreateDnsParams) error) *MockProvider_CreateDns_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateKmsConfig provides a mock function with given fields: params
 func (_m *MockProvider) CreateKmsConfig(params CreateKmsConfigParams) (*CreateKmsConfigResponse, error) {
 	ret := _m.Called(params)

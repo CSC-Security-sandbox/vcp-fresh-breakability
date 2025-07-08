@@ -35,6 +35,7 @@ packages:
       SVMClient:
       SnapmirrorClient:
       CloudClient:
+      NameServicesClient:
   github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa:
     config:
       dir: "{{.InterfaceDir}}"

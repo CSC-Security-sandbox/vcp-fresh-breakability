@@ -420,3 +420,8 @@ type SnapshotPolicyScheduleUpdate struct {
 	Action                 action
 	SnapshotPolicySchedule SnapshotPolicySchedule
 }
+
+type CreateDnsParams struct {
+	Domains []string
+	Servers []string
+}

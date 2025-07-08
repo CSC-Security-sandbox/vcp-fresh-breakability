@@ -28,6 +28,7 @@ type RESTClient interface { // generate:mock
 	SVM() SVMClient
 	Poll(jobUUID string) error
 	Snapmirror() SnapmirrorClient
+	NameServices() NameServicesClient
 }
 
 type OntapRestClient struct {
@@ -42,6 +43,7 @@ type OntapRestClient struct {
 	poller                    Poller
 	snapmirror                *snapmirrorClient
 	cloud                     *cloudClient
+	nameServices              *nameServicesClient
 }
 
 // RESTClientParams describes the parameters for creating a new RESTClient
@@ -110,6 +112,7 @@ func NewClient(params RESTClientParams) (RESTClient, error) {
 			snapmirror:                &snapmirrorClient{api: api.Snapmirror, apiPriv: apiPriv.Snapmirror},
 			poller:                    p,
 			security:                  &securityClient{api: &api.Security},
+			nameServices:              &nameServicesClient{api: &api.NameServices},
 		}
 		if err := TestConnection(rc); err == nil {
 			return rc, nil
@@ -192,4 +195,9 @@ func (rc *OntapRestClient) Snapmirror() SnapmirrorClient {
 // Cloud returns a Cloud client
 func (rc *OntapRestClient) Cloud() CloudClient {
 	return rc.cloud
+}
+
+// NameServicesClient returns a Name Services client
+func (rc *OntapRestClient) NameServices() NameServicesClient {
+	return rc.nameServices
 }

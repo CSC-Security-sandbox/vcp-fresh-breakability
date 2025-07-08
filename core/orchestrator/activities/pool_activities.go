@@ -92,10 +92,11 @@ const (
 	firewallPriority        = 1000
 	ingressTrafficDirection = "INGRESS"
 
-	CsrType          = "CERTIFICATE REQUEST"
-	RsaKeyType       = "RSA PRIVATE KEY"
-	digitalSignature = 0x80 // 10000000 in binary (bit 0)
-	keyEncipherment  = 0x20
+	CsrType           = "CERTIFICATE REQUEST"
+	RsaKeyType        = "RSA PRIVATE KEY"
+	digitalSignature  = 0x80 // 10000000 in binary (bit 0)
+	keyEncipherment   = 0x20
+	keyManagerBootarg = "bootarg.keymanager.ekmip.svm_context=false"
 )
 
 var (
@@ -564,6 +565,9 @@ func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, primary
 
 	cfg.Deployment.OntapCredentials.Username = env.GetString("VSA_NODE_USERNAME", "")
 	cfg.Deployment.OntapCredentials.Password = password
+
+	// Bootargs for key manager
+	cfg.Deployment.UserBootargs = keyManagerBootarg
 
 	return nil
 }

@@ -103,13 +103,6 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
-
-	jwtToken, err := getSignedJwtToken(params.AccountName)
-	if err != nil {
-		return nil, err
-	}
-	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
-
 	dbPool := pool
 
 	rollbackManager := common.NewRollbackManager()
@@ -503,6 +496,15 @@ func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool
 	if err != nil {
 		var appErr *temporal.ApplicationError
 		if errors.As(err, &appErr) && appErr.NonRetryable() && appErr.Type() == kms_activities.ErrTypeKmsConfigNotFound {
+			if runningEnv != "local" {
+				// get the JWT token for authorization; this function needs GCP_AUTH_SERVICE_ACCOUNT and GCP_SERVICE_URL to be set for the environment
+				jwtToken, err := getSignedJwtToken(params.AccountName)
+				if err != nil {
+					return err
+				}
+				ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
+			}
+
 			// Prepare the KMS configuration object with the SDE KMS configuration details
 			getKmsConfigParams := &common.GetKmsConfigParams{
 				UUID:          params.KmsConfigId,
@@ -542,6 +544,12 @@ func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool
 
 	// Access a crypto key using the KMS config in the VSA database to make sure key is reachable
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.AccessCryptoKeyWithImpersonationActivity, kmsConfig).Get(ctx, kmsConfig)
+	if err != nil {
+		return err
+	}
+
+	// Creates DNS to reach google KMS from the VSA cluster
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateDnsActivity, node).Get(ctx, nil)
 	if err != nil {
 		return err
 	}

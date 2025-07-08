@@ -1023,3 +1023,22 @@ func TestCloudTargetCollectionGetParamsToONTAP2(t *testing.T) {
 		assert.Equal(tt, *params.Name, *otParams.Name)
 	})
 }
+
+// Test for dnsCreateParamsToONTAP
+func TestDnsCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(t *testing.T) {
+		result := dnsCreateParamsToONTAP(nil)
+		assert.NotNil(t, result)
+	})
+
+	t.Run("WhenParamsSet", func(t *testing.T) {
+		domains := []string{"example.com", "test.com"}
+		servers := []string{"8.8.8.8", "8.8.4.4"}
+		params := &DNSCreateParams{
+			Domains:    domains,
+			DNSServers: servers,
+		}
+		result := dnsCreateParamsToONTAP(params)
+		assert.NotNil(t, result)
+	})
+}

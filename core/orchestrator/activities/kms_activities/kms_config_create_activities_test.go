@@ -9,7 +9,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -199,6 +202,61 @@ func TestCreateAndSyncKmsConfigActivity(t *testing.T) {
 		_, err := activity.CreateAndSyncKmsConfigActivity(ctx, params)
 		if err == nil {
 			t.Fatal("expected error, got nil")
+		}
+	})
+}
+
+// TestCreateDnsActivity tests the CreateDnsActivity method.
+func TestCreateDnsActivity(t *testing.T) {
+	ctx := context.Background()
+	node := &coreModels.Node{}
+
+	t.Run("returns error if GetProviderByNode fails", func(t *testing.T) {
+		// Patch activities.GetProviderByNode to return error
+		originalGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider error")
+		}
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activity := &KmsConfigActivity{}
+		err := activity.CreateDnsActivity(ctx, node)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+
+	t.Run("returns error if provider.CreateDns fails", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockProvider.On("CreateDns", mock.Anything).Return(errors.New("dns error"))
+
+		originalGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activity := &KmsConfigActivity{}
+		err := activity.CreateDnsActivity(ctx, node)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+
+	t.Run("returns nil on success", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockProvider.On("CreateDns", mock.Anything).Return(nil)
+
+		originalGetProviderByNode := activities.GetProviderByNode
+		activities.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activity := &KmsConfigActivity{}
+		err := activity.CreateDnsActivity(ctx, node)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
 		}
 	})
 }
