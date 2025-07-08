@@ -10,3 +10,8 @@ metadata:
     {{- include "core.kubernetes.labels" . | nindent 4 }}
     {{- include "core.helmchart.labels" . | nindent 4 }}
     app: core-service
+data:
+  # TODO: Remove these fields after application code fix
+  {{- include "core.generateConfigMapData" . | nindent 2 }}
+  config.yaml: |
+    {{- include "core.generateConfigMapData" . | nindent 4 }}

@@ -35,3 +35,36 @@ Helper function to get the final URL of the image to be used in the deployment.
 {{- printf "%s/%s@%s" $registry $imageName $imageDigest -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "toCapitalUnderscore" -}}
+{{- $key := . -}}
+{{- $key = regexReplaceAll "[A-Z]" $key "_${0}" -}}
+{{- $key = regexReplaceAll "^_" $key "" -}}
+{{- upper $key -}}
+{{- end -}}
+
+{{- define "core.generateConfigMapData" -}}
+{{- $globalConfig := .Values.global.coreConfig -}}
+{{- $overrideConfig := .Values.overrideCoreConfig -}}
+{{- $hyperscaler := .Values.global.hyperscaler | lower -}}
+
+{{- if hasKey $globalConfig $hyperscaler }}
+{{- range $key, $value := index $globalConfig $hyperscaler }}
+{{- if or (not (hasKey $overrideConfig $hyperscaler)) (not (hasKey (index $overrideConfig $hyperscaler) $key)) (eq (index (index $overrideConfig $hyperscaler) $key) "") }}
+{{ include "toCapitalUnderscore" $key }}: {{ $value | quote }}
+{{- else }}
+{{ include "toCapitalUnderscore" $key }}: {{ index (index $overrideConfig $hyperscaler) $key | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- range $key, $value := $globalConfig }}
+{{- if not (eq $key $hyperscaler) }}
+{{- if or (not (hasKey $overrideConfig $key)) (eq (index $overrideConfig $key) "") }}
+{{ include "toCapitalUnderscore" $key }}: {{ $value | quote }}
+{{- else }}
+{{ include "toCapitalUnderscore" $key }}: {{ index $overrideConfig $key | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

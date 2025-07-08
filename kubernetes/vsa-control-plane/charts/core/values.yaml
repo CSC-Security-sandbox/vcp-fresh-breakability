@@ -22,7 +22,9 @@ images:
     digest: ""
     secondary: true
     pullPolicy: IfNotPresent
-    
+
+# Add values here in overrideCoreConfig to override the common configuration
+overrideCoreConfig: {}
 
 service:
   type: ClusterIP
