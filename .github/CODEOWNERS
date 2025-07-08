@@ -2,5 +2,8 @@
 
 #CI Code Owners
 /.github/ @VCP-VSA-control-Plane/vcp-ci-team
+/.github/scripts/fileToFieldsMapping.json
 /cicd/ @VCP-VSA-control-Plane/vcp-ci-team
+/cicd/cmd/lint/lint-config.yaml
+/cicd/cmd/unit-test/exclude-from-code-coverage
 /tools/vsa-builder @VCP-VSA-control-Plane/vcp-ci-team
