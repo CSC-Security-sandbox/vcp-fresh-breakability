@@ -2,7 +2,6 @@ ARG BASE
 FROM $BASE
 
 COPY artifacts/vcp-worker /app
-COPY core/errors/errors.json /errors.json
 COPY common/vsa_config/vlm-config.json /common/vsa_config/vlm-config.json
 COPY config/vmrs_gcp.yaml  /config/vmrs_gcp.yaml
 

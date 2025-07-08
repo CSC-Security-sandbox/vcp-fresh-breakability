@@ -1,29 +1,28 @@
 package errors
 
 import (
+	_ "embed"
 	"encoding/json"
-	"os"
 )
+
+//go:embed errors.json
+var errorsJSON []byte
 
 // ErrorHandler contains settings of the error handler
 type ErrorHandler struct {
 }
 
-func NewErrorHandler(configPath string) (*ErrorHandler, error) {
+func NewErrorHandler() (*ErrorHandler, error) {
 	handler := &ErrorHandler{}
-	err := handler.loadErrorMessages(configPath)
+	err := handler.loadErrorMessages()
 	if err != nil {
 		return nil, err
 	}
 	return handler, nil
 }
 
-func (h *ErrorHandler) loadErrorMessages(configPath string) error {
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(data, &errorMap)
+func (h *ErrorHandler) loadErrorMessages() error {
+	err := json.Unmarshal(errorsJSON, &errorMap)
 	if err != nil {
 		return err
 	}

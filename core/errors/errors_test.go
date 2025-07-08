@@ -2,7 +2,6 @@ package errors
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"go.temporal.io/sdk/temporal"
@@ -11,91 +10,43 @@ import (
 var validJSON = `{"1001":{"message":"Input is invalid.","retriable":false,"http_code":400},"1002":{"message":"The requested resource was not found.","retriable":false,"http_code":404},"1003":{"message":"An internal error occurred.","retriable":true,"http_code":500}}`
 
 func TestLoadErrorMessages(t *testing.T) {
-	// Create a temporary valid JSON file
-	tmpFile, err := os.CreateTemp("", "config*.json")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer func(name string) {
-		err := os.Remove(name)
-		if err != nil {
-			return
-		}
-	}(tmpFile.Name())
-	if _, err := tmpFile.Write([]byte(validJSON)); err != nil {
-		t.Fatalf("Failed to write to temp file: %v", err)
-	}
-	err = tmpFile.Close()
-	if err != nil {
-		return
-	}
 	// Test with valid JSON
+	errorsJSON = []byte(validJSON)
 	handler := &ErrorHandler{}
-	err = handler.loadErrorMessages(tmpFile.Name())
+	err := handler.loadErrorMessages()
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	// Test with non-existent file
-	err = handler.loadErrorMessages("nonexistent.json")
+	// Test with empty file
+	errorsJSON = []byte("")
+	err = handler.loadErrorMessages()
 	if err == nil {
-		t.Errorf("Expected error for non-existent file, got nil")
+		t.Errorf("Expected error for empty file, got nil")
 	}
 	// Test with invalid JSON
 	invalidJSON := `{"key":`
-	tmpFile, err = os.CreateTemp("", "config*.json")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer func(name string) {
-		err := os.Remove(name)
-		if err != nil {
-			return
-		}
-	}(tmpFile.Name())
-	if _, err := tmpFile.Write([]byte(invalidJSON)); err != nil {
-		t.Fatalf("Failed to write to temp file: %v", err)
-	}
-	err = tmpFile.Close()
-	if err != nil {
-		return
-	}
-	err = handler.loadErrorMessages(tmpFile.Name())
+	errorsJSON = []byte(invalidJSON)
+	err = handler.loadErrorMessages()
 	if err == nil {
 		t.Errorf("Expected error for invalid JSON, got nil")
 	}
 }
 
 func TestNewErrorHandler(t *testing.T) {
-	// Create a temporary valid JSON file
-	tmpFile, err := os.CreateTemp("", "config*.json")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer func(name string) {
-		err := os.Remove(name)
-		if err != nil {
-			return
-		}
-	}(tmpFile.Name())
-	if _, err := tmpFile.Write([]byte(validJSON)); err != nil {
-		t.Fatalf("Failed to write to temp file: %v", err)
-	}
-	err = tmpFile.Close()
-	if err != nil {
-		return
-	}
 	// Test with valid JSON
-	handler, err := NewErrorHandler(tmpFile.Name())
+	errorsJSON = []byte(validJSON)
+	handler, err := NewErrorHandler()
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
 	if handler == nil {
 		t.Errorf("Expected handler, got nil")
 	}
-	// Test with non-existent file
-	handler, err = NewErrorHandler("nonexistent.json")
+	// Test with empty file
+	errorsJSON = []byte("")
+	handler, err = NewErrorHandler()
 	if err == nil {
-		t.Errorf("Expected error for non-existent file, got nil")
+		t.Errorf("Expected error for empty file, got nil")
 	}
 	if handler != nil {
 		t.Errorf("Expected nil handler, got %v", handler)

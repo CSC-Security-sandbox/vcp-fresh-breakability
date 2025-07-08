@@ -20,7 +20,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/db"
@@ -32,8 +31,6 @@ import (
 
 // main is the entry point of the worker application. It initializes the Temporal worker,
 // database connection, registers workflows and activities, and starts the worker.
-
-var errorFilePath = env.GetString("ERROR_FILE_PATH", "/errors.json")
 
 func main() {
 	ctx := context.WithValue(context.Background(), utilsmiddleware.CorrelationContextKey, uuid.NewString())
@@ -67,17 +64,13 @@ func main() {
 	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
 
 	// Initialise the error handler
-
-	// Check if the file exists
-	if _, err := os.Stat(errorFilePath); err == nil {
-		// TODO: add a flag to enable/disable the error handler
-		// TODO: add middleware to handle error codes
-		// Keeping errors.json in core for now, if needed we can merge two jsons together one in core and one in proxy layer later.
-		_, err = vsaerrors.NewErrorHandler(errorFilePath)
-		if err != nil {
-			logger.Error("Failed to create error handler", "error", err.Error())
-			os.Exit(1)
-		}
+	// TODO: add a flag to enable/disable the error handler
+	// TODO: add middleware to handle error codes
+	// Keeping errors.json in core for now, if needed we can merge two jsons together one in core and one in proxy layer later.
+	_, err = vsaerrors.NewErrorHandler()
+	if err != nil {
+		logger.Error("Failed to create error handler", "error", err.Error())
+		os.Exit(1)
 	}
 
 	// Create a new worker

@@ -22,7 +22,6 @@ import (
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/endpoints"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/middleware"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -30,8 +29,6 @@ import (
 	"go.temporal.io/sdk/client"
 	"golang.org/x/sync/errgroup"
 )
-
-var errorFilePath = env.GetString("ERROR_FILE_PATH", "/errors.json")
 
 func main() {
 	ctx := context.WithValue(context.Background(), utilsmiddleware.CorrelationContextKey, uuid.NewString())
@@ -88,17 +85,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Check if the file exists
-	if _, err := os.Stat(errorFilePath); err == nil {
-		// TODO: add a flag to enable/disable the error handler
-		// TODO: add middleware to handle error codes
-		// Keeping errors.json in core for now, if needed we can merge two jsons together one in core and one in proxy layer later.
-		_, err = vsaerrors.NewErrorHandler(errorFilePath)
-		if err != nil {
-			logger.Error("Failed to create error handler", "error", err.Error())
-			os.Exit(1)
-		}
+	// TODO: add a flag to enable/disable the error handler
+	// TODO: add middleware to handle error codes
+	// Keeping errors.json in core for now, if needed we can merge two jsons together one in core and one in proxy layer later.
+	_, err = vsaerrors.NewErrorHandler()
+	if err != nil {
+		logger.Error("Failed to create error handler", "error", err.Error())
+		os.Exit(1)
 	}
+
 	httpServer := setupHTTPServer(cfg, gcpServer)
 
 	// Use errgroup to manage goroutines and context
