@@ -157,7 +157,11 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		volumeObj.CoolAccessRetrievalPolicy = params.TieringPolicy.CoolAccessRetrievalPolicy
 	}
 
-	dbVolume, err := se.CreateVolume(ctx, volumeObj, params)
+	var isRestore bool
+	if params.BackupPath != "" && params.BackupID != "" {
+		isRestore = true
+	}
+	dbVolume, err := se.CreateVolume(ctx, volumeObj, isRestore)
 	if err != nil {
 		return nil, "", err
 	}

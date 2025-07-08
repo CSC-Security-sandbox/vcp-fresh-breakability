@@ -1645,12 +1645,7 @@ func TestCreateVolume(t *testing.T) {
 			AccountID: account.ID,
 			PoolID:    pool.ID,
 		}
-		params := &common.CreateVolumeParams{
-			Name:         "test_volume",
-			QuotaInBytes: minQuotaInBytesVolume,
-		}
-
-		createdVolume, err := store.CreateVolume(ctx, volume, params)
+		createdVolume, err := store.CreateVolume(ctx, volume, false)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, "test_volume", createdVolume.Name)
 		assert.Equal(tt, models.LifeCycleStateCreating, createdVolume.State)
@@ -1686,12 +1681,7 @@ func TestCreateVolume(t *testing.T) {
 		}
 		assert.NoError(tt, store.DB().Create(volume).Error)
 
-		params := &common.CreateVolumeParams{
-			Name:         "test_volume",
-			QuotaInBytes: minQuotaInBytesVolume,
-		}
-
-		createdVolume, err := store.CreateVolume(ctx, volume, params)
+		createdVolume, err := store.CreateVolume(ctx, volume, false)
 		assert.Error(tt, err, "Expected error, got nil")
 		assert.Nil(tt, createdVolume, "Expected nil volume")
 		assert.Contains(tt, err.Error(), "volume already exists")

@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
@@ -167,7 +166,7 @@ func TestCreateVolume(t *testing.T) {
 			tt.Fatalf("Failed to create volume: %v", err)
 		}
 
-		createdVolume, err := store.CreateVolume(context.Background(), volume, nil)
+		createdVolume, err := store.CreateVolume(context.Background(), volume, false)
 		assert.EqualError(tt, err, "volume already exists", "Expected error 'volume already exists', got %v", err)
 		assert.Nil(tt, createdVolume, "Expected nil volume, got %v", createdVolume)
 	})
@@ -201,12 +200,7 @@ func TestCreateVolume(t *testing.T) {
 			PoolID:    pool.ID,
 		}
 
-		params := &common.CreateVolumeParams{
-			BackupID:   "test-backup-id",
-			BackupPath: "test-backup-path",
-		}
-
-		createdVolume, err := store.CreateVolume(context.Background(), volume, params)
+		createdVolume, err := store.CreateVolume(context.Background(), volume, true)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, volume.Name, createdVolume.Name, "Expected volume name %v, got %v", volume.Name, createdVolume.Name)
 		assert.Equal(tt, models.LifeCycleStateRestoring, createdVolume.State, "Expected volume state %v, got %v", models.LifeCycleStateRestoring, createdVolume.State)

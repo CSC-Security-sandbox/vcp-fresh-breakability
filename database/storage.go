@@ -13,7 +13,6 @@ import (
 	"github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 	dblogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/logger"
@@ -424,8 +423,8 @@ func (s *PersistenceStore) UpdatePoolWithKmsConfigID(ctx context.Context, pool *
 	return s.dataStore.UpdatePoolWithKmsConfigID(ctx, pool, kmsConfigUUID)
 }
 
-func (s *PersistenceStore) CreateVolume(ctx context.Context, volume *datamodel.Volume, params *commonparams.CreateVolumeParams) (*datamodel.Volume, error) {
-	return s.dataStore.CreateVolume(ctx, volume, params)
+func (s *PersistenceStore) CreateVolume(ctx context.Context, volume *datamodel.Volume, isRestore bool) (*datamodel.Volume, error) {
+	return s.dataStore.CreateVolume(ctx, volume, isRestore)
 }
 
 func (s *PersistenceStore) CreateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error) {

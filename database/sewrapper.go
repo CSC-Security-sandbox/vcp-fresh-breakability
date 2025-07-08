@@ -6,8 +6,7 @@ package database
 
 import (
 	"context"
-	
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -271,11 +270,11 @@ func (re *retryEngine) UpdatePoolWithKmsConfigID(ctx context.Context, pool *data
 	return var0, err
 }
 
-func (re *retryEngine) CreateVolume(ctx context.Context, volume *datamodel.Volume, params *common.CreateVolumeParams) (*datamodel.Volume, error) {
+func (re *retryEngine) CreateVolume(ctx context.Context, volume *datamodel.Volume, isRestore bool) (*datamodel.Volume, error) {
 	var var0 *datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.CreateVolume(ctx, volume, params)
+		var0, err = re.dataStore.CreateVolume(ctx, volume, isRestore)
 		if err != nil {
 			re.logError("CreateVolume", err)
 			if !isTransientErr(err) {

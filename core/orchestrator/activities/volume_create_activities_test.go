@@ -35,11 +35,10 @@ func TestCreateVolume_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{Name: "test-volume"}
 
-	var params *common.CreateVolumeParams
-	mockStorage.On("CreateVolume", ctx, volume, params).Return(volume, nil)
+	mockStorage.On("CreateVolume", ctx, volume, false).Return(volume, nil)
 
 	// Act
-	result, err := activity.CreateVolume(ctx, volume, params)
+	result, err := activity.CreateVolume(ctx, volume, false)
 
 	// Assert
 	assert.NoError(t, err)
@@ -55,11 +54,10 @@ func TestCreateVolume_Failure(t *testing.T) {
 	volume := &datamodel.Volume{Name: "test-volume"}
 	expectedError := errors.New("failed to create volume")
 
-	var params *common.CreateVolumeParams
-	mockStorage.On("CreateVolume", ctx, volume, params).Return(nil, expectedError)
+	mockStorage.On("CreateVolume", ctx, volume, false).Return(nil, expectedError)
 
 	// Act
-	result, err := activity.CreateVolume(ctx, volume, params)
+	result, err := activity.CreateVolume(ctx, volume, false)
 
 	// Assert
 	assert.Error(t, err)

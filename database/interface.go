@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"gorm.io/gorm"
 )
@@ -64,7 +63,7 @@ type DataStore interface {
 	SavePoolWithVsaDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error
 	UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error)
 
-	CreateVolume(ctx context.Context, volume *datamodel.Volume, params *common.CreateVolumeParams) (*datamodel.Volume, error)
+	CreateVolume(ctx context.Context, volume *datamodel.Volume, isRestore bool) (*datamodel.Volume, error)
 	GetVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 	GetVolumeWithAccountID(ctx context.Context, id string, accountID int64) (*datamodel.Volume, error)
 	GetVolumeCount(ctx context.Context, accountName string) (int64, error)

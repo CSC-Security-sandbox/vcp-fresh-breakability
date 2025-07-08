@@ -5,11 +5,8 @@ package database
 import (
 	context "context"
 
-	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-
-	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-
 	mock "github.com/stretchr/testify/mock"
+	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 
 	utils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 )
@@ -851,9 +848,9 @@ func (_c *MockDataStore_CreateSVM_Call) RunAndReturn(run func(context.Context, *
 	return _c
 }
 
-// CreateVolume provides a mock function with given fields: ctx, volume, params
-func (_m *MockDataStore) CreateVolume(ctx context.Context, volume *datamodel.Volume, params *common.CreateVolumeParams) (*datamodel.Volume, error) {
-	ret := _m.Called(ctx, volume, params)
+// CreateVolume provides a mock function with given fields: ctx, volume, isRestore
+func (_m *MockDataStore) CreateVolume(ctx context.Context, volume *datamodel.Volume, isRestore bool) (*datamodel.Volume, error) {
+	ret := _m.Called(ctx, volume, isRestore)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateVolume")
@@ -861,19 +858,19 @@ func (_m *MockDataStore) CreateVolume(ctx context.Context, volume *datamodel.Vol
 
 	var r0 *datamodel.Volume
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *common.CreateVolumeParams) (*datamodel.Volume, error)); ok {
-		return rf(ctx, volume, params)
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, bool) (*datamodel.Volume, error)); ok {
+		return rf(ctx, volume, isRestore)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *common.CreateVolumeParams) *datamodel.Volume); ok {
-		r0 = rf(ctx, volume, params)
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, bool) *datamodel.Volume); ok {
+		r0 = rf(ctx, volume, isRestore)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.Volume)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Volume, *common.CreateVolumeParams) error); ok {
-		r1 = rf(ctx, volume, params)
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Volume, bool) error); ok {
+		r1 = rf(ctx, volume, isRestore)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -889,14 +886,14 @@ type MockDataStore_CreateVolume_Call struct {
 // CreateVolume is a helper method to define mock.On call
 //   - ctx context.Context
 //   - volume *datamodel.Volume
-//   - params *common.CreateVolumeParams
-func (_e *MockDataStore_Expecter) CreateVolume(ctx interface{}, volume interface{}, params interface{}) *MockDataStore_CreateVolume_Call {
-	return &MockDataStore_CreateVolume_Call{Call: _e.mock.On("CreateVolume", ctx, volume, params)}
+//   - isRestore bool
+func (_e *MockDataStore_Expecter) CreateVolume(ctx interface{}, volume interface{}, isRestore interface{}) *MockDataStore_CreateVolume_Call {
+	return &MockDataStore_CreateVolume_Call{Call: _e.mock.On("CreateVolume", ctx, volume, isRestore)}
 }
 
-func (_c *MockDataStore_CreateVolume_Call) Run(run func(ctx context.Context, volume *datamodel.Volume, params *common.CreateVolumeParams)) *MockDataStore_CreateVolume_Call {
+func (_c *MockDataStore_CreateVolume_Call) Run(run func(ctx context.Context, volume *datamodel.Volume, isRestore bool)) *MockDataStore_CreateVolume_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.Volume), args[2].(*common.CreateVolumeParams))
+		run(args[0].(context.Context), args[1].(*datamodel.Volume), args[2].(bool))
 	})
 	return _c
 }
@@ -906,7 +903,7 @@ func (_c *MockDataStore_CreateVolume_Call) Return(_a0 *datamodel.Volume, _a1 err
 	return _c
 }
 
-func (_c *MockDataStore_CreateVolume_Call) RunAndReturn(run func(context.Context, *datamodel.Volume, *common.CreateVolumeParams) (*datamodel.Volume, error)) *MockDataStore_CreateVolume_Call {
+func (_c *MockDataStore_CreateVolume_Call) RunAndReturn(run func(context.Context, *datamodel.Volume, bool) (*datamodel.Volume, error)) *MockDataStore_CreateVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }
