@@ -725,11 +725,11 @@ func TestGetSnapshotsWithConditions(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create snapshot")
 
 		// Query for the snapshot using conditions
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("account_id", "=", 1),
-			utils.NewFilterCondition().WithConditions("volume_id", "=", volume.ID),
-			utils.NewFilterCondition().WithConditions("name", "=", "test_snapshot"),
-		})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", 1),
+			utils.NewFilterCondition("volume_id", "=", volume.ID),
+			utils.NewFilterCondition("name", "=", "test_snapshot"),
+		)
 		snapshots, err := store.GetSnapshotsWithCondition(ctx, *filter)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Len(tt, snapshots, 1, "Expected 1 snapshot, got %d", len(snapshots))
@@ -749,11 +749,11 @@ func TestGetSnapshotsWithConditions(t *testing.T) {
 		assert.NoError(tt, err, "Failed to clean up test database")
 
 		// Query for a snapshot that does not exist
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("account_id", "=", 999),
-			utils.NewFilterCondition().WithConditions("volume_id", "=", 999),
-			utils.NewFilterCondition().WithConditions("name", "=", "non-existent-snapshot"),
-		})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", 999),
+			utils.NewFilterCondition("volume_id", "=", 999),
+			utils.NewFilterCondition("name", "=", "non-existent-snapshot"),
+		)
 		snapshots, err := store.GetSnapshotsWithCondition(ctx, *filter)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Len(tt, snapshots, 0, "Expected 0 snapshots, got %d", len(snapshots))
@@ -766,9 +766,9 @@ func TestGetSnapshotsWithConditions(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(t, err, "Failed to clean up test database")
 
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("account", "=", 999),
-		})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account", "=", 999),
+		)
 
 		_, err = store.GetSnapshotsWithCondition(context.Background(), *filter)
 		assert.Error(t, err)

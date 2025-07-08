@@ -70,10 +70,10 @@ func TestCreateOrGetStartProjectEventJobl(t *testing.T) {
 			return &datamodel.Account{Name: "12345", BaseModel: datamodel.BaseModel{ID: 1}}, nil
 		}
 		jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("account_id", "=", int64(1)),
-			utils.NewFilterCondition().WithConditions("type", "=", string(models.JobTypeStartProjectEventOnState)),
-			utils.NewFilterCondition().WithConditions("state", "in", jobTransitioningStates)})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", int64(1)),
+			utils.NewFilterCondition("type", "=", string(models.JobTypeStartProjectEventOnState)),
+			utils.NewFilterCondition("state", "in", jobTransitioningStates))
 		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{{BaseModel: datamodel.BaseModel{UUID: "jobUUID"}}}, nil)
 
 		params := &commonparams.StartProjectEventParams{
@@ -99,10 +99,10 @@ func TestCreateOrGetStartProjectEventJobl(t *testing.T) {
 		}
 
 		jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("account_id", "=", int64(1)),
-			utils.NewFilterCondition().WithConditions("type", "=", string(models.JobTypeStartProjectEventOffState)),
-			utils.NewFilterCondition().WithConditions("state", "in", jobTransitioningStates)})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", int64(1)),
+			utils.NewFilterCondition("type", "=", string(models.JobTypeStartProjectEventOffState)),
+			utils.NewFilterCondition("state", "in", jobTransitioningStates))
 		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("panic"))
 
@@ -128,10 +128,10 @@ func TestCreateOrGetStartProjectEventJobl(t *testing.T) {
 		}
 
 		jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("account_id", "=", int64(1)),
-			utils.NewFilterCondition().WithConditions("type", "=", string(models.JobTypeStartProjectEventOffState)),
-			utils.NewFilterCondition().WithConditions("state", "in", jobTransitioningStates)})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", int64(1)),
+			utils.NewFilterCondition("type", "=", string(models.JobTypeStartProjectEventOffState)),
+			utils.NewFilterCondition("state", "in", jobTransitioningStates))
 		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{}, nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
@@ -158,10 +158,10 @@ func TestCreateOrGetStartProjectEventJobl(t *testing.T) {
 		}
 
 		jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("account_id", "=", int64(1)),
-			utils.NewFilterCondition().WithConditions("type", "=", string(models.JobTypeStartProjectEventOffState)),
-			utils.NewFilterCondition().WithConditions("state", "in", jobTransitioningStates)})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", int64(1)),
+			utils.NewFilterCondition("type", "=", string(models.JobTypeStartProjectEventOffState)),
+			utils.NewFilterCondition("state", "in", jobTransitioningStates))
 		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "jobUUID"}}, nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)

@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 )
 
 type mockStorage struct {
@@ -16,8 +17,8 @@ type mockStorage struct {
 	database.Storage
 }
 
-func (m *mockStorage) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error) {
-	args := m.Called(ctx, conditions)
+func (m *mockStorage) ListPools(ctx context.Context, filter *utils.Filter) ([]*datamodel.PoolView, error) {
+	args := m.Called(ctx, filter)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

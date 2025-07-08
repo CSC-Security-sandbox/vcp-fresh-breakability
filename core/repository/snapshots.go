@@ -98,10 +98,10 @@ func (d *DataStoreRepository) UpdateSnapshot(ctx context.Context, snapshot *data
 }
 
 func (d *DataStoreRepository) GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error) {
-	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-		utils.NewFilterCondition().WithConditions("account_id", "=", accountID),
-		utils.NewFilterCondition().WithConditions("volume_id", "=", volumeID),
-		utils.NewFilterCondition().WithConditions("is_app_consistent", "=", true)})
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("account_id", "=", accountID),
+		utils.NewFilterCondition("volume_id", "=", volumeID),
+		utils.NewFilterCondition("is_app_consistent", "=", true))
 	return d.GetSnapshotsWithCondition(ctx, *filter)
 }
 
@@ -221,9 +221,9 @@ func (d *DataStoreRepository) BatchDeleteSnapshots(ctx context.Context, snapshot
 }
 
 func (d *DataStoreRepository) GetSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error) {
-	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-		utils.NewFilterCondition().WithConditions("volume_id", "=", volumeID),
-	})
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("volume_id", "=", volumeID),
+	)
 	return d.GetSnapshotsWithCondition(ctx, *filter)
 }
 

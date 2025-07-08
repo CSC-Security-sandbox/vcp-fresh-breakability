@@ -193,7 +193,7 @@ func TestListPools(t *testing.T) {
 	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	_, err := store.ListPools(ctx, [][]interface{}{})
+	_, err := store.ListPools(ctx, nil)
 	assert.NoError(t, err)
 }
 
@@ -391,8 +391,8 @@ func TestGetJobsWithCondition(t *testing.T) {
 	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-		utils.NewFilterCondition().WithConditions("state", "=", "new")})
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("state", "=", "new"))
 	jobs, err := store.GetJobsWithCondition(ctx, *filter)
 	assert.NoError(t, err)
 	assert.NotNil(t, jobs)
@@ -542,9 +542,9 @@ func TestGetSnapshotsWithCondition(t *testing.T) {
 	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-		utils.NewFilterCondition().WithConditions("name", "=", "snap"),
-	})
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("name", "=", "snap"),
+	)
 	snaps, err := store.GetSnapshotsWithCondition(ctx, *filter)
 	assert.NoError(t, err)
 	assert.NotNil(t, snaps)
@@ -1131,8 +1131,8 @@ func TestListVolumeReplications(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 
-	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-		utils.NewFilterCondition().WithConditions("account_id", "=", replication.AccountID)})
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("account_id", "=", replication.AccountID))
 
 	// List volume replications
 	reps, err := store.ListVolumeReplications(ctx, *filter)

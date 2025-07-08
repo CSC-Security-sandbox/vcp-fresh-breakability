@@ -3,7 +3,7 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
-	
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -34,9 +34,9 @@ func _getMultipleReplicationsInternal(ctx context.Context, se database.Storage, 
 		return nil, err
 	}
 
-	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-		utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
-		utils.NewFilterCondition().WithConditions("uuid", "in", replicationUUIDs)})
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("account_id", "=", account.ID),
+		utils.NewFilterCondition("uuid", "in", replicationUUIDs))
 
 	replications, err := se.ListVolumeReplications(ctx, *filter)
 	if err != nil {

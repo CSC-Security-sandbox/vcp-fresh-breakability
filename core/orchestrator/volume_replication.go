@@ -332,9 +332,9 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 	}
 
 	// Check if replication exists in the database
-	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-		utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
-		utils.NewFilterCondition().WithConditions("uri", "in", params.ReplicationURIs)})
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("account_id", "=", account.ID),
+		utils.NewFilterCondition("uri", "in", params.ReplicationURIs))
 	replications, err := se.ListVolumeReplications(ctx, *filter)
 	if err != nil {
 		logger.Errorf("Failed to list replications for account %s: %v", params.AccountName, err)

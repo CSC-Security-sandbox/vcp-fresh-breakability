@@ -171,11 +171,11 @@ func (re *retryEngine) GetPool(ctx context.Context, poolUUID string, accountID i
 	return var0, err
 }
 
-func (re *retryEngine) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error) {
+func (re *retryEngine) ListPools(ctx context.Context, filter *utils.Filter) ([]*datamodel.PoolView, error) {
 	var var0 []*datamodel.PoolView
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.ListPools(ctx, conditions)
+		var0, err = re.dataStore.ListPools(ctx, filter)
 		if err != nil {
 			re.logError("ListPools", err)
 			if !isTransientErr(err) {

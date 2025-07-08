@@ -12,8 +12,12 @@ type FilterCondition struct {
 	Value interface{}
 }
 
-func NewFilterCondition() *FilterCondition {
-	return &FilterCondition{}
+func NewFilterCondition(field string, op string, value interface{}) *FilterCondition {
+	return &FilterCondition{
+		Field: field,
+		Op:    op,
+		Value: value,
+	}
 }
 
 func (fc *FilterCondition) WithConditions(field string, op string, value interface{}) *FilterCondition {
@@ -24,10 +28,11 @@ func (fc *FilterCondition) WithConditions(field string, op string, value interfa
 }
 
 type Filter struct {
-	Conditions []*FilterCondition
+	IncludeDeleted bool
+	Conditions     []*FilterCondition
 }
 
-func CreateFilterWithConditions(filterConditions []*FilterCondition) *Filter {
+func CreateFilterWithConditions(filterConditions ...*FilterCondition) *Filter {
 	return &Filter{
 		Conditions: filterConditions,
 	}
@@ -41,9 +46,26 @@ func (f *Filter) SetConditions(filterConditions []*FilterCondition) {
 	f.Conditions = filterConditions
 }
 
+func (f *Filter) SetIncludeDeleted(includeDeleted bool) {
+	f.IncludeDeleted = includeDeleted
+}
+
+func (f *Filter) ShouldIncludeDeleted() bool {
+	return f.IncludeDeleted
+}
+
 func (f *Filter) ToGORMQuery() [][]interface{} {
 	var query [][]interface{}
+
+	if f.Conditions == nil {
+		return query
+	}
+
 	for _, condition := range f.Conditions {
+		if condition.Value == nil {
+			continue
+		}
+
 		val := fmt.Sprintf("%s %s %v", condition.Field, condition.Op, condition.Value)
 		if reflect.TypeOf(condition.Value).Kind() == reflect.String {
 			val = fmt.Sprintf("%s %s '%s'", condition.Field, condition.Op, condition.Value)

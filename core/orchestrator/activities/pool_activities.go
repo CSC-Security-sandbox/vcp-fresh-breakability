@@ -690,9 +690,10 @@ func (j *PoolActivity) DeletingPoolResources(ctx context.Context, pool *datamode
 func (j *PoolActivity) ReleaseSubnet(ctx context.Context, pool *datamodel.Pool) error {
 	logger := util.GetLogger(ctx)
 	se := j.SE
-	conditions := [][]interface{}{{"account_id = ?", pool.AccountID}}
-	conditions = append(conditions, []interface{}{"network = ?", pool.Network})
-	pools, err := se.ListPools(ctx, conditions)
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("account_id", "=", pool.AccountID),
+		utils.NewFilterCondition("network", "=", pool.Network))
+	pools, err := se.ListPools(ctx, filter)
 	if err != nil {
 		logger.Errorf("Failed to get pools for account: %s, network: %s, error: %s", pool.AccountID, pool.Network, err.Error())
 		return vsaerrors.WrapAsTemporalApplicationError(err)

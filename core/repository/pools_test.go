@@ -10,9 +10,89 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
 )
+
+func setup(t *testing.T) *DataStoreRepository {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	if err != nil {
+		t.Fatalf("Failed to clean up test database: %v", err)
+	}
+	return store
+}
+
+func createDBPools(t *testing.T, store *DataStoreRepository) ([]*datamodel.Pool, *datamodel.Account) {
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err := store.db.Create(account).Error()
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+	pool1 := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid1"},
+		Name:      "test_pool_1",
+		AccountID: account.ID,
+		VendorID:  "test-vendor-id",
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 64,
+			Iops:            1024,
+			PrimaryZone:     "us-central1-a",
+		},
+		DeploymentName: "dep1",
+	}
+	deletedPool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "test-pool-uuid-deleted",
+			DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true}, // Simulate a deleted pool
+		},
+		Name:      "test_pool_2",
+		AccountID: account.ID,
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 128,
+			Iops:            2048,
+			PrimaryZone:     "us-central1-b",
+			SecondaryZone:   "us-central1-c",
+		},
+		DeploymentName: "dep-deleted",
+	}
+	pool2 := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid2",
+		},
+		Name:      "test_pool_2",
+		AccountID: account.ID,
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 128,
+			Iops:            2048,
+			PrimaryZone:     "us-central1-b",
+			SecondaryZone:   "us-central1-c",
+		},
+		DeploymentName: "dep2",
+	}
+
+	err = store.db.Create(pool1).Error()
+	assert.NoError(t, err)
+	err = store.db.Create(deletedPool).Error()
+	assert.NoError(t, err)
+	err = store.db.Create(pool2).Error()
+	assert.NoError(t, err)
+
+	var pools []*datamodel.Pool
+	store.db.GORM().Find(&pools)
+
+	return []*datamodel.Pool{pool1, deletedPool, pool2}, account
+}
 
 func TestGetPool(t *testing.T) {
 	t.Run("WhenPoolExists", func(tt *testing.T) {
@@ -200,6 +280,38 @@ func TestDescribePool(t *testing.T) {
 		if result.Account.Name != account.Name {
 			tt.Errorf("Expected account name %v, got %v", account.Name, result.Account.Name)
 		}
+	})
+}
+
+func TestListPools(t *testing.T) {
+	t.Run("WhenPoolsExist", func(tt *testing.T) {
+		store := setup(tt)
+
+		pools, _ := createDBPools(tt, store)
+
+		result, err := store.ListPools(context.Background(), nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, len(pools)-1) // Exclude deleted pool
+	})
+
+	t.Run("WhenPoolsExistIncludeDeleted", func(tt *testing.T) {
+		store := setup(tt)
+
+		pools, _ := createDBPools(tt, store)
+
+		filter := &utils.Filter{}
+		filter.SetIncludeDeleted(true)
+		result, err := store.ListPools(context.Background(), filter)
+		assert.NoError(tt, err)
+		assert.Len(tt, result, len(pools)) // Exclude deleted pool
+	})
+
+	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
+		store := setup(tt)
+
+		pools, err := store.ListPools(context.Background(), nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, pools, 0)
 	})
 }
 

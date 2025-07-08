@@ -72,8 +72,8 @@ func (hgu *HostGroupUpdateActivity) UpdateIGroups(ctx context.Context, hg *datam
 		updatedHG[volume.Pool.UUID] = true
 	}
 
-	conditions := [][]interface{}{{"account_id = ?", hg.AccountID}}
-	pools, err := hgu.SE.ListPools(ctx, conditions)
+	filter := utils.CreateFilterWithConditions(utils.NewFilterCondition("account_id", "=", hg.AccountID))
+	pools, err := hgu.SE.ListPools(ctx, filter)
 	if err != nil {
 		logger.Errorf("Failed to get pools for account: %s, error: %s", hg.AccountID, err.Error())
 		return vsaerrors.WrapAsTemporalApplicationError(err)

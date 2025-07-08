@@ -5288,9 +5288,9 @@ func (_c *MockDataStore_ListOngoingPoolJobsWithKmsConfigId_Call) RunAndReturn(ru
 	return _c
 }
 
-// ListPools provides a mock function with given fields: ctx, conditions
-func (_m *MockDataStore) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error) {
-	ret := _m.Called(ctx, conditions)
+// ListPools provides a mock function with given fields: ctx, filter
+func (_m *MockDataStore) ListPools(ctx context.Context, filter *utils.Filter) ([]*datamodel.PoolView, error) {
+	ret := _m.Called(ctx, filter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListPools")
@@ -5298,19 +5298,19 @@ func (_m *MockDataStore) ListPools(ctx context.Context, conditions [][]interface
 
 	var r0 []*datamodel.PoolView
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) ([]*datamodel.PoolView, error)); ok {
-		return rf(ctx, conditions)
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter) ([]*datamodel.PoolView, error)); ok {
+		return rf(ctx, filter)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) []*datamodel.PoolView); ok {
-		r0 = rf(ctx, conditions)
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter) []*datamodel.PoolView); ok {
+		r0 = rf(ctx, filter)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*datamodel.PoolView)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}) error); ok {
-		r1 = rf(ctx, conditions)
+	if rf, ok := ret.Get(1).(func(context.Context, *utils.Filter) error); ok {
+		r1 = rf(ctx, filter)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -5325,14 +5325,14 @@ type MockDataStore_ListPools_Call struct {
 
 // ListPools is a helper method to define mock.On call
 //   - ctx context.Context
-//   - conditions [][]interface{}
-func (_e *MockDataStore_Expecter) ListPools(ctx interface{}, conditions interface{}) *MockDataStore_ListPools_Call {
-	return &MockDataStore_ListPools_Call{Call: _e.mock.On("ListPools", ctx, conditions)}
+//   - filter *utils.Filter
+func (_e *MockDataStore_Expecter) ListPools(ctx interface{}, filter interface{}) *MockDataStore_ListPools_Call {
+	return &MockDataStore_ListPools_Call{Call: _e.mock.On("ListPools", ctx, filter)}
 }
 
-func (_c *MockDataStore_ListPools_Call) Run(run func(ctx context.Context, conditions [][]interface{})) *MockDataStore_ListPools_Call {
+func (_c *MockDataStore_ListPools_Call) Run(run func(ctx context.Context, filter *utils.Filter)) *MockDataStore_ListPools_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([][]interface{}))
+		run(args[0].(context.Context), args[1].(*utils.Filter))
 	})
 	return _c
 }
@@ -5342,7 +5342,7 @@ func (_c *MockDataStore_ListPools_Call) Return(_a0 []*datamodel.PoolView, _a1 er
 	return _c
 }
 
-func (_c *MockDataStore_ListPools_Call) RunAndReturn(run func(context.Context, [][]interface{}) ([]*datamodel.PoolView, error)) *MockDataStore_ListPools_Call {
+func (_c *MockDataStore_ListPools_Call) RunAndReturn(run func(context.Context, *utils.Filter) ([]*datamodel.PoolView, error)) *MockDataStore_ListPools_Call {
 	_c.Call.Return(run)
 	return _c
 }

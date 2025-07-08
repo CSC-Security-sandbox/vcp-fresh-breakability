@@ -337,9 +337,12 @@ func (h Handler) V1betaListPools(ctx context.Context, params gcpgenserver.V1beta
 		}, nil
 	}
 
-	// TODO: Check if the include deleted flag is true
+	includeDeleted := false
+	if params.IncludeDeleted.IsSet() {
+		includeDeleted = params.IncludeDeleted.Value
+	}
 
-	pools, err := h.Orchestrator.ListPools(ctx, params.ProjectNumber)
+	pools, err := h.Orchestrator.ListPools(ctx, params.ProjectNumber, includeDeleted)
 	if err != nil {
 		return &gcpgenserver.V1betaListPoolsInternalServerError{}, err
 	}

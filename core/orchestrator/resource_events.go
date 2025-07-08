@@ -46,10 +46,10 @@ func _createOrGetStartProjectEventJob(ctx context.Context, se database.Storage, 
 	}
 
 	jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
-	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-		utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
-		utils.NewFilterCondition().WithConditions("type", "=", jobType),
-		utils.NewFilterCondition().WithConditions("state", "in", jobTransitioningStates)})
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("account_id", "=", account.ID),
+		utils.NewFilterCondition("type", "=", jobType),
+		utils.NewFilterCondition("state", "in", jobTransitioningStates))
 
 	jobs, err := se.GetJobsWithCondition(ctx, *filter)
 	if err != nil && !errors.IsNotFoundErr(err) {

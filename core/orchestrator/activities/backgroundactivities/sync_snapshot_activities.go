@@ -51,8 +51,8 @@ func (a *SyncSnapshotActivity) ListPools(ctx context.Context) ([]*datamodel.Pool
 	logger := util.GetLogger(ctx)
 	se := a.SE
 
-	conditions := [][]interface{}{{"state = ?", models.LifeCycleStateREADY}}
-	poolViews, err := se.ListPools(ctx, conditions)
+	filter := utils.CreateFilterWithConditions(utils.NewFilterCondition("state", "=", models.LifeCycleStateREADY))
+	poolViews, err := se.ListPools(ctx, filter)
 	if err != nil {
 		logger.Errorf("Failed to list pools: %v", err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)

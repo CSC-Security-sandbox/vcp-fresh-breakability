@@ -684,9 +684,9 @@ func TestListVolumeReplications(t *testing.T) {
 		}
 
 		replicationUUIDs := []string{replication1.UUID, replication2.UUID}
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
-			utils.NewFilterCondition().WithConditions("uuid", "in", replicationUUIDs)})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", account.ID),
+			utils.NewFilterCondition("uuid", "in", replicationUUIDs))
 
 		replications, err := store.ListVolumeReplications(context.Background(), *filter)
 		assert.NoError(t, err, "Expected no error, got %v", err)
@@ -709,8 +709,8 @@ func TestListVolumeReplications(t *testing.T) {
 			t.Fatalf("Failed to create test data: %v", err)
 		}
 
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("account_id", "=", account.ID)})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", account.ID))
 
 		replications, err := store.ListVolumeReplications(context.Background(), *filter)
 		assert.NoError(t, err, "Expected no error, got %v", err)
@@ -778,9 +778,9 @@ func TestListVolumeReplications(t *testing.T) {
 
 		// replicationUUIDs := []string{replication1.UUID, replication2.UUID}
 		uris := []string{replication1.Uri, replication2.RemoteUri}
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
-			utils.NewFilterCondition().WithConditions("uri", "in", uris)})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", account.ID),
+			utils.NewFilterCondition("uri", "in", uris))
 
 		replications, err := store.ListVolumeReplications(context.Background(), *filter)
 		assert.NoError(t, err, "Expected no error, got %v", err)

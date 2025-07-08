@@ -65,9 +65,9 @@ func TestGetReplicationsFromDB(t *testing.T) {
 			Name: "deathstar",
 		}
 
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
-			utils.NewFilterCondition().WithConditions("uuid", "in", params.ReplicationUUIDs)})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", account.ID),
+			utils.NewFilterCondition("uuid", "in", params.ReplicationUUIDs))
 
 		expectedError := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, errors.New("Difficult to see; always in motion is the future."))
 
@@ -102,9 +102,9 @@ func TestGetReplicationsFromDB(t *testing.T) {
 		}
 		expectedResp := []*datamodel.VolumeReplication{}
 
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
-			utils.NewFilterCondition().WithConditions("uuid", "in", params.ReplicationUUIDs)})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", account.ID),
+			utils.NewFilterCondition("uuid", "in", params.ReplicationUUIDs))
 
 		expectedError := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, errors.NewNotFoundErr("replication", nil))
 
@@ -160,9 +160,9 @@ func TestGetReplicationsFromDB(t *testing.T) {
 			},
 		}
 
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
-			utils.NewFilterCondition().WithConditions("uuid", "in", params.ReplicationUUIDs)})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", account.ID),
+			utils.NewFilterCondition("uuid", "in", params.ReplicationUUIDs))
 
 		mockStorage.On("GetAccount", ctx, "deathstar").Return(account, nil)
 		mockStorage.On("ListVolumeReplications", ctx, *filter).Return(expectedResp, nil)

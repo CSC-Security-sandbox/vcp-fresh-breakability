@@ -407,8 +407,8 @@ func (s *PersistenceStore) DeletingPool(ctx context.Context, pool *datamodel.Poo
 	return s.dataStore.DeletingPool(ctx, pool)
 }
 
-func (s *PersistenceStore) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error) {
-	return s.dataStore.ListPools(ctx, conditions)
+func (s *PersistenceStore) ListPools(ctx context.Context, filter *utils.Filter) ([]*datamodel.PoolView, error) {
+	return s.dataStore.ListPools(ctx, filter)
 }
 
 func (s *PersistenceStore) GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error) {

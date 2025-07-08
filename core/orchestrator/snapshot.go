@@ -69,23 +69,23 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	}
 
 	// Check and return early if a snapshot with the same name is already in creation for this volume and account
-	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-		utils.NewFilterCondition().WithConditions("name", "=", params.Name),
-		utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
-		utils.NewFilterCondition().WithConditions("volume_id", "=", volume.ID)})
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("name", "=", params.Name),
+		utils.NewFilterCondition("account_id", "=", account.ID),
+		utils.NewFilterCondition("volume_id", "=", volume.ID))
 	existingSnapshots, err := se.GetSnapshotsWithCondition(ctx, *filter)
 	if err != nil {
 		logger.Errorf("Failed to get snapshots with conditions: %v. Error: %v", filter, err)
 		return nil, "", err
 	}
 
-	if len(existingSnapshots) > 0 { // Check if there are any existing snapshot creation with the same name
-		filter = utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("resource_name", "=", params.Name),
-			utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
-			utils.NewFilterCondition().WithConditions("type", "=", string(models.JobTypeCreateSnapshot)),
-			utils.NewFilterCondition().WithConditions("state", "!=", string(models.JobsStateDONE)),
-			utils.NewFilterCondition().WithConditions("state", "!=", string(models.JobsStateERROR))})
+	if len(existingSnapshots) > 0 {
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("resource_name", "=", params.Name),
+			utils.NewFilterCondition("account_id", "=", account.ID),
+			utils.NewFilterCondition("type", "=", string(models.JobTypeCreateSnapshot)),
+			utils.NewFilterCondition("state", "!=", string(models.JobsStateDONE)),
+			utils.NewFilterCondition("state", "!=", string(models.JobsStateERROR)))
 
 		jobs, err := se.GetJobsWithCondition(ctx, *filter)
 		if err != nil {
@@ -229,10 +229,10 @@ func (o *Orchestrator) GetMultipleSnapshots(ctx context.Context, volumeUuid stri
 		return nil, err
 	}
 
-	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-		utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
-		utils.NewFilterCondition().WithConditions("volume_id", "=", volume.ID),
-		utils.NewFilterCondition().WithConditions("uuid", "in", snapshotUUIDs)})
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("account_id", "=", account.ID),
+		utils.NewFilterCondition("volume_id", "=", volume.ID),
+		utils.NewFilterCondition("uuid", "in", snapshotUUIDs))
 
 	dbSnapshots, err := se.GetSnapshotsWithCondition(ctx, *filter)
 	if err != nil {

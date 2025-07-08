@@ -41,11 +41,11 @@ func (o *Orchestrator) GetReplicationJobs(ctx context.Context, projectName, pool
 	if err != nil {
 		return nil, err
 	}
-	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-		utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
-		utils.NewFilterCondition().WithConditions("type", "in", replicationJobTypes),
-		utils.NewFilterCondition().WithConditions("state", "in", scheduledJobTypes),
-	})
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("account_id", "=", account.ID),
+		utils.NewFilterCondition("type", "in", replicationJobTypes),
+		utils.NewFilterCondition("state", "in", scheduledJobTypes),
+	)
 
 	dbJobs, err := se.GetJobsWithCondition(ctx, *filter)
 	if err != nil {

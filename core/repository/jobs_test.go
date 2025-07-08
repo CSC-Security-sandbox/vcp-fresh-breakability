@@ -152,7 +152,7 @@ func TestGetJobsWithCondition(t *testing.T) {
 		assert.NoError(tt, err, "Failed to clean up test database")
 
 		// Empty conditions
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{})
+		filter := utils.CreateFilterWithConditions(&utils.FilterCondition{})
 		jobs, err := store.GetJobsWithCondition(context.Background(), *filter)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Empty(tt, jobs, "Expected empty jobs list, got %v", jobs)
@@ -201,8 +201,8 @@ func TestGetJobsWithCondition(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create job3: %v", err)
 
 		// Filter by state
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("state", "=", models.LifeCycleStateCreating)})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("state", "=", models.LifeCycleStateCreating))
 		jobs, err := store.GetJobsWithCondition(context.Background(), *filter)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Len(tt, jobs, 2, "Expected 2 jobs, got %d", len(jobs))
@@ -214,9 +214,9 @@ func TestGetJobsWithCondition(t *testing.T) {
 		assert.NotContains(tt, jobUUIDs, job2.UUID, "Did not expect job2 UUID in results")
 
 		// Filter by state and type
-		filter = utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("state", "=", models.LifeCycleStateCreating),
-			utils.NewFilterCondition().WithConditions("type", "=", "test-type")})
+		filter = utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("state", "=", models.LifeCycleStateCreating),
+			utils.NewFilterCondition("type", "=", "test-type"))
 		jobs, err = store.GetJobsWithCondition(context.Background(), *filter)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Len(tt, jobs, 1, "Expected 1 job, got %d", len(jobs))
@@ -244,8 +244,8 @@ func TestGetJobsWithCondition(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create job: %v", err)
 
 		// Filter with non-matching condition
-		filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-			utils.NewFilterCondition().WithConditions("state", "=", "non-existent-state")})
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("state", "=", "non-existent-state"))
 		jobs, err := store.GetJobsWithCondition(context.Background(), *filter)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Empty(tt, jobs, "Expected empty jobs list, got %v", jobs)

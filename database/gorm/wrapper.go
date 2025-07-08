@@ -96,8 +96,6 @@ func (w *Wrapper) ApplyFilter(conditions [][]interface{}) *Wrapper {
 			if query, ok := condition[0].(string); ok {
 				args := condition[1:]
 				db = db.Where(query, args...)
-			} else if query == "unscoped" {
-				db = db.Unscoped()
 			}
 		}
 	}

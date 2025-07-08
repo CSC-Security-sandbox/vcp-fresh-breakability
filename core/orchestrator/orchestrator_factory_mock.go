@@ -2966,9 +2966,9 @@ func (_c *MockOrchestratorFactory_ListBackups_Call) RunAndReturn(run func(contex
 	return _c
 }
 
-// ListPools provides a mock function with given fields: ctx, accountName
-func (_m *MockOrchestratorFactory) ListPools(ctx context.Context, accountName string) ([]*models.Pool, error) {
-	ret := _m.Called(ctx, accountName)
+// ListPools provides a mock function with given fields: ctx, accountName, includeDeleted
+func (_m *MockOrchestratorFactory) ListPools(ctx context.Context, accountName string, includeDeleted bool) ([]*models.Pool, error) {
+	ret := _m.Called(ctx, accountName, includeDeleted)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListPools")
@@ -2976,19 +2976,19 @@ func (_m *MockOrchestratorFactory) ListPools(ctx context.Context, accountName st
 
 	var r0 []*models.Pool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*models.Pool, error)); ok {
-		return rf(ctx, accountName)
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) ([]*models.Pool, error)); ok {
+		return rf(ctx, accountName, includeDeleted)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []*models.Pool); ok {
-		r0 = rf(ctx, accountName)
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) []*models.Pool); ok {
+		r0 = rf(ctx, accountName, includeDeleted)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*models.Pool)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, accountName)
+	if rf, ok := ret.Get(1).(func(context.Context, string, bool) error); ok {
+		r1 = rf(ctx, accountName, includeDeleted)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3004,13 +3004,14 @@ type MockOrchestratorFactory_ListPools_Call struct {
 // ListPools is a helper method to define mock.On call
 //   - ctx context.Context
 //   - accountName string
-func (_e *MockOrchestratorFactory_Expecter) ListPools(ctx interface{}, accountName interface{}) *MockOrchestratorFactory_ListPools_Call {
-	return &MockOrchestratorFactory_ListPools_Call{Call: _e.mock.On("ListPools", ctx, accountName)}
+//   - includeDeleted bool
+func (_e *MockOrchestratorFactory_Expecter) ListPools(ctx interface{}, accountName interface{}, includeDeleted interface{}) *MockOrchestratorFactory_ListPools_Call {
+	return &MockOrchestratorFactory_ListPools_Call{Call: _e.mock.On("ListPools", ctx, accountName, includeDeleted)}
 }
 
-func (_c *MockOrchestratorFactory_ListPools_Call) Run(run func(ctx context.Context, accountName string)) *MockOrchestratorFactory_ListPools_Call {
+func (_c *MockOrchestratorFactory_ListPools_Call) Run(run func(ctx context.Context, accountName string, includeDeleted bool)) *MockOrchestratorFactory_ListPools_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(bool))
 	})
 	return _c
 }
@@ -3020,7 +3021,7 @@ func (_c *MockOrchestratorFactory_ListPools_Call) Return(_a0 []*models.Pool, _a1
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_ListPools_Call) RunAndReturn(run func(context.Context, string) ([]*models.Pool, error)) *MockOrchestratorFactory_ListPools_Call {
+func (_c *MockOrchestratorFactory_ListPools_Call) RunAndReturn(run func(context.Context, string, bool) ([]*models.Pool, error)) *MockOrchestratorFactory_ListPools_Call {
 	_c.Call.Return(run)
 	return _c
 }

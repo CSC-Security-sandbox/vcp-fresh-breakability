@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewFilterCondition(t *testing.T) {
-	fc := NewFilterCondition()
+	fc := NewFilterCondition("", "", nil)
 	assert.NotNil(t, fc)
 	assert.Equal(t, "", fc.Field)
 	assert.Equal(t, "", fc.Op)
@@ -26,11 +26,33 @@ func TestFilterCondition_WithConditions(t *testing.T) {
 func TestCreateFilterWithConditions(t *testing.T) {
 	cond1 := &FilterCondition{Field: "name", Op: "=", Value: "john"}
 	cond2 := &FilterCondition{Field: "age", Op: ">", Value: 21}
-	filter := CreateFilterWithConditions([]*FilterCondition{cond1, cond2})
+	filter := CreateFilterWithConditions(cond1, cond2)
 	assert.NotNil(t, filter)
 	assert.Len(t, filter.Conditions, 2)
 	assert.Equal(t, cond1, filter.Conditions[0])
 	assert.Equal(t, cond2, filter.Conditions[1])
+}
+
+func TestFilter_SetIncludeDeleted(t *testing.T) {
+	filter := &Filter{}
+	filter.SetIncludeDeleted(true)
+	assert.NotNil(t, filter.IncludeDeleted)
+	assert.True(t, filter.IncludeDeleted)
+
+	filter.SetIncludeDeleted(false)
+	assert.False(t, filter.IncludeDeleted)
+	assert.NotNil(t, filter.IncludeDeleted)
+}
+
+func TestFilter_ShouldIncludeDeleted(t *testing.T) {
+	filter := &Filter{}
+	assert.False(t, filter.ShouldIncludeDeleted())
+
+	filter.SetIncludeDeleted(true)
+	assert.True(t, filter.ShouldIncludeDeleted())
+
+	filter.SetIncludeDeleted(false)
+	assert.False(t, filter.ShouldIncludeDeleted())
 }
 
 func TestFilter_SetConditions(t *testing.T) {
@@ -47,6 +69,7 @@ func TestFilter_ToGORMQuery(t *testing.T) {
 		{Field: "name", Op: "=", Value: "alice"},
 		{Field: "age", Op: ">", Value: 30},
 		{Field: "id", Op: "in", Value: []string{"ab", "bc", "ca"}},
+		{}, // Empty condition should be ignored
 	}
 	filter := &Filter{Conditions: conds}
 	query := filter.ToGORMQuery()

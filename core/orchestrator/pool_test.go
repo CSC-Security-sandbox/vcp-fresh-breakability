@@ -22,10 +22,87 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	workflow_engine_mock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
-	"go.temporal.io/sdk/client"
+	workflowenginemock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"gorm.io/gorm"
 )
+
+func setup(t *testing.T) (context.Context, database.Storage, *Orchestrator, *workflowenginemock.MockTemporalTestClient) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+	store, err := database.SetupStorageForTest(mockLogger)
+	assert.NoError(t, err)
+	err = database.ClearInMemoryDB(store.DB())
+	assert.NoError(t, err)
+
+	temporal := workflowenginemock.NewMockTemporalTestClient(t)
+
+	orch := &Orchestrator{storage: store, temporal: temporal}
+	return ctx, store, orch, temporal
+}
+func createDBPools(t *testing.T, store database.Storage) ([]*datamodel.Pool, *datamodel.Account) {
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err := store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+	pool1 := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid1"},
+		Name:      "test_pool_1",
+		AccountID: account.ID,
+		VendorID:  "test-vendor-id",
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 64,
+			Iops:            1024,
+			PrimaryZone:     "us-central1-a",
+		},
+		DeploymentName: "dep1",
+	}
+	deletedPool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "test-pool-uuid-deleted",
+			DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true}, // Simulate a deleted pool
+		},
+		Name:      "test_pool_2",
+		AccountID: account.ID,
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 128,
+			Iops:            2048,
+			PrimaryZone:     "us-central1-b",
+			SecondaryZone:   "us-central1-c",
+		},
+		DeploymentName: "dep-deleted",
+	}
+	pool2 := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-uuid2",
+		},
+		Name:      "test_pool_2",
+		AccountID: account.ID,
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 128,
+			Iops:            2048,
+			PrimaryZone:     "us-central1-b",
+			SecondaryZone:   "us-central1-c",
+		},
+		DeploymentName: "dep2",
+	}
+
+	err = store.DB().Create(pool1).Error
+	assert.NoError(t, err)
+	err = store.DB().Create(deletedPool).Error
+	assert.NoError(t, err)
+	err = store.DB().Create(pool2).Error
+	assert.NoError(t, err)
+
+	var pools []*datamodel.Pool
+	store.DB().Find(&pools)
+
+	return []*datamodel.Pool{pool1, deletedPool, pool2}, account
+}
 
 func TestConvertDatastorePoolToModel_ValidPool_ReturnsCorrectModel(t *testing.T) {
 	deletedAt := gorm.DeletedAt{Time: time.Now(), Valid: true}
@@ -133,16 +210,8 @@ func TestConvertDatastorePoolToModel_InvalidDeletedAt_ReturnsNilDeletedAt(t *tes
 }
 
 func TestCreatePool(t *testing.T) {
-	temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
 	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		// Create a PersistenceStore instance with the in-memory database
-		se, err := database.NewTestStorage(mockLogger)
-		if err != nil {
-			t.Fatalf("Failed to create test storage: %v", err)
-		}
+		ctx, se, _, temporal := setup(tt)
 		params := &common.CreatePoolParams{
 			AccountName:      "test_account",
 			Region:           "test_region",
@@ -164,16 +233,11 @@ func TestCreatePool(t *testing.T) {
 			return nil, errors.New("account not found")
 		}
 
-		_, _, err = createPool(ctx, se, temporal, params)
+		_, _, err := createPool(ctx, se, temporal, params)
 		assert.EqualError(tt, err, "account not found")
 	})
 	t.Run("WhenValidatePoolParamFails", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		// Create a PersistenceStore instance with the in-memory database
-		se, err := database.NewTestStorage(mockLogger)
-		assert.NoError(tt, err, "Failed to create test storage")
+		ctx, se, _, temporal := setup(tt)
 		params := &common.CreatePoolParams{
 			AccountName:      "test_account",
 			Region:           "test_region",
@@ -209,22 +273,13 @@ func TestCreatePool(t *testing.T) {
 		assert.Nil(tt, pool, "Expected nil, got %v", pool)
 	})
 	t.Run("WhenCreatePoolFails", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.SetupStorageForTest(mockLogger)
-		assert.NoError(tt, err, "Failed to create test storage")
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		assert.NoError(tt, err, "Failed to clean up test storage")
-
+		ctx, store, _, temporal := setup(tt)
 		params := &common.CreatePoolParams{
 			AccountName:      "test_account",
 			Region:           "test_region",
 			PrimaryZone:      "test_zone1",
 			SecondaryZone:    "test_zone2",
-			Name:             "test_pool",
+			Name:             "test_pool_1",
 			VendorID:         "test_vendor",
 			SizeInBytes:      1024,
 			AllowAutoTiering: true,
@@ -236,50 +291,20 @@ func TestCreatePool(t *testing.T) {
 			},
 		}
 
-		dbAccount := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{
-				UUID: "test-uuid",
-			},
-			Name: "test_account",
-		}
+		_, account := createDBPools(t, store)
+
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-			return dbAccount, nil
+			return account, nil
 		}
 		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
 			return nil
 		}
 
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: dbAccount.ID,
-		}
-		err = store.DB().Create(pool).Error
-		assert.NoError(tt, err, "Failed to create pool")
-
-		_, _, err = createPool(ctx, store, temporal, params)
+		_, _, err := createPool(ctx, store, temporal, params)
 		assert.EqualError(tt, err, "pool already exists")
 	})
 	t.Run("WhenCreatePoolSucceeds", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			t.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			t.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
-		orch := Orchestrator{
-			storage:  store,
-			temporal: temporal,
-		}
+		ctx, _, orch, temporal := setup(tt)
 
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		params := &common.CreatePoolParams{
@@ -324,14 +349,7 @@ func TestCreatePool(t *testing.T) {
 
 func TestUpdatePool(t *testing.T) {
 	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		// Setup test storage instance
-		se, err := database.NewTestStorage(mockLogger)
-		assert.NoError(tt, err, "Failed to create test storage")
-
+		ctx, se, _, temporal := setup(tt)
 		params := &common.UpdatePoolParams{
 			AccountName: "test_account",
 			PoolId:      "test-pool-id",
@@ -341,25 +359,11 @@ func TestUpdatePool(t *testing.T) {
 			return nil, errors.New("account not found")
 		}
 
-		_, _, err = _updatePool(ctx, se, temporal, params)
+		_, _, err := _updatePool(ctx, se, temporal, params)
 		assert.EqualError(tt, err, "account not found")
 	})
 	t.Run("WhenPoolNotFound", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			t.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			t.Fatalf("Failed to clean up test storage: %v", err)
-		}
+		ctx, store, _, temporal := setup(tt)
 
 		params := &common.UpdatePoolParams{
 			AccountName: "test_account",
@@ -375,105 +379,43 @@ func TestUpdatePool(t *testing.T) {
 			return dbAccount, nil
 		}
 
-		_, _, err = _updatePool(ctx, store, temporal, params)
+		_, _, err := _updatePool(ctx, store, temporal, params)
 		if !strings.Contains(err.Error(), "pool not found") {
 			tt.Errorf("Expected not found error, got %s", err.Error())
 		}
 	})
 	t.Run("WhenValidatePoolParamsFails", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			t.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			t.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
+		ctx, store, _, temporal := setup(tt)
 		params := &common.UpdatePoolParams{
 			AccountName: "test_account",
-			PoolId:      "test-pool-id",
+			PoolId:      "test-pool-uuid1",
 		}
 
-		dbAccount := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-uuid", ID: 1},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(dbAccount).Error
-		assert.NoError(tt, err, "Failed to create account")
+		_, account := createDBPools(t, store)
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-			return dbAccount, nil
+			return account, nil
 		}
-
-		store.DB().Create(&datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-id"}, Name: "test_pool", AccountID: dbAccount.ID})
 
 		ValidateUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
 			return errors.New("invalid pool params")
 		}
 
-		_, _, err = _updatePool(ctx, store, temporal, params)
+		_, _, err := _updatePool(ctx, store, temporal, params)
 		assert.EqualError(tt, err, "invalid pool params")
 	})
 	t.Run("WhenUpdatePoolSucceeds", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			t.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			t.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
+		ctx, store, _, temporal := setup(tt)
 		params := &common.UpdatePoolParams{
 			AccountName: "test_account",
-			PoolId:      "test-pool-id",
+			PoolId:      "test-pool-uuid1",
 		}
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
-		dbAccount := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-uuid", ID: 1},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(dbAccount).Error
-		assert.NoError(tt, err, "Failed to create account")
+		pools, account := createDBPools(t, store)
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-			return dbAccount, nil
+			return account, nil
 		}
-
-		dbPool := &datamodel.Pool{
-			BaseModel:        datamodel.BaseModel{UUID: "test-pool-id"},
-			Name:             "test_pool",
-			AccountID:        dbAccount.ID,
-			SizeInBytes:      1024,
-			State:            "active",
-			StateDetails:     "running",
-			AllowAutoTiering: true,
-			Network:          "test-network",
-			ServiceLevel:     "FLEX",
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 64,
-				Iops:            1024,
-				PrimaryZone:     "us-central1-a",
-				SecondaryZone:   "",
-			},
-		}
-		err = store.DB().Create(dbPool).Error
-		assert.NoError(tt, err, "Failed to create pool")
 
 		ValidateUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
 			return nil
@@ -481,94 +423,43 @@ func TestUpdatePool(t *testing.T) {
 
 		pool, _, err := _updatePool(ctx, store, temporal, params)
 		assert.NoError(tt, err, "Expected no error on updating pool")
-		assert.Equal(tt, "test_pool", pool.Name)
+		assert.Equal(tt, pools[0].Name, pool.Name)
 		assert.Equal(tt, models.LifeCycleStateUpdating, pool.State)
 	})
 	t.Run("WhenExecuteWorkflowFails", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			t.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			t.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
+		ctx, store, _, temporal := setup(tt)
 		params := &common.UpdatePoolParams{
 			AccountName: "test_account",
-			PoolId:      "test-pool-id",
+			PoolId:      "test-pool-uuid1",
 		}
 
-		dbAccount := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-uuid", ID: 1},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(dbAccount).Error
-		assert.NoError(tt, err, "Failed to create account")
-
+		_, account := createDBPools(t, store)
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-			return dbAccount, nil
+			return account, nil
 		}
 
 		ValidateUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
 			return nil
 		}
 
-		dbPool := &datamodel.Pool{
-			BaseModel:        datamodel.BaseModel{UUID: "test-pool-id"},
-			Name:             "test_pool",
-			AccountID:        dbAccount.ID,
-			SizeInBytes:      1024,
-			State:            "active",
-			StateDetails:     "running",
-			AllowAutoTiering: true,
-			Network:          "test-network",
-			ServiceLevel:     "FLEX",
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 64,
-				Iops:            1024,
-				PrimaryZone:     "us-central1-a",
-				SecondaryZone:   "",
-			},
-		}
-		store.DB().Create(dbPool)
 		// Fail workflow execution.
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, params, mock.Anything).
 			Return(nil, fmt.Errorf("workflow error"))
 
-		_, _, err = _updatePool(ctx, store, temporal, params)
+		_, _, err := _updatePool(ctx, store, temporal, params)
 		assert.EqualError(tt, err, "workflow error")
 	})
 }
 
 func TestGetPool(t *testing.T) {
 	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
-		ctx := context.Background()
-
-		mockLogger := log.NewLogger()
-		store, err := database.SetupStorageForTest(mockLogger)
-		assert.NoError(tt, err, "Failed to create test storage")
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
-
-		orch := Orchestrator{
-			storage: store,
-		}
+		ctx, _, orch, _ := setup(tt)
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return &datamodel.Account{Name: "test_account"}, nil
 		}
 
-		_, err = orch.DescribePool(ctx, "non-existent-uuid", "")
+		_, err := orch.DescribePool(ctx, "non-existent-uuid", "")
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
 			assert.EqualError(tt, customErr.Unwrap(), "pool not found")
@@ -578,65 +469,22 @@ func TestGetPool(t *testing.T) {
 	})
 
 	t.Run("WhenPoolExists", func(tt *testing.T) {
-		ctx := context.Background()
+		ctx, store, orch, _ := setup(tt)
 
-		mockLogger := log.NewLogger()
-		store, err := database.SetupStorageForTest(mockLogger)
-		assert.NoError(tt, err, "Failed to create test storage")
+		pools, account := createDBPools(t, store)
 
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
-
-		orch := Orchestrator{
-			storage: store,
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(account).Error
-		assert.NoError(tt, err, "Failed to create account")
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 64,
-				Iops:            1024,
-				PrimaryZone:     "us-central1-a",
-				SecondaryZone:   "",
-			},
-		}
-		err = store.DB().Create(pool).Error
-		assert.NoError(tt, err, "Failed to create pool")
-
-		result, err := orch.DescribePool(ctx, "test-pool-uuid", "test_account")
+		result, err := orch.DescribePool(ctx, "test-pool-uuid1", "test_account")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
-		assert.Equal(tt, pool.Name, result.Name)
+		assert.Equal(tt, pools[0].Name, result.Name)
 		assert.Equal(tt, account.Name, result.AccountName)
 	})
 }
 
 func TestGetPoolByVendorID(t *testing.T) {
 	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
-		ctx := context.Background()
+		ctx, _, orch, _ := setup(tt)
 
-		mockLogger := log.NewLogger()
-		store, err := database.SetupStorageForTest(mockLogger)
-		assert.NoError(tt, err, "Failed to create test storage")
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		assert.NoError(tt, err, "Failed to ClearInMemoryDB")
-
-		orch := Orchestrator{
-			storage: store,
-		}
-
-		_, err = orch.GetPoolByVendorID(ctx, "non-existent-vendor-id")
+		_, err := orch.GetPoolByVendorID(ctx, "non-existent-vendor-id")
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
 			assert.EqualError(tt, customErr.Unwrap(), "pool not found")
@@ -646,53 +494,13 @@ func TestGetPoolByVendorID(t *testing.T) {
 	})
 
 	t.Run("WhenPoolExists", func(tt *testing.T) {
-		ctx := context.Background()
+		ctx, store, orch, _ := setup(tt)
 
-		mockLogger := log.NewLogger()
-		store, err := database.SetupStorageForTest(mockLogger)
-		assert.NoError(tt, err, "Failed to create test storage")
-
-		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			tt.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
-		orch := Orchestrator{
-			storage: store,
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			tt.Fatalf("Failed to create account: %v", err)
-		}
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			VendorID:  "test-vendor-id",
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 64,
-				Iops:            1024,
-				PrimaryZone:     "us-central1-a",
-				SecondaryZone:   "",
-			},
-		}
-		err = store.DB().Create(pool).Error
-		if err != nil {
-			tt.Fatalf("Failed to create pool: %v", err)
-		}
+		pools, account := createDBPools(t, store)
 
 		result, err := orch.GetPoolByVendorID(ctx, "test-vendor-id")
-		if err != nil {
-			tt.Errorf("Expected no error, got %v", err)
-		}
-		assert.Equal(tt, pool.Name, result.Name)
+		assert.NoError(tt, err)
+		assert.Equal(tt, pools[0].Name, result.Name)
 		assert.Equal(tt, account.Name, result.AccountName)
 	})
 }
@@ -940,11 +748,7 @@ func TestValidateUpdatePoolParams(t *testing.T) {
 
 func TestDeletePool(t *testing.T) {
 	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		se := database.Storage(nil)
-		temporal := client.Client(nil)
+		ctx, se, _, temporal := setup(tt)
 
 		params := &common.DeletePoolParams{
 			AccountName: "test_account",
@@ -959,17 +763,10 @@ func TestDeletePool(t *testing.T) {
 		assert.EqualError(tt, err, "account not found")
 	})
 	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		// Create a PersistenceStore instance with the in-memory database
-		store, err := database.SetupStorageForTest(mockLogger)
-		assert.NoError(tt, err, "Failed to create test storage")
-		temporal := client.Client(nil)
-		assert.NoError(tt, err, "Failed to create temporal client")
+		ctx, store, _, temporal := setup(tt)
 
 		// Clear the in-memory database
-		err = database.ClearInMemoryDB(store.DB())
+		err := database.ClearInMemoryDB(store.DB())
 		assert.NoError(tt, err)
 
 		params := &common.DeletePoolParams{
@@ -989,45 +786,10 @@ func TestDeletePool(t *testing.T) {
 			tt.Errorf("Expected custom error, got %v", err)
 		}
 	})
-	t.Run("WhenDeletePoolSucceeds1", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			tt.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			tt.Fatalf("Failed to clean up test storage: %v", err)
-		}
-		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			t.Fatalf("Failed to create account: %v", err)
-		}
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 64,
-				Iops:            1024,
-				PrimaryZone:     "us-central1-a",
-				SecondaryZone:   "",
-			},
-		}
-		err = store.DB().Create(pool).Error
-		if err != nil {
-			t.Fatalf("Failed to create pool: %v", err)
-		}
+	t.Run("WhenDeletePoolSucceeds", func(tt *testing.T) {
+		ctx, store, _, temporal := setup(tt)
+		pools, account := createDBPools(t, store)
+		pool := pools[0]
 
 		params := &common.DeletePoolParams{
 			AccountName: account.Name,
@@ -1041,39 +803,20 @@ func TestDeletePool(t *testing.T) {
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, jobID, err := _deletePool(ctx, temporal, store, params)
-		if err != nil {
-			t.Errorf("Expected no error, got %v", err)
-		}
-		if result.Name != pool.Name {
-			t.Errorf("Expected pool name %v, got %v", pool.Name, result.Name)
-		}
-		if jobID == "" {
-			t.Errorf("Expected job ID, got empty string")
-		}
+		assert.NoError(tt, err)
+		assert.Equal(tt, pool.Name, result.Name, "Expected pool name to match")
+		assert.NotEmpty(tt, jobID)
 	})
 }
 
 func TestMultiplePools(t *testing.T) {
 	t.Run("ReturnsErrorWhenAccountDoesNotExist", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			tt.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			tt.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
-		orch := Orchestrator{storage: store}
+		ctx, _, orch, _ := setup(tt)
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return nil, errors.NewNotFoundErr("account not found", nil)
 		}
-		_, err = orch.GetMultiplePools(ctx, "non-existent-account", []string{"uuid1", "uuid2"})
+		_, err := orch.GetMultiplePools(ctx, "non-existent-account", []string{"uuid1", "uuid2"})
 		if err == nil {
 			t.Errorf("Expected error, got nil")
 		}
@@ -1082,29 +825,8 @@ func TestMultiplePools(t *testing.T) {
 		}
 	})
 	t.Run("ReturnsErrorWhenNoPoolsMatchUUIDs", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			tt.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			tt.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			t.Fatalf("Failed to create account: %v", err)
-		}
-
-		orch := Orchestrator{storage: store}
+		ctx, store, orch, _ := setup(tt)
+		_, account := createDBPools(t, store)
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
@@ -1116,61 +838,27 @@ func TestMultiplePools(t *testing.T) {
 			tt.Fatalf("Expected 0 pools, got %v", len(pools))
 		}
 	})
-	t.Run("ReturnsPoolsSuccessfullyWhenUUIDsMatch", func(tt *testing.T) {
+	t.Run("WhenGetMultiplePoolsReturnsError", func(tt *testing.T) {
+		accountName := "test_account"
 		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			tt.Fatalf("Failed to create test storage: %v", err)
+		orch := &Orchestrator{
+			storage: mockStorage,
 		}
 
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			tt.Fatalf("Failed to clean up test storage: %v", err)
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: accountName}, nil
 		}
+		mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("list pools error"))
+		_, err := orch.GetMultiplePools(ctx, accountName, []string{"uuid1", "uuid2"})
+		assert.EqualError(tt, err, "list pools error")
+	})
+	t.Run("ReturnsPoolsSuccessfullyWhenUUIDsMatch", func(tt *testing.T) {
+		ctx, store, orch, _ := setup(tt)
 
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			t.Fatalf("Failed to create account: %v", err)
-		}
-
-		pool1 := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid1"},
-			Name:      "test_pool_1",
-			AccountID: account.ID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 64,
-				Iops:            1024,
-				PrimaryZone:     "us-central1-a",
-			},
-			DeploymentName: "dep1",
-		}
-		pool2 := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid2"},
-			Name:      "test_pool_2",
-			AccountID: account.ID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 128,
-				Iops:            2048,
-				PrimaryZone:     "us-central1-b",
-			},
-			DeploymentName: "dep2",
-		}
-		err = store.DB().Create(pool1).Error
-		if err != nil {
-			t.Fatalf("Failed to create pool1: %v", err)
-		}
-		err = store.DB().Create(pool2).Error
-		if err != nil {
-			t.Fatalf("Failed to create pool2: %v", err)
-		}
-
-		orch := Orchestrator{storage: store}
+		dbPools, account := createDBPools(t, store)
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
@@ -1180,37 +868,21 @@ func TestMultiplePools(t *testing.T) {
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
-		if len(result) != 2 {
-			t.Errorf("Expected 2 pools, got %d", len(result))
-		}
-		if result[0].Name != pool1.Name || result[1].Name != pool2.Name {
-			t.Errorf("Returned pools do not match expected pools")
-		}
+		assert.Len(tt, result, 2, "Expected 2 pools, got %d", len(result))
+		assert.Equal(tt, dbPools[0].Name, result[0].Name, "Returned pool does not match expected pool")
+		assert.Equal(tt, dbPools[1].Name, result[1].Name, "Returned pool does not match expected pool")
 	})
 }
 
 func TestListPools(t *testing.T) {
 	t.Run("ReturnsErrorWhenAccountDoesNotExist", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			tt.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			tt.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
-		orch := Orchestrator{storage: store}
+		ctx, _, orch, _ := setup(tt)
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return nil, errors.NewNotFoundErr("account not found", nil)
 		}
 
-		_, err = orch.ListPools(ctx, "non-existent-account")
+		_, err := orch.ListPools(ctx, "non-existent-account", false)
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}
@@ -1218,116 +890,71 @@ func TestListPools(t *testing.T) {
 			tt.Errorf("Expected not found error, got %v", err)
 		}
 	})
-
 	t.Run("ReturnsEmptyListWhenNoPoolsExist", func(tt *testing.T) {
-		ctx := context.Background()
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			tt.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			tt.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
+		ctx, store, orch, _ := setup(tt)
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
 			Name:      "test_account",
 		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			tt.Fatalf("Failed to create account: %v", err)
-		}
-
-		orch := Orchestrator{storage: store}
+		err := store.DB().Create(account).Error
+		assert.NoError(tt, err)
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
 
-		pools, err := orch.ListPools(ctx, account.Name)
-		if err != nil {
-			tt.Errorf("Expected no error, got %v", err)
-		}
-		if len(pools) != 0 {
-			tt.Errorf("Expected 0 pools, got %d", len(pools))
-		}
+		pools, err := orch.ListPools(ctx, account.Name, false)
+		assert.NoError(tt, err)
+		assert.Empty(tt, pools)
 	})
-
-	t.Run("ReturnsPoolsSuccessfully", func(tt *testing.T) {
+	t.Run("WhenListPoolsReturnsError", func(tt *testing.T) {
+		accountName := "test_account"
 		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			tt.Fatalf("Failed to create test storage: %v", err)
+		orch := &Orchestrator{
+			storage: mockStorage,
 		}
 
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			tt.Fatalf("Failed to clean up test storage: %v", err)
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: accountName}, nil
 		}
+		mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("list pools error"))
+		_, err := orch.ListPools(ctx, accountName, false)
+		assert.EqualError(tt, err, "list pools error")
+	})
+	t.Run("ReturnsPoolsSuccessfully", func(tt *testing.T) {
+		ctx, store, orch, _ := setup(tt)
 
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			tt.Fatalf("Failed to create account: %v", err)
-		}
-
-		pool1 := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid1"},
-			Name:      "test_pool_1",
-			AccountID: account.ID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 64,
-				Iops:            1024,
-				PrimaryZone:     "us-central1-a",
-			},
-			DeploymentName: "dep1",
-		}
-		pool2 := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid2"},
-			Name:      "test_pool_2",
-			AccountID: account.ID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 128,
-				Iops:            2048,
-				PrimaryZone:     "us-central1-b",
-				SecondaryZone:   "us-central1-c",
-			},
-			DeploymentName: "dep2",
-		}
-		err = store.DB().Create(pool1).Error
-		if err != nil {
-			tt.Fatalf("Failed to create pool1: %v", err)
-		}
-		err = store.DB().Create(pool2).Error
-		if err != nil {
-			tt.Fatalf("Failed to create pool2: %v", err)
-		}
-
-		orch := Orchestrator{storage: store}
+		dbPools, account := createDBPools(tt, store)
 
 		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
 		}
 
-		pools, err := orch.ListPools(ctx, account.Name)
-		if err != nil {
-			tt.Errorf("Expected no error, got %v", err)
+		pools, err := orch.ListPools(ctx, account.Name, false)
+		assert.NoError(tt, err)
+		assert.Len(tt, pools, 2, "Expected 2 pools, got %d", len(pools))
+		assert.Equal(tt, dbPools[0].Name, pools[0].Name, "Returned pool does not match expected pool")
+		assert.Equal(tt, dbPools[1].Name, pools[1].Name, "Returned pool does not match expected pool")
+	})
+	t.Run("ReturnsPoolsSuccessfullyWithDeleted", func(tt *testing.T) {
+		ctx, store, orch, _ := setup(tt)
+
+		dbPools, account := createDBPools(tt, store)
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
 		}
-		if len(pools) != 2 {
-			tt.Errorf("Expected 2 pools, got %d", len(pools))
-		}
-		if pools[0].Name != pool1.Name || pools[1].Name != pool2.Name {
-			tt.Errorf("Returned pools do not match expected pools")
-		}
+
+		pools, err := orch.ListPools(ctx, account.Name, true)
+		assert.NoError(tt, err)
+
+		assert.Len(tt, pools, 3, "Expected 2 pools, got %d", len(pools))
+		assert.Equal(tt, dbPools[0].Name, pools[0].Name, "Returned pool does not match expected pool")
+		assert.Equal(tt, dbPools[1].Name, pools[1].Name, "Returned pool does not match expected pool")
+		assert.Equal(tt, dbPools[2].Name, pools[2].Name, "Returned pool does not match expected pool")
 	})
 }
 
@@ -1399,7 +1026,7 @@ func TestListAllPools_ErrorFromStorage(t *testing.T) {
 	mockStorage := new(database.MockStorage)
 
 	// Simulate error from ListPools
-	mockStorage.On("ListPools", ctx, [][]interface{}{{"deleted_at IS NULL"}}).Return(nil, errors.New("db error"))
+	mockStorage.EXPECT().ListPools(ctx, (*utils.Filter)(nil)).Return(nil, errors.New("db error"))
 
 	orch := Orchestrator{storage: mockStorage}
 

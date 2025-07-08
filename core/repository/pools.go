@@ -206,8 +206,14 @@ func (d *DataStoreRepository) DeletingPool(ctx context.Context, pool *datamodel.
 	return nil
 }
 
-func (d *DataStoreRepository) ListPools(ctx context.Context, conditions [][]interface{}) ([]*datamodel.PoolView, error) {
-	return listPoolWithDetails(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
+func (d *DataStoreRepository) ListPools(ctx context.Context, filter *utils.Filter) ([]*datamodel.PoolView, error) {
+	if filter != nil {
+		if filter.ShouldIncludeDeleted() {
+			return listPoolWithDetails(d.db.ApplyFilter(filter.Apply()).Unscoped().GORM().WithContext(ctx))
+		}
+		return listPoolWithDetails(d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx))
+	}
+	return listPoolWithDetails(d.db.GORM().WithContext(ctx))
 }
 
 func (d *DataStoreRepository) GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.PoolView, error) {

@@ -34,9 +34,9 @@ func (r *ReplicationInternalGetMultipleActivity) GetReplicationsFromDB(ctx conte
 		return nil, err
 	}
 
-	filter := utils.CreateFilterWithConditions([]*utils.FilterCondition{
-		utils.NewFilterCondition().WithConditions("account_id", "=", account.ID),
-		utils.NewFilterCondition().WithConditions("uuid", "in", params.ReplicationUUIDs)})
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("account_id", "=", account.ID),
+		utils.NewFilterCondition("uuid", "in", params.ReplicationUUIDs))
 
 	replications, err := se.ListVolumeReplications(ctx, *filter)
 	if err != nil {

@@ -359,7 +359,7 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 }
 
 // ListPools returns list of pools belonging to the specified owner
-func (o *Orchestrator) ListPools(ctx context.Context, accountName string) ([]*models.Pool, error) {
+func (o *Orchestrator) ListPools(ctx context.Context, accountName string, includeDeleted bool) ([]*models.Pool, error) {
 	se := o.storage
 
 	account, err := getAccountWithName(ctx, se, accountName)
@@ -367,8 +367,9 @@ func (o *Orchestrator) ListPools(ctx context.Context, accountName string) ([]*mo
 		return nil, err
 	}
 
-	conditions := [][]interface{}{{"account_id = ?", account.ID}}
-	pools, err := se.ListPools(ctx, conditions)
+	filter := utils.CreateFilterWithConditions(utils.NewFilterCondition("account_id", "=", account.ID))
+	filter.SetIncludeDeleted(includeDeleted)
+	pools, err := se.ListPools(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -380,7 +381,7 @@ func (o *Orchestrator) ListPools(ctx context.Context, accountName string) ([]*mo
 func (o *Orchestrator) ListAllPools(ctx context.Context) ([]*models.Pool, error) {
 	se := o.storage
 
-	pools, err := se.ListPools(ctx, [][]interface{}{{"deleted_at IS NULL"}})
+	pools, err := se.ListPools(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -397,9 +398,10 @@ func (o *Orchestrator) GetMultiplePools(ctx context.Context, accountName string,
 		return nil, err
 	}
 
-	conditions := [][]interface{}{{"uuid in (?)", poolUUIDs}}
-	conditions = append(conditions, []interface{}{"account_id = ?", account.ID})
-	pools, err := se.ListPools(ctx, conditions)
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("uuid", "in", poolUUIDs),
+		utils.NewFilterCondition("account_id", "=", account.ID))
+	pools, err := se.ListPools(ctx, filter)
 	if err != nil {
 		return nil, err
 	}

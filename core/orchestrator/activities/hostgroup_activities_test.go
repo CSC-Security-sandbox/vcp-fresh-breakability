@@ -12,6 +12,7 @@ import (
 	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -128,7 +129,8 @@ func TestUpdateIGroups(t *testing.T) {
 		}).Return(nil)
 
 		mockStorage.On("UpdateVolume", ctx, mock.Anything).Return(nil)
-		mockStorage.On("ListPools", ctx, [][]interface{}{{"account_id = ?", hg.AccountID}}).Return([]*datamodel.PoolView{}, nil)
+		filter := utils.CreateFilterWithConditions(utils.NewFilterCondition("account_id", "=", hg.AccountID))
+		mockStorage.On("ListPools", ctx, filter).Return([]*datamodel.PoolView{}, nil)
 
 		err := activity.UpdateIGroups(ctx, hg)
 

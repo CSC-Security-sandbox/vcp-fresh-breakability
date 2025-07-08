@@ -894,7 +894,7 @@ func TestV1betaListPools(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
-		mockOrchestrator.EXPECT().ListPools(mock.Anything, params.ProjectNumber).Return(nil, fmt.Errorf("internal error"))
+		mockOrchestrator.EXPECT().ListPools(mock.Anything, params.ProjectNumber, false).Return(nil, fmt.Errorf("internal error"))
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -928,7 +928,45 @@ func TestV1betaListPools(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
-		mockOrchestrator.EXPECT().ListPools(mock.Anything, params.ProjectNumber).Return([]*models.Pool{pool1, pool2}, nil)
+		mockOrchestrator.EXPECT().ListPools(mock.Anything, params.ProjectNumber, false).Return([]*models.Pool{pool1, pool2}, nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaListPools(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		successResult, ok := result.(*gcpgenserver.V1betaListPoolsOK)
+		assert.True(tt, ok)
+		assert.Equal(tt, 2, len(successResult.Pools))
+		assert.Equal(tt, "pool-uuid-1", successResult.Pools[0].PoolId.Value)
+		assert.Equal(tt, "pool-uuid-2", successResult.Pools[1].PoolId.Value)
+	})
+	t.Run("WhenListPoolsSucceedsIncludeDeleted", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaListPoolsParams{
+			LocationId:     "us-east4",
+			ProjectNumber:  "project-number",
+			IncludeDeleted: gcpgenserver.NewOptBool(true),
+		}
+
+		pool1 := &models.Pool{
+			BaseModel:      models.BaseModel{UUID: "pool-uuid-1"},
+			Name:           "pool-1",
+			PoolAttributes: &models.PoolAttributes{},
+		}
+		pool2 := &models.Pool{
+			BaseModel: models.BaseModel{UUID: "pool-uuid-2"},
+			Name:      "pool-2",
+			PoolAttributes: &models.PoolAttributes{
+				NumberOfVolumes: 1,
+			},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		mockOrchestrator.EXPECT().ListPools(mock.Anything, params.ProjectNumber, true).Return([]*models.Pool{pool1, pool2}, nil)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
