@@ -43,7 +43,7 @@ type CustomPerformanceParams struct {
 type TenancyInfo struct {
 	RegionalTenantProject string
 	Network               string
-	SubnetworkName        string
+	SubnetworkNames       []string
 	SnHostProject         string
 	Gateway               string
 }

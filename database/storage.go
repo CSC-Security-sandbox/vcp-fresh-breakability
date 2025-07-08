@@ -399,6 +399,10 @@ func (s *PersistenceStore) UpdatedPool(ctx context.Context, pool *datamodel.Pool
 	return s.dataStore.UpdatedPool(ctx, pool)
 }
 
+func (s *PersistenceStore) UpdatePoolSubnetNames(ctx context.Context, poolUUID, snHostProject string, subnetNames []string) error {
+	return s.dataStore.UpdatePoolSubnetNames(ctx, poolUUID, snHostProject, subnetNames)
+}
+
 func (s *PersistenceStore) DeletePool(ctx context.Context, pool *datamodel.Pool) error {
 	return s.dataStore.DeletePool(ctx, pool)
 }

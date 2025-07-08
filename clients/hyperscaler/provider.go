@@ -13,6 +13,7 @@ type Services interface {
 	InitializeClients() error
 
 	GetLogger() log.Logger
+	GetContext() context.Context
 
 	CreateVPC(vpcNetwork *models.VPCNetwork) error
 	GetVPCNetwork(projectName, vpcNetworkName string) (*models.VPCNetwork, error)
@@ -20,6 +21,7 @@ type Services interface {
 	CreateSubnetwork(request *models.Subnet) error
 	GetSubnetwork(projectName, region, subnetName string) (*models.Subnet, error)
 	ReleaseSubnetwork(region, projectNumber, subnetwork string) error
+	ListSubnetworks(projectName, region string) (*[]models.Subnet, error)
 
 	InsertFirewall(firewallRule *models.Firewall) error
 	GetFirewall(projectName string, firewallName string) (*models.Firewall, error)
@@ -59,5 +61,5 @@ type GoogleServices interface {
 	GetTenantProject(consumerNetwork, customerProjectNumber, tenantProjectRegion string) (string, error)
 	GetSnHost(project string) (string, error)
 
-	CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region string) ([]byte, error)
+	CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region, subnetName string) ([]byte, error)
 }

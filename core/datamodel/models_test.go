@@ -36,7 +36,7 @@ func TestClusterDetails_Value(t *testing.T) {
 	cd := ClusterDetails{ExternalName: "test"}
 	val, err := cd.Value()
 	assert.NoError(t, err)
-	assert.Equal(t, `{"external_name":"test","ontap_version":"","regional_tenant_project":"","sn_host_project":"","network":""}`, string(val.([]byte)))
+	assert.Equal(t, `{"external_name":"test","ontap_version":"","regional_tenant_project":"","sn_host_project":"","network":"","subnet_names":null}`, string(val.([]byte)))
 }
 
 func TestVolumeAttributes_Scan(t *testing.T) {

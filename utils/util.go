@@ -194,10 +194,10 @@ func GetJWTTokenFromContext(ctx context.Context) string {
 // ParseProjectId parses the remoteAccount id and returns project number and network name
 func ParseProjectId(network string) (string, string, error) {
 	tmp := strings.Split(network, "/")
-	if len(tmp) != 5 {
+	if len(tmp) < 5 {
 		return "", "", errors.New(fmt.Sprintf("parseProjectId failed for network : %s", network))
 	}
-	return tmp[1], tmp[4], nil
+	return tmp[len(tmp)-4], tmp[len(tmp)-1], nil
 }
 
 // BytesToGigabytes converts bytes to gigabytes

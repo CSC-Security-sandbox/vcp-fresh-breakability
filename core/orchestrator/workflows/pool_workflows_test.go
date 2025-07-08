@@ -64,9 +64,9 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+	env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
-		SubnetworkName:        "test-subnet",
+		SubnetworkNames:       []string{"test-subnet"},
 		RegionalTenantProject: "test-project",
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
@@ -296,9 +296,9 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 
 	// Mock activity responses
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+	env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
-		SubnetworkName:        "test-subnet",
+		SubnetworkNames:       []string{"test-subnet"},
 		RegionalTenantProject: "test-project",
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
@@ -361,9 +361,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:               "test-network",
-			SubnetworkName:        "test-subnet",
+		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:         "test-network",
+			SubnetworkNames: []string{"test-subnet"},
+
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
@@ -445,9 +446,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
-			SubnetworkName:        "test-subnet",
+			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
@@ -532,9 +533,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:               "test-network",
-			SubnetworkName:        "test-subnet",
+		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:         "test-network",
+			SubnetworkNames: []string{"test-subnet"},
+
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
@@ -619,9 +621,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:               "test-network",
-			SubnetworkName:        "test-subnet",
+		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:         "test-network",
+			SubnetworkNames: []string{"test-subnet"},
+
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
@@ -712,9 +715,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:               "test-network",
-			SubnetworkName:        "test-subnet",
+		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:         "test-network",
+			SubnetworkNames: []string{"test-subnet"},
+
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
@@ -796,9 +800,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:               "test-network",
-			SubnetworkName:        "test-subnet",
+		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:         "test-network",
+			SubnetworkNames: []string{"test-subnet"},
+
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
@@ -879,9 +884,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:               "test-network",
-			SubnetworkName:        "test-subnet",
+		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:         "test-network",
+			SubnetworkNames: []string{"test-subnet"},
+
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
@@ -961,9 +967,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:               "test-network",
-			SubnetworkName:        "test-subnet",
+		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:         "test-network",
+			SubnetworkNames: []string{"test-subnet"},
+
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
@@ -1044,9 +1051,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:               "test-network",
-			SubnetworkName:        "test-subnet",
+		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:         "test-network",
+			SubnetworkNames: []string{"test-subnet"},
+
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
@@ -1130,9 +1138,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:               "test-network",
-			SubnetworkName:        "test-subnet",
+		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:         "test-network",
+			SubnetworkNames: []string{"test-subnet"},
+
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
@@ -1216,9 +1225,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:               "test-network",
-			SubnetworkName:        "test-subnet",
+		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:         "test-network",
+			SubnetworkNames: []string{"test-subnet"},
+
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
@@ -1297,14 +1307,14 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			getSignedJwtToken = auth.GetSignedJwtToken
 			runningEnv = envs.GetString("ENV", "")
 		}()
-		
+
 		if secretManagerEnabled {
 			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
-			SubnetworkName:        "test-subnet",
+			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",

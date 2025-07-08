@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -927,11 +928,13 @@ func Test_CreateSubnetworkForTenantProject(t *testing.T) {
 	consumerNetwork := "projects/123456789/global/networks/test-network"
 	region := "us-central1"
 	ctx := context.Background()
+	subnetName := fmt.Sprintf("vsa-us-c1-%s", tenantProjectNumber)
+
 	t.Run("WhenParseProjectIdFails", func(tt *testing.T) {
 		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
 		consumerNetworkIncorrect := "projects/123456789/global/networks"
 
-		_, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetworkIncorrect, region)
+		_, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetworkIncorrect, region, subnetName)
 		if err == nil || !strings.Contains(err.Error(), "parseProjectId failed for network : "+consumerNetworkIncorrect) {
 			tt.Errorf("Expected parse error, got: %v", err)
 		}
@@ -944,7 +947,7 @@ func Test_CreateSubnetworkForTenantProject(t *testing.T) {
 			return nil, fmt.Errorf("create error")
 		}
 		defer func() { createSubnetworkForTenantProject = origCreate }()
-		_, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region)
+		_, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region, subnetName)
 		if err == nil || !strings.Contains(err.Error(), "create error") {
 			tt.Errorf("Expected create error, got: %v", err)
 		}
@@ -962,7 +965,7 @@ func Test_CreateSubnetworkForTenantProject(t *testing.T) {
 			return nil, fmt.Errorf("wait error")
 		}
 		defer func() { waitForServiceNetworkOperationStatus = origWait }()
-		_, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region)
+		_, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region, subnetName)
 		if err == nil || !strings.Contains(err.Error(), "wait error") {
 			tt.Errorf("Expected wait error, got: %v", err)
 		}
@@ -979,7 +982,7 @@ func Test_CreateSubnetworkForTenantProject(t *testing.T) {
 			return nil, fmt.Errorf("Timeout while confirming service network google components")
 		}
 		defer func() { waitForServiceNetworkOperationStatus = origWait }()
-		_, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region)
+		_, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region, subnetName)
 		if err == nil || !strings.Contains(err.Error(), "Timeout while confirming service network google components") {
 			tt.Errorf("Expected wait error, got: %v", err)
 		}
@@ -997,7 +1000,7 @@ func Test_CreateSubnetworkForTenantProject(t *testing.T) {
 			return &models.ComputeOperation{Response: []byte("success")}, nil
 		}
 		defer func() { waitForServiceNetworkOperationStatus = origWait }()
-		resp, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region)
+		resp, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region, subnetName)
 		if err != nil {
 			tt.Errorf("Unexpected error: %v", err)
 		}
@@ -1397,8 +1400,8 @@ func TestReleaseSubnetwork(t *testing.T) {
 			Logger: util.GetLogger(ctx),
 		}
 		err = gService.ReleaseSubnetwork(region, snhost, subnetwork)
-		if err == nil || (!strings.Contains(err.Error(), "notFound") && !strings.Contains(err.Error(), "not found")) {
-			tt.Errorf("Expected notFound error, got: %v", err)
+		if err != nil {
+			tt.Errorf("Subnet not found means, the subnet doesn't exist or is deleted. Unexpected error, got: %v", err)
 		}
 	})
 	t.Run("WhenWaitForComputeOperationFails", func(tt *testing.T) {
@@ -1444,13 +1447,13 @@ func TestReleaseSubnetwork(t *testing.T) {
 	})
 }
 
-// Unit tests for ListSubnetwork
-func Test_ListSubnetwork(t *testing.T) {
+// Unit tests for ListSubnetworks
+func Test_ListSubnetworks(t *testing.T) {
 	projectName := "test-project"
 	region := "us-central1"
 	url := fmt.Sprintf("/projects/%s/regions/%s/subnetworks", projectName, region)
 
-	t.Run("WhenListSubnetworkFails", func(tt *testing.T) {
+	t.Run("WhenListSubnetworksFails", func(tt *testing.T) {
 		ctx := context.Background()
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			if req.Method == http.MethodGet && req.URL.Path == url {
@@ -1476,13 +1479,13 @@ func Test_ListSubnetwork(t *testing.T) {
 			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 
-		_, err = gService.ListSubnetwork(projectName, region)
+		_, err = gService.ListSubnetworks(projectName, region)
 		if err == nil {
 			tt.Error("Expected an error but got none")
 		}
 	})
 
-	t.Run("WhenListSubnetworkSucceeds", func(tt *testing.T) {
+	t.Run("WhenListSubnetworksSucceeds", func(tt *testing.T) {
 		ctx := context.Background()
 		resp := &compute.Subnetwork{Name: "test-subnet"}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
@@ -1511,7 +1514,7 @@ func Test_ListSubnetwork(t *testing.T) {
 			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 
-		out, err := gService.ListSubnetwork(projectName, region)
+		out, err := gService.ListSubnetworks(projectName, region)
 		if err != nil {
 			tt.Errorf("Unexpected error: %v", err)
 		}
@@ -1698,5 +1701,65 @@ func Test_GetSnHost(t *testing.T) {
 				tt.Errorf("RetryStrategy was not reset %d", gService.Retry.GetRetryCount())
 			}
 		}
+	})
+}
+
+func Test_newClient(t *testing.T) {
+	origNewClientScopes := newClientScopes
+	defer func() { newClientScopes = origNewClientScopes }()
+
+	ctx := context.Background()
+
+	t.Run("returns client and endpoint", func(t *testing.T) {
+		expectedClient := &http.Client{}
+		expectedEndpoint := "test-endpoint"
+		newClientScopes = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return expectedClient, expectedEndpoint, nil
+		}
+		client, endpoint, err := _newClient(ctx)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if client != expectedClient {
+			t.Errorf("expected client %v, got %v", expectedClient, client)
+		}
+		if endpoint != expectedEndpoint {
+			t.Errorf("expected endpoint %v, got %v", expectedEndpoint, endpoint)
+		}
+	})
+
+	t.Run("returns error", func(t *testing.T) {
+		newClientScopes = func(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
+			return nil, "", fmt.Errorf("Error getting service up")
+		}
+		client, endpoint, err := _newClient(ctx)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if client != nil {
+			t.Errorf("expected nil client, got %v", client)
+		}
+		if endpoint != "" {
+			t.Errorf("expected empty endpoint, got %v", endpoint)
+		}
+	})
+}
+
+// Unit tests for GetContext
+func TestGcpServices_GetContext(t *testing.T) {
+	t.Run("ReturnsExistingContext", func(t *testing.T) {
+		ctx := context.Background()
+		gcpService := &GcpServices{
+			Ctx: ctx,
+		}
+		got := gcpService.GetContext()
+		assert.Equal(t, ctx, got)
+	})
+
+	t.Run("InitializesContextIfNil", func(t *testing.T) {
+		gcpService := &GcpServices{}
+		got := gcpService.GetContext()
+		assert.NotNil(t, got)
+		assert.Equal(t, gcpService.Ctx, got)
 	})
 }

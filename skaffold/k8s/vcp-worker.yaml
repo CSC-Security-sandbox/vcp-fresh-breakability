@@ -94,3 +94,7 @@ spec:
               value: "/app/vlm-config.json"
             - name: ERROR_FILE_PATH
               value: "/app/errors.json"
+            - name: TOTAL_IP_PER_HA_PAIR
+              value: "6"
+            - name: DATA_SUBNET_CIDR_BLOCK
+              value: "28"

@@ -66,6 +66,8 @@ workerConfig:
   vsaDeployedDnsName: ""
   vsaSecretCacheCleanupIntervalHours: 24
   vsaSecretAuthCacheExpirationHours: 24
+  totalIpPerHaPair: 6
+  dataSubnetCidrBlock: 28
 
   # Database configuration
   database:

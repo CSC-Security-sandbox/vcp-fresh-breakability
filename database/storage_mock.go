@@ -6608,6 +6608,55 @@ func (_c *MockStorage_UpdateKmsConfigState_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// UpdatePoolSubnetNames provides a mock function with given fields: ctx, poolUUID, snHostProject, subnetNames
+func (_m *MockStorage) UpdatePoolSubnetNames(ctx context.Context, poolUUID string, snHostProject string, subnetNames []string) error {
+	ret := _m.Called(ctx, poolUUID, snHostProject, subnetNames)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatePoolSubnetNames")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, []string) error); ok {
+		r0 = rf(ctx, poolUUID, snHostProject, subnetNames)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_UpdatePoolSubnetNames_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatePoolSubnetNames'
+type MockStorage_UpdatePoolSubnetNames_Call struct {
+	*mock.Call
+}
+
+// UpdatePoolSubnetNames is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolUUID string
+//   - snHostProject string
+//   - subnetNames []string
+func (_e *MockStorage_Expecter) UpdatePoolSubnetNames(ctx interface{}, poolUUID interface{}, snHostProject interface{}, subnetNames interface{}) *MockStorage_UpdatePoolSubnetNames_Call {
+	return &MockStorage_UpdatePoolSubnetNames_Call{Call: _e.mock.On("UpdatePoolSubnetNames", ctx, poolUUID, snHostProject, subnetNames)}
+}
+
+func (_c *MockStorage_UpdatePoolSubnetNames_Call) Run(run func(ctx context.Context, poolUUID string, snHostProject string, subnetNames []string)) *MockStorage_UpdatePoolSubnetNames_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].([]string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdatePoolSubnetNames_Call) Return(_a0 error) *MockStorage_UpdatePoolSubnetNames_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_UpdatePoolSubnetNames_Call) RunAndReturn(run func(context.Context, string, string, []string) error) *MockStorage_UpdatePoolSubnetNames_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdatePoolWithKmsConfigID provides a mock function with given fields: ctx, pool, kmsConfigUUID
 func (_m *MockStorage) UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error) {
 	ret := _m.Called(ctx, pool, kmsConfigUUID)

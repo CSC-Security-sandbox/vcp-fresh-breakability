@@ -39,7 +39,8 @@ var (
 	// MockMetaDataHost is the endpoint for the metadata server.
 	MockMetaDataHost = env.GetString("GCE_METADATA_HOST", "")
 
-	newClient = _newClient
+	newClient       = _newClient
+	newClientScopes = scopesHttp.NewClient
 
 	newGoogleClient                = _newGoogleClient
 	initializeManagementService    = _initializeManagementService
@@ -78,7 +79,7 @@ type AdminGCPService struct {
 
 // _newClient redirects to third party library HTTP NewClient for networking, while it helps to mock the function for init_test
 func _newClient(ctx context.Context, opts ...option.ClientOption) (*http.Client, string, error) {
-	return scopesHttp.NewClient(ctx, opts...)
+	return newClientScopes(ctx, opts...)
 }
 
 // InitializeClients Initialize the nvc clients & admin clients
@@ -109,6 +110,14 @@ func (gcpService *GcpServices) GetLogger() logger.Logger {
 		gcpService.Logger = util.GetLogger(gcpService.Ctx)
 	}
 	return gcpService.Logger
+}
+
+// GetLogger returns the logger instance for gcpService if exists, else creates a new one
+func (gcpService *GcpServices) GetContext() context.Context {
+	if gcpService.Ctx == nil {
+		gcpService.Ctx = context.Background()
+	}
+	return gcpService.Ctx
 }
 
 // _initializeAdminClient creates a new googleService object using Workload identity and Initializes the services

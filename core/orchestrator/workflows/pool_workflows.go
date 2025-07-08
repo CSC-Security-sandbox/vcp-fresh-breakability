@@ -124,10 +124,11 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	rollbackManager.AddActivity(poolActivity.DeletePoolResourcesOnRollback, dbPool)
 
 	tenancyDetails := &common.TenancyInfo{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateTenancy, params).Get(ctx, &tenancyDetails)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateTenancy, params, dbPool.UUID).Get(ctx, &tenancyDetails)
 	if err != nil {
 		return nil, err
 	}
+	dbPool.ClusterDetails.SubnetNames = tenancyDetails.SubnetworkNames
 
 	rollbackManager.AddActivity(poolActivity.ReleaseSubnet, dbPool)
 	setupNwCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(setupNwHeartbeatTimeout)*time.Second)
@@ -186,10 +187,11 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		ExternalName:          "",
 		RegionalTenantProject: tenancyDetails.RegionalTenantProject,
 		SnHostProject:         tenancyDetails.SnHostProject,
-		Network:               tenancyDetails.Network}
+		Network:               tenancyDetails.Network,
+		SubnetNames:           tenancyDetails.SubnetworkNames}
 	rollbackManager.AddActivity(poolActivity.DeleteVSADeployment, poolWithClusterDetails)
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, deploymentName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkName, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, vsaClusterPassword, serviceAccount.Email, pool.AutoTierBucketName).Get(ctx, vlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, deploymentName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkNames, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, vsaClusterPassword, serviceAccount.Email, pool.AutoTierBucketName).Get(ctx, vlmConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -230,6 +232,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		RegionalTenantProject: tenancyDetails.RegionalTenantProject,
 		SnHostProject:         tenancyDetails.SnHostProject,
 		Network:               tenancyDetails.Network,
+		SubnetNames:           tenancyDetails.SubnetworkNames,
 	}
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.SavePoolWithClusterDetails, dbPool, clusterDetails).Get(ctx, nil)
@@ -248,6 +251,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if err != nil {
 		return nil, err
 	}
+	dbPool.ClusterDetails.SubnetNames = tenancyDetails.SubnetworkNames
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreatedPool, dbPool).Get(ctx, nil)
 	return nil, err
@@ -485,7 +489,6 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			return nil, err
 		}
 	}
-
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeletePoolResources, dbPool).Get(ctx, nil)
 	if err != nil {
 		return nil, err

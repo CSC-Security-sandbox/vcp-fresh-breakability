@@ -12,11 +12,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
-	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
@@ -59,15 +58,13 @@ var (
 	CreateVPC                                 = _createVPC
 	InsertSubnet                              = _insertSubnet
 	InsertFirewall                            = _insertFirewall
-	GetGCPService                             = _getGCPService
-	NewGcpServices                            = _newGcpServices
 	SetupNetworkWithFirewall                  = setupNetworkWithFirewall
 	SetupNetworkFirewallsForIscsi             = setupNetworkFirewallsForIscsi
 	CreateGCPBucket                           = _createGCPBucket
 	CreateServiceAccountAndAttachRole         = _createServiceAccountAndAttachRole
 	DeleteSrvcAccount                         = _deleteServiceAccount
 	DeleteGCPBucket                           = _deleteGCPBucket
-	GetSubnetForConsumerProjectAndRelease     = _getSubnetForConsumerProjectAndRelease
+	GetTenantAndSNHostProject                 = _getTenantAndSNHostProject
 	GenerateAndCreateCertificateForVSACluster = _generateAndCreateCertificateForVSACluster
 	GeneratePasswordForVSACluster             = _generatePasswordForVSACluster
 	GetPasswordForVSACluster                  = _getPasswordForVSACluster
@@ -77,6 +74,8 @@ var (
 	LoadVMRSConfig                            = vmrs_config.LoadConfig
 	CreateDecisionMaker                       = vmrs_decision.NewDecisionMaker
 	vlmConfigFilePath                         = env.GetString("VLM_CONFIG_FILE_PATH", "common/vsa_config/vlm-config.json")
+	CreateSubnetwork                          = _createSubnetwork
+	ReleaseSubnet                             = _releaseSubnet
 )
 
 type PoolActivity struct {
@@ -101,9 +100,10 @@ const (
 
 var (
 	maxRetries          = env.GetInt("GOOGLE_API_MAX_RETRIES", 6)
-	localRegion         = env.GetString("REGION", "")
+	localRegion         = env.GetString("LOCAL_REGION", "")
 	firewallSourceRange = env.GetString("FIREWALL_SOURCE_RANGE", "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,34.0.0.0/8,46.149.16.0/20,52.94.203.152/29,52.94.203.160/29,185.35.244.0/22,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20,198.18.0.0/15")
 	nodePassword        = env.GetString("VSA_NODE_PASSWORD", "")
+	totalIPPerHAPair    = env.GetInt("TOTAL_IP_PER_HA_PAIR", 6)
 )
 
 func (j *PoolActivity) CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
@@ -174,92 +174,111 @@ func (j *PoolActivity) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*
 	return se.UpdatedPool(ctx, pool)
 }
 
-func (j *PoolActivity) CreateTenancy(ctx context.Context, params commonparams.CreatePoolParams) (*commonparams.TenancyInfo, error) {
+func (j *PoolActivity) CreateTenancy(ctx context.Context, params commonparams.CreatePoolParams, poolUUID string) (*commonparams.TenancyInfo, error) {
 	gcpService, err := GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	gcpService.Logger.Debug("gcpService initialized")
 
-	tenancy, err := FindTenancyAndGetSubnetwork(ctx, gcpService, params.VendorSubNetID, params.AccountName, &params.Region)
+	tenancy, err := FindTenancyAndGetSubnetwork(j.SE, gcpService, params.VendorSubNetID, params.AccountName, &params.Region)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// update DB with subnet
+	err = j.SE.UpdatePoolSubnetNames(gcpService.GetContext(), poolUUID, tenancy.SnHostProject, tenancy.SubnetworkNames)
+	if err != nil {
+		return nil, err
 	}
 	return tenancy, nil
 }
 
 // _findTenancyAndGetSubnetwork finds the tenancy unit and creates a subnetwork for the tenant project
-func _findTenancyAndGetSubnetwork(ctx context.Context, gcpService hyperscaler.GoogleServices, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*commonparams.TenancyInfo, error) {
+func _findTenancyAndGetSubnetwork(se database.Storage, gcpService hyperscaler.GoogleServices, consumerVPC, customerProjectNumber string, tenantProjectRegion *string) (*commonparams.TenancyInfo, error) {
 	// need to pass tenantProjectRegion only in case of CBR where region != the regional region as set from env variable
 	if tenantProjectRegion == nil {
 		tenantProjectRegion = &localRegion
 	}
+	var subnet *hyperscaler_models.Subnet
 
-	tenantProjectNumber, err := gcpService.GetTenantProject(consumerVPC, customerProjectNumber, *tenantProjectRegion)
+	tenantProjectNumber, snHostProject, err := GetTenantAndSNHostProject(gcpService, consumerVPC, customerProjectNumber, *tenantProjectRegion)
 	if err != nil {
-		gcpService.GetLogger().Errorf("Error finding tenancy unit: %v", err)
 		return nil, err
 	}
-
-	snHost, err := gcpService.GetSnHost(tenantProjectNumber)
-	if err != nil {
-		if !strings.Contains(err.Error(), "not found") {
-			gcpService.GetLogger().Errorf("Error getting service networking host project: %v", err)
+	if snHostProject != "" {
+		// if snHost is found, check if the subnetwork already exists in the SN host project and reuse it if applicable
+		subnet, err = getSubnetToBeUsed(gcpService, se, customerProjectNumber, tenantProjectNumber, snHostProject, *tenantProjectRegion)
+		if err != nil {
+			gcpService.GetLogger().Errorf("Error getting subnet for tenant project: %s, SN host : %s, region %s. Error : %s", tenantProjectNumber, snHostProject, *tenantProjectRegion, err.Error())
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 		}
-	} else {
-		// if snHost is found, check if the subnetwork already exists in the tenant project
-		subnetName := "vsa-" + *tenantProjectRegion
-		subnetReceived, err := gcpService.GetSubnetwork(snHost, *tenantProjectRegion, subnetName)
+	}
+	if subnet == nil {
+		// if snHost is not found or subnet found cannot be used, create a new subnetwork for the tenant project
+		subnet, err = CreateSubnetwork(gcpService, tenantProjectNumber, consumerVPC, tenantProjectRegion)
 		if err != nil {
-			resourceNotFound, errReceived := resourceNotFoundCheck(err.Error(), tenantProjectNumber, "", subnetName, "")
-			if !resourceNotFound {
-				gcpService.GetLogger().Errorf("Error getting subnetwork for tenant project: %s, SN host : %s, region %s. Error : %s", tenantProjectNumber, snHost, *tenantProjectRegion, err.Error())
-				return nil, errReceived
-			}
-		}
-		if subnetReceived != nil && subnetReceived.Name == subnetName {
-			gcpService.GetLogger().Debug(fmt.Sprintf("Subnetwork %s already exists in tenant project %s and region %s. Won't create another subnet for this region", subnetName, tenantProjectNumber, *tenantProjectRegion))
-			return &commonparams.TenancyInfo{
-				RegionalTenantProject: tenantProjectNumber,
-				Network:               strings.Split(subnetReceived.Network, "/")[len(strings.Split(subnetReceived.Network, "/"))-1],
-				SubnetworkName:        subnetReceived.Name,
-				SnHostProject:         snHost,
-				Gateway:               subnetReceived.GatewayAddress,
-			}, nil
+			gcpService.GetLogger().Errorf("Error creating subnetwork for tenant project: %s, SN host : %s, region %s. Error : %s", tenantProjectNumber, snHostProject, *tenantProjectRegion, err.Error())
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 		}
 	}
-	// if snHost is not found, create a new subnetwork for the tenant project. If subnet is not found, create a new subnetwork
-	subnetInBytes, err := gcpService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerVPC, *tenantProjectRegion)
-	if err != nil {
-		gcpService.GetLogger().Errorf("Error adding subnetwork: %v", err)
-		return nil, err
-	}
-	subnet := &servicenetworking.Subnetwork{}
-	gcpService.GetLogger().Debug(fmt.Sprintf("subnetInBytes %s", string(subnetInBytes)))
+	gcpService.GetLogger().Debug(fmt.Sprintf("FindTenancyAndGetSubnetwork: tenantProjectNumber :  %s subnet  :  %s IpCidrRange : %s, consumerPeeringNetwork : %s", tenantProjectNumber, subnet.IpCidrRange, consumerVPC, subnet.Name))
 
-	if err := json.Unmarshal(subnetInBytes, subnet); err != nil {
-		gcpService.GetLogger().Debug(fmt.Sprintf("subnetInBytes json unmarshal error %s", err.Error()))
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrJSONParsingError, err)
-	}
 	snHostProject, network, err := utils.ParseProjectId(subnet.Network)
 	if err != nil {
 		return nil, err
 	}
-	subnetwork, err := gcpService.GetSubnetwork(snHostProject, *tenantProjectRegion, subnet.Name)
-	if err != nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
-	}
-	gcpService.GetLogger().Debug(fmt.Sprintf("Subnet IpCidrRange %s, consumerPeeringNetwork %s, subnet %s", subnet.IpCidrRange, consumerVPC, subnet.Name))
-	gcpService.GetLogger().Debug(fmt.Sprintf("FindTenancyAndGetSubnetwork: tenantProjectNumber :  %s subnet  :  %s IpCidrRange : %s, consumerPeeringNetwork : %s", tenantProjectNumber, subnet.Name, subnet.IpCidrRange, consumerVPC))
-
 	return &commonparams.TenancyInfo{
 		RegionalTenantProject: tenantProjectNumber,
 		Network:               network,
-		SubnetworkName:        subnet.Name,
+		SubnetworkNames:       []string{subnet.Name},
 		SnHostProject:         snHostProject,
-		Gateway:               subnetwork.GatewayAddress,
+		Gateway:               subnet.GatewayAddress,
 	}, nil
+}
+
+// _getTenantAndSNHostProject retrieves the tenant project number and service networking host project
+func _getTenantAndSNHostProject(service hyperscaler.GoogleServices, consumerVPC, customerProjectNumber, tenantProjectRegion string) (string, string, error) {
+	tenantProjectNumber, err := service.GetTenantProject(consumerVPC, customerProjectNumber, tenantProjectRegion)
+	if err != nil {
+		service.GetLogger().Errorf("Error finding tenancy unit: %v", err)
+		return "", "", err
+	}
+	snHostProject, err := service.GetSnHost(tenantProjectNumber)
+	if err != nil {
+		if !strings.Contains(err.Error(), "not found") {
+			service.GetLogger().Errorf("Error getting service networking host project: %v", err)
+			return tenantProjectNumber, "", vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+		}
+	}
+	return tenantProjectNumber, snHostProject, nil
+}
+
+// createSubnetwork generates a subnetwork name based on the tenant project number and region and triggers creation the subnet in SN host project
+func _createSubnetwork(service hyperscaler.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string) (*hyperscaler_models.Subnet, error) {
+	subnetName := MakeSubnetName(tenantProjectNumber)
+	subnetInBytes, err := service.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerVPC, *tenantProjectRegion, subnetName)
+	if err != nil {
+		service.GetLogger().Errorf("Error adding subnetwork: %v", err)
+		return nil, err
+	}
+	subnetCreated := &servicenetworking.Subnetwork{}
+	var subnet *hyperscaler_models.Subnet
+	service.GetLogger().Debug(fmt.Sprintf("subnetInBytes %s", string(subnetInBytes)))
+
+	if err := json.Unmarshal(subnetInBytes, subnetCreated); err != nil {
+		service.GetLogger().Debug(fmt.Sprintf("subnetInBytes json unmarshal error %s", err.Error()))
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrJSONParsingError, err)
+	}
+
+	snHostProject, _, err := utils.ParseProjectId(subnetCreated.Network)
+	if err != nil {
+		return nil, err
+	}
+	subnet, err = service.GetSubnetwork(snHostProject, *tenantProjectRegion, subnetCreated.Name)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+	}
+	return subnet, nil
 }
 
 // SetupNetwork TODO : need to add all network setup as part of network activity
@@ -460,7 +479,7 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 }
 
 // The IdentifyVMs takes as input the VMRS configuration, the customer requested performance parameters, and the current VLM configuration to identify the optimal VMs to use for the VSA cluster.
-func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, vsaClusterPassword string, saEmail string, autoTierBucket string) (*vlmconfig.VLMConfig, error) {
+func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName, region, primaryZone, secondaryZone, network string, subnets []string, projectId, snHostProject string, vsaClusterPassword string, saEmail string, autoTierBucket string) (*vlmconfig.VLMConfig, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debug("Identifying VMs to use for VSA cluster")
 
@@ -482,6 +501,11 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 	if err != nil {
 		logger.Error("Failed to identify optimal VMs", "error", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	subnet := ""
+	if len(subnets) > 0 {
+		subnet = subnets[len(subnets)-1]
 	}
 
 	// Convert the decision to a VLMConfig.
@@ -593,8 +617,12 @@ func (j *PoolActivity) DeleteVSADeployment(ctx context.Context, pool *datamodel.
 			DesiredCapacityInGiB:    pool.SizeInBytes,
 		},
 	}
+	subnetName := ""
+	if len(pool.ClusterDetails.SubnetNames) > 0 {
+		subnetName = pool.ClusterDetails.SubnetNames[len(pool.ClusterDetails.SubnetNames)-1]
+	}
 
-	err := PrepareVlmConfig(cfg, deploymentName, localRegion, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, "vsa-"+localRegion, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, decision, password, saEmail, pool.AutoTierBucketName)
+	err := PrepareVlmConfig(cfg, deploymentName, localRegion, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, subnetName, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, decision, password, saEmail, pool.AutoTierBucketName)
 
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -689,69 +717,40 @@ func (j *PoolActivity) DeletingPoolResources(ctx context.Context, pool *datamode
 
 func (j *PoolActivity) ReleaseSubnet(ctx context.Context, pool *datamodel.Pool) error {
 	logger := util.GetLogger(ctx)
+	// TODO: loop through list of subnets for the pool, identify the subnet having 6 IPs and release it instead of just the last one
+	if len(pool.ClusterDetails.SubnetNames) == 0 {
+		logger.Infof("Subnet is not associated with the pool. Skipping release for network: Account : %s Network : %s", pool.Account.Name, pool.Network)
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("subnet is not associated with the pool: %s account : %s", pool.UUID, pool.Account.Name))
+	}
 	se := j.SE
-	filter := utils.CreateFilterWithConditions(
-		utils.NewFilterCondition("account_id", "=", pool.AccountID),
-		utils.NewFilterCondition("network", "=", pool.Network))
-	pools, err := se.ListPools(ctx, filter)
+	subnetName := pool.ClusterDetails.SubnetNames[len(pool.ClusterDetails.SubnetNames)-1]
+	poolsUsingSubnet, err := _getPoolsBySubnetwork(ctx, se, strconv.Itoa(int(pool.Account.ID)), subnetName, pool.Network)
 	if err != nil {
-		logger.Errorf("Failed to get pools for account: %s, network: %s, error: %s", pool.AccountID, pool.Network, err.Error())
+		logger.Errorf("Failed to list pools for subnetwork: %s for account: %s, network: %s, error: %s", subnetName, pool.Account.Name, pool.Network, err.Error())
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	if len(pools) > 1 {
-		logger.Info("Skipping release subnetwork as there are other pools in the same region for the account")
+	if len(poolsUsingSubnet) > 1 {
+		logger.Infof("Skipping release subnetwork as there are other pools using the same subnetwork: %s for account: %s, network: %s", subnetName, pool.Account.Name, pool.Network)
 		return nil
 	}
-
-	consumerVpc := pool.Network
-	accountName := pool.Account.Name
-	subnetworkName := "vsa-" + localRegion
-
-	gcpService, err := GetGCPService(ctx)
+	service, err := GetGCPService(ctx)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	err = GetSubnetForConsumerProjectAndRelease(gcpService, consumerVpc, accountName, localRegion, subnetworkName, pool.ClusterDetails)
+	err = ReleaseSubnet(service, poolsUsingSubnet[0].ClusterDetails.SnHostProject, subnetName)
 	if err != nil {
-		logger.Errorf("Error releasing subnetwork: %v", err)
+		logger.Errorf("Failed to release subnetwork: %s for account: %s, network: %s, error: %s", subnetName, pool.Account.Name, pool.Network, err.Error())
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return nil
 }
 
-func _getSubnetForConsumerProjectAndRelease(service hyperscaler.GoogleServices, consumerVpc, accountName, localRegion, subnetworkName string, clusterDetails datamodel.ClusterDetails) error {
-	logger := service.GetLogger()
-	snHostProject := ""
-	var err error
-	if clusterDetails.RegionalTenantProject != "" && clusterDetails.SnHostProject != "" {
-		snHostProject = clusterDetails.SnHostProject
-	} else {
-		tenantProjectNumber, err := service.GetTenantProject(consumerVpc, accountName, localRegion)
-		if err != nil {
-			logger.Errorf("Error finding tenancy unit: %v", err)
-			return err
-		}
-
-		snHostProject, err = service.GetSnHost(tenantProjectNumber)
-		if err != nil {
-			logger.Errorf("Error getting SN host for subnet: %s with tenant project %s, skipping release", subnetworkName, tenantProjectNumber)
-			return err
-		}
-	}
-	// Check if the subnetwork exists
-	_, err = service.GetSubnetwork(snHostProject, localRegion, subnetworkName)
-	if err != nil {
-		logger.Errorf("Error getting Subnetwork %s project %s, skipping release", subnetworkName, accountName)
-		return err
-	}
-	err = service.ReleaseSubnetwork(localRegion, snHostProject, subnetworkName)
-	if err != nil {
-		logger.Errorf("Error Releasing subnetwork: %v", err)
-		return err
-	}
-	return nil
+func _releaseSubnet(service hyperscaler.GoogleServices, snHost, subnetName string) error {
+	err := service.ReleaseSubnetwork(localRegion, snHost, subnetName)
+	return err
 }
 
+// DeletePoolResources deletes all pool resources and the pool record from the database.
 func (j *PoolActivity) DeletePoolResources(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := j.SE
 
@@ -785,12 +784,11 @@ func (j *PoolActivity) DeletePoolResources(ctx context.Context, pool *datamodel.
 // Returns:
 // - An error if the bucket creation fails or if there is an issue initializing GCP services.
 func (j *PoolActivity) CreateAutoTierBucket(ctx context.Context, autoTierBucketName string, region string, projectId string) error {
-	gcpService := &google.GcpServices{
-		Ctx:    ctx,
-		Logger: util.GetLogger(ctx),
+	gcpService, err := GetGCPService(ctx)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-
-	err := CreateGCPBucket(ctx, projectId, autoTierBucketName, region, gcpService)
+	err = CreateGCPBucket(ctx, projectId, autoTierBucketName, region, gcpService)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -802,15 +800,14 @@ func (j *PoolActivity) CreateAutoTierBucket(ctx context.Context, autoTierBucketN
 // It initializes a GCP service client and attempts to delete the bucket.
 // Returns an error if the deletion fails or if GCP service initialization fails.
 func (j *PoolActivity) DeleteAutoTierBucket(ctx context.Context, autoTierBucketName string) error {
+	gcpService, err := GetGCPService(ctx)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	logger := util.GetLogger(ctx)
 
-	gcpService := &google.GcpServices{
-		Ctx:    ctx,
-		Logger: util.GetLogger(ctx),
-	}
-
 	logger.Debugf("Deleting autoTiering bucket %v", autoTierBucketName)
-	err := DeleteGCPBucket(ctx, autoTierBucketName, gcpService)
+	err = DeleteGCPBucket(ctx, autoTierBucketName, gcpService)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -819,15 +816,8 @@ func (j *PoolActivity) DeleteAutoTierBucket(ctx context.Context, autoTierBucketN
 }
 
 func _createGCPBucket(ctx context.Context, projectId, bucketName, region string, gcpService hyperscaler.GoogleServices) error {
-	logger := util.GetLogger(ctx)
-
-	err := gcpService.InitializeClients()
-	if err != nil {
-		logger.Errorf("Error initializing GCP services: %v", err)
-		return err
-	}
-
-	err = gcpService.CreateBucketIfNotExists(ctx, projectId, bucketName, region)
+	logger := gcpService.GetLogger()
+	err := gcpService.CreateBucketIfNotExists(ctx, projectId, bucketName, region)
 	if err != nil {
 		logger.Errorf("error creating bucket: %v", err)
 		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceAlreadyExistsError, err)
@@ -838,15 +828,8 @@ func _createGCPBucket(ctx context.Context, projectId, bucketName, region string,
 }
 
 func _deleteGCPBucket(ctx context.Context, bucketName string, gcpService hyperscaler.GoogleServices) error {
-	logger := util.GetLogger(ctx)
-
-	err := gcpService.InitializeClients()
-	if err != nil {
-		logger.Errorf("Error initializing GCP services: %v", err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
-	err = gcpService.DeleteBucket(ctx, bucketName)
+	logger := gcpService.GetLogger()
+	err := gcpService.DeleteBucket(ctx, bucketName)
 	if err != nil {
 		logger.Errorf("error deleting bucket: %v", err)
 		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
@@ -866,9 +849,9 @@ func _deleteGCPBucket(ctx context.Context, bucketName string, gcpService hypersc
 // Returns:
 // - The created *iam.ServiceAccount, or an error if creation or role attachment fails.
 func (j *PoolActivity) CreateServiceAccountWithStorageRole(ctx context.Context, projectID string, saAccountID string, saDisplayName string) (*iam.ServiceAccount, error) {
-	gcpService := &google.GcpServices{
-		Ctx:    ctx,
-		Logger: util.GetLogger(ctx),
+	gcpService, err := GetGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	sa, err := CreateServiceAccountAndAttachRole(ctx, projectID, saAccountID, saDisplayName, gcpService)
@@ -880,12 +863,12 @@ func (j *PoolActivity) CreateServiceAccountWithStorageRole(ctx context.Context, 
 }
 
 func (j *PoolActivity) DeleteServiceAccount(ctx context.Context, projectID string, saAccountID string) error {
-	gcpService := &google.GcpServices{
-		Ctx:    ctx,
-		Logger: util.GetLogger(ctx),
+	gcpService, err := GetGCPService(ctx)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	err := DeleteSrvcAccount(ctx, projectID, saAccountID, gcpService)
+	err = DeleteSrvcAccount(ctx, projectID, saAccountID, gcpService)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -894,16 +877,11 @@ func (j *PoolActivity) DeleteServiceAccount(ctx context.Context, projectID strin
 }
 
 func _deleteServiceAccount(ctx context.Context, projectID string, saAccountID string, gcpService hyperscaler.GoogleServices) error {
-	logger := util.GetLogger(ctx)
-	err := gcpService.InitializeClients()
-	if err != nil {
-		logger.Errorf("Error initializing GCP services: %v", err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
-	}
+	logger := gcpService.GetLogger()
 
 	saEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", saAccountID, projectID)
 	logger.Infof("Deleting service account %s", saEmail)
-	err = gcpService.DeleteServiceAccount(saEmail)
+	err := gcpService.DeleteServiceAccount(saEmail)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -911,13 +889,7 @@ func _deleteServiceAccount(ctx context.Context, projectID string, saAccountID st
 }
 
 func _createServiceAccountAndAttachRole(ctx context.Context, projectID string, saAccountID string, saDisplayName string, gcpService hyperscaler.GoogleServices) (*iam.ServiceAccount, error) {
-	logger := util.GetLogger(ctx)
-
-	err := gcpService.InitializeClients()
-	if err != nil {
-		return nil, err
-	}
-
+	logger := gcpService.GetLogger()
 	createReq := &iam.CreateServiceAccountRequest{
 		AccountId: saAccountID,
 		ServiceAccount: &iam.ServiceAccount{
@@ -1107,28 +1079,6 @@ func _failedNodes(ctx context.Context, se database.Storage, pool *datamodel.Pool
 		}
 	}
 	return nil
-}
-
-func _newGcpServices(ctx context.Context) *google.GcpServices {
-	return &google.GcpServices{
-		Ctx:    ctx,
-		Logger: util.GetLogger(ctx),
-		Retry:  google.NewExponentialRetryStrategy(time.Second, uint(maxRetries)),
-	}
-}
-
-func _getGCPService(ctx context.Context) (*google.GcpServices, error) {
-	gcpService := NewGcpServices(ctx)
-
-	gcpService.Logger.Debug("gcpService initialized")
-
-	gcpService.Logger.Debug("Calling InitializeClients")
-	err := gcpService.InitializeClients()
-	if err != nil || !gcpService.IsAdminClientInitialized() {
-		gcpService.Logger.Debug("Initialisation of service failed")
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, errors.New("initialisation of Google GCP service failed"))
-	}
-	return gcpService, nil
 }
 
 // setupNetworkWithFirewall sets up a VPC network, subnet, and firewall rules in GCP

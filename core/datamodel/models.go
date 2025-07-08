@@ -47,11 +47,12 @@ type PoolView struct {
 }
 
 type ClusterDetails struct {
-	ExternalName          string `json:"external_name"`
-	OntapVersion          string `json:"ontap_version"`
-	RegionalTenantProject string `json:"regional_tenant_project"`
-	SnHostProject         string `json:"sn_host_project"`
-	Network               string `json:"network"`
+	ExternalName          string   `json:"external_name"`
+	OntapVersion          string   `json:"ontap_version"`
+	RegionalTenantProject string   `json:"regional_tenant_project"`
+	SnHostProject         string   `json:"sn_host_project"`
+	Network               string   `json:"network"`
+	SubnetNames           []string `json:"subnet_names"`
 }
 
 type PoolAttributes struct {

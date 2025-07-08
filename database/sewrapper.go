@@ -93,6 +93,25 @@ func (re *retryEngine) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*
 	return var0, err
 }
 
+func (re *retryEngine) UpdatePoolSubnetNames(ctx context.Context, poolUUID, snHostProject string, subnetNames []string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdatePoolSubnetNames(ctx, poolUUID, snHostProject, subnetNames)
+		if err != nil {
+			re.logError("UpdatePoolSubnetNames", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
 func (re *retryEngine) DeletePool(ctx context.Context, pool *datamodel.Pool) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

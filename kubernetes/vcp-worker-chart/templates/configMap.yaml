@@ -51,4 +51,5 @@ data:
   VSA_DEPLOYED_DNS_NAME: {{ .Values.workerConfig.vsaDeployedDnsName | quote }}
   VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS: {{ .Values.workerConfig.vsaSecretCacheCleanupIntervalHours | quote }}
   VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS: {{ .Values.workerConfig.vsaSecretAuthCacheExpirationHours | quote }}
-
+  TOTAL_IP_PER_HA_PAIR: {{ .Values.workerConfig.totalIpPerHaPair | quote }}
+  DATA_SUBNET_CIDR_BLOCK: {{ .Values.workerConfig.dataSubnetCidrBlock | quote }}

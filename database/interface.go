@@ -53,6 +53,7 @@ type DataStore interface {
 	CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
 	UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
 	UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
+	UpdatePoolSubnetNames(ctx context.Context, poolUUID, snHostProject string, subnetNames []string) error
 	DeletePool(ctx context.Context, pool *datamodel.Pool) error
 	DeletingPool(ctx context.Context, pool *datamodel.Pool) error
 	DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)

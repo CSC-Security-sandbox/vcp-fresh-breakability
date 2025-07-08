@@ -169,6 +169,32 @@ func (d *DataStoreRepository) UpdatedPool(ctx context.Context, pool *datamodel.P
 	return ConvertPoolViewToPool(updatedPoolView), nil
 }
 
+func (d *DataStoreRepository) UpdatePoolSubnetNames(ctx context.Context, poolUUID, snHostProject string, subnetNames []string) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	dbPoolView, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: poolUUID}})
+	if err != nil {
+		return err
+	}
+	dbPool := ConvertPoolViewToPool(dbPoolView)
+	if subnetNames != nil {
+		dbPool.ClusterDetails.SubnetNames = subnetNames
+		dbPool.ClusterDetails.SnHostProject = snHostProject
+	}
+	dbPool.UpdatedAt = time.Now()
+
+	if err = tx.Updates(dbPool).Error; err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+	return nil
+}
+
 // DeletePool deletes a pool from the database
 func (d *DataStoreRepository) DeletePool(ctx context.Context, pool *datamodel.Pool) error {
 	db := d.db.GORM().WithContext(ctx)

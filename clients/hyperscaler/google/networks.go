@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	waitTimeoutMinutes       = time.Minute * time.Duration(env.GetInt("GCP_LRO_TIMEOUT_MINUTES", 20))
-	minimumTenantNetworkSize = env.GetInt64("MIN_TENANT_NETWORK_SIZE", int64(24))
+	waitTimeoutMinutes = time.Minute * time.Duration(env.GetInt("GCP_LRO_TIMEOUT_MINUTES", 20))
+	minimumTenantNetworkSize = env.GetInt64("DATA_SUBNET_CIDR_BLOCK", int64(28))
 	defaultSleepTime         = time.Duration(env.GetInt64("GCP_NETWORK_SLEEP_SECONDS", int64(28))) * time.Second
 
 	createSubnetworkForTenantProject = _createSubnetworkForTenantProject
@@ -50,7 +50,7 @@ func (gcpService *GcpServices) GetTenantProject(consumerNetwork, customerProject
 }
 
 // CreateSubnetworkForTenantProject creates GCP subnetwork
-func (gcpService *GcpServices) CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region string) ([]byte, error) {
+func (gcpService *GcpServices) CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region, subnetName string) ([]byte, error) {
 	consumerProjectNumber, consumerPeeringNetwork, err := utils.ParseProjectId(consumerNetwork)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func (gcpService *GcpServices) CreateSubnetworkForTenantProject(tenantProjectNum
 		Description:     "vsa-network",
 		IpPrefixLength:  minimumTenantNetworkSize,
 		Region:          region,
-		Subnetwork:      "vsa-" + region,
+		Subnetwork:      subnetName,
 	}
 	snProducerOperation, err := createSubnetworkForTenantProject(gcpService, &request, tenantProjectNumber)
 	if err != nil {
@@ -88,11 +88,12 @@ func (gcpService *GcpServices) CreateSubnetworkForTenantProject(tenantProjectNum
 }
 
 // ReleaseSubnetwork calls GCP releaseSubnetwork API and return a long-running operation.
-func (gcpService *GcpServices) ReleaseSubnetwork(region, projectNumber, subnetwork string) error {
-	op, err := gcpService.AdminGCPService.computeService.Subnetworks.Delete(projectNumber, region, subnetwork).Do()
+func (gcpService *GcpServices) ReleaseSubnetwork(region, projectName, subnetwork string) error {
+	op, err := gcpService.AdminGCPService.computeService.Subnetworks.Delete(projectName, region, subnetwork).Do()
 	if err != nil {
 		if strings.Contains(err.Error(), "notFound") {
-			return vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.NewNotFoundErr("compute.Subnetwork", &subnetwork))
+			// If the subnetwork is not found, it means it has already been deleted or never existed.
+			return nil
 		}
 		if strings.Contains(err.Error(), "resourceInUseByAnotherResource") {
 			gcpService.Logger.Debugf("Failed to delete subnetwork because it is in use by another resource: %s, error : %s", subnetwork, err.Error())
@@ -102,10 +103,10 @@ func (gcpService *GcpServices) ReleaseSubnetwork(region, projectNumber, subnetwo
 		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
 	}
 
-	err = waitForComputeOperation(*gcpService, projectNumber, region, op.Name)
+	err = waitForComputeOperation(*gcpService, projectName, region, fmt.Sprintf("(name=%s)", op.Name))
 	if err != nil {
 		// TODO: Add VCP Error for this
-		gcpService.Logger.Error(fmt.Sprintf("Failed to delete subnetwork %s in project %s with error: %v", subnetwork, projectNumber, err))
+		gcpService.Logger.Error(fmt.Sprintf("Failed to delete subnetwork %s in project %s with error: %v", subnetwork, projectName, err))
 		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
 	}
 
@@ -155,7 +156,7 @@ func _createSubnetworkForTenantProject(gcpService *GcpServices, request *service
 	return convertServiceNetOpToComputeOp(tu), nil
 }
 
-// GetSubnetwork retrieves a subnetwork for a given project name, region and subnetwork name using compute API. Reference : https://cloud.goog	le.com/compute/docs/reference/rest/v1/subnetworks/get
+// GetSubnetwork retrieves a subnetwork for a given project name, region and subnetwork name using compute API. Reference : https://cloud.google.com/compute/docs/reference/rest/v1/subnetworks/get
 func (gcpService *GcpServices) GetSubnetwork(projectName, region, subnetName string) (*models.Subnet, error) {
 	defer gcpService.Retry.Reset()
 	gcpService.Logger.Debugf("Calling GetSubnetwork for project name : %s, region : %s, subnet name : %s", projectName, region, subnetName)
@@ -175,23 +176,23 @@ func (gcpService *GcpServices) GetSubnetwork(projectName, region, subnetName str
 	return convertGoogleSubnetToSubnet(subnetwork), nil
 }
 
-// ListSubnetwork retrieves a subnetwork for a given project name, region and subnetwork name using compute API. Reference : https://cloud.google.com/compute/docs/reference/rest/v1/subnetworks/get
-func (gcpService *GcpServices) ListSubnetwork(projectName, region string) (*[]models.Subnet, error) {
+// ListSubnetworks retrieves a subnetwork for a given project name, region and subnetwork name using compute API. Reference : https://cloud.google.com/compute/docs/reference/rest/v1/subnetworks/get
+func (gcpService *GcpServices) ListSubnetworks(projectName, region string) (*[]models.Subnet, error) {
 	defer gcpService.Retry.Reset()
-	gcpService.Logger.Debugf("Calling ListSubnetwork for project name : %s, region : %s", projectName, region)
+	gcpService.Logger.Debugf("Calling ListSubnetworks for project name : %s, region : %s", projectName, region)
 
 	subnetworks, err := gcpService.AdminGCPService.computeService.Subnetworks.List(projectName, region).Context(gcpService.Ctx).Do()
 	if err != nil {
 		err = gcpService.Retry.Sleep(err)
 		if err != nil {
-			gcpService.Logger.Errorf("ListSubnetwork failed for project name : %s, region : %s with error : %v", projectName, region, err.Error())
+			gcpService.Logger.Errorf("ListSubnetworks failed for project name : %s, region : %s with error : %v", projectName, region, err.Error())
 			return nil, err
 		}
-		gcpService.Logger.Debugf("Retrying : ListSubnetwork for project name : %s, region : %s", projectName, region)
-		return gcpService.ListSubnetwork(projectName, region)
+		gcpService.Logger.Debugf("Retrying : ListSubnetworks for project name : %s, region : %s", projectName, region)
+		return gcpService.ListSubnetworks(projectName, region)
 	}
 
-	gcpService.Logger.Debugf("ListSubnetwork success with number of subnets = %d", len(subnetworks.Items))
+	gcpService.Logger.Debugf("ListSubnetworks success with number of subnets = %d", len(subnetworks.Items))
 	return convertGoogleSubnetsToSubnets(subnetworks), nil
 }
 

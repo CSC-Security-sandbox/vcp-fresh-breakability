@@ -3,7 +3,6 @@ package kms_activities
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
@@ -18,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -95,7 +95,6 @@ func (j *KmsConfigActivity) CreateVSAKmsConfigSAKeyActivity(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-
 	vsaEmail := utils.RemovePrefix(kmsConfig.KmsAttributes.SdeServiceAccountEmail, SDEShortTermSAPrefix)
 	dbAccount, err := se.GetServiceAccountFromEmail(ctx, vsaEmail)
 	if err != nil && !errors.IsNotFoundErr(err) {
