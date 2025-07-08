@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -21,7 +22,7 @@ var (
 	listVolumesWithDetails = _listVolumesWithDetails
 )
 
-func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
+func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamodel.Volume, params *common.CreateVolumeParams) (*datamodel.Volume, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err1 := startTransaction(db)
 	if err1 != nil {
@@ -33,8 +34,14 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 	err2 := tx.Where("name = ?", volume.Name).Where("account_id = ?", volume.AccountID).First(&volume).Error
 	if errors.Is(err2, gorm.ErrRecordNotFound) {
 		volume.UUID = utils.RandomUUID()
-		volume.State = models.LifeCycleStateCreating
-		volume.StateDetails = models.LifeCycleStateCreatingDetails
+		if params != nil && params.BackupID != "" && params.BackupPath != "" {
+			// This is volume restore case
+			volume.State = models.LifeCycleStateRestoring
+			volume.StateDetails = models.LifeCycleStateRestoringDetails
+		} else {
+			volume.State = models.LifeCycleStateCreating
+			volume.StateDetails = models.LifeCycleStateCreatingDetails
+		}
 		volume.CreatedAt = time.Now()
 		volume.UpdatedAt = volume.CreatedAt
 

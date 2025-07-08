@@ -12,6 +12,71 @@ import (
 	"gorm.io/gorm"
 )
 
+func Test_getBackupWithName(t *testing.T) {
+	t.Run("ReturnsBackupWhenNameExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+			Name:      "test-backup-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test_backup",
+			BackupVaultID: backupVault.ID,
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		result, err := _getBackupVaultByNameAndBackupVaultID(store.db.GORM(), &datamodel.Backup{Name: backup.Name, BackupVaultID: backupVault.ID})
+		assert.NoError(tt, err)
+		assert.Equal(tt, backup.Name, result.Name)
+		assert.Equal(tt, backupVault.ID, result.BackupVaultID)
+	})
+	t.Run("ReturnsErrorWhenNameDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		_, err = _getBackupVaultByNameAndBackupVaultID(store.db.GORM(), &datamodel.Backup{Name: "non-existent-name", BackupVaultID: 1})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found")
+	})
+	t.Run("ReturnsErrorWhenDBFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Simulate DB failure by closing the connection
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		_, err = _getBackupVaultByNameAndBackupVaultID(store.db.GORM(), &datamodel.Backup{Name: "any-name", BackupVaultID: 1})
+		assert.Error(tt, err)
+	})
+}
+
 func TestCreateBackup(t *testing.T) {
 	t.Run("CreatesBackupSuccessfully", func(tt *testing.T) {
 		db, err := SetupTestDB()

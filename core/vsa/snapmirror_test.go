@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -35,7 +36,13 @@ func TestSnapmirrorRelationshipCreateSucceeds(t *testing.T) {
 	mockClient.On("Poll", "jobUUID").Return(nil)
 	mockSnapmirrorClient.On("SnapmirrorRelationshipList", &ontapRest.SnapmirrorRelationshipListParams{DestinationPath: "destinationPath", SourcePath: "sourcePath"}).Return(expectedSnapmirror, nil)
 
-	result, err := ontapProvider.SnapmirrorRelationshipCreate("destinationPath", "sourcePath", nil)
+	SnapmirrorRelationshipParams := &commonparams.SnapmirrorRelationshipParams{
+		SourcePath:      "sourcePath",
+		DestinationPath: "destinationPath",
+		SourceUUID:      nil,
+		IsRestore:       false,
+	}
+	result, err := ontapProvider.SnapmirrorRelationshipCreate(SnapmirrorRelationshipParams, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -63,7 +70,13 @@ func TestSnapmirrorRelationshipCreateNotFound(t *testing.T) {
 	mockClient.On("Poll", "jobUUID").Return(nil)
 	mockSnapmirrorClient.On("SnapmirrorRelationshipList", &ontapRest.SnapmirrorRelationshipListParams{DestinationPath: "destinationPath", SourcePath: "sourcePath"}).Return(expectedSnapmirror, nil)
 
-	result, err := ontapProvider.SnapmirrorRelationshipCreate("destinationPath", "sourcePath", nil)
+	SnapmirrorRelationshipParams := &commonparams.SnapmirrorRelationshipParams{
+		SourcePath:      "sourcePath",
+		DestinationPath: "destinationPath",
+		SourceUUID:      nil,
+		IsRestore:       false,
+	}
+	result, err := ontapProvider.SnapmirrorRelationshipCreate(SnapmirrorRelationshipParams, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
@@ -76,7 +89,13 @@ func TestSnapmirrorRelationshipCreateFailsOngetOntapClientFuncError(t *testing.T
 		return nil, errors.New("getOntapClient error")
 	}
 	ontapProvider := &OntapRestProvider{}
-	result, err := ontapProvider.SnapmirrorRelationshipCreate("destinationPath", "sourcePath", nil)
+	SnapmirrorRelationshipParams := &commonparams.SnapmirrorRelationshipParams{
+		SourcePath:      "sourcePath",
+		DestinationPath: "destinationPath",
+		SourceUUID:      nil,
+		IsRestore:       false,
+	}
+	result, err := ontapProvider.SnapmirrorRelationshipCreate(SnapmirrorRelationshipParams, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Equal(t, "getOntapClient error", err.Error())
@@ -101,8 +120,13 @@ func TestSnapmirrorRelationshipCreateFailsOnAPIError(t *testing.T) {
 
 	mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 	mockSnapmirrorClient.On("SnapmirrorRelationshipCreate", expectedParams).Return(nil, nil, expectedError)
-
-	result, err := ontapProvider.SnapmirrorRelationshipCreate("destinationPath", "sourcePath", nil)
+	SnapmirrorRelationshipParams := &commonparams.SnapmirrorRelationshipParams{
+		SourcePath:      "sourcePath",
+		DestinationPath: "destinationPath",
+		SourceUUID:      nil,
+		IsRestore:       false,
+	}
+	result, err := ontapProvider.SnapmirrorRelationshipCreate(SnapmirrorRelationshipParams, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Equal(t, expectedError, err)

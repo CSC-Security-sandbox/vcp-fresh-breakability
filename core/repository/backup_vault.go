@@ -71,6 +71,15 @@ func (d *DataStoreRepository) GetBackupVault(ctx context.Context, backupVaultId 
 	return &bv, nil
 }
 
+func (d *DataStoreRepository) GetBackupVaultById(ctx context.Context, backupVaultId int64) (*datamodel.BackupVault, error) {
+	var bv datamodel.BackupVault
+	err := d.db.GORM().WithContext(ctx).Preload("Account").Where("id = ?", backupVaultId).First(&bv).Error
+	if err != nil {
+		return nil, err
+	}
+	return &bv, nil
+}
+
 func (d *DataStoreRepository) GetBackupVaultByNameAndOwnerID(ctx context.Context, backupVaultName, ownerID string) (*datamodel.BackupVault, error) {
 	var bv datamodel.BackupVault
 	err := d.db.GORM().WithContext(ctx).Preload("Account").Where("name = ?", backupVaultName).Where("account_id = ?", ownerID).First(&bv).Error

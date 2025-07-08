@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
@@ -166,9 +167,50 @@ func TestCreateVolume(t *testing.T) {
 			tt.Fatalf("Failed to create volume: %v", err)
 		}
 
-		createdVolume, err := store.CreateVolume(context.Background(), volume)
+		createdVolume, err := store.CreateVolume(context.Background(), volume, nil)
 		assert.EqualError(tt, err, "volume already exists", "Expected error 'volume already exists', got %v", err)
 		assert.Nil(tt, createdVolume, "Expected nil volume, got %v", createdVolume)
+	})
+	t.Run("CreatesVolumeSuccessfullyWhenParamsAreProvided", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		pool := &datamodel.Pool{
+			Name:    "test_pool",
+			Account: account,
+		}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}
+
+		params := &common.CreateVolumeParams{
+			BackupID:   "test-backup-id",
+			BackupPath: "test-backup-path",
+		}
+
+		createdVolume, err := store.CreateVolume(context.Background(), volume, params)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, volume.Name, createdVolume.Name, "Expected volume name %v, got %v", volume.Name, createdVolume.Name)
+		assert.Equal(tt, models.LifeCycleStateRestoring, createdVolume.State, "Expected volume state %v, got %v", models.LifeCycleStateRestoring, createdVolume.State)
+		assert.Equal(tt, models.LifeCycleStateRestoringDetails, createdVolume.StateDetails, "Expected volume state details %v, got %v", models.LifeCycleStateRestoringDetails, createdVolume.StateDetails)
 	})
 }
 

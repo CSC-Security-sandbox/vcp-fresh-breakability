@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -34,8 +35,11 @@ var (
 )
 
 const (
-	minCoolnessPeriodDays = 2
-	maxCoolnessPeriodDays = 183
+	minCoolnessPeriodDays   = 2
+	maxCoolnessPeriodDays   = 183
+	MaxBackupPathComponents = 8 // The expected number of components in the backup path
+	BackupNameIndex         = 7 // The index of the backup name in the components
+	BackupVaultNameIndex    = 5 // The index of the backup vault name in the components
 )
 
 // CreateVolume creates the specified volume and adds it to the list of volume belonging to the specified owner
@@ -152,9 +156,32 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		volumeObj.CoolAccessRetrievalPolicy = params.TieringPolicy.CoolAccessRetrievalPolicy
 	}
 
-	dbVolume, err := se.CreateVolume(ctx, volumeObj)
+	dbVolume, err := se.CreateVolume(ctx, volumeObj, params)
 	if err != nil {
 		return nil, "", err
+	}
+
+	var backupVault *datamodel.BackupVault
+	var backup *datamodel.Backup
+
+	logger.Debug("params.BackupID : %v and params.BackupPath: %v", params.BackupID, params.BackupPath)
+	if params.BackupID != "" && params.BackupPath != "" {
+		components := strings.Split(params.BackupPath, "/")
+
+		// Ensure there are enough components to avoid out of range errors
+		if len(components) < MaxBackupPathComponents {
+			return nil, "", customerrors.NewUserInputValidationErr("Backup path is not in correct format")
+		}
+		backupVaultName := components[BackupVaultNameIndex]
+		backupName := components[BackupNameIndex]
+		backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, backupVaultName, strconv.FormatInt(account.ID, 10))
+		if err != nil {
+			return nil, "", err
+		}
+		backup, err = se.GetBackupByNameAndBackupVaultID(ctx, backupName, backupVault.ID)
+		if err != nil {
+			return nil, "", err
+		}
 	}
 
 	location, err := getLocationFromVendorID(dbVolume.Pool.VendorID)
@@ -180,6 +207,8 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		},
 		params,
 		dbVolume,
+		backupVault,
+		backup,
 	)
 	if err != nil {
 		logger.Error("Failed to start create volume workflow: ", "error", err)

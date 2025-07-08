@@ -1600,6 +1600,8 @@ type SnapmirrorRelationshipCreateParams struct {
 	Policy          string
 	Schedule        *string
 	AccessToken     *string
+	SourceUUID      *string
+	IsRestore       bool
 }
 
 // SnapmirrorRelationshipDeleteParams describes the params to invoke snapmirror relationship delete
@@ -2398,7 +2400,10 @@ func lunGetParamsToONTAP(params *LunGetParams) *san.LunCollectionGetParams {
 
 	otParams.SetSvmName(params.SvmName)
 	otParams.SetLocationVolumeName(params.VolumeName)
-	otParams.SetName(constructLunName(params.VolumeName, params.LunName))
+	if params.LunName != nil && *params.LunName != "" {
+		// For regular get, we need to pass the lun name as well
+		otParams.SetName(constructLunName(params.VolumeName, params.LunName))
+	}
 	otParams.SetFields(params.Fields)
 	otParams.SetMaxRecords(getConstrainedMaxRecords(params.MaxRecords))
 	return otParams
@@ -2669,13 +2674,20 @@ func snapmirrorRelationshipCreateParamsToONTAP(params *SnapmirrorRelationshipCre
 		return otParams
 	}
 
+	var srcUUID *strfmt.UUID
+	if params != nil && params.SourceUUID != nil && *params.SourceUUID != "" {
+		srcUUID = nillable.ToPointer(strfmt.UUID(*params.SourceUUID))
+	}
+
 	sm := &models.SnapmirrorRelationship{
 		Destination: &models.SnapmirrorEndpoint{
 			Path: &params.DestinationPath,
 		},
 		Source: &models.SnapmirrorSourceEndpoint{
 			Path: &params.SourcePath,
+			UUID: srcUUID,
 		},
+		Restore: &params.IsRestore,
 	}
 	if params.Policy != "" {
 		sm.Policy = &models.SnapmirrorRelationshipInlinePolicy{
@@ -2865,7 +2877,9 @@ func snapmirrorRelationshipTransferCreateParamsToONTAP(params *SnapmirrorRelatio
 		return otParams
 	}
 	otParams.SetRelationshipUUID(params.UUID)
-	otParams.SetInfo(&models.SnapmirrorTransfer{SourceSnapshot: &params.SnapshotName})
+	if params.SnapshotName != "" {
+		otParams.SetInfo(&models.SnapmirrorTransfer{SourceSnapshot: &params.SnapshotName})
+	}
 	if params.AccessToken != nil && *params.AccessToken != "" {
 		xNetappAuthorization := "Bearer " + *params.AccessToken
 		otParams.WithXNetappAuthorization(&xNetappAuthorization)
@@ -2879,7 +2893,9 @@ func snapmirrorRelationshipTransferGetParamsToONTAP(params *SnapmirrorRelationsh
 		return otParams
 	}
 	otParams.SetRelationshipUUID(params.SnapmirrorUUID)
-	otParams.SetSnapshot(&params.SnapshotName)
+	if params.SnapshotName != "" {
+		otParams.SetSnapshot(&params.SnapshotName)
+	}
 	return otParams
 }
 

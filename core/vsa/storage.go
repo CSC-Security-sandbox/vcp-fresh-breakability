@@ -95,13 +95,17 @@ func (rc *OntapRestProvider) LunGet(params LunGetParams) (*LunResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+	var lunName *string
+	if params.LunName != "" {
+		lunName = &params.LunName
+	}
 	lun, err := client.SAN().LunGet(&ontapRest.LunGetParams{
 		BaseParams: ontapRest.BaseParams{
 			Fields: []string{"status.*", "serial_number_hex", "class", "space.size", "location.*"},
 		},
 		SvmName:    &params.SvmName,
 		VolumeName: &params.VolumeName,
-		LunName:    &params.LunName,
+		LunName:    lunName,
 	})
 
 	if err != nil {

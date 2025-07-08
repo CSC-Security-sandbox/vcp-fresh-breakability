@@ -38,3 +38,4 @@ run:
     - core/ontap-rest/cluster_client_mock.go
     - core/vsa/provider_mock.go
     - telemetry/performance/sink_mock.go
+    - core/vsa/provider_mock.go

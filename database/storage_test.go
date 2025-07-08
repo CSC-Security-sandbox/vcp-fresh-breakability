@@ -266,7 +266,7 @@ func TestCreateVolume(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	vol := &datamodel.Volume{Name: "vol1"}
-	created, err := store.CreateVolume(ctx, vol)
+	created, err := store.CreateVolume(ctx, vol, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 }
@@ -277,7 +277,7 @@ func TestGetVolume(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	vol := &datamodel.Volume{Name: "vol2"}
-	created, err := store.CreateVolume(ctx, vol)
+	created, err := store.CreateVolume(ctx, vol, nil)
 	assert.NoError(t, err)
 	found, err := store.GetVolume(ctx, created.UUID)
 	assert.NoError(t, err)
@@ -290,7 +290,7 @@ func TestUpdateVolume(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	vol := &datamodel.Volume{Name: "vol3"}
-	created, err := store.CreateVolume(ctx, vol)
+	created, err := store.CreateVolume(ctx, vol, nil)
 	assert.NoError(t, err)
 	created.Name = "vol3-updated"
 	err = store.UpdateVolume(ctx, created)
@@ -303,7 +303,7 @@ func TestDeleteVolume(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	vol := &datamodel.Volume{Name: "vol4"}
-	created, err := store.CreateVolume(ctx, vol)
+	created, err := store.CreateVolume(ctx, vol, nil)
 	assert.NoError(t, err)
 	_, err = store.DeleteVolume(ctx, created.UUID)
 	assert.NoError(t, err)
@@ -560,7 +560,7 @@ func TestGetAppConsistentSnapshotsForVolume(t *testing.T) {
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
 	vol := &datamodel.Volume{Name: "vol_snap", AccountID: createdAcc.ID}
-	createdVol, err := store.CreateVolume(ctx, vol)
+	createdVol, err := store.CreateVolume(ctx, vol, nil)
 	assert.NoError(t, err)
 	// Create a snapshot associated with the account and volume
 	snap := &datamodel.Snapshot{Name: "snap4", AccountID: createdAcc.ID, VolumeID: createdVol.ID, IsAppConsistent: true}
@@ -584,7 +584,7 @@ func TestGetSnapshotsByVolumeID(t *testing.T) {
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
 	vol := &datamodel.Volume{Name: "vol_snap2", AccountID: createdAcc.ID}
-	createdVol, err := store.CreateVolume(ctx, vol)
+	createdVol, err := store.CreateVolume(ctx, vol, nil)
 	assert.NoError(t, err)
 
 	// Create two snapshots for the volume
@@ -624,10 +624,10 @@ func TestGetSnapshotsByVolumeIDs(t *testing.T) {
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
 	vol1 := &datamodel.Volume{Name: "test-volume-1", AccountID: createdAcc.ID}
-	createdVol1, err := store.CreateVolume(ctx, vol1)
+	createdVol1, err := store.CreateVolume(ctx, vol1, nil)
 	assert.NoError(t, err)
 	vol2 := &datamodel.Volume{Name: "test-volume-2", AccountID: createdAcc.ID}
-	createdVol2, err := store.CreateVolume(ctx, vol2)
+	createdVol2, err := store.CreateVolume(ctx, vol2, nil)
 	assert.NoError(t, err)
 
 	// Create two snapshots for the volume
@@ -661,7 +661,7 @@ func TestBatchDeleteSnapshots(t *testing.T) {
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
 	vol := &datamodel.Volume{Name: "test-volume", AccountID: createdAcc.ID}
-	createdVol, err := store.CreateVolume(ctx, vol)
+	createdVol, err := store.CreateVolume(ctx, vol, nil)
 	assert.NoError(t, err)
 
 	// Create two snapshots for the volume
@@ -831,7 +831,7 @@ func TestUpdateVolumeFields(t *testing.T) {
 
 	// Create a volume to update
 	vol := &datamodel.Volume{Name: "vol-update-fields"}
-	created, err := store.CreateVolume(ctx, vol)
+	created, err := store.CreateVolume(ctx, vol, nil)
 	assert.NoError(t, err)
 
 	// Case 1: Successful update
@@ -929,7 +929,7 @@ func TestVerifyVolumeOwnership(t *testing.T) {
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
 	vol := &datamodel.Volume{Name: "vol_verify", AccountID: createdAcc.ID}
-	createdVol, err := store.CreateVolume(ctx, vol)
+	createdVol, err := store.CreateVolume(ctx, vol, nil)
 	assert.NoError(t, err)
 
 	// Verify ownership
@@ -952,7 +952,7 @@ func TestIsBackupInCreatingStateByVolume(t *testing.T) {
 
 	// Create a volume
 	vol := &datamodel.Volume{Name: "vol_backup_state"}
-	createdVol, err := store.CreateVolume(ctx, vol)
+	createdVol, err := store.CreateVolume(ctx, vol, nil)
 	assert.NoError(t, err)
 
 	// Check backup state (should be false initially)
@@ -1117,7 +1117,7 @@ func TestListVolumeReplications(t *testing.T) {
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
 	vol := &datamodel.Volume{Name: "vol_snap2", AccountID: createdAcc.ID}
-	createdVol, err := store.CreateVolume(ctx, vol)
+	createdVol, err := store.CreateVolume(ctx, vol, nil)
 	assert.NoError(t, err)
 
 	// Create a volume replication

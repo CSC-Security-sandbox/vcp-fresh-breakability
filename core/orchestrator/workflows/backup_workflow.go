@@ -135,8 +135,15 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if err != nil {
 		return nil, err
 	}
+	smSourcePath := getSmSourcePath(volume)
 	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{}
-	err = workflow.ExecuteActivity(ctx, backupActivity.SnapmirrorGetorCreate, node, getSmSourcePath(volume), smDestinationPath).Get(ctx, &snapmirrorRelationship)
+	SnapmirrorRelationshipParams := &commonparams.SnapmirrorRelationshipParams{
+		SourcePath:      smSourcePath,
+		DestinationPath: smDestinationPath,
+		SourceUUID:      nil,
+		IsRestore:       false,
+	}
+	err = workflow.ExecuteActivity(ctx, backupActivity.SnapmirrorGetorCreate, node, &SnapmirrorRelationshipParams).Get(ctx, &snapmirrorRelationship)
 	if err != nil {
 		return nil, err
 	}
@@ -171,6 +178,31 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, err
 	}
 	return nil, err
+}
+
+func getObjStoreNameFromBackup(backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {
+	bucketDetails, err := getBucketDetailsFromBackup(backupVault, backup)
+	if err != nil {
+		return "", err
+	}
+	return bucketDetails.BucketName, nil
+}
+
+func getBucketDetailsFromBackup(backupVault *datamodel.BackupVault, backup *datamodel.Backup) (*datamodel.BucketDetails, error) {
+	for _, bucketDetail := range backupVault.BucketDetails {
+		if bucketDetail.BucketName != "" && bucketDetail.BucketName == backup.Attributes.BucketName {
+			return bucketDetail, nil
+		}
+	}
+	return nil, fmt.Errorf("no matching bucket details found for backup %s", backup.Name)
+}
+
+func getSmSourcePathForRestore(backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {
+	objStoreName, err := getObjStoreNameFromBackup(backupVault, backup)
+	if err != nil {
+		return "", fmt.Errorf("failed to get object store name: %w", err)
+	}
+	return fmt.Sprintf("%s:/objstore/%s", objStoreName, backup.Attributes.SnapshotID), nil
 }
 
 func (wf *BackupCreateWorkflow) Revert(ctx workflow.Context, backup *datamodel.Backup, volume *datamodel.Volume, errString string) error {

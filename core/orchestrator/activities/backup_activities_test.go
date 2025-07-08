@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -265,10 +266,16 @@ func TestSnapmirrorGetorCreate_Success(t *testing.T) {
 	destinationPath := "destination-path"
 	expectedResponse := &ontap_rest.SnapmirrorRelationship{SnapmirrorRelationship: oModels.SnapmirrorRelationship{UUID: nillable.ToPointer(strfmt.UUID("smUUID")), Destination: &oModels.SnapmirrorEndpoint{UUID: nillable.ToPointer(strfmt.UUID("uuid"))}}}
 
+	SnapmirrorRelationshipParams := &commonparams.SnapmirrorRelationshipParams{
+		SourcePath:      sourcePath,
+		DestinationPath: destinationPath,
+		SourceUUID:      nil,
+		IsRestore:       false,
+	}
 	mockProvider.On("SnapmirrorRelationshipGet", destinationPath, sourcePath).Return(expectedResponse, nil)
 
 	// Act
-	result, err := activity.SnapmirrorGetorCreate(ctx, node, sourcePath, destinationPath)
+	result, err := activity.SnapmirrorGetorCreate(ctx, node, SnapmirrorRelationshipParams)
 
 	// Assert
 	assert.NoError(t, err)
@@ -293,9 +300,14 @@ func TestSnapmirrorGetorCreate_GetProviderByNode(t *testing.T) {
 	node := &models.Node{}
 	sourcePath := "source-path"
 	destinationPath := "destination-path"
-
+	SnapmirrorRelationshipParams := &commonparams.SnapmirrorRelationshipParams{
+		SourcePath:      sourcePath,
+		DestinationPath: destinationPath,
+		SourceUUID:      nil,
+		IsRestore:       false,
+	}
 	// Act
-	result, err := activity.SnapmirrorGetorCreate(ctx, node, sourcePath, destinationPath)
+	result, err := activity.SnapmirrorGetorCreate(ctx, node, SnapmirrorRelationshipParams)
 
 	// Assert
 	assert.Nil(t, result)
@@ -334,11 +346,17 @@ func TestSnapmirrorGetorCreate_CreateNew(t *testing.T) {
 	destinationPath := "destination-path"
 	expectedResponse := &ontap_rest.SnapmirrorRelationship{SnapmirrorRelationship: oModels.SnapmirrorRelationship{UUID: nillable.ToPointer(strfmt.UUID("smUUID")), Destination: &oModels.SnapmirrorEndpoint{UUID: nillable.ToPointer(strfmt.UUID("uuid"))}}}
 
+	SnapmirrorRelationshipParams := &commonparams.SnapmirrorRelationshipParams{
+		SourcePath:      sourcePath,
+		DestinationPath: destinationPath,
+		SourceUUID:      nil,
+		IsRestore:       false,
+	}
 	mockProvider.On("SnapmirrorRelationshipGet", destinationPath, sourcePath).Return(nil, errors.New("not found"))
-	mockProvider.On("SnapmirrorRelationshipCreate", destinationPath, sourcePath, mock.Anything).Return(expectedResponse, nil)
+	mockProvider.On("SnapmirrorRelationshipCreate", SnapmirrorRelationshipParams, mock.Anything).Return(expectedResponse, nil)
 
 	// Act
-	result, err := activity.SnapmirrorGetorCreate(ctx, node, sourcePath, destinationPath)
+	result, err := activity.SnapmirrorGetorCreate(ctx, node, SnapmirrorRelationshipParams)
 
 	// Assert
 	assert.NoError(t, err)

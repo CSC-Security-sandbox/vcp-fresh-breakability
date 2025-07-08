@@ -4,14 +4,15 @@ import (
 	"fmt"
 
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 )
 
-func (rc *OntapRestProvider) SnapmirrorRelationshipCreate(destinationPath, sourcePath string, smcToken *string) (*ontapRest.SnapmirrorRelationship, error) {
+func (rc *OntapRestProvider) SnapmirrorRelationshipCreate(params *commonparams.SnapmirrorRelationshipParams, smcToken *string) (*ontapRest.SnapmirrorRelationship, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
 		return nil, err
 	}
-	_, job, err := client.Snapmirror().SnapmirrorRelationshipCreate(&ontapRest.SnapmirrorRelationshipCreateParams{SourcePath: sourcePath, DestinationPath: destinationPath, AccessToken: smcToken})
+	_, job, err := client.Snapmirror().SnapmirrorRelationshipCreate(&ontapRest.SnapmirrorRelationshipCreateParams{SourcePath: params.SourcePath, DestinationPath: params.DestinationPath, AccessToken: smcToken, IsRestore: params.IsRestore, SourceUUID: params.SourceUUID})
 	if err != nil {
 		return nil, err
 	}
@@ -20,12 +21,12 @@ func (rc *OntapRestProvider) SnapmirrorRelationshipCreate(destinationPath, sourc
 		return nil, err
 	}
 
-	snapmirror, err := client.Snapmirror().SnapmirrorRelationshipList(&ontapRest.SnapmirrorRelationshipListParams{SourcePath: sourcePath, DestinationPath: destinationPath})
+	snapmirror, err := client.Snapmirror().SnapmirrorRelationshipList(&ontapRest.SnapmirrorRelationshipListParams{SourcePath: params.SourcePath, DestinationPath: params.DestinationPath})
 	if err != nil {
 		return nil, err
 	}
 	if len(snapmirror) == 0 {
-		return nil, fmt.Errorf("snapmirror relationship not found for destination: %s and source: %s", destinationPath, sourcePath)
+		return nil, fmt.Errorf("snapmirror relationship not found for destination: %s and source: %s", params.DestinationPath, params.SourcePath)
 	}
 	// there can be only one snapmirror relationship for a given source and destination path for backup
 	return snapmirror[0], nil

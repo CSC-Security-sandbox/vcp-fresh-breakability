@@ -387,3 +387,87 @@ func TestBackupWorkflowSuccess(t *testing.T) {
 		env.AssertExpectations(t)
 	})
 }
+
+func TestObjStoreNameFromBackup_ReturnsValidName(t *testing.T) {
+	backupVault := &datamodel.BackupVault{
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "test-bucket", VendorSubnetID: "subnet-12345"},
+		},
+	}
+	backup := &datamodel.Backup{
+		Attributes: &datamodel.BackupAttributes{BucketName: "test-bucket"},
+	}
+	expected := "test-bucket"
+	result, err := getObjStoreNameFromBackup(backupVault, backup)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestObjStoreNameFromBackup_BucketNotFound(t *testing.T) {
+	backupVault := &datamodel.BackupVault{
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "test-bucket", VendorSubnetID: "subnet-12345"},
+		},
+	}
+	backup := &datamodel.Backup{
+		Attributes: &datamodel.BackupAttributes{BucketName: "non-existent-bucket"},
+	}
+	_, err := getObjStoreNameFromBackup(backupVault, backup)
+	assert.Error(t, err)
+}
+
+func TestBucketDetailsFromBackup_ReturnsValidDetails(t *testing.T) {
+	backupVault := &datamodel.BackupVault{
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "test-bucket", VendorSubnetID: "subnet-12345"},
+		},
+	}
+	backup := &datamodel.Backup{
+		Attributes: &datamodel.BackupAttributes{BucketName: "test-bucket"},
+	}
+	expected := &datamodel.BucketDetails{BucketName: "test-bucket", VendorSubnetID: "subnet-12345"}
+	result, err := getBucketDetailsFromBackup(backupVault, backup)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestBucketDetailsFromBackup_BucketNotFound(t *testing.T) {
+	backupVault := &datamodel.BackupVault{
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "test-bucket", VendorSubnetID: "subnet-12345"},
+		},
+	}
+	backup := &datamodel.Backup{
+		Attributes: &datamodel.BackupAttributes{BucketName: "non-existent-bucket"},
+	}
+	_, err := getBucketDetailsFromBackup(backupVault, backup)
+	assert.Error(t, err)
+}
+
+func TestSmSourcePathForRestore_ReturnsValidPath(t *testing.T) {
+	backupVault := &datamodel.BackupVault{
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "test-bucket", VendorSubnetID: "subnet-12345"},
+		},
+	}
+	backup := &datamodel.Backup{
+		Attributes: &datamodel.BackupAttributes{BucketName: "test-bucket", SnapshotID: "snapshot-uuid"},
+	}
+	expected := "test-bucket:/objstore/snapshot-uuid"
+	result, err := getSmSourcePathForRestore(backupVault, backup)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestSmSourcePathForRestore_BucketNotFound(t *testing.T) {
+	backupVault := &datamodel.BackupVault{
+		BucketDetails: datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{BucketName: "test-bucket", VendorSubnetID: "subnet-12345"},
+		},
+	}
+	backup := &datamodel.Backup{
+		Attributes: &datamodel.BackupAttributes{BucketName: "non-existent-bucket", SnapshotID: "snapshot-uuid"},
+	}
+	_, err := getSmSourcePathForRestore(backupVault, backup)
+	assert.Error(t, err)
+}

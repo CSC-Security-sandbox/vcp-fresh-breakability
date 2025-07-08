@@ -6,6 +6,7 @@ package database
 
 import (
 	"context"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -270,11 +271,11 @@ func (re *retryEngine) UpdatePoolWithKmsConfigID(ctx context.Context, pool *data
 	return var0, err
 }
 
-func (re *retryEngine) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
+func (re *retryEngine) CreateVolume(ctx context.Context, volume *datamodel.Volume, params *commonparams.CreateVolumeParams) (*datamodel.Volume, error) {
 	var var0 *datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.CreateVolume(ctx, volume)
+		var0, err = re.dataStore.CreateVolume(ctx, volume, params)
 		if err != nil {
 			re.logError("CreateVolume", err)
 			if !isTransientErr(err) {
@@ -1940,6 +1941,26 @@ func (re *retryEngine) GetBackupVaultByUUIDndOwnerID(ctx context.Context, backup
 		var0, err = re.dataStore.GetBackupVaultByUUIDndOwnerID(ctx, backupVaultUUID, accountID)
 		if err != nil {
 			re.logError("GetBackupVaultByUUIDndOwnerID", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetBackupByNameAndBackupVaultID(ctx context.Context, backupName string, backupVaultID int64) (*datamodel.Backup, error) {
+	var var0 *datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupByNameAndBackupVaultID(ctx, backupName, backupVaultID)
+		if err != nil {
+			re.logError("GetBackupByNameAndBackupVaultID", err)
 			if !isTransientErr(err) {
 				return false, err
 			}

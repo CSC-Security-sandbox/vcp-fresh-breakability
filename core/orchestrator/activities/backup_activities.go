@@ -24,25 +24,25 @@ type BackupActivity struct {
 	SE database.Storage
 }
 
-func (a *BackupActivity) CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
+func (a BackupActivity) CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
 	se := a.SE
 	return se.CreateBackup(ctx, backup)
 }
-func (a *BackupActivity) GetBackup(ctx context.Context, backupVaultUUID, backupUUID, accountName string) (*datamodel.Backup, error) {
+func (a BackupActivity) GetBackup(ctx context.Context, backupVaultUUID, backupUUID, accountName string) (*datamodel.Backup, error) {
 	se := a.SE
 	return se.GetBackup(ctx, backupVaultUUID, backupUUID, accountName)
 }
-func (a *BackupActivity) DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
+func (a BackupActivity) DeleteBackup(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
 	se := a.SE
 	return se.DeleteBackup(ctx, backupUUID)
 }
-func (a *BackupActivity) FinishBackup(ctx context.Context, backup *datamodel.Backup) error {
+func (a BackupActivity) FinishBackup(ctx context.Context, backup *datamodel.Backup) error {
 	se := a.SE
 	_, err := se.FinishBackup(ctx, backup)
 	return err
 }
 
-func (a *BackupActivity) UpdateBackupError(ctx context.Context, backup *datamodel.Backup, errorString string) error {
+func (a BackupActivity) UpdateBackupError(ctx context.Context, backup *datamodel.Backup, errorString string) error {
 	if backup == nil || errorString == "" {
 		return errors.New("invalid input")
 	}
@@ -53,7 +53,7 @@ func (a *BackupActivity) UpdateBackupError(ctx context.Context, backup *datamode
 	return err
 }
 
-func (a *BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *models.Node, name, containerName string) (*commonparams.CloudTarget, error) {
+func (a BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *models.Node, name, containerName string) (*commonparams.CloudTarget, error) {
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -74,13 +74,13 @@ func (a *BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *model
 	return nil, errors.New("failed to get or create object store")
 }
 
-func (a *BackupActivity) SnapmirrorGetorCreate(ctx context.Context, node *models.Node, sourcePath, destinationPath string) (*commonparams.SnapmirrorRelationship, error) {
+func (a BackupActivity) SnapmirrorGetorCreate(ctx context.Context, node *models.Node, params *commonparams.SnapmirrorRelationshipParams) (*commonparams.SnapmirrorRelationship, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	snapmirror, err := provider.SnapmirrorRelationshipGet(destinationPath, sourcePath)
+	snapmirror, err := provider.SnapmirrorRelationshipGet(params.DestinationPath, params.SourcePath)
 	if err != nil {
 		// Log the error but continue to create a new snapmirror relationship
 		logger.Info(err.Error())
@@ -107,7 +107,7 @@ func (a *BackupActivity) SnapmirrorGetorCreate(ctx context.Context, node *models
 		logger.Error("SMC token is empty or nil")
 		return nil, errors.New("SMC token is empty or nil")
 	}
-	snapmirror, err = provider.SnapmirrorRelationshipCreate(destinationPath, sourcePath, token)
+	snapmirror, err = provider.SnapmirrorRelationshipCreate(params, token)
 	if snapmirror != nil {
 		resp := commonparams.SnapmirrorRelationship{UUID: snapmirror.UUID.String()}
 		if snapmirror.Destination != nil && snapmirror.Destination.UUID != nil {
@@ -118,7 +118,7 @@ func (a *BackupActivity) SnapmirrorGetorCreate(ctx context.Context, node *models
 	return nil, err
 }
 
-func (a *BackupActivity) GetObjectStore(ctx context.Context, node *models.Node, name string) (*commonparams.CloudTarget, error) {
+func (a BackupActivity) GetObjectStore(ctx context.Context, node *models.Node, name string) (*commonparams.CloudTarget, error) {
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -132,7 +132,7 @@ func (a *BackupActivity) GetObjectStore(ctx context.Context, node *models.Node, 
 	return &commonparams.CloudTarget{Name: *objectStore.Name, UUID: *objectStore.UUID}, nil
 }
 
-func (a *BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, sourcePath, destinationPath string) (*commonparams.SnapmirrorRelationship, error) {
+func (a BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, sourcePath, destinationPath string) (*commonparams.SnapmirrorRelationship, error) {
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -149,7 +149,7 @@ func (a *BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, s
 	return &resp, nil
 }
 
-func (a *BackupActivity) SnapshotCreate(ctx context.Context, node *models.Node, volumeUUID, name, comment string) (*vsa.SnapshotProviderResponse, error) {
+func (a BackupActivity) SnapshotCreate(ctx context.Context, node *models.Node, volumeUUID, name, comment string) (*vsa.SnapshotProviderResponse, error) {
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -161,7 +161,7 @@ func (a *BackupActivity) SnapshotCreate(ctx context.Context, node *models.Node, 
 	})
 }
 
-func (a *BackupActivity) SnapmirrorTransfer(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) error {
+func (a BackupActivity) SnapmirrorTransfer(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) error {
 	logger := util.GetLogger(ctx)
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
@@ -185,7 +185,7 @@ func (a *BackupActivity) SnapmirrorTransfer(ctx context.Context, node *models.No
 	return provider.SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName, token)
 }
 
-func (a *BackupActivity) SnapmirrorTransferPoll(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) error {
+func (a BackupActivity) SnapmirrorTransferPoll(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) error {
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -211,7 +211,7 @@ func (a *BackupActivity) SnapmirrorTransferPoll(ctx context.Context, node *model
 	}
 }
 
-func (a *BackupActivity) DeleteBackupSnapshot(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {
+func (a BackupActivity) DeleteBackupSnapshot(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -219,7 +219,7 @@ func (a *BackupActivity) DeleteBackupSnapshot(ctx context.Context, node *models.
 	return provider.DeleteSnapshot(snapshotUUID, volumeUUID)
 }
 
-func (a *BackupActivity) IsVolumeDeleted(ctx context.Context, volumeUUID string) (bool, error) {
+func (a BackupActivity) IsVolumeDeleted(ctx context.Context, volumeUUID string) (bool, error) {
 	se := a.SE
 	_, err := se.GetVolume(ctx, volumeUUID)
 	if err != nil {
@@ -232,7 +232,7 @@ func (a *BackupActivity) IsVolumeDeleted(ctx context.Context, volumeUUID string)
 	return false, nil
 }
 
-func (a *BackupActivity) GetVolume(ctx context.Context, volumeUUID string) (*datamodel.Volume, error) {
+func (a BackupActivity) GetVolume(ctx context.Context, volumeUUID string) (*datamodel.Volume, error) {
 	se := a.SE
 	volume, err := se.GetVolume(ctx, volumeUUID)
 	if err != nil {
@@ -241,17 +241,17 @@ func (a *BackupActivity) GetVolume(ctx context.Context, volumeUUID string) (*dat
 	return volume, nil
 }
 
-func (a *BackupActivity) GetBackupVault(ctx context.Context, backupVaultUUID string) (*datamodel.BackupVault, error) {
+func (a BackupActivity) GetBackupVault(ctx context.Context, backupVaultUUID string) (*datamodel.BackupVault, error) {
 	se := a.SE
 	return se.GetBackupVault(ctx, backupVaultUUID)
 }
 
-func (a *BackupActivity) GetBackupCountByVolumeUUID(ctx context.Context, volumeUUID string) (int64, error) {
+func (a BackupActivity) GetBackupCountByVolumeUUID(ctx context.Context, volumeUUID string) (int64, error) {
 	se := a.SE
 	return se.BackupCountByVolumeID(ctx, volumeUUID)
 }
 
-func (a *BackupActivity) DeleteSnapshotFromObjectStore(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID, snapshotUUID string) (*vsa.OntapAsyncResponse, error) {
+func (a BackupActivity) DeleteSnapshotFromObjectStore(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID, snapshotUUID string) (*vsa.OntapAsyncResponse, error) {
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -259,7 +259,7 @@ func (a *BackupActivity) DeleteSnapshotFromObjectStore(ctx context.Context, node
 	return provider.SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID, EndpointUUID, snapshotUUID)
 }
 
-func (a *BackupActivity) DeleteSnapmirror(ctx context.Context, node *models.Node, snapmirrorUUID string) (*vsa.OntapAsyncResponse, error) {
+func (a BackupActivity) DeleteSnapmirror(ctx context.Context, node *models.Node, snapmirrorUUID string) (*vsa.OntapAsyncResponse, error) {
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -267,7 +267,7 @@ func (a *BackupActivity) DeleteSnapmirror(ctx context.Context, node *models.Node
 	return provider.SnapmirrorRelationshipDelete(snapmirrorUUID)
 }
 
-func (a *BackupActivity) DeleteCloudEndpoint(ctx context.Context, node *models.Node, objectStoreUUID string, EndpointUUID string) (*vsa.OntapAsyncResponse, error) {
+func (a BackupActivity) DeleteCloudEndpoint(ctx context.Context, node *models.Node, objectStoreUUID string, EndpointUUID string) (*vsa.OntapAsyncResponse, error) {
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -275,7 +275,7 @@ func (a *BackupActivity) DeleteCloudEndpoint(ctx context.Context, node *models.N
 	return provider.SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, EndpointUUID)
 }
 
-func (a *BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {
+func (a BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -283,7 +283,7 @@ func (a *BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *mode
 	return provider.DeleteSnapshot(snapshotUUID, volumeUUID)
 }
 
-// func (a *BackupActivity) CreateHmacKeys(ctx context.Context, params *commonparams.HmacKeyCreateParams, gcpService hyperscaler.GoogleServices) (hmacKeys *commonparams.HmacKeys, err error) {
+// func (a BackupActivity) CreateHmacKeys(ctx context.Context, params *commonparams.HmacKeyCreateParams, gcpService hyperscaler.GoogleServices) (hmacKeys *commonparams.HmacKeys, err error) {
 //	err = gcpService.InitializeClients()
 //	if err != nil || !gcpService.IsAdminClientInitialized() {
 //		gcpService.GetLogger().Debug("Initialisation of service failed")
@@ -303,7 +303,7 @@ func (a *BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *mode
 //	}, nil
 // }
 //
-// func (a *BackupActivity) DeleteHmacKeys(ctx context.Context, projectNumber, accessKey, ServiceAccount string, gcpService hyperscaler.GoogleServices) error {
+// func (a BackupActivity) DeleteHmacKeys(ctx context.Context, projectNumber, accessKey, ServiceAccount string, gcpService hyperscaler.GoogleServices) error {
 //	err := gcpService.InitializeClients()
 //	if err != nil || !gcpService.IsAdminClientInitialized() {
 //		gcpService.GetLogger().Debug("Initialisation of service failed")

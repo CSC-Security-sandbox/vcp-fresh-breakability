@@ -747,6 +747,74 @@ func TestCreateBackupVaultEntryInVCPError(tt *testing.T) {
 	assert.Error(tt, err, "Expected error when creating backup vault entry in VCP")
 }
 
+func TestGetBackupVaultById(t *testing.T) {
+	t.Run("TestGetBackupVaultByIdReturnsBackupVaultWhenExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 123},
+			Name:      "test_backup_vault",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(backupVault).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create backup vault: %v", err)
+		}
+
+		result, err := store.GetBackupVaultById(context.Background(), backupVault.ID)
+		if err != nil {
+			tt.Errorf("Expected no error, got %v", err)
+		}
+		if result.ID != backupVault.ID {
+			tt.Errorf("Expected backup vault ID %v, got %v", backupVault.ID, result.ID)
+		}
+		if result.Account.Name != account.Name {
+			tt.Errorf("Expected account name %v, got %v", account.Name, result.Account.Name)
+		}
+	})
+	t.Run("TestGetBackupVaultByIdReturnsErrorWhenBackupVaultDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		_, err = store.GetBackupVaultById(context.Background(), 999) // Non-existent ID
+		if err == nil {
+			tt.Errorf("Expected error, got nil")
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		}
+	})
+}
+
 func TestUpdateBackupVaultInVCP(tt *testing.T) {
 	tt.Run("TestUpdateBackupVaultInVCPUpdatesBackupVaultSuccessfully", func(t *testing.T) {
 		db, err := SetupTestDB()

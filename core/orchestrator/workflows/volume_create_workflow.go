@@ -26,7 +26,7 @@ var (
 var _ WorkflowInterface = &volumeCreateWorkflow{}
 
 // CreateVolumeWorkflow Volume Workflow process volume related requests from a customer.
-func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume) (gcpgenserver.V1betaDescribeVolumeRes, error) {
+func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume, backupVault *datamodel.BackupVault, backup *datamodel.Backup) (gcpgenserver.V1betaDescribeVolumeRes, error) {
 	volumeWf := new(volumeCreateWorkflow)
 	err := volumeWf.Setup(ctx, params)
 	if err != nil {
@@ -37,7 +37,7 @@ func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParam
 	if err != nil {
 		return nil, err
 	}
-	_, err = volumeWf.Run(ctx, volume, params)
+	_, err = volumeWf.Run(ctx, volume, params, backupVault, backup)
 	if err != nil {
 		volumeWf.Status = WorkflowStatusFailed
 		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
@@ -79,6 +79,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if createVolumeParams.Snapshot != nil {
 		snapshot = createVolumeParams.Snapshot
 	}
+	backupPath := createVolumeParams.BackupPath
+	backupVault := args[2].(*datamodel.BackupVault)
+	backup := args[3].(*datamodel.Backup)
 	volumeActivity := &activities.VolumeCreateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -135,7 +138,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	var volCreateResponse *vsa.VolumeResponse
-	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateVolumeInONTAP, &dbVolume, &node, &snapshot).Get(ctx, &volCreateResponse)
+	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateVolumeInONTAP, &dbVolume, &node, &snapshot, backup).Get(ctx, &volCreateResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -148,9 +151,62 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	var lun *vsa.LunResponse
-	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLun, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lun)
-	if err != nil {
-		return nil, err
+	// If backupPath is provided, we will restore the volume from the backup
+	// backup path example: "projects/123456789/locations/us-e4/backupVaults/bv1/backups/backupName"
+	if backupPath != "" && backup != nil {
+		objStore := &common.CloudTarget{}
+		smDestinationPath := getSmSourcePath(dbVolume)
+		smSourcePath, err := getSmSourcePathForRestore(backupVault, backup)
+		log.Debugf("\nsmDestinationPath: %v", smDestinationPath)
+		log.Debugf("\nsmSourcePath: %v", smSourcePath)
+
+		if err != nil {
+			return nil, err
+		}
+
+		snapmirrorRelationship := &common.SnapmirrorRelationship{}
+		SnapmirrorRelationshipParams := &common.SnapmirrorRelationshipParams{
+			SourcePath:      smSourcePath,
+			DestinationPath: smDestinationPath,
+			SourceUUID:      &backup.Attributes.EndpointUUID,
+			IsRestore:       true,
+		}
+
+		objStoreName, err := getObjStoreNameFromBackup(backupVault, backup)
+		if err != nil {
+			return nil, err
+		}
+
+		bucketDetails, err := getBucketDetailsFromBackup(backupVault, backup)
+		if err != nil {
+			return nil, err
+		}
+		bucketName := bucketDetails.BucketName
+		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.GetOrCreateObjectStore, node, objStoreName, bucketName).Get(ctx, &objStore)
+		if err != nil {
+			return nil, err
+		}
+		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorGetorCreate, node, &SnapmirrorRelationshipParams).Get(ctx, &snapmirrorRelationship)
+		if err != nil {
+			return nil, err
+		}
+		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorTransfer, node, snapmirrorRelationship.UUID, "").Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorTransferPoll, node, snapmirrorRelationship.UUID, "").Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lun)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLun, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lun)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	lunMapParams := createLunMapParams(lun.Name, dbVolume.Svm.Name, hostParams)

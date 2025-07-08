@@ -40,6 +40,7 @@ const (
 	SnapshotScheduleLabelDaily   = "daily"
 	SnapshotScheduleLabelWeekly  = "weekly"
 	SnapshotScheduleLabelMonthly = "monthly"
+	MaxBackupPathComponents      = 8
 
 	daysOfMonthError = `daysOfMonth must include unique values in the range 1-31 (inclusive).`
 	daysOfWeekError  = `day in weeklySchedule must include 1-7 (inclusive) unique weekdays, that are comma separated.`
@@ -156,6 +157,19 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string) (*common.CreateVolumeParams, error) {
 	vendorId := fmt.Sprintf("/projects/%v/locations/%v/volumes/%s", params.ProjectNumber, params.LocationId, req.Volume.ResourceId)
 
+	var backupPath string
+	if req.BackupPath.IsSet() {
+		backupPath = req.BackupPath.Value
+		components := strings.Split(backupPath, "/")
+		// Ensure there are enough components to avoid out of range errors
+		if len(components) < MaxBackupPathComponents {
+			return nil, errors.NewUserInputValidationErr("Backup path is not in correct format")
+		}
+	}
+	var backupID string
+	if req.BackupId.IsSet() {
+		backupID = req.BackupId.Value
+	}
 	param := &common.CreateVolumeParams{
 		AccountName:   params.ProjectNumber,
 		Region:        region,
@@ -164,6 +178,8 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		CreationToken: req.Volume.CreationToken.Value,
 		PoolID:        req.Volume.PoolId.Value,
 		QuotaInBytes:  uint64(req.Volume.QuotaInBytes.Value),
+		BackupID:      backupID,
+		BackupPath:    backupPath,
 	}
 
 	if req.VolumeType.IsSet() {

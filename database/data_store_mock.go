@@ -5,8 +5,11 @@ package database
 import (
 	context "context"
 
-	mock "github.com/stretchr/testify/mock"
+	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+
 	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+
+	mock "github.com/stretchr/testify/mock"
 
 	utils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 )
@@ -848,9 +851,9 @@ func (_c *MockDataStore_CreateSVM_Call) RunAndReturn(run func(context.Context, *
 	return _c
 }
 
-// CreateVolume provides a mock function with given fields: ctx, volume
-func (_m *MockDataStore) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
-	ret := _m.Called(ctx, volume)
+// CreateVolume provides a mock function with given fields: ctx, volume, params
+func (_m *MockDataStore) CreateVolume(ctx context.Context, volume *datamodel.Volume, params *common.CreateVolumeParams) (*datamodel.Volume, error) {
+	ret := _m.Called(ctx, volume, params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateVolume")
@@ -858,19 +861,19 @@ func (_m *MockDataStore) CreateVolume(ctx context.Context, volume *datamodel.Vol
 
 	var r0 *datamodel.Volume
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume) (*datamodel.Volume, error)); ok {
-		return rf(ctx, volume)
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *common.CreateVolumeParams) (*datamodel.Volume, error)); ok {
+		return rf(ctx, volume, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume) *datamodel.Volume); ok {
-		r0 = rf(ctx, volume)
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *common.CreateVolumeParams) *datamodel.Volume); ok {
+		r0 = rf(ctx, volume, params)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.Volume)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Volume) error); ok {
-		r1 = rf(ctx, volume)
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Volume, *common.CreateVolumeParams) error); ok {
+		r1 = rf(ctx, volume, params)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -886,13 +889,14 @@ type MockDataStore_CreateVolume_Call struct {
 // CreateVolume is a helper method to define mock.On call
 //   - ctx context.Context
 //   - volume *datamodel.Volume
-func (_e *MockDataStore_Expecter) CreateVolume(ctx interface{}, volume interface{}) *MockDataStore_CreateVolume_Call {
-	return &MockDataStore_CreateVolume_Call{Call: _e.mock.On("CreateVolume", ctx, volume)}
+//   - params *common.CreateVolumeParams
+func (_e *MockDataStore_Expecter) CreateVolume(ctx interface{}, volume interface{}, params interface{}) *MockDataStore_CreateVolume_Call {
+	return &MockDataStore_CreateVolume_Call{Call: _e.mock.On("CreateVolume", ctx, volume, params)}
 }
 
-func (_c *MockDataStore_CreateVolume_Call) Run(run func(ctx context.Context, volume *datamodel.Volume)) *MockDataStore_CreateVolume_Call {
+func (_c *MockDataStore_CreateVolume_Call) Run(run func(ctx context.Context, volume *datamodel.Volume, params *common.CreateVolumeParams)) *MockDataStore_CreateVolume_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.Volume))
+		run(args[0].(context.Context), args[1].(*datamodel.Volume), args[2].(*common.CreateVolumeParams))
 	})
 	return _c
 }
@@ -902,7 +906,7 @@ func (_c *MockDataStore_CreateVolume_Call) Return(_a0 *datamodel.Volume, _a1 err
 	return _c
 }
 
-func (_c *MockDataStore_CreateVolume_Call) RunAndReturn(run func(context.Context, *datamodel.Volume) (*datamodel.Volume, error)) *MockDataStore_CreateVolume_Call {
+func (_c *MockDataStore_CreateVolume_Call) RunAndReturn(run func(context.Context, *datamodel.Volume, *common.CreateVolumeParams) (*datamodel.Volume, error)) *MockDataStore_CreateVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2562,6 +2566,66 @@ func (_c *MockDataStore_GetBackup_Call) Return(_a0 *datamodel.Backup, _a1 error)
 }
 
 func (_c *MockDataStore_GetBackup_Call) RunAndReturn(run func(context.Context, string, string, string) (*datamodel.Backup, error)) *MockDataStore_GetBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBackupByNameAndBackupVaultID provides a mock function with given fields: ctx, backupName, backupVaultID
+func (_m *MockDataStore) GetBackupByNameAndBackupVaultID(ctx context.Context, backupName string, backupVaultID int64) (*datamodel.Backup, error) {
+	ret := _m.Called(ctx, backupName, backupVaultID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupByNameAndBackupVaultID")
+	}
+
+	var r0 *datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.Backup, error)); ok {
+		return rf(ctx, backupName, backupVaultID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.Backup); ok {
+		r0 = rf(ctx, backupName, backupVaultID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, backupName, backupVaultID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetBackupByNameAndBackupVaultID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupByNameAndBackupVaultID'
+type MockDataStore_GetBackupByNameAndBackupVaultID_Call struct {
+	*mock.Call
+}
+
+// GetBackupByNameAndBackupVaultID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupName string
+//   - backupVaultID int64
+func (_e *MockDataStore_Expecter) GetBackupByNameAndBackupVaultID(ctx interface{}, backupName interface{}, backupVaultID interface{}) *MockDataStore_GetBackupByNameAndBackupVaultID_Call {
+	return &MockDataStore_GetBackupByNameAndBackupVaultID_Call{Call: _e.mock.On("GetBackupByNameAndBackupVaultID", ctx, backupName, backupVaultID)}
+}
+
+func (_c *MockDataStore_GetBackupByNameAndBackupVaultID_Call) Run(run func(ctx context.Context, backupName string, backupVaultID int64)) *MockDataStore_GetBackupByNameAndBackupVaultID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupByNameAndBackupVaultID_Call) Return(_a0 *datamodel.Backup, _a1 error) *MockDataStore_GetBackupByNameAndBackupVaultID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupByNameAndBackupVaultID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.Backup, error)) *MockDataStore_GetBackupByNameAndBackupVaultID_Call {
 	_c.Call.Return(run)
 	return _c
 }

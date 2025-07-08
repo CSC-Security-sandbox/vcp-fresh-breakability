@@ -5,8 +5,12 @@ package vsa
 import (
 	context "context"
 
+	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+
 	mock "github.com/stretchr/testify/mock"
+
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+
 	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 )
 
@@ -2926,9 +2930,9 @@ func (_c *MockProvider_SnapmirrorObjectStoreSnapshotDelete_Call) RunAndReturn(ru
 	return _c
 }
 
-// SnapmirrorRelationshipCreate provides a mock function with given fields: destinationPath, sourcePath, smcToken
-func (_m *MockProvider) SnapmirrorRelationshipCreate(destinationPath string, sourcePath string, smcToken *string) (*ontap_rest.SnapmirrorRelationship, error) {
-	ret := _m.Called(destinationPath, sourcePath, smcToken)
+// SnapmirrorRelationshipCreate provides a mock function with given fields: params, smcToken
+func (_m *MockProvider) SnapmirrorRelationshipCreate(params *common.SnapmirrorRelationshipParams, smcToken *string) (*ontap_rest.SnapmirrorRelationship, error) {
+	ret := _m.Called(params, smcToken)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SnapmirrorRelationshipCreate")
@@ -2936,19 +2940,19 @@ func (_m *MockProvider) SnapmirrorRelationshipCreate(destinationPath string, sou
 
 	var r0 *ontap_rest.SnapmirrorRelationship
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, string, *string) (*ontap_rest.SnapmirrorRelationship, error)); ok {
-		return rf(destinationPath, sourcePath, smcToken)
+	if rf, ok := ret.Get(0).(func(*common.SnapmirrorRelationshipParams, *string) (*ontap_rest.SnapmirrorRelationship, error)); ok {
+		return rf(params, smcToken)
 	}
-	if rf, ok := ret.Get(0).(func(string, string, *string) *ontap_rest.SnapmirrorRelationship); ok {
-		r0 = rf(destinationPath, sourcePath, smcToken)
+	if rf, ok := ret.Get(0).(func(*common.SnapmirrorRelationshipParams, *string) *ontap_rest.SnapmirrorRelationship); ok {
+		r0 = rf(params, smcToken)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*ontap_rest.SnapmirrorRelationship)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string, string, *string) error); ok {
-		r1 = rf(destinationPath, sourcePath, smcToken)
+	if rf, ok := ret.Get(1).(func(*common.SnapmirrorRelationshipParams, *string) error); ok {
+		r1 = rf(params, smcToken)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2962,16 +2966,15 @@ type MockProvider_SnapmirrorRelationshipCreate_Call struct {
 }
 
 // SnapmirrorRelationshipCreate is a helper method to define mock.On call
-//   - destinationPath string
-//   - sourcePath string
+//   - params *common.SnapmirrorRelationshipParams
 //   - smcToken *string
-func (_e *MockProvider_Expecter) SnapmirrorRelationshipCreate(destinationPath interface{}, sourcePath interface{}, smcToken interface{}) *MockProvider_SnapmirrorRelationshipCreate_Call {
-	return &MockProvider_SnapmirrorRelationshipCreate_Call{Call: _e.mock.On("SnapmirrorRelationshipCreate", destinationPath, sourcePath, smcToken)}
+func (_e *MockProvider_Expecter) SnapmirrorRelationshipCreate(params interface{}, smcToken interface{}) *MockProvider_SnapmirrorRelationshipCreate_Call {
+	return &MockProvider_SnapmirrorRelationshipCreate_Call{Call: _e.mock.On("SnapmirrorRelationshipCreate", params, smcToken)}
 }
 
-func (_c *MockProvider_SnapmirrorRelationshipCreate_Call) Run(run func(destinationPath string, sourcePath string, smcToken *string)) *MockProvider_SnapmirrorRelationshipCreate_Call {
+func (_c *MockProvider_SnapmirrorRelationshipCreate_Call) Run(run func(params *common.SnapmirrorRelationshipParams, smcToken *string)) *MockProvider_SnapmirrorRelationshipCreate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string), args[2].(*string))
+		run(args[0].(*common.SnapmirrorRelationshipParams), args[1].(*string))
 	})
 	return _c
 }
@@ -2981,7 +2984,7 @@ func (_c *MockProvider_SnapmirrorRelationshipCreate_Call) Return(_a0 *ontap_rest
 	return _c
 }
 
-func (_c *MockProvider_SnapmirrorRelationshipCreate_Call) RunAndReturn(run func(string, string, *string) (*ontap_rest.SnapmirrorRelationship, error)) *MockProvider_SnapmirrorRelationshipCreate_Call {
+func (_c *MockProvider_SnapmirrorRelationshipCreate_Call) RunAndReturn(run func(*common.SnapmirrorRelationshipParams, *string) (*ontap_rest.SnapmirrorRelationship, error)) *MockProvider_SnapmirrorRelationshipCreate_Call {
 	_c.Call.Return(run)
 	return _c
 }

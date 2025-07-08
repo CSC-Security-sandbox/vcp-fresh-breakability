@@ -75,6 +75,15 @@ type CreateVolumeParams struct {
 	SnapshotPolicy   *models.SnapshotPolicy
 	Snapshot         *datamodel.Snapshot
 	TieringPolicy    *TieringPolicy
+	BackupID         string
+	BackupPath       string
+}
+
+type SnapmirrorRelationshipParams struct {
+	SourcePath      string
+	DestinationPath string
+	SourceUUID      *string
+	IsRestore       bool
 }
 
 // TieringPolicy describes the auto tiering policy for a volume

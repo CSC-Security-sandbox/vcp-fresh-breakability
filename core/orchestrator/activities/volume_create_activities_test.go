@@ -35,10 +35,11 @@ func TestCreateVolume_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{Name: "test-volume"}
 
-	mockStorage.On("CreateVolume", ctx, volume).Return(volume, nil)
+	var params *common.CreateVolumeParams
+	mockStorage.On("CreateVolume", ctx, volume, params).Return(volume, nil)
 
 	// Act
-	result, err := activity.CreateVolume(ctx, volume)
+	result, err := activity.CreateVolume(ctx, volume, params)
 
 	// Assert
 	assert.NoError(t, err)
@@ -54,10 +55,11 @@ func TestCreateVolume_Failure(t *testing.T) {
 	volume := &datamodel.Volume{Name: "test-volume"}
 	expectedError := errors.New("failed to create volume")
 
-	mockStorage.On("CreateVolume", ctx, volume).Return(nil, expectedError)
+	var params *common.CreateVolumeParams
+	mockStorage.On("CreateVolume", ctx, volume, params).Return(nil, expectedError)
 
 	// Act
-	result, err := activity.CreateVolume(ctx, volume)
+	result, err := activity.CreateVolume(ctx, volume, params)
 
 	// Assert
 	assert.Error(t, err)
@@ -90,10 +92,10 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
 
 		// Mock the CreateVolume method
-		mockProvider.On("CreateVolume", mock.Anything).Return(expectedResponse, nil)
+		mockProvider.On("CreateVolume", mock.Anything, mock.Anything).Return(expectedResponse, nil)
 
 		// Act
-		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
+		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
 
 		// Assert
 		assert.NoError(t, err)
@@ -134,7 +136,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		})).Return(expectedResponse, nil)
 
 		// Act
-		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
+		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
 
 		// Assert
 		assert.NoError(t, err)
@@ -180,7 +182,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		})).Return(expectedResponse, nil)
 
 		// Act
-		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
+		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
 
 		// Assert
 		assert.NoError(t, err)
@@ -211,11 +213,11 @@ func TestCreateVolumeInONTAP_Success_AlreadyCreated(t *testing.T) {
 	node := &models.Node{}
 	expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024, State: "online"}
 
-	mockProvider.On("CreateVolume", mock.Anything).Return(nil, utilErrors.NewConflictErr("volume already exists"))
+	mockProvider.On("CreateVolume", mock.Anything, mock.Anything).Return(nil, utilErrors.NewConflictErr("volume already exists"))
 	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm"}).Return(expectedResponse, nil)
 
 	// Act
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
 
 	// Assert
 	assert.NoError(t, err)
@@ -246,10 +248,10 @@ func TestCreateVolumeInONTAP_Failure(t *testing.T) {
 	node := &models.Node{}
 	expectedError := errors.New("failed to create volume in ONTAP")
 
-	mockProvider.On("CreateVolume", mock.Anything).Return(nil, expectedError)
+	mockProvider.On("CreateVolume", mock.Anything, mock.Anything).Return(nil, expectedError)
 
 	// Act
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
 
 	// Assert
 	assert.Error(t, err)
@@ -904,11 +906,11 @@ func TestCreateVolumeInONTAP_CheckVolumeExistsError(t *testing.T) {
 		}}
 	node := &models.Node{}
 
-	mockProvider.On("CreateVolume", mock.Anything).Return(nil, utilErrors.NewConflictErr("volume already exists"))
+	mockProvider.On("CreateVolume", mock.Anything, mock.Anything).Return(nil, utilErrors.NewConflictErr("volume already exists"))
 	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm"}).Return(nil, errors.New("volume not found"))
 
 	// Act
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
 
 	// Assert
 	assert.Error(t, err)
@@ -1058,7 +1060,7 @@ func TestCreateVolumeInONTAP_DataProtectionVolume(t *testing.T) {
 		return params.VolumeType == "dp"
 	})).Return(expectedResponse, nil)
 
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResponse, result)
@@ -1101,7 +1103,7 @@ func TestCreateVolumeInONTAP_ClonedVolume(t *testing.T) {
 		return params.RestoreFromSnapshot != nil
 	})).Return(expectedResponse, nil)
 
-	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, snapshot)
+	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, snapshot, nil)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResponse, result)
@@ -1980,5 +1982,139 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 		}
 		err := activity.InitiateSplitForVolume(ctx, volume, node, nil)
 		assert.NoError(tt, err)
+	})
+}
+
+func TestUpdateLunName(t *testing.T) {
+	t.Run("TestUpdateLunNameSuccess", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		ctx := context.Background()
+		activity := activities.VolumeCreateActivity{}
+		node := &models.Node{}
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			Svm:  &datamodel.Svm{Name: "test-svm"},
+		}
+		availableSpace := int64(107374182400) // 100 GiB
+		lunResponse := &vsa.LunResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				ExternalUUID: "lun-uuid-123",
+			},
+			SerialNumber: "lun_test-volume",
+		}
+
+		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
+		mockProvider.On("LunUpdate", mock.Anything).Return(nil)
+		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
+
+		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, lun)
+		assert.Equal(t, lunResponse, lun)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("TestUpdateLunNameLunNotFoundInitially", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		ctx := context.Background()
+		activity := activities.VolumeCreateActivity{}
+		node := &models.Node{}
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			Svm:  &datamodel.Svm{Name: "test-svm"},
+		}
+		availableSpace := int64(107374182400) // 100 GiB
+
+		mockProvider.On("LunGet", mock.Anything).Return(nil, errors.New("lun not found"))
+
+		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace)
+
+		assert.Error(t, err)
+		assert.Nil(t, lun)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("TestUpdateLunNameLunUpdateFails", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		ctx := context.Background()
+		activity := activities.VolumeCreateActivity{}
+		node := &models.Node{}
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			Svm:  &datamodel.Svm{Name: "test-svm"},
+		}
+		availableSpace := int64(107374182400) // 100 GiB
+		lunResponse := &vsa.LunResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				ExternalUUID: "lun-uuid-123",
+			},
+			SerialNumber: "lun_test-volume",
+		}
+
+		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
+		mockProvider.On("LunUpdate", mock.Anything).Return(errors.New("failed to update lun"))
+
+		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace)
+
+		assert.Error(t, err)
+		assert.Nil(t, lun)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("TestUpdateLunNameLunNotFoundAfterUpdate", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		ctx := context.Background()
+		activity := activities.VolumeCreateActivity{}
+		node := &models.Node{}
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			Svm:  &datamodel.Svm{Name: "test-svm"},
+		}
+		availableSpace := int64(107374182400) // 100 GiB
+		lunResponse := &vsa.LunResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				ExternalUUID: "lun-uuid-123",
+			},
+			SerialNumber: "lun_test-volume",
+		}
+
+		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil).Once()
+		mockProvider.On("LunUpdate", mock.Anything).Return(nil)
+		mockProvider.On("LunGet", mock.Anything).Return(nil, errors.New("lun not found"))
+
+		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace)
+
+		assert.Error(t, err)
+		assert.Nil(t, lun)
+		mockProvider.AssertExpectations(t)
 	})
 }

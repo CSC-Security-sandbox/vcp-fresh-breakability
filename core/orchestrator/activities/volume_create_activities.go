@@ -44,20 +44,21 @@ var (
 	CheckForBucketResourceName  = _checkForBucketResourceName
 )
 
-func (a VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
+func (a VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamodel.Volume, params *common.CreateVolumeParams) (*datamodel.Volume, error) {
 	se := a.SE
 
-	return se.CreateVolume(ctx, volume)
+	return se.CreateVolume(ctx, volume, params)
 }
 
-func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot) (*vsa.VolumeResponse, error) {
+func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot, backup *datamodel.Backup) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	volumeType := VolumeTypeRW
-	if volume.VolumeAttributes.IsDataProtection {
+	if volume.VolumeAttributes.IsDataProtection || backup != nil {
+		logger.Debug("create a DP volume !")
 		volumeType = VolumeTypeDP
 	}
 
@@ -104,6 +105,41 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 	logger.Debug("volume created successfully")
 
 	return res, nil
+}
+
+func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64) (*vsa.LunResponse, error) {
+	logger := util.GetLogger(ctx)
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	lunName := utils.GetLunName(volume.Name)
+
+	lun, err := LunGet(ctx, "", volume.Name, volume.Svm.Name, provider)
+	if err != nil {
+		logger.Debug("lun not found !")
+		return nil, err
+	}
+	response := lun.ProviderResponse
+	uuid := response.ExternalUUID
+	logger.Debug("\n\nLun Name : %s\n\n", lun.Name)
+	err = provider.LunUpdate(vsa.LunUpdateParams{
+		UUID:       uuid,
+		LunName:    lunName,
+		VolumeName: volume.Name,
+		SvmName:    volume.Svm.Name,
+		Size:       availableSpace,
+	})
+	if err != nil {
+		return nil, err
+	}
+	logger.Debug("lun updated successfully")
+	lun, err = LunGet(ctx, lunName, volume.Name, volume.Svm.Name, provider)
+	if err != nil {
+		logger.Debug("lun not found !")
+		return nil, err
+	}
+	return lun, nil
 }
 
 func HandleVolumeCreateConflict(volume *datamodel.Volume, provider vsa.Provider) (*vsa.VolumeResponse, error) {

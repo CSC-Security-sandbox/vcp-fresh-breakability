@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"gorm.io/gorm"
 )
@@ -64,7 +65,7 @@ type DataStore interface {
 	SavePoolWithVsaClusterDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error
 	UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error)
 
-	CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error)
+	CreateVolume(ctx context.Context, volume *datamodel.Volume, params *commonparams.CreateVolumeParams) (*datamodel.Volume, error)
 	GetVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 	GetVolumeWithAccountID(ctx context.Context, id string, accountID int64) (*datamodel.Volume, error)
 	GetVolumeCount(ctx context.Context, accountName string) (int64, error)
@@ -162,6 +163,7 @@ type DataStore interface {
 	CreatingBackupVault(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error)
 	ListBackupVaults(ctx context.Context, accountID int64) ([]*datamodel.BackupVault, error)
 	GetBackupVaultByUUIDndOwnerID(ctx context.Context, backupVaultUUID string, accountID int64) (*datamodel.BackupVault, error)
+	GetBackupByNameAndBackupVaultID(ctx context.Context, backupName string, backupVaultID int64) (*datamodel.Backup, error)
 	CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error)
 	UpdateBackupVault(ctx context.Context, backupVault *datamodel.BackupVault) error
 	GetBackupVault(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error)

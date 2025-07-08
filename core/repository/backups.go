@@ -13,9 +13,23 @@ import (
 )
 
 var (
-	deleteBackup         = _deleteBackup
-	getBackupWithDetails = _getBackupWithDetails
+	deleteBackup                         = _deleteBackup
+	getBackupWithDetails                 = _getBackupWithDetails
+	getBackupVaultByNameAndBackupVaultID = _getBackupVaultByNameAndBackupVaultID
 )
+
+func (d *DataStoreRepository) GetBackupByNameAndBackupVaultID(ctx context.Context, backupName string, backupVaultID int64) (*datamodel.Backup, error) {
+	return getBackupVaultByNameAndBackupVaultID(d.db.GORM().WithContext(ctx), &datamodel.Backup{Name: backupName})
+}
+
+func _getBackupVaultByNameAndBackupVaultID(db *gorm.DB, query *datamodel.Backup) (*datamodel.Backup, error) {
+	backup := &datamodel.Backup{}
+	err := db.Preload("BackupVault").First(&backup, query).Error
+	if err != nil {
+		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "backup", &backup.UUID)
+	}
+	return backup, nil
+}
 
 func (d *DataStoreRepository) CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
 	db := d.db.GORM().WithContext(ctx)
