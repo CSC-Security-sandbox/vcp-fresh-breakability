@@ -627,26 +627,47 @@ func TestVolumeModifyParamsToONTAP(t *testing.T) {
 
 	t.Run("WhenTieringPolicyAndCoolingDaysSet_ThenTieringIsSet", func(tt *testing.T) {
 		policy := "auto"
-		days := int32(7)
-		params := &VolumeModifyParams{UUID: "uuid", TieringPolicy: &policy, TieringMinimumCoolingDays: &days}
+		days := int64(7)
+		params := &VolumeModifyParams{
+			UUID: "uuid",
+			TieringPolicy: &TieringPolicy{
+				CoolAccessTieringPolicy: policy,
+				MinCoolingDays:          days,
+			},
+		}
 		result := volumeModifyParamsToONTAP(params)
 		assert.NotNil(tt, result.Info.Tiering)
+		assert.Equal(tt, policy, *result.Info.Tiering.Policy)
+		assert.Equal(tt, days, *result.Info.Tiering.MinCoolingDays)
 	})
 
 	t.Run("WhenTieringPolicyIsNone_ThenCoolingDaysIsNil", func(tt *testing.T) {
 		policy := "none"
-		days := int32(7)
-		params := &VolumeModifyParams{UUID: "uuid", TieringPolicy: &policy, TieringMinimumCoolingDays: &days}
+		days := int64(7)
+		params := &VolumeModifyParams{
+			UUID: "uuid",
+			TieringPolicy: &TieringPolicy{
+				CoolAccessTieringPolicy: policy,
+				MinCoolingDays:          days,
+			},
+		}
 		result := volumeModifyParamsToONTAP(params)
 		assert.NotNil(tt, result.Info.Tiering)
+		assert.Equal(tt, policy, *result.Info.Tiering.Policy)
 		assert.Nil(tt, result.Info.Tiering.MinCoolingDays)
 	})
 
 	t.Run("WhenCloudRetrievalPolicySet_ThenFieldIsSet", func(tt *testing.T) {
 		val := "policy"
-		params := &VolumeModifyParams{UUID: "uuid", CloudRetrievalPolicy: &val}
+		params := &VolumeModifyParams{
+			UUID: "uuid",
+			TieringPolicy: &TieringPolicy{
+				CloudRetrievalPolicy: val,
+			},
+		}
 		result := volumeModifyParamsToONTAP(params)
-		assert.Equal(tt, &val, result.Info.CloudRetrievalPolicy)
+		assert.NotNil(tt, result.Info.CloudRetrievalPolicy)
+		assert.Equal(tt, val, *result.Info.CloudRetrievalPolicy)
 	})
 
 	t.Run("WhenQosPolicySet_ThenQosIsSet", func(tt *testing.T) {
@@ -784,9 +805,9 @@ func TestVolumeCreateParamsToONTAP(t *testing.T) {
 			SnapshotReservePercent:         5,
 			SnapshotDirectoryAccessEnabled: true,
 			TieringPolicy: &TieringPolicy{
-				TieringPolicy:        "auto",
-				MinCoolingDays:       30,
-				CloudRetrievalPolicy: "default",
+				CoolAccessTieringPolicy: "auto",
+				MinCoolingDays:          30,
+				CloudRetrievalPolicy:    "default",
 			},
 		}
 		result := volumeCreateParamsToONTAP(params)
@@ -799,7 +820,7 @@ func TestVolumeCreateParamsToONTAP(t *testing.T) {
 		assert.NotNil(tt, result.Info.Space)
 		assert.NotNil(tt, result.Info.VolumeInlineAggregates)
 		assert.Equal(tt, "true", *result.ReturnRecords)
-		assert.Equal(tt, params.TieringPolicy.TieringPolicy, *result.Info.Tiering.Policy)
+		assert.Equal(tt, params.TieringPolicy.CoolAccessTieringPolicy, *result.Info.Tiering.Policy)
 		assert.Equal(tt, params.TieringPolicy.MinCoolingDays, *result.Info.Tiering.MinCoolingDays)
 		assert.Equal(tt, params.TieringPolicy.CloudRetrievalPolicy, *result.Info.CloudRetrievalPolicy)
 	})

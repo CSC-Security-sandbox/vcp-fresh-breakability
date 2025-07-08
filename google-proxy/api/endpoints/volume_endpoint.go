@@ -342,6 +342,23 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		}
 	}
 
+	if req.TieringPolicy.IsSet() {
+		if !autoTieringEnabled {
+			return nil, errors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
+		}
+		param.TieringPolicy = &common.TieringPolicy{}
+		switch req.TieringPolicy.Value.TierAction.Value {
+		case gcpgenserver.TieringPolicyV1betaTierActionENABLED:
+			param.TieringPolicy.CoolAccess = true
+			param.TieringPolicy.CoolAccessTieringPolicy = ontapmodels.VolumeInlineTieringPolicyAuto
+			param.TieringPolicy.CoolAccessRetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
+			param.TieringPolicy.CoolnessPeriod = req.TieringPolicy.Value.CoolingThresholdDays.Value
+		case gcpgenserver.TieringPolicyV1betaTierActionPAUSED:
+			param.TieringPolicy.CoolAccess = false
+			param.TieringPolicy.CoolAccessTieringPolicy = ontapmodels.VolumeInlineTieringPolicyNone
+		}
+	}
+
 	if req.BackupConfig.IsSet() {
 		param.DataProtection = &models.DataProtection{}
 		reqBackupConfig, _ := req.BackupConfig.Get()

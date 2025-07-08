@@ -108,6 +108,7 @@ type UpdateVolumeParams struct {
 	SnapshotPolicy  *models.SnapshotPolicy
 	DataProtection  *models.DataProtection
 	InitiateSplit   bool
+	TieringPolicy   *TieringPolicy
 }
 
 type CreateLunMapParams struct {

@@ -42,13 +42,24 @@ func TestUpdateVolumeInONTAP_Success(t *testing.T) {
 	}
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes: 1024,
+		TieringPolicy: &common.TieringPolicy{
+			CoolAccess:                true,
+			CoolAccessTieringPolicy:   "auto",
+			CoolAccessRetrievalPolicy: "default",
+			CoolnessPeriod:            10,
+		},
 	}
 	node := &models.Node{}
 
 	mockProvider.On("UpdateVolume", vsa.UpdateVolumeParams{
 		UUID:               volume.VolumeAttributes.ExternalUUID,
-		Size:               int64(params.QuotaInBytes),
+		Size:               params.QuotaInBytes,
 		SnapshotPolicyName: "default-snapshot-policy",
+		TieringPolicy: &vsa.TieringPolicy{
+			CoolnessPeriod:            int64(params.TieringPolicy.CoolnessPeriod),
+			CoolAccessRetrievalPolicy: params.TieringPolicy.CoolAccessRetrievalPolicy,
+			CoolAccessTieringPolicy:   params.TieringPolicy.CoolAccessTieringPolicy,
+		},
 	}).Return(nil)
 
 	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
@@ -75,6 +86,12 @@ func TestUpdateVolumeInONTAP_Failure(t *testing.T) {
 	}
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes: 2048,
+		TieringPolicy: &common.TieringPolicy{
+			CoolAccess:                true,
+			CoolAccessTieringPolicy:   "auto",
+			CoolAccessRetrievalPolicy: "default",
+			CoolnessPeriod:            5,
+		},
 	}
 	node := &models.Node{}
 	expectedErr := errors.New("update failed")
@@ -83,6 +100,11 @@ func TestUpdateVolumeInONTAP_Failure(t *testing.T) {
 		UUID:               volume.VolumeAttributes.ExternalUUID,
 		Size:               int64(params.QuotaInBytes),
 		SnapshotPolicyName: SnapshotPolicyNone,
+		TieringPolicy: &vsa.TieringPolicy{
+			CoolnessPeriod:            int64(params.TieringPolicy.CoolnessPeriod),
+			CoolAccessRetrievalPolicy: params.TieringPolicy.CoolAccessRetrievalPolicy,
+			CoolAccessTieringPolicy:   params.TieringPolicy.CoolAccessTieringPolicy,
+		},
 	}).Return(expectedErr)
 
 	err := activity.UpdateVolumeInONTAP(ctx, volume, params, node)
@@ -174,7 +196,14 @@ func TestUpdateVolumeInDB_Success(t *testing.T) {
 	activity := VolumeUpdateActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"}, Name: "test-volume"}
-	params := &common.UpdateVolumeParams{QuotaInBytes: 4096}
+	params := &common.UpdateVolumeParams{QuotaInBytes: 4096,
+		TieringPolicy: &common.TieringPolicy{
+			CoolAccess:                true,
+			CoolAccessTieringPolicy:   "auto",
+			CoolnessPeriod:            7,
+			CoolAccessRetrievalPolicy: "default",
+		},
+	}
 	updatedFields := map[string]interface{}{
 		"size":          int64(4096),
 		"state_details": models.LifeCycleStateAvailableDetails,
@@ -451,6 +480,109 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				assert.NotNil(t, volume.VolumeAttributes)
 			},
 			dbCallRequired: true,
+		},
+		{
+			name: "WithAutoTieringPolicy",
+			volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{},
+				DataProtection:   &datamodel.DataProtection{},
+			},
+			params: &common.UpdateVolumeParams{
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess:                true,
+					CoolAccessTieringPolicy:   "auto",
+					CoolnessPeriod:            7,
+					CoolAccessRetrievalPolicy: "default",
+				},
+			},
+			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, _ database.Storage) {
+				assert.Equal(t, true, fields["cool_access"])
+				assert.Equal(t, "auto", fields["cool_access_tiering_policy"])
+				assert.Equal(t, int32(7), fields["coolness_period"])
+				assert.Equal(t, "default", fields["cool_access_retrieval_policy"])
+				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+			},
+			dbCallRequired: false,
+		},
+		{
+			name: "WithAutoTieringPolicy_CoolAccessTrue_CoolnessPeriodChanged",
+			volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{},
+				DataProtection:   &datamodel.DataProtection{},
+				CoolAccess:       false,
+				CoolnessPeriod:   5,
+			},
+			params: &common.UpdateVolumeParams{
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess:                true,
+					CoolAccessTieringPolicy:   "auto",
+					CoolnessPeriod:            7,
+					CoolAccessRetrievalPolicy: "default",
+				},
+			},
+			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, _ database.Storage) {
+				assert.Equal(t, true, fields["cool_access"])
+				assert.Equal(t, "auto", fields["cool_access_tiering_policy"])
+				assert.Equal(t, int32(7), fields["coolness_period"])
+				assert.Equal(t, "default", fields["cool_access_retrieval_policy"])
+				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+			},
+			dbCallRequired: false,
+		},
+		{
+			name: "WithAutoTieringPolicy_CoolAccessTrue_CoolnessPeriodSame",
+			volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{},
+				DataProtection:   &datamodel.DataProtection{},
+				CoolAccess:       true,
+				CoolnessPeriod:   7,
+			},
+			params: &common.UpdateVolumeParams{
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess:                true,
+					CoolAccessTieringPolicy:   "auto",
+					CoolnessPeriod:            7,
+					CoolAccessRetrievalPolicy: "default",
+				},
+			},
+			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, _ database.Storage) {
+				// Should not update coolness_period since it's the same
+				assert.NotContains(t, fields, "coolness_period")
+				assert.NotContains(t, fields, "cool_access")
+				assert.NotContains(t, fields, "cool_access_tiering_policy")
+				assert.NotContains(t, fields, "cool_access_retrieval_policy")
+				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+			},
+			dbCallRequired: false,
+		},
+		{
+			name: "WithAutoTieringPolicy_CoolAccessFalse",
+			volume: &datamodel.Volume{
+				VolumeAttributes: &datamodel.VolumeAttributes{},
+				DataProtection:   &datamodel.DataProtection{},
+				CoolAccess:       true,
+				CoolnessPeriod:   7,
+			},
+			params: &common.UpdateVolumeParams{
+				TieringPolicy: &common.TieringPolicy{
+					CoolAccess:                false,
+					CoolAccessTieringPolicy:   "none",
+					CoolnessPeriod:            0,
+					CoolAccessRetrievalPolicy: "none",
+				},
+			},
+			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, _ database.Storage) {
+				assert.Equal(t, false, fields["cool_access"])
+				assert.Equal(t, "none", fields["cool_access_tiering_policy"])
+				assert.Nil(t, fields["coolness_period"])
+				assert.Nil(t, fields["cool_access_retrieval_policy"])
+				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
+				assert.Equal(t, models.LifeCycleStateAvailableDetails, fields["state_details"])
+			},
+			dbCallRequired: false,
 		},
 	}
 	for _, tt := range tests {

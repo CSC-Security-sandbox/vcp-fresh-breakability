@@ -120,6 +120,7 @@ type UpdateVolumeParams struct {
 	Size               int64
 	SnapshotPolicyName string
 	InitiateSplit      bool // Indicates whether to initiate a split for volume restore or clone
+	TieringPolicy      *TieringPolicy
 }
 
 type GetVolumeParams struct {

@@ -532,7 +532,12 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 	}
 
-	err = validateUpdateVolumeRequest(ctx, se, dbVolume, params)
+	pool, err := se.GetPool(ctx, params.PoolID, dbVolume.AccountID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	err = validateUpdateVolumeRequest(ctx, se, dbVolume, params, pool)
 	if err != nil {
 		return nil, "", err
 	}
@@ -593,13 +598,21 @@ func updateVolumeStatus(ctx context.Context, se database.Storage, dbVolume *data
 	return dbVolume, err
 }
 
-func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volume *datamodel.Volume, params *common.UpdateVolumeParams) error {
+func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volume *datamodel.Volume, params *common.UpdateVolumeParams, pool *datamodel.PoolView) error {
 	if utils.IsTransitionalState(volume.State) {
 		return customerrors.NewUserInputValidationErr("volume is not in a valid state for update")
 	}
 
 	if params.QuotaInBytes < volume.SizeInBytes {
 		return customerrors.NewUserInputValidationErr("volume size cannot be reduced")
+	}
+
+	if !pool.AllowAutoTiering && params.TieringPolicy != nil && params.TieringPolicy.CoolAccess {
+		return customerrors.NewUserInputValidationErr("Auto Tiering is not allowed for this volume. Please enable Auto Tiering on the Pool and try again")
+	} else if params.TieringPolicy != nil && params.TieringPolicy.CoolAccess {
+		if params.TieringPolicy.CoolnessPeriod < minCoolnessPeriodDays || params.TieringPolicy.CoolnessPeriod > maxCoolnessPeriodDays {
+			return customerrors.NewUserInputValidationErr("Auto Tiering Cooling Threshold days must be between 2 and 183 days")
+		}
 	}
 
 	if params.BlockProperties != nil {

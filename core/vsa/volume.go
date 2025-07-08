@@ -38,9 +38,9 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 
 	if params.TieringPolicy != nil {
 		volumeCreateParams.TieringPolicy = &ontapRest.TieringPolicy{
-			TieringPolicy:        params.TieringPolicy.CoolAccessTieringPolicy,
-			MinCoolingDays:       params.TieringPolicy.CoolnessPeriod,
-			CloudRetrievalPolicy: params.TieringPolicy.CoolAccessRetrievalPolicy,
+			CoolAccessTieringPolicy: params.TieringPolicy.CoolAccessTieringPolicy,
+			MinCoolingDays:          params.TieringPolicy.CoolnessPeriod,
+			CloudRetrievalPolicy:    params.TieringPolicy.CoolAccessRetrievalPolicy,
 		}
 	}
 
@@ -165,6 +165,15 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 	volumeModifyParams := &ontapRest.VolumeModifyParams{
 		UUID: params.UUID,
 	}
+
+	if params.TieringPolicy != nil {
+		volumeModifyParams.TieringPolicy = &ontapRest.TieringPolicy{
+			CoolAccessTieringPolicy: params.TieringPolicy.CoolAccessTieringPolicy,
+			MinCoolingDays:          params.TieringPolicy.CoolnessPeriod,
+			CloudRetrievalPolicy:    params.TieringPolicy.CoolAccessRetrievalPolicy,
+		}
+	}
+
 	if params.InitiateSplit {
 		volumeModifyParams.SplitInitiated = &params.InitiateSplit
 		volumeModifyParams.MatchParentStorageTier = false // TODO: add this `params.TieringPolicy == "auto"`, when autotier is supported

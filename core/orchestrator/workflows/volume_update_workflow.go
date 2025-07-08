@@ -160,12 +160,12 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, err
 	}
 
-	if isUpdateRequired(volResponse, params) {
+	if isUpdateRequired(volResponse, params, volume) {
 		err = workflow.ExecuteActivity(ctx, updateActivity.UpdateVolumeInONTAP, volume, params, node).Get(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
-		rollbackManager.AddActivity(updateActivity.UpdateVolumeInONTAP, volume, getUpdateParamsForRollback(volResponse), node)
+		rollbackManager.AddActivity(updateActivity.UpdateVolumeInONTAP, volume, getUpdateParamsForRollback(volResponse, volume), node)
 	}
 
 	// Avoid updating the lun if the size is not changed
@@ -264,17 +264,31 @@ func populateSnapshotPolicyFromParams(params *models.SnapshotPolicy) *datamodel.
 	return snapshotPolicy
 }
 
-func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeParams) bool {
+func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeParams, existingVolume *datamodel.Volume) bool {
 	if response.Size < params.QuotaInBytes {
 		return true
 	}
+
+	if response.Size == params.QuotaInBytes {
+		if params.TieringPolicy.CoolAccess != existingVolume.CoolAccess ||
+			(params.TieringPolicy.CoolAccess && params.TieringPolicy.CoolnessPeriod != existingVolume.CoolnessPeriod) {
+			return true
+		}
+	}
+
 	// Add checks for other fields as and when required
 	return false
 }
 
-func getUpdateParamsForRollback(volResponse *vsa.VolumeResponse) *common.UpdateVolumeParams {
+func getUpdateParamsForRollback(volResponse *vsa.VolumeResponse, existingVolume *datamodel.Volume) *common.UpdateVolumeParams {
 	return &common.UpdateVolumeParams{
 		// Set the necessary parameters for rolling back the volume update
 		QuotaInBytes: volResponse.Size,
+		TieringPolicy: &common.TieringPolicy{
+			CoolAccess:                existingVolume.CoolAccess,
+			CoolnessPeriod:            existingVolume.CoolnessPeriod,
+			CoolAccessTieringPolicy:   existingVolume.CoolAccessTieringPolicy,
+			CoolAccessRetrievalPolicy: existingVolume.CoolAccessRetrievalPolicy,
+		},
 	}
 }

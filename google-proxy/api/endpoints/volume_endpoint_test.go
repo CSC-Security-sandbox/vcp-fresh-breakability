@@ -1134,6 +1134,106 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
 		assert.False(tt, op.Done.Value)
 	})
+
+	t.Run("TieringPolicy ENABLED with feature enabled", func(tt *testing.T) {
+		currentATState := autoTieringEnabled
+		autoTieringEnabled = true
+		defer func() { autoTieringEnabled = currentATState }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(2048),
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					TierAction:           gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
+					CoolingThresholdDays: gcpgenserver.OptNilInt32{Value: 30, Set: true},
+				},
+			),
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "READY",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+	})
+
+	t.Run("TieringPolicy PAUSED with feature enabled", func(tt *testing.T) {
+		currentATState := autoTieringEnabled
+		autoTieringEnabled = true
+		defer func() { autoTieringEnabled = currentATState }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(2048),
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("PAUSED"),
+				},
+			),
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "READY",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+	})
+
+	t.Run("TieringPolicy set with feature disabled", func(tt *testing.T) {
+		currentATState := autoTieringEnabled
+		autoTieringEnabled = false
+		defer func() { autoTieringEnabled = currentATState }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(2048),
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
+				},
+			),
+		}
+		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdateVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Contains(tt, badReq.Message, "Auto-Tiering feature is currently not enabled.")
+	})
 }
 
 func TestPrepareUpdateVolumeParams(t *testing.T) {
@@ -1269,6 +1369,76 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		out, err := _prepareUpdateVolumeParams(req, params, region)
 		assert.Error(t, err)
 		assert.Nil(t, out)
+	})
+	t.Run("TieringPolicy ENABLED with feature enabled", func(t *testing.T) {
+		currentATState := autoTieringEnabled
+		autoTieringEnabled = true
+		defer func() { autoTieringEnabled = currentATState }()
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(1234),
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					TierAction:           gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
+					CoolingThresholdDays: gcpgenserver.OptNilInt32{Value: 30, Set: true},
+				},
+			),
+		}
+		param, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(t, err)
+		assert.NotNil(t, param.TieringPolicy)
+		assert.True(t, param.TieringPolicy.CoolAccess)
+		assert.Equal(t, int32(30), param.TieringPolicy.CoolnessPeriod)
+	})
+
+	t.Run("TieringPolicy PAUSED with feature enabled", func(t *testing.T) {
+		currentATState := autoTieringEnabled
+		autoTieringEnabled = true
+		defer func() { autoTieringEnabled = currentATState }()
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(1234),
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("PAUSED"),
+				},
+			),
+		}
+		param, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(t, err)
+		assert.NotNil(t, param.TieringPolicy)
+		assert.False(t, param.TieringPolicy.CoolAccess)
+	})
+
+	t.Run("TieringPolicy set with feature disabled", func(t *testing.T) {
+		currentATState := autoTieringEnabled
+		autoTieringEnabled = false
+		defer func() { autoTieringEnabled = currentATState }()
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(1234),
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
+				},
+			),
+		}
+		_, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Auto-Tiering feature is currently not enabled.")
+	})
+
+	t.Run("TieringPolicy not set", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			PoolId:       gcpgenserver.NewOptNilString("pool"),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(1234),
+		}
+		param, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(t, err)
+		assert.Nil(t, param.TieringPolicy)
 	})
 }
 

@@ -3,6 +3,7 @@ package activities
 import (
 	"context"
 
+	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -11,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -40,6 +42,16 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 		Size:               params.QuotaInBytes,
 		SnapshotPolicyName: snapshotPolicyName,
 	}
+	if params.TieringPolicy != nil {
+		updateVolumeParams.TieringPolicy = &vsa.TieringPolicy{}
+		if params.TieringPolicy.CoolAccess {
+			updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&params.TieringPolicy.CoolAccessTieringPolicy, ontapModels.VolumeInlineTieringPolicyAuto)
+			updateVolumeParams.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&params.TieringPolicy.CoolAccessRetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
+			updateVolumeParams.TieringPolicy.CoolnessPeriod = int64(params.TieringPolicy.CoolnessPeriod)
+		} else {
+			updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = ontapModels.VolumeInlineTieringPolicyNone
+		}
+	}
 	err = updateVolume(ctx, provider, *updateVolumeParams)
 	if err != nil {
 		logger.Errorf("Failed to update volume %s in ontap: %v", volume.Name, err)
@@ -66,6 +78,7 @@ func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *d
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+
 	volumeRes, err := provider.GetVolume(vsa.GetVolumeParams{
 		UUID:       volume.VolumeAttributes.ExternalUUID,
 		VolumeName: volume.Name,
@@ -280,6 +293,19 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 			hgDetails = append(hgDetails, hgDetail)
 		}
 		volume.VolumeAttributes.BlockProperties.HostGroupDetails = hgDetails
+	}
+
+	if params.TieringPolicy != nil &&
+		(params.TieringPolicy.CoolAccess != volume.CoolAccess ||
+			(params.TieringPolicy.CoolAccess && params.TieringPolicy.CoolnessPeriod != volume.CoolnessPeriod)) {
+		updates["cool_access"] = params.TieringPolicy.CoolAccess
+		updates["cool_access_tiering_policy"] = params.TieringPolicy.CoolAccessTieringPolicy
+		updates["coolness_period"] = nil
+		updates["cool_access_retrieval_policy"] = nil
+		if params.TieringPolicy.CoolAccessRetrievalPolicy != ontapModels.VolumeInlineTieringPolicyNone {
+			updates["cool_access_retrieval_policy"] = params.TieringPolicy.CoolAccessRetrievalPolicy
+			updates["coolness_period"] = params.TieringPolicy.CoolnessPeriod
+		}
 	}
 
 	updates["volume_attributes"] = volume.VolumeAttributes

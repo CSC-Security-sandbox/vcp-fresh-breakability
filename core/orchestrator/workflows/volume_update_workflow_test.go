@@ -154,6 +154,9 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPo
 				},
 			},
 		},
+		TieringPolicy: &common.TieringPolicy{
+			CoolAccess: false,
+		},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params1, volume1)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -341,6 +344,9 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPo
 				},
 			},
 		},
+		TieringPolicy: &common.TieringPolicy{
+			CoolAccess: false,
+		},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params2, volume2)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -459,6 +465,9 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPo
 	params3 := &common.UpdateVolumeParams{
 		QuotaInBytes:   200,
 		SnapshotPolicy: nil,
+		TieringPolicy: &common.TieringPolicy{
+			CoolAccess: false,
+		},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params3, volume3)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -518,6 +527,9 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SnapshotPolicy_OnlyEna
 			IsEnabled: true,
 			Schedules: []*models.SnapshotPolicySchedule{}, // Empty schedules
 		},
+		TieringPolicy: &common.TieringPolicy{
+			CoolAccess: false,
+		},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -562,6 +574,9 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_NoSizeChange() {
 	}
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes: 100,
+		TieringPolicy: &common.TieringPolicy{
+			CoolAccess: false,
+		},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
 
@@ -678,6 +693,9 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_BPSuccess() {
 		QuotaInBytes: 100,
 		BlockProperties: &common.BlockPropertiesRequest{
 			HostGroupUUIDs: []string{"hg-uuid-3"},
+		},
+		TieringPolicy: &common.TieringPolicy{
+			CoolAccess: false,
 		},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
@@ -1046,4 +1064,109 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateBucketDetailsOfB
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_AutoTier() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 100,
+		Size:           200,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.EnsureHostGroupsExistsAndMapDisk, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UnmapHostGroupFromDisk, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+
+	// Execute workflow with no size change
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 100,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{
+						HostGroupUUID: "hg-uuid-1",
+					},
+					{
+						HostGroupUUID: "hg-uuid-2",
+					},
+				},
+			},
+		},
+		CoolAccess:     true,
+		CoolnessPeriod: 5,
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 100,
+		BlockProperties: &common.BlockPropertiesRequest{
+			HostGroupUUIDs: []string{"hg-uuid-3"},
+		},
+		TieringPolicy: &common.TieringPolicy{
+			CoolAccess:     true,
+			CoolnessPeriod: 10,
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+
+	// Run the workflow again with different params
+	s.env = s.NewTestWorkflowEnvironment()
+	s.env.RegisterWorkflow(UpdateVolumeWorkflow)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 100,
+		Size:           200,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+
+	// New params for second run
+	params2 := &common.UpdateVolumeParams{
+		QuotaInBytes: 100,
+		TieringPolicy: &common.TieringPolicy{
+			CoolAccess: false,
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params2, volume)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 4)
 }

@@ -946,12 +946,10 @@ type VolumeModifyParams struct {
 	LogicalSpaceEnforcement        *bool
 	SnapshotDirectoryAccessEnabled *bool
 	SetAtTimeEnabled               *bool
-	TieringPolicy                  *string
-	TieringMinimumCoolingDays      *int32
-	CloudRetrievalPolicy           *string
 	ExportPolicy                   *string
 	QosPolicy                      *string
 	AntiRansomwareState            *string
+	TieringPolicy                  *TieringPolicy
 }
 
 // FlexcacheModifyParams is the input param struct for storageClient.FlexcacheModify
@@ -1057,25 +1055,27 @@ func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModify
 		info.AccessTimeEnabled = params.SetAtTimeEnabled
 	}
 
-	if params.TieringPolicy != nil || params.TieringMinimumCoolingDays != nil {
-		var cool *int64
+	if params.TieringPolicy != nil {
+		if params.TieringPolicy.CoolAccessTieringPolicy != "" {
+			var minCoolingDays *int64
 
-		if params.TieringMinimumCoolingDays != nil && *params.TieringMinimumCoolingDays != 0 {
-			cool = nillable.ToPointer(int64(*params.TieringMinimumCoolingDays))
-		}
-		// skip assigning the cooling days if the policy is none
-		if params.TieringPolicy != nil && *params.TieringPolicy == "none" {
-			cool = nil
+			if params.TieringPolicy.MinCoolingDays != 0 {
+				minCoolingDays = nillable.ToPointer(params.TieringPolicy.MinCoolingDays)
+			}
+			// skip assigning the cooling days if the policy is none
+			if params.TieringPolicy.CoolAccessTieringPolicy == "none" {
+				minCoolingDays = nil
+			}
+
+			info.Tiering = &models.VolumeInlineTiering{
+				Policy:         &params.TieringPolicy.CoolAccessTieringPolicy,
+				MinCoolingDays: minCoolingDays,
+			}
 		}
 
-		info.Tiering = &models.VolumeInlineTiering{
-			Policy:         params.TieringPolicy,
-			MinCoolingDays: cool,
+		if params.TieringPolicy.CloudRetrievalPolicy != "" {
+			info.CloudRetrievalPolicy = &params.TieringPolicy.CloudRetrievalPolicy
 		}
-	}
-
-	if params.CloudRetrievalPolicy != nil {
-		info.CloudRetrievalPolicy = params.CloudRetrievalPolicy
 	}
 
 	if params.QosPolicy != nil {
@@ -1888,9 +1888,9 @@ type VolumeCreateParams struct {
 
 // TieringPolicy describes the auto tiering policy for a volume
 type TieringPolicy struct {
-	TieringPolicy        string
-	MinCoolingDays       int64
-	CloudRetrievalPolicy string
+	CoolAccessTieringPolicy string
+	MinCoolingDays          int64
+	CloudRetrievalPolicy    string
 }
 
 const (
@@ -1988,10 +1988,10 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 
 	if params.TieringPolicy != nil {
 		otParams.Info.Tiering = &models.VolumeInlineTiering{
-			Policy:         nillable.ToPointer(params.TieringPolicy.TieringPolicy),
+			Policy:         nillable.ToPointer(params.TieringPolicy.CoolAccessTieringPolicy),
 			MinCoolingDays: nil,
 		}
-		if params.TieringPolicy.TieringPolicy == models.VolumeInlineTieringPolicyAuto || params.TieringPolicy.TieringPolicy == models.VolumeInlineTieringPolicySnapshotOnly {
+		if params.TieringPolicy.CoolAccessTieringPolicy == models.VolumeInlineTieringPolicyAuto || params.TieringPolicy.CoolAccessTieringPolicy == models.VolumeInlineTieringPolicySnapshotOnly {
 			otParams.Info.Tiering.MinCoolingDays = &params.TieringPolicy.MinCoolingDays
 			otParams.Info.CloudRetrievalPolicy = &params.TieringPolicy.CloudRetrievalPolicy
 		}

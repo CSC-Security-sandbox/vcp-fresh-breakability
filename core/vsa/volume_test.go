@@ -579,6 +579,11 @@ func TestUpdateVolume(t *testing.T) {
 		UUID:               "testUUID",
 		Size:               2048,
 		SnapshotPolicyName: "testSnapshot",
+		TieringPolicy: &TieringPolicy{
+			CoolnessPeriod:            7,
+			CoolAccessRetrievalPolicy: "default",
+			CoolAccessTieringPolicy:   "auto",
+		},
 	}
 
 	// Case 1: VolumeModify returns error
