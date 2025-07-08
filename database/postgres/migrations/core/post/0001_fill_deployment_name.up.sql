@@ -7,6 +7,7 @@ SET
 FROM accounts
 WHERE
     pools.account_id = accounts.id
+    AND pools.deleted_at IS NULL
     AND (
         pools.deployment_name IS NULL
         OR pools.deployment_name = ''
