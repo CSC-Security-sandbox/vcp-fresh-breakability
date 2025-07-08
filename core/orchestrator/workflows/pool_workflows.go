@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"fmt"
 	"time"
 
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -32,6 +33,11 @@ var (
 	vmrsConfigPath                                     = env.GetString("VMRS_CONFIG_PATH", "config/vmrs_gcp.yaml")
 	configureKmsConfigForSvmActivity                   = _configureKmsConfigForSvmActivity
 	getSignedJwtToken                                  = auth.GetSignedJwtToken
+)
+
+const (
+	TimestampLayout = "20060102150405"
+	SAIDPrefix      = "vsa-sa-"
 )
 
 type createPoolWorkflow struct {
@@ -131,17 +137,23 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	serviceAccount := &iam.ServiceAccount{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateServiceAccountWithStorageRole, tenancyDetails.RegionalTenantProject, pool.ServiceAccountId, pool.Name).Get(ctx, serviceAccount)
-	if err != nil {
-		return nil, err
-	}
-	rollbackManager.AddActivity(poolActivity.DeleteServiceAccount, tenancyDetails.RegionalTenantProject, pool.ServiceAccountId)
+	saTimestamp := time.Now().Format(TimestampLayout)
+	serviceAccountID := fmt.Sprintf("%s%s", SAIDPrefix, saTimestamp)
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateAutoTierBucket, pool.AutoTierBucketName, params.Region, tenancyDetails.RegionalTenantProject).Get(ctx, nil)
+	rollbackManager.AddActivity(poolActivity.DeleteServiceAccount, tenancyDetails.RegionalTenantProject, serviceAccountID)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateServiceAccountWithStorageRole, tenancyDetails.RegionalTenantProject, serviceAccountID, pool.Name).Get(ctx, serviceAccount)
 	if err != nil {
 		return nil, err
 	}
-	rollbackManager.AddActivity(poolActivity.DeleteAutoTierBucket, pool.AutoTierBucketName)
+	dbPool.ServiceAccountId = serviceAccountID
+
+	AutoTierBucketName := fmt.Sprintf("%s-%s", params.Region, dbPool.UUID)
+	rollbackManager.AddActivity(poolActivity.DeleteAutoTierBucket, AutoTierBucketName)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateAutoTierBucket, AutoTierBucketName, params.Region, tenancyDetails.RegionalTenantProject).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	dbPool.AutoTierBucketName = AutoTierBucketName
 
 	secret := &hyperscalermodels.CustomSecret{}
 	var vsaClusterPassword string

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -77,7 +76,6 @@ func (d *DataStoreRepository) CreatingPool(ctx context.Context, pool *datamodel.
 		pool.CreatedAt = time.Now()
 		pool.UpdatedAt = pool.CreatedAt
 		pool.Account.ID = pool.AccountID
-		pool.AutoTierBucketName = fmt.Sprintf("%s-%s", pool.AutoTierBucketName, pool.UUID)
 		err = tx.Create(&pool).Error
 		if err != nil {
 			return nil, err
