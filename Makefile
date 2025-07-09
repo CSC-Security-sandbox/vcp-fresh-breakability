@@ -45,7 +45,7 @@ generate-retry-engine-wrapper:
 .PHONY: test
 PACKAGES="./..."
 test:
-	go test -coverprofile=vcp-coverage.out $(PACKAGES)
+	go test -coverprofile=vcp-coverage.out $(shell go list $(PACKAGES) | grep -v scripts/sanity)
 
 GOMODCACHE := $(shell go env GOMODCACHE)
 GOCACHE := $(shell go env GOCACHE)
@@ -94,3 +94,11 @@ build-all-binaries-prod:
 .PHONY: clean-artifacts
 clean-artifacts:
 	rm -rf artifacts
+
+%:
+	@:
+
+.PHONY: run-single-test
+PACKAGES="./..."
+run-single-test:
+	go test -coverprofile=vcp-coverage.out $(shell go list $(PACKAGES) | grep -v scripts/sanity) -run $(TEST_NAME)

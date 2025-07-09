@@ -342,18 +342,50 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	dbPool := pool
 	wf.Logger.Info("Updating pool with new parameters", "params", updatePoolParams) // Update the pool with the new parameters
 
+	// Reconstruct the existing VLM config.
+	dsc := &vmrs.Decision{
+		ChosenVMs: []string{""}, // Doesn't matter for retrieving existing VLM config
+		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
+			DesiredIOPS:             int64(pool.PoolAttributes.Iops),
+			DesiredThroughputInMiBs: int64(pool.PoolAttributes.ThroughputMibps),
+			DesiredCapacityInGiB:    int64(utils.BytesToGigabytes(uint64(pool.SizeInBytes))),
+		},
+	}
+	currentVlmConfig := &vlmconfig.VLMConfig{}
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVlmConfig, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, dsc, pool.Password, pool.KmsConfig.ServiceAccount.ServiceAccountEmail, pool.AutoTierBucketName).Get(ctx, currentVlmConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the optimal VMs based on the customer requested performance.
+	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
+		DesiredIOPS:             int64(updatePoolParams.TotalIops),
+		DesiredThroughputInMiBs: int64(updatePoolParams.TotalThroughputMibps),
+		DesiredCapacityInGiB:    int64(utils.BytesToGigabytes(updatePoolParams.SizeInBytes)),
+	}
+	newVlmConfig := &vlmconfig.VLMConfig{}
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, pool.Password, pool.KmsConfig.ServiceAccount.ServiceAccountEmail, pool.AutoTierBucketName).Get(ctx, newVlmConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// Now it's time to invoke VLM.
+	dup := &vlmconfig.DeploymentUpdateParams{
+		VlmConfig: currentVlmConfig,
+		NumHAPair: newVlmConfig.Deployment.NumHAPair,
+		SPConfig:  newVlmConfig.Deployment.SPConfig,
+	}
+	err = workflow.ExecuteActivity(ctx, poolActivity.UpdateVSACluster, dup).Get(ctx, newVlmConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	poolObj := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{
 			UUID: dbPool.UUID,
 		},
-		VendorID:                dbPool.VendorID,
-		Network:                 dbPool.Network,
-		SizeInBytes:             int64(updatePoolParams.SizeInBytes),
-		AllowAutoTiering:        updatePoolParams.AllowAutoTiering,
-		QosType:                 updatePoolParams.QosType,
-		HotTierSizeInBytes:      int64(updatePoolParams.HotTierSizeInBytes),
-		EnableHotTierAutoResize: updatePoolParams.EnableHotTierAutoResize,
-		Description:             updatePoolParams.Description,
+		SizeInBytes: int64(updatePoolParams.SizeInBytes),
+		Description: updatePoolParams.Description,
 		PoolAttributes: &datamodel.PoolAttributes{
 			ThroughputMibps: int64(updatePoolParams.TotalThroughputMibps),
 			Iops:            int64(updatePoolParams.TotalIops),

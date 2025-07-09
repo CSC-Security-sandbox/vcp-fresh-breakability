@@ -506,6 +506,150 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 }
 
+func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
+	validationErrorCases := []struct {
+		name    string
+		req     *gcpgenserver.PoolUpdateV1beta
+		message string
+	}{
+		{
+			name: "Zone is set",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				Zone: gcpgenserver.NewOptString("us-east4-b"),
+			},
+			message: "Migrating to a different Zone is currently not supported",
+		},
+		{
+			name: "GlobalAccessAllowed is set to true",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				GlobalAccessAllowed: gcpgenserver.NewOptNilBool(true),
+			},
+			message: "Updating Global access is currently not supported",
+		},
+		{
+			name: "GlobalAccessAllowed is set to false",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				GlobalAccessAllowed: gcpgenserver.NewOptNilBool(false),
+			},
+			message: "Updating Global access is currently not supported",
+		},
+		{
+			name: "ActiveDirectoryConfigId is set",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("some-ad-id"),
+			},
+			message: "Updating Active Directory is currently not supported",
+		},
+		{
+			name: "AllowAutoTiering is set to true",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				AllowAutoTiering: gcpgenserver.NewOptNilBool(true),
+			},
+			message: "Updating Auto tiering is currently not supported",
+		},
+		{
+			name: "AllowAutoTiering is set to false",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				AllowAutoTiering: gcpgenserver.NewOptNilBool(false),
+			},
+			message: "Updating Auto tiering is currently not supported",
+		},
+		{
+			name: "HotTierSizeInBytes is set",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(1024),
+			},
+			message: "Updating HotTierSize is currently not supported",
+		},
+		{
+			name: "EnableHotTierAutoResize is set to false",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(false),
+			},
+			message: "Updating HotTier auto resize is currently not supported",
+		},
+		{
+			name: "EnableHotTierAutoResize is set to true",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(true),
+			},
+			message: "Updating HotTier auto resize is currently not supported",
+		},
+		{
+			name: "QosType is set",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				QosType: gcpgenserver.NewOptNilString("auto"),
+			},
+			message: "Updating QosType is currently not supported",
+		},
+		{
+			name: "CustomPerformanceEnabled is set to false",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				CustomPerformanceEnabled: gcpgenserver.NewOptNilBool(false),
+			},
+			message: "CustomerPerformance must be enabled for Unified Flex Storage Pool",
+		},
+		{
+			name: "Labels are set",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				Labels: gcpgenserver.NewOptPoolUpdateV1betaLabels(map[string]string{"foo": "bar"}),
+			},
+			message: "Updating Labels is currently not supported",
+		},
+		{
+			name: "Shrink pool size",
+			req: &gcpgenserver.PoolUpdateV1beta{
+				SizeInBytes: gcpgenserver.NewOptNilFloat64(1073741824), // 1 GiB
+			},
+			message: "Pool size cannot be reduced",
+		},
+	}
+
+	for _, tc := range validationErrorCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+			params := gcpgenserver.V1betaUpdatePoolParams{
+				LocationId:    "us-east4",
+				ProjectNumber: "project-number",
+				PoolId:        "pool-id",
+			}
+
+			originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+			defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+			parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+				return "us-east4", "", nil
+			}
+
+			// Set orchestrator to return a pool when GetPool is called.
+			mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(&models.Pool{
+				BaseModel: models.BaseModel{
+					UUID: "pool-uuid",
+				},
+				Description: "original description",
+				SizeInBytes: 1099511627776, // 1 TiB
+				CustomPerformanceParams: &models.CustomPerformanceParams{
+					Throughput: 64, // 64 MiBps
+					Iops:       1024,
+				},
+				PoolAttributes: &models.PoolAttributes{
+					PrimaryZone: "us-east4-a",
+				},
+			}, nil)
+
+			handler := Handler{
+				Orchestrator: mockOrchestrator,
+			}
+			result, err := handler.V1betaUpdatePool(context.Background(), tc.req, params)
+
+			assert.NoError(tt, err)
+			assert.NotNil(tt, result)
+			assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaUpdatePoolBadRequest).Code)
+			assert.Equal(tt, tc.message, result.(*gcpgenserver.V1betaUpdatePoolBadRequest).Message)
+		})
+	}
+}
+
 func TestV1betaUpdatePool(t *testing.T) {
 	// Save original parseAndValidateRegionAndZone function and restore at end of test.
 	originalParseAndValidate := parseAndValidateRegionAndZone
@@ -536,28 +680,34 @@ func TestV1betaUpdatePool(t *testing.T) {
 		assert.Equal(tt, float64(400), badReq.Code)
 		assert.Equal(tt, "Invalid location ID", badReq.Message)
 	})
-	t.Run("WhenActiveDirectoryConfigIdIsSet", func(tt *testing.T) {
+	t.Run("WhenGetPoolFails", func(tt *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		// Set orchestrator to return a pool when GetPool is called.
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("pool not found", nil))
+
 		params := gcpgenserver.V1betaUpdatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
 			PoolId:        "pool-id",
 		}
 		req := &gcpgenserver.PoolUpdateV1beta{
-			ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("some-ad-id"),
+			Description:          gcpgenserver.NewOptNilString("updated description"),
+			SizeInBytes:          gcpgenserver.NewOptNilFloat64(1099511627776),
+			TotalThroughputMibps: gcpgenserver.NewOptNilFloat64(128),
+			TotalIops:            gcpgenserver.NewOptNilFloat64(2048),
 		}
 		handler := Handler{Orchestrator: mockOrchestrator}
 		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
 		assert.NoError(tt, err)
-		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		notFoundErr, ok := result.(*gcpgenserver.V1betaUpdatePoolNotFound)
 		assert.True(tt, ok)
-		assert.Equal(tt, float64(400), badReq.Code)
-		assert.Equal(tt, "Active directory cannot be assigned to a Storage Pool of type unified", badReq.Message)
+		assert.Equal(tt, float64(404), notFoundErr.Code)
+		assert.Equal(tt, "Pool not found", notFoundErr.Message)
 	})
 	t.Run("WhenUpdatePoolFails", func(tt *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
@@ -566,6 +716,18 @@ func TestV1betaUpdatePool(t *testing.T) {
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		// Set orchestrator to return a pool when GetPool is called.
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Description: "original description",
+			SizeInBytes: 1099511627776, // 1 TiB
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64, // 64 MiBps
+				Iops:       1024,
+			},
+		}, nil)
 		// Set orchestrator to return an error when UpdatePool is called.
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
 			Return(nil, "", fmt.Errorf("update failed"))
@@ -576,16 +738,10 @@ func TestV1betaUpdatePool(t *testing.T) {
 			PoolId:        "pool-id",
 		}
 		req := &gcpgenserver.PoolUpdateV1beta{
-			ActiveDirectoryConfigId:  gcpgenserver.NewOptNilString(""),
-			Description:              gcpgenserver.NewOptNilString("updated description"),
-			SizeInBytes:              gcpgenserver.NewOptNilFloat64(1099511627776),
-			QosType:                  gcpgenserver.NewOptNilString("auto"),
-			CustomPerformanceEnabled: gcpgenserver.NewOptNilBool(true),
-			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(128),
-			TotalIops:                gcpgenserver.NewOptNilFloat64(2048),
-			AllowAutoTiering:         gcpgenserver.NewOptNilBool(true),
-			EnableHotTierAutoResize:  gcpgenserver.NewOptNilBool(false),
-			HotTierSizeInBytes:       gcpgenserver.NewOptNilFloat64(0),
+			Description:          gcpgenserver.NewOptNilString("updated description"),
+			SizeInBytes:          gcpgenserver.NewOptNilFloat64(1099511627776),
+			TotalThroughputMibps: gcpgenserver.NewOptNilFloat64(128),
+			TotalIops:            gcpgenserver.NewOptNilFloat64(2048),
 		}
 		handler := Handler{Orchestrator: mockOrchestrator}
 		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
@@ -610,6 +766,18 @@ func TestV1betaUpdatePool(t *testing.T) {
 		}
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		// Set orchestrator to return a pool when GetPool is called.
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Description: "original description",
+			SizeInBytes: 1099511627776, // 1 TiB
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64, // 64 MiBps
+				Iops:       1024,
+			},
+		}, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
 			Return(updatedPool, "op-123", nil)
 
@@ -619,15 +787,66 @@ func TestV1betaUpdatePool(t *testing.T) {
 			PoolId:        "pool-id",
 		}
 		req := &gcpgenserver.PoolUpdateV1beta{
-			Description:              gcpgenserver.NewOptNilString("updated description"),
-			SizeInBytes:              gcpgenserver.NewOptNilFloat64(1099511627776),
-			QosType:                  gcpgenserver.NewOptNilString("auto"),
-			CustomPerformanceEnabled: gcpgenserver.NewOptNilBool(true),
-			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(128),
-			TotalIops:                gcpgenserver.NewOptNilFloat64(2048),
-			AllowAutoTiering:         gcpgenserver.NewOptNilBool(true),
-			EnableHotTierAutoResize:  gcpgenserver.NewOptNilBool(false),
-			HotTierSizeInBytes:       gcpgenserver.NewOptNilFloat64(0),
+			Description:          gcpgenserver.NewOptNilString("updated description"),
+			SizeInBytes:          gcpgenserver.NewOptNilFloat64(1099511627776),
+			TotalThroughputMibps: gcpgenserver.NewOptNilFloat64(128),
+			TotalIops:            gcpgenserver.NewOptNilFloat64(2048),
+		}
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		expectedOpName := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "op-123")
+		assert.Equal(tt, expectedOpName, op.Name.Value)
+	})
+	t.Run("WhenPoolUpdateSucceedsForSameZone", func(tt *testing.T) {
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
+
+		// Create a dummy pool that represents the updated pool.
+		updatedPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "updated-pool-uuid",
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		// Set orchestrator to return a pool when GetPool is called.
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			Description: "original description",
+			SizeInBytes: 1099511627776, // 1 TiB
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Throughput: 64, // 64 MiBps
+				Iops:       1024,
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}, nil)
+		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
+			Return(updatedPool, "op-123", nil)
+
+		params := gcpgenserver.V1betaUpdatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-id",
+		}
+		req := &gcpgenserver.PoolUpdateV1beta{
+			Description:          gcpgenserver.NewOptNilString("updated description"),
+			SizeInBytes:          gcpgenserver.NewOptNilFloat64(1099511627776),
+			TotalThroughputMibps: gcpgenserver.NewOptNilFloat64(128),
+			TotalIops:            gcpgenserver.NewOptNilFloat64(2048),
+			Zone:                 gcpgenserver.NewOptString("us-east4-a"),
 		}
 		handler := Handler{Orchestrator: mockOrchestrator}
 

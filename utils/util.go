@@ -201,8 +201,13 @@ func ParseProjectId(network string) (string, string, error) {
 }
 
 // BytesToGigabytes converts bytes to gigabytes
-func BytesToGigabytes(sizeInBytes uint64) int {
-	return int(sizeInBytes / 1024 / 1024 / 1024)
+func BytesToGigabytes(sizeInBytes uint64) uint64 {
+	return sizeInBytes / 1024 / 1024 / 1024
+}
+
+// GigabytesToBytes converts gigabytes to bytes
+func GigabytesToBytes(sizeInGigabytes uint64) uint64 {
+	return uint64(sizeInGigabytes * 1024 * 1024 * 1024)
 }
 
 type Unit int

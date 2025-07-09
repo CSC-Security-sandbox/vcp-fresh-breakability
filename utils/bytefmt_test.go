@@ -64,6 +64,43 @@ func TestFmtBibs(t *testing.T) {
 			if s != tt.out {
 				t.Errorf("got %q, want %q", s, tt.out)
 			}
+			bytes, err := ParseIntSizeToBytes(s)
+			if err != nil {
+				t.Errorf("ParseIntSizeToBytes(%q) failed: %v", s, err)
+			}
+			if int64(bytes) != tt.in {
+				t.Errorf("ParseIntSizeToBytes(%q) = %d, want %d", s, bytes, tt.in)
+			}
+		})
+	}
+}
+
+var bibFmtVlmCompatibilityTests = []struct {
+	in       string
+	numBytes int64
+	out      string
+}{
+	{"1001Ki", 1025024, "1001kiB"},
+	{"1001Mi", 1049624576, "1001MiB"},
+	{"1001Gi", 1074815565824, "1001GiB"},
+	{"1001Ti", 1100611139403776, "1001TiB"},
+	{"1001Pi", 1127025806749466624, "1001PiB"},
+}
+
+func TestFmtBytesVlmCompatibility(t *testing.T) {
+	for _, tt := range bibFmtVlmCompatibilityTests {
+		t.Run(tt.out, func(t *testing.T) {
+			bytes, err := ParseIntSizeToBytes(tt.in)
+			if err != nil {
+				t.Errorf("ParseIntSizeToBytes(%q) failed: %v", tt.in, err)
+			}
+			s := FmtBytes(bytes)
+			if s != tt.out {
+				t.Errorf("got %q, want %q", s, tt.out)
+			}
+			if bytes != tt.numBytes {
+				t.Errorf("ParseIntSizeToBytes(%q) = %d, want %d", s, bytes, tt.numBytes)
+			}
 		})
 	}
 }
@@ -74,6 +111,13 @@ func TestFmtBytes(t *testing.T) {
 			s := FmtBytes(tt.in)
 			if s != tt.out {
 				t.Errorf("got %q, want %q", s, tt.out)
+			}
+			bytes, err := ParseIntSizeToBytes(s)
+			if err != nil {
+				t.Errorf("ParseIntSizeToBytes(%q) failed: %v", s, err)
+			}
+			if int64(bytes) != tt.in {
+				t.Errorf("ParseIntSizeToBytes(%q) = %d, want %d", s, bytes, tt.in)
 			}
 		})
 	}
@@ -132,6 +176,43 @@ func TestFmtUint64Bibs(t *testing.T) {
 			if s != tt.out {
 				t.Errorf("got %q, want %q", s, tt.out)
 			}
+			bytes, err := ParseUintSizeToBytes(s)
+			if err != nil {
+				t.Errorf("ParseUintSizeToBytes(%q) failed: %v", s, err)
+			}
+			if bytes != tt.in {
+				t.Errorf("ParseUintSizeToBytes(%q) = %d, want %d", s, bytes, tt.in)
+			}
+		})
+	}
+}
+
+var bibFmtUint64VlmCompatibilityTests = []struct {
+	in       string
+	numBytes uint64
+	out      string
+}{
+	{"1001Ki", 1025024, "1001kiB"},
+	{"1001Mi", 1049624576, "1001MiB"},
+	{"1001Gi", 1074815565824, "1001GiB"},
+	{"1001Ti", 1100611139403776, "1001TiB"},
+	{"1001Pi", 1127025806749466624, "1001PiB"},
+}
+
+func TestFmtUint64BibsVlmCompatibility(t *testing.T) {
+	for _, tt := range bibFmtUint64VlmCompatibilityTests {
+		t.Run(tt.out, func(t *testing.T) {
+			bytes, err := ParseUintSizeToBytes(tt.in)
+			if err != nil {
+				t.Errorf("ParseUintSizeToBytes(%q) failed: %v", tt.in, err)
+			}
+			s := FmtUint64Bytes(bytes)
+			if s != tt.out {
+				t.Errorf("got %q, want %q", s, tt.out)
+			}
+			if bytes != tt.numBytes {
+				t.Errorf("ParseUintSizeToBytes(%q) = %d, want %d", s, bytes, tt.numBytes)
+			}
 		})
 	}
 }
@@ -142,6 +223,13 @@ func TestFmtUint64Bytes(t *testing.T) {
 			s := FmtUint64Bytes(tt.in)
 			if s != tt.out {
 				t.Errorf("got %q, want %q", s, tt.out)
+			}
+			bytes, err := ParseUintSizeToBytes(s)
+			if err != nil {
+				t.Errorf("ParseUintSizeToBytes(%q) failed: %v", s, err)
+			}
+			if bytes != tt.in {
+				t.Errorf("ParseUintSizeToBytes(%q) = %d, want %d", s, bytes, tt.in)
 			}
 		})
 	}

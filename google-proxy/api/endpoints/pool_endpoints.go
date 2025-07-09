@@ -364,28 +364,71 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 		}, nil
 	}
 
-	if req.ActiveDirectoryConfigId.Value != "" {
-		return &gcpgenserver.V1betaUpdatePoolBadRequest{
-			Code:    400,
-			Message: "Active directory cannot be assigned to a Storage Pool of type unified",
-		}, nil
+	vendorId := fmt.Sprintf("/projects/%v/locations/%v/pools/%s", params.ProjectNumber, params.LocationId, params.PoolId)
+	existingPool, err := h.Orchestrator.GetPoolByVendorID(ctx, vendorId)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			logger.Info("Pool not found", "uuid", params.PoolId)
+			return &gcpgenserver.V1betaUpdatePoolNotFound{
+				Code:    404,
+				Message: "Pool not found",
+			}, nil
+		}
+		logger.Error("Failed to describe pool", "error", err.Error())
+		return &gcpgenserver.V1betaUpdatePoolInternalServerError{}, err
 	}
+
+	validateErr := validateUpdatePoolParams(req, existingPool)
+	if validateErr != nil {
+		if validateErr.Code == HTTP_BAD_REQUEST_CODE {
+			return &gcpgenserver.V1betaUpdatePoolBadRequest{
+				Code:    validateErr.Code,
+				Message: validateErr.Message,
+			}, nil
+		} else {
+			return &gcpgenserver.V1betaUpdatePoolInternalServerError{
+				Code:    validateErr.Code,
+				Message: validateErr.Message,
+			}, nil
+		}
+	}
+
 	param := &common.UpdatePoolParams{
-		AccountName:              params.ProjectNumber,
-		Region:                   region,
-		CurrentZone:              zone,
-		Description:              req.Description.Value,
-		PoolId:                   params.PoolId,
-		SizeInBytes:              uint64(req.SizeInBytes.Value),
-		QosType:                  req.QosType.Value,
-		CustomPerformanceEnabled: req.CustomPerformanceEnabled.Value,
-		TotalThroughputMibps:     req.TotalThroughputMibps.Value,
-		TotalIops:                req.TotalIops.Value,
-		AllowAutoTiering:         req.AllowAutoTiering.Value,
-		EnableHotTierAutoResize:  req.EnableHotTierAutoResize.Value,
-		HotTierSizeInBytes:       uint64(req.HotTierSizeInBytes.Value),
-		Labels:                   req.Labels.Value,
+		AccountName: params.ProjectNumber,
+		Region:      region,
+		CurrentZone: zone,
+		PoolId:      params.PoolId,
 	}
+
+	// -------------------------------------------------------------------------
+	// Update params only if needed.
+	// -------------------------------------------------------------------------
+	if req.Description.IsSet() {
+		param.Description = req.Description.Value
+	} else {
+		param.Description = existingPool.Description
+	}
+
+	if req.SizeInBytes.IsSet() {
+		param.SizeInBytes = uint64(req.SizeInBytes.Value)
+	} else {
+		param.SizeInBytes = existingPool.SizeInBytes
+	}
+
+	if req.TotalThroughputMibps.IsSet() {
+		param.TotalThroughputMibps = req.TotalThroughputMibps.Value
+	} else {
+		param.TotalThroughputMibps = existingPool.CustomPerformanceParams.Throughput
+	}
+
+	if req.TotalIops.IsSet() {
+		param.TotalIops = req.TotalIops.Value
+	} else {
+		param.TotalIops = float64(existingPool.CustomPerformanceParams.Iops)
+	}
+	// -------------------------------------------------------------------------
+	// -------------------------------------------------------------------------
+
 	updatedPool, operationID, err := h.Orchestrator.UpdatePool(ctx, param)
 	if err != nil {
 		logger.Error("Failed to update pool", "error", err.Error())
@@ -596,5 +639,83 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 			}
 		}
 	}
+	return nil
+}
+
+// validateUpdatePoolParams validates the parameters for updating a pool.
+// We currently only allow updating the description, size, total throughput, and total IOPS.
+func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *models.Pool) *gcpgenserver.Error {
+	if req.Zone.IsSet() && req.Zone.Value != existingPool.PoolAttributes.PrimaryZone {
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "Migrating to a different Zone is currently not supported",
+		}
+	}
+
+	if req.GlobalAccessAllowed.IsSet() {
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "Updating Global access is currently not supported",
+		}
+	}
+
+	if req.ActiveDirectoryConfigId.IsSet() {
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "Updating Active Directory is currently not supported",
+		}
+	}
+
+	if req.AllowAutoTiering.IsSet() {
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "Updating Auto tiering is currently not supported",
+		}
+	}
+
+	if req.HotTierSizeInBytes.IsSet() {
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "Updating HotTierSize is currently not supported",
+		}
+	}
+
+	if req.EnableHotTierAutoResize.IsSet() {
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "Updating HotTier auto resize is currently not supported",
+		}
+	}
+
+	if req.QosType.IsSet() {
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "Updating QosType is currently not supported",
+		}
+	}
+
+	if req.CustomPerformanceEnabled.IsSet() && !req.CustomPerformanceEnabled.Value {
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "CustomerPerformance must be enabled for Unified Flex Storage Pool",
+		}
+	}
+
+	if req.Labels.IsSet() {
+		// StoragePool datamodel does not support labels yet.
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "Updating Labels is currently not supported",
+		}
+	}
+
+	// We do not allow pool size to be reduced.
+	if req.SizeInBytes.IsSet() && req.SizeInBytes.Value < float64(existingPool.SizeInBytes) {
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "Pool size cannot be reduced",
+		}
+	}
+
 	return nil
 }

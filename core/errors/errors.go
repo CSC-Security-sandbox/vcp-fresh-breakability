@@ -52,6 +52,8 @@ const (
 	ErrIncorrectVSAClusterState        = 4004
 	ErrVSAClusterNodeNotFound          = 4005
 	ErrVSAClusterNodeIPAddressNotFound = 4006
+	ErrVSAClusterUpdateError           = 4007
+	ErrVLMClientInitializationError    = 4008
 
 	ErrONTAPVersionFetchError         = 5001
 	ErrCreatingSVM                    = 5002

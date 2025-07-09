@@ -2,6 +2,9 @@ package utils
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+	"unicode"
 )
 
 const (
@@ -80,4 +83,85 @@ func FmtUint64Bytes(bytes uint64) string {
 // FmtUint64FlexGroupBytes formats a number of GigaBytes into a human-readable string.
 func FmtUint64FlexGroupBytes(bytes uint64) string {
 	return fmt.Sprintf("%.2fGiB", float64(bytes)/gi)
+}
+
+const (
+	_  = iota
+	KB = 1_000
+	MB = KB * 1_000
+	GB = MB * 1_000
+	TB = GB * 1_000
+	PB = TB * 1_000
+)
+
+var unitMultipliers = map[string]Unit{
+	"B":   1,
+	"KB":  KB,
+	"MB":  MB,
+	"GB":  GB,
+	"TB":  TB,
+	"PB":  PB,
+	"KIB": KiB,
+	"MIB": MiB,
+	"GIB": GiB,
+	"TIB": TiB,
+	"PIB": PiB,
+	"KI":  KiB,
+	"MI":  MiB,
+	"GI":  GiB,
+	"TI":  TiB,
+	"PI":  PiB,
+}
+
+func ParseUintSizeToBytes(input string) (uint64, error) {
+	input = strings.TrimSpace(input)
+
+	// Find where the numeric part ends
+	var i int
+	startIndex := 0
+	for i = range len(input) {
+		r := rune(input[i])
+		if i == 0 && (r == '-' || r == '+') {
+			startIndex = 1
+			continue
+		}
+		if !unicode.IsDigit(r) && r != '.' {
+			break
+		}
+	}
+
+	if i == 0 {
+		return 0, fmt.Errorf("no numeric value found")
+	}
+	numberStr := input[startIndex:i]
+	unitStr := strings.ToUpper(strings.TrimSpace(input[i:]))
+
+	// Parse the numeric part as uint64
+	value, err := strconv.ParseUint(numberStr, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid number: %v", err)
+	}
+
+	// Get the multiplier
+	multiplier, ok := unitMultipliers[unitStr]
+	if !ok {
+		return 0, fmt.Errorf("unknown unit: %s", unitStr)
+	}
+
+	result := value * uint64(multiplier)
+	return result, nil
+}
+
+func ParseIntSizeToBytes(input string) (int64, error) {
+	signMultiplier := int64(1)
+	if strings.HasPrefix(input, "-") {
+		signMultiplier = -1
+	}
+	value, err := ParseUintSizeToBytes(strings.TrimPrefix(input, "-"))
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse size: %v", err)
+	}
+
+	result := signMultiplier * int64(value)
+	return result, nil
 }

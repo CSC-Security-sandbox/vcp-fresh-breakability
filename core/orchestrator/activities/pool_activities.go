@@ -530,6 +530,25 @@ func (j *PoolActivity) CreateVSACluster(ctx context.Context, cfg *vlmconfig.VLMC
 	return cfg, nil
 }
 
+func (j *PoolActivity) CreateVlmConfig(ctx context.Context, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, decision *vmrs.Decision, password string, saEmail string, autoTierBucket string) (*vlmconfig.VLMConfig, error) {
+	cfg := &vlmconfig.VLMConfig{}
+	err := PrepareVlmConfig(cfg, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, decision, password, saEmail, autoTierBucket)
+	return cfg, vsaerrors.WrapAsTemporalApplicationError(err)
+}
+
+// Update VSA cluster by invoking VLM.
+func (j *PoolActivity) UpdateVSACluster(ctx context.Context, dup *vlmconfig.DeploymentUpdateParams) (*vlmconfig.VLMConfig, error) {
+	logger := util.GetLogger(ctx)
+	vlmClient := GetVLMClient(ctx, logger, dup.VlmConfig)
+
+	err := vlmClient.VSAClusterDeployUpdate(ctx, dup)
+	if err != nil {
+		logger.Error("Failed to update VSA cluster", "error", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return dup.VlmConfig, nil
+}
+
 func assignNetworkConfig(cfg *vlmconfig.VLMConfig, lifType vlmconfig.VSALIFType, vpc, subnet, subnetProjectID string) {
 	cfg.Deployment.NetConfig[lifType] = vlmconfig.NetworkConfig{
 		VPC:              vpc,
@@ -614,7 +633,7 @@ func (j *PoolActivity) DeleteVSADeployment(ctx context.Context, pool *datamodel.
 		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
 			DesiredIOPS:             pool.PoolAttributes.Iops,
 			DesiredThroughputInMiBs: pool.PoolAttributes.ThroughputMibps,
-			DesiredCapacityInGiB:    pool.SizeInBytes,
+			DesiredCapacityInGiB:    int64(utils.BytesToGigabytes(uint64(pool.SizeInBytes))),
 		},
 	}
 	subnetName := ""

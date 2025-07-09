@@ -1059,6 +1059,90 @@ func Test_CreateVSACluster_FailsToDeployCluster(t *testing.T) {
 	mockVlmClient.AssertExpectations(t)
 }
 
+func Test_CreateVlmConfig_Success(t *testing.T) {
+	activity := activities.PoolActivity{}
+	prepareVLMConfig := activities.PrepareVlmConfig
+	defer func() {
+		activities.PrepareVlmConfig = prepareVLMConfig
+	}()
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	cfg := &vlmconfig.VLMConfig{}
+
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
+		return nil
+	}
+	assert.NotNil(t, cfg)
+
+	_, err := activity.CreateVlmConfig(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", &vmrs.Decision{}, "test-password", "test-sa-email", "test-auto-tier-bucket")
+
+	assert.NoError(t, err)
+}
+
+func Test_CreateVlmConfig_FailsToPrepareConfig(t *testing.T) {
+	activity := activities.PoolActivity{}
+	prepareVLMConfig := activities.PrepareVlmConfig
+	defer func() {
+		activities.PrepareVlmConfig = prepareVLMConfig
+	}()
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	cfg := &vlmconfig.VLMConfig{}
+
+	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
+		return errors.New("failed to prepare VLM config")
+	}
+	assert.NotNil(t, cfg)
+
+	_, err := activity.CreateVlmConfig(ctx, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", &vmrs.Decision{}, "test-password", "test-sa-email", "test-auto-tier-bucket")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to prepare VLM config")
+}
+
+func Test_UpdateVSACluster_Success(t *testing.T) {
+	mockVlmClient := new(vlm.MockClientFactory)
+	activity := activities.PoolActivity{}
+	getVLMClient := activities.GetVLMClient
+
+	defer func() {
+		activities.GetVLMClient = getVLMClient
+	}()
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	dup := &vlmconfig.DeploymentUpdateParams{}
+
+	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
+		return mockVlmClient
+	}
+	mockVlmClient.On("VSAClusterDeployUpdate", ctx, dup).Return(nil)
+	assert.NotNil(t, dup)
+
+	_, err := activity.UpdateVSACluster(ctx, dup)
+
+	assert.NoError(t, err)
+	mockVlmClient.AssertExpectations(t)
+}
+
+func Test_UpdateVSACluster_Failure(t *testing.T) {
+	mockVlmClient := new(vlm.MockClientFactory)
+	activity := activities.PoolActivity{}
+	getVLMClient := activities.GetVLMClient
+	defer func() {
+		activities.GetVLMClient = getVLMClient
+	}()
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	dup := &vlmconfig.DeploymentUpdateParams{}
+	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
+		return mockVlmClient
+	}
+	mockVlmClient.On("VSAClusterDeployUpdate", ctx, dup).Return(errors.New("failed to update VSA cluster"))
+	assert.NotNil(t, dup)
+
+	_, err := activity.UpdateVSACluster(ctx, dup)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update VSA cluster")
+	mockVlmClient.AssertExpectations(t)
+}
+
 func Test_SaveNodeDetails_Success(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	mockProvider := new(vsa.MockProvider) // Use the mock provider

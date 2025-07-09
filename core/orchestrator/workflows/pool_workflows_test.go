@@ -21,6 +21,7 @@ import (
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
+	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
 
 func TestCreatePoolWorkflow(t *testing.T) {
@@ -121,20 +122,50 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024, // For example: 2 TB
 		TotalThroughputMibps: 128,
 		TotalIops:            2048,
-		QosType:              "Manual",
-		// Add other parameters as needed.
+		Description:          "Updated pool description",
 	}
 	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-id",
+		},
 		Username: "test-user",
 		Password: "test-password",
 		// Set additional fields if required.
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		SizeInBytes: 2048 * 1024 * 1024,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:     "test-primary-zone",
+			SecondaryZone:   "test-secondary-zone",
+			Iops:            1024,
+			ThroughputMibps: 64,
+		},
+		KmsConfig: &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountEmail: "test-sa-email",
+			},
+		},
+		AutoTierBucketName: "test-auto-tier-bucket",
 	}
 
 	// Register activity mocks.
-	// The UpdateJobStatus calls return nil.
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).
 		Return(nil)
-	// The UpdatedPool activity is called within updatePoolWorkflow.Run.
+	env.OnActivity("CreateVlmConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlmconfig.VLMConfig{
+		Deployment: vlmconfig.DeploymentConfig{
+			SPConfig: vlmconfig.SPConfig{
+				IOps:       1024,
+				Throughput: 64,
+				Size:       "1TiB",
+			},
+		},
+	}, nil)
+	env.OnActivity("UpdateVSACluster", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).
 		Return(nil, nil)
 
