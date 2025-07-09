@@ -677,6 +677,11 @@ func TestValidateUpdatePoolParams(t *testing.T) {
 		assert.NoError(tt, err)
 	})
 	t.Run("Fails when AllowAutoTiering is true and HotTierSizeInBytes is less than existing pool size", func(tt *testing.T) {
+		// Save and restore the original value
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
 		pool := &datamodel.Pool{
 			QosType:          QosTypeAuto,
 			AllowAutoTiering: false,
@@ -693,6 +698,11 @@ func TestValidateUpdatePoolParams(t *testing.T) {
 	})
 
 	t.Run("Fails when AllowAutoTiering is true and HotTierSizeInBytes is less than existing hot tier size", func(tt *testing.T) {
+		// Save and restore the original value
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
 		pool := &datamodel.Pool{
 			QosType:            QosTypeAuto,
 			AllowAutoTiering:   true,
@@ -710,6 +720,11 @@ func TestValidateUpdatePoolParams(t *testing.T) {
 	})
 
 	t.Run("Fails when AllowAutoTiering is false but pool has auto tiering enabled", func(tt *testing.T) {
+		// Save and restore the original value
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
 		pool := &datamodel.Pool{
 			QosType:            QosTypeAuto,
 			AllowAutoTiering:   true,
@@ -727,6 +742,11 @@ func TestValidateUpdatePoolParams(t *testing.T) {
 	})
 
 	t.Run("Succeeds when AllowAutoTiering is true and HotTierSizeInBytes is valid", func(tt *testing.T) {
+		// Save and restore the original value
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
 		pool := &datamodel.Pool{
 			QosType:          QosTypeAuto,
 			AllowAutoTiering: false,
@@ -1328,5 +1348,108 @@ func Test_getInterClusterLifsFromONTAP(t *testing.T) {
 		lifs, err := _getInterClusterLifsFromONTAP(context.Background(), nodes, pool)
 		assert.Error(t, err)
 		assert.Nil(t, lifs)
+	})
+}
+
+func TestValidateUpdatePoolParams_AutoTieringDisabled(t *testing.T) {
+	autoTieringEnabled = false // Simulate auto-tiering feature being disabled
+
+	t.Run("ReturnsError_WhenAllowAutoTieringIsTrue", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			AllowAutoTiering: true,
+			SizeInBytes:      minQuotaInBytesPool,
+		}
+		pool := &datamodel.Pool{
+			HotTierSizeInBytes: 0,
+		}
+
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, "Auto-Tiering feature is currently not enabled.")
+	})
+
+	t.Run("ReturnsError_WhenHotTierSizeInBytesIsNonZero", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			AllowAutoTiering:         false,
+			SizeInBytes:              minQuotaInBytesPool,
+			CustomPerformanceEnabled: true,
+			HotTierSizeInBytes:       minQuotaInBytesPool,
+		}
+		pool := &datamodel.Pool{
+			HotTierSizeInBytes: 0, // Non-zero value
+		}
+
+		err := _validateUpdatePoolParams(params, pool)
+		assert.EqualError(tt, err, "Auto-Tiering feature is currently not enabled.")
+	})
+
+	t.Run("DoesNotReturnError_WhenAllowAutoTieringParametersAreNotPassed", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			QosType:                  QosTypeAuto,
+			SizeInBytes:              minQuotaInBytesPool,
+			CustomPerformanceEnabled: true,
+			TotalThroughputMibps:     float64(minCustomThroughput + 10),
+			TotalIops:                float64(minCustomIops + 10),
+		}
+		pool := &datamodel.Pool{
+			HotTierSizeInBytes: 0,
+		}
+
+		err := _validateUpdatePoolParams(params, pool)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestValidateCreatePoolParams_AutoTieringDisabled(t *testing.T) {
+	autoTieringEnabled = false // Simulate auto-tiering feature being disabled
+
+	t.Run("ReturnsError_WhenAllowAutoTieringIsTrue", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			QosType:          QosTypeAuto,
+			ServiceLevel:     ServiceLevelNameFLEX,
+			AllowAutoTiering: true,
+			SizeInBytes:      minQuotaInBytesPool,
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				Enabled:         true,
+				ThroughputMibps: 128,
+				Iops:            1024,
+			},
+		}
+
+		err := _validateCreatePoolParams(params)
+		assert.EqualError(tt, err, "Auto-Tiering feature is currently not enabled.")
+	})
+
+	t.Run("ReturnsError_WhenHotTierSizeInBytesIsNonZero", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			QosType:          QosTypeAuto,
+			ServiceLevel:     ServiceLevelNameFLEX,
+			AllowAutoTiering: false,
+			SizeInBytes:      minQuotaInBytesPool,
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				Enabled:         true,
+				ThroughputMibps: 128,
+				Iops:            1024,
+			},
+			HotTierSizeInBytes: minQuotaInBytesPool,
+		}
+
+		err := _validateCreatePoolParams(params)
+		assert.EqualError(tt, err, "Auto-Tiering feature is currently not enabled.")
+	})
+
+	t.Run("DoesNotReturnError_WhenAllowAutoTieringParametersAreNotPassed", func(tt *testing.T) {
+		params := &common.CreatePoolParams{
+			QosType:     QosTypeAuto,
+			SizeInBytes: minQuotaInBytesPool,
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				Enabled:         true,
+				ThroughputMibps: 128,
+				Iops:            1024,
+			},
+			ServiceLevel: ServiceLevelNameFLEX,
+		}
+
+		err := _validateCreatePoolParams(params)
+		assert.NoError(tt, err)
 	})
 }

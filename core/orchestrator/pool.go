@@ -40,6 +40,7 @@ var (
 	nodePassword                 = env.GetString("VSA_NODE_PASSWORD", "")
 	getInterClusterLifsFromONTAP = _getInterClusterLifsFromONTAP
 	GetPoolByName                = _getPoolByName
+	autoTieringEnabled           = env.GetBool("AUTO_TIERING_ENABLED", false)
 )
 
 const (
@@ -248,6 +249,10 @@ func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
 			return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalIops must be greater than %d for Unified Flex Storage Pool", minCustomIops))
 		}
 	}
+
+	if !autoTieringEnabled && (params.AllowAutoTiering || params.HotTierSizeInBytes > 0) {
+		return customerrors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
+	}
 	return nil
 }
 
@@ -266,6 +271,10 @@ func _validateUpdatePoolParams(params *commonparams.UpdatePoolParams, pool *data
 
 	if params.SizeInBytes%minSizeGranularity != 0 {
 		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size must be a multiple of %s", utils.FmtUint64Bytes(minSizeGranularity)))
+	}
+
+	if !autoTieringEnabled && (params.AllowAutoTiering || params.HotTierSizeInBytes > 0) {
+		return customerrors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
 	}
 
 	if params.AllowAutoTiering {
