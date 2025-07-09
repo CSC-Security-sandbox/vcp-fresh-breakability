@@ -278,7 +278,7 @@ func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeP
 		return true
 	}
 
-	if response.Size == params.QuotaInBytes {
+	if response.Size == params.QuotaInBytes && params.TieringPolicy != nil {
 		if params.TieringPolicy.CoolAccess != existingVolume.CoolAccess ||
 			(params.TieringPolicy.CoolAccess && params.TieringPolicy.CoolnessPeriod != existingVolume.CoolnessPeriod) {
 			return true

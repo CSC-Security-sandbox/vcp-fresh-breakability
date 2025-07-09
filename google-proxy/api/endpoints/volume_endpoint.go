@@ -342,14 +342,22 @@ func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.Volum
 
 func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*common.UpdateVolumeParams, error) {
 	param := &common.UpdateVolumeParams{
-		AccountName:  params.ProjectNumber,
-		Region:       region,
-		PoolID:       req.PoolId.Value,
-		VolumeId:     params.VolumeId,
-		QuotaInBytes: int64(req.QuotaInBytes.Value),
+		AccountName: params.ProjectNumber,
+		Region:      region,
+		PoolID:      req.PoolId.Value,
+		VolumeId:    params.VolumeId,
 	}
+
 	if req.Description.IsSet() {
 		param.Description, _ = req.Description.Get()
+	}
+
+	if req.QuotaInBytes.IsSet() {
+		quota, _ := req.QuotaInBytes.Get()
+		if err := validateVolumeQuotaSize(quota); err != nil {
+			return nil, err
+		}
+		param.QuotaInBytes = int64(quota)
 	}
 
 	for _, protocol := range req.GetProtocols() {
@@ -435,6 +443,16 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 	}
 
 	return param, nil
+}
+
+func validateVolumeQuotaSize(quota float64) error {
+	minQuotaVal := float64(utils.MinQuotaInBytesVolumeForVolume)
+	maxQuotaVal := float64(utils.MaxQuotaInBytesVolumeForVolume)
+	if quota < minQuotaVal || quota > maxQuotaVal {
+		return errors.NewUserInputValidationErr(fmt.Sprintf("volume size must be between %d GiB and %d GiB.",
+			utils.ConvertBytesToGib(minQuotaVal), utils.ConvertBytesToGib(maxQuotaVal)))
+	}
+	return nil
 }
 
 func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1betaDeleteVolumeReq, params gcpgenserver.V1betaDeleteVolumeParams) (gcpgenserver.V1betaDeleteVolumeRes, error) {

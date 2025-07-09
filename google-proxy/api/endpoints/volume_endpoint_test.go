@@ -1038,11 +1038,12 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		}
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
-			QuotaInBytes: gcpgenserver.NewOptNilFloat64(2048),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
 		}
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: "READY",
+			QuotaInBytes:   107374182499,
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
@@ -1134,7 +1135,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		}
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
-			QuotaInBytes: gcpgenserver.NewOptNilFloat64(2048),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182499),
 		}
 
 		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("An error occurred"))
@@ -1158,7 +1159,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		}
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
-			QuotaInBytes: gcpgenserver.NewOptNilFloat64(2048),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182499),
 		}
 
 		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.New("An error occurred"))
@@ -1182,7 +1183,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		}
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
-			QuotaInBytes: gcpgenserver.NewOptNilFloat64(2048),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
 		}
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
@@ -1213,7 +1214,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		}
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
-			QuotaInBytes: gcpgenserver.NewOptNilFloat64(2048),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
 			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
 				gcpgenserver.TieringPolicyV1beta{
 					TierAction:           gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
@@ -1224,6 +1225,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: "READY",
+			QuotaInBytes:   107374182400,
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
@@ -1249,7 +1251,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		}
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
-			QuotaInBytes: gcpgenserver.NewOptNilFloat64(2048),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
 			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
 				gcpgenserver.TieringPolicyV1beta{
 					TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("PAUSED"),
@@ -1259,6 +1261,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: "READY",
+			QuotaInBytes:   107374182400,
 		}
 		jobUUID := "job-uuid"
 		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
@@ -1284,7 +1287,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		}
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
-			QuotaInBytes: gcpgenserver.NewOptNilFloat64(2048),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
 			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
 				gcpgenserver.TieringPolicyV1beta{
 					TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
@@ -1311,7 +1314,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 	t.Run("WhenAllFieldsSet_ThenFieldsAreMapped", func(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			PoolId:       gcpgenserver.NewOptNilString("pool"),
-			QuotaInBytes: gcpgenserver.NewOptNilFloat64(1234),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
 			Description:  gcpgenserver.NewOptNilString("desc"),
 			Protocols:    []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
 			BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
@@ -1331,7 +1334,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		out, err := _prepareUpdateVolumeParams(req, params, region)
 		assert.NoError(t, err)
 		assert.Equal(t, "pool", out.PoolID)
-		assert.Equal(t, int64(1234), out.QuotaInBytes)
+		assert.Equal(t, int64(107374182400), out.QuotaInBytes)
 		assert.Equal(t, "desc", out.Description)
 		assert.Equal(t, []string{"ISCSI"}, out.Protocols)
 		assert.NotNil(t, out.BlockProperties)
@@ -1441,7 +1444,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			PoolId:       gcpgenserver.NewOptNilString("pool"),
-			QuotaInBytes: gcpgenserver.NewOptNilFloat64(1234),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
 			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
 				gcpgenserver.TieringPolicyV1beta{
 					TierAction:           gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
@@ -1463,7 +1466,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			PoolId:       gcpgenserver.NewOptNilString("pool"),
-			QuotaInBytes: gcpgenserver.NewOptNilFloat64(1234),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
 			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
 				gcpgenserver.TieringPolicyV1beta{
 					TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("PAUSED"),
@@ -1483,7 +1486,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			PoolId:       gcpgenserver.NewOptNilString("pool"),
-			QuotaInBytes: gcpgenserver.NewOptNilFloat64(1234),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
 			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
 				gcpgenserver.TieringPolicyV1beta{
 					TierAction: gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
@@ -1498,7 +1501,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 	t.Run("TieringPolicy not set", func(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			PoolId:       gcpgenserver.NewOptNilString("pool"),
-			QuotaInBytes: gcpgenserver.NewOptNilFloat64(1234),
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
 		}
 		param, err := _prepareUpdateVolumeParams(req, params, region)
 		assert.NoError(t, err)
@@ -2135,4 +2138,103 @@ func TestPrepareUpdateVolumeParams_SnapReserveCannotBeGreaterThan100(t *testing.
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "SnapReserve cannot be greater than 100")
+}
+
+func TestPrepareUpdateVolumeParams_QuotaValidation(t *testing.T) {
+	// Save and restore original values
+	origMin := utils.MinQuotaInBytesVolumeForVolume
+	origMax := utils.MaxQuotaInBytesVolumeForVolume
+	utils.MinQuotaInBytesVolumeForVolume = 100 * 1024 * 1024 * 1024    // 100 GiB
+	utils.MaxQuotaInBytesVolumeForVolume = 102400 * 1024 * 1024 * 1024 // 102,400 GiB
+	defer func() {
+		utils.MinQuotaInBytesVolumeForVolume = origMin
+		utils.MaxQuotaInBytesVolumeForVolume = origMax
+	}()
+
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "proj",
+		LocationId:    "loc",
+		VolumeId:      "vol",
+	}
+	region := "region"
+
+	t.Run("QuotaBelowMinimum", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(float64(99 * 1024 * 1024 * 1024)), // 99 GiB
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.Contains(t, err.Error(), "volume size must be between 100 GiB and 102400 GiB.")
+	})
+
+	t.Run("QuotaAboveMaximum", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			QuotaInBytes: gcpgenserver.NewOptNilFloat64(float64(102401 * 1024 * 1024 * 1024)), // 102,401 GiB
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.Contains(t, err.Error(), "volume size must be between 100 GiB and 102400 GiB.")
+	})
+}
+
+func TestValidateVolumeQuotaSize(t *testing.T) {
+	// Save original values and restore after tests
+	origMin := utils.MinQuotaInBytesVolumeForVolume
+	origMax := utils.MaxQuotaInBytesVolumeForVolume
+	defer func() {
+		utils.MinQuotaInBytesVolumeForVolume = origMin
+		utils.MaxQuotaInBytesVolumeForVolume = origMax
+	}()
+
+	// Set test values
+	utils.MinQuotaInBytesVolumeForVolume = 100 * 1024 * 1024 * 1024    // 100 GiB
+	utils.MaxQuotaInBytesVolumeForVolume = 102400 * 1024 * 1024 * 1024 // 102,400 GiB
+
+	t.Run("ValidQuota_ReturnsNil", func(tt *testing.T) {
+		// Test valid quota (middle of range)
+		err := validateVolumeQuotaSize(1000 * 1024 * 1024 * 1024) // 1000 GiB
+		assert.NoError(tt, err)
+	})
+
+	t.Run("MinimumQuota_ReturnsNil", func(tt *testing.T) {
+		// Test exactly at minimum value
+		err := validateVolumeQuotaSize(float64(utils.MinQuotaInBytesVolumeForVolume))
+		assert.NoError(tt, err)
+	})
+
+	t.Run("MaximumQuota_ReturnsNil", func(tt *testing.T) {
+		// Test exactly at maximum value
+		err := validateVolumeQuotaSize(float64(utils.MaxQuotaInBytesVolumeForVolume))
+		assert.NoError(tt, err)
+	})
+
+	t.Run("BelowMinimumQuota_ReturnsError", func(tt *testing.T) {
+		// Test below minimum
+		err := validateVolumeQuotaSize(50 * 1024 * 1024 * 1024) // 50 GiB
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume size must be between 100 GiB and 102400 GiB")
+	})
+
+	t.Run("AboveMaximumQuota_ReturnsError", func(tt *testing.T) {
+		// Test above maximum
+		err := validateVolumeQuotaSize(200000 * 1024 * 1024 * 1024) // 200,000 GiB
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume size must be between 100 GiB and 102400 GiB")
+	})
+
+	t.Run("ZeroQuota_ReturnsError", func(tt *testing.T) {
+		// Test zero value
+		err := validateVolumeQuotaSize(0)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume size must be between 100 GiB and 102400 GiB")
+	})
+
+	t.Run("NegativeQuota_ReturnsError", func(tt *testing.T) {
+		// Test negative value
+		err := validateVolumeQuotaSize(-1024 * 1024 * 1024) // -1 GiB
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume size must be between 100 GiB and 102400 GiB")
+	})
 }

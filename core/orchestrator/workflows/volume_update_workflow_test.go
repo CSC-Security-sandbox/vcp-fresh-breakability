@@ -1432,6 +1432,17 @@ func TestIsUpdateRequired(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			name: "Size is same and no tiering policy passed - no update required",
+			response: &vsa.VolumeResponse{
+				Size: 200,
+			},
+			params: &common.UpdateVolumeParams{
+				QuotaInBytes: 200,
+			},
+			existingVolume: &datamodel.Volume{},
+			want:           false,
+		},
 	}
 
 	for _, tt := range tests {

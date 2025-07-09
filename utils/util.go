@@ -29,26 +29,28 @@ import (
 )
 
 var (
-	localRegion                   = env.GetString("LOCAL_REGION", "local")
-	PairedRegions                 = env.GetString("VCP_PAIRED_REGIONS", "")
-	ParseRegionAndZone            = _parseRegionAndZone
-	ParseAndValidateRegionAndZone = _parseAndValidateRegionAndZone
-	GetPairedRegionURI            = _getPairedRegionURI
-	ConvertStringToMap            = _convertStringToMap
-	ConvertBytesToGib             = _convertBytesToGib
-	ValidateCcfeReplicationUri    = _validateCcfeReplicationUri
-	RenameSnapshotName            = _renameSnapshotName
-	ConvertToGcpResourceName      = _convertToGcpResourceName
-	CheckForGcpNamingConvention   = _checkForGcpNamingConvention
-	ParseProjectNumberFromURI     = _parseProjectNumberFromURI
-	sleep                         = _sleep
-	exponentialBackOffErrors      = []int{429}
-	maxExpBackOffDelay            = time.Duration(80) * time.Second
-	jitterBase                    = time.Millisecond
-	generateRandomString          = _generateRandomString
-	ReplicationUriRegex           = "^projects\\/([^\\/]+)\\/locations/([^\\/]+)/volumes\\/([^\\/]+)\\/replications\\/([^\\/]+)$"
-	GetRegion                     = _getRegion
-	GenerateStrongPassword        = _generateStrongPassword
+	localRegion                    = env.GetString("LOCAL_REGION", "local")
+	PairedRegions                  = env.GetString("VCP_PAIRED_REGIONS", "")
+	ParseRegionAndZone             = _parseRegionAndZone
+	ParseAndValidateRegionAndZone  = _parseAndValidateRegionAndZone
+	GetPairedRegionURI             = _getPairedRegionURI
+	ConvertStringToMap             = _convertStringToMap
+	ConvertBytesToGib              = _convertBytesToGib
+	ValidateCcfeReplicationUri     = _validateCcfeReplicationUri
+	RenameSnapshotName             = _renameSnapshotName
+	ConvertToGcpResourceName       = _convertToGcpResourceName
+	CheckForGcpNamingConvention    = _checkForGcpNamingConvention
+	ParseProjectNumberFromURI      = _parseProjectNumberFromURI
+	sleep                          = _sleep
+	exponentialBackOffErrors       = []int{429}
+	maxExpBackOffDelay             = time.Duration(80) * time.Second
+	jitterBase                     = time.Millisecond
+	generateRandomString           = _generateRandomString
+	ReplicationUriRegex            = "^projects\\/([^\\/]+)\\/locations/([^\\/]+)/volumes\\/([^\\/]+)\\/replications\\/([^\\/]+)$"
+	GetRegion                      = _getRegion
+	GenerateStrongPassword         = _generateStrongPassword
+	MinQuotaInBytesVolumeForVolume = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 107374182400)    // 100 GiB
+	MaxQuotaInBytesVolumeForVolume = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 109951162777605) // 102,400 GiB
 )
 
 const (

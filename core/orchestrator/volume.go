@@ -15,7 +15,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -25,8 +24,8 @@ import (
 )
 
 var (
-	minQuotaInBytesVolume      = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 107374182400)    // 100GiB
-	maxQuotaInBytesVolume      = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 109951162777605) // 102,400 GiB
+	minQuotaInBytesVolume      = utils.MinQuotaInBytesVolumeForVolume
+	maxQuotaInBytesVolume      = utils.MaxQuotaInBytesVolumeForVolume
 	createVolume               = _createVolume
 	validateCreateVolumeParams = _validateCreateVolumeParams
 	getIPAddressForVolume      = _getIPAddressForVolume
@@ -638,8 +637,11 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		return customerrors.NewUserInputValidationErr("volume is not in a valid state for update")
 	}
 
-	if params.QuotaInBytes < volume.SizeInBytes {
-		return customerrors.NewUserInputValidationErr("volume size cannot be reduced")
+	// Greater than 0 means the value was provided in the request
+	if params.QuotaInBytes > 0 {
+		if params.QuotaInBytes < volume.SizeInBytes {
+			return customerrors.NewUserInputValidationErr("volume size cannot be reduced")
+		}
 	}
 
 	if !pool.AllowAutoTiering && params.TieringPolicy != nil && params.TieringPolicy.CoolAccess {

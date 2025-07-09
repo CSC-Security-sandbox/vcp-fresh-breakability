@@ -5066,4 +5066,20 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Cannot update snapshotReserve on a Data Protection Volume")
 	})
+
+	t.Run("WhenQuotaInBytesIsZeroSkip", func(tt *testing.T) {
+		// Use a valid quota above minQuotaInBytesVolume
+		volume := &datamodel.Volume{State: "READY", SizeInBytes: 200 * 1024 * 1024 * 1024} // 200 GiB
+		params := &common.UpdateVolumeParams{QuotaInBytes: 0}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenQuotaInBytesIsNilSkip", func(tt *testing.T) {
+		// Use a valid quota above minQuotaInBytesVolume
+		volume := &datamodel.Volume{State: "READY", SizeInBytes: 200 * 1024 * 1024 * 1024} // 200 GiB
+		params := &common.UpdateVolumeParams{}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.NoError(tt, err)
+	})
 }
