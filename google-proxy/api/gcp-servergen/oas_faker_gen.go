@@ -7579,6 +7579,78 @@ func (s *V1betaInternalDeleteVolumeReplicationUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteVolumeSnapmirrorSnapshotConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteVolumeSnapmirrorSnapshotConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteVolumeSnapmirrorSnapshotForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteVolumeSnapmirrorSnapshotForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteVolumeSnapmirrorSnapshotInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteVolumeSnapmirrorSnapshotInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteVolumeSnapmirrorSnapshotNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteVolumeSnapmirrorSnapshotNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteVolumeSnapmirrorSnapshotTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteVolumeSnapmirrorSnapshotTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteVolumeSnapmirrorSnapshotUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteVolumeSnapmirrorSnapshotUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaInternalDescribePoolBadRequest) SetFake() {
 	var unwrapped Error
 	{

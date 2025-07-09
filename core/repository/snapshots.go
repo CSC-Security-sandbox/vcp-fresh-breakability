@@ -227,6 +227,20 @@ func (d *DataStoreRepository) GetSnapshotsByVolumeID(ctx context.Context, volume
 	return d.GetSnapshotsWithCondition(ctx, *filter)
 }
 
+// GetReplicationSnapshotsByVolumeID ge the snapshots with name starting with "snapmirror." for a given volume ID
+func (d *DataStoreRepository) GetReplicationSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error) {
+	filter := utils.CreateFilterWithConditions(
+		utils.NewFilterCondition("volume_id", "=", volumeID),
+		utils.NewFilterCondition("name", "LIKE", "snapmirror.%"))
+	db := d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx)
+
+	var snapshots []*datamodel.Snapshot
+	err := db.Preload("Volume").Preload("Volume.Pool").Preload("Account").Find(&snapshots).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return snapshots, nil
+}
 func (d *DataStoreRepository) GetSnapshotsByVolumeIDs(ctx context.Context, volumeIDs []int64) ([]*datamodel.Snapshot, error) {
 	var snapshots []*datamodel.Snapshot
 	db := d.db.GORM().WithContext(ctx)

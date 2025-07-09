@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -31,6 +32,7 @@ var (
 	VolumeOwnershipCheck            = _volumeOwnershipCheck
 	deleteSnapshot                  = _deleteSnapshot
 	listSnapshots                   = _listSnapshots
+	deleteSnapshots                 = _deleteSnapshots
 	ConvertDatastoreSnapshotToModel = _convertDatastoreSnapshotToModel
 )
 
@@ -441,4 +443,63 @@ func _volumeOwnershipCheck(ctx context.Context, se database.Storage, volumeUUID 
 	}
 
 	return volume, nil
+}
+
+// DeleteSnapmirrorSnapshots deletes the snapmirror snapshots for the specified volume belonging to the specified owner
+func (o *Orchestrator) DeleteSnapmirrorSnapshots(ctx context.Context, params *common.SnapshotsInternalDeleteParams) (string, error) {
+	return deleteSnapshots(ctx, o.storage, o.temporal, params)
+}
+
+// DeleteSnapshot deletes the specified snapshot from the specified volume belonging to the specified owner
+func _deleteSnapshots(ctx context.Context, se database.Storage, temporal client.Client, params *common.SnapshotsInternalDeleteParams) (string, error) {
+	logger := util.GetLogger(ctx)
+	dbVolume, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
+	if err != nil {
+		logger.Errorf("Failed to validate volume ownership")
+		return "", err
+	}
+	if dbVolume.State == models.LifeCycleStateRetained {
+		return "", customerrors.NewNotFoundErr("Volume", nil)
+	}
+	if dbVolume.State == models.LifeCycleStateDeleting {
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("Volume of the snapshot is being deleted."))
+	}
+	if dbVolume.State == models.VolumeStateOffline {
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("Volume is offline."))
+	}
+
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeDeleteSnapmirrorSnapshotsInternal),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  dbVolume.Name,
+		AccountID:     sql.NullInt64{Int64: dbVolume.Account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: dbVolume.UUID,
+			PoolUUID:     dbVolume.Pool.UUID,
+		},
+	}
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Errorf("Failed to create snapshot delete job in database %v", err)
+		return "", err
+	}
+
+	params.Volume = dbVolume
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		replicationWorkflows.DeleteInternalSnapshotWorkflow,
+		params,
+	)
+	if err != nil {
+		logger.Error("Failed to start delete snapshot workflow: ", "error", err)
+		return "", err
+	}
+
+	return createdJob.UUID, nil
 }

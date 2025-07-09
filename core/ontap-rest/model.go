@@ -1136,6 +1136,9 @@ func snapshotCollectionGetParamsToONTAP(params *SnapshotCollectionGetParams) *st
 	otParams.SetMaxRecords(nillable.ToStringPtr(params.MaxRecords))
 	otParams.SetSnapmirrorLabel(params.SnapmirrorLabel)
 	otParams.SetVolumeUUID(params.VolumeUUID)
+	if params.Name != nil {
+		otParams.SetName(params.Name)
+	}
 	return otParams
 }
 

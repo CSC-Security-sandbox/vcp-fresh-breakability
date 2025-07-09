@@ -201,6 +201,10 @@ type V1betaInternalDeleteVolumeReplicationRes interface {
 	v1betaInternalDeleteVolumeReplicationRes()
 }
 
+type V1betaInternalDeleteVolumeSnapmirrorSnapshotRes interface {
+	v1betaInternalDeleteVolumeSnapmirrorSnapshotRes()
+}
+
 type V1betaInternalDescribePoolRes interface {
 	v1betaInternalDescribePoolRes()
 }

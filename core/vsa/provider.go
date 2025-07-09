@@ -64,6 +64,7 @@ type Provider interface {
 	CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error)
 	DeleteSnapshot(snapshotUUID string, volumeUUID string) error
 	GetSnapshots(volumeUUID string) ([]*Snapshot, error)
+	ListSnapmirrorSnapshots(volumeUUID string) ([]*SnapshotListResponse, error)
 	UpdateSnapshotPolicy(ctx context.Context, params *UpdateSnapshotPolicyParams) error
 	CloudTargetGet(name *string) (*ontapRest.CloudTarget, error)
 	CloudTargetCreate(name, containerName string) (*ontapRest.CloudTarget, error)

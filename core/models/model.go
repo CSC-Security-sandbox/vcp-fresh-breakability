@@ -49,6 +49,7 @@ const (
 
 	AccountStateDisabled = "DISABLED"
 	AccountStateEnabled  = "ENABLED"
+	VolumeStateOffline   = "OFFLINE"
 )
 
 // SVM represents a single SVM resource

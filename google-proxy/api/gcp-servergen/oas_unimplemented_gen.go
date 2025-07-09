@@ -472,6 +472,15 @@ func (UnimplementedHandler) V1betaInternalDeleteVolumeReplication(ctx context.Co
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaInternalDeleteVolumeSnapmirrorSnapshot implements v1beta_internalDeleteVolumeSnapmirrorSnapshot operation.
+//
+// Deletes the snapmirror snapshots in the specified volume.
+//
+// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapmirrorSnapshots
+func (UnimplementedHandler) V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx context.Context, params V1betaInternalDeleteVolumeSnapmirrorSnapshotParams) (r V1betaInternalDeleteVolumeSnapmirrorSnapshotRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaInternalDescribePool implements v1beta_internalDescribePool operation.
 //
 // Returns the description of the specified volume replication by volume replication Id.

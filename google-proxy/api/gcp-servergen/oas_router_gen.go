@@ -555,27 +555,80 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 									}
 
-								case 's': // Prefix: "s/count"
+								case 's': // Prefix: "s/"
 
-									if l := len("s/count"); len(elem) >= l && elem[0:l] == "s/count" {
+									if l := len("s/"); len(elem) >= l && elem[0:l] == "s/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										// Leaf node.
-										switch r.Method {
-										case "GET":
-											s.handleV1betaGetVolumeCountRequest([2]string{
-												args[0],
-												args[1],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, "GET")
+										break
+									}
+									switch elem[0] {
+									case 'c': // Prefix: "count"
+										origElem := elem
+										if l := len("count"); len(elem) >= l && elem[0:l] == "count" {
+											elem = elem[l:]
+										} else {
+											break
 										}
 
-										return
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "GET":
+												s.handleV1betaGetVolumeCountRequest([2]string{
+													args[0],
+													args[1],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "GET")
+											}
+
+											return
+										}
+
+										elem = origElem
+									}
+									// Param: "volumeId"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[2] = elem[:idx]
+									elem = elem[idx:]
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/snapmirrorSnapshots"
+
+										if l := len("/snapmirrorSnapshots"); len(elem) >= l && elem[0:l] == "/snapmirrorSnapshots" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "DELETE":
+												s.handleV1betaInternalDeleteVolumeSnapmirrorSnapshotRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "DELETE")
+											}
+
+											return
+										}
+
 									}
 
 								}
@@ -2637,28 +2690,81 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 									}
 
-								case 's': // Prefix: "s/count"
+								case 's': // Prefix: "s/"
 
-									if l := len("s/count"); len(elem) >= l && elem[0:l] == "s/count" {
+									if l := len("s/"); len(elem) >= l && elem[0:l] == "s/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										// Leaf node.
-										switch method {
-										case "GET":
-											r.name = V1betaGetVolumeCountOperation
-											r.summary = "Get the volume count"
-											r.operationID = "v1beta_getVolumeCount"
-											r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/count"
-											r.args = args
-											r.count = 2
-											return r, true
-										default:
-											return
+										break
+									}
+									switch elem[0] {
+									case 'c': // Prefix: "count"
+										origElem := elem
+										if l := len("count"); len(elem) >= l && elem[0:l] == "count" {
+											elem = elem[l:]
+										} else {
+											break
 										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "GET":
+												r.name = V1betaGetVolumeCountOperation
+												r.summary = "Get the volume count"
+												r.operationID = "v1beta_getVolumeCount"
+												r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/count"
+												r.args = args
+												r.count = 2
+												return r, true
+											default:
+												return
+											}
+										}
+
+										elem = origElem
+									}
+									// Param: "volumeId"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[2] = elem[:idx]
+									elem = elem[idx:]
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/snapmirrorSnapshots"
+
+										if l := len("/snapmirrorSnapshots"); len(elem) >= l && elem[0:l] == "/snapmirrorSnapshots" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "DELETE":
+												r.name = V1betaInternalDeleteVolumeSnapmirrorSnapshotOperation
+												r.summary = "Delete Snapmirror snapshots of a volume"
+												r.operationID = "v1beta_internalDeleteVolumeSnapmirrorSnapshot"
+												r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapmirrorSnapshots"
+												r.args = args
+												r.count = 3
+												return r, true
+											default:
+												return
+											}
+										}
+
 									}
 
 								}

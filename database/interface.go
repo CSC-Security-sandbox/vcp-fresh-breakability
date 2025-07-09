@@ -132,6 +132,7 @@ type DataStore interface {
 	GetWronglyDeletedSnapshot(ctx context.Context, snapshotExternalUUID string) (*datamodel.Snapshot, error)
 	UnDeleteSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error
 	GetSnapshotsByVolumeIDs(ctx context.Context, volumeID []int64) ([]*datamodel.Snapshot, error)
+	GetReplicationSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error)
 	GetSnapshotsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Snapshot, error)
 	GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error)
 	DeleteSnapshot(ctx context.Context, id string) (*datamodel.Snapshot, error)

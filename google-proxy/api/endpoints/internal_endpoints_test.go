@@ -830,3 +830,116 @@ func TestV1betaInternalDeleteVolumeReplication(t *testing.T) {
 		assert.Equal(tt, expectedResponse, resp)
 	})
 }
+
+func TestV1betaInternalDeleteVolumeSnapshot(t *testing.T) {
+	params := gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "test-volume",
+	}
+	t.Run("ReturnsBadRequestOnInvalidLocation", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", &gcpgenserver.Error{
+				Code:    400,
+				Message: "Invalid location ID",
+			}
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		resp, err := handler.V1betaInternalDeleteVolumeSnapmirrorSnapshot(context.Background(), params)
+		assert.NoError(tt, err)
+		assert.IsType(tt, &gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest{}, resp)
+
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, float64(400), resp.(*gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest).Code)
+		assert.Equal(tt, "Invalid location ID", resp.(*gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest).Message)
+	})
+	t.Run("ReturnsNotFoundWhenSnapshotNotFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		mockOrchestrator.EXPECT().DeleteSnapmirrorSnapshots(mock.Anything, mock.Anything).Return("", errors.NewNotFoundErr("snapshot", nil))
+		resp, _ := handler.V1betaInternalDeleteVolumeSnapmirrorSnapshot(context.Background(), params)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, float64(404), resp.(*gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest).Code)
+	})
+	t.Run("ReturnsBadRequestOnUserInputValidationErr", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		mockOrchestrator.EXPECT().DeleteSnapmirrorSnapshots(mock.Anything, mock.Anything).Return("", errors.NewUserInputValidationErr("bad input"))
+		resp, _ := handler.V1betaInternalDeleteVolumeSnapmirrorSnapshot(context.Background(), params)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, float64(400), resp.(*gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest).Code)
+	})
+	t.Run("ReturnsConflictOnConflictErr", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		mockOrchestrator.EXPECT().DeleteSnapmirrorSnapshots(mock.Anything, mock.Anything).Return("", errors.NewConflictErr("conflict"))
+		resp, _ := handler.V1betaInternalDeleteVolumeSnapmirrorSnapshot(context.Background(), params)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, float64(409), resp.(*gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotConflict).Code)
+	})
+	t.Run("ReturnsInternalServerErrorOnOtherError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		mockOrchestrator.EXPECT().DeleteSnapmirrorSnapshots(mock.Anything, mock.Anything).Return("", errors.New("internal error"))
+		resp, _ := handler.V1betaInternalDeleteVolumeSnapmirrorSnapshot(context.Background(), params)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, float64(500), resp.(*gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotInternalServerError).Code)
+	})
+	t.Run("ReturnsInternalServerErrorOnOtherError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + "op-id"
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		mockOrchestrator.EXPECT().DeleteSnapmirrorSnapshots(mock.Anything, mock.Anything).Return("op-id", nil)
+		resp, err := handler.V1betaInternalDeleteVolumeSnapmirrorSnapshot(context.Background(), params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, operationID, resp.(*gcpgenserver.OperationV1beta).Name.Value)
+	})
+}

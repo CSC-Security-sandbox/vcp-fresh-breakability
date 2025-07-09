@@ -76,12 +76,14 @@ func TestSnapshotCollectionGetParamsToONTAP(t *testing.T) {
 			BaseParams:      BaseParams{Fields: []string{"field"}},
 			SnapmirrorLabel: nillable.ToPointer("lab"),
 			VolumeUUID:      "uuid",
+			Name:            nillable.ToPointer("snapmirror-snapshot"),
 		}
 
 		otParams := snapshotCollectionGetParamsToONTAP(params)
 		assert.Equal(tt, "field", otParams.Fields[0])
 		assert.Equal(tt, "uuid", otParams.VolumeUUID)
 		assert.Equal(tt, "lab", *otParams.SnapmirrorLabel)
+		assert.Equal(tt, "snapmirror-snapshot", *otParams.Name)
 	})
 }
 

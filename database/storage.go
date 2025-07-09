@@ -679,6 +679,10 @@ func (s *PersistenceStore) GetSnapshotsByVolumeID(ctx context.Context, volumeID 
 	return s.dataStore.GetSnapshotsByVolumeID(ctx, volumeID)
 }
 
+func (s *PersistenceStore) GetReplicationSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error) {
+	return s.dataStore.GetReplicationSnapshotsByVolumeID(ctx, volumeID)
+}
+
 func (s *PersistenceStore) GetSnapshotsByVolumeIDs(ctx context.Context, volumeIDs []int64) ([]*datamodel.Snapshot, error) {
 	return s.dataStore.GetSnapshotsByVolumeIDs(ctx, volumeIDs)
 }

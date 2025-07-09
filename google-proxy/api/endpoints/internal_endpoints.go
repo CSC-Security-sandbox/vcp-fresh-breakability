@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -121,6 +122,61 @@ func (h Handler) V1betaInternalDeleteVolumeReplication(ctx context.Context, para
 	}
 	ans := convertToInternalV1betaVolumeReplication(volumeReplication, job)
 	return ans, nil
+}
+
+// V1betaInternalDeleteVolumeSnapmirrorSnapshot handles the request to delete a ssnapshots with prefix snapmirror. from a spicific volume.
+func (h Handler) V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx context.Context, params gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotParams) (gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	volumeId := params.VolumeId
+	region, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest{
+			Code:    400,
+			Message: parsingErr.GetMessage(),
+		}, nil
+	}
+
+	deleteSnapshotParams := &commonparams.SnapshotsInternalDeleteParams{
+		SnapshotBaseParams: commonparams.SnapshotBaseParams{
+			VolumeID:    volumeId,
+			AccountName: params.ProjectNumber,
+		},
+		Location: region,
+	}
+
+	// Delete the snapmirror snapshots
+	operationID, err := h.Orchestrator.DeleteSnapmirrorSnapshots(ctx, deleteSnapshotParams)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest{
+				Code:    404,
+				Message: "Snapshot not found",
+			}, nil
+		} else if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		} else if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to delete snapshot", "error", err.Error())
+		return &gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotInternalServerError{
+			Code:    500,
+			Message: "Internal server error",
+		}, err
+	}
+
+	logger.Infof("Snapshots deleted in progress for volume %s in region %s", volumeId, region)
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
+		Response: nil,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
 }
 
 func convertToInternalV1betaVolumeReplication(volumeReplication *models.VolumeReplication, job *datamodel.Job) *gcpgenserver.VolumeReplicationInternalV1beta {

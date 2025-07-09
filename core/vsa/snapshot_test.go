@@ -3,7 +3,9 @@ package vsa
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
@@ -1524,4 +1526,118 @@ func TestDeleteSnapshot_SnapshotNotFound(t *testing.T) {
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
+}
+
+func TestListSnapmirrorSnapshots(t *testing.T) {
+	t.Run("ListSnapshotSuccess", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+		snap := &ontaprest.Snapshot{
+			Snapshot: models.Snapshot{
+				Name:             nillable.ToPointer("monthly.test"),
+				UUID:             nillable.ToPointer("snap uuid"),
+				CreateTime:       nillable.ToPointer(strfmt.DateTime(time.Now())),
+				ReclaimableSpace: nillable.ToPointer(int64(1)),
+				Size:             nillable.ToPointer(int64(2)),
+				LogicalSize:      nillable.ToPointer(int64(3)),
+			},
+		}
+		volumeUUID := "testVolumeUUID"
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				State: nillable.ToPointer("online"),
+			},
+		}
+		mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+
+		mockStorage.On("SnapshotCollectionGet", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+			callback := args.Get(1).(ontaprest.UserCallbackFunc[[]*ontaprest.Snapshot])
+			_ = callback([]*ontaprest.Snapshot{snap})
+		}).Return(nil)
+		res, err := rc.ListSnapmirrorSnapshots(volumeUUID)
+		assert.NoError(t, err)
+		assert.Len(t, res, 1)
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+	t.Run("ListSnapshotVolumeNotFound", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeUUID := "testVolumeUUID"
+
+		mockStorage.On("VolumeGet", mock.Anything).Return(nil, errors.NewNotFoundErr("Volume", nil))
+
+		_, err := rc.ListSnapmirrorSnapshots(volumeUUID)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Volume not found")
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("ListSnapshotVolumeNotOnline", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeUUID := "testVolumeUUID"
+
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				State: nillable.ToPointer("offline"),
+			},
+		}
+		mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+
+		_, err := rc.ListSnapmirrorSnapshots(volumeUUID)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Cannot delete snapshot because volume is not online")
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("ListSnapshotGetError", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeUUID := "testVolumeUUID"
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				State: nillable.ToPointer("online"),
+			},
+		}
+		mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+		mockStorage.On("SnapshotCollectionGet", mock.Anything, mock.Anything).Return(errors.New("get error"))
+
+		_, err := rc.ListSnapmirrorSnapshots(volumeUUID)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "get error")
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
 }

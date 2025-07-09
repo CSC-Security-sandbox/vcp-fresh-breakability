@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -680,6 +681,80 @@ func TestGetSnapshotsByVolumeIDs(t *testing.T) {
 		snapshots, err := store.GetSnapshotsByVolumeIDs(context.Background(), []int64{snapshot1.ID, snapshot2.ID, 3})
 		assert.NoError(tt, err)
 		assert.Len(tt, snapshots, 2)
+	})
+}
+
+func TestGetReplicationSnapshotsByVolumeID(t *testing.T) {
+	t.Run("WhenSnapshotsExistForVolume", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create a volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Create snapshots for the volume
+		snapshot1 := &datamodel.Snapshot{
+			Name:     "snap1",
+			VolumeID: volume.ID,
+			BaseModel: datamodel.BaseModel{
+				UUID: "snapmirror-snapshot-uuid5",
+				//	DeletedAt: nil,
+			},
+		}
+		snapshot2 := &datamodel.Snapshot{
+			Name:     "snapmirror.snap2",
+			VolumeID: volume.ID,
+			BaseModel: datamodel.BaseModel{
+				UUID: "snapmirror-snapshot-uuid",
+				DeletedAt: &gorm.DeletedAt{
+					Time: time.Now(),
+				},
+			},
+		}
+
+		_, err = store.CreatingSnapshot(context.Background(), snapshot1)
+		assert.NoError(tt, err, "Failed to create snapshot1")
+		_, err = store.CreatingSnapshot(context.Background(), snapshot2)
+		assert.NoError(tt, err, "Failed to create snapshot2")
+
+		// Get snapshots by volume ID
+		snapshots, err := store.GetReplicationSnapshotsByVolumeID(context.Background(), volume.ID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, snapshots, "Expected non-nil snapshots")
+		assert.Equal(tt, len(snapshots), 1)
+	})
+	t.Run("WhenNoSnapshotsExistForVolume", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create a volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Get snapshots by volume ID (should be none)
+		snapshots, err := store.GetReplicationSnapshotsByVolumeID(context.Background(), volume.ID)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, snapshots, "Expected non-nil snapshots slice")
+		assert.Equal(tt, 0, len(snapshots), "Expected 0 snapshots")
 	})
 }
 

@@ -317,6 +317,12 @@ type Handler interface {
 	//
 	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
 	V1betaInternalDeleteVolumeReplication(ctx context.Context, params V1betaInternalDeleteVolumeReplicationParams) (V1betaInternalDeleteVolumeReplicationRes, error)
+	// V1betaInternalDeleteVolumeSnapmirrorSnapshot implements v1beta_internalDeleteVolumeSnapmirrorSnapshot operation.
+	//
+	// Deletes the snapmirror snapshots in the specified volume.
+	//
+	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapmirrorSnapshots
+	V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx context.Context, params V1betaInternalDeleteVolumeSnapmirrorSnapshotParams) (V1betaInternalDeleteVolumeSnapmirrorSnapshotRes, error)
 	// V1betaInternalDescribePool implements v1beta_internalDescribePool operation.
 	//
 	// Returns the description of the specified volume replication by volume replication Id.

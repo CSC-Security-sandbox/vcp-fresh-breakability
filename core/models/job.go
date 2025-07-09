@@ -50,6 +50,7 @@ const (
 	JobTypeStartProjectEventOnState         JobType = "START_PROJECT_EVENT_ON_STATE"
 	JobTypeReleaseVolumeReplicationInternal JobType = "RELEASE_VOLUME_REPLICATION_INTERNAL"
 	JobTypeUpdateBackupVault                JobType = "UPDATE_BACKUP_VAULT"
+	JobTypeDeleteSnapmirrorSnapshotsInternal JobType = "DELETE_SM_SNAPSHOTS_INTERNAL"
 )
 
 // Job describes a job DB model

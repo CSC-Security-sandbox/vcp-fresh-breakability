@@ -412,3 +412,18 @@ type CreateHostGroupParams struct {
 	OSType        string
 	AccountName   string
 }
+
+type SnapshotsInternalDeleteParams struct {
+	SnapshotBaseParams
+	Location           string
+	Volume             *datamodel.Volume
+	Nodes              []*datamodel.Node
+	SnapshotsFromDB    []*datamodel.Snapshot
+	SnapshotsFromOntap []*SnapshotListResponse
+}
+
+type SnapshotListResponse struct {
+	Name               string
+	ExternalUUID       string
+	VolumeExternalUUID string
+}

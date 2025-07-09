@@ -343,6 +343,11 @@ type SnapshotProviderResponse struct {
 	LogicalSizeInBytes int64
 }
 
+type SnapshotListResponse struct {
+	ProviderResponse
+	VolumeExternalUUID string
+}
+
 type LunResponse struct {
 	ProviderResponse
 	SerialNumber string

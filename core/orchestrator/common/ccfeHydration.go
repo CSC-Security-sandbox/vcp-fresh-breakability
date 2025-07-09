@@ -236,6 +236,7 @@ func _hydrateReplicationStateAndType(ctx context.Context, logger log.Logger, reg
 	err := hydrateToCffe(ctx, logger, request, url, http.MethodPatch, token)
 	return err
 }
+
 func _hydrateReplicationDelete(ctx context.Context, logger log.Logger, replicationResourceId string, volumeResourceID string, region string, projectId string, token string) error {
 	nameArray := make([]string, 1)
 	nameArray[0] = "replications/" + replicationResourceId

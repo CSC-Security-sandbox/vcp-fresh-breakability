@@ -1667,6 +1667,7 @@ func TestOperationV1beta_Examples(t *testing.T) {
 		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\"}}"},
 		{Input: "{\"application/json\":{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000\",\"response\":{\"DNS\":\"101.102.103.104\",\"activeDirectoryId\":\"9fbf76ef-9964-07d1-5f57-0e8f867e0367\",\"activeDirectoryState\":\"READY\",\"activeDirectoryStateDetails\":\"Credentials saved and available for use\",\"administrators\":[\"batman\",\"clarkkent\"],\"aesEncryption\":false,\"allowLocalNFSUsersWithLdap\":false,\"backupOperators\":[\"batman\",\"clarkkent\"],\"createdAt\":\"2024-01-26T16:08:38.841Z\",\"description\":\"My active directory description\",\"domain\":\"krypton.com\",\"encryptDCConnections\":false,\"kdcHostname\":\"2BOVAEKB44B\",\"kdcIP\":\"101.102.103.104\",\"ldapSigning\":false,\"netBIOS\":\"cvserver\",\"organizationalUnit\":\"CN=Computers\",\"password\":\"******************\",\"resourceId\":\"my-active-directory\",\"securityOperators\":[\"batman\"],\"site\":\"Default-First-Site-Name\",\"updatedAt\":\"2024-01-26T16:08:38.841Z\",\"username\":\"superman\"}}}"},
 		{Input: "{\"application/json\":{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000\"}}"},
+		{Input: "{\"application/json\":{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1\"}}"},
 		{Input: "{\"created\":\"2024-01-24T13:54:14.374Z\",\"description\":\"HostGroup for storage access\",\"done\":true,\"hostGroupId\":\"123e4567-e89b-12d3-a456-426614174000\",\"hosts\":[\"iqn.1998-01.com.vmware:example1\"],\"name\":\"/v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000\",\"osType\":\"LINUX\",\"resourceId\":\"my-host-group\",\"response\":null,\"state\":\"READY\",\"stateDetails\":\"available for use\",\"type\":\"ISCSI_INITIATOR\"}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"ResourceType\":\"Volume\",\"jobs\":[\"ba2c8826-2627-057c-42ba-343ee7ab1ebe\"],\"resourceId\":\"281ea02b-d22d-8115-4d96-f943038ac2a1\"}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"backupConfig\":{\"backupPolicyId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"backupVaultId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"scheduledBackupEnabled\":true},\"created\":\"2024-01-24T11:03:07.254Z\",\"creationToken\":\"some-volume\",\"encryptionType\":\"SERVICE_MANAGED\",\"exportPolicy\":{\"rules\":[]},\"inReplication\":false,\"isDataProtection\":false,\"kerberosEnabled\":false,\"largeCapacity\":false,\"ldapEnabled\":false,\"mountPoints\":[],\"multipleEndpoints\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"poolId\":\"a20730de-511f-273c-4071-ac1a30478609\",\"poolResourceId\":\"projects/123456789/locations/some-location1/pools/some-pool\",\"protocols\":[\"NFSV3\"],\"quotaInBytes\":4000000000000,\"resourceId\":\"some-volume\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"PREMIUM\",\"smbSettings\":[],\"snapReserve\":0,\"snapshotDirectory\":true,\"storageClass\":\"SOFTWARE\",\"tieringPolicy\":{\"coolingThresholdDays\":24,\"tierAction\":\"ENABLED\"},\"unixPermissions\":\"0770\",\"usedBytes\":1409024,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeState\":\"CREATING\",\"volumeStateDetails\":\"Creation in progress\"}}"},
@@ -7695,6 +7696,102 @@ func TestV1betaInternalDeleteVolumeReplicationUnprocessableEntity_EncodeDecode(t
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaInternalDeleteVolumeReplicationUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalDeleteVolumeSnapmirrorSnapshotConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalDeleteVolumeSnapmirrorSnapshotConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalDeleteVolumeSnapmirrorSnapshotConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalDeleteVolumeSnapmirrorSnapshotForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalDeleteVolumeSnapmirrorSnapshotForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalDeleteVolumeSnapmirrorSnapshotForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalDeleteVolumeSnapmirrorSnapshotInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalDeleteVolumeSnapmirrorSnapshotInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalDeleteVolumeSnapmirrorSnapshotInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalDeleteVolumeSnapmirrorSnapshotNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalDeleteVolumeSnapmirrorSnapshotNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalDeleteVolumeSnapmirrorSnapshotNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalDeleteVolumeSnapmirrorSnapshotTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalDeleteVolumeSnapmirrorSnapshotTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalDeleteVolumeSnapmirrorSnapshotTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalDeleteVolumeSnapmirrorSnapshotUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalDeleteVolumeSnapmirrorSnapshotUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalDeleteVolumeSnapmirrorSnapshotUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaInternalDescribePoolBadRequest_EncodeDecode(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/go-openapi/swag"
 	ontaprestmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
@@ -129,7 +130,7 @@ func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID stri
 		}
 
 		if *volume.State != "online" {
-			return errors.NewUnavailableErr("Cannot delete snapshot because volume is not online")
+			return errors.NewConflictErr("Cannot delete snapshot because volume is not online")
 		}
 		rc.Logger.With(log.Fields{
 			"snapshotUUID":       snapshotUUID,
@@ -172,6 +173,53 @@ func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID stri
 	}
 
 	return nil
+}
+
+// ListSnapmirrorSnapshots gets the snapmirror snapshots with prefix "snapmirror*" for the specified volume
+func (rc *OntapRestProvider) ListSnapmirrorSnapshots(volumeUUID string) ([]*SnapshotListResponse, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	var volume *ontapRest.Volume
+	volume, err = client.Storage().VolumeGet(&ontapRest.VolumeGetParams{
+		BaseParams: ontapRest.BaseParams{Fields: []string{"state"}},
+		UUID:       volumeUUID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if *volume.State != "online" {
+		return nil, errors.NewConflictErr("Cannot delete snapshot because volume is not online")
+	}
+
+	fields := []string{"name", "uuid", "create_time", "volume.uuid"}
+	snapshotCollection := make([]*SnapshotListResponse, 0)
+
+	otParams := &ontapRest.SnapshotCollectionGetParams{
+		BaseParams: ontapRest.BaseParams{Fields: fields},
+		VolumeUUID: volumeUUID,
+		Name:       swag.String("snapmirror*"),
+	}
+
+	err = client.Storage().SnapshotCollectionGet(otParams, func(snapshots []*ontapRest.Snapshot) error {
+		for _, snapshot := range snapshots {
+			ss := &SnapshotListResponse{
+				ProviderResponse: ProviderResponse{
+					Name:         nillable.FromPointer(snapshot.Name),
+					ExternalUUID: nillable.FromPointer(snapshot.UUID),
+				},
+				VolumeExternalUUID: nillable.FromPointer(volume.UUID),
+			}
+			snapshotCollection = append(snapshotCollection, ss)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return snapshotCollection, nil
 }
 
 func (rc *OntapRestProvider) GetSnapshots(volumeUUID string) ([]*Snapshot, error) {

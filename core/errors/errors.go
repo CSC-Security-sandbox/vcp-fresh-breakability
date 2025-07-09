@@ -135,6 +135,7 @@ const (
 	ErrSDEKmsDeleteJobFailed                                         = 6059
 	ErrCVPClientStartProjectEventError                               = 6060
 	ErrInvalidOperationName                                          = 6061
+	ErrDeHydrateSnapshots                                            = 6062
 )
 
 type Error interface {
