@@ -272,7 +272,7 @@ func _syncNewSnapshotsToDatabase(ctx context.Context, newSnapshots []string, new
 			}
 
 			dbSnapshot.State = models.LifeCycleStateREADY
-			dbSnapshot.StateDetails = models.LifeCycleStateReadyDetails
+			dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
 			_, err = se.UpdateSnapshot(ctx, dbSnapshot)
 			createdSnapshots = append(createdSnapshots, dbSnapshot)
 			if err != nil {

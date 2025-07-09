@@ -1,6 +1,7 @@
 package vsa
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,8 +16,8 @@ func TestNewProvider(t *testing.T) {
 			Password:           "password",
 			InsecureSkipVerify: true,
 		}
-
-		result := NewProvider(providerDetails)
+		ctx := context.Background()
+		result := NewProvider(ctx, providerDetails)
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, providerDetails, result.Provider)

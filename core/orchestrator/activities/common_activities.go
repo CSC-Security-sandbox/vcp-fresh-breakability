@@ -112,7 +112,7 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 		node.EndpointAddresses = []string{node.EndpointAddress}
 	}
 
-	return vsa.NewProvider(vsa.ProviderDetails{
+	return vsa.NewProvider(ctx, vsa.ProviderDetails{
 		IPAddresses: node.EndpointAddresses,
 		UserName:    node.Username,
 		Password:    password,

@@ -7,6 +7,7 @@ import (
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 const (
@@ -88,7 +89,8 @@ type OntapRestProvider struct {
 	Logger             *log.Slogger               `json:"-"`
 }
 
-func NewProvider(provider ProviderDetails) *OntapRestProvider {
+func NewProvider(ctx context.Context, provider ProviderDetails) *OntapRestProvider {
+	logger := util.GetLogger(ctx)
 	return &OntapRestProvider{
 		Provider: provider,
 		ClientParams: ontapRest.RESTClientParams{
@@ -97,8 +99,8 @@ func NewProvider(provider ProviderDetails) *OntapRestProvider {
 			Username:           provider.UserName,
 			Password:           log.Secret(provider.Password),
 			InsecureSkipVerify: provider.InsecureSkipVerify,
-			Trace:              log.NewLogger().(*log.Slogger),
+			Trace:              logger.(*log.Slogger),
 		},
-		Logger: log.NewLogger().(*log.Slogger),
+		Logger: logger.(*log.Slogger),
 	}
 }
