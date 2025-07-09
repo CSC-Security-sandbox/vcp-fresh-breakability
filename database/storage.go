@@ -869,3 +869,7 @@ func (s *PersistenceStore) CreateBackupPolicyEntryInVCP(ctx context.Context, bac
 func (s *PersistenceStore) GetBackupByNameAndBackupVaultID(ctx context.Context, backupName string, backupVaultID int64) (*datamodel.Backup, error) {
 	return s.dataStore.GetBackupByNameAndBackupVaultID(ctx, backupName, backupVaultID)
 }
+
+func (s *PersistenceStore) GetMultipleBackupVaults(ctx context.Context, conditions [][]interface{}) ([]*datamodel.BackupVault, error) {
+	return s.dataStore.GetMultipleBackupVaults(ctx, conditions)
+}

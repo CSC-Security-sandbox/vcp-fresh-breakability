@@ -522,3 +522,81 @@ func TestCreateBackupVault(t *testing.T) {
 		assert.Nil(t, bv, "Expected backup vault to be nil")
 	})
 }
+
+func TestGetMultipleBackupVaultsReturnsVaultsForValidUUIDs(tt *testing.T) {
+	mockLogger := log.NewLogger()
+	mockStorage := new(database.MockStorage)
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+
+	backupVaultUUIDList := []string{"uuid1", "uuid2"}
+	backupVaults := []*datamodel.BackupVault{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "uuid1"},
+			Name:      "vault1",
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "owner-uuid"},
+			},
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: nil,
+				IsDailyBackupImmutable:                 false,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+				IsAdhocBackupImmutable:                 false,
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "uuid2"},
+			Name:      "vault2",
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "owner-uuid"},
+			},
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: nil,
+				IsDailyBackupImmutable:                 false,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+				IsAdhocBackupImmutable:                 false,
+			},
+		},
+	}
+	mockStorage.On("GetMultipleBackupVaults", ctx, [][]interface{}{{"uuid in ?", backupVaultUUIDList}}).Return(backupVaults, nil)
+
+	o := &Orchestrator{storage: mockStorage}
+	result, err := o.GetMultipleBackupVaults(ctx, backupVaultUUIDList)
+
+	assert.NoError(tt, err)
+	assert.Len(tt, result, 2)
+	assert.Equal(tt, "uuid1", result[0].BackupVaultID)
+	assert.Equal(tt, "uuid2", result[1].BackupVaultID)
+}
+
+func TestGetMultipleBackupVaultsReturnsEmptyListForNoMatchingUUIDs(tt *testing.T) {
+	mockLogger := log.NewLogger()
+	mockStorage := new(database.MockStorage)
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+
+	backupVaultUUIDList := []string{"non-existent-uuid"}
+	mockStorage.On("GetMultipleBackupVaults", ctx, [][]interface{}{{"uuid in ?", backupVaultUUIDList}}).Return([]*datamodel.BackupVault{}, nil)
+
+	o := &Orchestrator{storage: mockStorage}
+	result, err := o.GetMultipleBackupVaults(ctx, backupVaultUUIDList)
+
+	assert.NoError(tt, err)
+	assert.Empty(tt, result)
+}
+
+func TestGetMultipleBackupVaultsReturnsErrorWhenStorageFails(tt *testing.T) {
+	mockLogger := log.NewLogger()
+	mockStorage := new(database.MockStorage)
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+
+	backupVaultUUIDList := []string{"uuid1", "uuid2"}
+	mockStorage.On("GetMultipleBackupVaults", ctx, [][]interface{}{{"uuid in ?", backupVaultUUIDList}}).Return(nil, errors.New("database error"))
+
+	o := &Orchestrator{storage: mockStorage}
+	result, err := o.GetMultipleBackupVaults(ctx, backupVaultUUIDList)
+
+	assert.Error(tt, err)
+	assert.Nil(tt, result)
+	assert.Equal(tt, "database error", err.Error())
+}

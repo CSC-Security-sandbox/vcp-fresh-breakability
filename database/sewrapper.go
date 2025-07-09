@@ -2091,6 +2091,26 @@ func (re *retryEngine) UpdateBackupVaultInVCP(ctx context.Context, vault *datamo
 	return var0, err
 }
 
+func (re *retryEngine) GetMultipleBackupVaults(ctx context.Context, conditions [][]interface{}) ([]*datamodel.BackupVault, error) {
+	var var0 []*datamodel.BackupVault
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetMultipleBackupVaults(ctx, conditions)
+		if err != nil {
+			re.logError("GetMultipleBackupVaults", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, backupPolicyUUID string, accountID int64) (*datamodel.BackupPolicy, error) {
 	var var0 *datamodel.BackupPolicy
 	err := retry.Do(func(attempt int) (bool, error) {

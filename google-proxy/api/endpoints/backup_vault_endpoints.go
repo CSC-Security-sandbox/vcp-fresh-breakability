@@ -434,7 +434,15 @@ func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgens
 	bvResponse := gcpgenserver.V1betaGetMultipleBackupVaultsOK{
 		BackupVaults: []gcpgenserver.BackupVaultV1beta{},
 	}
-	for _, bv := range cvpResponse.Payload.BackupVaults {
+	vaultsDataModel, err := h.Orchestrator.GetMultipleBackupVaults(ctx, req.BackupVaultUuids)
+	if err != nil {
+		return &gcpgenserver.V1betaGetMultipleBackupVaultsInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+	res := updateBackupVaultStateDetails(vaultsDataModel, cvpResponse.Payload.BackupVaults)
+	for _, bv := range res {
 		bvResponse.BackupVaults = append(bvResponse.BackupVaults, convertBackupVaultV1Beta(bv))
 	}
 	return &bvResponse, nil
@@ -475,15 +483,23 @@ func (h Handler) V1betaListBackupVaults(ctx context.Context, params gcpgenserver
 }
 
 func updateBackupVaultStateDetails(bvs []*coremodels.BackupVaultV1beta, cvpBvs []*models.BackupVaultV1beta) []*models.BackupVaultV1beta {
-	for _, bv := range bvs {
-		for _, cvpBv := range cvpBvs {
-			if bv.Name == *cvpBv.ResourceID {
-				cvpBv.State = bv.LifeCycleState
-				cvpBv.StateDetails = bv.LifeCycleStateDetails
-				break
-			}
+	// Create a map for quick lookup of cvpBvs by ResourceID
+	cvpBvMap := make(map[string]*models.BackupVaultV1beta)
+	for _, cvpBv := range cvpBvs {
+		if cvpBv.ResourceID != nil {
+			cvpBvMap[*cvpBv.ResourceID] = cvpBv
 		}
 	}
+
+	// Update cvpBvs using the map
+	for _, bv := range bvs {
+		if cvpBv, exists := cvpBvMap[bv.Name]; exists {
+			cvpBv.State = bv.LifeCycleState
+			cvpBv.StateDetails = bv.LifeCycleStateDetails
+		}
+	}
+
+	// Return the updated slice
 	return cvpBvs
 }
 

@@ -1154,3 +1154,50 @@ func TestCreateBackupPolicyEntryInVCP(t *testing.T) {
 	assert.NotNil(t, created)
 	assert.Equal(t, "vcp-policy", created.Name)
 }
+
+func TestGetMultipleBackupVaultsReturnsMatchingVaults(tt *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	account := &datamodel.Account{Name: "test-account"}
+	createdAccount, err := store.CreateAccount(ctx, account)
+	assert.NoError(tt, err)
+
+	backupVault := &datamodel.BackupVault{Name: "test-vault", AccountID: createdAccount.ID}
+	createdVault, err := store.CreatingBackupVault(ctx, backupVault)
+	assert.NoError(tt, err)
+
+	conditions := [][]interface{}{{"account_id = ?", createdAccount.ID}}
+	result, err := store.GetMultipleBackupVaults(ctx, conditions)
+	assert.NoError(tt, err)
+	assert.Len(tt, result, 1)
+	assert.Equal(tt, createdVault.UUID, result[0].UUID)
+}
+
+func TestGetMultipleBackupVaultsReturnsEmptyWhenNoMatch(tt *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	conditions := [][]interface{}{{"account_id = ?", 999}}
+	result, err := store.GetMultipleBackupVaults(ctx, conditions)
+	assert.NoError(tt, err)
+	assert.Empty(tt, result)
+}
+
+func TestGetMultipleBackupVaultsReturnsErrorOnDatabaseFailure(tt *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	sqlDB, _ := store.DB().DB()
+	_ = sqlDB.Close()
+
+	conditions := [][]interface{}{{"account_id = ?", 123}}
+	_, err := store.GetMultipleBackupVaults(ctx, conditions)
+	assert.Error(tt, err)
+}

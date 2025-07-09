@@ -198,3 +198,21 @@ func _convertDatastoreBackupVaultToModel(bv *datamodel.BackupVault) *models.Back
 		CrossRegionBackupVaultName: bv.CrossRegionBackupVaultName,
 	}
 }
+
+// GetMultipleBackupVaults gets BackupVault records for the UUIDs provided
+func (o *Orchestrator) GetMultipleBackupVaults(ctx context.Context, backupVaultUUIDList []string) ([]*models.BackupVaultV1beta, error) {
+	se := o.storage
+
+	conditions := [][]interface{}{{"uuid in ?", backupVaultUUIDList}}
+	backupVaultList, err := se.GetMultipleBackupVaults(ctx, conditions)
+	if err != nil {
+		return nil, err
+	}
+	var backupVaultModelList []*models.BackupVaultV1beta
+	for _, backupVault := range backupVaultList {
+		backupVaultModel := convertDatastoreBackupVaultToModel(backupVault)
+		backupVaultModelList = append(backupVaultModelList, backupVaultModel)
+	}
+
+	return backupVaultModelList, nil
+}

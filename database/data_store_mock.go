@@ -3521,6 +3521,65 @@ func (_c *MockDataStore_GetLifForNode_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
+// GetMultipleBackupVaults provides a mock function with given fields: ctx, conditions
+func (_m *MockDataStore) GetMultipleBackupVaults(ctx context.Context, conditions [][]interface{}) ([]*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, conditions)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMultipleBackupVaults")
+	}
+
+	var r0 []*datamodel.BackupVault
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) ([]*datamodel.BackupVault, error)); ok {
+		return rf(ctx, conditions)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) []*datamodel.BackupVault); ok {
+		r0 = rf(ctx, conditions)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.BackupVault)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}) error); ok {
+		r1 = rf(ctx, conditions)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetMultipleBackupVaults_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMultipleBackupVaults'
+type MockDataStore_GetMultipleBackupVaults_Call struct {
+	*mock.Call
+}
+
+// GetMultipleBackupVaults is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+func (_e *MockDataStore_Expecter) GetMultipleBackupVaults(ctx interface{}, conditions interface{}) *MockDataStore_GetMultipleBackupVaults_Call {
+	return &MockDataStore_GetMultipleBackupVaults_Call{Call: _e.mock.On("GetMultipleBackupVaults", ctx, conditions)}
+}
+
+func (_c *MockDataStore_GetMultipleBackupVaults_Call) Run(run func(ctx context.Context, conditions [][]interface{})) *MockDataStore_GetMultipleBackupVaults_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetMultipleBackupVaults_Call) Return(_a0 []*datamodel.BackupVault, _a1 error) *MockDataStore_GetMultipleBackupVaults_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetMultipleBackupVaults_Call) RunAndReturn(run func(context.Context, [][]interface{}) ([]*datamodel.BackupVault, error)) *MockDataStore_GetMultipleBackupVaults_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetMultipleHostGroups provides a mock function with given fields: ctx, ids, accountID
 func (_m *MockDataStore) GetMultipleHostGroups(ctx context.Context, ids []string, accountID int64) ([]*datamodel.HostGroup, error) {
 	ret := _m.Called(ctx, ids, accountID)

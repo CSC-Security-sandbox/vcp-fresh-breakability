@@ -233,3 +233,17 @@ func (d *DataStoreRepository) CreatingBackupVault(ctx context.Context, bv *datam
 	}
 	return nil, customerrors.NewConflictErr("backup vault already exists")
 }
+
+// GetMultipleBackupVaults retrieves multiple BackupVaults based on the provided conditions
+func (d *DataStoreRepository) GetMultipleBackupVaults(ctx context.Context, conditions [][]interface{}) ([]*datamodel.BackupVault, error) {
+	return getMultipleBackupVaults(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
+}
+
+func getMultipleBackupVaults(db *gorm.DB) ([]*datamodel.BackupVault, error) {
+	var backupVaults []*datamodel.BackupVault
+	err := db.Preload("Account").Find(&backupVaults).Error
+	if err != nil {
+		return nil, err
+	}
+	return backupVaults, nil
+}

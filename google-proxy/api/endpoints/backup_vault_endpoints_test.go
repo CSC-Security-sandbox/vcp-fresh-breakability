@@ -778,6 +778,7 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 	t.Run("WhenGetMultipleBackupVaultsSuccess", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
@@ -810,6 +811,8 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 			},
 		}
 
+		mockOrchestrator.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(
+			nil, nil)
 		// Set up the mock client behavior
 		mockClient.EXPECT().
 			V1betaGetMultipleBackupVaults(mock.Anything).
@@ -820,7 +823,7 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaGetMultipleBackupVaults(context.Background(), req, params)
 
@@ -829,6 +832,62 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.Equal(t, "bvid-1", result.(*gcpgenserver.V1betaGetMultipleBackupVaultsOK).BackupVaults[0].BackupVaultId.Value)
 		assert.Equal(t, 1, len(result.(*gcpgenserver.V1betaGetMultipleBackupVaultsOK).BackupVaults))
+	})
+	t.Run("WhenGetMultipleBackupVaultsReturnErrorsVCP", func(t *testing.T) {
+		// Create a mock client
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+		// Define input parameters
+		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		// Define request
+		req := &gcpgenserver.BackupVaultUuidListV1beta{
+			BackupVaultUuids: []string{"bvid-1"},
+		}
+
+		bvs := make([]*models.BackupVaultV1beta, 0)
+
+		bvs = append(bvs, &models.BackupVaultV1beta{
+			ResourceID:             nillable.GetStringPtr("bv-1"),
+			BackupRegion:           nillable.GetStringPtr("br-1"),
+			SourceRegion:           nillable.GetStringPtr("sr-1"),
+			BackupVaultID:          "bvid-1",
+			BackupVaultType:        nillable.GetStringPtr("bvtype-1"),
+			Description:            nillable.GetStringPtr("test description"),
+			SourceBackupVault:      nillable.GetStringPtr("sbv-1"),
+			DestinationBackupVault: nillable.GetStringPtr("dbv-1"),
+		})
+
+		// Define mock response
+		mockResponse := &backup_vault.V1betaGetMultipleBackupVaultsOK{
+			Payload: &backup_vault.V1betaGetMultipleBackupVaultsOKBody{
+				BackupVaults: bvs,
+			},
+		}
+
+		mockOrchestrator.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(
+			nil, errors2.New("VCP error"))
+		// Set up the mock client behavior
+		mockClient.EXPECT().
+			V1betaGetMultipleBackupVaults(mock.Anything).
+			Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{Orchestrator: mockOrchestrator}
+		// Call the method under test
+		result, err := handler.V1betaGetMultipleBackupVaults(context.Background(), req, params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
 	})
 
 	t.Run("WhenGetMultipleBackupVaultsFailsWithBadRequest", func(t *testing.T) {
