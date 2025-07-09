@@ -1,0 +1,123 @@
+global:
+  primaryImageRegistry: ghcr.io
+  primaryImageRegistryPath: vcp-vsa-control-plane
+  primaryImageRegistryPasswordAuth: true
+  primaryImagePullSecretName: ghcr.io
+  secondaryImageRegistry: "europe-north1-docker.pkg.dev/gcnv-artifact-registry-nonprod"
+  secondaryImageRegistryPath: "vcp-container-images-us"
+  secondaryImageRegistryPasswordAuth: false
+  imageDigestTags: false
+  namespace: "vcp"
+
+configMap:
+  create: true
+
+images:
+  pm2:
+    name: ghcr.io/vcp-vsa-control-plane/harvest-multi
+    tag: 25.06.18-1
+    digest: ""
+    secondary: true
+    pullPolicy: IfNotPresent
+  otel:
+    name: otel/opentelemetry-collector-contrib
+    tag: 0.0.0
+    digest: ""
+    secondary: true
+    pullPolicy: IfNotPresent
+
+otel:
+  image: oss/otel/opentelemetry-collector-contrib
+  project: "netapp-au-se1-autopush-sde-tst"
+  command:
+    name: otelcol-contrib
+    extraArgs: []
+  presets:
+    logsCollection:
+      enabled: false
+      includeCollectorLogs: false
+      storeCheckpoints: false
+
+    hostMetrics:
+      enabled: false
+
+    kubernetesAttributes:
+      enabled: false
+
+    kubernetesEvents:
+      enabled: false
+
+    clusterMetrics:
+      enabled: false
+
+    kubeletMetrics:
+      enabled: false
+  secondImageRegistry: ""
+  secondImageRegistryPath: ""
+  secondImageRegistryPasswordAuth: false
+
+containers:
+  harvest: "harvest-pm2"
+  otel: "otel-collector"
+
+replicaCount: 2
+
+mode: deployment
+
+extraEnvs: []
+
+lifecycleHooks: {}
+
+nameOverride: ""
+
+fullnameOverride: ""
+
+chartImageRegistry: ""
+chartSecondImageRegistry: ""
+
+imagePullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations:
+    iam.gke.io/gcp-service-account: otel-collector-sa@netapp-us-c1-autopush-sde-tst.iam.gserviceaccount.com
+  name: "gcnv-harvest-sa"
+
+ports:
+  otlp:
+    enabled: true
+    containerPort: 4317
+    servicePort: 4317
+    hostPort: 4317
+    protocol: TCP
+  otlp-http:
+    enabled: true
+    containerPort: 4318
+    servicePort: 4318
+    hostPort: 4318
+    protocol: TCP
+  otlp-lb:
+    enabled: true
+    containerPort: 55681
+    servicePort: 55681
+    hostPort: 55681
+    protocol: TCP
+  metrics:
+    enabled: true
+    containerPort: 8888
+    servicePort: 8888
+    protocol: TCP
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 1024Mi
+  limits:
+    cpu: 250m
+    memory: 1024Mi
+
+service:
+  type: ClusterIP
+  port: 12990
+  protocol: TCP

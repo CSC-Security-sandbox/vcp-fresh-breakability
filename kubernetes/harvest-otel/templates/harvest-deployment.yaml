@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: {{ $.Values.global.namespace }}
+  name: {{ include "harvest.name" . }}
+spec:
+  replicas: {{ $.Values.replicaCount }}
+  selector:
+    matchLabels: {{ include "harvest.kubernetes.labels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations: {{ include "harvest.kubernetes.annotations" $ | nindent 8 }}
+      labels: {{ include "harvest.kubernetes.labels" $ | nindent 8 }}
+    spec:
+      serviceAccountName: {{ $.Values.serviceAccount.name }}
+      tolerations:
+        - effect: NoExecute
+          key: utils
+          operator: Equal
+          value: "true"
+      containers:
+        - name: {{ $.Values.containers.harvest }}
+          {{- if .Values.images.pm2.secondary }}
+          image: "{{- include "containerImage" (list . (dict "name" "pm2" "secondary" true)) | trim -}}"
+          {{- else }}
+          image: "{{- include "containerImage" (list . (dict "name" "pm2" "secondary" false)) | trim -}}"
+          {{- end }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          resources:
+            requests:
+              cpu: {{ $.Values.resources.requests.cpu }}
+              memory: {{ $.Values.resources.requests.memory }}
+            limits:
+              cpu: {{ $.Values.resources.limits.cpu }}
+              memory: {{ $.Values.resources.limits.memory }}
+          ports:
+          - name: http
+            containerPort: {{ $.Values.service.port }}
+          volumeMounts:
+          - mountPath:  "/configs/harvest"
+            name: harvest-data
+
+        - name: {{ $.Values.containers.otel }}
+          {{- if .Values.images.otel.secondary }}
+          image: "{{- include "containerImage" (list . (dict "name" "otel" "secondary" true)) | trim -}}"
+          {{- else }}
+          image: "{{- include "containerImage" (list . (dict "name" "otel" "secondary" false)) | trim -}}"
+          {{- end }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          command:
+            - /{{ .Values.otel.command.name }}
+                 {{- if .Values.configMap.create }}
+            - --config=/conf/relay.yaml
+                 {{- end }}
+                 {{- range .Values.otel.command.extraArgs }}
+              - {{ . }}
+                 {{- end }}
+          ports:
+            {{- range $key, $port := .Values.ports }}
+            {{- if $port.enabled }}
+            - name: {{ $key }}
+              containerPort: {{ $port.containerPort }}
+              protocol: {{ $port.protocol }}
+              hostPort: {{ $port.hostPort }}
+              {{- end }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 13133
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            {{- if .Values.configMap.create }}
+            - mountPath: /conf/relay.yaml
+              subPath: relay.yaml
+              name: otel-configmap
+            {{- end }}
+      volumes:
+        - name: harvest-data
+          persistentVolumeClaim:
+            claimName: harvest-pvc
+        {{- if .Values.configMap.create }}
+        - name: otel-configmap
+          configMap:
+            name: {{ include "ontap-opentelemetry-collector.fullname" . }}
+            items:
+              - key: relay
+                path: relay.yaml
+        {{- end }}
