@@ -5,7 +5,7 @@ package vmrs
 import (
 	"math"
 
-	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 )
 
 type VMSelectionStrategy string
@@ -129,7 +129,7 @@ type Decision struct {
 type DecisionMaker interface {
 	// FindOptimalVMs takes the VMRS configuration and customer requested performance.
 	// It returns the list of VM identifiers that together satisfy the customer request performance thresholds, while optimizing for some cost function. The cost function that is optimized for depends on the implementation.
-	FindOptimalVMs(config *VMRSConfig, customerRequest CustomerRequestedPerformance, currentConfig *vlmconfig.VLMConfig) (*Decision, error)
+	FindOptimalVMs(config *VMRSConfig, customerRequest CustomerRequestedPerformance, currentConfig *vlm.VLMConfig) (*Decision, error)
 }
 
 // A DecisionMakerFactory is responsible for creating instances of DecisionMaker based on the provided VMRSConfig.

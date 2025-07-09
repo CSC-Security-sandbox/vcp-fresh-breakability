@@ -70,8 +70,10 @@ packages:
     config:
       dir: "{{.InterfaceDir}}"
       inpackage: True
+      replace-type:
+        - "go.temporal.io/sdk/internal=go.temporal.io/sdk/workflow"
     interfaces:
-      ClientFactory:
+      VlmWorkflowClient:
   github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine:
     config:
       inpackage: True

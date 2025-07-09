@@ -11,6 +11,10 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"go.temporal.io/sdk/activity"
+	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/servicenetworking/v1"
+	"gorm.io/gorm"
 	"os"
 	"strconv"
 	"strings"
@@ -34,10 +38,6 @@ import (
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"go.temporal.io/sdk/activity"
-	"google.golang.org/api/iam/v1"
-	"google.golang.org/api/servicenetworking/v1"
-	"gorm.io/gorm"
 	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
 
@@ -45,6 +45,7 @@ var (
 	FindTenancyAndGetSubnetwork               = _findTenancyAndGetSubnetwork
 	DeploymentsInsert                         = common.DeploymentsInsert
 	PrepareVlmConfig                          = _prepareVlmConfig
+	PrepareVlmConfigForVLMClient              = _prepareVlmConfigForVLMClient
 	ReadFile                                  = os.ReadFile
 	GetVLMClient                              = _getVLMClient
 	SaveNodeDetails                           = _saveNodeDetails
@@ -74,8 +75,13 @@ var (
 	LoadVMRSConfig                            = vmrs_config.LoadConfig
 	CreateDecisionMaker                       = vmrs_decision.NewDecisionMaker
 	vlmConfigFilePath                         = env.GetString("VLM_CONFIG_FILE_PATH", "common/vsa_config/vlm-config.json")
+	ValidateVlmConfigInputs                   = _validateVlmConfigInputs
 	CreateSubnetwork                          = _createSubnetwork
 	ReleaseSubnet                             = _releaseSubnet
+
+	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
+	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
+	enforceMinSPConfig = env.GetBool("ENFORCE_MIN_SP_CONFIG", false)
 )
 
 type PoolActivity struct {
@@ -96,13 +102,26 @@ const (
 	digitalSignature  = 0x80 // 10000000 in binary (bit 0)
 	keyEncipherment   = 0x20
 	keyManagerBootarg = "bootarg.keymanager.ekmip.svm_context=false"
+
+	mgmtVpcName      = "mgmt-vpc"
+	mgmtSubnetName   = "mgmt-subnet"
+	clusterICVpcName = "cluster-ic-vpc"
+	clusterICSubnet  = "cluster-ic-subnet"
+	rsmVpcName       = "rsm-vpc"
+	rsmSubnetName    = "rsm-subnet"
+)
+
+// Minimum allowed values for SPConfig throughput (in MiBs) and IOPS.
+// These are enforced only if the feature flag above is enabled.
+const (
+	minSPConfigThroughput = 1120
+	minSPConfigIOps       = 24000
 )
 
 var (
 	maxRetries          = env.GetInt("GOOGLE_API_MAX_RETRIES", 6)
 	localRegion         = env.GetString("LOCAL_REGION", "")
 	firewallSourceRange = env.GetString("FIREWALL_SOURCE_RANGE", "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,34.0.0.0/8,46.149.16.0/20,52.94.203.152/29,52.94.203.160/29,185.35.244.0/22,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20,198.18.0.0/15")
-	nodePassword        = env.GetString("VSA_NODE_PASSWORD", "")
 	totalIPPerHAPair    = env.GetInt("TOTAL_IP_PER_HA_PAIR", 6)
 )
 
@@ -417,20 +436,8 @@ func (j *PoolActivity) GetOntapVersion(ctx context.Context, node *models.Node) (
 	return version, nil
 }
 
-func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlmconfig.VLMConfig) (*datamodel.Svm, error) {
-	logger := util.GetLogger(ctx)
-	vlmClient := GetVLMClient(ctx, logger, vlmConfig)
+func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlm.VLMConfig) (*datamodel.Svm, error) {
 	se := j.SE
-	svmParam := &vlmconfig.SVMConfigParams{
-		Name:      DefaultSvmName,
-		VlmConfig: vlmConfig,
-	}
-
-	err := vlmClient.VSASVMCreate(ctx, svmParam)
-	// If the SVM already exists, we can ignore the error and move forward
-	if err != nil && !strings.Contains(err.Error(), "already exists and is in use by a different VM") {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-	}
 
 	name := vlmConfig.Deployment.DeploymentID + "-datasvm-" + DefaultSvmName
 	svm := vlmConfig.Svm[name]
@@ -457,7 +464,9 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 	if len(nodes) < 2 {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("not enough nodes in the cluster to create LIFs for SVM "+svm.Svmname))
 	}
-	lifs := svm.SVMLIFs[vlmconfig.LIFTypeIscsi]
+	// TODO: Remove this workaround once the VLM worker image is updated to use the correct LIF type ("iscsi").
+	// Currently, the received data uses "default-data-iscsi" instead of the expected "iscsi" as per the data model.
+	lifs := svm.SVMLIFs[vlm.DefaultLIFTypeIscsi]
 
 	for i, lif := range lifs {
 		dataLif := lif.IP
@@ -479,7 +488,7 @@ func (j *PoolActivity) CreateVSASVM(ctx context.Context, pool *datamodel.Pool, v
 }
 
 // The IdentifyVMs takes as input the VMRS configuration, the customer requested performance parameters, and the current VLM configuration to identify the optimal VMs to use for the VSA cluster.
-func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName, region, primaryZone, secondaryZone, network string, subnets []string, projectId, snHostProject string, vsaClusterPassword string, saEmail string, autoTierBucket string) (*vlmconfig.VLMConfig, error) {
+func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName, region, primaryZone, secondaryZone, network string, subnets []string, projectId, snHostProject string, saEmail string, autoTierBucket string) (*vlm.VLMConfig, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debug("Identifying VMs to use for VSA cluster")
 
@@ -496,7 +505,7 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	vlmConfig := &vlmconfig.VLMConfig{}
+	vlmConfig := &vlm.VLMConfig{}
 	decision, err := decisionMaker.FindOptimalVMs(vmrsConfig, customerRequest, vlmConfig)
 	if err != nil {
 		logger.Error("Failed to identify optimal VMs", "error", err)
@@ -509,7 +518,7 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 	}
 
 	// Convert the decision to a VLMConfig.
-	err = PrepareVlmConfig(vlmConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, decision, vsaClusterPassword, saEmail, autoTierBucket)
+	err = PrepareVlmConfig(vlmConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, decision, saEmail, autoTierBucket)
 	if err != nil {
 		logger.Error("Failed to prepare VLM config", "error", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -518,22 +527,103 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 	return vlmConfig, nil
 }
 
-func (j *PoolActivity) CreateVSACluster(ctx context.Context, cfg *vlmconfig.VLMConfig) (*vlmconfig.VLMConfig, error) {
-	logger := util.GetLogger(ctx)
-	vlmClient := GetVLMClient(ctx, logger, cfg)
-
-	err := vlmClient.VSAClusterDeployCreate(ctx, cfg)
-	if err != nil {
-		logger.Error("Failed to create VSA cluster", "error", err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZone, secondaryZone, network, subnet, regionalTenantProjectID, snHostProject string, decision *vmrs.Decision, vsaClusterSaEmail string, autoTierBucket string) error {
+	if err := ValidateVlmConfigInputs(vlmConfig, decision, deploymentID, region, primaryZone, network, subnet, regionalTenantProjectID, snHostProject, vsaClusterSaEmail); err != nil {
+		return err
 	}
-	return cfg, nil
+
+	vlmContent, err := ReadFile(vlmConfigFilePath)
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrFileReadError, err)
+	}
+
+	err = json.Unmarshal(vlmContent, &vlmConfig)
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrFileReadError, err)
+	}
+
+	vlmConfig.Deployment.GCPConfig = vlm.GCPConfig{
+		ProjectID:           regionalTenantProjectID,
+		ImageProjectID:      regionalTenantProjectID,
+		ServiceAccountEmail: vsaClusterSaEmail,
+		BucketName:          autoTierBucket,
+	}
+
+	vlmConfig.Deployment.Region = region
+
+	// Enforce minimum values for SPConfig throughput and IOPS if the feature flag is enabled.
+	// This ensures that the values do not fall below the required thresholds for VLM worker compatibility.
+	if enforceMinSPConfig {
+		if decision.StoragePoolRequirements.DesiredThroughputInMiBs < minSPConfigThroughput {
+			decision.StoragePoolRequirements.DesiredThroughputInMiBs = minSPConfigThroughput
+		}
+		if decision.StoragePoolRequirements.DesiredIOPS < minSPConfigIOps {
+			decision.StoragePoolRequirements.DesiredIOPS = minSPConfigIOps
+		}
+	}
+	vlmConfig.Deployment.SPConfig.Throughput = decision.StoragePoolRequirements.DesiredThroughputInMiBs
+	vlmConfig.Deployment.SPConfig.IOps = decision.StoragePoolRequirements.DesiredIOPS
+
+	vlmConfig.Deployment.SPConfig.Size = fmt.Sprintf("%dGi", decision.StoragePoolRequirements.DesiredCapacityInGiB)
+	vlmConfig.Deployment.VSAInstanceType = decision.ChosenVMs[0] // VLM currently only supports a single VM type for VSA clusters (homogeneous clusters).
+
+	vlmConfig.Deployment.DeploymentID = deploymentID
+	vlmConfig.Deployment.Zone.Zone1 = primaryZone
+	vlmConfig.Deployment.Zone.Zone2 = secondaryZone
+	if secondaryZone == "" {
+		vlmConfig.Deployment.Zone.Zone2 = primaryZone
+	}
+
+	networkConfigs := map[vlm.VSALIFType]struct {
+		VPC             string
+		Subnet          string
+		SubnetProjectID string
+	}{
+		vlm.LIFTypeNodeMgmt: {mgmtVpcName, mgmtSubnetName, regionalTenantProjectID},
+		vlm.LIFTypeIC:       {clusterICVpcName, clusterICSubnet, regionalTenantProjectID},
+		vlm.LIFTypeRSM:      {rsmVpcName, rsmSubnetName, regionalTenantProjectID},
+	}
+
+	// assign network configurations for each LIF type
+	for lifType, config := range networkConfigs {
+		assignNetworkConfig(vlmConfig, lifType, config.VPC, config.Subnet, config.SubnetProjectID)
+	}
+
+	// assign network configuration for data LIF from snHostProject
+	assignNetworkConfig(vlmConfig, vlm.LIFTypeInterCluster, network, subnet, snHostProject)
+
+	// Bootargs for key manager
+	vlmConfig.Deployment.UserBootargs = keyManagerBootarg
+
+	return nil
 }
 
-func (j *PoolActivity) CreateVlmConfig(ctx context.Context, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, decision *vmrs.Decision, password string, saEmail string, autoTierBucket string) (*vlmconfig.VLMConfig, error) {
-	cfg := &vlmconfig.VLMConfig{}
-	err := PrepareVlmConfig(cfg, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, decision, password, saEmail, autoTierBucket)
-	return cfg, vsaerrors.WrapAsTemporalApplicationError(err)
+func assignNetworkConfig(vlmConfig *vlm.VLMConfig, lifType vlm.VSALIFType, vpc, subnet, subnetProjectID string) {
+	if vlmConfig.Deployment.NetConfig == nil {
+		vlmConfig.Deployment.NetConfig = make(map[vlm.VSALIFType]vlm.NetworkConfig)
+	}
+
+	vlmConfig.Deployment.NetConfig[lifType] = vlm.NetworkConfig{
+		VPC:              vpc,
+		Subnet:           subnet,
+		GCPNetworkConfig: vlm.GCPNetworkConfig{SubnetProjectID: subnetProjectID},
+	}
+}
+
+func _validateVlmConfigInputs(vlmConfig *vlm.VLMConfig, decision *vmrs.Decision, deploymentID, region, primaryZone, network, subnet, regionalTenantProjectID, snHostProject, vsaClusterSaEmail string) error {
+	if vlmConfig == nil {
+		return errors.New("vlmConfig is nil")
+	}
+
+	if decision == nil {
+		return errors.New("decision is nil")
+	}
+
+	if deploymentID == "" || region == "" || primaryZone == "" || network == "" || subnet == "" || regionalTenantProjectID == "" || snHostProject == "" || vsaClusterSaEmail == "" {
+		return errors.New("one or more required string parameters are empty")
+	}
+
+	return nil
 }
 
 // Update VSA cluster by invoking VLM.
@@ -549,15 +639,13 @@ func (j *PoolActivity) UpdateVSACluster(ctx context.Context, dup *vlmconfig.Depl
 	return dup.VlmConfig, nil
 }
 
-func assignNetworkConfig(cfg *vlmconfig.VLMConfig, lifType vlmconfig.VSALIFType, vpc, subnet, subnetProjectID string) {
-	cfg.Deployment.NetConfig[lifType] = vlmconfig.NetworkConfig{
-		VPC:              vpc,
-		Subnet:           subnet,
-		GCPNetworkConfig: vlmconfig.GCPNetworkConfig{SubnetProjectID: subnetProjectID},
-	}
+func (j *PoolActivity) CreateVlmConfig(ctx context.Context, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, decision *vmrs.Decision, password string, saEmail string, autoTierBucket string) (*vlmconfig.VLMConfig, error) {
+	cfg := &vlmconfig.VLMConfig{}
+	err := PrepareVlmConfigForVLMClient(cfg, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, decision, password, saEmail, autoTierBucket)
+	return cfg, vsaerrors.WrapAsTemporalApplicationError(err)
 }
 
-func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, decision *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
+func _prepareVlmConfigForVLMClient(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, decision *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
 	vlmContent, err := ReadFile(vlmConfigFilePath)
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrFileReadError, err)
@@ -593,11 +681,11 @@ func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, primary
 
 	// assign network configurations for each LIF type
 	for lifType, config := range networkConfigs {
-		assignNetworkConfig(cfg, lifType, config.VPC, config.Subnet, config.SubnetProjectID)
+		assignNetworkConfigForVLMClient(cfg, lifType, config.VPC, config.Subnet, config.SubnetProjectID)
 	}
 
 	// assign network configuration for data LIF from snHostProject
-	assignNetworkConfig(cfg, vlmconfig.LIFTypeInterCluster, network, subnet, snHostProject)
+	assignNetworkConfigForVLMClient(cfg, vlmconfig.LIFTypeInterCluster, network, subnet, snHostProject)
 
 	cfg.Deployment.GCPConfig = vlmconfig.GCPConfig{
 		ProjectID:           projectId,
@@ -615,57 +703,25 @@ func _prepareVlmConfig(cfg *vlmconfig.VLMConfig, deploymentName, region, primary
 	return nil
 }
 
-func (j *PoolActivity) DeleteVSADeployment(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
-	deploymentName := pool.DeploymentName
-
-	logger := util.GetLogger(ctx)
-	cfg := &vlmconfig.VLMConfig{}
-	saEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", pool.ServiceAccountId, pool.ClusterDetails.RegionalTenantProject)
-	var password string
-	if pool.SecretID != "" {
-		password = GetPasswordFromCacheOrSecretManager(ctx, pool.SecretID)
-	} else {
-		password = nodePassword
+func assignNetworkConfigForVLMClient(cfg *vlmconfig.VLMConfig, lifType vlmconfig.VSALIFType, vpc, subnet, subnetProjectID string) {
+	cfg.Deployment.NetConfig[lifType] = vlmconfig.NetworkConfig{
+		VPC:              vpc,
+		Subnet:           subnet,
+		GCPNetworkConfig: vlmconfig.GCPNetworkConfig{SubnetProjectID: subnetProjectID},
 	}
-
-	decision := &vmrs.Decision{
-		ChosenVMs: []string{""}, // The value of this field doesn't matter for deletion.
-		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
-			DesiredIOPS:             pool.PoolAttributes.Iops,
-			DesiredThroughputInMiBs: pool.PoolAttributes.ThroughputMibps,
-			DesiredCapacityInGiB:    int64(utils.BytesToGigabytes(uint64(pool.SizeInBytes))),
-		},
-	}
-	subnetName := ""
-	if len(pool.ClusterDetails.SubnetNames) > 0 {
-		subnetName = pool.ClusterDetails.SubnetNames[len(pool.ClusterDetails.SubnetNames)-1]
-	}
-
-	err := PrepareVlmConfig(cfg, deploymentName, localRegion, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, subnetName, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, decision, password, saEmail, pool.AutoTierBucketName)
-
-	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-	vlmClient := GetVLMClient(ctx, logger, cfg)
-
-	err = vlmClient.VSAClusterDeploymentDelete(ctx, cfg)
-	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-	return pool, nil
 }
 
-func (j *PoolActivity) SaveVSANodeDetails(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlmconfig.VLMConfig) (node1 *datamodel.Node, err error) {
+func (j *PoolActivity) SaveVSANodeDetails(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlm.VLMConfig, ontapCredentials *vlm.OntapCredentials) (node1 *datamodel.Node, err error) {
 	if len(vlmConfig.Cloud.HAPairs) == 0 {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(
 			vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("no cluster details provided")))
 	}
 	for _, details := range vlmConfig.Cloud.HAPairs {
-		node1, err = SaveNodeDetails(ctx, j.SE, details.VM1, vlmConfig.Deployment, pool)
+		node1, err = SaveNodeDetails(ctx, j.SE, details.VM1, vlmConfig.Deployment, ontapCredentials, pool)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
-		_, err = SaveNodeDetails(ctx, j.SE, details.VM2, vlmConfig.Deployment, pool)
+		_, err = SaveNodeDetails(ctx, j.SE, details.VM2, vlmConfig.Deployment, ontapCredentials, pool)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -673,18 +729,18 @@ func (j *PoolActivity) SaveVSANodeDetails(ctx context.Context, pool *datamodel.P
 	return node1, nil
 }
 
-func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlmconfig.VMConfig, deploymentConfig vlmconfig.DeploymentConfig, pool *datamodel.Pool) (*datamodel.Node, error) {
+func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMConfig, deploymentConfig vlm.DeploymentConfig, ontapCredentials *vlm.OntapCredentials, pool *datamodel.Pool) (*datamodel.Node, error) {
 	node := &models.Node{
 		Name:            vmConfig.HostName,
-		EndpointAddress: vmConfig.SystemLIFs[vlmconfig.LIFTypeNodeMgmt].IP,
-		Username:        deploymentConfig.OntapCredentials.Username,
+		EndpointAddress: vmConfig.SystemLIFs[vlm.LIFTypeNodeMgmt].IP,
+		Username:        pool.Username,
 		Zone:            vmConfig.Zone,
 		InstanceType:    deploymentConfig.VSAInstanceType,
 	}
 	if pool.SecretID != "" {
 		node.SecretID = pool.SecretID
 	} else {
-		node.Password = deploymentConfig.OntapCredentials.Password
+		node.Password = ontapCredentials.AdminPassword
 	}
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {

@@ -68,6 +68,9 @@ workerConfig:
   vsaSecretAuthCacheExpirationHours: 24
   totalIpPerHaPair: 6
   dataSubnetCidrBlock: 28
+  vsaLifecycleManagerQueuePrefix: "vsa-lifecycle-manager"
+  ontapVersion: "9.18.1"
+  enforceMinSpConfig: "true"
 
   # Database configuration
   database:

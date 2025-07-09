@@ -1,0 +1,94 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: default
+  labels:
+    name: vlm
+  annotations:
+    "helm.sh/resource-policy": keep
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vlm-worker
+  namespace: default
+  labels:
+    app: vlm-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vlm-worker
+  template:
+    metadata:
+      labels:
+        app: vlm-worker
+    spec:
+      initContainers:
+        - name: wait-for-temporal-frontend
+          image: busybox:1.36.1
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Temporal Frontend to be ready..."
+              i=1
+              while [ $i -le 60 ]; do
+                nc -z local-temporal-frontend.default.svc.cluster.local:7233
+                if [ $? -eq 0 ]; then
+                  echo "Temporal Frontend is ready!"
+                  exit 0
+                else
+                  echo "Temporal Frontend is not ready yet. Retrying in 5 seconds..."
+                fi
+                sleep 5
+                i=$((i + 1))
+              done
+              echo "Temporal Frontend did not become ready in time. Exiting."
+              exit 1
+        - name: wait-for-default-namespace
+          image: temporalio/admin-tools:1.27.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              NAMESPACE=default
+              MAX_WAIT=100
+              WAITED=0
+              until tctl --ns $NAMESPACE namespace describe > /dev/null 2>&1; do
+                if [ $WAITED -ge $MAX_WAIT ]; then
+                  echo "Namespace $NAMESPACE not found after $MAX_WAIT seconds, exiting."
+                  exit 1
+                fi
+                echo "Waiting for Temporal namespace $NAMESPACE to be ready..."
+                sleep 1
+                WAITED=$((WAITED+1))
+              done
+              echo "Namespace $NAMESPACE is ready."
+          env:
+            - name: TEMPORAL_CLI_ADDRESS
+              value: local-temporal-frontend.default.svc.cluster.local:7233
+      containers:
+        - name: vlm-worker
+          image: us-docker.pkg.dev/gcnv-artifact-registry-nonprod/vlm/temporal-vlm:devN_7695956
+          env:
+            - name: PROVIDER
+              value: "gcp"
+            - name: SERVER_IP
+              value: "local-temporal-frontend.default.svc.cluster.local"
+            - name: SERVER_PORT
+              value: "7233"
+            - name: TASK_QUEUE
+              value: "vsa-lifecycle-manager-9.18.1"
+            - name: DEBUG
+              value: "false"
+            - name: MAX_CONCURRENT_ACTIVITIES
+              value: "1000"
+            - name: MAX_CONCURRENT_WORKFLOWS
+              value: "1000"
+            - name: MAX_CONCURRENT_WORKFLOW_TASK_POLLERS
+              value: "2"
+            - name: GCE_METADATA_HOST
+              value: "34.116.66.254:9090"

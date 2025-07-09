@@ -48,6 +48,5 @@ Helper function to generate the configMap name by appending "-config" to the app
 Helper function to generate task queue name based on ontap version.
 */}}
 {{- define "vlm-worker.taskQueueName" -}}
-{{- $sanitizedOntapVersion := .Values.ontapVersion | replace "." "-" -}}
-{{- printf "%s-%s" .Values.workerConfig.taskQueuePrefix $sanitizedOntapVersion -}}
+{{- printf "%s-%s" .Values.workerConfig.taskQueuePrefix .Values.ontapVersion -}}
 {{- end -}}

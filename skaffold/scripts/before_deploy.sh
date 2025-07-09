@@ -31,6 +31,3 @@ kubectl create secret docker-registry "$SECRET_NAME" \
   --dry-run=client -o yaml | kubectl apply -f -
 
 echo "Kubernetes secret '$SECRET_NAME' created/updated in namespace '$NAMESPACE' for GitHub Container Registry."
-
-
-

@@ -7,14 +7,18 @@ import (
 	digitalCert "crypto/x509"
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"go.temporal.io/sdk/testsuite"
+	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/servicenetworking/v1"
+	"gorm.io/gorm"
+	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
@@ -34,10 +38,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"go.temporal.io/sdk/testsuite"
-	"google.golang.org/api/iam/v1"
-	"gorm.io/gorm"
-	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
 
 func TestCreatingPool_Success(t *testing.T) {
@@ -647,11 +647,10 @@ func TestGetONTAPProvider_Failure(t *testing.T) {
 }
 
 func Test_prepareVlmConfig_Success(t *testing.T) {
-	cfg := &vlmconfig.VLMConfig{
-		Deployment: vlmconfig.DeploymentConfig{
-			NetConfig:        map[vlmconfig.VSALIFType]vlmconfig.NetworkConfig{},
-			GCPConfig:        vlmconfig.GCPConfig{},
-			OntapCredentials: vlmconfig.OntapCredentials{},
+	cfg := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+			GCPConfig: vlm.GCPConfig{},
 		},
 	}
 	originalReadFile := activities.ReadFile
@@ -668,21 +667,21 @@ func Test_prepareVlmConfig_Success(t *testing.T) {
 			DesiredCapacityInGiB:    1024,
 		},
 	}
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.NoError(t, err)
 	assert.Equal(t, "test-deployment", cfg.Deployment.DeploymentID)
 	assert.Equal(t, "test-region", cfg.Deployment.Region)
 	assert.Equal(t, "test-zone1", cfg.Deployment.Zone.Zone1)
 	assert.Equal(t, "test-zone2", cfg.Deployment.Zone.Zone2)
-	assert.Equal(t, "test-network", cfg.Deployment.NetConfig[vlmconfig.LIFTypeInterCluster].VPC)
-	assert.Equal(t, "test-sn-host-project", cfg.Deployment.NetConfig[vlmconfig.LIFTypeInterCluster].GCPNetworkConfig.SubnetProjectID)
+	assert.Equal(t, "test-network", cfg.Deployment.NetConfig[vlm.LIFTypeInterCluster].VPC)
+	assert.Equal(t, "test-sn-host-project", cfg.Deployment.NetConfig[vlm.LIFTypeInterCluster].GCPNetworkConfig.SubnetProjectID)
 	assert.Equal(t, int64(64), cfg.Deployment.SPConfig.Throughput)
 	assert.Equal(t, int64(1024), cfg.Deployment.SPConfig.IOps)
 	assert.Equal(t, "1024Gi", cfg.Deployment.SPConfig.Size)
 }
 
 func Test_prepareVlmConfig_FileNotFound(t *testing.T) {
-	cfg := &vlmconfig.VLMConfig{}
+	cfg := &vlm.VLMConfig{}
 	dsc := &vmrs.Decision{
 		ChosenVMs: []string{"c4-standard-4"},
 		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
@@ -691,7 +690,7 @@ func Test_prepareVlmConfig_FileNotFound(t *testing.T) {
 			DesiredCapacityInGiB:    1024,
 		},
 	}
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no such file or directory")
 }
@@ -703,7 +702,7 @@ func Test_prepareVlmConfig_InvalidJSON(t *testing.T) {
 		return []byte("invalid-json"), nil
 	}
 
-	cfg := &vlmconfig.VLMConfig{}
+	cfg := &vlm.VLMConfig{}
 	dsc := &vmrs.Decision{
 		ChosenVMs: []string{"c4-standard-4"},
 		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
@@ -712,17 +711,16 @@ func Test_prepareVlmConfig_InvalidJSON(t *testing.T) {
 			DesiredCapacityInGiB:    1024,
 		},
 	}
-	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test=zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test=zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid character")
 }
 
 func Test_prepareVlmConfig_EmptyDeploymentName(t *testing.T) {
-	cfg := &vlmconfig.VLMConfig{
-		Deployment: vlmconfig.DeploymentConfig{
-			NetConfig:        map[vlmconfig.VSALIFType]vlmconfig.NetworkConfig{},
-			GCPConfig:        vlmconfig.GCPConfig{},
-			OntapCredentials: vlmconfig.OntapCredentials{},
+	cfg := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+			GCPConfig: vlm.GCPConfig{},
 		},
 	}
 	originalReadFile := activities.ReadFile
@@ -738,35 +736,141 @@ func Test_prepareVlmConfig_EmptyDeploymentName(t *testing.T) {
 			DesiredCapacityInGiB:    1099511627776,
 		},
 	}
-	err := activities.PrepareVlmConfig(cfg, "", "test-region", "test-zone", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "password", "test-tenant-project@xyz.com", "test-tenant-project")
-	assert.NoError(t, err)
-	assert.Equal(t, "", cfg.Deployment.DeploymentID)
-	assert.Equal(t, "test-region", cfg.Deployment.Region)
+	err := activities.PrepareVlmConfig(cfg, "", "test-region", "test-zone", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "test-tenant-project@xyz.com", "test-tenant-project")
+	assert.Error(t, err, "one or more required string parameters are empty")
 }
 
-func Test_CreateVSASVM_Success(t *testing.T) {
+func Test_validateVlmConfigInputs(t *testing.T) {
+	validCfg := &vlm.VLMConfig{}
+	validDecision := &vmrs.Decision{
+		ChosenVMs: []string{"c4-standard-4"},
+		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
+			DesiredIOPS:             1024,
+			DesiredThroughputInMiBs: 64,
+			DesiredCapacityInGiB:    1024,
+		},
+	}
+
+	tests := []struct {
+		name        string
+		cfg         *vlm.VLMConfig
+		decision    *vmrs.Decision
+		deployment  string
+		region      string
+		primaryZone string
+		network     string
+		subnet      string
+		projectId   string
+		snHost      string
+		saEmail     string
+		wantErr     bool
+	}{
+		{
+			name:        "all valid",
+			cfg:         validCfg,
+			decision:    validDecision,
+			deployment:  "deploy",
+			region:      "region",
+			primaryZone: "zone",
+			network:     "network",
+			subnet:      "subnet",
+			projectId:   "project",
+			snHost:      "sn-host",
+			saEmail:     "email@xyz.com",
+			wantErr:     false,
+		},
+		{
+			name:        "nil vlmConfig",
+			cfg:         nil,
+			decision:    validDecision,
+			deployment:  "deploy",
+			region:      "region",
+			primaryZone: "zone",
+			network:     "network",
+			subnet:      "subnet",
+			projectId:   "project",
+			snHost:      "sn-host",
+			saEmail:     "email@xyz.com",
+			wantErr:     true,
+		},
+		{
+			name:        "nil decision",
+			cfg:         validCfg,
+			decision:    nil,
+			deployment:  "deploy",
+			region:      "region",
+			primaryZone: "zone",
+			network:     "network",
+			subnet:      "subnet",
+			projectId:   "project",
+			snHost:      "sn-host",
+			saEmail:     "email@xyz.com",
+			wantErr:     true,
+		},
+		{
+			name:        "empty deploymentID",
+			cfg:         validCfg,
+			decision:    validDecision,
+			deployment:  "",
+			region:      "region",
+			primaryZone: "zone",
+			network:     "network",
+			subnet:      "subnet",
+			projectId:   "project",
+			snHost:      "sn-host",
+			saEmail:     "email@xyz.com",
+			wantErr:     true,
+		},
+		{
+			name:        "empty region",
+			cfg:         validCfg,
+			decision:    validDecision,
+			deployment:  "deploy",
+			region:      "",
+			primaryZone: "zone",
+			network:     "network",
+			subnet:      "subnet",
+			projectId:   "project",
+			snHost:      "sn-host",
+			saEmail:     "email@xyz.com",
+			wantErr:     true,
+		},
+		// Add more cases for other empty required fields if needed
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := activities.ValidateVlmConfigInputs(
+				tt.cfg, tt.decision, tt.deployment, tt.region, tt.primaryZone,
+				tt.network, tt.subnet, tt.projectId, tt.snHost, tt.saEmail,
+			)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func Test_SaveSVMAndLifData_Success(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
 
 	mockStorage := database.NewMockStorage(t)
-	mockVlmClient := new(vlm.MockClientFactory)
 	activity := activities.PoolActivity{SE: mockStorage}
 
 	env.RegisterActivity(&activity)
 
-	getVLMClient := activities.GetVLMClient
-	defer func() {
-		activities.GetVLMClient = getVLMClient
-	}()
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
-	vlmConfig := &vlmconfig.VLMConfig{
-		Deployment: vlmconfig.DeploymentConfig{DeploymentID: "test-deployment"},
-		Svm: map[string]vlmconfig.SvmConfig{
+	vlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{DeploymentID: "test-deployment"},
+		Svm: map[string]vlm.SvmConfig{
 			"test-deployment-datasvm-gcnv": {
 				Svmname: "test-svm",
 				Svmuuid: "test-uuid",
-				SVMLIFs: map[vlmconfig.VSALIFType][]vlmconfig.LIFConfig{
-					vlmconfig.LIFTypeIscsi: {
+				SVMLIFs: map[vlm.VSALIFType][]vlm.LIFConfig{
+					vlm.DefaultLIFTypeIscsi: {
 						{IP: "192.168.1.1/24", Name: "lif1"},
 					},
 				},
@@ -779,37 +883,27 @@ func Test_CreateVSASVM_Success(t *testing.T) {
 		{BaseModel: datamodel.BaseModel{ID: 1}}, {BaseModel: datamodel.BaseModel{ID: 1}},
 	}, nil)
 	mockStorage.On("CreateLif", mock.Anything, mock.Anything).Return(&datamodel.Lif{}, nil)
-	mockVlmClient.On("VSASVMCreate", mock.Anything, mock.Anything).Return(nil)
 
-	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
-		return mockVlmClient
-	}
-
-	_, err := env.ExecuteActivity(activity.CreateVSASVM, pool, vlmConfig)
+	_, err := env.ExecuteActivity(activity.SaveSVMAndLifData, pool, vlmConfig)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
-	mockVlmClient.AssertExpectations(t)
 }
 
-func Test_CreateVSASVM_DBCreationError(t *testing.T) {
+func Test_SaveSVMAndLifDataDBCreationError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
-	mockVlmClient := new(vlm.MockClientFactory)
 	activity := activities.PoolActivity{SE: mockStorage}
-	getVLMClient := activities.GetVLMClient
-	defer func() {
-		activities.GetVLMClient = getVLMClient
-	}()
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
-	vlmConfig := &vlmconfig.VLMConfig{
-		Deployment: vlmconfig.DeploymentConfig{DeploymentID: "test-deployment"},
-		Svm: map[string]vlmconfig.SvmConfig{
+
+	vlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{DeploymentID: "test-deployment"},
+		Svm: map[string]vlm.SvmConfig{
 			"test-deployment-datasvm-gcnv-default-svm": {
 				Svmname: "test-svm",
 				Svmuuid: "test-uuid",
-				SVMLIFs: map[vlmconfig.VSALIFType][]vlmconfig.LIFConfig{
-					vlmconfig.LIFTypeIscsi: {
+				SVMLIFs: map[vlm.VSALIFType][]vlm.LIFConfig{
+					vlm.LIFTypeIscsi: {
 						{IP: "192.168.1.1/24", Name: "lif1"},
 					},
 				},
@@ -818,34 +912,24 @@ func Test_CreateVSASVM_DBCreationError(t *testing.T) {
 	}
 
 	mockStorage.On("CreateSVM", ctx, mock.Anything).Return(&datamodel.Svm{}, errors.New("connection error"))
-	mockVlmClient.On("VSASVMCreate", ctx, mock.Anything).Return(nil)
 
-	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
-		return mockVlmClient
-	}
-
-	svm, err := activity.CreateVSASVM(ctx, pool, vlmConfig)
+	svm, err := activity.SaveSVMAndLifData(ctx, pool, vlmConfig)
 
 	assert.Nil(t, svm)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "connection error")
 	mockStorage.AssertExpectations(t)
-	mockVlmClient.AssertExpectations(t)
 }
 
-func Test_CreateVSASVM_FailsToCreateSVM(t *testing.T) {
+func Test_SaveSVMAndLifData_CouldNotFetchNodes(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
-	mockVlmClient := new(vlm.MockClientFactory)
 	activity := activities.PoolActivity{SE: mockStorage}
-	getVLMClient := activities.GetVLMClient
-	defer func() {
-		activities.GetVLMClient = getVLMClient
-	}()
+
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
-	vlmConfig := &vlmconfig.VLMConfig{
-		Deployment: vlmconfig.DeploymentConfig{DeploymentID: "test-deployment"},
-		Svm: map[string]vlmconfig.SvmConfig{
+	vlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{DeploymentID: "test-deployment"},
+		Svm: map[string]vlm.SvmConfig{
 			"test-deployment-datasvm-gcnv-default-svm": {
 				Svmname: "test-svm",
 				Svmuuid: "test-uuid",
@@ -853,73 +937,29 @@ func Test_CreateVSASVM_FailsToCreateSVM(t *testing.T) {
 		},
 	}
 
-	mockVlmClient.On("VSASVMCreate", ctx, mock.Anything).Return(errors.New("failed to create SVM"))
-
-	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
-		return mockVlmClient
-	}
-
-	svm, err := activity.CreateVSASVM(ctx, pool, vlmConfig)
-
-	assert.Nil(t, svm)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to create SVM")
-	mockVlmClient.AssertExpectations(t)
-}
-
-func Test_CreateVSASVM_CouldNotFetchNodes(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	mockVlmClient := new(vlm.MockClientFactory)
-	activity := activities.PoolActivity{SE: mockStorage}
-	getVLMClient := activities.GetVLMClient
-	defer func() {
-		activities.GetVLMClient = getVLMClient
-	}()
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
-	vlmConfig := &vlmconfig.VLMConfig{
-		Deployment: vlmconfig.DeploymentConfig{DeploymentID: "test-deployment"},
-		Svm: map[string]vlmconfig.SvmConfig{
-			"test-deployment-datasvm-gcnv-default-svm": {
-				Svmname: "test-svm",
-				Svmuuid: "test-uuid",
-			},
-		},
-	}
-
-	mockVlmClient.On("VSASVMCreate", ctx, mock.Anything).Return(nil)
 	mockStorage.On("CreateSVM", ctx, mock.Anything).Return(&datamodel.Svm{}, nil)
 	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nil, gorm.ErrRecordNotFound)
 
-	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
-		return mockVlmClient
-	}
-
-	svm, err := activity.CreateVSASVM(ctx, pool, vlmConfig)
+	svm, err := activity.SaveSVMAndLifData(ctx, pool, vlmConfig)
 
 	assert.Nil(t, svm)
 	assert.Error(t, err)
 	mockStorage.AssertExpectations(t)
 }
 
-func Test_CreateVSASVM_NotEnoughNodes(t *testing.T) {
+func Test_SaveSVMAndLifData_NotEnoughNodes(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
 
 	mockStorage := database.NewMockStorage(t)
-	mockVlmClient := new(vlm.MockClientFactory)
 	activity := activities.PoolActivity{SE: mockStorage}
 
 	env.RegisterActivity(&activity)
 
-	getVLMClient := activities.GetVLMClient
-	defer func() {
-		activities.GetVLMClient = getVLMClient
-	}()
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
-	vlmConfig := &vlmconfig.VLMConfig{
-		Deployment: vlmconfig.DeploymentConfig{DeploymentID: "test-deployment"},
-		Svm: map[string]vlmconfig.SvmConfig{
+	vlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{DeploymentID: "test-deployment"},
+		Svm: map[string]vlm.SvmConfig{
 			"test-deployment-datasvm-gcnv-default-svm": {
 				Svmname: "test-svm",
 				Svmuuid: "test-uuid",
@@ -927,46 +967,36 @@ func Test_CreateVSASVM_NotEnoughNodes(t *testing.T) {
 		},
 	}
 
-	mockVlmClient.On("VSASVMCreate", mock.Anything, mock.Anything).Return(nil)
 	mockStorage.On("CreateSVM", mock.Anything, mock.Anything).Return(&datamodel.Svm{}, nil)
 	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{
 		{BaseModel: datamodel.BaseModel{ID: 1}},
 	}, nil)
 
-	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
-		return mockVlmClient
-	}
-
-	_, err := env.ExecuteActivity(activity.CreateVSASVM, pool, vlmConfig)
+	_, err := env.ExecuteActivity(activity.SaveSVMAndLifData, pool, vlmConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not enough nodes in the cluster")
 	mockStorage.AssertExpectations(t)
 }
 
-func Test_CreateVSASVM_FailsToCreateLif(t *testing.T) {
+func Test_SaveSVMAndLifData_FailsToCreateLif(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestActivityEnvironment()
 
 	mockStorage := database.NewMockStorage(t)
-	mockVlmClient := new(vlm.MockClientFactory)
 	activity := activities.PoolActivity{SE: mockStorage}
 
 	env.RegisterActivity(&activity)
 
-	getVLMClient := activities.GetVLMClient
-	defer func() {
-		activities.GetVLMClient = getVLMClient
-	}()
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
-	vlmConfig := &vlmconfig.VLMConfig{
-		Deployment: vlmconfig.DeploymentConfig{DeploymentID: "test-deployment"},
-		Svm: map[string]vlmconfig.SvmConfig{
+	vlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{DeploymentID: "test-deployment"},
+		Svm: map[string]vlm.SvmConfig{
 			"test-deployment-datasvm-gcnv": {
 				Svmname: "test-svm",
 				Svmuuid: "test-uuid",
-				SVMLIFs: map[vlmconfig.VSALIFType][]vlmconfig.LIFConfig{
-					vlmconfig.LIFTypeIscsi: {
+				SVMLIFs: map[vlm.VSALIFType][]vlm.LIFConfig{
+					vlm.DefaultLIFTypeIscsi: {
 						{IP: "192.168.1.1/24", Name: "lif1"},
 					},
 				},
@@ -974,101 +1004,29 @@ func Test_CreateVSASVM_FailsToCreateLif(t *testing.T) {
 		},
 	}
 
-	mockVlmClient.On("VSASVMCreate", mock.Anything, mock.Anything).Return(nil)
 	mockStorage.On("CreateSVM", mock.Anything, mock.Anything).Return(&datamodel.Svm{}, nil)
 	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{
 		{BaseModel: datamodel.BaseModel{ID: 1}}, {BaseModel: datamodel.BaseModel{ID: 1}},
 	}, nil)
 	mockStorage.On("CreateLif", mock.Anything, mock.Anything).Return(nil, errors.New("failed to create LIF"))
 
-	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
-		return mockVlmClient
-	}
-
-	_, err := env.ExecuteActivity(activity.CreateVSASVM, pool, vlmConfig)
+	_, err := env.ExecuteActivity(activity.SaveSVMAndLifData, pool, vlmConfig)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create LIF")
 	mockStorage.AssertExpectations(t)
-	mockVlmClient.AssertExpectations(t)
-}
-
-func Test_CreateVSACluster_Success(t *testing.T) {
-	mockVlmClient := new(vlm.MockClientFactory)
-	activity := activities.PoolActivity{}
-	getPasswordForVSACluster := activities.GetPasswordForVSACluster
-	prepareVLMConfig := activities.PrepareVlmConfig
-	getVLMClient := activities.GetVLMClient
-
-	defer func() {
-		activities.GetPasswordForVSACluster = getPasswordForVSACluster
-		activities.PrepareVlmConfig = prepareVLMConfig
-		activities.GetVLMClient = getVLMClient
-	}()
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	cfg := &vlmconfig.VLMConfig{}
-	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
-		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
-	}
-
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
-		return nil
-	}
-	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
-		return mockVlmClient
-	}
-	mockVlmClient.On("VSAClusterDeployCreate", ctx, cfg).Return(nil)
-	assert.NotNil(t, cfg)
-
-	_, err := activity.CreateVSACluster(ctx, cfg)
-
-	assert.NoError(t, err)
-	mockVlmClient.AssertExpectations(t)
-}
-
-func Test_CreateVSACluster_FailsToDeployCluster(t *testing.T) {
-	mockVlmClient := new(vlm.MockClientFactory)
-	activity := activities.PoolActivity{}
-	getPasswordForVSACluster := activities.GetPasswordForVSACluster
-	prepareVLMConfig := activities.PrepareVlmConfig
-	getVLMClient := activities.GetVLMClient
-	defer func() {
-		activities.GetPasswordForVSACluster = getPasswordForVSACluster
-		activities.PrepareVlmConfig = prepareVLMConfig
-		activities.GetVLMClient = getVLMClient
-	}()
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	cfg := &vlmconfig.VLMConfig{}
-	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
-		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
-	}
-
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
-		return nil
-	}
-	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
-		return mockVlmClient
-	}
-	mockVlmClient.On("VSAClusterDeployCreate", ctx, cfg).Return(errors.New("failed to deploy VSA cluster"))
-	assert.NotNil(t, cfg)
-
-	_, err := activity.CreateVSACluster(ctx, cfg)
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to deploy VSA cluster")
-	mockVlmClient.AssertExpectations(t)
 }
 
 func Test_CreateVlmConfig_Success(t *testing.T) {
 	activity := activities.PoolActivity{}
-	prepareVLMConfig := activities.PrepareVlmConfig
+	prepareVLMConfigForVLMClient := activities.PrepareVlmConfigForVLMClient
 	defer func() {
-		activities.PrepareVlmConfig = prepareVLMConfig
+		activities.PrepareVlmConfigForVLMClient = prepareVLMConfigForVLMClient
 	}()
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	cfg := &vlmconfig.VLMConfig{}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
+	activities.PrepareVlmConfigForVLMClient = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
 		return nil
 	}
 	assert.NotNil(t, cfg)
@@ -1080,14 +1038,14 @@ func Test_CreateVlmConfig_Success(t *testing.T) {
 
 func Test_CreateVlmConfig_FailsToPrepareConfig(t *testing.T) {
 	activity := activities.PoolActivity{}
-	prepareVLMConfig := activities.PrepareVlmConfig
+	prepareVLMConfigForVLMClient := activities.PrepareVlmConfigForVLMClient
 	defer func() {
-		activities.PrepareVlmConfig = prepareVLMConfig
+		activities.PrepareVlmConfigForVLMClient = prepareVLMConfigForVLMClient
 	}()
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	cfg := &vlmconfig.VLMConfig{}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
+	activities.PrepareVlmConfigForVLMClient = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
 		return errors.New("failed to prepare VLM config")
 	}
 	assert.NotNil(t, cfg)
@@ -1155,26 +1113,26 @@ func Test_SaveNodeDetails_Success(t *testing.T) {
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
-	vmConfig := vlmconfig.VMConfig{
+	vmConfig := vlm.VMConfig{
 		HostName: "test-node",
-		SystemLIFs: map[vlmconfig.VSALIFType]vlmconfig.LIFConfig{
-			vlmconfig.LIFTypeNodeMgmt: {IP: "192.168.1.1"},
+		SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{
+			vlm.LIFTypeNodeMgmt: {IP: "192.168.1.1"},
 		},
 		Zone: "test-zone",
 	}
-	deploymentConfig := vlmconfig.DeploymentConfig{
-		OntapCredentials: vlmconfig.OntapCredentials{
-			Username: "admin",
-			Password: "password",
-		},
+	deploymentConfig := vlm.DeploymentConfig{
 		VSAInstanceType: "n1-standard-4",
 	}
-	vasNode := &vsa.Node{}
+	ontapCredentials := &vlm.OntapCredentials{
+		AdminPassword: "password",
+	}
 
-	mockProvider.On("GetNodeByName", mock.Anything).Return(vasNode, nil)
+	vsaNode := &vsa.Node{}
+
+	mockProvider.On("GetNodeByName", mock.Anything).Return(vsaNode, nil)
 	mockStorage.On("CreateNode", ctx, mock.Anything).Return(&datamodel.Node{}, nil)
 
-	node, err := activities.SaveNodeDetails(ctx, mockStorage, vmConfig, deploymentConfig, pool)
+	node, err := activities.SaveNodeDetails(ctx, mockStorage, vmConfig, deploymentConfig, ontapCredentials, pool)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, node)
@@ -1194,26 +1152,27 @@ func Test_SaveNodeDetails_FailsToCreateNode(t *testing.T) {
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
-	vmConfig := vlmconfig.VMConfig{
+	vmConfig := vlm.VMConfig{
 		HostName: "test-node",
-		SystemLIFs: map[vlmconfig.VSALIFType]vlmconfig.LIFConfig{
-			vlmconfig.LIFTypeNodeMgmt: {IP: "192.168.1.1"},
+		SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{
+			vlm.LIFTypeNodeMgmt: {IP: "192.168.1.1"},
 		},
 		Zone: "test-zone",
 	}
-	deploymentConfig := vlmconfig.DeploymentConfig{
-		OntapCredentials: vlmconfig.OntapCredentials{
-			Username: "admin",
-			Password: "password",
-		},
+	deploymentConfig := vlm.DeploymentConfig{
 		VSAInstanceType: "n1-standard-4",
 	}
+
+	ontapCredentials := &vlm.OntapCredentials{
+		AdminPassword: "password",
+	}
+
 	vasNode := &vsa.Node{}
 
 	mockProvider.On("GetNodeByName", mock.Anything).Return(vasNode, nil)
 	mockStorage.On("CreateNode", ctx, mock.Anything).Return(nil, errors.New("failed to create node"))
 
-	node, err := activities.SaveNodeDetails(ctx, mockStorage, vmConfig, deploymentConfig, pool)
+	node, err := activities.SaveNodeDetails(ctx, mockStorage, vmConfig, deploymentConfig, ontapCredentials, pool)
 
 	assert.Error(t, err)
 	assert.Nil(t, node)
@@ -1233,23 +1192,23 @@ func Test_SaveNodeDetails_FailsToFetchNodeByName(t *testing.T) {
 	}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
-	vmConfig := vlmconfig.VMConfig{
+	vmConfig := vlm.VMConfig{
 		HostName: "test-node",
-		SystemLIFs: map[vlmconfig.VSALIFType]vlmconfig.LIFConfig{
-			vlmconfig.LIFTypeNodeMgmt: {IP: "192.168.1.1"},
+		SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{
+			vlm.LIFTypeNodeMgmt: {IP: "192.168.1.1"},
 		},
 		Zone: "test-zone",
 	}
-	deploymentConfig := vlmconfig.DeploymentConfig{
-		OntapCredentials: vlmconfig.OntapCredentials{
-			Username: "admin",
-			Password: "password",
-		},
+	deploymentConfig := vlm.DeploymentConfig{
 		VSAInstanceType: "n1-standard-4",
 	}
 
+	ontapCredentials := &vlm.OntapCredentials{
+		AdminPassword: "password",
+	}
+
 	mockProvider.On("GetNodeByName", mock.Anything).Return(nil, errors.New("failed to fetch node"))
-	node, err := activities.SaveNodeDetails(ctx, mockStorage, vmConfig, deploymentConfig, pool)
+	node, err := activities.SaveNodeDetails(ctx, mockStorage, vmConfig, deploymentConfig, ontapCredentials, pool)
 
 	assert.Error(t, err)
 	assert.Nil(t, node)
@@ -1261,11 +1220,14 @@ func Test_SaveVSANodeDetails_NoClusterDetailsProvided(t *testing.T) {
 	activity := activities.PoolActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
-	vlmConfig := &vlmconfig.VLMConfig{
-		Cloud: vlmconfig.CloudConfig{HAPairs: []vlmconfig.HAPair{}},
+	vlmConfig := &vlm.VLMConfig{
+		Cloud: vlm.CloudConfig{HAPairs: []vlm.HAPair{}},
+	}
+	ontapCredentials := &vlm.OntapCredentials{
+		AdminPassword: "password",
 	}
 
-	node, err := activity.SaveVSANodeDetails(ctx, pool, vlmConfig)
+	node, err := activity.SaveVSANodeDetails(ctx, pool, vlmConfig, ontapCredentials)
 
 	assert.Error(t, err)
 	assert.Nil(t, node)
@@ -1277,11 +1239,15 @@ func Test_SaveVSANodeDetails_NoHAPairsProvided(t *testing.T) {
 	activity := activities.PoolActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
-	vlmConfig := &vlmconfig.VLMConfig{
-		Cloud: vlmconfig.CloudConfig{HAPairs: []vlmconfig.HAPair{}},
+	vlmConfig := &vlm.VLMConfig{
+		Cloud: vlm.CloudConfig{HAPairs: []vlm.HAPair{}},
 	}
 
-	node, err := activity.SaveVSANodeDetails(ctx, pool, vlmConfig)
+	ontapCredentials := &vlm.OntapCredentials{
+		AdminPassword: "password",
+	}
+
+	node, err := activity.SaveVSANodeDetails(ctx, pool, vlmConfig, ontapCredentials)
 
 	assert.Error(t, err)
 	assert.Nil(t, node)
@@ -1295,25 +1261,29 @@ func Test_SaveVSANodeDetails_FailsToSaveFirstNode(t *testing.T) {
 	defer func() { activities.SaveNodeDetails = saveNodeDetails }() // Restore original function after test
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
-	vlmConfig := &vlmconfig.VLMConfig{
-		Cloud: vlmconfig.CloudConfig{
-			HAPairs: []vlmconfig.HAPair{
+	vlmConfig := &vlm.VLMConfig{
+		Cloud: vlm.CloudConfig{
+			HAPairs: []vlm.HAPair{
 				{
-					VM1: vlmconfig.VMConfig{HostName: "node1"},
-					VM2: vlmconfig.VMConfig{HostName: "node2"},
+					VM1: vlm.VMConfig{HostName: "node1"},
+					VM2: vlm.VMConfig{HostName: "node2"},
 				},
 			},
 		},
 	}
 
-	activities.SaveNodeDetails = func(ctx context.Context, se database.Storage, vmConfig vlmconfig.VMConfig, deploymentConfig vlmconfig.DeploymentConfig, pool *datamodel.Pool) (*datamodel.Node, error) {
+	ontapCredentials := &vlm.OntapCredentials{
+		AdminPassword: "password",
+	}
+
+	activities.SaveNodeDetails = func(ctx context.Context, se database.Storage, vmConfig vlm.VMConfig, deploymentConfig vlm.DeploymentConfig, ontapCredentials *vlm.OntapCredentials, pool *datamodel.Pool) (*datamodel.Node, error) {
 		if vmConfig.HostName == "node1" {
 			return nil, errors.New("failed to save node1")
 		}
 		return &datamodel.Node{Name: vmConfig.HostName}, nil
 	}
 
-	node, err := activity.SaveVSANodeDetails(ctx, pool, vlmConfig)
+	node, err := activity.SaveVSANodeDetails(ctx, pool, vlmConfig, ontapCredentials)
 
 	assert.Error(t, err)
 	assert.Nil(t, node)
@@ -1327,25 +1297,29 @@ func Test_SaveVSANodeDetails_FailsToSaveSecondNode(t *testing.T) {
 	defer func() { activities.SaveNodeDetails = saveNodeDetails }() // Restore original function after test
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
-	vlmConfig := &vlmconfig.VLMConfig{
-		Cloud: vlmconfig.CloudConfig{
-			HAPairs: []vlmconfig.HAPair{
+	vlmConfig := &vlm.VLMConfig{
+		Cloud: vlm.CloudConfig{
+			HAPairs: []vlm.HAPair{
 				{
-					VM1: vlmconfig.VMConfig{HostName: "node1"},
-					VM2: vlmconfig.VMConfig{HostName: "node2"},
+					VM1: vlm.VMConfig{HostName: "node1"},
+					VM2: vlm.VMConfig{HostName: "node2"},
 				},
 			},
 		},
 	}
 
-	activities.SaveNodeDetails = func(ctx context.Context, se database.Storage, vmConfig vlmconfig.VMConfig, deploymentConfig vlmconfig.DeploymentConfig, pool *datamodel.Pool) (*datamodel.Node, error) {
-		if vmConfig.HostName == "node2" {
+	ontapCredentials := &vlm.OntapCredentials{
+		AdminPassword: "password",
+	}
+
+	activities.SaveNodeDetails = func(ctx context.Context, se database.Storage, vmConfig vlm.VMConfig, deploymentConfig vlm.DeploymentConfig, ontapCredentials *vlm.OntapCredentials, pool *datamodel.Pool) (*datamodel.Node, error) {
+		if vmConfig.HostName == "node1" {
 			return nil, errors.New("failed to save node2")
 		}
 		return &datamodel.Node{Name: vmConfig.HostName}, nil
 	}
 
-	node, err := activity.SaveVSANodeDetails(ctx, pool, vlmConfig)
+	node, err := activity.SaveVSANodeDetails(ctx, pool, vlmConfig, ontapCredentials)
 
 	assert.Error(t, err)
 	assert.Nil(t, node)
@@ -1359,22 +1333,26 @@ func Test_SaveVSANodeDetails_Success(t *testing.T) {
 	defer func() { activities.SaveNodeDetails = saveNodeDetails }() // Restore original function after test
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
-	vlmConfig := &vlmconfig.VLMConfig{
-		Cloud: vlmconfig.CloudConfig{
-			HAPairs: []vlmconfig.HAPair{
+	vlmConfig := &vlm.VLMConfig{
+		Cloud: vlm.CloudConfig{
+			HAPairs: []vlm.HAPair{
 				{
-					VM1: vlmconfig.VMConfig{HostName: "node1"},
-					VM2: vlmconfig.VMConfig{HostName: "node2"},
+					VM1: vlm.VMConfig{HostName: "node1"},
+					VM2: vlm.VMConfig{HostName: "node2"},
 				},
 			},
 		},
 	}
 
-	activities.SaveNodeDetails = func(ctx context.Context, se database.Storage, vmConfig vlmconfig.VMConfig, deploymentConfig vlmconfig.DeploymentConfig, pool *datamodel.Pool) (*datamodel.Node, error) {
+	ontapCredentials := &vlm.OntapCredentials{
+		AdminPassword: "password",
+	}
+
+	activities.SaveNodeDetails = func(ctx context.Context, se database.Storage, vmConfig vlm.VMConfig, deploymentConfig vlm.DeploymentConfig, ontapCredentials *vlm.OntapCredentials, pool *datamodel.Pool) (*datamodel.Node, error) {
 		return &datamodel.Node{Name: vmConfig.HostName}, nil
 	}
 
-	node, err := activity.SaveVSANodeDetails(ctx, pool, vlmConfig)
+	node, err := activity.SaveVSANodeDetails(ctx, pool, vlmConfig, ontapCredentials)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, node)
@@ -1798,7 +1776,7 @@ func TestReturnsErrorWhenSVMsNotFound(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
-func ReturnsErrorWhenErroredSVMFails(t *testing.T) {
+func TestReturnsErrorWhenErroredSVMFails(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
@@ -2161,107 +2139,6 @@ func Test_DeletesPoolResourcesSuccessfully(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, pool, result)
-}
-
-func Test_ReturnsErrorWhenVLMConfigPreparationFails(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	activity := activities.PoolActivity{SE: mockStorage}
-	getPasswordForVSACluster := activities.GetPasswordForVSACluster
-	prepareVLMConfig := activities.PrepareVlmConfig
-	defer func() {
-		activities.GetPasswordForVSACluster = getPasswordForVSACluster
-		activities.PrepareVlmConfig = prepareVLMConfig
-	}()
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
-	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
-		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
-	}
-	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment", SubnetNames: []string{"subnet1"}},
-		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 64, Iops: 1000, PrimaryZone: "zone1"}}
-
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
-		return errors.New("failed to prepare VLM config")
-	}
-
-	result, err := activity.DeleteVSADeployment(ctx, pool)
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "failed to prepare VLM config")
-	mockStorage.AssertExpectations(t)
-}
-
-func Test_ReturnsErrorWhenVSAClusterDeletionFails(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	mockVlmClient := new(vlm.MockClientFactory)
-	activity := activities.PoolActivity{SE: mockStorage}
-	getPasswordForVSACluster := activities.GetPasswordForVSACluster
-	prepareVLMConfig := activities.PrepareVlmConfig
-	getVLMClient := activities.GetVLMClient
-	defer func() {
-		activities.GetPasswordForVSACluster = getPasswordForVSACluster
-		activities.PrepareVlmConfig = prepareVLMConfig
-		activities.GetVLMClient = getVLMClient
-	}()
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment", SubnetNames: []string{"subnet1"}},
-		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 64, Iops: 1000, PrimaryZone: "zone1"}}
-
-	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
-		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
-	}
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
-		return nil
-	}
-	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
-		return mockVlmClient
-	}
-	mockVlmClient.On("VSAClusterDeploymentDelete", ctx, mock.Anything).Return(errors.New("failed to delete VSA cluster"))
-
-	result, err := activity.DeleteVSADeployment(ctx, pool)
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "failed to delete VSA cluster")
-	mockStorage.AssertExpectations(t)
-	mockVlmClient.AssertExpectations(t)
-}
-
-func Test_DeletesVSADeploymentSuccessfully(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	mockVlmClient := new(vlm.MockClientFactory)
-	activity := activities.PoolActivity{SE: mockStorage}
-	getPasswordForVSACluster := activities.GetPasswordForVSACluster
-	prepareVLMConfig := activities.PrepareVlmConfig
-	getVLMClient := activities.GetVLMClient
-	defer func() {
-		activities.GetPasswordForVSACluster = getPasswordForVSACluster
-		activities.PrepareVlmConfig = prepareVLMConfig
-		activities.GetVLMClient = getVLMClient
-	}()
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	pool := &datamodel.Pool{ClusterDetails: datamodel.ClusterDetails{ExternalName: "test-deployment", SubnetNames: []string{"subnet1"}},
-		PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 64, Iops: 1000, PrimaryZone: "zone1"}}
-
-	activities.GetPasswordForVSACluster = func(ctx context.Context, projectId, userName string) (*models.CustomSecret, error) {
-		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
-	}
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, zone1, zone2, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
-		return nil
-	}
-	activities.GetVLMClient = func(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
-		return mockVlmClient
-	}
-	mockVlmClient.On("VSAClusterDeploymentDelete", ctx, mock.Anything).Return(nil)
-
-	result, err := activity.DeleteVSADeployment(ctx, pool)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, pool, result)
-	mockStorage.AssertExpectations(t)
-	mockVlmClient.AssertExpectations(t)
 }
 
 func Test_ReturnsErrorWhenListPoolsFails(t *testing.T) {
@@ -3712,13 +3589,12 @@ func Test_IdentifyVMs_SuccessfullyPreparesConfig(t *testing.T) {
 		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
 	}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
-		// return errors.New("failed to prepare VLM config")
+	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string) error {
 		return nil
 	}
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.NoError(t, err)
 }
@@ -3734,12 +3610,12 @@ func Test_IdentifyVMs_FailsToPrepareConfig(t *testing.T) {
 		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
 	}
 
-	activities.PrepareVlmConfig = func(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
+	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string) error {
 		return errors.New("failed to prepare VLM config")
 	}
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to prepare VLM config")
@@ -3757,7 +3633,8 @@ func Test_IdentifyVMs_FailsToLoadConfig(t *testing.T) {
 	}
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "test-tenant-project@xyz.com", "test-tenant-project")
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to load VMRS config from file")
 }
@@ -3782,7 +3659,8 @@ func Test_IdentifyVMs_FailsToCreateDecisionMaker(t *testing.T) {
 	}
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "test-tenant-project@xyz.com", "test-tenant-project")
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create decision maker")
 }
@@ -3809,7 +3687,8 @@ func Test_IdentifyVMs_FailsToFindOptimalVMs(t *testing.T) {
 	mockDecisionMaker.Mock.On("FindOptimalVMs", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to find optimal VMs foo"))
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "password", "test-tenant-project@xyz.com", "test-tenant-project")
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "test-tenant-project@xyz.com", "test-tenant-project")
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to find optimal VMs")
 }

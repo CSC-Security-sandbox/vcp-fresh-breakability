@@ -3,6 +3,8 @@ package utils
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	goerrors "errors"
 	"fmt"
@@ -772,4 +774,25 @@ func GetArrayDiff(existingList []string, newList []string) ([]string, []string) 
 		}
 	}
 	return toCreate, toDelete
+}
+
+// GenerateDeterministicID returns a deterministic, fixed-length ID for the given input.
+// The same input will always produce the same output.
+func GenerateDeterministicID(input string, length int) string {
+	hash := sha256.Sum256([]byte(input))
+	id := hex.EncodeToString(hash[:])
+	// Ensure the first character is a lowercase letter
+	if id[0] < 'a' || id[0] > 'z' {
+		id = "a" + id
+	}
+	if length > len(id) {
+		length = len(id)
+	}
+	// Ensure the last character is a letter or digit
+	result := id[:length]
+	last := result[len(result)-1]
+	if (last < 'a' || last > 'z') && (last < '0' || last > '9') {
+		result = result[:len(result)-1] + "a"
+	}
+	return result
 }

@@ -6,8 +6,8 @@ import (
 	"math"
 	"sort"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
-	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
 
 // LeastCostSingleVMDecisionMaker implements the DecisionMaker interface for a single VM.
@@ -41,7 +41,7 @@ func NewLeastCostSingleVMDecisionMaker(config *vmrs.VMRSConfig) *LeastCostSingle
 }
 
 // This implementation of DecisionMaker just loops over the VMRSConfig, looking for the lowest cost VM that satisfies the customer request. It can only ever return one VM identifier.
-func (d *LeastCostSingleVMDecisionMaker) FindOptimalVMs(config *vmrs.VMRSConfig, customerRequest vmrs.CustomerRequestedPerformance, currentConfig *vlmconfig.VLMConfig) (*vmrs.Decision, error) {
+func (d *LeastCostSingleVMDecisionMaker) FindOptimalVMs(config *vmrs.VMRSConfig, customerRequest vmrs.CustomerRequestedPerformance, currentConfig *vlm.VLMConfig) (*vmrs.Decision, error) {
 	// Scale up the customer requested performance to account for the various overheads (ontap/workload/hotspotting) specified in the VMRSConfig.
 	// We add a 1.0 to the overall workload headroom to account for the base performance that is always available.
 	scaledCustomerRequest := d.config.ScaleCustomerRequestedPerformance(customerRequest, d.overallWorkloadHeadroom)

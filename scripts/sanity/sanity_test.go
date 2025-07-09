@@ -21,9 +21,9 @@ import (
 // command to run this test: go test -v -timeout 0 scripts/sanity/sanity_test.go
 var (
 	globalServerURL     = getEnvOrDefault("API_SERVER_URL", "http://localhost:8080")
-	globalProjectNumber = getEnvOrDefault("PROJECT_NUMBER", "123456789012")
-	globalLocationId    = getEnvOrDefault("LOCATION_ID", "australia-southeast1-a")
-	vpcName             = getEnvOrDefault("DEFAULT_VPC", "my-vpc")
+	globalProjectNumber = getEnvOrDefault("PROJECT_NUMBER", "1234567")
+	globalLocationId    = getEnvOrDefault("LOCATION_ID", "region-a")
+	vpcName             = getEnvOrDefault("DEFAULT_VPC", "your-vpc-name")
 	globalPoolName      = "p" + strconv.FormatInt(time.Now().Unix(), 10)
 	globalHostGroupName = "hg" + strconv.FormatInt(time.Now().Unix(), 10)
 	globalVolumeName    = "v" + strconv.FormatInt(time.Now().Unix(), 10)

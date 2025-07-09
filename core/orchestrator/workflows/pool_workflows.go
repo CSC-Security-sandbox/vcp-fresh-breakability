@@ -2,10 +2,15 @@ package workflows
 
 import (
 	"fmt"
+	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/workflow"
+	"google.golang.org/api/iam/v1"
+	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 	"time"
 
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -20,10 +25,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"go.temporal.io/sdk/temporal"
-	"go.temporal.io/sdk/workflow"
-	"google.golang.org/api/iam/v1"
-	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
 
 var (
@@ -33,6 +34,12 @@ var (
 	vmrsConfigPath                                     = env.GetString("VMRS_CONFIG_PATH", "config/vmrs_gcp.yaml")
 	configureKmsConfigForSvmActivity                   = _configureKmsConfigForSvmActivity
 	getSignedJwtToken                                  = auth.GetSignedJwtToken
+	GetNewVSAClientWorkflowManager                     = _getNewVSAClientWorkflowManager
+)
+
+const (
+	DefaultSvmName   = "gcnv"
+	VLMCloudProvider = "gcp"
 )
 
 const (
@@ -169,8 +176,11 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		vsaClusterPassword = pool.Password
 	}
 
-	// Use deployment name as cluster name
-	deploymentName := dbPool.DeploymentName
+	// Generate a deterministic, unique cluster name (Deployment ID) for the pool using pool name, account name, and primary zone.
+	// This avoids collisions when the same pool name is used in different zones or accounts.
+	// The generated ID is limited to 20 characters to comply with resource naming constraints.
+	clusterName := utils.GenerateDeterministicID(params.Name+"-"+params.AccountName+"-"+params.PrimaryZone, 20)
+
 	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
 	// Convert CustomPerformanceParams to CustomerRequestedPerformance.
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
@@ -179,32 +189,35 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		DesiredCapacityInGiB:    int64(sizeInGB),
 	}
 
+	vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
+
 	// Find the optimal VMs based on the customer requested performance.
-	vlmConfig := &vlmconfig.VLMConfig{}
+	vlmConfig := &vlm.VLMConfig{}
+	ontapCredentials := &vlm.OntapCredentials{}
 
-	poolWithClusterDetails := dbPool
-	poolWithClusterDetails.ClusterDetails = datamodel.ClusterDetails{
-		ExternalName:          "",
-		RegionalTenantProject: tenancyDetails.RegionalTenantProject,
-		SnHostProject:         tenancyDetails.SnHostProject,
-		Network:               tenancyDetails.Network,
-		SubnetNames:           tenancyDetails.SubnetworkNames}
-	rollbackManager.AddActivity(poolActivity.DeleteVSADeployment, poolWithClusterDetails)
+	prepareOntapCredentials(ontapCredentials, vsaClusterPassword)
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, deploymentName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkNames, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, vsaClusterPassword, serviceAccount.Email, pool.AutoTierBucketName).Get(ctx, vlmConfig)
+	deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
+	prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, clusterName, VLMCloudProvider, tenancyDetails.RegionalTenantProject)
+	rollbackManager.AddWorkflow(vlm.VSALifecycleManagerQueue, vlm.DeleteVSAClusterDeploymentWorkflowName, deleteVSAClusterDeploymentRequest)
+
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, clusterName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkNames, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, serviceAccount.Email, pool.AutoTierBucketName).Get(ctx, vlmConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSACluster, vlmConfig).Get(ctx, vlmConfig)
+	createVSAClusterDeploymentRequest := &vlm.CreateVSAClusterDeploymentRequest{}
+	prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest, *vlmConfig, *ontapCredentials)
+	createVSAClusterDeploymentResponse, err := vsaClientWorkflowManager.CreateVSAClusterDeployment(ctx, createVSAClusterDeploymentRequest)
 	if err != nil {
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, vlmConfig).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, createVSAClusterDeploymentResponse.VLMConfig, ontapCredentials).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
+
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
@@ -227,7 +240,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	clusterDetails := &datamodel.ClusterDetails{
-		ExternalName:          vlmConfig.Deployment.DeploymentName + "-cluster", // FIXME: Replace with cluster name from VLM config instead of deployment name
+		ExternalName:          clusterName,
 		OntapVersion:          ontapVersion,
 		RegionalTenantProject: tenancyDetails.RegionalTenantProject,
 		SnHostProject:         tenancyDetails.SnHostProject,
@@ -240,8 +253,15 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
+	createSVMRequest := &vlm.CreateSVMRequest{}
+	prepareCreateSVMRequest(createSVMRequest, DefaultSvmName, createVSAClusterDeploymentResponse.VLMConfig, *ontapCredentials)
+	createSVMResponse, err := vsaClientWorkflowManager.CreateVSASVM(ctx, createSVMRequest)
+	if err != nil {
+		return nil, err
+	}
+
 	svm := &datamodel.Svm{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVSASVM, dbPool, vlmConfig).Get(ctx, svm)
+	err = workflow.ExecuteActivity(ctx, poolActivity.SaveSVMAndLifData, dbPool, createSVMResponse.VLMConfig).Get(ctx, svm)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +274,32 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	dbPool.ClusterDetails.SubnetNames = tenancyDetails.SubnetworkNames
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreatedPool, dbPool).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	return nil, err
+}
+
+func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest *vlm.CreateVSAClusterDeploymentRequest, vlmConfig vlm.VLMConfig, ontapCredentials vlm.OntapCredentials) {
+	createVSAClusterDeploymentRequest.VLMConfig = vlmConfig
+	createVSAClusterDeploymentRequest.OntapCredentials = ontapCredentials
+}
+
+func prepareCreateSVMRequest(createSVMRequest *vlm.CreateSVMRequest, svmName string, vlmConfig vlm.VLMConfig, ontapCredentials vlm.OntapCredentials) {
+	createSVMRequest.Name = svmName
+	createSVMRequest.VLMConfig = vlmConfig
+	createSVMRequest.OntapCredentials = ontapCredentials
+}
+
+func prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest *vlm.DeleteVSAClusterDeploymentRequest, deploymentID string, cloudProvider string, projectID string) {
+	deleteVSAClusterDeploymentRequest.DeploymentID = deploymentID
+	deleteVSAClusterDeploymentRequest.ProjectID = projectID
+	deleteVSAClusterDeploymentRequest.CloudProvider = cloudProvider
+}
+
+func prepareOntapCredentials(ontapCredentials *vlm.OntapCredentials, vsaClusterPassword string) {
+	ontapCredentials.AdminPassword = vsaClusterPassword
 }
 
 type updatePoolWorkflow struct {
@@ -363,7 +408,8 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		DesiredThroughputInMiBs: int64(updatePoolParams.TotalThroughputMibps),
 		DesiredCapacityInGiB:    int64(utils.BytesToGigabytes(updatePoolParams.SizeInBytes)),
 	}
-	newVlmConfig := &vlmconfig.VLMConfig{}
+
+	newVlmConfig := &vlm.VLMConfig{}
 	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, pool.Password, pool.KmsConfig.ServiceAccount.ServiceAccountEmail, pool.AutoTierBucketName).Get(ctx, newVlmConfig)
 	if err != nil {
 		return nil, err
@@ -373,7 +419,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	dup := &vlmconfig.DeploymentUpdateParams{
 		VlmConfig: currentVlmConfig,
 		NumHAPair: newVlmConfig.Deployment.NumHAPair,
-		SPConfig:  newVlmConfig.Deployment.SPConfig,
+		SPConfig:  vlmconfig.SPConfig(newVlmConfig.Deployment.SPConfig),
 	}
 	err = workflow.ExecuteActivity(ctx, poolActivity.UpdateVSACluster, dup).Get(ctx, newVlmConfig)
 	if err != nil {
@@ -486,7 +532,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
-	// Add the cleanup / rollback activity using this rollback.Add() method instead of writing multiple defer statements,
+	// Add the cleanup / rollback activity using this rollback.AddActivity() method instead of writing multiple defer statements,
 	// this rollback manager will be invoked whenever there is an error, and it will start calling clean up activities in LIFO manner ***/
 	rollbackManager.AddActivity(poolActivity.FailedPool, dbPool, "Failed to delete pool")
 
@@ -495,7 +541,11 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteVSADeployment, dbPool).Get(ctx, nil)
+	vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
+
+	deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
+	prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.ClusterDetails.ExternalName, VLMCloudProvider, dbPool.ClusterDetails.RegionalTenantProject)
+	err = vsaClientWorkflowManager.DeleteVSAClusterDeployment(ctx, deleteVSAClusterDeploymentRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -620,6 +670,7 @@ func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool
 	}
 	return nil
 }
+
 func convertToCreateKmsConfigParams(params cvpmodels.KmsConfigV1beta, createPoolParams *common.CreatePoolParams) *common.CreateKmsConfigParams {
 	createConfigParams := &common.CreateKmsConfigParams{}
 
@@ -641,4 +692,8 @@ func convertToCreateKmsConfigParams(params cvpmodels.KmsConfigV1beta, createPool
 		createConfigParams.ResourceID = *params.ResourceID
 	}
 	return createConfigParams
+}
+
+func _getNewVSAClientWorkflowManager() vlm.VlmWorkflowClient {
+	return vlm.NewVSAClientWorkflowManager()
 }
