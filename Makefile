@@ -9,7 +9,7 @@ fix-imports:
 
 .PHONY: generate-mocks
 generate-mocks:
-	go get github.com/vektra/mockery/v2@v2.53.2	
+	go get github.com/vektra/mockery/v2@v2.53.3
 	mockery --config .mockery.yaml
 
 .PHONY: generate-cvp-client

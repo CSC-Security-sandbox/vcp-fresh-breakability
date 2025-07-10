@@ -374,6 +374,16 @@ type V1betaDescribeVolumeParams struct {
 	VolumeId string
 }
 
+// V1betaFinishProjectEventParams is parameters of v1beta_finishProjectEvent operation.
+type V1betaFinishProjectEventParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaGetMultipleActiveDirectoriesParams is parameters of v1beta_getMultipleActiveDirectories operation.
 type V1betaGetMultipleActiveDirectoriesParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -569,6 +579,18 @@ type V1betaInternalDeleteVolumeReplicationParams struct {
 	SkipPeeringCleanup OptBool
 }
 
+// V1betaInternalDeleteVolumeSnapmirrorSnapshotParams is parameters of v1beta_internalDeleteVolumeSnapmirrorSnapshot operation.
+type V1betaInternalDeleteVolumeSnapmirrorSnapshotParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaInternalDescribePoolParams is parameters of v1beta_internalDescribePool operation.
 type V1betaInternalDescribePoolParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -616,11 +638,11 @@ type V1betaInternalMountVolumeReplicationParams struct {
 
 // V1betaInternalReleaseVolumeReplicationParams is parameters of v1beta_internalReleaseVolumeReplication operation.
 type V1betaInternalReleaseVolumeReplicationParams struct {
+	VolumeReplicationId string
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
 	// The location/region to perform the operation in.
-	LocationId          string
-	VolumeReplicationId string
+	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
 }
@@ -781,6 +803,16 @@ type V1betaListVolumesParams struct {
 	IncludeSmbShareSettings OptBool
 }
 
+// V1betaResourceStateUpdateParams is parameters of v1beta_resourceStateUpdate operation.
+type V1betaResourceStateUpdateParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaResumeReplicationParams is parameters of v1beta_resumeReplication operation.
 type V1betaResumeReplicationParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
@@ -805,6 +837,16 @@ type V1betaReverseAndResumeReplicationParams struct {
 	VolumeResourceId string
 	// Resource Id used to identify the replication.
 	ReplicationResourceId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+// V1betaStartProjectEventParams is parameters of v1beta_startProjectEvent operation.
+type V1betaStartProjectEventParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
 }

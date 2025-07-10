@@ -244,10 +244,6 @@ func (s *PoolInternalV1beta) setDefaults() {
 		val := bool(false)
 		s.CustomPerformanceEnabled.SetTo(val)
 	}
-	{
-		val := bool(false)
-		s.UnifiedPool.SetTo(val)
-	}
 }
 
 // setDefaults set default value of fields.
@@ -271,10 +267,6 @@ func (s *PoolV1beta) setDefaults() {
 	{
 		val := bool(false)
 		s.CustomPerformanceEnabled.SetTo(val)
-	}
-	{
-		val := bool(false)
-		s.UnifiedPool.SetTo(val)
 	}
 }
 

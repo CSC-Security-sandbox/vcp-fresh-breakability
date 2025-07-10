@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/go-faster/jx"
+
 	ht "github.com/ogen-go/ogen/http"
 )
 
@@ -178,6 +179,20 @@ func encodeV1betaDeleteVolumeRequest(
 		if req.Set {
 			req.Encode(e)
 		}
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeV1betaFinishProjectEventRequest(
+	req *ProjectStateUpdateV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
 	}
 	encoded := e.Bytes()
 	ht.SetBody(r, bytes.NewReader(encoded), contentType)
@@ -396,6 +411,34 @@ func encodeV1betaInternalStopVolumeReplicationRequest(
 
 func encodeV1betaInternalUpdateVolumeReplicationRequest(
 	req *VolumeReplicationUpdateInternalV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeV1betaResourceStateUpdateRequest(
+	req *ResourceStateUpdateV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeV1betaStartProjectEventRequest(
+	req *ProjectStateUpdateV1beta,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

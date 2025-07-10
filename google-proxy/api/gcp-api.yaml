@@ -5972,22 +5972,6 @@ components:
             All characters must use UTF-8 encoding, and international characters are allowed.
             Must start with a lowercase letter or international character.
           example: { "some-key": "some-value", "some-key2": "some-value2" }
-    ReplicationIdList_v1beta:
-      title: ReplicationIdList
-      type: object
-      required:
-        - replicationUuids
-      properties:
-        replicationUuids:
-          title: replicationUuids
-          type: array
-          minItems: 1
-          items:
-            type: string
-            description: Uuid v4 used to identify the replication
-            pattern: >-
-              ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
-            example: "9760acf5-4638-11e7-9bdb-020073ca3333"
     ClusterPeer_v1:
       title: ClusterPeer
       type: object

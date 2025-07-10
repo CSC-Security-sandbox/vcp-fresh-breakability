@@ -222,6 +222,12 @@ type Invoker interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 	V1betaDescribeVolume(ctx context.Context, params V1betaDescribeVolumeParams) (V1betaDescribeVolumeRes, error)
+	// V1betaFinishProjectEvent invokes v1beta_finishProjectEvent operation.
+	//
+	// Finishes the project state for a 1P account based on the path parameter and project state value.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/finishProjectEvent
+	V1betaFinishProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error)
 	// V1betaGetMultipleActiveDirectories invokes v1beta_getMultipleActiveDirectories operation.
 	//
 	// Returns descriptions of Active Directory credentials that is listed in request body.
@@ -324,6 +330,12 @@ type Invoker interface {
 	//
 	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}
 	V1betaInternalDeleteVolumeReplication(ctx context.Context, params V1betaInternalDeleteVolumeReplicationParams) (V1betaInternalDeleteVolumeReplicationRes, error)
+	// V1betaInternalDeleteVolumeSnapmirrorSnapshot invokes v1beta_internalDeleteVolumeSnapmirrorSnapshot operation.
+	//
+	// Deletes the snapmirror snapshots in the specified volume.
+	//
+	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapmirrorSnapshots
+	V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx context.Context, params V1betaInternalDeleteVolumeSnapmirrorSnapshotParams) (V1betaInternalDeleteVolumeSnapmirrorSnapshotRes, error)
 	// V1betaInternalDescribePool invokes v1beta_internalDescribePool operation.
 	//
 	// Returns the description of the specified volume replication by volume replication Id.
@@ -350,9 +362,9 @@ type Invoker interface {
 	V1betaInternalMountVolumeReplication(ctx context.Context, params V1betaInternalMountVolumeReplicationParams) (V1betaInternalMountVolumeReplicationRes, error)
 	// V1betaInternalReleaseVolumeReplication invokes v1beta_internalReleaseVolumeReplication operation.
 	//
-	// Release a volume replication on the source.
+	// Release a volume replication source endpoint.
 	//
-	// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/release
+	// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplicationRow/{volumeReplicationId}/release
 	V1betaInternalReleaseVolumeReplication(ctx context.Context, params V1betaInternalReleaseVolumeReplicationParams) (V1betaInternalReleaseVolumeReplicationRes, error)
 	// V1betaInternalResumeVolumeReplication invokes v1beta_internalResumeVolumeReplication operation.
 	//
@@ -436,6 +448,12 @@ type Invoker interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes
 	V1betaListVolumes(ctx context.Context, params V1betaListVolumesParams) (V1betaListVolumesRes, error)
+	// V1betaResourceStateUpdate invokes v1beta_resourceStateUpdate operation.
+	//
+	// Updates the resource state of GCP 1P resources based on the path and body parameters.
+	//
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent
+	V1betaResourceStateUpdate(ctx context.Context, request *ResourceStateUpdateV1beta, params V1betaResourceStateUpdateParams) (V1betaResourceStateUpdateRes, error)
 	// V1betaResumeReplication invokes v1beta_resumeReplication operation.
 	//
 	// Resume a replication.
@@ -448,6 +466,12 @@ type Invoker interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication
 	V1betaReverseAndResumeReplication(ctx context.Context, params V1betaReverseAndResumeReplicationParams) (V1betaReverseAndResumeReplicationRes, error)
+	// V1betaStartProjectEvent invokes v1beta_startProjectEvent operation.
+	//
+	// Updates the project state for a 1P account based on the path parameter and project state value.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent
+	V1betaStartProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error)
 	// V1betaStopReplication invokes v1beta_stopReplication operation.
 	//
 	// Stops a replication.
@@ -4102,6 +4126,108 @@ func (c *Client) sendV1betaDescribeVolume(ctx context.Context, params V1betaDesc
 	return result, nil
 }
 
+// V1betaFinishProjectEvent invokes v1beta_finishProjectEvent operation.
+//
+// Finishes the project state for a 1P account based on the path parameter and project state value.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/finishProjectEvent
+func (c *Client) V1betaFinishProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error) {
+	res, err := c.sendV1betaFinishProjectEvent(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaFinishProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaFinishProjectEventParams) (res V1betaFinishProjectEventRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [5]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/finishProjectEvent"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaFinishProjectEventRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaFinishProjectEventResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1betaGetMultipleActiveDirectories invokes v1beta_getMultipleActiveDirectories operation.
 //
 // Returns descriptions of Active Directory credentials that is listed in request body.
@@ -6055,6 +6181,115 @@ func (c *Client) sendV1betaInternalDeleteVolumeReplication(ctx context.Context, 
 	return result, nil
 }
 
+// V1betaInternalDeleteVolumeSnapmirrorSnapshot invokes v1beta_internalDeleteVolumeSnapmirrorSnapshot operation.
+//
+// Deletes the snapmirror snapshots in the specified volume.
+//
+// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapmirrorSnapshots
+func (c *Client) V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx context.Context, params V1betaInternalDeleteVolumeSnapmirrorSnapshotParams) (V1betaInternalDeleteVolumeSnapmirrorSnapshotRes, error) {
+	res, err := c.sendV1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx context.Context, params V1betaInternalDeleteVolumeSnapmirrorSnapshotParams) (res V1betaInternalDeleteVolumeSnapmirrorSnapshotRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1beta/internal/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/snapmirrorSnapshots"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaInternalDeleteVolumeSnapmirrorSnapshotResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1betaInternalDescribePool invokes v1beta_internalDescribePool operation.
 //
 // Returns the description of the specified volume replication by volume replication Id.
@@ -6491,9 +6726,9 @@ func (c *Client) sendV1betaInternalMountVolumeReplication(ctx context.Context, p
 
 // V1betaInternalReleaseVolumeReplication invokes v1beta_internalReleaseVolumeReplication operation.
 //
-// Release a volume replication on the source.
+// Release a volume replication source endpoint.
 //
-// POST /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication/{volumeReplicationId}/release
+// DELETE /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplicationRow/{volumeReplicationId}/release
 func (c *Client) V1betaInternalReleaseVolumeReplication(ctx context.Context, params V1betaInternalReleaseVolumeReplicationParams) (V1betaInternalReleaseVolumeReplicationRes, error) {
 	res, err := c.sendV1betaInternalReleaseVolumeReplication(ctx, params)
 	return res, err
@@ -6541,7 +6776,7 @@ func (c *Client) sendV1betaInternalReleaseVolumeReplication(ctx context.Context,
 		}
 		pathParts[3] = encoded
 	}
-	pathParts[4] = "/volumeReplication/"
+	pathParts[4] = "/volumeReplicationRow/"
 	{
 		// Encode "volumeReplicationId" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
@@ -6563,7 +6798,7 @@ func (c *Client) sendV1betaInternalReleaseVolumeReplication(ctx context.Context,
 	pathParts[6] = "/release"
 	uri.AddPathParts(u, pathParts[:]...)
 
-	r, err := ht.NewRequest(ctx, "POST", u)
+	r, err := ht.NewRequest(ctx, "DELETE", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
 	}
@@ -8066,6 +8301,108 @@ func (c *Client) sendV1betaListVolumes(ctx context.Context, params V1betaListVol
 	return result, nil
 }
 
+// V1betaResourceStateUpdate invokes v1beta_resourceStateUpdate operation.
+//
+// Updates the resource state of GCP 1P resources based on the path and body parameters.
+//
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent
+func (c *Client) V1betaResourceStateUpdate(ctx context.Context, request *ResourceStateUpdateV1beta, params V1betaResourceStateUpdateParams) (V1betaResourceStateUpdateRes, error) {
+	res, err := c.sendV1betaResourceStateUpdate(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaResourceStateUpdate(ctx context.Context, request *ResourceStateUpdateV1beta, params V1betaResourceStateUpdateParams) (res V1betaResourceStateUpdateRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [5]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/handleResourceEvent"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaResourceStateUpdateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaResourceStateUpdateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1betaResumeReplication invokes v1beta_resumeReplication operation.
 //
 // Resume a replication.
@@ -8315,6 +8652,108 @@ func (c *Client) sendV1betaReverseAndResumeReplication(ctx context.Context, para
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaReverseAndResumeReplicationResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaStartProjectEvent invokes v1beta_startProjectEvent operation.
+//
+// Updates the project state for a 1P account based on the path parameter and project state value.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent
+func (c *Client) V1betaStartProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error) {
+	res, err := c.sendV1betaStartProjectEvent(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaStartProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaStartProjectEventParams) (res V1betaStartProjectEventRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [5]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/startProjectEvent"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaStartProjectEventRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaStartProjectEventResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -9581,15 +10020,6 @@ func (c *Client) V1betaUpdateSnapshot(ctx context.Context, request *VolumeSnapsh
 }
 
 func (c *Client) sendV1betaUpdateSnapshot(ctx context.Context, request *VolumeSnapshotUpdateV1beta, params V1betaUpdateSnapshotParams) (res V1betaUpdateSnapshotRes, err error) {
-	// Validate request before sending.
-	if err := func() error {
-		if err := request.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		return res, errors.Wrap(err, "validate")
-	}
 
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [8]string

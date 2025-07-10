@@ -2793,7 +2793,7 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
 
-// Export policy for a volume.
+// Export policy for a NAS volume.
 // Ref: #/components/schemas/ExportPolicy_v1beta
 type ExportPolicyV1beta struct {
 	Rules []SimpleExportPolicyRuleV1beta `json:"rules"`
@@ -5018,40 +5018,41 @@ func (s *OperationV1beta) SetResponse(val jx.Raw) {
 	s.Response = val
 }
 
-func (*OperationV1beta) v1betaCreateActiveDirectoryRes()        {}
-func (*OperationV1beta) v1betaCreateBackupPolicyRes()           {}
-func (*OperationV1beta) v1betaCreateBackupRes()                 {}
-func (*OperationV1beta) v1betaCreateBackupVaultRes()            {}
-func (*OperationV1beta) v1betaCreateKmsConfigurationRes()       {}
-func (*OperationV1beta) v1betaCreatePoolRes()                   {}
-func (*OperationV1beta) v1betaCreateReplicationRes()            {}
-func (*OperationV1beta) v1betaCreateSnapshotRes()               {}
-func (*OperationV1beta) v1betaCreateVolumeRes()                 {}
-func (*OperationV1beta) v1betaDeleteActiveDirectoryRes()        {}
-func (*OperationV1beta) v1betaDeleteBackupPolicyRes()           {}
-func (*OperationV1beta) v1betaDeleteBackupUnderBackupVaultRes() {}
-func (*OperationV1beta) v1betaDeleteBackupVaultRes()            {}
-func (*OperationV1beta) v1betaDeleteHostGroupRes()              {}
-func (*OperationV1beta) v1betaDeleteKmsConfigurationRes()       {}
-func (*OperationV1beta) v1betaDeletePoolRes()                   {}
-func (*OperationV1beta) v1betaDeleteReplicationRes()            {}
-func (*OperationV1beta) v1betaDeleteSnapshotRes()               {}
-func (*OperationV1beta) v1betaDeleteVolumeRes()                 {}
-func (*OperationV1beta) v1betaDescribeOperationRes()            {}
-func (*OperationV1beta) v1betaResumeReplicationRes()            {}
-func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()  {}
-func (*OperationV1beta) v1betaStopReplicationRes()              {}
-func (*OperationV1beta) v1betaSyncReplicationRes()              {}
-func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()        {}
-func (*OperationV1beta) v1betaUpdateBackupPolicyRes()           {}
-func (*OperationV1beta) v1betaUpdateBackupRes()                 {}
-func (*OperationV1beta) v1betaUpdateBackupVaultRes()            {}
-func (*OperationV1beta) v1betaUpdateHostGroupRes()              {}
-func (*OperationV1beta) v1betaUpdateKmsConfigurationRes()       {}
-func (*OperationV1beta) v1betaUpdatePoolRes()                   {}
-func (*OperationV1beta) v1betaUpdateReplicationRes()            {}
-func (*OperationV1beta) v1betaUpdateSnapshotRes()               {}
-func (*OperationV1beta) v1betaUpdateVolumeRes()                 {}
+func (*OperationV1beta) v1betaCreateActiveDirectoryRes()                  {}
+func (*OperationV1beta) v1betaCreateBackupPolicyRes()                     {}
+func (*OperationV1beta) v1betaCreateBackupRes()                           {}
+func (*OperationV1beta) v1betaCreateBackupVaultRes()                      {}
+func (*OperationV1beta) v1betaCreateKmsConfigurationRes()                 {}
+func (*OperationV1beta) v1betaCreatePoolRes()                             {}
+func (*OperationV1beta) v1betaCreateReplicationRes()                      {}
+func (*OperationV1beta) v1betaCreateSnapshotRes()                         {}
+func (*OperationV1beta) v1betaCreateVolumeRes()                           {}
+func (*OperationV1beta) v1betaDeleteActiveDirectoryRes()                  {}
+func (*OperationV1beta) v1betaDeleteBackupPolicyRes()                     {}
+func (*OperationV1beta) v1betaDeleteBackupUnderBackupVaultRes()           {}
+func (*OperationV1beta) v1betaDeleteBackupVaultRes()                      {}
+func (*OperationV1beta) v1betaDeleteHostGroupRes()                        {}
+func (*OperationV1beta) v1betaDeleteKmsConfigurationRes()                 {}
+func (*OperationV1beta) v1betaDeletePoolRes()                             {}
+func (*OperationV1beta) v1betaDeleteReplicationRes()                      {}
+func (*OperationV1beta) v1betaDeleteSnapshotRes()                         {}
+func (*OperationV1beta) v1betaDeleteVolumeRes()                           {}
+func (*OperationV1beta) v1betaDescribeOperationRes()                      {}
+func (*OperationV1beta) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {}
+func (*OperationV1beta) v1betaResumeReplicationRes()                      {}
+func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()            {}
+func (*OperationV1beta) v1betaStopReplicationRes()                        {}
+func (*OperationV1beta) v1betaSyncReplicationRes()                        {}
+func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()                  {}
+func (*OperationV1beta) v1betaUpdateBackupPolicyRes()                     {}
+func (*OperationV1beta) v1betaUpdateBackupRes()                           {}
+func (*OperationV1beta) v1betaUpdateBackupVaultRes()                      {}
+func (*OperationV1beta) v1betaUpdateHostGroupRes()                        {}
+func (*OperationV1beta) v1betaUpdateKmsConfigurationRes()                 {}
+func (*OperationV1beta) v1betaUpdatePoolRes()                             {}
+func (*OperationV1beta) v1betaUpdateReplicationRes()                      {}
+func (*OperationV1beta) v1betaUpdateSnapshotRes()                         {}
+func (*OperationV1beta) v1betaUpdateVolumeRes()                           {}
 
 // NewOptActiveDirectoryV1betaActiveDirectoryState returns new OptActiveDirectoryV1betaActiveDirectoryState with value set to v.
 func NewOptActiveDirectoryV1betaActiveDirectoryState(v ActiveDirectoryV1betaActiveDirectoryState) OptActiveDirectoryV1betaActiveDirectoryState {
@@ -7592,6 +7593,69 @@ func (o OptNilPoolV1betaAssetLocationMetadata) Get() (v PoolV1betaAssetLocationM
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilPoolV1betaAssetLocationMetadata) Or(d PoolV1betaAssetLocationMetadata) PoolV1betaAssetLocationMetadata {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilResourceStateUpdateV1betaParentResourceType returns new OptNilResourceStateUpdateV1betaParentResourceType with value set to v.
+func NewOptNilResourceStateUpdateV1betaParentResourceType(v ResourceStateUpdateV1betaParentResourceType) OptNilResourceStateUpdateV1betaParentResourceType {
+	return OptNilResourceStateUpdateV1betaParentResourceType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilResourceStateUpdateV1betaParentResourceType is optional nullable ResourceStateUpdateV1betaParentResourceType.
+type OptNilResourceStateUpdateV1betaParentResourceType struct {
+	Value ResourceStateUpdateV1betaParentResourceType
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilResourceStateUpdateV1betaParentResourceType was set.
+func (o OptNilResourceStateUpdateV1betaParentResourceType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilResourceStateUpdateV1betaParentResourceType) Reset() {
+	var v ResourceStateUpdateV1betaParentResourceType
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilResourceStateUpdateV1betaParentResourceType) SetTo(v ResourceStateUpdateV1betaParentResourceType) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilResourceStateUpdateV1betaParentResourceType) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilResourceStateUpdateV1betaParentResourceType) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v ResourceStateUpdateV1betaParentResourceType
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilResourceStateUpdateV1betaParentResourceType) Get() (v ResourceStateUpdateV1betaParentResourceType, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilResourceStateUpdateV1betaParentResourceType) Or(d ResourceStateUpdateV1betaParentResourceType) ResourceStateUpdateV1betaParentResourceType {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -10307,6 +10371,8 @@ type PoolInternalV1beta struct {
 	// The total iops set for a pool.
 	TotalIops OptNilFloat64 `json:"totalIops"`
 	// Indicates if the pool type is unified.
+	Unified OptBool `json:"unified"`
+	// Indicates if the pool type is unified.
 	UnifiedPool OptBool `json:"unifiedPool"`
 	// The name of the cluster.
 	ClusterName OptString `json:"clusterName"`
@@ -10497,6 +10563,11 @@ func (s *PoolInternalV1beta) GetCustomPerformanceEnabled() OptBool {
 // GetTotalIops returns the value of TotalIops.
 func (s *PoolInternalV1beta) GetTotalIops() OptNilFloat64 {
 	return s.TotalIops
+}
+
+// GetUnified returns the value of Unified.
+func (s *PoolInternalV1beta) GetUnified() OptBool {
+	return s.Unified
 }
 
 // GetUnifiedPool returns the value of UnifiedPool.
@@ -10699,6 +10770,11 @@ func (s *PoolInternalV1beta) SetTotalIops(val OptNilFloat64) {
 	s.TotalIops = val
 }
 
+// SetUnified sets the value of Unified.
+func (s *PoolInternalV1beta) SetUnified(val OptBool) {
+	s.Unified = val
+}
+
 // SetUnifiedPool sets the value of UnifiedPool.
 func (s *PoolInternalV1beta) SetUnifiedPool(val OptBool) {
 	s.UnifiedPool = val
@@ -10857,6 +10933,7 @@ const (
 	PoolInternalV1betaStoragePoolStateUPDATING         PoolInternalV1betaStoragePoolState = "UPDATING"
 	PoolInternalV1betaStoragePoolStateRESTORING        PoolInternalV1betaStoragePoolState = "RESTORING"
 	PoolInternalV1betaStoragePoolStateDISABLED         PoolInternalV1betaStoragePoolState = "DISABLED"
+	PoolInternalV1betaStoragePoolStateDELETED          PoolInternalV1betaStoragePoolState = "DELETED"
 	PoolInternalV1betaStoragePoolStateDELETING         PoolInternalV1betaStoragePoolState = "DELETING"
 	PoolInternalV1betaStoragePoolStateERROR            PoolInternalV1betaStoragePoolState = "ERROR"
 )
@@ -10870,6 +10947,7 @@ func (PoolInternalV1betaStoragePoolState) AllValues() []PoolInternalV1betaStorag
 		PoolInternalV1betaStoragePoolStateUPDATING,
 		PoolInternalV1betaStoragePoolStateRESTORING,
 		PoolInternalV1betaStoragePoolStateDISABLED,
+		PoolInternalV1betaStoragePoolStateDELETED,
 		PoolInternalV1betaStoragePoolStateDELETING,
 		PoolInternalV1betaStoragePoolStateERROR,
 	}
@@ -10889,6 +10967,8 @@ func (s PoolInternalV1betaStoragePoolState) MarshalText() ([]byte, error) {
 	case PoolInternalV1betaStoragePoolStateRESTORING:
 		return []byte(s), nil
 	case PoolInternalV1betaStoragePoolStateDISABLED:
+		return []byte(s), nil
+	case PoolInternalV1betaStoragePoolStateDELETED:
 		return []byte(s), nil
 	case PoolInternalV1betaStoragePoolStateDELETING:
 		return []byte(s), nil
@@ -10919,6 +10999,9 @@ func (s *PoolInternalV1betaStoragePoolState) UnmarshalText(data []byte) error {
 		return nil
 	case PoolInternalV1betaStoragePoolStateDISABLED:
 		*s = PoolInternalV1betaStoragePoolStateDISABLED
+		return nil
+	case PoolInternalV1betaStoragePoolStateDELETED:
+		*s = PoolInternalV1betaStoragePoolStateDELETED
 		return nil
 	case PoolInternalV1betaStoragePoolStateDELETING:
 		*s = PoolInternalV1betaStoragePoolStateDELETING
@@ -11182,6 +11265,8 @@ type PoolV1beta struct {
 	// The total iops set for a pool.
 	TotalIops OptNilFloat64 `json:"totalIops"`
 	// Indicates if the pool type is unified.
+	Unified OptBool `json:"unified"`
+	// Indicates if the pool type is unified.
 	UnifiedPool OptBool `json:"unifiedPool"`
 }
 
@@ -11368,6 +11453,11 @@ func (s *PoolV1beta) GetCustomPerformanceEnabled() OptBool {
 // GetTotalIops returns the value of TotalIops.
 func (s *PoolV1beta) GetTotalIops() OptNilFloat64 {
 	return s.TotalIops
+}
+
+// GetUnified returns the value of Unified.
+func (s *PoolV1beta) GetUnified() OptBool {
+	return s.Unified
 }
 
 // GetUnifiedPool returns the value of UnifiedPool.
@@ -11560,6 +11650,11 @@ func (s *PoolV1beta) SetTotalIops(val OptNilFloat64) {
 	s.TotalIops = val
 }
 
+// SetUnified sets the value of Unified.
+func (s *PoolV1beta) SetUnified(val OptBool) {
+	s.Unified = val
+}
+
 // SetUnifiedPool sets the value of UnifiedPool.
 func (s *PoolV1beta) SetUnifiedPool(val OptBool) {
 	s.UnifiedPool = val
@@ -11708,6 +11803,7 @@ const (
 	PoolV1betaStoragePoolStateUPDATING         PoolV1betaStoragePoolState = "UPDATING"
 	PoolV1betaStoragePoolStateRESTORING        PoolV1betaStoragePoolState = "RESTORING"
 	PoolV1betaStoragePoolStateDISABLED         PoolV1betaStoragePoolState = "DISABLED"
+	PoolV1betaStoragePoolStateDELETED          PoolV1betaStoragePoolState = "DELETED"
 	PoolV1betaStoragePoolStateDELETING         PoolV1betaStoragePoolState = "DELETING"
 	PoolV1betaStoragePoolStateERROR            PoolV1betaStoragePoolState = "ERROR"
 )
@@ -11721,6 +11817,7 @@ func (PoolV1betaStoragePoolState) AllValues() []PoolV1betaStoragePoolState {
 		PoolV1betaStoragePoolStateUPDATING,
 		PoolV1betaStoragePoolStateRESTORING,
 		PoolV1betaStoragePoolStateDISABLED,
+		PoolV1betaStoragePoolStateDELETED,
 		PoolV1betaStoragePoolStateDELETING,
 		PoolV1betaStoragePoolStateERROR,
 	}
@@ -11740,6 +11837,8 @@ func (s PoolV1betaStoragePoolState) MarshalText() ([]byte, error) {
 	case PoolV1betaStoragePoolStateRESTORING:
 		return []byte(s), nil
 	case PoolV1betaStoragePoolStateDISABLED:
+		return []byte(s), nil
+	case PoolV1betaStoragePoolStateDELETED:
 		return []byte(s), nil
 	case PoolV1betaStoragePoolStateDELETING:
 		return []byte(s), nil
@@ -11771,11 +11870,79 @@ func (s *PoolV1betaStoragePoolState) UnmarshalText(data []byte) error {
 	case PoolV1betaStoragePoolStateDISABLED:
 		*s = PoolV1betaStoragePoolStateDISABLED
 		return nil
+	case PoolV1betaStoragePoolStateDELETED:
+		*s = PoolV1betaStoragePoolStateDELETED
+		return nil
 	case PoolV1betaStoragePoolStateDELETING:
 		*s = PoolV1betaStoragePoolStateDELETING
 		return nil
 	case PoolV1betaStoragePoolStateERROR:
 		*s = PoolV1betaStoragePoolStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/ProjectStateUpdate_v1beta
+type ProjectStateUpdateV1beta struct {
+	// New state to be updated.
+	State ProjectStateUpdateV1betaState `json:"state"`
+}
+
+// GetState returns the value of State.
+func (s *ProjectStateUpdateV1beta) GetState() ProjectStateUpdateV1betaState {
+	return s.State
+}
+
+// SetState sets the value of State.
+func (s *ProjectStateUpdateV1beta) SetState(val ProjectStateUpdateV1betaState) {
+	s.State = val
+}
+
+// New state to be updated.
+type ProjectStateUpdateV1betaState string
+
+const (
+	ProjectStateUpdateV1betaStateON     ProjectStateUpdateV1betaState = "ON"
+	ProjectStateUpdateV1betaStateOFF    ProjectStateUpdateV1betaState = "OFF"
+	ProjectStateUpdateV1betaStateDELETE ProjectStateUpdateV1betaState = "DELETE"
+)
+
+// AllValues returns all ProjectStateUpdateV1betaState values.
+func (ProjectStateUpdateV1betaState) AllValues() []ProjectStateUpdateV1betaState {
+	return []ProjectStateUpdateV1betaState{
+		ProjectStateUpdateV1betaStateON,
+		ProjectStateUpdateV1betaStateOFF,
+		ProjectStateUpdateV1betaStateDELETE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ProjectStateUpdateV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case ProjectStateUpdateV1betaStateON:
+		return []byte(s), nil
+	case ProjectStateUpdateV1betaStateOFF:
+		return []byte(s), nil
+	case ProjectStateUpdateV1betaStateDELETE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ProjectStateUpdateV1betaState) UnmarshalText(data []byte) error {
+	switch ProjectStateUpdateV1betaState(data) {
+	case ProjectStateUpdateV1betaStateON:
+		*s = ProjectStateUpdateV1betaStateON
+		return nil
+	case ProjectStateUpdateV1betaStateOFF:
+		*s = ProjectStateUpdateV1betaStateOFF
+		return nil
+	case ProjectStateUpdateV1betaStateDELETE:
+		*s = ProjectStateUpdateV1betaStateDELETE
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -12813,6 +12980,225 @@ func (s *ReplicationVolumeInformationV1beta) SetVolumeId(val OptString) {
 	s.VolumeId = val
 }
 
+// Merged schema.
+// Ref: #/components/schemas/ResourceStateUpdate_v1beta
+type ResourceStateUpdateV1beta struct {
+	// New state to be updated.
+	State ResourceStateUpdateV1betaState `json:"state"`
+	// Resource type be updated.
+	ResourceType ResourceStateUpdateV1betaResourceType `json:"resourceType"`
+	// The UUID of the resource.
+	ResourceID string `json:"resourceID"`
+	// Parent resource Type.
+	ParentResourceType OptNilResourceStateUpdateV1betaParentResourceType `json:"parentResourceType"`
+	// The UUID of the parent resource.
+	ParentResourceID OptNilString `json:"parentResourceID"`
+}
+
+// GetState returns the value of State.
+func (s *ResourceStateUpdateV1beta) GetState() ResourceStateUpdateV1betaState {
+	return s.State
+}
+
+// GetResourceType returns the value of ResourceType.
+func (s *ResourceStateUpdateV1beta) GetResourceType() ResourceStateUpdateV1betaResourceType {
+	return s.ResourceType
+}
+
+// GetResourceID returns the value of ResourceID.
+func (s *ResourceStateUpdateV1beta) GetResourceID() string {
+	return s.ResourceID
+}
+
+// GetParentResourceType returns the value of ParentResourceType.
+func (s *ResourceStateUpdateV1beta) GetParentResourceType() OptNilResourceStateUpdateV1betaParentResourceType {
+	return s.ParentResourceType
+}
+
+// GetParentResourceID returns the value of ParentResourceID.
+func (s *ResourceStateUpdateV1beta) GetParentResourceID() OptNilString {
+	return s.ParentResourceID
+}
+
+// SetState sets the value of State.
+func (s *ResourceStateUpdateV1beta) SetState(val ResourceStateUpdateV1betaState) {
+	s.State = val
+}
+
+// SetResourceType sets the value of ResourceType.
+func (s *ResourceStateUpdateV1beta) SetResourceType(val ResourceStateUpdateV1betaResourceType) {
+	s.ResourceType = val
+}
+
+// SetResourceID sets the value of ResourceID.
+func (s *ResourceStateUpdateV1beta) SetResourceID(val string) {
+	s.ResourceID = val
+}
+
+// SetParentResourceType sets the value of ParentResourceType.
+func (s *ResourceStateUpdateV1beta) SetParentResourceType(val OptNilResourceStateUpdateV1betaParentResourceType) {
+	s.ParentResourceType = val
+}
+
+// SetParentResourceID sets the value of ParentResourceID.
+func (s *ResourceStateUpdateV1beta) SetParentResourceID(val OptNilString) {
+	s.ParentResourceID = val
+}
+
+// Parent resource Type.
+type ResourceStateUpdateV1betaParentResourceType string
+
+const (
+	ResourceStateUpdateV1betaParentResourceTypeVolume ResourceStateUpdateV1betaParentResourceType = "Volume"
+)
+
+// AllValues returns all ResourceStateUpdateV1betaParentResourceType values.
+func (ResourceStateUpdateV1betaParentResourceType) AllValues() []ResourceStateUpdateV1betaParentResourceType {
+	return []ResourceStateUpdateV1betaParentResourceType{
+		ResourceStateUpdateV1betaParentResourceTypeVolume,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResourceStateUpdateV1betaParentResourceType) MarshalText() ([]byte, error) {
+	switch s {
+	case ResourceStateUpdateV1betaParentResourceTypeVolume:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResourceStateUpdateV1betaParentResourceType) UnmarshalText(data []byte) error {
+	switch ResourceStateUpdateV1betaParentResourceType(data) {
+	case ResourceStateUpdateV1betaParentResourceTypeVolume:
+		*s = ResourceStateUpdateV1betaParentResourceTypeVolume
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Resource type be updated.
+type ResourceStateUpdateV1betaResourceType string
+
+const (
+	ResourceStateUpdateV1betaResourceTypeActiveDirectory ResourceStateUpdateV1betaResourceType = "ActiveDirectory"
+	ResourceStateUpdateV1betaResourceTypeVolume          ResourceStateUpdateV1betaResourceType = "Volume"
+	ResourceStateUpdateV1betaResourceTypeSnapshot        ResourceStateUpdateV1betaResourceType = "Snapshot"
+	ResourceStateUpdateV1betaResourceTypeStoragePool     ResourceStateUpdateV1betaResourceType = "StoragePool"
+	ResourceStateUpdateV1betaResourceTypeKmsConfig       ResourceStateUpdateV1betaResourceType = "KmsConfig"
+	ResourceStateUpdateV1betaResourceTypeBackupPolicy    ResourceStateUpdateV1betaResourceType = "BackupPolicy"
+)
+
+// AllValues returns all ResourceStateUpdateV1betaResourceType values.
+func (ResourceStateUpdateV1betaResourceType) AllValues() []ResourceStateUpdateV1betaResourceType {
+	return []ResourceStateUpdateV1betaResourceType{
+		ResourceStateUpdateV1betaResourceTypeActiveDirectory,
+		ResourceStateUpdateV1betaResourceTypeVolume,
+		ResourceStateUpdateV1betaResourceTypeSnapshot,
+		ResourceStateUpdateV1betaResourceTypeStoragePool,
+		ResourceStateUpdateV1betaResourceTypeKmsConfig,
+		ResourceStateUpdateV1betaResourceTypeBackupPolicy,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResourceStateUpdateV1betaResourceType) MarshalText() ([]byte, error) {
+	switch s {
+	case ResourceStateUpdateV1betaResourceTypeActiveDirectory:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaResourceTypeVolume:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaResourceTypeSnapshot:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaResourceTypeStoragePool:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaResourceTypeKmsConfig:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaResourceTypeBackupPolicy:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResourceStateUpdateV1betaResourceType) UnmarshalText(data []byte) error {
+	switch ResourceStateUpdateV1betaResourceType(data) {
+	case ResourceStateUpdateV1betaResourceTypeActiveDirectory:
+		*s = ResourceStateUpdateV1betaResourceTypeActiveDirectory
+		return nil
+	case ResourceStateUpdateV1betaResourceTypeVolume:
+		*s = ResourceStateUpdateV1betaResourceTypeVolume
+		return nil
+	case ResourceStateUpdateV1betaResourceTypeSnapshot:
+		*s = ResourceStateUpdateV1betaResourceTypeSnapshot
+		return nil
+	case ResourceStateUpdateV1betaResourceTypeStoragePool:
+		*s = ResourceStateUpdateV1betaResourceTypeStoragePool
+		return nil
+	case ResourceStateUpdateV1betaResourceTypeKmsConfig:
+		*s = ResourceStateUpdateV1betaResourceTypeKmsConfig
+		return nil
+	case ResourceStateUpdateV1betaResourceTypeBackupPolicy:
+		*s = ResourceStateUpdateV1betaResourceTypeBackupPolicy
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// New state to be updated.
+type ResourceStateUpdateV1betaState string
+
+const (
+	ResourceStateUpdateV1betaStateON     ResourceStateUpdateV1betaState = "ON"
+	ResourceStateUpdateV1betaStateOFF    ResourceStateUpdateV1betaState = "OFF"
+	ResourceStateUpdateV1betaStateDELETE ResourceStateUpdateV1betaState = "DELETE"
+)
+
+// AllValues returns all ResourceStateUpdateV1betaState values.
+func (ResourceStateUpdateV1betaState) AllValues() []ResourceStateUpdateV1betaState {
+	return []ResourceStateUpdateV1betaState{
+		ResourceStateUpdateV1betaStateON,
+		ResourceStateUpdateV1betaStateOFF,
+		ResourceStateUpdateV1betaStateDELETE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ResourceStateUpdateV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case ResourceStateUpdateV1betaStateON:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaStateOFF:
+		return []byte(s), nil
+	case ResourceStateUpdateV1betaStateDELETE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ResourceStateUpdateV1betaState) UnmarshalText(data []byte) error {
+	switch ResourceStateUpdateV1betaState(data) {
+	case ResourceStateUpdateV1betaStateON:
+		*s = ResourceStateUpdateV1betaStateON
+		return nil
+	case ResourceStateUpdateV1betaStateOFF:
+		*s = ResourceStateUpdateV1betaStateOFF
+		return nil
+	case ResourceStateUpdateV1betaStateDELETE:
+		*s = ResourceStateUpdateV1betaStateDELETE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type RestrictedActionsV1beta []RestrictedActionsV1betaItem
 
 type RestrictedActionsV1betaItem string
@@ -12858,6 +13244,8 @@ func (s *RestrictedActionsV1betaItem) UnmarshalText(data []byte) error {
 
 type SMBSettingsV1beta []SMBSettingsV1betaItem
 
+// SMB settings for the volume. These settings are used to control the behavior of the SMB protocol
+// on the NAS volume.
 type SMBSettingsV1betaItem string
 
 const (
@@ -14438,6 +14826,10 @@ type V1betaDeletePoolNoContent struct{}
 
 func (*V1betaDeletePoolNoContent) v1betaDeletePoolRes() {}
 
+type V1betaDeletePoolNotFound Error
+
+func (*V1betaDeletePoolNotFound) v1betaDeletePoolRes() {}
+
 type V1betaDeletePoolTooManyRequests Error
 
 func (*V1betaDeletePoolTooManyRequests) v1betaDeletePoolRes() {}
@@ -14862,6 +15254,59 @@ func (*V1betaDescribeVolumeTooManyRequests) v1betaDescribeVolumeRes() {}
 type V1betaDescribeVolumeUnauthorized Error
 
 func (*V1betaDescribeVolumeUnauthorized) v1betaDescribeVolumeRes() {}
+
+type V1betaFinishProjectEventAccepted OperationV1beta
+
+func (*V1betaFinishProjectEventAccepted) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventBadRequest Error
+
+func (*V1betaFinishProjectEventBadRequest) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventConflict Error
+
+func (*V1betaFinishProjectEventConflict) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventCreated OperationV1beta
+
+func (*V1betaFinishProjectEventCreated) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventForbidden Error
+
+func (*V1betaFinishProjectEventForbidden) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventInternalServerError Error
+
+func (*V1betaFinishProjectEventInternalServerError) v1betaFinishProjectEventRes() {}
+
+// V1betaFinishProjectEventNoContent is response for V1betaFinishProjectEvent operation.
+type V1betaFinishProjectEventNoContent struct{}
+
+func (*V1betaFinishProjectEventNoContent) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventNotFound Error
+
+func (*V1betaFinishProjectEventNotFound) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventNotImplemented Error
+
+func (*V1betaFinishProjectEventNotImplemented) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventServiceUnavailable Error
+
+func (*V1betaFinishProjectEventServiceUnavailable) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventTooManyRequests Error
+
+func (*V1betaFinishProjectEventTooManyRequests) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventUnauthorized Error
+
+func (*V1betaFinishProjectEventUnauthorized) v1betaFinishProjectEventRes() {}
+
+type V1betaFinishProjectEventUnprocessableEntity Error
+
+func (*V1betaFinishProjectEventUnprocessableEntity) v1betaFinishProjectEventRes() {}
 
 type V1betaGetMultipleActiveDirectoriesBadRequest Error
 
@@ -15574,6 +16019,46 @@ type V1betaInternalDeleteVolumeReplicationUnprocessableEntity Error
 func (*V1betaInternalDeleteVolumeReplicationUnprocessableEntity) v1betaInternalDeleteVolumeReplicationRes() {
 }
 
+type V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest Error
+
+func (*V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {
+}
+
+type V1betaInternalDeleteVolumeSnapmirrorSnapshotConflict Error
+
+func (*V1betaInternalDeleteVolumeSnapmirrorSnapshotConflict) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {
+}
+
+type V1betaInternalDeleteVolumeSnapmirrorSnapshotForbidden Error
+
+func (*V1betaInternalDeleteVolumeSnapmirrorSnapshotForbidden) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {
+}
+
+type V1betaInternalDeleteVolumeSnapmirrorSnapshotInternalServerError Error
+
+func (*V1betaInternalDeleteVolumeSnapmirrorSnapshotInternalServerError) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {
+}
+
+type V1betaInternalDeleteVolumeSnapmirrorSnapshotNotFound Error
+
+func (*V1betaInternalDeleteVolumeSnapmirrorSnapshotNotFound) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {
+}
+
+type V1betaInternalDeleteVolumeSnapmirrorSnapshotTooManyRequests Error
+
+func (*V1betaInternalDeleteVolumeSnapmirrorSnapshotTooManyRequests) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {
+}
+
+type V1betaInternalDeleteVolumeSnapmirrorSnapshotUnauthorized Error
+
+func (*V1betaInternalDeleteVolumeSnapmirrorSnapshotUnauthorized) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {
+}
+
+type V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity Error
+
+func (*V1betaInternalDeleteVolumeSnapmirrorSnapshotUnprocessableEntity) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {
+}
+
 type V1betaInternalDescribePoolBadRequest Error
 
 func (*V1betaInternalDescribePoolBadRequest) v1betaInternalDescribePoolRes() {}
@@ -15751,6 +16236,11 @@ type V1betaInternalReleaseVolumeReplicationMethodNotAllowed Error
 
 func (*V1betaInternalReleaseVolumeReplicationMethodNotAllowed) v1betaInternalReleaseVolumeReplicationRes() {
 }
+
+// V1betaInternalReleaseVolumeReplicationNoContent is response for V1betaInternalReleaseVolumeReplication operation.
+type V1betaInternalReleaseVolumeReplicationNoContent struct{}
+
+func (*V1betaInternalReleaseVolumeReplicationNoContent) v1betaInternalReleaseVolumeReplicationRes() {}
 
 type V1betaInternalReleaseVolumeReplicationNotFound Error
 
@@ -16314,6 +16804,59 @@ type V1betaListVolumesUnauthorized Error
 
 func (*V1betaListVolumesUnauthorized) v1betaListVolumesRes() {}
 
+type V1betaResourceStateUpdateAccepted OperationV1beta
+
+func (*V1betaResourceStateUpdateAccepted) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateBadRequest Error
+
+func (*V1betaResourceStateUpdateBadRequest) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateConflict Error
+
+func (*V1betaResourceStateUpdateConflict) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateCreated OperationV1beta
+
+func (*V1betaResourceStateUpdateCreated) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateForbidden Error
+
+func (*V1betaResourceStateUpdateForbidden) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateInternalServerError Error
+
+func (*V1betaResourceStateUpdateInternalServerError) v1betaResourceStateUpdateRes() {}
+
+// V1betaResourceStateUpdateNoContent is response for V1betaResourceStateUpdate operation.
+type V1betaResourceStateUpdateNoContent struct{}
+
+func (*V1betaResourceStateUpdateNoContent) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateNotFound Error
+
+func (*V1betaResourceStateUpdateNotFound) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateNotImplemented Error
+
+func (*V1betaResourceStateUpdateNotImplemented) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateServiceUnavailable Error
+
+func (*V1betaResourceStateUpdateServiceUnavailable) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateTooManyRequests Error
+
+func (*V1betaResourceStateUpdateTooManyRequests) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateUnauthorized Error
+
+func (*V1betaResourceStateUpdateUnauthorized) v1betaResourceStateUpdateRes() {}
+
+type V1betaResourceStateUpdateUnprocessableEntity Error
+
+func (*V1betaResourceStateUpdateUnprocessableEntity) v1betaResourceStateUpdateRes() {}
+
 type V1betaResumeReplicationBadRequest Error
 
 func (*V1betaResumeReplicationBadRequest) v1betaResumeReplicationRes() {}
@@ -16369,6 +16912,59 @@ func (*V1betaReverseAndResumeReplicationUnauthorized) v1betaReverseAndResumeRepl
 type V1betaReverseAndResumeReplicationUnprocessableEntity Error
 
 func (*V1betaReverseAndResumeReplicationUnprocessableEntity) v1betaReverseAndResumeReplicationRes() {}
+
+type V1betaStartProjectEventAccepted OperationV1beta
+
+func (*V1betaStartProjectEventAccepted) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventBadRequest Error
+
+func (*V1betaStartProjectEventBadRequest) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventConflict Error
+
+func (*V1betaStartProjectEventConflict) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventCreated OperationV1beta
+
+func (*V1betaStartProjectEventCreated) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventForbidden Error
+
+func (*V1betaStartProjectEventForbidden) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventInternalServerError Error
+
+func (*V1betaStartProjectEventInternalServerError) v1betaStartProjectEventRes() {}
+
+// V1betaStartProjectEventNoContent is response for V1betaStartProjectEvent operation.
+type V1betaStartProjectEventNoContent struct{}
+
+func (*V1betaStartProjectEventNoContent) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventNotFound Error
+
+func (*V1betaStartProjectEventNotFound) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventNotImplemented Error
+
+func (*V1betaStartProjectEventNotImplemented) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventServiceUnavailable Error
+
+func (*V1betaStartProjectEventServiceUnavailable) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventTooManyRequests Error
+
+func (*V1betaStartProjectEventTooManyRequests) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventUnauthorized Error
+
+func (*V1betaStartProjectEventUnauthorized) v1betaStartProjectEventRes() {}
+
+type V1betaStartProjectEventUnprocessableEntity Error
+
+func (*V1betaStartProjectEventUnprocessableEntity) v1betaStartProjectEventRes() {}
 
 type V1betaStopReplicationBadRequest Error
 
@@ -19022,32 +19618,20 @@ func (s *VolumeSnapshotCreateV1beta) SetIsAppConsistent(val OptBool) {
 	s.IsAppConsistent = val
 }
 
-// Merged schema.
+// Request object for updating snapshots from a volume.
 // Ref: #/components/schemas/VolumeSnapshotUpdate_v1beta
 type VolumeSnapshotUpdateV1beta struct {
-	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
-	// the first character a letter, the last a letter or a number, and a 63 character maximum.
-	ResourceId  string    `json:"resourceId"`
-	Description OptString `json:"description"`
-}
-
-// GetResourceId returns the value of ResourceId.
-func (s *VolumeSnapshotUpdateV1beta) GetResourceId() string {
-	return s.ResourceId
+	// Description of the snapshot.
+	Description string `json:"description"`
 }
 
 // GetDescription returns the value of Description.
-func (s *VolumeSnapshotUpdateV1beta) GetDescription() OptString {
+func (s *VolumeSnapshotUpdateV1beta) GetDescription() string {
 	return s.Description
 }
 
-// SetResourceId sets the value of ResourceId.
-func (s *VolumeSnapshotUpdateV1beta) SetResourceId(val string) {
-	s.ResourceId = val
-}
-
 // SetDescription sets the value of Description.
-func (s *VolumeSnapshotUpdateV1beta) SetDescription(val OptString) {
+func (s *VolumeSnapshotUpdateV1beta) SetDescription(val string) {
 	s.Description = val
 }
 
@@ -19260,7 +19844,7 @@ type VolumeV1beta struct {
 	// A creation token must be supplied by the caller and is used by the API to ensure idempotent
 	// creation of a volume. Subsequent calls to the create-volume operation using the same creation
 	// token will have no effect. The creation token can be any user supplied string e.g. a randomly
-	// generated v4 Uuid.
+	// generated v4 Uuid.(This is required for a NAS volume).
 	CreationToken OptString `json:"creationToken"`
 	// Uuid of the pool Id under which volumes get created.
 	PoolId NilString `json:"poolId"`
@@ -19282,7 +19866,7 @@ type VolumeV1beta struct {
 	// name is one of premium or extreme, the performance will be that of the service level, not the
 	// performance equivalent.
 	ServiceLevel OptVolumeV1betaServiceLevel `json:"serviceLevel"`
-	// The security style of the volume.
+	// The security style of the NAS volume.
 	SecurityStyle OptVolumeV1betaSecurityStyle `json:"securityStyle"`
 	// Current storage usage for the volume in bytes.
 	UsedBytes OptNilFloat64 `json:"usedBytes"`
@@ -19319,15 +19903,15 @@ type VolumeV1beta struct {
 	MountPoints []MountPointV1beta `json:"mountPoints"`
 	// JSON dictionary of resource labels to allow linking of billing labels to a volume.
 	Labels OptVolumeV1betaLabels `json:"labels"`
-	// Flag indicating if the volume is a kerberos volume or not, export policy rules control kerberos
-	// security modes (krb5, krb5i, krb5p).
+	// Flag indicating if the NAS volume is a kerberos volume or not, export policy rules control
+	// kerberos security modes (krb5, krb5i, krb5p).
 	KerberosEnabled OptNilBool `json:"kerberosEnabled"`
-	// Flag indicating if the volume is NFS LDAP enabled or not.
+	// Flag indicating if the NAS volume is NFS LDAP enabled or not.
 	LdapEnabled OptNilBool `json:"ldapEnabled"`
-	// UNIX permissions for NFS volume accepted in octal 4 digit format. First digit selects the set user
-	// Id(4), set group Id (2) and sticky (1) attributes. Second digit selects permission for the owner
-	// of the file: read (4), write (2) and execute (1). Third selects permissions for other users in the
-	// same group. the fourth for other users not in the group. "0755" - gives read/write/execute
+	// UNIX permissions for NFS(NAS) volume accepted in octal 4 digit format. First digit selects the set
+	// user Id(4), set group Id (2) and sticky (1) attributes. Second digit selects permission for the
+	// owner of the file: read (4), write (2) and execute (1). Third selects permissions for other users
+	// in the same group. the fourth for other users not in the group. "0755" - gives read/write/execute
 	// permissions to owner and read/execute to group and other users.
 	UnixPermissions OptNilString `json:"unixPermissions"`
 	// Type of encryption used for volumes - can be either service managed key (service_managed) or
@@ -19886,7 +20470,7 @@ func (s *VolumeV1betaLabels) init() VolumeV1betaLabels {
 	return m
 }
 
-// The security style of the volume.
+// The security style of the NAS volume.
 type VolumeV1betaSecurityStyle string
 
 const (
