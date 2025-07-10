@@ -95,15 +95,6 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, options)
-	if runningEnv != "local" {
-		var token string
-		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, params.AccountName).Get(ctx, &token)
-		if err != nil {
-			log.Errorf("Failed to get token for account %s: %v", params.AccountName, err)
-			return nil, err
-		}
-		ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, token)
-	}
 
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
@@ -203,6 +194,16 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	if volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" {
+		if runningEnv != "local" {
+			var token string
+			err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, params.AccountName).Get(ctx, &token)
+			if err != nil {
+				log.Errorf("Failed to get token for account %s: %v", params.AccountName, err)
+				return nil, err
+			}
+			ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, token)
+		}
+		
 		tenancyDetails := &common.TenancyInfo{}
 		err = workflow.ExecuteActivity(ctx, updateActivity.FindTenancyDetails, volume.VolumeAttributes.VendorSubnetID, volume.Account.Name, &params.Region).Get(ctx, &tenancyDetails)
 		if err != nil {
