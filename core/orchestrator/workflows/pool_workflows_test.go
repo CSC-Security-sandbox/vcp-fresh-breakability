@@ -1,15 +1,10 @@
 package workflows
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	commonpb "go.temporal.io/api/common/v1"
-	"go.temporal.io/sdk/converter"
-	"go.temporal.io/sdk/temporal"
-	"go.temporal.io/sdk/testsuite"
-	"go.temporal.io/sdk/workflow"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -22,6 +17,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	commonpb "go.temporal.io/api/common/v1"
+	"go.temporal.io/sdk/converter"
+	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/testsuite"
+	"go.temporal.io/sdk/workflow"
 )
 
 func TestCreatePoolWorkflow(t *testing.T) {
@@ -696,7 +696,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 
@@ -803,7 +803,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 
@@ -915,7 +915,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 
@@ -1018,7 +1018,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 
@@ -1120,7 +1120,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 
@@ -1223,7 +1223,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 
@@ -1329,7 +1329,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 
@@ -1435,7 +1435,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 
@@ -1541,7 +1541,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 
@@ -1646,7 +1646,217 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
+}
+
+func TestCreatePoolWorkflow_Failure_CreateTenancy(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		Username: "test-user",
+		Password: "test-password",
+		SecretID: "",
+	}
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
+		env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Once()
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("failed to update job status")).Times(10)
+
+	env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create tenancy"))
+
+	// Execute workflow
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to update job status")
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_InitialFailure_UpdateJobStatus(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		Username: "test-user",
+		Password: "test-password",
+		SecretID: "",
+	}
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
+		env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("failed to update job status"))
+
+	// Execute workflow
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to update job status")
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		Username: "test-user",
+		Password: "test-password",
+		SecretID: "",
+	}
+
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
+		env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
+	}
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(1)
+	env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+		Gateway:               "192.168.1.254",
+	}, nil)
+	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Simulate failure in final job status update
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("failed to update job status")).Times(10)
+
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to update job status")
+	env.AssertExpectations(t)
 }

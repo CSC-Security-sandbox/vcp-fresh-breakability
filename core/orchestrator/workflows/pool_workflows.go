@@ -2,10 +2,6 @@ package workflows
 
 import (
 	"fmt"
-	"go.temporal.io/sdk/temporal"
-	"go.temporal.io/sdk/workflow"
-	"google.golang.org/api/iam/v1"
-	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 	"time"
 
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -25,6 +21,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/workflow"
+	"google.golang.org/api/iam/v1"
+	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
 
 var (
@@ -55,28 +55,36 @@ type createPoolWorkflow struct {
 // const customerActionTimeout = 30 * time.Minute
 
 // CreatePoolWorkflow processes pool related requests from a customer.
-func CreatePoolWorkflow(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool) (gcpgenserver.V1betaDescribePoolRes, error) {
+func CreatePoolWorkflow(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool) error {
 	createPoolWF := new(createPoolWorkflow)
+	log := util.GetLogger(ctx)
 	err := createPoolWF.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	createPoolWF.Status = WorkflowStatusRunning
 	err = createPoolWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		log.Errorf("failed to update job status to PROCESSING: %v", err)
+		return err
 	}
 	_, err = createPoolWF.Run(ctx, params, pool)
 	if err != nil {
+		log.Errorf("error in createPoolWorkflow: %v", err)
 		createPoolWF.Status = WorkflowStatusFailed
-		err = createPoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
-		if err != nil {
-			return nil, err
+		err2 := createPoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err2 != nil {
+			log.Errorf("failed to update job with err and status to DONE: %v", err2)
+			return err2
 		}
+		return err
 	}
 	createPoolWF.Status = WorkflowStatusCompleted
 	err = createPoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-	return nil, err
+	if err != nil {
+		log.Errorf("failed to update job status to DONE: %v", err)
+	}
+	return err
 }
 
 func (wf *createPoolWorkflow) Setup(ctx workflow.Context, input interface{}) error {
