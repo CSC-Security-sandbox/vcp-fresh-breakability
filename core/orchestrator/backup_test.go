@@ -134,7 +134,7 @@ func TestOrchestrator_ListBackups(t *testing.T) {
 		}
 
 		o := &Orchestrator{storage: store}
-		backups, err := o.ListBackups(ctx, params, nil)
+		backups, err := o.ListBackups(ctx, params.BackupVaultID, "account", nil)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, backups)

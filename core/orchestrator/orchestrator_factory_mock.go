@@ -3022,9 +3022,9 @@ func (_c *MockOrchestratorFactory_ListBackupVaults_Call) RunAndReturn(run func(c
 	return _c
 }
 
-// ListBackups provides a mock function with given fields: ctx, params, filters
-func (_m *MockOrchestratorFactory) ListBackups(ctx context.Context, params *common.GetBackupsParams, filters [][]interface{}) ([]*datamodel.Backup, error) {
-	ret := _m.Called(ctx, params, filters)
+// ListBackups provides a mock function with given fields: ctx, backupVaultID, ownerID, filters
+func (_m *MockOrchestratorFactory) ListBackups(ctx context.Context, backupVaultID string, ownerID string, filters [][]interface{}) ([]*datamodel.Backup, error) {
+	ret := _m.Called(ctx, backupVaultID, ownerID, filters)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListBackups")
@@ -3032,19 +3032,19 @@ func (_m *MockOrchestratorFactory) ListBackups(ctx context.Context, params *comm
 
 	var r0 []*datamodel.Backup
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *common.GetBackupsParams, [][]interface{}) ([]*datamodel.Backup, error)); ok {
-		return rf(ctx, params, filters)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, [][]interface{}) ([]*datamodel.Backup, error)); ok {
+		return rf(ctx, backupVaultID, ownerID, filters)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *common.GetBackupsParams, [][]interface{}) []*datamodel.Backup); ok {
-		r0 = rf(ctx, params, filters)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, [][]interface{}) []*datamodel.Backup); ok {
+		r0 = rf(ctx, backupVaultID, ownerID, filters)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*datamodel.Backup)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *common.GetBackupsParams, [][]interface{}) error); ok {
-		r1 = rf(ctx, params, filters)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, [][]interface{}) error); ok {
+		r1 = rf(ctx, backupVaultID, ownerID, filters)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3059,15 +3059,16 @@ type MockOrchestratorFactory_ListBackups_Call struct {
 
 // ListBackups is a helper method to define mock.On call
 //   - ctx context.Context
-//   - params *common.GetBackupsParams
+//   - backupVaultID string
+//   - ownerID string
 //   - filters [][]interface{}
-func (_e *MockOrchestratorFactory_Expecter) ListBackups(ctx interface{}, params interface{}, filters interface{}) *MockOrchestratorFactory_ListBackups_Call {
-	return &MockOrchestratorFactory_ListBackups_Call{Call: _e.mock.On("ListBackups", ctx, params, filters)}
+func (_e *MockOrchestratorFactory_Expecter) ListBackups(ctx interface{}, backupVaultID interface{}, ownerID interface{}, filters interface{}) *MockOrchestratorFactory_ListBackups_Call {
+	return &MockOrchestratorFactory_ListBackups_Call{Call: _e.mock.On("ListBackups", ctx, backupVaultID, ownerID, filters)}
 }
 
-func (_c *MockOrchestratorFactory_ListBackups_Call) Run(run func(ctx context.Context, params *common.GetBackupsParams, filters [][]interface{})) *MockOrchestratorFactory_ListBackups_Call {
+func (_c *MockOrchestratorFactory_ListBackups_Call) Run(run func(ctx context.Context, backupVaultID string, ownerID string, filters [][]interface{})) *MockOrchestratorFactory_ListBackups_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*common.GetBackupsParams), args[2].([][]interface{}))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].([][]interface{}))
 	})
 	return _c
 }
@@ -3077,7 +3078,7 @@ func (_c *MockOrchestratorFactory_ListBackups_Call) Return(_a0 []*datamodel.Back
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_ListBackups_Call) RunAndReturn(run func(context.Context, *common.GetBackupsParams, [][]interface{}) ([]*datamodel.Backup, error)) *MockOrchestratorFactory_ListBackups_Call {
+func (_c *MockOrchestratorFactory_ListBackups_Call) RunAndReturn(run func(context.Context, string, string, [][]interface{}) ([]*datamodel.Backup, error)) *MockOrchestratorFactory_ListBackups_Call {
 	_c.Call.Return(run)
 	return _c
 }

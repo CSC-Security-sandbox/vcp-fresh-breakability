@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	"fmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -186,9 +187,25 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		if err != nil {
 			return nil, err
 		}
-		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorTransferPoll, node, snapmirrorRelationship.UUID, "").Get(ctx, nil)
-		if err != nil {
-			return nil, err
+		// TODO: Make this a backukground job
+		done := false
+		var status string
+		for !done {
+			err = workflow.ExecuteActivity(ctx, activities.BackupActivity.GetSnapmirrorTransferStatus, node, snapmirrorRelationship.UUID, "").Get(ctx, &status)
+			if err != nil {
+				return nil, err
+			}
+			switch status {
+			case activities.SmStatusTransferring:
+				err := workflow.Sleep(ctx, wait) // Wait before polling again
+				if err != nil {
+					return nil, fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err)
+				}
+			case activities.SmStatusSuccess:
+				done = true
+			case activities.SmStatusFailed:
+				return nil, fmt.Errorf("snapmirror transfer failed for restore with status: %s", status)
+			}
 		}
 		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lun)
 		if err != nil {

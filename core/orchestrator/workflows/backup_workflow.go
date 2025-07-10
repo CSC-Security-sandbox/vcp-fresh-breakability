@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -27,8 +28,11 @@ type BackupDeleteWorkflow struct {
 	SE *database.Storage
 }
 
-var _ WorkflowInterface = &BackupCreateWorkflow{}
-var _ WorkflowInterface = &BackupDeleteWorkflow{}
+var (
+	_    WorkflowInterface = &BackupCreateWorkflow{}
+	_    WorkflowInterface = &BackupDeleteWorkflow{}
+	wait                   = time.Duration(env.GetUint("ONTAP_REST_ASYNC_POLL_WAIT_SECONDS", 3)) * time.Second
+)
 
 const (
 	ObjStoreProviderType = "GoogleCloud"
@@ -164,9 +168,24 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if err != nil {
 		return nil, err
 	}
-	err = workflow.ExecuteActivity(ctx, backupActivity.SnapmirrorTransferPoll, node, snapmirrorRelationship.UUID, snapshotName).Get(ctx, nil)
-	if err != nil {
-		return nil, err
+	done := false
+	var status string
+	for !done {
+		err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirrorTransferStatus, node, snapmirrorRelationship.UUID, snapshotName).Get(ctx, &status)
+		if err != nil {
+			return nil, err
+		}
+		switch status {
+		case activities.SmStatusTransferring:
+			err := workflow.Sleep(ctx, wait) // Wait before polling again
+			if err != nil {
+				return nil, fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err)
+			}
+		case activities.SmStatusSuccess:
+			done = true
+		case activities.SmStatusFailed:
+			return nil, fmt.Errorf("snapmirror transfer failed for snapshot %s with status: %s", snapshotName, status)
+		}
 	}
 	// TODO:  VSCP-615 - Delete older snapshots after backup is completed
 	// err = workflow.ExecuteActivity(ctx, backupActivity.DeleteSnapshot, node, snapshotResponse.ExternalUUID, volume.VolumeAttributes.ExternalUUID).Get(ctx, nil)
@@ -246,7 +265,7 @@ func (wf *BackupCreateWorkflow) Revert(ctx workflow.Context, backup *datamodel.B
 }
 
 func getSnapshotName(backup *datamodel.Backup) string {
-	return fmt.Sprintf("adhoc-:%s", backup.Name)
+	return fmt.Sprintf("vcp-ad-%s", backup.Name)
 }
 
 func getObjStoreName(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (string, error) {

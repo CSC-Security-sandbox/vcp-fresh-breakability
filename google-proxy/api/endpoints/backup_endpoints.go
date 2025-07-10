@@ -28,7 +28,12 @@ const (
 	BackupTypeSCHEDULED string = "SCHEDULED"
 )
 
-var utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+var (
+	utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+	listBackupsToCVP                  = _listBackupsToCVP
+	getBackupsFromCVP                 = _getBackupsFromCVP
+	checkIfBackupExistInCVP           = _checkIfBackupExistInCVP
+)
 
 func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver.BackupUuidListV1beta, params gcpgenserver.V1betaGetMultipleBackupsParams) (gcpgenserver.V1betaGetMultipleBackupsRes, error) {
 	logger := util.GetLogger(ctx)
@@ -230,14 +235,14 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 
 		if cvpBackupCreated != nil {
 			pl := cvpBackupCreated.Payload
-			outBackup := convertToBackupsV1beta(pl)
+			backupV1beta := convertToBackupsV1beta(pl)
 			operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + uuid.UUID{}.String()
 
 			done := true
 			resp := &models.OperationV1beta{
 				Name:     operationID,
 				Done:     &done,
-				Response: outBackup,
+				Response: backupV1beta,
 			}
 			return convertToOperationV1beta(resp), nil
 		}
@@ -252,7 +257,7 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 			return convertToOperationV1beta(resp), nil
 		}
 
-		msg := "Unexpected function flow"
+		msg := "An unexpected error occurred while creating the backup"
 		return &gcpgenserver.V1betaCreateBackupInternalServerError{
 			Code:    float64(500),
 			Message: msg,
@@ -268,6 +273,19 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 
 		logger.Error("Failed to get volume", "error", err.Error())
 		return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+	exist, err := checkIfBackupExistInCVP(ctx, &req.ResourceId, params)
+	if err != nil {
+		logger.Error("Failed to check if backup exists in CVP", "error", err.Error())
+		return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+	if exist {
+		msg := fmt.Sprintf("Backup with resource ID %s already exists in the backup vault %s", req.ResourceId, params.BackupVaultId)
+		logger.Error(msg)
+		return &gcpgenserver.V1betaCreateBackupConflict{
+			Code:    409,
+			Message: msg,
+		}, nil
 	}
 	// If the request belongs to VSA, we will create the backup using the orchestrator
 	vsaParams := createBackupParams(req, params)
@@ -345,15 +363,37 @@ func (h Handler) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params 
 		return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError{Code: 500, Message: err.Error()}, err
 	}
 	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobId)
-	if jobId != "" {
-		return &gcpgenserver.OperationV1beta{
-			Name: gcpgenserver.NewOptString(operationID),
-			Done: gcpgenserver.NewOptBool(false),
-		}, nil
-	}
 	return &gcpgenserver.OperationV1beta{
 		Name: gcpgenserver.NewOptString(operationID),
 		Done: gcpgenserver.NewOptBool(true),
+	}, nil
+}
+
+func (h Handler) V1betaDescribeBackup(ctx context.Context, params gcpgenserver.V1betaDescribeBackupParams) (gcpgenserver.V1betaDescribeBackupRes, error) {
+	logger := util.GetLogger(ctx)
+	_, _, parsingErr := utilParseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaDescribeBackupInternalServerError{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+	backup, err := h.Orchestrator.GetBackup(ctx, &common.GetBackupParams{
+		BackupVaultID: params.BackupVaultId,
+		BackupUUID:    params.BackupId,
+		AccountName:   params.ProjectNumber,
+	})
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return getBackupsFromCVP(ctx, params)
+		}
+		logger.Error("Failed to get backup", "error", err.Error())
+		return &gcpgenserver.V1betaDescribeBackupInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+	resp := convertBackupDataModelToBackupsV1beta(backup)
+
+	return &gcpgenserver.V1betaDescribeBackupOK{
+		Backups: []gcpgenserver.BackupV1beta{resp},
 	}, nil
 }
 
@@ -363,6 +403,48 @@ func (h Handler) V1betaUpdateBackupUnderBackupVault(ctx context.Context, req *mo
 		Code:    float64(500),
 		Message: msg,
 	}, nil
+}
+
+func (h Handler) V1betaListBackups(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	listBackupParams := gcpgenserver.V1betaListBackupsParams{
+		BackupVaultId:  params.BackupVaultId,
+		LocationId:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: gcpgenserver.NewOptString(params.XCorrelationID.Value),
+	}
+	listBackupsResp, err := listBackupsToCVP(ctx, listBackupParams)
+	if err != nil {
+		logger.Error("Failed to list backups", "error", err.Error())
+		return listBackupsResp, err
+	}
+	var cvpBackups *gcpgenserver.V1betaListBackupsOK
+	switch resp := listBackupsResp.(type) {
+	case *gcpgenserver.V1betaListBackupsOK:
+		cvpBackups = resp
+	default:
+		logger.Error("Unexpected response type from listBackupsToCVP", "responseType", fmt.Sprintf("%T", listBackupsResp))
+		return listBackupsResp, nil
+	}
+
+	backupList, err := h.Orchestrator.ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, nil)
+	if err != nil {
+		logger.Error("Failed to list backups", "error", err)
+		return &gcpgenserver.V1betaListBackupsInternalServerError{
+			Code:    500,
+			Message: "failed to list backups",
+		}, err
+	}
+
+	var response gcpgenserver.V1betaListBackupsOK
+	response.Backups = append(response.Backups, cvpBackups.GetBackups()...)
+
+	for _, backup := range backupList {
+		response.Backups = append(response.Backups, convertBackupDataModelToBackupsV1beta(backup))
+	}
+	return &response, nil
 }
 
 func convertToBackupsV1beta(backup *models.BackupV1beta) gcpgenserver.BackupV1beta {
@@ -422,9 +504,8 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 	// Need to convert states as DB models and API models have different states
 	if backup.State == coremodels.LifeCycleStateAvailable {
 		state = gcpgenserver.BackupV1betaStateREADY
-	}
-	if backup.State == coremodels.LifeCycleStateError {
-		state = gcpgenserver.BackupV1betaStateERROR
+	} else {
+		state = gcpgenserver.BackupV1betaState(backup.State)
 	}
 	return gcpgenserver.BackupV1beta{
 		ResourceId: gcpgenserver.OptString{
@@ -515,7 +596,6 @@ func createBackupParams(req *gcpgenserver.BackupCreateV1beta, params gcpgenserve
 	if params.XCorrelationID.IsSet() {
 		backupParams.XCorrelationID = params.XCorrelationID.Value
 	}
-
 	return &backupParams
 }
 
@@ -606,11 +686,190 @@ func deleteBackupToCVP(ctx context.Context, params gcpgenserver.V1betaDeleteBack
 			Done: gcpgenserver.NewOptBool(done),
 		}, nil
 	}
-	msg := "Unexpected function flow"
+	msg := "An unexpected error occurred while deleting the backup"
 	return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError{
 		Code:    float64(500),
 		Message: msg,
 	}, nil
+}
+
+func _getBackupsFromCVP(ctx context.Context, params gcpgenserver.V1betaDescribeBackupParams) (gcpgenserver.V1betaDescribeBackupRes, error) {
+	logger := util.GetLogger(ctx)
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := createClient(logger, jwtToken)
+	cvpParams := &backups.V1betaDescribeBackupParams{
+		BackupVaultID:  params.BackupVaultId,
+		BackupID:       params.BackupId,
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: &params.XCorrelationID.Value,
+	}
+
+	backup, err := cvpClient.Backups.V1betaDescribeBackup(cvpParams)
+	if err != nil {
+		switch e := err.(type) {
+		case *backups.V1betaDescribeBackupBadRequest:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDescribeBackupBadRequest{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaDescribeBackupUnauthorized:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDescribeBackupUnauthorized{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaDescribeBackupForbidden:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDescribeBackupForbidden{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaDescribeBackupNotFound:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDescribeBackupNotFound{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaDescribeBackupInternalServerError:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDescribeBackupInternalServerError{
+				Code:    code,
+				Message: msg,
+			}, nil
+		default:
+			code := float64(500)
+			msg := err.Error()
+			return &gcpgenserver.V1betaDescribeBackupInternalServerError{
+				Code:    code,
+				Message: msg,
+			}, err
+		}
+	}
+	if backup != nil && backup.Payload != nil {
+		pl := backup.Payload
+		backupsV1beta := convertToBackupsV1beta(pl)
+		return &gcpgenserver.V1betaDescribeBackupOK{
+			Backups: []gcpgenserver.BackupV1beta{backupsV1beta},
+		}, nil
+	}
+	msg := "An unexpected error occurred while listing the backups"
+	return &gcpgenserver.V1betaDescribeBackupInternalServerError{
+		Code:    float64(500),
+		Message: msg,
+	}, nil
+}
+
+func _listBackupsToCVP(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+	logger := util.GetLogger(ctx)
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := createClient(logger, jwtToken)
+	cvpParams := &backups.V1betaListBackupsParams{
+		BackupVaultID:  params.BackupVaultId,
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: &params.XCorrelationID.Value,
+	}
+
+	backup, err := cvpClient.Backups.V1betaListBackups(cvpParams)
+	if err != nil {
+		switch e := err.(type) {
+		case *backups.V1betaListBackupsBadRequest:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaListBackupsBadRequest{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaListBackupsUnauthorized:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaListBackupsUnauthorized{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaListBackupsForbidden:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaListBackupsForbidden{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaListBackupsNotFound:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaListBackupsNotFound{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaListBackupsInternalServerError:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaListBackupsInternalServerError{
+				Code:    code,
+				Message: msg,
+			}, nil
+		default:
+			code := float64(500)
+			msg := err.Error()
+			return &gcpgenserver.V1betaListBackupsInternalServerError{
+				Code:    code,
+				Message: msg,
+			}, err
+		}
+	}
+	var backupV1beta []gcpgenserver.BackupV1beta
+	if backup != nil && backup.Payload != nil {
+		pl := backup.Payload
+		for i := range pl.Backups {
+			backupV1beta = append(backupV1beta, convertToBackupsV1beta(pl.Backups[i]))
+		}
+		return &gcpgenserver.V1betaListBackupsOK{
+			Backups: backupV1beta,
+		}, nil
+	}
+	msg := "An unexpected error occurred while listing the backup"
+	return &gcpgenserver.V1betaListBackupsInternalServerError{
+		Code:    float64(500),
+		Message: msg,
+	}, nil
+}
+
+func _checkIfBackupExistInCVP(ctx context.Context, backupID *string, params gcpgenserver.V1betaCreateBackupParams) (bool, error) {
+	logger := util.GetLogger(ctx)
+	listBackupParams := gcpgenserver.V1betaListBackupsParams{
+		BackupVaultId:  params.BackupVaultId,
+		LocationId:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: gcpgenserver.NewOptString(params.XCorrelationID.Value),
+	}
+	listBackupsResp, err := listBackupsToCVP(ctx, listBackupParams)
+	if err != nil {
+		logger.Error("Failed to list backups", "error", err.Error())
+		return false, err
+	}
+	var cvpBackups *gcpgenserver.V1betaListBackupsOK
+	switch resp := listBackupsResp.(type) {
+	case *gcpgenserver.V1betaListBackupsOK:
+		cvpBackups = resp
+	default:
+		logger.Error("Unexpected response type from listBackupsToCVP", "responseType", fmt.Sprintf("%T", listBackupsResp))
+		return false, fmt.Errorf("unexpected response type: %T", listBackupsResp)
+	}
+	for _, cvpBackup := range cvpBackups.GetBackups() {
+		if cvpBackup.ResourceId == utils.GetOptString(backupID) {
+			msg := fmt.Sprintf("Backup with resource ID %s already exists", *backupID)
+			logger.Error(msg)
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func fetchBackupUUIDWhichAreNotPartOfListBackups(listBackups []*datamodel.Backup, backupUUIDs []string) []string {
@@ -626,6 +885,5 @@ func fetchBackupUUIDWhichAreNotPartOfListBackups(listBackups []*datamodel.Backup
 			uuids = append(uuids, backupUUID)
 		}
 	}
-
 	return uuids
 }

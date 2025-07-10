@@ -1332,7 +1332,7 @@ func TestV1betaDeleteBackupUnderBackupVault(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.IsType(tt, &gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError{}, result)
 		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError).Code)
-		assert.Equal(tt, "Unexpected function flow", result.(*gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError).Message)
+		assert.Equal(tt, "An unexpected error occurred while deleting the backup", result.(*gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError).Message)
 	})
 	t.Run("WhenDefaultErrorOccurs", func(tt *testing.T) {
 		ctx := context.Background()
@@ -1516,5 +1516,725 @@ func TestFetchBackupUUIDWhichAreNotPartOfListBackups(t *testing.T) {
 		result := fetchBackupUUIDWhichAreNotPartOfListBackups(listBackups, backupUUIDs)
 
 		assert.Equal(t, expectedUUIDs, result)
+	})
+}
+func TestListBackupsToCVP(t *testing.T) {
+	ctx := context.Background()
+	params := gcpgenserver.V1betaListBackupsParams{
+		BackupVaultId:  "vault-id",
+		LocationId:     "location-id",
+		ProjectNumber:  "project-number",
+		XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+	}
+
+	t.Run("WhenListBackupsFailsWithInternalError", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockError := &backups.V1betaListBackupsInternalServerError{
+			Payload: &models.Error{
+				Code:    500,
+				Message: "Internal Server Error",
+			},
+		}
+		mockClient.EXPECT().V1betaListBackups(mock.Anything).Return(nil, mockError)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := listBackupsToCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsInternalServerError{}, result)
+		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaListBackupsInternalServerError).Code)
+		assert.Equal(t, "Internal Server Error", result.(*gcpgenserver.V1betaListBackupsInternalServerError).Message)
+	})
+	t.Run("WhenListBackupsFailsWithError", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockError := &backups.V1betaListBackupsNotFound{
+			Payload: &models.Error{
+				Code:    404,
+				Message: "Backups Not Found Error",
+			},
+		}
+		mockClient.EXPECT().V1betaListBackups(mock.Anything).Return(nil, mockError)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := listBackupsToCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsNotFound{}, result)
+		assert.Equal(t, float64(404), result.(*gcpgenserver.V1betaListBackupsNotFound).Code)
+		assert.Equal(t, "Backups Not Found Error", result.(*gcpgenserver.V1betaListBackupsNotFound).Message)
+	})
+	t.Run("WhenListBackupsSucceeds", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockResponse := &backups.V1betaListBackupsOK{
+			Payload: &backups.V1betaListBackupsOKBody{
+				Backups: []*models.BackupV1beta{
+					{BackupID: "backup-id-1"},
+					{BackupID: "backup-id-2"},
+				},
+			},
+		}
+		mockClient.EXPECT().V1betaListBackups(mock.Anything).Return(mockResponse, nil)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := listBackupsToCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsOK{}, result)
+		assert.Len(t, result.(*gcpgenserver.V1betaListBackupsOK).Backups, 2)
+	})
+
+	t.Run("WhenListBackupsReturnsUnexpectedResponse", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockClient.EXPECT().V1betaListBackups(mock.Anything).Return(nil, errors.New("unexpected error"))
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := listBackupsToCVP(ctx, params)
+		assert.Error(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsInternalServerError{}, result)
+		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaListBackupsInternalServerError).Code)
+		assert.Equal(t, "unexpected error", result.(*gcpgenserver.V1betaListBackupsInternalServerError).Message)
+	})
+	t.Run("WhenListBackupsFailsWithBadRequest", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockError := &backups.V1betaListBackupsBadRequest{
+			Payload: &models.Error{
+				Code:    400,
+				Message: "Bad Request",
+			},
+		}
+		mockClient.EXPECT().V1betaListBackups(mock.Anything).Return(nil, mockError)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := listBackupsToCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsBadRequest{}, result)
+		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaListBackupsBadRequest).Code)
+		assert.Equal(t, "Bad Request", result.(*gcpgenserver.V1betaListBackupsBadRequest).Message)
+	})
+
+	t.Run("WhenListBackupsFailsWithUnauthorized", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockError := &backups.V1betaListBackupsUnauthorized{
+			Payload: &models.Error{
+				Code:    401,
+				Message: "Unauthorized",
+			},
+		}
+		mockClient.EXPECT().V1betaListBackups(mock.Anything).Return(nil, mockError)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := listBackupsToCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsUnauthorized{}, result)
+		assert.Equal(t, float64(401), result.(*gcpgenserver.V1betaListBackupsUnauthorized).Code)
+		assert.Equal(t, "Unauthorized", result.(*gcpgenserver.V1betaListBackupsUnauthorized).Message)
+	})
+
+	t.Run("WhenListBackupsFailsWithForbidden", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockError := &backups.V1betaListBackupsForbidden{
+			Payload: &models.Error{
+				Code:    403,
+				Message: "Forbidden",
+			},
+		}
+		mockClient.EXPECT().V1betaListBackups(mock.Anything).Return(nil, mockError)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := listBackupsToCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsForbidden{}, result)
+		assert.Equal(t, float64(403), result.(*gcpgenserver.V1betaListBackupsForbidden).Code)
+		assert.Equal(t, "Forbidden", result.(*gcpgenserver.V1betaListBackupsForbidden).Message)
+	})
+
+	t.Run("WhenListBackupsFailsWithNotFound", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockError := &backups.V1betaListBackupsNotFound{
+			Payload: &models.Error{
+				Code:    404,
+				Message: "Not Found",
+			},
+		}
+		mockClient.EXPECT().V1betaListBackups(mock.Anything).Return(nil, mockError)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := listBackupsToCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsNotFound{}, result)
+		assert.Equal(t, float64(404), result.(*gcpgenserver.V1betaListBackupsNotFound).Code)
+		assert.Equal(t, "Not Found", result.(*gcpgenserver.V1betaListBackupsNotFound).Message)
+	})
+
+	t.Run("WhenListBackupsFailsWithInternalServerError", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockError := &backups.V1betaListBackupsInternalServerError{
+			Payload: &models.Error{
+				Code:    500,
+				Message: "Internal Server Error",
+			},
+		}
+		mockClient.EXPECT().V1betaListBackups(mock.Anything).Return(nil, mockError)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := listBackupsToCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsInternalServerError{}, result)
+		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaListBackupsInternalServerError).Code)
+		assert.Equal(t, "Internal Server Error", result.(*gcpgenserver.V1betaListBackupsInternalServerError).Message)
+	})
+
+	t.Run("WhenListBackupsFailsWithDefaultError", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockClient.EXPECT().V1betaListBackups(mock.Anything).Return(nil, fmt.Errorf("unexpected error"))
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := listBackupsToCVP(ctx, params)
+		assert.Error(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsInternalServerError{}, result)
+		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaListBackupsInternalServerError).Code)
+		assert.Equal(t, "unexpected error", result.(*gcpgenserver.V1betaListBackupsInternalServerError).Message)
+	})
+}
+
+func TestGetBackupToCVP(t *testing.T) {
+	ctx := context.Background()
+	params := gcpgenserver.V1betaDescribeBackupParams{
+		BackupVaultId:  "vault-id",
+		BackupId:       "backup-id",
+		LocationId:     "location-id",
+		ProjectNumber:  "project-number",
+		XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+	}
+
+	t.Run("WhenDescribeBackupFailsWithBadRequest", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockError := &backups.V1betaDescribeBackupBadRequest{
+			Payload: &models.Error{
+				Code:    400,
+				Message: "Bad Request",
+			},
+		}
+		mockClient.EXPECT().V1betaDescribeBackup(mock.Anything).Return(nil, mockError)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := getBackupsFromCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupBadRequest{}, result)
+		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaDescribeBackupBadRequest).Code)
+		assert.Equal(t, "Bad Request", result.(*gcpgenserver.V1betaDescribeBackupBadRequest).Message)
+	})
+
+	t.Run("WhenDescribeBackupFailsWithUnauthorized", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockError := &backups.V1betaDescribeBackupUnauthorized{
+			Payload: &models.Error{
+				Code:    401,
+				Message: "Unauthorized",
+			},
+		}
+		mockClient.EXPECT().V1betaDescribeBackup(mock.Anything).Return(nil, mockError)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := getBackupsFromCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupUnauthorized{}, result)
+		assert.Equal(t, float64(401), result.(*gcpgenserver.V1betaDescribeBackupUnauthorized).Code)
+		assert.Equal(t, "Unauthorized", result.(*gcpgenserver.V1betaDescribeBackupUnauthorized).Message)
+	})
+
+	t.Run("WhenDescribeBackupFailsWithForbidden", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockError := &backups.V1betaDescribeBackupForbidden{
+			Payload: &models.Error{
+				Code:    403,
+				Message: "Forbidden",
+			},
+		}
+		mockClient.EXPECT().V1betaDescribeBackup(mock.Anything).Return(nil, mockError)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := getBackupsFromCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupForbidden{}, result)
+		assert.Equal(t, float64(403), result.(*gcpgenserver.V1betaDescribeBackupForbidden).Code)
+		assert.Equal(t, "Forbidden", result.(*gcpgenserver.V1betaDescribeBackupForbidden).Message)
+	})
+
+	t.Run("WhenDescribeBackupFailsWithNotFound", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockError := &backups.V1betaDescribeBackupNotFound{
+			Payload: &models.Error{
+				Code:    404,
+				Message: "Not Found",
+			},
+		}
+		mockClient.EXPECT().V1betaDescribeBackup(mock.Anything).Return(nil, mockError)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := getBackupsFromCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupNotFound{}, result)
+		assert.Equal(t, float64(404), result.(*gcpgenserver.V1betaDescribeBackupNotFound).Code)
+		assert.Equal(t, "Not Found", result.(*gcpgenserver.V1betaDescribeBackupNotFound).Message)
+	})
+
+	t.Run("WhenDescribeBackupFailsWithInternalServerError", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockError := &backups.V1betaDescribeBackupInternalServerError{
+			Payload: &models.Error{
+				Code:    500,
+				Message: "Internal Server Error",
+			},
+		}
+		mockClient.EXPECT().V1betaDescribeBackup(mock.Anything).Return(nil, mockError)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := getBackupsFromCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupInternalServerError{}, result)
+		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaDescribeBackupInternalServerError).Code)
+		assert.Equal(t, "Internal Server Error", result.(*gcpgenserver.V1betaDescribeBackupInternalServerError).Message)
+	})
+
+	t.Run("WhenDescribeBackupFailsWithDefaultError", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockClient.EXPECT().V1betaDescribeBackup(mock.Anything).Return(nil, fmt.Errorf("unexpected error"))
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := getBackupsFromCVP(ctx, params)
+		assert.Error(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupInternalServerError{}, result)
+		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaDescribeBackupInternalServerError).Code)
+		assert.Equal(t, "unexpected error", result.(*gcpgenserver.V1betaDescribeBackupInternalServerError).Message)
+	})
+	t.Run("WhenBackupIsNil", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockClient.EXPECT().V1betaDescribeBackup(mock.Anything).Return(nil, nil)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := getBackupsFromCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupInternalServerError{}, result)
+		assert.Equal(t, "An unexpected error occurred while listing the backups", result.(*gcpgenserver.V1betaDescribeBackupInternalServerError).Message)
+	})
+
+	t.Run("WhenBackupPayloadIsNil", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockBackup := &backups.V1betaDescribeBackupOK{Payload: nil}
+		mockClient.EXPECT().V1betaDescribeBackup(mock.Anything).Return(mockBackup, nil)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := getBackupsFromCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupInternalServerError{}, result)
+		assert.Equal(t, "An unexpected error occurred while listing the backups", result.(*gcpgenserver.V1betaDescribeBackupInternalServerError).Message)
+	})
+
+	t.Run("WhenBackupPayloadIsValid", func(t *testing.T) {
+		mockClient := backups.NewMockClientService(t)
+		mockBackup := &backups.V1betaDescribeBackupOK{
+			Payload: &models.BackupV1beta{
+				ResourceID: "resource-id",
+			},
+		}
+		mockClient.EXPECT().V1betaDescribeBackup(mock.Anything).Return(mockBackup, nil)
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{Backups: mockClient}
+		}
+
+		result, err := getBackupsFromCVP(ctx, params)
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupOK{}, result)
+		assert.Equal(t, "resource-id", result.(*gcpgenserver.V1betaDescribeBackupOK).Backups[0].ResourceId.Value)
+	})
+
+	t.Run("WhenListBackupsIsEmpty", func(t *testing.T) {
+		listBackups := []*datamodel.Backup{}
+		backupUUIDs := []string{"uuid1", "uuid2"}
+
+		result := fetchBackupUUIDWhichAreNotPartOfListBackups(listBackups, backupUUIDs)
+		assert.Equal(t, backupUUIDs, result)
+	})
+}
+
+func TestV1betaDescribeBackup(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenBackupIsFoundInOrchestrator", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+		sourceRegionName := "us-east4"
+		handler := Handler{Orchestrator: mockOrchestrator}
+		backupVault := &datamodel.BackupVault{
+			Name:             "test-backup-vault",
+			SourceRegionName: &sourceRegionName,
+			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+		}
+		backup := &datamodel.Backup{State: "InProgress",
+			Name:          "backup-123",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes:    &datamodel.BackupAttributes{}}
+
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(backup, nil)
+
+		params := gcpgenserver.V1betaDescribeBackupParams{
+			BackupVaultId: "vault-123",
+			BackupId:      "backup-123",
+			ProjectNumber: "project-123",
+		}
+
+		resp, err := handler.V1betaDescribeBackup(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, "backup-123", resp.(*gcpgenserver.V1betaDescribeBackupOK).Backups[0].ResourceId.Value)
+	})
+
+	t.Run("WhenBackupIsNotFoundInOrchestratorButFoundInCVP", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("backup", nil))
+
+		params := gcpgenserver.V1betaDescribeBackupParams{
+			BackupVaultId: "vault-123",
+			BackupId:      "backup-123",
+			ProjectNumber: "project-123",
+		}
+
+		// Mock CVP client behavior here if needed
+
+		resp, err := handler.V1betaDescribeBackup(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+	})
+
+	t.Run("WhenInternalServerErrorOccurs", func(t *testing.T) {
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+		handler := Handler{Orchestrator: mockOrch}
+
+		mockOrch.EXPECT().GetBackup(ctx, mock.Anything).Return(nil, errors.New("internal server error"))
+
+		params := gcpgenserver.V1betaDescribeBackupParams{
+			BackupVaultId: "vault-123",
+			BackupId:      "backup-123",
+			ProjectNumber: "project-123",
+		}
+
+		resp, err := handler.V1betaDescribeBackup(ctx, params)
+
+		assert.Error(t, err)
+		assert.NotNil(t, resp)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupInternalServerError{}, resp)
+	})
+}
+
+// Mock for listBackupsToCVP
+var mockListBackupsToCVP = func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+	return nil, nil
+}
+
+func Test_checkIfBackupExistInCVP(t *testing.T) {
+	// Save original function and restore after test
+	originalListBackupsToCVP := listBackupsToCVP
+	defer func() { listBackupsToCVP = originalListBackupsToCVP }()
+	listBackupsToCVP = mockListBackupsToCVP
+
+	ctx := context.Background()
+	backupID := "test-backup-id"
+	params := gcpgenserver.V1betaCreateBackupParams{
+		BackupVaultId:  "vault-id",
+		LocationId:     "location-id",
+		ProjectNumber:  "project-number",
+		XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+	}
+
+	t.Run("listBackupsToCVP returns error", func(t *testing.T) {
+		listBackupsToCVP = func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+			return nil, errors.New("mock error")
+		}
+
+		exists, err := _checkIfBackupExistInCVP(ctx, &backupID, params)
+		assert.False(t, exists)
+		assert.Error(t, err)
+		assert.Equal(t, "mock error", err.Error())
+	})
+
+	t.Run("listBackupsToCVP returns unexpected response type", func(t *testing.T) {
+		listBackupsToCVP = func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+			return &gcpgenserver.V1betaListBackupsBadRequest{}, nil
+		}
+
+		exists, err := _checkIfBackupExistInCVP(ctx, &backupID, params)
+		assert.False(t, exists)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unexpected response type")
+	})
+
+	t.Run("backup ID exists in response", func(t *testing.T) {
+		listBackupsToCVP = func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+			return &gcpgenserver.V1betaListBackupsOK{
+				Backups: []gcpgenserver.BackupV1beta{
+					{ResourceId: utils.GetOptString(&backupID)},
+				},
+			}, nil
+		}
+
+		exists, err := _checkIfBackupExistInCVP(ctx, &backupID, params)
+		assert.True(t, exists)
+		assert.NoError(t, err)
+	})
+
+	t.Run("backup ID does not exist in response", func(t *testing.T) {
+		listBackupsToCVP = func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+			return &gcpgenserver.V1betaListBackupsOK{
+				Backups: []gcpgenserver.BackupV1beta{
+					{ResourceId: utils.GetOptString(nillable.GetStringPtr("other-backup-id"))},
+				},
+			}, nil
+		}
+
+		exists, err := _checkIfBackupExistInCVP(ctx, &backupID, params)
+		assert.False(t, exists)
+		assert.NoError(t, err)
+	})
+}
+func TestV1betaListBackups(t *testing.T) {
+	t.Run("WhenListBackupsToCVPSucceeds", func(t *testing.T) {
+		ctx := context.Background()
+		params := gcpgenserver.V1betaListBackupsParams{
+			BackupVaultId:  "test-vault-id",
+			LocationId:     "test-location-id",
+			ProjectNumber:  "test-project-number",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.On("ListBackups", ctx, params.BackupVaultId, params.ProjectNumber, mock.Anything).Return([]*datamodel.Backup{}, nil)
+
+		mockListBackupsToCVP := func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+			return &gcpgenserver.V1betaListBackupsOK{
+				Backups: []gcpgenserver.BackupV1beta{
+					{ResourceId: gcpgenserver.NewOptString("backup-1")},
+				},
+			}, nil
+		}
+
+		originalListBackupsToCVP := listBackupsToCVP
+		defer func() { listBackupsToCVP = originalListBackupsToCVP }()
+		listBackupsToCVP = mockListBackupsToCVP
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaListBackups(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsOK{}, result)
+		assert.Len(t, result.(*gcpgenserver.V1betaListBackupsOK).Backups, 1)
+	})
+
+	t.Run("WhenListBackupsToCVPFails", func(t *testing.T) {
+		ctx := context.Background()
+		params := gcpgenserver.V1betaListBackupsParams{
+			BackupVaultId:  "test-vault-id",
+			LocationId:     "test-location-id",
+			ProjectNumber:  "test-project-number",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		mockListBackupsToCVP := func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+			return nil, errors.New("failed to list backups")
+		}
+
+		originalListBackupsToCVP := listBackupsToCVP
+		defer func() { listBackupsToCVP = originalListBackupsToCVP }()
+		listBackupsToCVP = mockListBackupsToCVP
+
+		handler := Handler{}
+		result, err := handler.V1betaListBackups(ctx, params)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("WhenOrchestratorListBackupsFails", func(t *testing.T) {
+		ctx := context.Background()
+		params := gcpgenserver.V1betaListBackupsParams{
+			BackupVaultId:  "test-vault-id",
+			LocationId:     "test-location-id",
+			ProjectNumber:  "test-project-number",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.On("ListBackups", ctx, params.BackupVaultId, params.ProjectNumber, mock.Anything).Return(nil, fmt.Errorf("orchestrator error"))
+
+		mockListBackupsToCVP := func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
+			return &gcpgenserver.V1betaListBackupsOK{
+				Backups: []gcpgenserver.BackupV1beta{},
+			}, nil
+		}
+
+		originalListBackupsToCVP := listBackupsToCVP
+		defer func() { listBackupsToCVP = originalListBackupsToCVP }()
+		listBackupsToCVP = mockListBackupsToCVP
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaListBackups(ctx, params)
+
+		assert.Error(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupsInternalServerError{}, result)
+	})
+}
+func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
+	t.Run("WhenStateIsAvailable", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateAvailable,
+			SizeInBytes: 1024,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-east1"),
+			},
+			Description: "Test backup description",
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotName: "test-snapshot",
+				VolumeName:   "test-volume",
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		assert.Equal(t, "test-backup", result.ResourceId.Value)
+		assert.Equal(t, "test-volume-uuid", result.VolumeId.Value)
+		assert.Equal(t, gcpgenserver.BackupV1betaStateREADY, result.State.Value)
+		assert.Equal(t, "test-backup-uuid", result.BackupId.Value)
+		assert.Equal(t, int64(1024), result.VolumeUsageBytes.Value)
+		assert.Equal(t, "test-vault-uuid", result.BackupVaultId.Value)
+		assert.Equal(t, "Test backup description", result.Description.Value)
+		assert.Equal(t, gcpgenserver.BackupV1betaBackupTypeMANUAL, result.BackupType.Value)
+		assert.Equal(t, "test-snapshot", result.SourceSnapshot.Value)
+		assert.Equal(t, "test-volume", result.SourceVolume.Value)
+		assert.Equal(t, "us-east1", result.BackupRegion.Value)
+		assert.Equal(t, "us-east1", result.VolumeRegion.Value)
+	})
+
+	t.Run("WhenStateIsNotAvailable", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-backup",
+			VolumeUUID:  "test-volume-uuid",
+			State:       coremodels.LifeCycleStateDeleting,
+			SizeInBytes: 2048,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					UUID:      "test-vault-uuid",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				},
+				SourceRegionName: nillable.GetStringPtr("us-west1"),
+			},
+			Description: "Test backup description",
+			Type:        "SCHEDULED",
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotName: "test-snapshot",
+				VolumeName:   "test-volume",
+			},
+		}
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		assert.Equal(t, gcpgenserver.BackupV1betaStateDELETING, result.State.Value)
+		assert.Equal(t, "us-west1", result.BackupRegion.Value)
+		assert.Equal(t, "us-west1", result.VolumeRegion.Value)
 	})
 }

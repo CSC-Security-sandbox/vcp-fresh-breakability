@@ -646,9 +646,10 @@ func TestSnapshotActivities(t *testing.T) {
 		state := "success"
 
 		mockProvider.On("SnapmirrorRelationshipTransferGet", snapmirrorUUID, snapshotName).Return(&ontap_rest.SnapmirrorTransfer{SnapmirrorTransfer: oModels.SnapmirrorTransfer{State: &state}}, nil)
-		err := activity.SnapmirrorTransferPoll(context.Background(), node, snapmirrorUUID, snapshotName)
+		status, err := activity.GetSnapmirrorTransferStatus(context.Background(), node, snapmirrorUUID, snapshotName)
 
 		assert.NoError(tt, err)
+		assert.Equal(tt, state, status)
 		mockProvider.AssertExpectations(tt)
 	})
 
@@ -668,9 +669,10 @@ func TestSnapshotActivities(t *testing.T) {
 
 		mockProvider.On("SnapmirrorRelationshipTransferGet", snapmirrorUUID, snapshotName).Return(&ontap_rest.SnapmirrorTransfer{SnapmirrorTransfer: oModels.SnapmirrorTransfer{State: &state}}, fmt.Errorf("Snapmirror transfer failed with state: failed"))
 
-		err := activity.SnapmirrorTransferPoll(context.Background(), node, snapmirrorUUID, snapshotName)
+		status, err := activity.GetSnapmirrorTransferStatus(context.Background(), node, snapmirrorUUID, snapshotName)
 
 		assert.Error(tt, err)
+		assert.Equal(tt, state, status)
 		assert.Contains(tt, err.Error(), "Snapmirror transfer failed with state: failed")
 		mockProvider.AssertExpectations(tt)
 	})

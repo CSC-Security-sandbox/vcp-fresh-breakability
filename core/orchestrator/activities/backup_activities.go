@@ -2,7 +2,6 @@ package activities
 
 import (
 	"context"
-	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -10,14 +9,15 @@ import (
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
-	wait = time.Duration(env.GetUint("ONTAP_REST_ASYNC_POLL_WAIT_SECONDS", 3)) * time.Second
+	SmStatusTransferring = "transferring"
+	SmStatusSuccess      = "success"
+	SmStatusFailed       = "failed"
 )
 
 type BackupActivity struct {
@@ -185,30 +185,34 @@ func (a BackupActivity) SnapmirrorTransfer(ctx context.Context, node *models.Nod
 	return provider.SnapmirrorRelationshipTransferCreate(snapmirrorUUID, snapshotName, token)
 }
 
-func (a BackupActivity) SnapmirrorTransferPoll(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) error {
+func (a BackupActivity) GetSnapmirrorTransferStatus(ctx context.Context, node *models.Node, snapmirrorUUID, snapshotName string) (string, error) {
+	logger := util.GetLogger(ctx)
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return SmStatusFailed, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	// Start polling for the snapmirror transfer status
-	// Keep polling until the transfer is either successful or failed
-	for {
-		rsp, err := provider.SnapmirrorRelationshipTransferGet(snapmirrorUUID, snapshotName)
-		if err != nil {
-			return err
+	rsp, err := provider.SnapmirrorRelationshipTransferGet(snapmirrorUUID, snapshotName)
+	if err != nil {
+		if rsp != nil && rsp.State != nil {
+			logger.Errorf("Snapmirror transfer failed with state: %s, error: %v", *rsp.State, err)
 		}
-		if rsp == nil {
-			return nil
-		}
-		if rsp != nil && rsp.State != nil && *rsp.State == "failed" {
-			return errors.New("Snapmirror transfer failed with state: " + *rsp.State)
-		}
-		if rsp != nil && rsp.State != nil && *rsp.State == "success" {
-			return nil
-		}
-		// TODO: Use workflow.Sleep instead of time.Sleep
-		time.Sleep(wait)
+		return SmStatusFailed, err
 	}
+	if rsp == nil {
+		return SmStatusSuccess, nil
+	}
+	if rsp.State != nil {
+		if *rsp.State == SmStatusFailed {
+			return SmStatusFailed, errors.New("Snapmirror transfer failed with state: " + SmStatusFailed)
+		}
+		if *rsp.State == SmStatusSuccess {
+			return SmStatusSuccess, err
+		}
+		if *rsp.State == SmStatusTransferring {
+			return SmStatusTransferring, nil
+		}
+	}
+	return SmStatusFailed, errors.New("Snapmirror transfer failed with state: " + *rsp.State)
 }
 
 func (a BackupActivity) DeleteBackupSnapshot(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {

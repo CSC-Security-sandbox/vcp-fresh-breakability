@@ -65,7 +65,7 @@ func TestBackupWorkflow(t *testing.T) {
 	env.OnActivity("SnapmirrorGetorCreate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "uuid", DestinationUUID: nillable.ToPointer("snapmirror-uuid")}, nil)
 	env.OnActivity("SnapshotCreate", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.SnapshotProviderResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid"}}, nil)
 	env.OnActivity("SnapmirrorTransfer", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("SnapmirrorTransferPoll", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetSnapmirrorTransferStatus", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("success", nil)
 	env.OnActivity("FinishBackup", mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -200,7 +200,7 @@ func TestBackupWorkflowFailAfterSnapshot(t *testing.T) {
 
 func TestGetSnapshotName(t *testing.T) {
 	backup := &datamodel.Backup{Name: "test-backup"}
-	expected := "adhoc-:test-backup"
+	expected := "vcp-ad-test-backup"
 	result := getSnapshotName(backup)
 	assert.Equal(t, expected, result, "getSnapshotName should return the correct snapshot name")
 }

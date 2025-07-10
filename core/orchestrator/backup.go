@@ -29,7 +29,16 @@ func (o *Orchestrator) CreateBackup(ctx context.Context, params *common.CreateBa
 	return createBackup(ctx, o.storage, o.temporal, params)
 }
 
-func (o *Orchestrator) ListBackups(ctx context.Context, params *common.GetBackupsParams, filters [][]interface{}) ([]*datamodel.Backup, error) {
+func (o *Orchestrator) ListBackups(ctx context.Context, backupVaultID, ownerID string, filters [][]interface{}) ([]*datamodel.Backup, error) {
+	se := o.storage
+	account, err := getOrCreateAccount(ctx, se, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	params := &common.GetBackupsParams{
+		BackupVaultID: backupVaultID,
+		AccountID:     account.ID,
+	}
 	return getBackups(ctx, o.storage, params, filters)
 }
 
