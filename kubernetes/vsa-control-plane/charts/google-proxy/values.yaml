@@ -27,6 +27,7 @@ cvpHost: ""
 crrEnabled: false
 refreshAdminJobSpecs: false
 autoTieringEnabled: false
+regionalSupportEnabled: true
 
 # Add values here in overrideCoreConfig to override the common configuration
 overrideCoreConfig: {}

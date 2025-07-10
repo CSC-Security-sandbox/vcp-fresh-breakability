@@ -292,8 +292,84 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
 		assert.Equal(tt, "Ldap can not enabled on a Unified Flex Storage Pool", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
+	t.Run("WhenRegionalPoolSupportIsNotEnabled", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+
+		// Create a request with regional pool parameters
+		req := &gcpgenserver.PoolV1beta{
+			Unified:       gcpgenserver.NewOptBool(true),
+			Zone:          gcpgenserver.NewOptString("us-east2-b"),
+			SecondaryZone: gcpgenserver.NewOptString("us-east2-a"),
+		}
+
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east2",
+			ProjectNumber: "project-number",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east2", "", nil
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		// Call the function
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		// Assert the error
+		assert.NotNil(tt, result)
+		assert.NoError(tt, err)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
+		assert.Equal(tt, "Regional Pool Support is not enabled", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+	})
+	t.Run("WhenRegionalPoolSupportIsEnabled", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		// Mock the environment variable to enable regional pool support
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
+
+		// Create a request with regional pool parameters
+		req := &gcpgenserver.PoolV1beta{
+			Unified:       gcpgenserver.NewOptBool(true),
+			Zone:          gcpgenserver.NewOptString("us-east1-a"),
+			SecondaryZone: gcpgenserver.NewOptString("us-east1-b"),
+		}
+
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east1",
+			ProjectNumber: "project-number",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east1", "", nil
+		}
+
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{BaseModel: models.BaseModel{UUID: "new-pool-uuid"}, PoolAttributes: &models.PoolAttributes{}}, "operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "operation-id")
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, operationID, result.(*gcpgenserver.OperationV1beta).Name.Value)
+	})
 	t.Run("WhenZoneIsEmpty", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
+
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -324,6 +400,9 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 	t.Run("WhenSecondaryZoneIsEmpty", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -383,9 +462,12 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
-		assert.Equal(tt, "Multiple Zone values cannot be passed for Pool Creation", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+		assert.Equal(tt, "Multiple Zone values cannot be passed for Zonal Pool Creation", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenPoolAlreadyExists", func(tt *testing.T) {
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4",
@@ -430,6 +512,9 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 	t.Run("WhenPoolCreationFailsWithUserInputValidationError", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -468,6 +553,9 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 	t.Run("WhenPoolCreationSucceeds", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",

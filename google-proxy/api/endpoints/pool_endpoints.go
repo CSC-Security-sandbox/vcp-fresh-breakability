@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/go-faster/jx"
@@ -14,14 +15,18 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+var (
+	regionalPoolEnabled = env.GetBool("REGIONAL_SUPPORT_ENABLED", false)
+)
+
 const (
-	HTTP_BAD_REQUEST_CODE = 400
-	DEFAULT_IOPS          = 1024
+	DEFAULT_IOPS = 1024
 )
 
 // V1betaDescribePool handles the request to describe a pool.
@@ -65,12 +70,13 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 
 	validateErr := validateCreatePoolParams(req, zone)
 	if validateErr != nil {
-		if validateErr.Code == HTTP_BAD_REQUEST_CODE {
+		switch validateErr.Code {
+		case http.StatusBadRequest:
 			return &gcpgenserver.V1betaCreatePoolBadRequest{
 				Code:    validateErr.Code,
 				Message: validateErr.Message,
 			}, nil
-		} else {
+		default:
 			return &gcpgenserver.V1betaCreatePoolInternalServerError{
 				Code:    validateErr.Code,
 				Message: validateErr.Message,
@@ -137,7 +143,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) {
 			return &gcpgenserver.V1betaCreatePoolBadRequest{
-				Code:    HTTP_BAD_REQUEST_CODE,
+				Code:    http.StatusBadRequest,
 				Message: err.Error(),
 			}, nil
 		}
@@ -311,14 +317,14 @@ func (h Handler) V1betaGetMultiplePools(ctx context.Context, req *gcpgenserver.P
 		}, nil
 	}
 
-	pools, err := h.Orchestrator.GetMultiplePools(ctx, params.ProjectNumber, req.PoolUuids)
+	poolList, err := h.Orchestrator.GetMultiplePools(ctx, params.ProjectNumber, req.PoolUuids)
 	if err != nil {
 		return &gcpgenserver.V1betaGetMultiplePoolsInternalServerError{}, err
 	}
 
-	vsaPools := convertToPoolsV1Beta(pools)
+	vsaPools := convertToPoolsV1Beta(poolList)
 	vsaPools = append(vsaPools, cvpPools...)
-	logger.Info("Pools found", "pools", pools)
+	logger.Info("Pools found", "pools", poolList)
 	return &gcpgenserver.V1betaGetMultiplePoolsOK{
 		Pools: vsaPools,
 	}, nil
@@ -342,14 +348,14 @@ func (h Handler) V1betaListPools(ctx context.Context, params gcpgenserver.V1beta
 		includeDeleted = params.IncludeDeleted.Value
 	}
 
-	pools, err := h.Orchestrator.ListPools(ctx, params.ProjectNumber, includeDeleted)
+	poolList, err := h.Orchestrator.ListPools(ctx, params.ProjectNumber, includeDeleted)
 	if err != nil {
 		return &gcpgenserver.V1betaListPoolsInternalServerError{}, err
 	}
 
-	logger.Info("Pools found", "pools", pools)
+	logger.Info("Pools found", "pools", poolList)
 	return &gcpgenserver.V1betaListPoolsOK{
-		Pools: convertToPoolsV1Beta(pools),
+		Pools: convertToPoolsV1Beta(poolList),
 	}, nil
 }
 
@@ -380,7 +386,7 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 
 	validateErr := validateUpdatePoolParams(req, existingPool)
 	if validateErr != nil {
-		if validateErr.Code == HTTP_BAD_REQUEST_CODE {
+		if validateErr.Code == http.StatusBadRequest {
 			return &gcpgenserver.V1betaUpdatePoolBadRequest{
 				Code:    validateErr.Code,
 				Message: validateErr.Message,
@@ -598,44 +604,51 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 	}
 	if !unifiedValue {
 		return &gcpgenserver.Error{
-			Code:    HTTP_BAD_REQUEST_CODE,
+			Code:    http.StatusBadRequest,
 			Message: "unified (or unifiedPool) must be set to true",
 		}
 	}
 
 	if req.ActiveDirectoryResourceId.Value != "" {
 		return &gcpgenserver.Error{
-			Code:    HTTP_BAD_REQUEST_CODE,
+			Code:    http.StatusBadRequest,
 			Message: "Active directory cannot be assigned to a Unified Flex Storage Pool",
 		}
 	}
 
 	if req.LdapEnabled.Value {
 		return &gcpgenserver.Error{
-			Code:    HTTP_BAD_REQUEST_CODE,
+			Code:    http.StatusBadRequest,
 			Message: "Ldap can not enabled on a Unified Flex Storage Pool",
 		}
 	}
 
 	if nillable.IsNilOrEmpty(&zone) {
+		if !regionalPoolEnabled {
+			return &gcpgenserver.Error{
+				Code:    http.StatusBadRequest,
+				Message: "Regional Pool Support is not enabled",
+			}
+		}
+
 		if !req.Zone.IsSet() {
 			return &gcpgenserver.Error{
-				Code:    HTTP_BAD_REQUEST_CODE,
+				Code:    http.StatusBadRequest,
 				Message: "Zone cannot be empty for regional pool.",
 			}
 		}
 
 		if !req.SecondaryZone.IsSet() {
 			return &gcpgenserver.Error{
-				Code:    HTTP_BAD_REQUEST_CODE,
+				Code:    http.StatusBadRequest,
 				Message: "Secondary Zone cannot be empty for regional pool.",
 			}
 		}
 	} else {
 		if req.Zone.IsSet() && req.Zone.Value != "" && req.Zone.Value != zone {
 			return &gcpgenserver.Error{
-				Code:    HTTP_BAD_REQUEST_CODE,
-				Message: "Multiple Zone values cannot be passed for Pool Creation",
+				Code:    http.StatusBadRequest,
+				Message: "Multiple Zone values cannot be passed for Zonal Pool Creation",
 			}
 		}
 	}
@@ -647,56 +660,56 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *models.Pool) *gcpgenserver.Error {
 	if req.Zone.IsSet() && req.Zone.Value != existingPool.PoolAttributes.PrimaryZone {
 		return &gcpgenserver.Error{
-			Code:    HTTP_BAD_REQUEST_CODE,
+			Code:    http.StatusBadRequest,
 			Message: "Migrating to a different Zone is currently not supported",
 		}
 	}
 
 	if req.GlobalAccessAllowed.IsSet() {
 		return &gcpgenserver.Error{
-			Code:    HTTP_BAD_REQUEST_CODE,
+			Code:    http.StatusBadRequest,
 			Message: "Updating Global access is currently not supported",
 		}
 	}
 
 	if req.ActiveDirectoryConfigId.IsSet() {
 		return &gcpgenserver.Error{
-			Code:    HTTP_BAD_REQUEST_CODE,
+			Code:    http.StatusBadRequest,
 			Message: "Updating Active Directory is currently not supported",
 		}
 	}
 
 	if req.AllowAutoTiering.IsSet() {
 		return &gcpgenserver.Error{
-			Code:    HTTP_BAD_REQUEST_CODE,
+			Code:    http.StatusBadRequest,
 			Message: "Updating Auto tiering is currently not supported",
 		}
 	}
 
 	if req.HotTierSizeInBytes.IsSet() {
 		return &gcpgenserver.Error{
-			Code:    HTTP_BAD_REQUEST_CODE,
+			Code:    http.StatusBadRequest,
 			Message: "Updating HotTierSize is currently not supported",
 		}
 	}
 
 	if req.EnableHotTierAutoResize.IsSet() {
 		return &gcpgenserver.Error{
-			Code:    HTTP_BAD_REQUEST_CODE,
+			Code:    http.StatusBadRequest,
 			Message: "Updating HotTier auto resize is currently not supported",
 		}
 	}
 
 	if req.QosType.IsSet() {
 		return &gcpgenserver.Error{
-			Code:    HTTP_BAD_REQUEST_CODE,
+			Code:    http.StatusBadRequest,
 			Message: "Updating QosType is currently not supported",
 		}
 	}
 
 	if req.CustomPerformanceEnabled.IsSet() && !req.CustomPerformanceEnabled.Value {
 		return &gcpgenserver.Error{
-			Code:    HTTP_BAD_REQUEST_CODE,
+			Code:    http.StatusBadRequest,
 			Message: "CustomerPerformance must be enabled for Unified Flex Storage Pool",
 		}
 	}
@@ -704,7 +717,7 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 	if req.Labels.IsSet() {
 		// StoragePool datamodel does not support labels yet.
 		return &gcpgenserver.Error{
-			Code:    HTTP_BAD_REQUEST_CODE,
+			Code:    http.StatusBadRequest,
 			Message: "Updating Labels is currently not supported",
 		}
 	}
@@ -712,7 +725,7 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 	// We do not allow pool size to be reduced.
 	if req.SizeInBytes.IsSet() && req.SizeInBytes.Value < float64(existingPool.SizeInBytes) {
 		return &gcpgenserver.Error{
-			Code:    HTTP_BAD_REQUEST_CODE,
+			Code:    http.StatusBadRequest,
 			Message: "Pool size cannot be reduced",
 		}
 	}
