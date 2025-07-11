@@ -72,7 +72,7 @@ spec:
               value: local-temporal-frontend.default.svc.cluster.local:7233
       containers:
         - name: vlm-worker
-          image: us-docker.pkg.dev/gcnv-artifact-registry-nonprod/vlm/temporal-vlm:devN_7695956
+          image: ghcr.io/vcp-vsa-control-plane/temporal-vlm:devN_7695956
           env:
             - name: PROVIDER
               value: "gcp"
@@ -92,3 +92,5 @@ spec:
               value: "2"
             - name: GCE_METADATA_HOST
               value: "34.116.66.254:9090"
+      imagePullSecrets:
+        - name: ghcr-secret    
