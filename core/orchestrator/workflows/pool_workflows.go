@@ -50,6 +50,11 @@ type createPoolWorkflow struct {
 	SE *database.Storage
 }
 
+type poolDataSubnetWorkFlow struct {
+	BaseWorkflow
+	SE *database.Storage
+}
+
 // const customerActionTimeout = 30 * time.Minute
 
 // CreatePoolWorkflow processes pool related requests from a customer.
@@ -136,8 +141,19 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	rollbackManager.AddActivity(poolActivity.ErroredPool, dbPool)
 	rollbackManager.AddActivity(poolActivity.DeletePoolResourcesOnRollback, dbPool)
 
+	tenantProjectNumber := new(string)
+	err = workflow.ExecuteActivity(ctx, poolActivity.FindTenancyProject, params).Get(ctx, tenantProjectNumber)
+	if err != nil {
+		return nil, err
+	}
+
 	tenancyDetails := &common.TenancyInfo{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateTenancy, params, dbPool.UUID).Get(ctx, &tenancyDetails)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateOrGetSubnetwork, params, tenantProjectNumber).Get(ctx, &tenancyDetails)
+	if err != nil {
+		return nil, err
+	}
+
+	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolSubnet, dbPool.UUID, tenancyDetails).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -695,4 +711,85 @@ func convertToCreateKmsConfigParams(params cvpmodels.KmsConfigV1beta, createPool
 
 func _getNewVSAClientWorkflowManager() vlm.VlmWorkflowClient {
 	return vlm.NewVSAClientWorkflowManager()
+}
+
+// PoolDataSubnetWorkFlow processes get pr create subnet for the pool related requests from a customer.
+func PoolDataSubnetWorkFlow(ctx workflow.Context, params *common.CreatePoolParams, tenantProjectNumber string) (gcpgenserver.V1betaDescribePoolRes, error) {
+	CreateOrGetSubnetworkWF := new(poolDataSubnetWorkFlow)
+	err := CreateOrGetSubnetworkWF.Setup(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	CreateOrGetSubnetworkWF.Status = WorkflowStatusRunning
+	err = CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	if err != nil {
+		return nil, err
+	}
+	_, err = CreateOrGetSubnetworkWF.Run(ctx, params, &tenantProjectNumber)
+	if err != nil {
+		CreateOrGetSubnetworkWF.Status = WorkflowStatusFailed
+		err = CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err != nil {
+			return nil, err
+		}
+	}
+	CreateOrGetSubnetworkWF.Status = WorkflowStatusCompleted
+	err = CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	return nil, err
+}
+
+func (wf *poolDataSubnetWorkFlow) Setup(ctx workflow.Context, input interface{}) error {
+	createPoolParams := input.(*common.CreatePoolParams)
+	info := workflow.GetInfo(ctx)
+	wf.ID = info.WorkflowExecution.ID
+	wf.CustomerID = createPoolParams.AccountName
+	wf.Status = WorkflowStatusCreated
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
+	logger := util.GetLogger(ctx)
+	wf.Logger = logger
+
+	return workflow.SetQueryHandler(ctx, "status", func() (*WorkflowStatus, error) {
+		return &WorkflowStatus{
+			ID:         wf.ID,
+			Status:     wf.Status,
+			CustomerID: wf.CustomerID,
+		}, nil
+	})
+}
+
+func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	params := args[0].(*common.CreatePoolParams)
+	tenantProjectNumber := args[1].(*string)
+	poolActivity := &activities.PoolActivity{}
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	rollbackManager := common.NewRollbackManager()
+
+	defer func() {
+		if err != nil {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
+
+	tenancyDetails := &common.TenancyInfo{}
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateOrGetSubnetwork, params, *tenantProjectNumber).Get(ctx, &tenancyDetails)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, err
 }

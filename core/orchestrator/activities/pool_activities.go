@@ -42,7 +42,6 @@ import (
 )
 
 var (
-	FindTenancyAndGetSubnetwork       = _findTenancyAndGetSubnetwork
 	DeploymentsInsert                 = common.DeploymentsInsert
 	PrepareVlmConfig                  = _prepareVlmConfig
 	PrepareVlmConfigForVLMClient      = _prepareVlmConfigForVLMClient
@@ -60,12 +59,14 @@ var (
 	InsertSubnet                      = _insertSubnet
 	InsertFirewall                    = _insertFirewall
 	SetupNetworkWithFirewall          = setupNetworkWithFirewall
+	GetTenantProject                  = _getTenantProject
+	GetOrCreateSubnetwork             = _getOrCreateSubnetwork
+	GetSubnetToBeUsed                 = getSubnetToBeUsed
 	SetupNetworkFirewallsForIscsi     = setupNetworkFirewallsForIscsi
 	CreateGCPBucket                   = _createGCPBucket
 	CreateServiceAccountAndAttachRole = _createServiceAccountAndAttachRole
 	DeleteSrvcAccount                 = _deleteServiceAccount
 	DeleteGCPBucket                   = _deleteGCPBucket
-	GetTenantAndSNHostProject         = _getTenantAndSNHostProject
 	LoadVMRSConfig                    = vmrs_config.LoadConfig
 	CreateDecisionMaker               = vmrs_decision.NewDecisionMaker
 	vlmConfigFilePath                 = env.GetString("VLM_CONFIG_FILE_PATH", "common/vsa_config/vlm-config.json")
@@ -98,8 +99,6 @@ type PoolActivity struct {
 const (
 	aggregateName  = "aggr1"
 	DefaultSvmName = "gcnv"
-	lifNameFormat  = "san_lif_%s"
-	enableIscsi    = true
 
 	firewallPriority        = 1000
 	ingressTrafficDirection = "INGRESS"
@@ -200,54 +199,65 @@ func (j *PoolActivity) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*
 	return se.UpdatedPool(ctx, pool)
 }
 
-func (j *PoolActivity) CreateTenancy(ctx context.Context, params commonparams.CreatePoolParams, poolUUID string) (*commonparams.TenancyInfo, error) {
-	gcpService, err := GetGCPService(ctx)
+// FindTenancy finds the tenancy unit for a customer
+func (j *PoolActivity) FindTenancyProject(ctx context.Context, params commonparams.CreatePoolParams) (string, error) {
+	// need to pass tenantProjectRegion only in case of CBR where region != the regional region as set from env variable
+	service, err := GetGCPService(ctx)
 	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return "", vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-
-	tenancy, err := FindTenancyAndGetSubnetwork(j.SE, gcpService, params.VendorSubNetID, params.AccountName, &params.Region)
-	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
-	// update DB with subnet
-	err = j.SE.UpdatePoolSubnetNames(gcpService.GetContext(), poolUUID, tenancy.SnHostProject, tenancy.SubnetworkNames)
-	if err != nil {
-		return nil, err
-	}
-	return tenancy, nil
+	return GetTenantProject(service, params)
 }
 
-// _findTenancyAndGetSubnetwork finds the tenancy unit and creates a subnetwork for the tenant project
-func _findTenancyAndGetSubnetwork(se database.Storage, gcpService hyperscaler.GoogleServices, consumerVPC, customerProjectNumber string, tenantProjectRegion *string) (*commonparams.TenancyInfo, error) {
-	// need to pass tenantProjectRegion only in case of CBR where region != the regional region as set from env variable
-	if tenantProjectRegion == nil {
-		tenantProjectRegion = &localRegion
-	}
-	var subnet *hyperscaler_models.Subnet
-
-	tenantProjectNumber, snHostProject, err := GetTenantAndSNHostProject(gcpService, consumerVPC, customerProjectNumber, *tenantProjectRegion)
+func _getTenantProject(service hyperscaler.GoogleServices, params commonparams.CreatePoolParams) (string, error) {
+	tenantProjectNumber, err := service.GetTenantProject(params.VendorSubNetID, params.AccountName, params.Region)
 	if err != nil {
-		return nil, err
+		service.GetLogger().Errorf("Error finding tenancy unit. Project: %s vpc: %s Error: %v", params.AccountName, params.VendorSubNetID, err)
+		return "", err
 	}
+	service.GetLogger().Debug(fmt.Sprintf("Found tenancy: tenantProjectNumber :  %s for consumer project : %s", tenantProjectNumber, params.AccountName))
+	return tenantProjectNumber, nil
+}
+
+// CreateOrGetSubnetwork re-uses subnet if IP CIDR range is available; else creates a subnetwork for the tenant project
+func (j *PoolActivity) CreateOrGetSubnetwork(ctx context.Context, params commonparams.CreatePoolParams, tenantProjectNumber string) (*commonparams.TenancyInfo, error) {
+	service, err := GetGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return GetOrCreateSubnetwork(j.SE, service, params, tenantProjectNumber)
+}
+
+func _getOrCreateSubnetwork(se database.Storage, service hyperscaler.GoogleServices, params commonparams.CreatePoolParams, tenantProjectNumber string) (*commonparams.TenancyInfo, error) {
+	var subnet *hyperscaler_models.Subnet
+	logger := service.GetLogger()
+	snHostProject, err := service.GetSnHost(tenantProjectNumber)
+	if err != nil {
+		if !strings.Contains(err.Error(), "not found") {
+			service.GetLogger().Errorf("Error getting service networking host project for tenant project: %s Error: %v", tenantProjectNumber, err)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+		}
+	}
+	customerProjectNumber := params.AccountName
+	tenantProjectRegion := params.Region
+	consumerVPC := params.VendorSubNetID
 	if snHostProject != "" {
 		// if snHost is found, check if the subnetwork already exists in the SN host project and reuse it if applicable
-		subnet, err = getSubnetToBeUsed(gcpService, se, customerProjectNumber, tenantProjectNumber, snHostProject, *tenantProjectRegion)
+		subnet, err = GetSubnetToBeUsed(service, se, customerProjectNumber, tenantProjectNumber, snHostProject, tenantProjectRegion)
 		if err != nil {
-			gcpService.GetLogger().Errorf("Error getting subnet for tenant project: %s, SN host : %s, region %s. Error : %s", tenantProjectNumber, snHostProject, *tenantProjectRegion, err.Error())
+			logger.Errorf("Error getting subnet for tenant project: %s, SN host : %s, region %s. Error : %s", tenantProjectNumber, snHostProject, tenantProjectRegion, err.Error())
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 		}
 	}
 	if subnet == nil {
 		// if snHost is not found or subnet found cannot be used, create a new subnetwork for the tenant project
-		subnet, err = CreateSubnetwork(gcpService, tenantProjectNumber, consumerVPC, tenantProjectRegion)
+		subnet, err = CreateSubnetwork(service, tenantProjectNumber, consumerVPC, &tenantProjectRegion)
 		if err != nil {
-			gcpService.GetLogger().Errorf("Error creating subnetwork for tenant project: %s, SN host : %s, region %s. Error : %s", tenantProjectNumber, snHostProject, *tenantProjectRegion, err.Error())
+			logger.Errorf("Error creating subnetwork for tenant project: %s, SN host : %s, region %s. Error : %s", tenantProjectNumber, snHostProject, tenantProjectRegion, err.Error())
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 		}
 	}
-	gcpService.GetLogger().Debug(fmt.Sprintf("FindTenancyAndGetSubnetwork: tenantProjectNumber :  %s subnet  :  %s IpCidrRange : %s, consumerPeeringNetwork : %s", tenantProjectNumber, subnet.IpCidrRange, consumerVPC, subnet.Name))
+	logger.Infof("Subnet used for tenant project: tenantProjectNumber: %s SN host project : %s subnet: %s IpCidrRange: %s, consumerPeeringNetwork: %s", tenantProjectNumber, snHostProject, subnet.IpCidrRange, consumerVPC, subnet.Name)
 
 	snHostProject, network, err := utils.ParseProjectId(subnet.Network)
 	if err != nil {
@@ -262,21 +272,13 @@ func _findTenancyAndGetSubnetwork(se database.Storage, gcpService hyperscaler.Go
 	}, nil
 }
 
-// _getTenantAndSNHostProject retrieves the tenant project number and service networking host project
-func _getTenantAndSNHostProject(service hyperscaler.GoogleServices, consumerVPC, customerProjectNumber, tenantProjectRegion string) (string, string, error) {
-	tenantProjectNumber, err := service.GetTenantProject(consumerVPC, customerProjectNumber, tenantProjectRegion)
+// UpdatePoolSubnet updates the subnet name for the pool in the database
+func (j *PoolActivity) UpdatePoolSubnet(ctx context.Context, poolUUID string, tenancyDetails commonparams.TenancyInfo) error {
+	err := j.SE.UpdatePoolSubnetNames(ctx, poolUUID, tenancyDetails.SnHostProject, tenancyDetails.SubnetworkNames)
 	if err != nil {
-		service.GetLogger().Errorf("Error finding tenancy unit: %v", err)
-		return "", "", err
+		return err
 	}
-	snHostProject, err := service.GetSnHost(tenantProjectNumber)
-	if err != nil {
-		if !strings.Contains(err.Error(), "not found") {
-			service.GetLogger().Errorf("Error getting service networking host project: %v", err)
-			return tenantProjectNumber, "", vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
-		}
-	}
-	return tenantProjectNumber, snHostProject, nil
+	return nil
 }
 
 // createSubnetwork generates a subnetwork name based on the tenant project number and region and triggers creation the subnet in SN host project
@@ -304,6 +306,7 @@ func _createSubnetwork(service hyperscaler.GoogleServices, tenantProjectNumber, 
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
+	service.GetLogger().Infof("created subnetwork for tenant project: %s, SN host : %s, region %s. Subnet name : %s", tenantProjectNumber, snHostProject, tenantProjectRegion, subnetCreated.Name)
 	return subnet, nil
 }
 
@@ -946,7 +949,7 @@ func (j *PoolActivity) DeletingPoolResources(ctx context.Context, pool *datamode
 
 func (j *PoolActivity) ReleaseSubnet(ctx context.Context, pool *datamodel.Pool) error {
 	logger := util.GetLogger(ctx)
-	// TODO: loop through list of subnets for the pool, identify the subnet having 6 IPs and release it instead of just the last one
+	// identify the subnet having totalIPPerHAPair IPs and release it
 	if len(pool.ClusterDetails.SubnetNames) == 0 {
 		logger.Infof("Subnet is not associated with the pool. Skipping release for network: Account : %s Network : %s", pool.Account.Name, pool.Network)
 		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("subnet is not associated with the pool: %s account : %s", pool.UUID, pool.Account.Name))

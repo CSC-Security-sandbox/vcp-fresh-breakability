@@ -75,13 +75,15 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	}
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
 		RegionalTenantProject: "test-project",
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
+	env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -389,13 +391,15 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 
 	// Mock activity responses
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
 		RegionalTenantProject: "test-project",
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
+	env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -406,6 +410,17 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Bucket Creation Failed"))
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
@@ -465,14 +480,15 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:         "test-network",
-			SubnetworkNames: []string{"test-subnet"},
-
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -562,13 +578,15 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -667,14 +685,15 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			return "", nil
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:         "test-network",
-			SubnetworkNames: []string{"test-subnet"},
-
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -777,14 +796,15 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:         "test-network",
-			SubnetworkNames: []string{"test-subnet"},
-
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -892,14 +912,15 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:         "test-network",
-			SubnetworkNames: []string{"test-subnet"},
-
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -998,14 +1019,15 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:         "test-network",
-			SubnetworkNames: []string{"test-subnet"},
-
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1102,14 +1124,15 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			return "", nil
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:         "test-network",
-			SubnetworkNames: []string{"test-subnet"},
-
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1205,14 +1228,15 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			return "", nil
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:         "test-network",
-			SubnetworkNames: []string{"test-subnet"},
-
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1310,14 +1334,15 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:         "test-network",
-			SubnetworkNames: []string{"test-subnet"},
-
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1418,14 +1443,15 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:         "test-network",
-			SubnetworkNames: []string{"test-subnet"},
-
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1526,14 +1552,15 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-			Network:         "test-network",
-			SubnetworkNames: []string{"test-subnet"},
-
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1633,13 +1660,15 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}()
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1687,7 +1716,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 	})
 }
 
-func TestCreatePoolWorkflow_Failure_CreateTenancy(t *testing.T) {
+func TestCreatePoolWorkflow_Failure_FindTenancyProject(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -1725,8 +1754,9 @@ func TestCreatePoolWorkflow_Failure_CreateTenancy(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Once()
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("failed to update job status")).Times(10)
 
-	env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create tenancy"))
-
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("failed to create tenancy"))
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	// Execute workflow
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 
@@ -1838,13 +1868,15 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	}
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(1)
-	env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
 		RegionalTenantProject: "test-project",
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
+	env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1879,5 +1911,176 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
 	assert.Contains(t, env.GetWorkflowError().Error(), "failed to update job status")
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_FailurePoolDataSubnetFlow(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{Password: "password", SecretID: "secret-id"},
+	}
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Once()
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("failed to update job status")).Times(10)
+
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything, mock.Anything).Return("tenant-project", nil)
+	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get pool data subnet"))
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Execute workflow
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to update job status")
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_FailureUpdatePoolSubnet(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{Password: "password", SecretID: "secret-id"},
+	}
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Once()
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("failed to update job status")).Times(10)
+
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything, mock.Anything).Return("tenant-project", nil)
+	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+		Gateway:               "192.168.1.254",
+	}, nil)
+	env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update pool subnet"))
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Execute workflow
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to update job status")
+	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+
+	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+		Gateway:               "192.168.1.254",
+	}, nil)
+
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "tenant-project")
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
 }
