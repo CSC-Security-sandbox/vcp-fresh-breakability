@@ -309,7 +309,7 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 	}
 
 	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobID)
-	if backup.LifeCycleState == coremodels.LifeCycleStateCreatingDetails {
+	if backup.LifeCycleState == coremodels.LifeCycleStateCreating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -365,7 +365,7 @@ func (h Handler) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params 
 	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobId)
 	return &gcpgenserver.OperationV1beta{
 		Name: gcpgenserver.NewOptString(operationID),
-		Done: gcpgenserver.NewOptBool(true),
+		Done: gcpgenserver.NewOptBool(false),
 	}, nil
 }
 

@@ -534,6 +534,125 @@ func TestV1betaCreateBackup(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaCreateBackupBadRequest).Code)
 	})
+
+	t.Run("WhenVolumeExistsInVSA_LifeCycleStateCreating", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		req := &gcpgenserver.BackupCreateV1beta{VolumeId: "vol-id", ResourceId: "res-id"}
+		params := gcpgenserver.V1betaCreateBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "proj",
+			BackupVaultId: "vault",
+		}
+
+		originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+		originalCheckIfBackupExistInCVP := checkIfBackupExistInCVP
+		defer func() {
+			utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+			checkIfBackupExistInCVP = originalCheckIfBackupExistInCVP
+		}()
+		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		checkIfBackupExistInCVP = func(ctx context.Context, backupID *string, params gcpgenserver.V1betaCreateBackupParams) (bool, error) {
+			return false, nil // Backup doesn't exist in CVP
+		}
+
+		// Mock volume exists in VSA
+		volume := &coremodels.Volume{
+			BaseModel: coremodels.BaseModel{
+				UUID:      "vol-id",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			DisplayName:           "test-volume",
+			LifeCycleState:        "READY",
+			LifeCycleStateDetails: "All systems go",
+		}
+		mockOrch.EXPECT().GetVolume(ctx, "vol-id").Return(volume, nil)
+
+		// Mock successful backup creation with LifeCycleStateCreating
+
+		backup := &coremodels.Backup{
+			BackupID:       "backup-id",
+			LifeCycleState: coremodels.LifeCycleStateCreating,
+			Name:           "test-backup",
+		}
+		jobID := "job-123"
+		mockOrch.EXPECT().CreateBackup(ctx, mock.Anything).Return(backup, jobID, nil)
+
+		handler := Handler{Orchestrator: mockOrch}
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+
+		operation := result.(*gcpgenserver.OperationV1beta)
+		assert.Equal(t, "/v1beta/projects/proj/locations/us-east4/operations/job-123", operation.Name.Value)
+		assert.False(t, operation.Done.Value) // Should be false for CREATING state
+	})
+
+	t.Run("WhenVolumeExistsInVSA_LifeCycleStateAvailable", func(t *testing.T) {
+		logger := &log.MockLogger{}
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		req := &gcpgenserver.BackupCreateV1beta{VolumeId: "vol-id", ResourceId: "res-id"}
+		params := gcpgenserver.V1betaCreateBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "proj",
+			BackupVaultId: "vault",
+		}
+
+		originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+		originalCheckIfBackupExistInCVP := checkIfBackupExistInCVP
+		defer func() {
+			utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+			checkIfBackupExistInCVP = originalCheckIfBackupExistInCVP
+		}()
+		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		checkIfBackupExistInCVP = func(ctx context.Context, backupID *string, params gcpgenserver.V1betaCreateBackupParams) (bool, error) {
+			return false, nil // Backup doesn't exist in CVP
+		}
+
+		// Mock volume exists in VSA
+		volume := &coremodels.Volume{
+			BaseModel: coremodels.BaseModel{
+				UUID:      "vol-id",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			DisplayName:           "test-volume",
+			LifeCycleState:        "READY",
+			LifeCycleStateDetails: "All systems go",
+		}
+		mockOrch.EXPECT().GetVolume(ctx, "vol-id").Return(volume, nil)
+
+		// Mock successful backup creation with LifeCycleStateAvailable
+		backup := &coremodels.Backup{
+			BackupID:       "backup-id",
+			LifeCycleState: coremodels.LifeCycleStateAvailable,
+			Name:           "test-backup",
+		}
+		jobID := "job-123"
+		mockOrch.EXPECT().CreateBackup(ctx, mock.Anything).Return(backup, jobID, nil)
+
+		handler := Handler{Orchestrator: mockOrch}
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+
+		operation := result.(*gcpgenserver.OperationV1beta)
+		assert.Equal(t, "/v1beta/projects/proj/locations/us-east4/operations/job-123", operation.Name.Value)
+		assert.True(t, operation.Done.Value) // Should be true for non-CREATING states
+	})
 }
 
 // Test cases for V1betaGetMultipleBackups
