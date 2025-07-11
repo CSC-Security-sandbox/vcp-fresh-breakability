@@ -59,7 +59,7 @@ type DataStore interface {
 	DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
 	GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
 	ListPools(ctx context.Context, filter *utils.Filter) ([]*datamodel.PoolView, error)
-	GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.PoolView, error)
+	GetPoolByVendorID(ctx context.Context, vendorID string, accountID int64) (*datamodel.PoolView, error)
 	GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error)
 	SavePoolWithVsaDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error
 	UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error)

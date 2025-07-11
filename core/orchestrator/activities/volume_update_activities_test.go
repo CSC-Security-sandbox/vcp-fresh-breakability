@@ -321,7 +321,7 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			params: &common.UpdateVolumeParams{
 				Description:  "desc",
 				QuotaInBytes: 12345,
-				Labels:       map[string]string{"env": "prod", "team": "devops"},
+				Labels:       &datamodel.JSONB{"env": "prod", "team": "devops"},
 				DataProtection: &models.DataProtection{
 					BackupVaultID: "vault-123",
 				},
@@ -393,7 +393,7 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				DataProtection:   &datamodel.DataProtection{},
 			},
 			params: &common.UpdateVolumeParams{
-				Labels: map[string]string{"foo": "bar"},
+				Labels: &datamodel.JSONB{"foo": "bar"},
 				DataProtection: &models.DataProtection{
 					BackupVaultID: "vault-123",
 				},
@@ -442,7 +442,7 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				DataProtection:   &datamodel.DataProtection{},
 			},
 			params: &common.UpdateVolumeParams{
-				Labels: map[string]string{"foo": "bar"},
+				Labels: &datamodel.JSONB{"foo": "bar"},
 				DataProtection: &models.DataProtection{
 					BackupVaultID: "vault-123",
 				},

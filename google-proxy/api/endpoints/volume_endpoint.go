@@ -197,6 +197,14 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		param.Network, _ = req.Volume.Network.Get()
 	}
 
+	if req.Volume.Labels.IsSet() {
+		jsonbLabels, err := validateLabels(req.Volume.Labels.Value)
+		if err != nil {
+			return nil, errors.NewUserInputValidationErr(err.Error())
+		}
+		param.Labels = jsonbLabels
+	}
+
 	for _, protocol := range req.Volume.GetProtocols() {
 		protocolStr, err := protocol.MarshalText()
 		if err != nil {
@@ -414,14 +422,11 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 	}
 
 	if req.Labels.IsSet() {
-		labels := make(map[string]string)
-		for key, value := range req.Labels.Value {
-			if key == "" {
-				return nil, errors.NewUserInputValidationErr("Labels cannot have empty keys")
-			}
-			labels[key] = value
+		jsonbLabels, err := validateLabels(req.Labels.Value)
+		if err != nil {
+			return nil, errors.NewUserInputValidationErr(err.Error())
 		}
-		param.Labels = labels
+		param.Labels = jsonbLabels
 	}
 
 	if req.SnapshotPolicy.IsSet() {
@@ -561,6 +566,14 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 			return nil
 		}
 		res.Protocols = append(res.Protocols, protocolsV1beta)
+	}
+
+	if volume.Labels != nil {
+		labels := gcpgenserver.VolumeV1betaLabels{}
+		for key, value := range volume.Labels {
+			labels[key] = value
+		}
+		res.Labels = gcpgenserver.OptVolumeV1betaLabels{Value: labels}
 	}
 
 	if volume.BlockProperties != nil {

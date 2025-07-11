@@ -258,11 +258,7 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 	}
 
 	if params.Labels != nil {
-		jsonbLabels := make(datamodel.JSONB)
-		for k, v := range params.Labels {
-			jsonbLabels[k] = v
-		}
-		volume.VolumeAttributes.Labels = &jsonbLabels
+		volume.VolumeAttributes.Labels = params.Labels
 	}
 
 	if params.SnapshotPolicy != nil {

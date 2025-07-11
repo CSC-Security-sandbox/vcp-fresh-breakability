@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/volumes"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -780,6 +781,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 				IsEnabled: true,
 				Schedules: []*models.SnapshotPolicySchedule{snapshotPolicySchedule},
 			},
+			Labels: map[string]string{"key1": "value1", "key2": "value2"},
 		})
 
 		mockOrchestrator.EXPECT().GetMultipleVolumes(mock.Anything, mock.Anything, mock.Anything).Return(vcpVolumes, nil)
@@ -787,6 +789,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 		result, err := handler.V1betaGetMultipleVolumes(context.Background(), req, params)
 		assert.Nil(tt, err)
 		assert.Len(tt, result.(*gcpgenserver.V1betaGetMultipleVolumesOK).Volumes, 2)
+		assert.Equal(tt, result.(*gcpgenserver.V1betaGetMultipleVolumesOK).Volumes[1].Labels.Value["key1"], "value1")
 	})
 }
 
@@ -1039,6 +1042,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			PoolId:       gcpgenserver.NewOptNilString("test-pool"),
 			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
+			Labels:       gcpgenserver.OptVolumeUpdateV1betaLabels{Set: true, Value: map[string]string{"key1": "value1", "key2": "value2"}},
 		}
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
@@ -1312,6 +1316,12 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 	region := "region"
 
 	t.Run("WhenAllFieldsSet_ThenFieldsAreMapped", func(t *testing.T) {
+		labels := make(map[string]string)
+		labels["k"] = "v"
+		jsonbLabels := make(datamodel.JSONB)
+		for k, v := range labels {
+			jsonbLabels[k] = v
+		}
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			PoolId:       gcpgenserver.NewOptNilString("pool"),
 			QuotaInBytes: gcpgenserver.NewOptNilFloat64(107374182400),
@@ -1329,7 +1339,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 					BackupChainBytes:       gcpgenserver.NewOptNilInt64(10199181),
 					ScheduledBackupEnabled: gcpgenserver.NewOptNilBool(true),
 				}),
-			Labels: gcpgenserver.NewOptVolumeUpdateV1betaLabels(map[string]string{"k": "v"}),
+			Labels: gcpgenserver.NewOptVolumeUpdateV1betaLabels(labels),
 		}
 		out, err := _prepareUpdateVolumeParams(req, params, region)
 		assert.NoError(t, err)
@@ -1339,7 +1349,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		assert.Equal(t, []string{"ISCSI"}, out.Protocols)
 		assert.NotNil(t, out.BlockProperties)
 		assert.Equal(t, "LINUX", out.BlockProperties.OSType)
-		assert.Equal(t, map[string]string{"k": "v"}, out.Labels)
+		assert.Equal(t, &jsonbLabels, out.Labels)
 	})
 
 	t.Run("WhenOptionalFieldsNotSet_ThenDefaultsAreUsed", func(t *testing.T) {
@@ -1377,7 +1387,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 			Labels: gcpgenserver.NewOptVolumeUpdateV1betaLabels(map[string]string{"": "v", "k": "v2"}),
 		}
 		out, err := _prepareUpdateVolumeParams(req, params, region)
-		assert.EqualError(t, err, "Labels cannot have empty keys")
+		assert.EqualError(t, err, "key is required in label")
 		assert.Nil(t, out)
 	})
 
@@ -1795,6 +1805,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
 				Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+				Labels:        gcpgenserver.OptVolumeV1betaLabels{Value: map[string]string{"test-label": "test-value"}, Set: true},
 			},
 			VolumeType: gcpgenserver.NewOptVolumeCreateV1betaVolumeType("SECONDARY"),
 		}
@@ -2110,6 +2121,7 @@ func TestPrepareCreateVolumeParams_SnapReserveMustBePositiveNumber(t *testing.T)
 			Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
 			// SnapReserve is set but Get() will return (0, false)
 			SnapReserve: gcpgenserver.OptFloat64{Set: true, Value: -1},
+			Labels:      gcpgenserver.OptVolumeV1betaLabels{Value: map[string]string{"key": "value"}, Set: true},
 		},
 	}
 	params := gcpgenserver.V1betaCreateVolumeParams{

@@ -31,6 +31,7 @@ type CreatePoolParams struct {
 	CustomPerformanceParams *CustomPerformanceParams
 	KmsConfigId             string
 	KmsConfigResourceID     string
+	Labels                  *datamodel.JSONB
 }
 
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool
@@ -78,6 +79,7 @@ type CreateVolumeParams struct {
 	TieringPolicy    *TieringPolicy
 	BackupID         string
 	BackupPath       string
+	Labels           *datamodel.JSONB
 }
 
 type SnapmirrorRelationshipParams struct {
@@ -113,7 +115,7 @@ type UpdateVolumeParams struct {
 	VendorID        string
 	QuotaInBytes    int64
 	Protocols       []string
-	Labels          map[string]string
+	Labels          *datamodel.JSONB
 	SnapReserve     *int64
 	BlockProperties *BlockPropertiesRequest
 	SnapshotPolicy  *models.SnapshotPolicy
@@ -207,7 +209,7 @@ type UpdatePoolParams struct {
 	CustomThroughputMibps    uint64
 	HostUUID                 string
 	Zone                     string
-	Labels                   map[string]string
+	Labels                   *datamodel.JSONB
 	ActiveDirectoryConfigId  string
 	HotTierSizeInBytes       uint64
 	EnableHotTierAutoResize  bool

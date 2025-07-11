@@ -64,6 +64,7 @@ type PoolAttributes struct {
 	Iops            int64  `json:"iops"`
 	PrimaryZone     string `json:"primary_zone"`
 	SecondaryZone   string `json:"secondary_zone"`
+	Labels          *JSONB `json:"labels"`
 }
 
 // Node represents the public.nodes table in the database

@@ -112,6 +112,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			VendorSubnetID:   params.Network,
 			IsDataProtection: params.IsDataProtection,
 			SnapReserve:      params.SnapReserve,
+			Labels:           params.Labels,
 		},
 	}
 
@@ -400,6 +401,11 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 			HostGroupDetail: convertHostGroupDetails(attributes.BlockProperties.HostGroupDetails),
 		}
 	}
+	labels := make(map[string]string)
+	if attributes.Labels != nil {
+		labels = convertJSONBToMap(attributes.Labels)
+	}
+	res.Labels = labels
 	if volume.DataProtection != nil {
 		res.DataProtection = &models.DataProtection{
 			BackupVaultID:          volume.DataProtection.BackupVaultID,
@@ -564,6 +570,10 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		} else {
 			dbVolume.DataProtection.BackupVaultID = params.DataProtection.BackupVaultID
 		}
+	}
+
+	if params.Labels != nil && dbVolume.VolumeAttributes != nil {
+		dbVolume.VolumeAttributes.Labels = params.Labels
 	}
 
 	pool, err := se.GetPool(ctx, params.PoolID, dbVolume.AccountID)

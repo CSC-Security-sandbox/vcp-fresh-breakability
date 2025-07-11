@@ -547,8 +547,8 @@ func (s *PersistenceStore) GetJobsWithCondition(ctx context.Context, filter util
 	return s.dataStore.GetJobsWithCondition(ctx, filter)
 }
 
-func (s *PersistenceStore) GetPoolByVendorID(ctx context.Context, vendorID string) (*datamodel.PoolView, error) {
-	return s.dataStore.GetPoolByVendorID(ctx, vendorID)
+func (s *PersistenceStore) GetPoolByVendorID(ctx context.Context, vendorID string, accountID int64) (*datamodel.PoolView, error) {
+	return s.dataStore.GetPoolByVendorID(ctx, vendorID, accountID)
 }
 
 func (s *PersistenceStore) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {

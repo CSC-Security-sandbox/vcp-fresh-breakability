@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-faster/jx"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/pools"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -26,7 +28,10 @@ var (
 )
 
 const (
-	DEFAULT_IOPS = 1024
+	HTTP_BAD_REQUEST_CODE = 400
+	DEFAULT_IOPS          = 1024
+	maxRuneCount          = 63
+	maxByteCount          = 128
 )
 
 // V1betaDescribePool handles the request to describe a pool.
@@ -86,7 +91,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 
 	vendorId := fmt.Sprintf("/projects/%v/locations/%v/pools/%s", params.ProjectNumber, params.LocationId, req.ResourceId)
 	// Check if the pool already exists
-	existingPool, err := h.Orchestrator.GetPoolByVendorID(ctx, vendorId)
+	existingPool, err := h.Orchestrator.GetPoolByVendorID(ctx, vendorId, params.ProjectNumber)
 	if err == nil {
 		logger.Info("Pool already exists", "vendorId", vendorId)
 		resp, err := encodePoolV1(convertToPoolV1Beta(existingPool))
@@ -127,6 +132,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		PrimaryZone:             primaryZone,
 		SecondaryZone:           secondaryZone,
 		Name:                    req.ResourceId,
+		Description:             req.Description.Value,
 		VendorID:                vendorId,
 		VendorSubNetID:          req.Network,
 		ServiceLevel:            string(req.ServiceLevel),
@@ -138,6 +144,16 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: int64(req.TotalThroughputMibps.Value), Enabled: req.CustomPerformanceEnabled.Value, Iops: int64(totalIops)},
 		KmsConfigId:             req.KmsConfigId.Value,
 		KmsConfigResourceID:     req.KmsConfigResourceId.Value,
+	}
+	if req.Labels.IsSet() {
+		jsonbLabels, err := validateLabels(req.Labels.Value)
+		if err != nil {
+			return &gcpgenserver.V1betaCreatePoolBadRequest{
+				Code:    HTTP_BAD_REQUEST_CODE,
+				Message: err.Error(),
+			}, nil
+		}
+		param.Labels = jsonbLabels
 	}
 	created, operationID, err := h.Orchestrator.CreatePool(ctx, param)
 	if err != nil {
@@ -371,7 +387,7 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 	}
 
 	vendorId := fmt.Sprintf("/projects/%v/locations/%v/pools/%s", params.ProjectNumber, params.LocationId, params.PoolId)
-	existingPool, err := h.Orchestrator.GetPoolByVendorID(ctx, vendorId)
+	existingPool, err := h.Orchestrator.GetPoolByVendorID(ctx, vendorId, params.ProjectNumber)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			logger.Info("Pool not found", "uuid", params.PoolId)
@@ -425,6 +441,16 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 		param.TotalThroughputMibps = req.TotalThroughputMibps.Value
 	} else {
 		param.TotalThroughputMibps = existingPool.CustomPerformanceParams.Throughput
+	}
+	if req.Labels.IsSet() {
+		jsonbLabels, err := validateLabels(req.Labels.Value)
+		if err != nil {
+			return &gcpgenserver.V1betaUpdatePoolBadRequest{
+				Code:    HTTP_BAD_REQUEST_CODE,
+				Message: err.Error(),
+			}, nil
+		}
+		param.Labels = jsonbLabels
 	}
 
 	if req.TotalIops.IsSet() {
@@ -482,6 +508,13 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		throughputValue = pool.TotalThroughputMibps
 	}
 
+	labels := gcpgenserver.PoolV1betaLabels{}
+	if pool.PoolAttributes.Labels != nil {
+		for key, value := range pool.PoolAttributes.Labels {
+			labels[key] = value
+		}
+	}
+
 	return &gcpgenserver.PoolV1beta{
 		PoolId:                   gcpgenserver.NewOptString(pool.UUID),
 		CreatedAt:                gcpgenserver.NewOptDateTime(pool.CreatedAt),
@@ -510,6 +543,7 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		EncryptionType:          gcpgenserver.NewOptPoolV1betaEncryptionType(gcpgenserver.PoolV1betaEncryptionType(utils.GetEncryptionType(nil))), // pass pool.KmsConfigID
 		Zone:                    gcpgenserver.NewOptString(pool.PoolAttributes.PrimaryZone),
 		SecondaryZone:           gcpgenserver.NewOptString(pool.PoolAttributes.SecondaryZone),
+		Labels:                  gcpgenserver.OptPoolV1betaLabels{Value: labels},
 	}
 }
 
@@ -714,14 +748,6 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 		}
 	}
 
-	if req.Labels.IsSet() {
-		// StoragePool datamodel does not support labels yet.
-		return &gcpgenserver.Error{
-			Code:    http.StatusBadRequest,
-			Message: "Updating Labels is currently not supported",
-		}
-	}
-
 	// We do not allow pool size to be reduced.
 	if req.SizeInBytes.IsSet() && req.SizeInBytes.Value < float64(existingPool.SizeInBytes) {
 		return &gcpgenserver.Error{
@@ -731,4 +757,37 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 	}
 
 	return nil
+}
+
+// validateLabels will loop through the label map and validate labels according to Google requirements
+func validateLabels(labels map[string]string) (*datamodel.JSONB, error) {
+	_, err := json.Marshal(labels)
+	if err != nil {
+		return nil, errors.NewUserInputValidationErr("unable to marshal labels")
+	}
+
+	if len(labels) > 64 {
+		return nil, errors.NewUserInputValidationErr("invalid label count")
+	}
+
+	jsonbLabels := make(datamodel.JSONB)
+	for k, v := range labels {
+		if len(k) == 0 {
+			return nil, errors.NewUserInputValidationErr("key is required in label")
+		}
+		if len(strings.Split(k, "")) > maxRuneCount {
+			return nil, errors.NewUserInputValidationErr(fmt.Sprintf("label key '%s' is too long (length can't exceed %d characters)", k, maxRuneCount))
+		}
+		if len(k) > maxByteCount {
+			return nil, errors.NewUserInputValidationErr(fmt.Sprintf("label key '%s' is too long (encoded length can't exceed %d bytes)", k, maxByteCount))
+		}
+		if len(strings.Split(v, "")) > maxRuneCount {
+			return nil, errors.NewUserInputValidationErr(fmt.Sprintf("label value '%s' is too long (length can't exceed %d characters)", v, maxRuneCount))
+		}
+		if len(v) > maxByteCount {
+			return nil, errors.NewUserInputValidationErr(fmt.Sprintf("label value '%s' is too long (encoded length can't exceed %d bytes)", v, maxByteCount))
+		}
+		jsonbLabels[k] = v
+	}
+	return &jsonbLabels, nil
 }

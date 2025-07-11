@@ -27,6 +27,7 @@ type Volume struct {
 	EncryptionType        string
 	SnapReserve           int64
 	TieringPolicy         *TieringPolicy
+	Labels                map[string]string
 }
 
 // TieringPolicy describes the auto tiering policy for a volume

@@ -353,7 +353,7 @@ func TestGetPoolWithVendorID(t *testing.T) {
 			tt.Fatalf("Failed to create pool: %v", err)
 		}
 
-		result, err := store.GetPoolByVendorID(context.Background(), "test-pool-vendor-id")
+		result, err := store.GetPoolByVendorID(context.Background(), "test-pool-vendor-id", account.ID)
 		if err != nil {
 			tt.Errorf("Expected no error, got %v", err)
 		}
@@ -377,7 +377,19 @@ func TestGetPoolWithVendorID(t *testing.T) {
 			tt.Fatalf("Failed to clean up test database: %v", err)
 		}
 
-		_, err = store.GetPoolByVendorID(context.Background(), "test-pool-vendor-id")
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		_, err = store.GetPoolByVendorID(context.Background(), "test-pool-vendor-id", account.ID)
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}
@@ -806,6 +818,10 @@ func TestUpdatedPool(t *testing.T) {
 			AccountID: account.ID,
 			Account:   account,
 			State:     models.LifeCycleStateCreating,
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            100,
+				ThroughputMibps: 100,
+			},
 		}
 		err = store.db.Create(pool).Error()
 		if err != nil {
@@ -815,9 +831,13 @@ func TestUpdatedPool(t *testing.T) {
 		// Sleep to ensure UpdatedAt will change.
 		time.Sleep(10 * time.Millisecond)
 
+		label := "label"
+		labels := make(datamodel.JSONB)
+		labels["test"] = label
 		// Setting new state values.
 		pool.State = models.LifeCycleStateREADY
 		pool.StateDetails = models.LifeCycleStateAvailableDetails
+		pool.PoolAttributes.Labels = &labels
 
 		updatedPool, err := store.UpdatedPool(context.Background(), pool)
 		if err != nil {
@@ -842,6 +862,7 @@ func TestUpdatedPool(t *testing.T) {
 		if updatedPool.UUID != pool.UUID {
 			tt.Errorf("Expected pool UUID %v, got %v", pool.UUID, updatedPool.UUID)
 		}
+		assert.Equal(tt, updatedPool.PoolAttributes.Labels, &labels)
 	})
 }
 

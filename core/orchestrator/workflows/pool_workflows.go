@@ -424,6 +424,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		PoolAttributes: &datamodel.PoolAttributes{
 			ThroughputMibps: int64(updatePoolParams.TotalThroughputMibps),
 			Iops:            int64(updatePoolParams.TotalIops),
+			Labels:          updatePoolParams.Labels,
 		},
 	}
 

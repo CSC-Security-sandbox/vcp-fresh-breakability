@@ -316,6 +316,10 @@ func TestCreatePool(t *testing.T) {
 	t.Run("WhenCreatePoolSucceeds", func(tt *testing.T) {
 		ctx, _, orch, temporal := setup(tt)
 
+		label := "label"
+		labels := make(datamodel.JSONB)
+		labels["test"] = label
+
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		params := &common.CreatePoolParams{
 			AccountName:      "test_account",
@@ -332,6 +336,7 @@ func TestCreatePool(t *testing.T) {
 				ThroughputMibps: 64,
 				Iops:            1024,
 			},
+			Labels: &labels,
 		}
 
 		dbAccount := &datamodel.Account{
@@ -363,6 +368,7 @@ func TestCreatePool(t *testing.T) {
 		assert.Equal(t, pool.Name, params.Name)
 		assert.Equal(t, pool.VendorSubNetID, params.VendorSubNetID)
 		assert.Equal(t, pool.AccountName, params.AccountName)
+		assert.Equal(t, pool.PoolAttributes.Labels["test"], label)
 	})
 	t.Run("WhenCreatePoolSucceedsWithCert", func(tt *testing.T) {
 		ctx, _, orch, temporal := setup(tt)
@@ -623,7 +629,7 @@ func TestGetPoolByVendorID(t *testing.T) {
 	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
 		ctx, _, orch, _ := setup(tt)
 
-		_, err := orch.GetPoolByVendorID(ctx, "non-existent-vendor-id")
+		_, err := orch.GetPoolByVendorID(ctx, "non-existent-vendor-id", "")
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
 			assert.EqualError(tt, customErr.Unwrap(), "pool not found")
@@ -637,7 +643,7 @@ func TestGetPoolByVendorID(t *testing.T) {
 
 		pools, account := createDBPools(t, store)
 
-		result, err := orch.GetPoolByVendorID(ctx, "test-vendor-id")
+		result, err := orch.GetPoolByVendorID(ctx, "test-vendor-id", "test_account")
 		assert.NoError(tt, err)
 		assert.Equal(tt, pools[0].Name, result.Name)
 		assert.Equal(tt, account.Name, result.AccountName)

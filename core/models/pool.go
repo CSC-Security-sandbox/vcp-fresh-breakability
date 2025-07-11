@@ -37,6 +37,7 @@ type PoolAttributes struct {
 	SecondaryZone   string
 	AllocatedBytes  float64
 	NumberOfVolumes int64
+	Labels          map[string]string
 }
 
 // ClusterAttributes describes the attributes of a cluster model

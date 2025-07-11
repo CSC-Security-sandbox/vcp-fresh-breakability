@@ -102,6 +102,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 			Iops:            params.CustomPerformanceParams.Iops,
 			PrimaryZone:     params.PrimaryZone,
 			SecondaryZone:   params.SecondaryZone,
+			Labels:          params.Labels,
 		},
 	}
 	poolObj.DeploymentName = utils.GenerateDeterministicDeploymentName(poolObj.AccountID, poolObj.UUID, params.Region)
@@ -428,9 +429,13 @@ func (o *Orchestrator) GetMultiplePools(ctx context.Context, accountName string,
 }
 
 // GetPoolByVendorID retrieves a pool by its VendorID.
-func (o *Orchestrator) GetPoolByVendorID(ctx context.Context, vendorID string) (*models.Pool, error) {
+func (o *Orchestrator) GetPoolByVendorID(ctx context.Context, vendorID string, accountName string) (*models.Pool, error) {
 	se := o.storage
-	pool, err := se.GetPoolByVendorID(ctx, vendorID)
+	account, err := getOrCreateAccount(ctx, se, accountName)
+	if err != nil {
+		return nil, err
+	}
+	pool, err := se.GetPoolByVendorID(ctx, vendorID, account.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customerrors.NewNotFoundErr("pool not found", nil)
@@ -543,6 +548,10 @@ func convertDatastorePoolsToModelWithoutAccountNameParam(pools []*datamodel.Pool
 }
 
 func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *models.Pool {
+	labels := make(map[string]string)
+	if pool.PoolAttributes != nil && pool.PoolAttributes.Labels != nil {
+		labels = convertJSONBToMap(pool.PoolAttributes.Labels)
+	}
 	return &models.Pool{
 		BaseModel: models.BaseModel{
 			UUID:      pool.UUID,
@@ -568,6 +577,7 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 			NumberOfVolumes: pool.VolumeCount,
 			PrimaryZone:     pool.PoolAttributes.PrimaryZone,
 			SecondaryZone:   pool.PoolAttributes.SecondaryZone,
+			Labels:          labels,
 		},
 		CustomPerformanceParams: &models.CustomPerformanceParams{
 			Enabled:    true,
@@ -582,4 +592,22 @@ func DeletedAtOrNil(deletedAt *gorm.DeletedAt) *time.Time {
 		return &deletedAt.Time
 	}
 	return nil
+}
+
+func convertJSONBToMap(jsonb *datamodel.JSONB) map[string]string {
+	result := make(map[string]string)
+	if jsonb == nil {
+		return result
+	}
+
+	for k, v := range *jsonb {
+		// attempt a type assertion
+		if strVal, ok := v.(string); ok {
+			result[k] = strVal
+		} else {
+			// fallback: convert using fmt.Sprintf
+			result[k] = fmt.Sprintf("%v", v)
+		}
+	}
+	return result
 }

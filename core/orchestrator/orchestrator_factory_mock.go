@@ -2435,9 +2435,9 @@ func (_c *MockOrchestratorFactory_GetPoolByName_Call) RunAndReturn(run func(cont
 	return _c
 }
 
-// GetPoolByVendorID provides a mock function with given fields: ctx, vendorID
-func (_m *MockOrchestratorFactory) GetPoolByVendorID(ctx context.Context, vendorID string) (*models.Pool, error) {
-	ret := _m.Called(ctx, vendorID)
+// GetPoolByVendorID provides a mock function with given fields: ctx, vendorID, accountName
+func (_m *MockOrchestratorFactory) GetPoolByVendorID(ctx context.Context, vendorID string, accountName string) (*models.Pool, error) {
+	ret := _m.Called(ctx, vendorID, accountName)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetPoolByVendorID")
@@ -2445,19 +2445,19 @@ func (_m *MockOrchestratorFactory) GetPoolByVendorID(ctx context.Context, vendor
 
 	var r0 *models.Pool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*models.Pool, error)); ok {
-		return rf(ctx, vendorID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*models.Pool, error)); ok {
+		return rf(ctx, vendorID, accountName)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *models.Pool); ok {
-		r0 = rf(ctx, vendorID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *models.Pool); ok {
+		r0 = rf(ctx, vendorID, accountName)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*models.Pool)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, vendorID)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, vendorID, accountName)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2473,13 +2473,14 @@ type MockOrchestratorFactory_GetPoolByVendorID_Call struct {
 // GetPoolByVendorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - vendorID string
-func (_e *MockOrchestratorFactory_Expecter) GetPoolByVendorID(ctx interface{}, vendorID interface{}) *MockOrchestratorFactory_GetPoolByVendorID_Call {
-	return &MockOrchestratorFactory_GetPoolByVendorID_Call{Call: _e.mock.On("GetPoolByVendorID", ctx, vendorID)}
+//   - accountName string
+func (_e *MockOrchestratorFactory_Expecter) GetPoolByVendorID(ctx interface{}, vendorID interface{}, accountName interface{}) *MockOrchestratorFactory_GetPoolByVendorID_Call {
+	return &MockOrchestratorFactory_GetPoolByVendorID_Call{Call: _e.mock.On("GetPoolByVendorID", ctx, vendorID, accountName)}
 }
 
-func (_c *MockOrchestratorFactory_GetPoolByVendorID_Call) Run(run func(ctx context.Context, vendorID string)) *MockOrchestratorFactory_GetPoolByVendorID_Call {
+func (_c *MockOrchestratorFactory_GetPoolByVendorID_Call) Run(run func(ctx context.Context, vendorID string, accountName string)) *MockOrchestratorFactory_GetPoolByVendorID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
 	return _c
 }
@@ -2489,7 +2490,7 @@ func (_c *MockOrchestratorFactory_GetPoolByVendorID_Call) Return(_a0 *models.Poo
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_GetPoolByVendorID_Call) RunAndReturn(run func(context.Context, string) (*models.Pool, error)) *MockOrchestratorFactory_GetPoolByVendorID_Call {
+func (_c *MockOrchestratorFactory_GetPoolByVendorID_Call) RunAndReturn(run func(context.Context, string, string) (*models.Pool, error)) *MockOrchestratorFactory_GetPoolByVendorID_Call {
 	_c.Call.Return(run)
 	return _c
 }

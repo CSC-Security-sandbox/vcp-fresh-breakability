@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -351,7 +352,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			return "us-east1", "", nil
 		}
 
-		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
 		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{BaseModel: models.BaseModel{UUID: "new-pool-uuid"}, PoolAttributes: &models.PoolAttributes{}}, "operation-id", nil)
 
 		handler := Handler{
@@ -499,7 +500,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
-		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -538,7 +539,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			return "us-east4", "", nil
 		}
 
-		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
 		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("Given pool size must be a multiple of 1GiB"))
 
 		handler := Handler{
@@ -561,6 +562,9 @@ func TestV1betaCreatePool(t *testing.T) {
 			ProjectNumber: "project-number",
 		}
 
+		labels := make(map[string]string)
+		labels["test"] = "label"
+
 		req := &gcpgenserver.PoolV1beta{
 			Unified:                  gcpgenserver.NewOptBool(true),
 			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
@@ -570,6 +574,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			SecondaryZone:            gcpgenserver.NewOptString("us-east4-b"),
 			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
 			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64), // 128 MiBps
+			Labels:                   gcpgenserver.NewOptPoolV1betaLabels(labels),
 		}
 
 		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
@@ -579,8 +584,8 @@ func TestV1betaCreatePool(t *testing.T) {
 			return "us-east4", "", nil
 		}
 
-		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
-		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{BaseModel: models.BaseModel{UUID: "new-pool-uuid"}, PoolAttributes: &models.PoolAttributes{}}, "operation-id", nil)
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{BaseModel: models.BaseModel{UUID: "new-pool-uuid"}, PoolAttributes: &models.PoolAttributes{Labels: labels}}, "operation-id", nil)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -678,13 +683,6 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 			message: "CustomerPerformance must be enabled for Unified Flex Storage Pool",
 		},
 		{
-			name: "Labels are set",
-			req: &gcpgenserver.PoolUpdateV1beta{
-				Labels: gcpgenserver.NewOptPoolUpdateV1betaLabels(map[string]string{"foo": "bar"}),
-			},
-			message: "Updating Labels is currently not supported",
-		},
-		{
 			name: "Shrink pool size",
 			req: &gcpgenserver.PoolUpdateV1beta{
 				SizeInBytes: gcpgenserver.NewOptNilFloat64(1073741824), // 1 GiB
@@ -710,7 +708,7 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 			}
 
 			// Set orchestrator to return a pool when GetPool is called.
-			mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(&models.Pool{
+			mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
 				BaseModel: models.BaseModel{
 					UUID: "pool-uuid",
 				},
@@ -776,7 +774,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		// Set orchestrator to return a pool when GetPool is called.
-		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("pool not found", nil))
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("pool not found", nil))
 
 		params := gcpgenserver.V1betaUpdatePoolParams{
 			LocationId:    "us-east4",
@@ -805,7 +803,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		// Set orchestrator to return a pool when GetPool is called.
-		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(&models.Pool{
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "pool-uuid",
 			},
@@ -855,7 +853,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		// Set orchestrator to return a pool when GetPool is called.
-		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(&models.Pool{
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "pool-uuid",
 			},
@@ -874,11 +872,14 @@ func TestV1betaUpdatePool(t *testing.T) {
 			ProjectNumber: "project-number",
 			PoolId:        "pool-id",
 		}
+		labels := make(map[string]string)
+		labels["test"] = "label"
 		req := &gcpgenserver.PoolUpdateV1beta{
 			Description:          gcpgenserver.NewOptNilString("updated description"),
 			SizeInBytes:          gcpgenserver.NewOptNilFloat64(1099511627776),
 			TotalThroughputMibps: gcpgenserver.NewOptNilFloat64(128),
 			TotalIops:            gcpgenserver.NewOptNilFloat64(2048),
+			Labels:               gcpgenserver.OptPoolUpdateV1betaLabels{Value: labels, Set: true},
 		}
 		handler := Handler{Orchestrator: mockOrchestrator}
 
@@ -907,7 +908,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		// Set orchestrator to return a pool when GetPool is called.
-		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything).Return(&models.Pool{
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "pool-uuid",
 			},
@@ -1288,4 +1289,87 @@ func TestV1betaListPools(t *testing.T) {
 		assert.Equal(tt, "pool-uuid-1", successResult.Pools[0].PoolId.Value)
 		assert.Equal(tt, "pool-uuid-2", successResult.Pools[1].PoolId.Value)
 	})
+}
+
+// TestValidateLabels_Valid validates that a proper label set passes without error.
+func TestValidateLabels_Valid(t *testing.T) {
+	labels := map[string]string{
+		"env":     "prod",
+		"version": "v1",
+	}
+	_, err := validateLabels(labels)
+	assert.NoError(t, err)
+}
+
+// TestValidateLabels_ExceedLabelCount returns an error when label count exceeds 64.
+func TestValidateLabels_ExceedLabelCount(t *testing.T) {
+	labels := make(map[string]string)
+	for i := 0; i < 65; i++ {
+		labels[fmt.Sprintf("key%d", i)] = "value"
+	}
+	_, err := validateLabels(labels)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid label count")
+}
+
+// TestValidateLabels_EmptyKey returns an error when a label key is empty.
+func TestValidateLabels_EmptyKey(t *testing.T) {
+	labels := map[string]string{
+		"": "somevalue",
+	}
+	_, err := validateLabels(labels)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "key is required in label")
+}
+
+// TestValidateLabels_KeyExceedsMaxRune returns an error when a key exceeds the max allowed runes.
+func TestValidateLabels_KeyExceedsMaxRune(t *testing.T) {
+	// Create a key of 64 runes (maxRuneCount is 63)
+	key := strings.Repeat("a", maxRuneCount+1)
+	labels := map[string]string{
+		key: "value",
+	}
+	_, err := validateLabels(labels)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "label key")
+	assert.Contains(t, err.Error(), "length can't exceed")
+}
+
+// TestValidateLabels_KeyExceedsMaxByte returns an error when a key exceeds the max allowed bytes.
+func TestValidateLabels_KeyExceedsMaxByte(t *testing.T) {
+	// Create a key of 129 bytes (maxByteCount is 128).
+	key := string(make([]byte, maxByteCount+1))
+	labels := map[string]string{
+		key: "value",
+	}
+	_, err := validateLabels(labels)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "label key")
+	assert.Contains(t, err.Error(), "length can't exceed")
+}
+
+// TestValidateLabels_ValueExceedsMaxRune returns an error when a value exceeds the max allowed runes.
+func TestValidateLabels_ValueExceedsMaxRune(t *testing.T) {
+	// Create a value of 64 runes (maxRuneCount is 63)
+	value := strings.Repeat("b", maxRuneCount+1)
+	labels := map[string]string{
+		"key": value,
+	}
+	_, err := validateLabels(labels)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "label value")
+	assert.Contains(t, err.Error(), "length can't exceed")
+}
+
+// TestValidateLabels_ValueExceedsMaxByte returns an error when a value exceeds the max allowed bytes.
+func TestValidateLabels_ValueExceedsMaxByte(t *testing.T) {
+	// Create a value of 129 bytes (maxByteCount is 128).
+	value := string(make([]byte, maxByteCount+1))
+	labels := map[string]string{
+		"key": value,
+	}
+	_, err := validateLabels(labels)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "label value")
+	assert.Contains(t, err.Error(), "length can't exceed")
 }
