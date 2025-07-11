@@ -264,6 +264,7 @@ type VolumeReplication struct {
 	CurrentTransferType           string
 	CurrentTransferError          string
 	ProgressLastUpdated           *time.Time
+	TransferUUID                  string
 }
 
 // SnapmirrorDestination describes SnapmirrorDestination information retrieved from ONTAP

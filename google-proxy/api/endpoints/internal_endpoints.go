@@ -60,6 +60,37 @@ func (h Handler) V1betaGetMultipleReplicationsInternal(ctx context.Context, req 
 	}, nil
 }
 
+func (h Handler) V1betaInternalStopVolumeReplication(ctx context.Context, request *gcpgenserver.V1betaInternalStopVolumeReplicationReq, params gcpgenserver.V1betaInternalStopVolumeReplicationParams) (gcpgenserver.V1betaInternalStopVolumeReplicationRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	forceStop := false
+	if request.GetForce().Value {
+		forceStop = request.GetForce().Value
+	}
+
+	replication, job, err := h.Orchestrator.StopReplicationInternal(ctx, params.VolumeReplicationId, params.ProjectNumber, forceStop)
+	if err != nil {
+		logger.Error("Failed to stop replication", "error", err.Error())
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalStopVolumeReplicationNotFound{
+				Code:    404,
+				Message: "Volume replication not found",
+			}, nil
+		} else if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaInternalStopVolumeReplicationBadRequest{
+				Code:    400,
+				Message: "Invalid request parameters",
+			}, nil
+		}
+		return &gcpgenserver.V1betaInternalStopVolumeReplicationInternalServerError{
+			Code:    500,
+			Message: "Internal server error while resuming replication",
+		}, nil
+	}
+
+	return convertToInternalV1betaVolumeReplication(replication, job), nil
+}
+
 func (h Handler) V1betaInternalCreateVolumeReplication(ctx context.Context, req *gcpgenserver.VolumeReplicationCreateInternalV1beta, params gcpgenserver.V1betaInternalCreateVolumeReplicationParams) (gcpgenserver.V1betaInternalCreateVolumeReplicationRes, error) {
 	logger := util.GetLogger(ctx)
 	if req.EndpointType != "dst" {

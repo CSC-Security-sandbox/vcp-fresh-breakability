@@ -213,7 +213,7 @@ func waitForJobIfNeeded(provider *OntapRestProvider, job *ontaprest.JobAccepted)
 
 func convertSnapMirrorToVolumeReplication(snapmirror ontaprest.SnapmirrorRelationship, in *VolumeReplication) (*VolumeReplication, error) {
 	var lagTime, lastTransferTimeSecs, totalTransferTimeSecs float64
-	var unhealthyReason, transferSchedule, state string
+	var unhealthyReason, transferSchedule, state, transferUUID string
 	var bytesTransferred int64
 	var endTime *time.Time
 	if snapmirror.TotalTransferDuration != nil {
@@ -224,6 +224,9 @@ func convertSnapMirrorToVolumeReplication(snapmirror ontaprest.SnapmirrorRelatio
 		totalTransferTimeSecs = totalTransferTimeSecsParsed.ToTimeDuration().Seconds()
 	}
 	if snapmirror.Transfer != nil {
+		if snapmirror.Transfer.UUID != nil {
+			transferUUID = snapmirror.Transfer.UUID.String()
+		}
 		if snapmirror.Transfer.TotalDuration != nil {
 			lastTransferTimeSecsParsed, err := duration.Parse(*snapmirror.Transfer.TotalDuration)
 			if err != nil {
@@ -290,6 +293,7 @@ func convertSnapMirrorToVolumeReplication(snapmirror ontaprest.SnapmirrorRelatio
 		Description:           in.Description,
 		Volume:                in.Volume,
 		ReplicationType:       in.ReplicationType,
+		TransferUUID:          transferUUID,
 	}, nil
 }
 
@@ -516,6 +520,44 @@ func (rc *OntapRestProvider) UpdateVolumeReplication(volRep *VolumeReplication) 
 	}
 
 	return modifyVsaVolumeReplication(rc, volRep)
+}
+
+func (rc *OntapRestProvider) BreakVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	modifyParams := &ontaprest.SnapmirrorRelationshipModifyParams{
+		UUID:  volRep.RelationshipID,
+		State: &volRep.MirrorState,
+	}
+	_, job, err := client.Snapmirror().SnapmirrorRelationshipModify(modifyParams)
+	if err != nil {
+		return nil, err
+	}
+
+	err = waitForJobIfNeeded(rc, job)
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func (rc *OntapRestProvider) AbortVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	modifyTransferParams := &ontaprest.SnapmirrorRelationshipTransferModifyParams{
+		UUID:         volRep.RelationshipID,
+		TransferUUID: volRep.TransferUUID,
+		State:        &volRep.RelationshipStatus,
+	}
+	err = client.Snapmirror().SnapmirrorRelationshipTransferModify(modifyTransferParams)
+	if err != nil {
+		return nil, err
+	}
+	return volRep, nil
 }
 
 func modifyVsaVolumeReplication(provider *OntapRestProvider, volRep *VolumeReplication) (*VolumeReplication, error) {

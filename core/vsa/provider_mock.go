@@ -27,6 +27,64 @@ func (_m *MockProvider) EXPECT() *MockProvider_Expecter {
 	return &MockProvider_Expecter{mock: &_m.Mock}
 }
 
+// AbortVolumeReplication provides a mock function with given fields: volRep
+func (_m *MockProvider) AbortVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error) {
+	ret := _m.Called(volRep)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AbortVolumeReplication")
+	}
+
+	var r0 *VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) (*VolumeReplication, error)); ok {
+		return rf(volRep)
+	}
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) *VolumeReplication); ok {
+		r0 = rf(volRep)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*VolumeReplication) error); ok {
+		r1 = rf(volRep)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_AbortVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AbortVolumeReplication'
+type MockProvider_AbortVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// AbortVolumeReplication is a helper method to define mock.On call
+//   - volRep *VolumeReplication
+func (_e *MockProvider_Expecter) AbortVolumeReplication(volRep interface{}) *MockProvider_AbortVolumeReplication_Call {
+	return &MockProvider_AbortVolumeReplication_Call{Call: _e.mock.On("AbortVolumeReplication", volRep)}
+}
+
+func (_c *MockProvider_AbortVolumeReplication_Call) Run(run func(volRep *VolumeReplication)) *MockProvider_AbortVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*VolumeReplication))
+	})
+	return _c
+}
+
+func (_c *MockProvider_AbortVolumeReplication_Call) Return(_a0 *VolumeReplication, _a1 error) *MockProvider_AbortVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_AbortVolumeReplication_Call) RunAndReturn(run func(*VolumeReplication) (*VolumeReplication, error)) *MockProvider_AbortVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AcceptClusterPeer provides a mock function with given fields: params
 func (_m *MockProvider) AcceptClusterPeer(params CreateClusterPeerParams) (*ClusterPeer, error) {
 	ret := _m.Called(params)
@@ -241,6 +299,64 @@ func (_c *MockProvider_AuthorizeVolumeReplication_Call) Return(_a0 *VolumeReplic
 }
 
 func (_c *MockProvider_AuthorizeVolumeReplication_Call) RunAndReturn(run func(*CreateVolumeReplicationParams) (*VolumeReplication, error)) *MockProvider_AuthorizeVolumeReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// BreakVolumeReplication provides a mock function with given fields: volRep
+func (_m *MockProvider) BreakVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error) {
+	ret := _m.Called(volRep)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BreakVolumeReplication")
+	}
+
+	var r0 *VolumeReplication
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) (*VolumeReplication, error)); ok {
+		return rf(volRep)
+	}
+	if rf, ok := ret.Get(0).(func(*VolumeReplication) *VolumeReplication); ok {
+		r0 = rf(volRep)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*VolumeReplication) error); ok {
+		r1 = rf(volRep)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_BreakVolumeReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BreakVolumeReplication'
+type MockProvider_BreakVolumeReplication_Call struct {
+	*mock.Call
+}
+
+// BreakVolumeReplication is a helper method to define mock.On call
+//   - volRep *VolumeReplication
+func (_e *MockProvider_Expecter) BreakVolumeReplication(volRep interface{}) *MockProvider_BreakVolumeReplication_Call {
+	return &MockProvider_BreakVolumeReplication_Call{Call: _e.mock.On("BreakVolumeReplication", volRep)}
+}
+
+func (_c *MockProvider_BreakVolumeReplication_Call) Run(run func(volRep *VolumeReplication)) *MockProvider_BreakVolumeReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*VolumeReplication))
+	})
+	return _c
+}
+
+func (_c *MockProvider_BreakVolumeReplication_Call) Return(_a0 *VolumeReplication, _a1 error) *MockProvider_BreakVolumeReplication_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_BreakVolumeReplication_Call) RunAndReturn(run func(*VolumeReplication) (*VolumeReplication, error)) *MockProvider_BreakVolumeReplication_Call {
 	_c.Call.Return(run)
 	return _c
 }

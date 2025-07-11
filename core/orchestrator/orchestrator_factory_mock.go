@@ -3526,6 +3526,142 @@ func (_c *MockOrchestratorFactory_ResumeReplicationInternal_Call) RunAndReturn(r
 	return _c
 }
 
+// StopReplication provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) StopReplication(ctx context.Context, params *common.StopReplicationParams) (*models.VolumeReplication, string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for StopReplication")
+	}
+
+	var r0 *models.VolumeReplication
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.StopReplicationParams) (*models.VolumeReplication, string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.StopReplicationParams) *models.VolumeReplication); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.StopReplicationParams) string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.StopReplicationParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_StopReplication_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StopReplication'
+type MockOrchestratorFactory_StopReplication_Call struct {
+	*mock.Call
+}
+
+// StopReplication is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.StopReplicationParams
+func (_e *MockOrchestratorFactory_Expecter) StopReplication(ctx interface{}, params interface{}) *MockOrchestratorFactory_StopReplication_Call {
+	return &MockOrchestratorFactory_StopReplication_Call{Call: _e.mock.On("StopReplication", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_StopReplication_Call) Run(run func(ctx context.Context, params *common.StopReplicationParams)) *MockOrchestratorFactory_StopReplication_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.StopReplicationParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_StopReplication_Call) Return(_a0 *models.VolumeReplication, _a1 string, _a2 error) *MockOrchestratorFactory_StopReplication_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_StopReplication_Call) RunAndReturn(run func(context.Context, *common.StopReplicationParams) (*models.VolumeReplication, string, error)) *MockOrchestratorFactory_StopReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// StopReplicationInternal provides a mock function with given fields: ctx, replicationUUID, accountName, forceStop
+func (_m *MockOrchestratorFactory) StopReplicationInternal(ctx context.Context, replicationUUID string, accountName string, forceStop bool) (*models.VolumeReplication, *datamodel.Job, error) {
+	ret := _m.Called(ctx, replicationUUID, accountName, forceStop)
+
+	if len(ret) == 0 {
+		panic("no return value specified for StopReplicationInternal")
+	}
+
+	var r0 *models.VolumeReplication
+	var r1 *datamodel.Job
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, bool) (*models.VolumeReplication, *datamodel.Job, error)); ok {
+		return rf(ctx, replicationUUID, accountName, forceStop)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, bool) *models.VolumeReplication); ok {
+		r0 = rf(ctx, replicationUUID, accountName, forceStop)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, bool) *datamodel.Job); ok {
+		r1 = rf(ctx, replicationUUID, accountName, forceStop)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*datamodel.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, string, bool) error); ok {
+		r2 = rf(ctx, replicationUUID, accountName, forceStop)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_StopReplicationInternal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StopReplicationInternal'
+type MockOrchestratorFactory_StopReplicationInternal_Call struct {
+	*mock.Call
+}
+
+// StopReplicationInternal is a helper method to define mock.On call
+//   - ctx context.Context
+//   - replicationUUID string
+//   - accountName string
+//   - forceStop bool
+func (_e *MockOrchestratorFactory_Expecter) StopReplicationInternal(ctx interface{}, replicationUUID interface{}, accountName interface{}, forceStop interface{}) *MockOrchestratorFactory_StopReplicationInternal_Call {
+	return &MockOrchestratorFactory_StopReplicationInternal_Call{Call: _e.mock.On("StopReplicationInternal", ctx, replicationUUID, accountName, forceStop)}
+}
+
+func (_c *MockOrchestratorFactory_StopReplicationInternal_Call) Run(run func(ctx context.Context, replicationUUID string, accountName string, forceStop bool)) *MockOrchestratorFactory_StopReplicationInternal_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(bool))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_StopReplicationInternal_Call) Return(_a0 *models.VolumeReplication, _a1 *datamodel.Job, _a2 error) *MockOrchestratorFactory_StopReplicationInternal_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_StopReplicationInternal_Call) RunAndReturn(run func(context.Context, string, string, bool) (*models.VolumeReplication, *datamodel.Job, error)) *MockOrchestratorFactory_StopReplicationInternal_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateBackupVault provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) UpdateBackupVault(ctx context.Context, params *common.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
 	ret := _m.Called(ctx, params)

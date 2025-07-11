@@ -488,3 +488,60 @@ func _convertResumeModelToVCPVolumeReplicationV1beta(volumeReplication *models2.
 		Created: gcpgenserver.NewOptDateTime(volumeReplication.CreatedAt),
 	}
 }
+
+func (h Handler) V1betaStopReplication(ctx context.Context, req *gcpgenserver.ReplicationStopV1beta, params gcpgenserver.V1betaStopReplicationParams) (gcpgenserver.V1betaStopReplicationRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaStopReplicationBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	stopReplicationParams := &common.StopReplicationParams{
+		AccountName:           params.ProjectNumber,
+		Region:                region,
+		Zone:                  zone,
+		CorrelationId:         params.XCorrelationID.Value,
+		VolumeResourceId:      params.VolumeResourceId,
+		ReplicationResourceId: params.ReplicationResourceId,
+		ForceStop:             req.GetForce().Value,
+	}
+
+	volumeRep, jobUUID, err := h.Orchestrator.StopReplication(ctx, stopReplicationParams)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaStopReplicationBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to stop replication", "error", err.Error())
+		return &gcpgenserver.V1betaStopReplicationInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+
+	resp, err := encodeVolumeReplicationV1(convertResumeModelToVCPVolumeReplicationV1beta(volumeRep))
+	if err != nil {
+		return nil, err
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	if volumeRep.State == models2.LifeCycleStateUpdating {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}

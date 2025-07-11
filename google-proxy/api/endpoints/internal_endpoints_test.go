@@ -943,3 +943,105 @@ func TestV1betaInternalDeleteVolumeSnapshot(t *testing.T) {
 		assert.Equal(tt, operationID, resp.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 }
+
+func TestV1betaInternalStopVolumeReplication(t *testing.T) {
+	t.Run("WhenVolumeReplicationNotFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaInternalStopVolumeReplicationParams{
+			VolumeReplicationId: "test-replication-id",
+			ProjectNumber:       "test-project",
+			LocationId:          "test-location",
+		}
+		req := &gcpgenserver.V1betaInternalStopVolumeReplicationReq{
+			Force: gcpgenserver.OptBool{Set: true, Value: false},
+		}
+
+		mockOrchestrator.EXPECT().StopReplicationInternal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil, errors.NewNotFoundErr("Volume replication not found", nil))
+
+		resp, err := handler.V1betaInternalStopVolumeReplication(context.Background(), req, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, float64(404), resp.(*gcpgenserver.V1betaInternalStopVolumeReplicationNotFound).Code)
+		assert.Equal(tt, "Volume replication not found", resp.(*gcpgenserver.V1betaInternalStopVolumeReplicationNotFound).Message)
+	})
+
+	t.Run("WhenInvalidRequestParameters", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaInternalStopVolumeReplicationParams{
+			VolumeReplicationId: "test-replication-id",
+			ProjectNumber:       "test-project",
+			LocationId:          "test-location",
+		}
+		req := &gcpgenserver.V1betaInternalStopVolumeReplicationReq{
+			Force: gcpgenserver.OptBool{Set: true, Value: false},
+		}
+
+		mockOrchestrator.EXPECT().StopReplicationInternal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil, errors.NewUserInputValidationErr("Invalid request parameters"))
+
+		resp, err := handler.V1betaInternalStopVolumeReplication(context.Background(), req, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, float64(400), resp.(*gcpgenserver.V1betaInternalStopVolumeReplicationBadRequest).Code)
+		assert.Equal(tt, "Invalid request parameters", resp.(*gcpgenserver.V1betaInternalStopVolumeReplicationBadRequest).Message)
+	})
+
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaInternalStopVolumeReplicationParams{
+			VolumeReplicationId: "test-replication-id",
+			ProjectNumber:       "test-project",
+			LocationId:          "test-location",
+		}
+		req := &gcpgenserver.V1betaInternalStopVolumeReplicationReq{
+			Force: gcpgenserver.OptBool{Set: true, Value: false},
+		}
+
+		mockOrchestrator.EXPECT().StopReplicationInternal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil, errors.New("Internal server error"))
+
+		resp, err := handler.V1betaInternalStopVolumeReplication(context.Background(), req, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, float64(500), resp.(*gcpgenserver.V1betaInternalStopVolumeReplicationInternalServerError).Code)
+		assert.Equal(tt, "Internal server error while resuming replication", resp.(*gcpgenserver.V1betaInternalStopVolumeReplicationInternalServerError).Message)
+	})
+	t.Run("WhenStopReplicationSucceeds", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaInternalStopVolumeReplicationParams{
+			VolumeReplicationId: "test-replication-id",
+			ProjectNumber:       "test-project",
+			LocationId:          "test-location",
+		}
+		req := &gcpgenserver.V1betaInternalStopVolumeReplicationReq{
+			Force: gcpgenserver.OptBool{Set: true, Value: true},
+		}
+
+		replication := &models.VolumeReplication{
+			Name: "test-replication",
+			BaseModel: models.BaseModel{
+				UUID: "replication-uuid",
+			},
+			ReplicationAttributes: &models.ReplicationDetails{
+				DestinationReplicationUUID: "destination-replication-uuid",
+			},
+		}
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "job-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			WorkflowID: "job-workflow-id",
+		}
+
+		mockOrchestrator.EXPECT().StopReplicationInternal(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(replication, job, nil)
+
+		resp, err := handler.V1betaInternalStopVolumeReplication(context.Background(), req, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, convertToInternalV1betaVolumeReplication(replication, job), resp)
+	})
+}

@@ -984,6 +984,160 @@ func TestVerifyDstReplicationResume(t *testing.T) {
 	})
 }
 
+func TestVerifyDstReplicationStop(t *testing.T) {
+	t.Run("VerifyDstReplicationStopSucceeds", func(tt *testing.T) {
+		mirrorState := "MIRRORED"
+		relationshipStatus := "IDLE"
+		mockReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		event := &StopReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation:        "dstLocation",
+						DestinationReplicationUUID: "dstUUID",
+					},
+				},
+			},
+		}
+
+		getReplication = func(ctx context.Context, basePath, projectNumber, locationID, replicationUUID, jwt string) (*coreModels.VolumeReplication, error) {
+			return mockReplication, nil
+		}
+		defer func() { getReplication = _getReplication }()
+
+		replication, err := _verifyDstReplicationStop(context.Background(), event)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, replication)
+		assert.Equal(tt, mockReplication, replication)
+	})
+	t.Run("VerifyDstReplicationStopFailsWhenReplicationNotFound", func(tt *testing.T) {
+		event := &StopReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation:        "dstLocation",
+						DestinationReplicationUUID: "dstUUID",
+					},
+				},
+			},
+		}
+
+		getReplication = func(ctx context.Context, basePath, projectNumber, locationID, replicationUUID, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, errors.New("replication not found")
+		}
+		defer func() { getReplication = _getReplication }()
+
+		replication, err := _verifyDstReplicationStop(context.Background(), event)
+		assert.Error(tt, err)
+		assert.Nil(tt, replication)
+		assert.Contains(tt, err.Error(), "replication not found")
+	})
+	t.Run("VerifyDstReplicationStopFailsWhenAlreadyStopped", func(tt *testing.T) {
+		mirrorState := "STOPPED"
+		mockReplication := &coreModels.VolumeReplication{
+			MirrorState: &mirrorState,
+		}
+		event := &StopReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation:        "dstLocation",
+						DestinationReplicationUUID: "dstUUID",
+					},
+				},
+			},
+		}
+
+		getReplication = func(ctx context.Context, basePath, projectNumber, locationID, replicationUUID, jwt string) (*coreModels.VolumeReplication, error) {
+			return mockReplication, nil
+		}
+		defer func() { getReplication = _getReplication }()
+
+		replication, err := _verifyDstReplicationStop(context.Background(), event)
+		assert.Error(tt, err)
+		assert.Nil(tt, replication)
+		assert.Contains(tt, err.Error(), "Replication is already in STOPPED state")
+	})
+
+	t.Run("VerifyDstReplicationStopFailsWhenUninitializedAndTransferring", func(tt *testing.T) {
+		mirrorState := "UNINITIALIZED"
+		relationshipStatus := "transferring"
+		mockReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		event := &StopReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation:        "dstLocation",
+						DestinationReplicationUUID: "dstUUID",
+					},
+				},
+			},
+			ForceStop: false,
+		}
+
+		getReplication = func(ctx context.Context, basePath, projectNumber, locationID, replicationUUID, jwt string) (*coreModels.VolumeReplication, error) {
+			return mockReplication, nil
+		}
+		defer func() { getReplication = _getReplication }()
+
+		replication, err := _verifyDstReplicationStop(context.Background(), event)
+		assert.Error(tt, err)
+		assert.Nil(tt, replication)
+		assert.Contains(tt, err.Error(), "Replication in preparing state. Please try again later")
+	})
+
+	t.Run("VerifyDstReplicationStopFailsWhenMirroredAndTransferring", func(tt *testing.T) {
+		mirrorState := "MIRRORED"
+		relationshipStatus := "transferring"
+		mockReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		event := &StopReplicationEvent{
+			CommonReplicationEventParams: CommonReplicationEventParams{
+				DstBasePath:              "dstPath",
+				DestinationProjectNumber: "destinationProjectNumber",
+				DstToken:                 "dstToken",
+				ReplicationModel: &datamodel.VolumeReplication{
+					ReplicationAttributes: &datamodel.ReplicationDetails{
+						DestinationLocation:        "dstLocation",
+						DestinationReplicationUUID: "dstUUID",
+					},
+				},
+			},
+			ForceStop: false,
+		}
+
+		getReplication = func(ctx context.Context, basePath, projectNumber, locationID, replicationUUID, jwt string) (*coreModels.VolumeReplication, error) {
+			return mockReplication, nil
+		}
+		defer func() { getReplication = _getReplication }()
+
+		replication, err := _verifyDstReplicationStop(context.Background(), event)
+		assert.Error(tt, err)
+		assert.Nil(tt, replication)
+		assert.Contains(tt, err.Error(), "Replication relationship status is in transferring state")
+	})
+}
+
 func TestVerifyDstVolume(t *testing.T) {
 	event := &ResumeReplicationEvent{
 		CommonReplicationEventParams: CommonReplicationEventParams{

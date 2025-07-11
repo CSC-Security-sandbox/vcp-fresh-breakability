@@ -59,7 +59,8 @@ type OrchestratorFactory interface {
 	GetReplication(ctx context.Context, volumeReplicationId string) (*models.VolumeReplication, error)
 	ReleaseVolumeReplication(ctx context.Context, replicationUUID string) (*models.VolumeReplication, *datamodel.Job, error)
 	DeleteVolumeReplication(ctx context.Context, volumeReplicationId string) (*models.VolumeReplication, *datamodel.Job, error)
-
+	StopReplicationInternal(ctx context.Context, replicationUUID string, accountName string, forceStop bool) (*models.VolumeReplication, *datamodel.Job, error)
+	StopReplication(ctx context.Context, params *commonparams.StopReplicationParams) (*models.VolumeReplication, string, error)
 	// KMS Config related methods
 	KmsConfigInterface
 

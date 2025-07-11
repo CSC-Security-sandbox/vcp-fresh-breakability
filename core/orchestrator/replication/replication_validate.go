@@ -45,6 +45,7 @@ var (
 	getReplicationJobs          = _getReplicationJobs
 	getReplication              = _getReplication
 	VerifyDstReplicationResume  = _verifyDstReplicationResume
+	VerifyDstReplicationStop    = _verifyDstReplicationStop
 	VerifyDstVolume             = _verifyDstVolume
 
 	InternalUtilGetCallbackToken   = auth.GetSignedAccessToken
@@ -627,6 +628,31 @@ func _verifyDstReplicationResume(ctx context.Context, event *ResumeReplicationEv
 
 	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateUNINITIALIZED && *dstReplication.RelationshipStatus == coreModels.SnapmirrorRelationshipTransferring {
 		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status should be %s", models.VolumeReplicationCVPV1betaRelationshipStatusIdle))
+	}
+
+	return dstReplication, nil
+}
+
+func _verifyDstReplicationStop(ctx context.Context, event *StopReplicationEvent) (*coreModels.VolumeReplication, error) {
+	logger := util.GetLogger(ctx)
+	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
+	if err != nil || dstReplication == nil {
+		logger.Error("getReplication error", common.Error(err))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
+	}
+
+	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateSTOPPED || *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateABORTED {
+		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication is already in %s state", *dstReplication.MirrorState))
+	}
+
+	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateUNINITIALIZED {
+		if *dstReplication.RelationshipStatus == strings.ToLower(models.ReplicationV1betaMirrorStateTRANSFERRING) && !event.ForceStop {
+			return nil, utilErrors.NewUserInputValidationErr("Replication in preparing state. Please try again later")
+		}
+	}
+
+	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateMIRRORED && *dstReplication.RelationshipStatus == strings.ToLower(models.ReplicationV1betaMirrorStateTRANSFERRING) && !event.ForceStop {
+		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status is in %s state", strings.ToLower(models.ReplicationV1betaMirrorStateTRANSFERRING)))
 	}
 
 	return dstReplication, nil

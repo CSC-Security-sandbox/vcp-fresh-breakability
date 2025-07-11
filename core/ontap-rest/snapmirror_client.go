@@ -20,6 +20,7 @@ type SnapmirrorClient interface { // generate:mock
 	SnapmirrorRelationshipList(params *SnapmirrorRelationshipListParams) ([]*SnapmirrorRelationship, error)
 	SnapmirrorRelationshipListDestinations(params *SnapmirrorRelationshipListDestinationsParams) ([]*SnapmirrorRelationship, error)
 	SnapmirrorRelationshipModify(params *SnapmirrorRelationshipModifyParams) (*SnapmirrorRelationship, *JobAccepted, error)
+	SnapmirrorRelationshipTransferModify(params *SnapmirrorRelationshipTransferModifyParams) error
 	SnapmirrorRelationshipTransferCreate(params *SnapmirrorRelationshipTransferCreateParams) error
 	SnapmirrorRelationshipTransferGet(params *SnapmirrorRelationshipTransferGetParams) (*SnapmirrorTransfer, error)
 	SnapmirrorObjectStoreEndpointDelete(params *SnapmirrorCloudEndpointDeleteParams) (*JobAccepted, error)
@@ -137,6 +138,14 @@ func (s *snapmirrorClient) SnapmirrorRelationshipModify(params *SnapmirrorRelati
 		return nil, job, nil
 	}
 	return &SnapmirrorRelationship{SnapmirrorRelationship: *syncResponse.Payload.Records[0]}, nil, nil
+}
+
+func (s *snapmirrorClient) SnapmirrorRelationshipTransferModify(params *SnapmirrorRelationshipTransferModifyParams) error {
+	_, err := s.api.SnapmirrorRelationshipTransferModify(snapmirrorRelationshipTransferModifyParamsToONTAP(params), nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *snapmirrorClient) SnapmirrorRelationshipTransferCreate(params *SnapmirrorRelationshipTransferCreateParams) error {

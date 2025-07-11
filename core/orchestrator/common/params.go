@@ -429,3 +429,13 @@ type SnapshotListResponse struct {
 	ExternalUUID       string
 	VolumeExternalUUID string
 }
+
+type StopReplicationParams struct {
+	AccountName           string
+	Region                string
+	CorrelationId         string
+	VolumeResourceId      string
+	ReplicationResourceId string
+	Zone                  string
+	ForceStop             bool
+}

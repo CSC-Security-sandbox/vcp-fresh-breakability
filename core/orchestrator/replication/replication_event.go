@@ -73,6 +73,29 @@ type CreateReplicationResult struct {
 	DstSvm           *string
 	DbVolReplication *datamodel.VolumeReplication
 }
+type StopReplicationResult struct {
+	Ctx              context.Context
+	Event            *StopReplicationEvent
+	EventBytes       []byte
+	DstBasePath      *string
+	SrcBasePath      *string
+	DstProjectNumber *string
+	SrcProjectNumber *string
+	DstJwtToken      *string
+	SrcJwtToken      *string
+	DstReplication   *googleproxyclient.VolumeReplicationInternalV1beta
+	DstVolume        *googleproxyclient.VolumeV1beta
+	SrcVolume        *googleproxyclient.VolumeV1beta
+	Error            error
+	JobId            *string
+	DbVolReplication *datamodel.VolumeReplication
+}
+
+type StopReplicationEvent struct {
+	ReplicationEventBase
+	CommonReplicationEventParams
+	ForceStop bool `json:"forceStop,omitempty"`
+}
 
 type CommonReplicationEventParams struct {
 	ReplicationModel         *datamodel.VolumeReplication
