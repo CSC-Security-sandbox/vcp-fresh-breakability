@@ -528,7 +528,7 @@ func (gcpService *GcpServices) AttachOrUpdateRolesForServiceAccounts(roles []str
 
 	projectIAMPolicyBindings := gcpService.updatePolicyBindings(policy.Bindings, requiredRolesMap, currentSvcAccountMember)
 
-	gcpService.addMissingRoles(projectIAMPolicyBindings, requiredRolesMap, currentSvcAccountMember)
+	projectIAMPolicyBindings = gcpService.addMissingRoles(projectIAMPolicyBindings, requiredRolesMap, currentSvcAccountMember)
 
 	return gcpService.setProjectIamPolicy(projectID, policy.Etag, projectIAMPolicyBindings)
 }
@@ -574,7 +574,7 @@ func (gcpService *GcpServices) updatePolicyBindings(policyBindings []*projectsMa
 	return updatedBindings
 }
 
-func (gcpService *GcpServices) addMissingRoles(projectIAMPolicyBindings []*projectsManagement.Binding, requiredRolesMap map[string]bool, currentSvcAccountMember string) {
+func (gcpService *GcpServices) addMissingRoles(projectIAMPolicyBindings []*projectsManagement.Binding, requiredRolesMap map[string]bool, currentSvcAccountMember string) []*projectsManagement.Binding {
 	for role, isProcessed := range requiredRolesMap {
 		if !isProcessed {
 			projectIAMPolicyBindings = append(projectIAMPolicyBindings, &projectsManagement.Binding{
@@ -585,6 +585,7 @@ func (gcpService *GcpServices) addMissingRoles(projectIAMPolicyBindings []*proje
 			})
 		}
 	}
+	return projectIAMPolicyBindings
 }
 
 func (gcpService *GcpServices) setProjectIamPolicy(projectID string, etag string, projectIAMPolicyBindings []*projectsManagement.Binding) error {
