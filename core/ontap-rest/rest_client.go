@@ -2,6 +2,7 @@ package ontap_rest
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
 	"time"
@@ -11,7 +12,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
 	clientPriv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ottransport "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest/transport"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -48,12 +52,13 @@ type OntapRestClient struct {
 
 // RESTClientParams describes the parameters for creating a new RESTClient
 type RESTClientParams struct {
-	Hosts              []string
-	Host               string
-	Username           string
-	Password           log.Secret
-	InsecureSkipVerify bool
-	Trace              *log.Slogger
+	Hosts                       map[string]string
+	Host                        string
+	Password                    log.Secret
+	Certificate                 *models.Certificate
+	InsecureSkipVerify          bool
+	Trace                       *log.Slogger
+	CertificateBasedAuthEnabled bool
 }
 
 var (
@@ -62,37 +67,66 @@ var (
 )
 
 var (
-	NewOntapRestClient = NewClient
+	NewOntapRestClient    = NewClient
+	GetAPICallCertificate = _getAPICallCertificate
+)
+
+const (
+	MaxIdleConns        = 100
+	IdleConnTimeout     = time.Second * 90
+	TLSHandshakeTimeout = time.Second * 15
+	CERTIFICATE         = "CERTIFICATE"
 )
 
 func NewClient(params RESTClientParams) (RESTClient, error) {
-	useCert := false
-
 	var lastErr error
 	var rClient *OntapRestClient
+
+	// domain
 	for _, host := range params.Hosts {
 		tryParams := params
 		// Set Host for this attempt
 		tryParams.Host = host
 
 		rt := newRuntimeClient(tryParams)
-		httpRoundTripperTransport := &http.Transport{
-			Proxy:                 http.ProxyFromEnvironment,
-			MaxIdleConns:          100,
-			IdleConnTimeout:       time.Second * 90,
-			TLSHandshakeTimeout:   time.Second * 10,
-			ExpectContinueTimeout: time.Second,
-			TLSClientConfig: &tls.Config{
-				MinVersion:         tls.VersionTLS12,
-				InsecureSkipVerify: tryParams.InsecureSkipVerify,
-			},
+		var httpRoundTripperTransport *http.Transport
+		if params.CertificateBasedAuthEnabled {
+			rootCA, clientCert, err := GetAPICallCertificate(params)
+			if err != nil {
+				return nil, err
+			}
+			httpRoundTripperTransport = &http.Transport{
+				Proxy:                 http.ProxyFromEnvironment,
+				MaxIdleConns:          MaxIdleConns,
+				IdleConnTimeout:       IdleConnTimeout,
+				TLSHandshakeTimeout:   TLSHandshakeTimeout,
+				ExpectContinueTimeout: time.Second,
+				TLSClientConfig: &tls.Config{
+					MinVersion:         tls.VersionTLS12,
+					InsecureSkipVerify: params.InsecureSkipVerify,
+					RootCAs:            rootCA,
+					Certificates:       []tls.Certificate{clientCert},
+				},
+			}
+		} else {
+			httpRoundTripperTransport = &http.Transport{
+				Proxy:                 http.ProxyFromEnvironment,
+				MaxIdleConns:          MaxIdleConns,
+				IdleConnTimeout:       IdleConnTimeout,
+				TLSHandshakeTimeout:   TLSHandshakeTimeout,
+				ExpectContinueTimeout: time.Second,
+				TLSClientConfig: &tls.Config{
+					MinVersion:         tls.VersionTLS12,
+					InsecureSkipVerify: params.InsecureSkipVerify,
+				},
+			}
 		}
 
 		var rc *OntapRestClient
 		rt.Transport = httpRoundTripperTransport
-		rt.Transport = ottransport.NewLoggingRoundTripper(tryParams.Trace, ontapRestLogVerbose, useCert, rt.Transport)
+		rt.Transport = ottransport.NewLoggingRoundTripper(tryParams.Trace, ontapRestLogVerbose, params.CertificateBasedAuthEnabled, rt.Transport)
 		rt.Transport = ottransport.NewPaginationRoundTripper(rt.Transport)
-		rt.Transport = ottransport.NewAuthenticationRoundTripper(rt.Transport, tryParams.Username, tryParams.Password, useCert)
+		rt.Transport = ottransport.NewAuthenticationRoundTripper(rt.Transport, common.Admin, tryParams.Password, params.CertificateBasedAuthEnabled)
 		retryTransport := ottransport.NewRetryTransport(tryParams.Trace, rt)
 		idempotentTransport := ottransport.NewIdempotentTransport(retryTransport, func(operation *runtime.ClientOperation) (interface{}, error) {
 			return resolveRESTClientRouterConflict(*tryParams.Trace, rc, operation)
@@ -200,4 +234,26 @@ func (rc *OntapRestClient) Cloud() CloudClient {
 // NameServicesClient returns a Name Services client
 func (rc *OntapRestClient) NameServices() NameServicesClient {
 	return rc.nameServices
+}
+
+// getAPICallCertificate retrieves the certificate and root CA for API calls
+func _getAPICallCertificate(params RESTClientParams) (*x509.CertPool, tls.Certificate, error) {
+	if params.Certificate != nil && params.Certificate.InterMediateCertificates != nil && len(params.Certificate.InterMediateCertificates) == 1 && params.Certificate.RootCaCertificate != "" && params.Certificate.SignedCertificate != "" && params.Certificate.PrivateKey != "" {
+		rootCA, err := utils.ParsePEMCertificate(params.Certificate.RootCaCertificate, CERTIFICATE)
+		if err != nil {
+			params.Trace.Errorf("error parsing root CA certificate: %v", err)
+			return nil, tls.Certificate{}, err
+		}
+		signedCertPem := []byte(params.Certificate.SignedCertificate)
+		privateKeyPem := []byte(params.Certificate.PrivateKey)
+
+		// Load client certificate and key
+		clientCert, err := tls.X509KeyPair(signedCertPem, privateKeyPem)
+		if err != nil {
+			params.Trace.Errorf("error loading client certificate and key: %v", err)
+			return nil, tls.Certificate{}, err
+		}
+		return rootCA, clientCert, nil
+	}
+	return nil, tls.Certificate{}, fmt.Errorf("invalid certificate parameters: ensure SignedCertificate, PrivateKey, and InterMediateCertificates are set correctly")
 }

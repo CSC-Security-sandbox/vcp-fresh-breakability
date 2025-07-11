@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	goerrors "errors"
 	"fmt"
 	"math/big"
@@ -53,6 +55,7 @@ var (
 	GenerateStrongPassword         = _generateStrongPassword
 	MinQuotaInBytesVolumeForVolume = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 107374182400)    // 100 GiB
 	MaxQuotaInBytesVolumeForVolume = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 109951162777605) // 102,400 GiB
+	ParsePEMCertificate            = _parsePEMCertificate
 )
 
 const (
@@ -795,4 +798,38 @@ func GenerateDeterministicID(input string, length int) string {
 		result = result[:len(result)-1] + "a"
 	}
 	return result
+}
+
+// _parsePEMCertificate takes a PEM-encoded certificate string and returns a CertPool containing the certificate.
+func _parsePEMCertificate(pemCert, typeOfCertificate string) (*x509.CertPool, error) {
+	// Convert the PEM-encoded certificate string to bytes
+	certBytes := []byte(pemCert)
+
+	// Parse the PEM block
+	var block *pem.Block
+	var rest = certBytes
+	var cert []byte
+
+	for {
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		if block.Type == typeOfCertificate {
+			cert = block.Bytes
+			break
+		}
+	}
+
+	if cert == nil {
+		return nil, errors.New("Failed to parse certificate")
+	}
+
+	// Create a CertPool and add the parsed certificate
+	byteCert := x509.NewCertPool()
+	if !byteCert.AppendCertsFromPEM(pem.EncodeToMemory(&pem.Block{Type: typeOfCertificate, Bytes: cert})) {
+		return nil, errors.New("Failed to append certificate to cert pool")
+	}
+
+	return byteCert, nil
 }

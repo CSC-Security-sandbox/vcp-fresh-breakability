@@ -53,7 +53,7 @@ func TestBackupWorkflow(t *testing.T) {
 	}
 
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, VendorSubnetID: "subnet-12345", ExternalUUID: "external-uuid"},
 	}
@@ -114,7 +114,7 @@ func TestBackupWorkflowFail(t *testing.T) {
 	}
 
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, VendorSubnetID: "subnet-12345", ExternalUUID: "external-uuid"},
 	}
@@ -171,7 +171,7 @@ func TestBackupWorkflowFailAfterSnapshot(t *testing.T) {
 	}
 
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, VendorSubnetID: "subnet-12345", ExternalUUID: "external-uuid"},
 	}
@@ -317,6 +317,11 @@ func TestBackupWorkflowSuccess(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-vol"},
 			Pool: &datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: int64(1)},
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
 			},
 			Svm: &datamodel.Svm{
 				Name: "svm_test",

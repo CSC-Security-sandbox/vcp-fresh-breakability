@@ -10,7 +10,7 @@ import (
 )
 
 type ClientFactory interface {
-	VSAClusterDeployUpdate(ctx context.Context, deploymentUpdateParams *vlmconfig.DeploymentUpdateParams) error
+	VSAClusterDeployUpdate(ctx context.Context, credentials vlmconfig.OntapCredentials, currentVlmConfig *vlmconfig.VLMConfig, newVlmConfig *vlmconfig.VLMConfig) (*vlmconfig.VLMConfig, error)
 }
 
 type Client struct {
@@ -29,15 +29,22 @@ func NewClient(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMC
 	}
 }
 
-func (c *Client) VSAClusterDeployUpdate(ctx context.Context, deploymentUpdateParams *vlmconfig.DeploymentUpdateParams) error {
+func (c *Client) VSAClusterDeployUpdate(ctx context.Context, credentials vlmconfig.OntapCredentials, currentVlmConfig *vlmconfig.VLMConfig, newVlmConfig *vlmconfig.VLMConfig) (*vlmconfig.VLMConfig, error) {
 	if c.vlmClient == nil {
 		c.traceLog.Errorf("VLM client is nil")
-		return vsaerrors.NewVCPError(vsaerrors.ErrVLMClientInitializationError, nil)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrVLMClientInitializationError, nil)
 	}
-	err := c.vlmClient.UpdateVSAClusterDeployment(ctx, *deploymentUpdateParams)
+
+	updateVSAClusterDeploymentRequest := vlmconfig.UpdateVSAClusterDeploymentRequest{
+		VLMConfig:        currentVlmConfig,
+		OntapCredentials: credentials,
+		SPConfig:         newVlmConfig.Deployment.SPConfig,
+		NumHAPair:        newVlmConfig.Deployment.NumHAPair,
+	}
+	updateVSAClusterDeploymentResponse, err := c.vlmClient.UpdateVSAClusterDeployment(ctx, updateVSAClusterDeploymentRequest)
 	if err != nil {
 		c.traceLog.Errorf("Error updating VSA cluster deployment: %v", err)
-		return vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterUpdateError, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterUpdateError, err)
 	}
-	return nil
+	return updateVSAClusterDeploymentResponse.VLMConfig, nil
 }

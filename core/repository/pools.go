@@ -323,12 +323,10 @@ func ConvertPoolViewToPool(view *datamodel.PoolView) *datamodel.Pool {
 		PoolAttributes:          view.PoolAttributes,
 		ClusterDetails:          view.ClusterDetails,
 		QosType:                 view.QosType,
-		Username:                view.Username,
-		Password:                view.Password,
 		AutoTierBucketName:      view.AutoTierBucketName,
 		ServiceAccountId:        view.ServiceAccountId,
-		SecretID:                view.SecretID,
 		DeploymentName:          view.DeploymentName,
+		PoolCredentials:         view.PoolCredentials,
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -92,16 +93,28 @@ type OntapRestProvider struct {
 
 func NewProvider(ctx context.Context, provider ProviderDetails) *OntapRestProvider {
 	logger := util.GetLogger(ctx)
-	return &OntapRestProvider{
+	ontapRestProvider := &OntapRestProvider{
 		Provider: provider,
 		ClientParams: ontapRest.RESTClientParams{
+			Hosts:              provider.Hosts,
 			Host:               provider.IPAddress,
-			Hosts:              provider.IPAddresses,
-			Username:           provider.UserName,
-			Password:           log.Secret(provider.Password),
 			InsecureSkipVerify: provider.InsecureSkipVerify,
 			Trace:              logger.(*log.Slogger),
 		},
 		Logger: logger.(*log.Slogger),
 	}
+	if provider.Certificate != nil {
+		ontapRestProvider.ClientParams.Certificate = &models.Certificate{
+			SignedCertificate:        provider.Certificate.SignedCertificate,
+			PrivateKey:               provider.Certificate.PrivateKey,
+			InterMediateCertificates: provider.Certificate.InterMediateCertificates,
+			CommonName:               provider.Certificate.CommonName,
+			RootCaCertificate:        provider.Certificate.RootCaCertificate,
+		}
+		ontapRestProvider.ClientParams.CertificateBasedAuthEnabled = true
+	} else {
+		ontapRestProvider.ClientParams.Password = log.Secret(provider.Password)
+		ontapRestProvider.ClientParams.CertificateBasedAuthEnabled = false
+	}
+	return ontapRestProvider
 }

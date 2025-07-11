@@ -10,14 +10,22 @@ import (
 )
 
 type ProviderDetails struct {
-	IPAddress          string   `json:"ipAddress"`
-	IPAddresses        []string `json:"ipAddresses"`
-	UserName           string   `json:"userName"`
-	Password           string   `json:"password"`
-	Port               *int     `json:"port"`
-	UseHTTPS           bool     `json:"useHTTPS"`
-	Protocol           string   `json:"protocol"`
-	InsecureSkipVerify bool     `json:"insecureSkipVerify"`
+	IPAddress          string            `json:"ipAddress"`
+	Hosts              map[string]string `json:"host"`
+	Password           string            `json:"password"`
+	Port               *int              `json:"port"`
+	UseHTTPS           bool              `json:"useHTTPS"`
+	Protocol           string            `json:"protocol"`
+	InsecureSkipVerify bool              `json:"insecureSkipVerify"`
+	Certificate        *Certificate      `json:"certificate"`
+}
+
+type Certificate struct {
+	SignedCertificate        string   `json:"signed_certificate"`
+	PrivateKey               string   `json:"private_key"`
+	InterMediateCertificates []string `json:"intermediate_certificate"`
+	CommonName               string   `json:"common_name"`
+	RootCaCertificate        string   `json:"root_ca_certificate"`
 }
 
 type CreateSvmParams struct {

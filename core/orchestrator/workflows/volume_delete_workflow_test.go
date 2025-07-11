@@ -70,7 +70,12 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_Success() {
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -107,7 +112,13 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateJobFailsAfterWor
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -143,7 +154,12 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_FirstUpdateJobFails() 
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -183,7 +199,12 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteVolumeError() {
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -221,7 +242,12 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteVolumeInONTAPErr
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -258,7 +284,13 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateVolumeStateInDBE
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -297,7 +329,12 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteSnapshotPolicyIn
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -348,7 +385,11 @@ func (s *VolumeDeleteTestSuite) Test_DeleteSnapmirrorInONTAPFails() {
 	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to delete snapmirror"))
 
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			SecretID:      "",
+			CertificateID: "",
+			Password:      "password",
+		}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},

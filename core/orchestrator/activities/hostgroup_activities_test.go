@@ -31,6 +31,11 @@ func TestUpdateIGroups(t *testing.T) {
 				UUID: "pool-uuid",
 			},
 			Name: "test-pool",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
 		}
 
 		volumes := []*datamodel.Volume{
@@ -149,9 +154,12 @@ func TestUpdateIGroups(t *testing.T) {
 				BaseModel: datamodel.BaseModel{
 					UUID: "pool-uuid2",
 				},
-				Name:     "test-pool2",
-				Username: "abcd",
-				Password: "abcd",
+				Name: "test-pool2",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "abcd",
+					SecretID:      "",
+					CertificateID: "",
+				},
 			},
 		}
 
@@ -227,6 +235,11 @@ func TestUpdateIGroups(t *testing.T) {
 				UUID: "pool-uuid1",
 			},
 			Name: "test-pool1",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
 		}
 
 		pool2 := &datamodel.Pool{
@@ -234,6 +247,11 @@ func TestUpdateIGroups(t *testing.T) {
 				UUID: "pool-uuid2",
 			},
 			Name: "test-pool2",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
 		}
 
 		volumes := []*datamodel.Volume{
@@ -411,6 +429,11 @@ func TestUpdateIGroups(t *testing.T) {
 				UUID: "pool-uuid",
 			},
 			Name: "test-pool",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
 		}
 
 		volumes := []*datamodel.Volume{

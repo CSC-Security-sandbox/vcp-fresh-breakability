@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
@@ -305,11 +306,13 @@ func _getOntapRestProviderForPool(ctx context.Context, se database.Storage, pool
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 
-	node := &models.Node{
-		EndpointAddress: nodes[0].EndpointAddress,
-		Username:        pool.Username,
-		Password:        pool.Password,
-	}
+	node := common.CreateNodeForProvider(common.NodeProviderInput{
+		Nodes:          nodes,
+		Password:       pool.PoolCredentials.Password,
+		SecretID:       pool.PoolCredentials.SecretID,
+		CertificateID:  pool.PoolCredentials.CertificateID,
+		DeploymentName: pool.DeploymentName,
+	})
 
 	provider, err := activities.GetProviderByNode(ctx, node)
 	if err != nil {

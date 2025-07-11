@@ -97,7 +97,7 @@ func (wf *internalSnapshotDeleteWorkflow) Run(ctx workflow.Context, args ...inte
 	if err != nil {
 		return nil, err
 	}
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: params.Nodes, Username: params.Volume.Pool.Username, Password: params.Volume.Pool.Password, SecretID: params.Volume.Pool.SecretID})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: params.Nodes, Password: params.Volume.Pool.PoolCredentials.Password, SecretID: params.Volume.Pool.PoolCredentials.SecretID, CertificateID: params.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: params.Volume.Pool.DeploymentName})
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.ListSnapshotInONTAP, &params, &node).Get(ctx, &params)
 	if err != nil {

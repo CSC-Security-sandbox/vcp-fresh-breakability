@@ -1044,8 +1044,9 @@ func TestGetOntapRestProviderForPool(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		pool := &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1},
-			Username:  "test-username",
-			Password:  "test-password",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "abcd",
+			},
 		}
 		node := &datamodel.Node{
 			EndpointAddress: "1.2.3.4",

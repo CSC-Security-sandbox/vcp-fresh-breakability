@@ -53,7 +53,7 @@ func TestDeleteSnapshotInONTAP_Success(t *testing.T) {
 			AccountName: "test_account",
 		},
 		Volume: &datamodel.Volume{
-			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}},
 			Svm:              &datamodel.Svm{Name: "svm_test"},
 			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		},
@@ -103,7 +103,7 @@ func TestDeleteSnapshotInONTAP_Failure(t *testing.T) {
 			AccountName: "test_account",
 		},
 		Volume: &datamodel.Volume{
-			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}},
 			Svm:              &datamodel.Svm{Name: "svm_test"},
 			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		},
@@ -161,7 +161,7 @@ func TestDeleteSnapshotsInDB_Failure(t *testing.T) {
 		},
 		Nodes: []*datamodel.Node{Node1},
 		Volume: &datamodel.Volume{
-			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}},
 			Svm:              &datamodel.Svm{Name: "svm_test"},
 			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		},
@@ -204,7 +204,7 @@ func TestDeleteSnapshotsInDB_Success(t *testing.T) {
 		},
 		Nodes: []*datamodel.Node{Node1},
 		Volume: &datamodel.Volume{
-			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}},
 			Svm:              &datamodel.Svm{Name: "svm_test"},
 			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		},
@@ -249,7 +249,7 @@ func TestSnapshotsDehydration(t *testing.T) {
 		},
 		Nodes: []*datamodel.Node{Node1},
 		Volume: &datamodel.Volume{
-			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}},
 			Svm:              &datamodel.Svm{Name: "svm_test"},
 			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		},
@@ -294,7 +294,7 @@ func TestSnapshotsDehydration_Error(t *testing.T) {
 		},
 		Nodes: []*datamodel.Node{Node1},
 		Volume: &datamodel.Volume{
-			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}},
 			Svm:              &datamodel.Svm{Name: "svm_test"},
 			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		},
@@ -343,7 +343,7 @@ func TestInternalSnapshotsDeleteActivity_ListSnapshotFromDB(t *testing.T) {
 		},
 		Nodes: []*datamodel.Node{Node1},
 		Volume: &datamodel.Volume{
-			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}},
 			Svm:              &datamodel.Svm{Name: "svm_test"},
 			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		},
@@ -438,7 +438,7 @@ func TestListSnapshotInONTAP_Success(t *testing.T) {
 			AccountName: "test_account",
 		},
 		Volume: &datamodel.Volume{
-			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}},
 			Svm:              &datamodel.Svm{Name: "svm_test"},
 			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		},
@@ -489,7 +489,7 @@ func TestListSnapshotInONTAP_Failure(t *testing.T) {
 			AccountName: "test_account",
 		},
 		Volume: &datamodel.Volume{
-			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}},
 			Svm:              &datamodel.Svm{Name: "svm_test"},
 			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		},

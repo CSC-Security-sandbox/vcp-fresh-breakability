@@ -3,7 +3,6 @@ package activities
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"strconv"
 	"strings"
 	"time"
@@ -15,9 +14,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -97,26 +97,48 @@ func (ca CommonActivities) GetNode(ctx context.Context, poolId int64) ([]*datamo
 
 // _getProviderByNode creates a new vsa.Provider instance using the details from the provided node.
 func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	if commonparams.AuthType == commonparams.USER_CERTIFICATE {
+		certificate, err := GetCertificateFromCacheOrSecretManager(ctx, node.CertificateID)
+		if err != nil {
+			util.GetLogger(ctx).Errorf("Failed to get certificate for node %s: %v", node.Name, err)
+			return nil, err
+		}
+
+		return vsa.NewProvider(ctx, vsa.ProviderDetails{
+			Hosts: node.EndpointAddressesToHostNameMap,
+			Certificate: &vsa.Certificate{
+				SignedCertificate:        certificate.SignedCertificate,
+				InterMediateCertificates: certificate.InterMediateCertificates,
+				CommonName:               certificate.CommonName,
+				PrivateKey:               certificate.PrivateKey,
+				RootCaCertificate:        certificate.RootCaCertificate,
+			},
+			InsecureSkipVerify: false,
+		}), nil
+	}
+
 	var password string
-	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
-		password = GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
+	if commonparams.AuthType == commonparams.USERNAME_PWD_SEC_MGR {
+		secret, err := GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
+		if err != nil {
+			util.GetLogger(ctx).Errorf("Failed to get password for node %s: %v", node.Name, err)
+			return nil, err
+		}
+		password = secret
 	} else {
 		password = node.Password
 	}
-
 	// if ipAddress in empty, populate it with the node's endpoint address
-	if len(node.EndpointAddresses) == 0 {
+	if len(node.EndpointAddressesToHostNameMap) == 0 {
 		if node.EndpointAddress == "" {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterNodeIPAddressNotFound, errors.New("node endpoint address is empty"))
 		}
-		node.EndpointAddresses = []string{node.EndpointAddress}
+		node.EndpointAddressesToHostNameMap[node.EndpointAddress] = node.EndpointAddress
 	}
 
 	return vsa.NewProvider(ctx, vsa.ProviderDetails{
-		IPAddresses: node.EndpointAddresses,
-		UserName:    node.Username,
-		Password:    password,
-		// TODO : need to fix once we have certs
+		Hosts:              node.EndpointAddressesToHostNameMap,
+		Password:           password,
 		InsecureSkipVerify: true,
 	}), nil
 }

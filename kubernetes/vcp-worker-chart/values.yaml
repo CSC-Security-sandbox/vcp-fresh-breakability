@@ -64,10 +64,12 @@ workerConfig:
   caPoolDeployedProjectId: ""
   secretManagerProjectId: ""
   vsaDeployedDnsName: ""
+  vsaManagedZone: ""
   vsaSecretCacheCleanupIntervalHours: 24
   vsaSecretAuthCacheExpirationHours: 24
   totalIpPerHaPair: 6
   dataSubnetCidrBlock: 28
+  cloudDnsCacheTtl: 300
   vsaLifecycleManagerQueuePrefix: "vsa-lifecycle-manager"
   ontapVersion: "9.18.1"
   enforceMinSpConfig: "true"

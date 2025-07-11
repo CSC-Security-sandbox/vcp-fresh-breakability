@@ -44,13 +44,16 @@ func TestAcceptClusterPeerWorkflow(t *testing.T) {
 			Passphrase:         &pass,
 		}
 		pool := &datamodel.Pool{
-			Username: "test-user",
-			Password: "test-password",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
 		}
 
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-		env.OnActivity(ClusterPeerActivity.AcceptClusterPeer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity(ClusterPeerActivity.AcceptClusterPeer, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(AcceptClusterPeerWorkflow, params, pool)

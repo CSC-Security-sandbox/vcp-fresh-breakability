@@ -434,10 +434,11 @@ func TestIscsiServiceCreate(t *testing.T) {
 
 func TestGetOntapClient(t *testing.T) {
 	t.Run("WhenValidClientParamsProvided_ThenReturnOntapRestClient", func(tt *testing.T) {
+		hostMap := map[string]string{}
+		hostMap["192.168.1.1"] = "192.168.1.0"
 		clientParams := ontaprest.RESTClientParams{
-			Hosts:    []string{"test-host"},
-			Host:     "test-host",
-			Username: "test-user",
+			Host:     "192.168.1.0",
+			Hosts:    hostMap,
 			Password: "test-password",
 			Trace:    log.NewLogger().(*log.Slogger),
 		}

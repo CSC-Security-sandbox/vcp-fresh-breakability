@@ -1157,8 +1157,11 @@ func TestConvertPoolViewToPool(t *testing.T) {
 			Account:                 &datamodel.Account{Name: "acc"},
 			ClusterDetails:          datamodel.ClusterDetails{ExternalName: "cluster"},
 			QosType:                 "qos",
-			Username:                "user",
-			Password:                "pass",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "pass",
+				SecretID:      "",
+				CertificateID: "",
+			},
 		},
 	}
 

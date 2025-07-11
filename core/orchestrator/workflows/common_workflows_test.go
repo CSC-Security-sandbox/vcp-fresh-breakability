@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -246,4 +247,49 @@ func TestGetSnapshotPolicyName(t *testing.T) {
 		result := getSnapshotPolicyName(volume)
 		assert.Equal(t, "", result)
 	})
+}
+
+func TestCreateNodeForProviderWithPool_CERT(t *testing.T) {
+	// Save and restore AuthType
+	origAuthType := commonparams.AuthType
+	commonparams.AuthType = commonparams.USER_CERTIFICATE
+	defer func() { commonparams.AuthType = origAuthType }()
+
+	dbNodes := []*datamodel.Node{
+		{EndpointAddress: "1.1.1.1", HostDNSName: "host1"},
+		{EndpointAddress: "2.2.2.2", HostDNSName: "host2"},
+	}
+	pool := &datamodel.Pool{
+		DeploymentName: "cluster1",
+		PoolCredentials: &datamodel.PoolCredentials{
+			CertificateID: "cert-123",
+		},
+	}
+	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID})
+	assert.Equal(t, map[string]string{"1.1.1.1": "host1", "2.2.2.2": "host2"}, node.EndpointAddressesToHostNameMap)
+	assert.Equal(t, "cluster1", node.DeploymentName)
+	assert.Equal(t, "cert-123", node.CertificateID)
+}
+
+func TestCreateNodeForProviderWithPool_NonCERT(t *testing.T) {
+	// Save and restore AuthType
+	origAuthType := commonparams.AuthType
+	commonparams.AuthType = commonparams.USERNAME_PWD_SEC_MGR
+	defer func() { commonparams.AuthType = origAuthType }()
+
+	dbNodes := []*datamodel.Node{
+		{EndpointAddress: "1.1.1.1"},
+		{EndpointAddress: "2.2.2.2"},
+	}
+	pool := &datamodel.Pool{
+		DeploymentName: "cluster2",
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "secret",
+		},
+	}
+
+	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID})
+	assert.Equal(t, map[string]string{"1.1.1.1": "1.1.1.1", "2.2.2.2": "2.2.2.2"}, node.EndpointAddressesToHostNameMap)
+	assert.Equal(t, "secret", node.Password)
+	assert.Equal(t, "cluster2", node.DeploymentName)
 }

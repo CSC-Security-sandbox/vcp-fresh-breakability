@@ -32,12 +32,13 @@ var (
 
 // RoundTrip performs the round trip for this RoundTripper
 func (prt *AuthenticationRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	if ontapRestOAuthEnabled {
-		req.Header.Add("Authorization", "Bearer "+string(token))
+	if prt.useCert {
+		req.Header.Add("Accept", "application/json")
 		return prt.roundTripper.RoundTrip(req)
 	}
 
-	if prt.useCert {
+	if ontapRestOAuthEnabled {
+		req.Header.Add("Authorization", "Bearer "+string(token))
 		return prt.roundTripper.RoundTrip(req)
 	}
 

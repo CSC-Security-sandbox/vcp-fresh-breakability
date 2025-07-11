@@ -82,3 +82,17 @@ type UserCache struct {
 	SecretID string
 	Password string
 }
+
+type CertCache struct {
+	Time          time.Time
+	CertificateID string
+	Certificate   *Certificate
+}
+
+type Certificate struct {
+	SignedCertificate        string
+	PrivateKey               string
+	RootCaCertificate        string
+	InterMediateCertificates []string
+	CommonName               string
+}

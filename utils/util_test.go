@@ -1321,6 +1321,42 @@ func TestGetHgUUIDs(t *testing.T) {
 	}
 }
 
+// Unit test for _parsePEMCertificate
+func Test_parsePEMCertificate(t *testing.T) {
+	validCert := "-----BEGIN CERTIFICATE-----\nMIIFEDCCA3igAwIBAgITS/bXdYAv5LyZiy9Wd+osv4/IazANBgkqhkiG9w0BAQsF\nADAkMQ8wDQYDVQQKEwZOZXRhcHAxETAPBgNVBAMTCHNzLWNhLWNuMB4XDTI1MDYw\nMjE0MzQ1MFoXDTI1MDcwMjE0MzQ0OVowLjEPMA0GA1UEChMGbmV0YXBwMRswGQYD\nVQQDExJzaGFzaGktdXNlci1jbGllbnQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw\nggEKAoIBAQDcagOhNAO68lpqXSkHrxBlF3xLNetZS739eGUneujlMqLWjMA04u9v\nBZGYdbKP5VDB8j2H4qiop7KzXIteKCpP6lmLD7vqpV5a7wIU2esewI4QeaZ+RvdL\np9duqnAv5JpTTAjKFhA4+jZQCqjJaqltYtPYMBxw8TiQcwkQUlQbYlVMYbHurkPE\nCItpDJPEyyddabM6lXri6nsWRyC2J13h8BAJMflC6yPXsb/fwsSjJULNzQr41A74\nwBJ/OTtQwLgrS8qxlxTAUL+dBUKW2/kIUT+pkqCd1nOvOgSzSdDj2qhLI2aNWrQl\noCNvdCWELoq6D0sj+DssrB7KNyrNRCafAgMBAAGjggGvMIIBqzAOBgNVHQ8BAf8E\nBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQC\nMAAwHQYDVR0OBBYEFJbr1PPEc/mieh1yXp+j5Mx80g79MB8GA1UdIwQYMBaAFM8w\nTjkEr4gm0t2b6qptwRlFdAQrMIGNBggrBgEFBQcBAQSBgDB+MHwGCCsGAQUFBzAC\nhnBodHRwOi8vcHJpdmF0ZWNhLWNvbnRlbnQtNjg1YmQ5ZjctMDAwMC0yMWQ2LTlj\nM2ItMTRjMTRlZjQ4NmQ0LnN0b3JhZ2UuZ29vZ2xlYXBpcy5jb20vYTNkM2UyNWE0\nZjhkNmJjNzQ5YmUvY2EuY3J0MBcGA1UdEQQQMA6CDCouc2hhc2hpLmNvbTCBggYD\nVR0fBHsweTB3oHWgc4ZxaHR0cDovL3ByaXZhdGVjYS1jb250ZW50LTY4NWJkOWY3\nLTAwMDAtMjFkNi05YzNiLTE0YzE0ZWY0ODZkNC5zdG9yYWdlLmdvb2dsZWFwaXMu\nY29tL2EzZDNlMjVhNGY4ZDZiYzc0OWJlL2NybC5jcmwwDQYJKoZIhvcNAQELBQAD\nggGBAIVgs0Kp142hnA3AxTTF84GqkX5gDuoAn7thK7Mgvjeuc8XPaM/jj+CNApK7\nGoQazkNxz2VJmwYtCaXPzYwMd6H10Y8CsF02mfbRXLbxa0MwVP/LR7rO0sOlv32o\nqzk1rs/UHYffaEz+CrxuPFqdhh5gw188siGIrlpfLNfR6IjdwLE1anH0dYwcxKFc\nDdNMxyX3wXnT4yVe2ufAK0PMvmJHHicoWsVU1CCRzHtySfKpRKYhWI54gbI0fmWK\nTjbf1jg5veC42ShIpFzCi7bU/7tfnhweD1qskqOuw+ipjbqxlxOuSoUw439WTVfb\nDvnEZAN0i/xR8/F0gv5TQwIY03ip1Lq08ak8/tTdJabInGtqquJsaFzgzO8b+0hE\nSWtfJXPFZh6UKLjAaxh4j7kKq2f8QS4uG07THlh0SPOmI+O0SKaw6gfk3gqZXyJ0\nXGw/CqljKg+9HZ1JeN6M/hT0cH7rSSfKmaySY9iD1i1lxjxM+zHuiWYRJbA2Ahhf\nim6RRg==\n-----END CERTIFICATE-----"
+
+	t.Run("Valid PEM certificate", func(t *testing.T) {
+		pool, err := _parsePEMCertificate(validCert, "CERTIFICATE")
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+		if pool == nil {
+			t.Error("expected non-nil CertPool")
+		}
+	})
+
+	t.Run("Invalid PEM certificate", func(t *testing.T) {
+		invalidCert := "not a pem"
+		pool, err := _parsePEMCertificate(invalidCert, "CERTIFICATE")
+		if err == nil {
+			t.Error("expected error for invalid PEM, got nil")
+		}
+		if pool != nil {
+			t.Error("expected nil CertPool for invalid PEM")
+		}
+	})
+
+	t.Run("Valid PEM, wrong type", func(t *testing.T) {
+		pool, err := _parsePEMCertificate(validCert, "WRONGTYPE")
+		if err == nil {
+			t.Error("expected error for wrong type, got nil")
+		}
+		if pool != nil {
+			t.Error("expected nil CertPool for wrong type")
+		}
+	})
+}
+
 func TestGetAuthTokenFromContext(t *testing.T) {
 	t.Run("TokenPresent", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.AuthorizationToken, "test-token")

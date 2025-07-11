@@ -16,26 +16,40 @@ func PrepareOperationID(projectNumber, locationId, jobId string) string {
 }
 
 type NodeProviderInput struct {
-	Nodes    []*datamodel.Node
-	Username string
-	Password string
-	SecretID string
+	Nodes          []*datamodel.Node
+	Password       string
+	SecretID       string
+	CertificateID  string
+	DeploymentName string
 }
 
 // CreateNodeForProvider creates a node for a given provider using the provided information.
 func _createNodeForProvider(inp NodeProviderInput) *models.Node {
-	ipAddrs := make([]string, 0)
-	for _, node := range inp.Nodes {
-		if node.EndpointAddress != "" {
-			ipAddrs = append(ipAddrs, node.EndpointAddress)
+	endpointAddressToHostNameMap := make(map[string]string)
+	if AuthType == USER_CERTIFICATE {
+		for _, node := range inp.Nodes {
+			if node.EndpointAddress != "" {
+				endpointAddressToHostNameMap[node.EndpointAddress] = node.HostDNSName
+			}
+		}
+		return &models.Node{
+			EndpointAddressesToHostNameMap: endpointAddressToHostNameMap,
+			DeploymentName:                 inp.DeploymentName,
+			CertificateID:                  inp.CertificateID,
+			SecretID:                       inp.SecretID,
 		}
 	}
 
-	node := &models.Node{
-		EndpointAddresses: ipAddrs,
-		Username:          inp.Username,
-		Password:          inp.Password,
-		SecretID:          inp.SecretID,
+	for _, node := range inp.Nodes {
+		if node.EndpointAddress != "" {
+			endpointAddressToHostNameMap[node.EndpointAddress] = node.EndpointAddress
+		}
 	}
-	return node
+
+	return &models.Node{
+		EndpointAddressesToHostNameMap: endpointAddressToHostNameMap,
+		Password:                       inp.Password,
+		DeploymentName:                 inp.DeploymentName,
+		SecretID:                       inp.SecretID,
+	}
 }

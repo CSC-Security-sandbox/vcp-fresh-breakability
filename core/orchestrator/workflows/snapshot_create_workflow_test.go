@@ -61,8 +61,11 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowWorkflowExecutesSucces
 		Volume: &datamodel.Volume{
 			PoolID: 1,
 			Pool: &datamodel.Pool{
-				Username: "test-user",
-				Password: "test-password",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
 			},
 		},
 		SnapshotAttributes: &datamodel.SnapshotAttributes{
@@ -101,8 +104,11 @@ func (s *SnapshotUnitTestSuite) TestCreateSnapshotWorkflowFailsOnActivityError()
 		Volume: &datamodel.Volume{
 			PoolID: 1,
 			Pool: &datamodel.Pool{
-				Username: "test-user",
-				Password: "test-password",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
 			},
 		},
 	}
@@ -142,8 +148,11 @@ func (s *SnapshotUnitTestSuite) TestSnapshotCreateWorkflowRollbackOnFailure() {
 		Volume: &datamodel.Volume{
 			PoolID: 1,
 			Pool: &datamodel.Pool{
-				Username: "test-user",
-				Password: "test-password",
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				},
 			},
 		},
 	}

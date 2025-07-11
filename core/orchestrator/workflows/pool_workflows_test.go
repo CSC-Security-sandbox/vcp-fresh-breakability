@@ -57,9 +57,14 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
 	}
 	pool := &datamodel.Pool{
-		Username: "test-user",
-		Password: "test-password",
-		SecretID: "",
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
 	}
 
 	defer func() {
@@ -69,9 +74,6 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		return nil
 	}
 
-	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
-		env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
-	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
@@ -86,13 +88,15 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
@@ -143,8 +147,10 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "test-pool-id",
 		},
-		Username: "test-user",
-		Password: "test-password",
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+		},
 		// Set additional fields if required.
 		ClusterDetails: datamodel.ClusterDetails{
 			ExternalName:          "test-cluster",
@@ -180,7 +186,8 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 			},
 		},
 	}, nil)
-	env.OnActivity("UpdateVSACluster", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("UpdateVSACluster", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).
 		Return(nil, nil)
 
@@ -233,6 +240,10 @@ func TestDeletePoolWorkflow(t *testing.T) {
 		ClusterDetails: datamodel.ClusterDetails{
 			RegionalTenantProject: "test-tenant",
 		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+		},
 	}
 
 	// Mock activity responses
@@ -249,6 +260,9 @@ func TestDeletePoolWorkflow(t *testing.T) {
 		return mockVSAClientWorkflowManager
 	}
 
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	// Execute workflow
 	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
 
@@ -290,9 +304,10 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 		AccountName: "test-account",
 	}
 	pool := &datamodel.Pool{
-		Username: "test-user",
-		Password: "",
-		SecretID: "test-secret-id",
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "",
+			SecretID: "test-secret-id",
+		},
 	}
 
 	originalAuthType := common.AuthType
@@ -314,7 +329,9 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteSecret", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
@@ -365,8 +382,9 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 		AllowAutoTiering: true,
 	}
 	pool := &datamodel.Pool{
-		Username: "test-user",
-		Password: "test-password",
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "password",
+		},
 	}
 
 	// Mock activity responses
@@ -380,12 +398,14 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 	}, nil)
 	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Bucket Creation Failed"))
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
@@ -431,9 +451,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
-			Username: "test-user",
-			Password: "test-password",
-			SecretID: "",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+			},
 		}
 
 		defer func() {
@@ -443,9 +464,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			return "", nil
 		}
 
-		if secretManagerEnabled {
-			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
-		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:         "test-network",
@@ -460,7 +478,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -473,6 +491,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
@@ -527,9 +547,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
-			Username: "test-user",
-			Password: "test-password",
-			SecretID: "",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+			},
 		}
 		cvpKmsConfig := &cvpModels.KmsConfigV1beta{}
 
@@ -538,10 +559,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}()
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "", nil
-		}
-
-		if secretManagerEnabled {
-			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -556,8 +573,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -634,9 +653,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
-			Username: "test-user",
-			Password: "test-password",
-			SecretID: "",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+			},
 		}
 		cvpKmsConfig := &cvpModels.KmsConfigV1beta{}
 
@@ -645,10 +665,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}()
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "", nil
-		}
-
-		if secretManagerEnabled {
-			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
@@ -663,8 +679,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -679,6 +697,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -742,9 +762,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
-			Username: "test-user",
-			Password: "test-password",
-			SecretID: "",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+			},
 		}
 		cvpKmsConfig := &cvpModels.KmsConfigV1beta{}
 
@@ -755,9 +776,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			return "", nil
 		}
 
-		if secretManagerEnabled {
-			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
-		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:         "test-network",
@@ -771,8 +789,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -786,6 +806,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -848,9 +870,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
-			Username: "test-user",
-			Password: "test-password",
-			SecretID: "",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+			},
 		}
 		cvpKmsConfig := &cvpModels.KmsConfigV1beta{}
 
@@ -868,9 +891,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			return "", nil
 		}
 
-		if secretManagerEnabled {
-			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
-		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:         "test-network",
@@ -884,8 +904,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -898,6 +920,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -960,9 +984,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
-			Username: "test-user",
-			Password: "test-password",
-			SecretID: "",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+			},
 		}
 
 		defer func() {
@@ -972,9 +997,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			return "", nil
 		}
 
-		if secretManagerEnabled {
-			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
-		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:         "test-network",
@@ -988,8 +1010,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1001,6 +1025,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1063,9 +1089,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
-			Username: "test-user",
-			Password: "test-password",
-			SecretID: "",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+			},
 		}
 
 		defer func() {
@@ -1073,10 +1100,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}()
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "", nil
-		}
-
-		if secretManagerEnabled {
-			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
@@ -1091,8 +1114,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1103,6 +1128,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1165,9 +1192,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
-			Username: "test-user",
-			Password: "test-password",
-			SecretID: "",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+			},
 		}
 
 		defer func() {
@@ -1175,10 +1203,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}()
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "", nil
-		}
-
-		if secretManagerEnabled {
-			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
@@ -1193,8 +1217,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1206,6 +1232,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1268,9 +1296,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
-			Username: "test-user",
-			Password: "test-password",
-			SecretID: "",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+			},
 		}
 
 		defer func() {
@@ -1280,9 +1309,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			return "", nil
 		}
 
-		if secretManagerEnabled {
-			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
-		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:         "test-network",
@@ -1296,8 +1322,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1312,6 +1340,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1374,9 +1404,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
-			Username: "test-user",
-			Password: "test-password",
-			SecretID: "",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+			},
 		}
 
 		defer func() {
@@ -1386,9 +1417,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			return "", nil
 		}
 
-		if secretManagerEnabled {
-			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
-		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:         "test-network",
@@ -1402,8 +1430,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1418,6 +1448,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1480,9 +1512,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
-			Username: "test-user",
-			Password: "test-password",
-			SecretID: "",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+			},
 		}
 
 		defer func() {
@@ -1492,9 +1525,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			return "", nil
 		}
 
-		if secretManagerEnabled {
-			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
-		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:         "test-network",
@@ -1508,8 +1538,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1524,6 +1556,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1586,9 +1620,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
-			Username: "test-user",
-			Password: "test-password",
-			SecretID: "",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+			},
 		}
 		runningEnv = "local"
 
@@ -1597,9 +1632,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			runningEnv = envs.GetString("ENV", "")
 		}()
 
-		if secretManagerEnabled {
-			env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
-		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
@@ -1612,8 +1644,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1629,6 +1663,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1677,19 +1713,13 @@ func TestCreatePoolWorkflow_Failure_CreateTenancy(t *testing.T) {
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
 	}
 	pool := &datamodel.Pool{
-		Username: "test-user",
-		Password: "test-password",
-		SecretID: "",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "password", SecretID: "secret-id"},
 	}
 	defer func() {
 		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
 	}()
 	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
 		return nil
-	}
-
-	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
-		env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 	}
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Once()
@@ -1738,19 +1768,13 @@ func TestCreatePoolWorkflow_InitialFailure_UpdateJobStatus(t *testing.T) {
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
 	}
 	pool := &datamodel.Pool{
-		Username: "test-user",
-		Password: "test-password",
-		SecretID: "",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "password", SecretID: "secret-id"},
 	}
 	defer func() {
 		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
 	}()
 	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
 		return nil
-	}
-
-	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
-		env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
 	}
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("failed to update job status"))
@@ -1803,9 +1827,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
 	}
 	pool := &datamodel.Pool{
-		Username: "test-user",
-		Password: "test-password",
-		SecretID: "",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "password", SecretID: "secret-id"},
 	}
 
 	defer func() {
@@ -1815,9 +1837,6 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 		return nil
 	}
 
-	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
-		env.OnActivity("CreateSecret", params.Region, pool.SecretID).Return(nil)
-	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(1)
 	env.OnActivity("CreateTenancy", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
@@ -1831,8 +1850,10 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)

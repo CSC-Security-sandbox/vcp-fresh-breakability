@@ -20,6 +20,8 @@ const (
 	USERNAME_PWD_SEC_MGR = 1 // Username/Password authentication with secret manager
 	USER_CERTIFICATE     = 2 // Certificate authentication
 	VCP_ADMIN            = "vcp_admin"
+
+	Admin = "admin" // Default admin username for authentication
 )
 
 var (
@@ -182,6 +184,10 @@ func convertPrivateCACertificateToCustomCertificate(certificateId string, cert *
 		LifeTime:                   cert.Lifetime,
 		PemCertificateChain:        cert.PemCertificateChain,
 		IssuerCertificateAuthority: cert.IssuerCertificateAuthority,
+	}
+	if len(cert.PemCertificateChain) > 0 {
+		// The first certificate in the chain is the root CA certificate as we are not configuring intermediate CAs(subordinate CAs) in the CA pool.
+		customCert.RootCACertificate = cert.PemCertificateChain[0]
 	}
 	return customCert, nil
 }

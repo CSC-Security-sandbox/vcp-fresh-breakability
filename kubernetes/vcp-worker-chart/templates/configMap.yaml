@@ -53,6 +53,8 @@ data:
   VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS: {{ .Values.workerConfig.vsaSecretAuthCacheExpirationHours | quote }}
   TOTAL_IP_PER_HA_PAIR: {{ .Values.workerConfig.totalIpPerHaPair | quote }}
   DATA_SUBNET_CIDR_BLOCK: {{ .Values.workerConfig.dataSubnetCidrBlock | quote }}
+  VSA_MANAGED_ZONE : "{{ .Values.workerConfig.vsaManagedZone | quote }}"
+  CLOUD_DNS_CACHE_TTL: "{{ .Values.workerConfig.cloudDnsCacheTtl | quote }}"
   VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX: {{ .Values.workerConfig.vsaLifecycleManagerQueuePrefix | quote }}
   ONTAP_VERSION: {{ .Values.workerConfig.ontapVersion | quote }}
   ENFORCE_MIN_SP_CONFIG: {{ .Values.workerConfig.enforceMinSpConfig | quote }}

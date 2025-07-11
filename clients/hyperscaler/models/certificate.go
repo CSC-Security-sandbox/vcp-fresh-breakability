@@ -23,6 +23,7 @@ type CustomCertificate struct {
 	CaName                     string
 	CaGroupName                string
 	CertificateID              string
+	RootCACertificate          string
 }
 
 // CustomCertificateParam is a struct that represents the parameters needed to create a certificate
@@ -52,6 +53,11 @@ type CustomSecretVersion struct {
 	Value              string
 	SecretOwningEntity string
 	Region             string
+}
+
+type CustomCertificateResponse struct {
+	Certificate *CustomCertificate
+	Secret      *CustomSecret
 }
 
 type CustomCloudDNSRecord struct {

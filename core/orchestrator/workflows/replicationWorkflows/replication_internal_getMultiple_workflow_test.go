@@ -61,8 +61,11 @@ func TestGetMultipleReplicationsInternalWorkflow(t *testing.T) {
 				},
 				PoolID: 1,
 				Pool: &datamodel.Pool{
-					Username: "username-1",
-					Password: "password-1",
+					PoolCredentials: &datamodel.PoolCredentials{
+						Password:      "password",
+						SecretID:      "",
+						CertificateID: "",
+					},
 				},
 			},
 			ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -136,8 +139,11 @@ func TestGetMultipleReplicationsInternalWorkflow(t *testing.T) {
 				},
 				PoolID: 1,
 				Pool: &datamodel.Pool{
-					Username: "username-1",
-					Password: "password-1",
+					PoolCredentials: &datamodel.PoolCredentials{
+						Password:      "password",
+						SecretID:      "",
+						CertificateID: "",
+					},
 				},
 			},
 			ReplicationAttributes: &datamodel.ReplicationDetails{

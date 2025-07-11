@@ -47,7 +47,7 @@ func TestDeleteInternalVolumeReplicationWorkflow(t *testing.T) {
 			Name: "test-account",
 		}
 		volume := &datamodel.Volume{
-			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{SecretID: "test-secret", Password: "test-secret", CertificateID: "test-cert"}},
 			Svm:              &datamodel.Svm{Name: "svm_test"},
 			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
@@ -121,7 +121,11 @@ func TestDeleteInternalVolumeReplicationWorkflowFailure(t *testing.T) {
 			Name: "test-account",
 		}
 		volume := &datamodel.Volume{
-			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 			Svm:              &datamodel.Svm{Name: "svm_test"},
 			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}

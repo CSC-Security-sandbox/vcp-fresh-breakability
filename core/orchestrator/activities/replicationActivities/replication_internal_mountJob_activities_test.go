@@ -40,8 +40,9 @@ func TestCheckMountJob(t *testing.T) {
 				},
 				PoolID: 1,
 				Pool: &datamodel.Pool{
-					Username: "username-1",
-					Password: "password-1",
+					PoolCredentials: &datamodel.PoolCredentials{
+						Password: "password-1",
+					},
 				},
 			},
 			ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -81,8 +82,9 @@ func TestCheckMountJob(t *testing.T) {
 				},
 				PoolID: 1,
 				Pool: &datamodel.Pool{
-					Username: "username-1",
-					Password: "password-1",
+					PoolCredentials: &datamodel.PoolCredentials{
+						Password: "password-1",
+					},
 				},
 			},
 			ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -119,8 +121,11 @@ func TestCheckMountJob(t *testing.T) {
 				},
 				PoolID: 1,
 				Pool: &datamodel.Pool{
-					Username: "username-1",
-					Password: "password-1",
+					PoolCredentials: &datamodel.PoolCredentials{
+						Password:      "password-1",
+						SecretID:      "",
+						CertificateID: "",
+					},
 				},
 			},
 			ReplicationAttributes: &datamodel.ReplicationDetails{
@@ -159,8 +164,9 @@ func TestCheckMountJob(t *testing.T) {
 				},
 				PoolID: 1,
 				Pool: &datamodel.Pool{
-					Username: "username-1",
-					Password: "password-1",
+					PoolCredentials: &datamodel.PoolCredentials{
+						Password: "password-1",
+					},
 				},
 			},
 			ReplicationAttributes: &datamodel.ReplicationDetails{

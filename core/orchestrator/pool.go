@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
@@ -36,8 +37,6 @@ var (
 	ValidateCreatePoolParams     = _validateCreatePoolParams
 	ValidateUpdatePoolParams     = _validateUpdatePoolParams
 	deletePool                   = _deletePool
-	nodeUsername                 = env.GetString("VSA_NODE_USERNAME", "")
-	nodePassword                 = env.GetString("VSA_NODE_PASSWORD", "")
 	getInterClusterLifsFromONTAP = _getInterClusterLifsFromONTAP
 	GetPoolByName                = _getPoolByName
 	autoTieringEnabled           = env.GetBool("AUTO_TIERING_ENABLED", false)
@@ -98,8 +97,6 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		Description:             params.Description,
 		ServiceLevel:            params.ServiceLevel,
 		QosType:                 params.QosType,
-		Username:                nodeUsername,
-		Password:                nodePassword,
 		PoolAttributes: &datamodel.PoolAttributes{
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			Iops:            params.CustomPerformanceParams.Iops,
@@ -108,13 +105,25 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		},
 	}
 	poolObj.DeploymentName = utils.GenerateDeterministicDeploymentName(poolObj.AccountID, poolObj.UUID, params.Region)
-
-	if commonparams.AuthType == commonparams.USERNAME_PWD_SEC_MGR {
-		poolObj.SecretID = utils.RandomUUID()
-		poolObj.Password = ""
-	} else {
-		poolObj.Password = nodePassword
-		poolObj.SecretID = ""
+	switch commonparams.AuthType {
+	case commonparams.USER_CERTIFICATE:
+		poolObj.PoolCredentials = &datamodel.PoolCredentials{
+			SecretID:      fmt.Sprintf("%s-secret", poolObj.DeploymentName),
+			CertificateID: fmt.Sprintf("%s-cert", poolObj.DeploymentName),
+			Password:      "",
+		}
+	case commonparams.USERNAME_PWD_SEC_MGR:
+		poolObj.PoolCredentials = &datamodel.PoolCredentials{
+			SecretID:      fmt.Sprintf("%s-secret", poolObj.DeploymentName),
+			CertificateID: "",
+			Password:      "",
+		}
+	default:
+		poolObj.PoolCredentials = &datamodel.PoolCredentials{
+			SecretID:      "",
+			CertificateID: "",
+			Password:      commonparams.NodePassword,
+		}
 	}
 
 	dbPool, err := se.CreatingPool(ctx, poolObj)
@@ -475,8 +484,10 @@ func _getPoolByName(ctx context.Context, se database.Storage, poolName string, a
 // getInterClusterLifFromONTAP retrieves inter-cluster LIFs from ONTAP.
 func _getInterClusterLifsFromONTAP(ctx context.Context, nodes []*datamodel.Node, pools *datamodel.PoolView) ([]*vsa.InterclusterLif, error) {
 	logger := util.GetLogger(ctx)
-	node := prepareNodeForProvider(nodes[0], pools)
-	provider, err := GetProviderByNode(ctx, node)
+
+	pool := &pools.Pool
+	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: nodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID})
+	provider, err := activities.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -487,22 +498,6 @@ func _getInterClusterLifsFromONTAP(ctx context.Context, nodes []*datamodel.Node,
 		return nil, err
 	}
 	return interClusterLifs, nil
-}
-
-func prepareNodeForProvider(nodes *datamodel.Node, pools *datamodel.PoolView) *models.Node {
-	node := &models.Node{
-		Name:            nodes.Name,
-		EndpointAddress: nodes.EndpointAddress,
-		Username:        pools.Username,
-		Zone:            nodes.ZoneName,
-		InstanceType:    nodes.NodeAttributes.InstanceType,
-	}
-	if commonparams.AuthType == commonparams.USERNAME_PWD_SEC_MGR {
-		node.SecretID = pools.SecretID
-	} else {
-		node.Password = pools.Password
-	}
-	return node
 }
 
 func convertDatastorePoolToModelWithIClifdetails(pools *datamodel.PoolView, interClusterLifs []*vsa.InterclusterLif, accountName string) *models.Pool {

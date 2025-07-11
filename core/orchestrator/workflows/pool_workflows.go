@@ -5,7 +5,6 @@ import (
 	"time"
 
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -29,7 +28,6 @@ import (
 
 var (
 	_                                WorkflowInterface = &createPoolWorkflow{} // Enforcing the WorkflowInterface on createPoolWorkflow
-	secretManagerEnabled                               = env.GetBool("SECRET_MANAGER_ENABLED", false)
 	setupNwHeartbeatTimeout                            = env.GetUint64("SETUP_NW_HEARTBEAT_TIMEOUT_SEC", 300)
 	vmrsConfigPath                                     = env.GetString("VMRS_CONFIG_PATH", "config/vmrs_gcp.yaml")
 	configureKmsConfigForSvmActivity                   = _configureKmsConfigForSvmActivity
@@ -170,24 +168,18 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 	dbPool.AutoTierBucketName = AutoTierBucketName
-
-	secret := &hyperscalermodels.CustomSecret{}
-	var vsaClusterPassword string
-	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
-		err = workflow.ExecuteActivity(ctx, poolActivity.CreateSecret, params.Region, pool.SecretID).Get(ctx, secret)
-		if err != nil {
-			return nil, err
-		}
-		vsaClusterPassword = secret.SecretVersion.Value
-		rollbackManager.AddActivity(poolActivity.DeleteSecret, pool.SecretID)
-	} else {
-		vsaClusterPassword = pool.Password
-	}
-
+	credConfig := &vlm.OntapCredentials{}
 	// Generate a deterministic, unique cluster name (Deployment ID) for the pool using pool name, account name, and primary zone.
 	// This avoids collisions when the same pool name is used in different zones or accounts.
 	// The generated ID is limited to 20 characters to comply with resource naming constraints.
 	clusterName := utils.GenerateDeterministicID(params.Name+"-"+params.AccountName+"-"+params.PrimaryZone, 20)
+
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateOnTapCredentials, pool, params.Region, pool.DeploymentName).Get(ctx, &credConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	rollbackManager.AddActivity(poolActivity.DeleteOnTapCredentials, pool)
 
 	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
 	// Convert CustomPerformanceParams to CustomerRequestedPerformance.
@@ -201,9 +193,6 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// Find the optimal VMs based on the customer requested performance.
 	vlmConfig := &vlm.VLMConfig{}
-	ontapCredentials := &vlm.OntapCredentials{}
-
-	prepareOntapCredentials(ontapCredentials, vsaClusterPassword)
 
 	deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
 	prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, clusterName, VLMCloudProvider, tenancyDetails.RegionalTenantProject)
@@ -213,15 +202,20 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if err != nil {
 		return nil, err
 	}
-
+	hostMap := make(map[string]string)
 	createVSAClusterDeploymentRequest := &vlm.CreateVSAClusterDeploymentRequest{}
-	prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest, *vlmConfig, *ontapCredentials)
+	prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest, *vlmConfig, *credConfig)
 	createVSAClusterDeploymentResponse, err := vsaClientWorkflowManager.CreateVSAClusterDeployment(ctx, createVSAClusterDeploymentRequest)
 	if err != nil {
 		return nil, err
 	}
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateCloudDNSRecords, vlmConfig, pool.DeploymentName).Get(ctx, &hostMap)
+	if err != nil {
+		return nil, err
+	}
+	rollbackManager.AddActivity(poolActivity.DeleteCloudDNSRecords, hostMap)
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, createVSAClusterDeploymentResponse.VLMConfig, ontapCredentials).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, createVSAClusterDeploymentResponse.VLMConfig, pool.DeploymentName, hostMap).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -231,15 +225,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if err != nil {
 		return nil, err
 	}
-
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: pool.Username, Password: pool.Password, SecretID: pool.SecretID})
-
-	node.Username = pool.Username
-	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
-		node.SecretID = pool.SecretID
-	} else {
-		node.Password = pool.Password
-	}
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID})
 
 	var ontapVersion string
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetOntapVersion, node).Get(ctx, &ontapVersion)
@@ -262,7 +248,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	createSVMRequest := &vlm.CreateSVMRequest{}
-	prepareCreateSVMRequest(createSVMRequest, DefaultSvmName, createVSAClusterDeploymentResponse.VLMConfig, *ontapCredentials)
+	prepareCreateSVMRequest(createSVMRequest, DefaultSvmName, createVSAClusterDeploymentResponse.VLMConfig, *credConfig)
 	createSVMResponse, err := vsaClientWorkflowManager.CreateVSASVM(ctx, createSVMRequest)
 	if err != nil {
 		return nil, err
@@ -304,10 +290,6 @@ func prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest *vlm.De
 	deleteVSAClusterDeploymentRequest.DeploymentID = deploymentID
 	deleteVSAClusterDeploymentRequest.ProjectID = projectID
 	deleteVSAClusterDeploymentRequest.CloudProvider = cloudProvider
-}
-
-func prepareOntapCredentials(ontapCredentials *vlm.OntapCredentials, vsaClusterPassword string) {
-	ontapCredentials.AdminPassword = vsaClusterPassword
 }
 
 type updatePoolWorkflow struct {
@@ -405,7 +387,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		},
 	}
 	currentVlmConfig := &vlmconfig.VLMConfig{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVlmConfig, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, dsc, pool.Password, pool.KmsConfig.ServiceAccount.ServiceAccountEmail, pool.AutoTierBucketName).Get(ctx, currentVlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVlmConfig, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, dsc, pool.KmsConfig.ServiceAccount.ServiceAccountEmail, pool.AutoTierBucketName).Get(ctx, currentVlmConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -418,18 +400,17 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	newVlmConfig := &vlm.VLMConfig{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, pool.Password, pool.KmsConfig.ServiceAccount.ServiceAccountEmail, pool.AutoTierBucketName).Get(ctx, newVlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, pool.KmsConfig.ServiceAccount.ServiceAccountEmail, pool.AutoTierBucketName).Get(ctx, newVlmConfig)
+	if err != nil {
+		return nil, err
+	}
+	credentials := &vlm.OntapCredentials{}
+	err = workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentials, pool).Get(ctx, &credentials)
 	if err != nil {
 		return nil, err
 	}
 
-	// Now it's time to invoke VLM.
-	dup := &vlmconfig.DeploymentUpdateParams{
-		VlmConfig: currentVlmConfig,
-		NumHAPair: newVlmConfig.Deployment.NumHAPair,
-		SPConfig:  vlmconfig.SPConfig(newVlmConfig.Deployment.SPConfig),
-	}
-	err = workflow.ExecuteActivity(ctx, poolActivity.UpdateVSACluster, dup).Get(ctx, newVlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.UpdateVSACluster, credentials, currentVlmConfig, newVlmConfig).Get(ctx, newVlmConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -549,6 +530,17 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
+	hostMap := make(map[string]string)
+	err = workflow.ExecuteActivity(ctx, poolActivity.GetCloudDNSRecords, dbPool.ID).Get(ctx, &hostMap)
+	if err != nil {
+		return nil, err
+	}
+
+	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteCloudDNSRecords, hostMap).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
 
 	deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
@@ -573,11 +565,9 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
-	if common.AuthType == common.USERNAME_PWD_SEC_MGR {
-		err = workflow.ExecuteActivity(ctx, poolActivity.DeleteSecret, dbPool.SecretID).Get(ctx, nil)
-		if err != nil {
-			return nil, err
-		}
+	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteOnTapCredentials, dbPool).Get(ctx, nil)
+	if err != nil {
+		return nil, err
 	}
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeletePoolResources, dbPool).Get(ctx, nil)
 	if err != nil {

@@ -65,7 +65,12 @@ func (s *SnapshotDeleteTestSuite) Test_DeleteSnapshotWorkflow_Success() {
 	// Execute workflow
 	snapshot := &datamodel.Snapshot{
 		Volume: &datamodel.Volume{
-			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				}},
 		},
 		Account: &datamodel.Account{
 			Name: "test_account",
@@ -101,7 +106,12 @@ func (s *SnapshotDeleteTestSuite) Test_DeleteSnapshotWorkflow_Failure() {
 	// Execute workflow
 	snapshot := &datamodel.Snapshot{
 		Volume: &datamodel.Volume{
-			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "",
+					CertificateID: "",
+				}},
 		},
 		Account: &datamodel.Account{
 			Name: "test_account",

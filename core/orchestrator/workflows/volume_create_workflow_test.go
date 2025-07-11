@@ -53,7 +53,13 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Success() {
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", SecretID: "secretid"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 	}
@@ -100,7 +106,12 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_Failure() {
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	backupCreateActivity := activities.BackupActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", SecretID: "secretid"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, IsDataProtection: true},
 	}
@@ -163,7 +174,12 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Failure_UpdateVolumeDetails() 
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", SecretID: "secretid"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 	}
@@ -212,7 +228,12 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_FindTenancyError() {
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		DataProtection: &datamodel.DataProtection{
@@ -261,7 +282,9 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_TokenError() {
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password: "password",
+		}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		DataProtection: &datamodel.DataProtection{
@@ -309,7 +332,12 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CheckBackupVaultExistsInVCPErr
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		DataProtection: &datamodel.DataProtection{
@@ -360,7 +388,10 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CheckBackupPolicyExistsInVCPEr
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			SecretID: "",
+			Password: "password",
+		}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		DataProtection: &datamodel.DataProtection{
@@ -409,7 +440,10 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CheckForBucketResourceNameErro
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			SecretID: "",
+			Password: "password",
+		}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		DataProtection: &datamodel.DataProtection{
@@ -461,7 +495,10 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GenerateResourceNamesError() {
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			SecretID: "",
+			Password: "password",
+		}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		DataProtection: &datamodel.DataProtection{
@@ -514,7 +551,12 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBucketError() {
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		},
+		},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		DataProtection: &datamodel.DataProtection{
@@ -568,7 +610,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateBackupVaultWithBucketDet
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		DataProtection: &datamodel.DataProtection{
@@ -623,7 +669,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_InitiateSplitForVolumeError() 
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		Account:          &datamodel.Account{Name: "account-1"},
@@ -669,7 +719,12 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateSnapshotPolicyInONTAP() 
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", Password: "password"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		SnapshotPolicy: &datamodel.SnapshotPolicy{
@@ -764,7 +819,12 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_Success() {
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	backupActivity := activities.BackupActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", SecretID: "secretid"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, IsDataProtection: true},
 	}
@@ -835,7 +895,11 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_GetOrCreateObjectStoreError()
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	backupActivity := activities.BackupActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", SecretID: "secretid"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, IsDataProtection: true},
 	}
@@ -907,7 +971,11 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_GetOrCreateSnapmirrorError() 
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	backupActivity := activities.BackupActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", SecretID: "secretid"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, IsDataProtection: true},
 	}
@@ -979,7 +1047,11 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_TransferSnapmirrorError() {
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	backupActivity := activities.BackupActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", SecretID: "secretid"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, IsDataProtection: true},
 	}
@@ -1051,7 +1123,11 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_TransferPollSnapmirrorError()
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	backupActivity := activities.BackupActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", SecretID: "secretid"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, IsDataProtection: true},
 	}
@@ -1123,7 +1199,11 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_UpdateLunError() {
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	backupActivity := activities.BackupActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
-		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, Username: "username", SecretID: "secretid"},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
 		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, IsDataProtection: true},
 	}

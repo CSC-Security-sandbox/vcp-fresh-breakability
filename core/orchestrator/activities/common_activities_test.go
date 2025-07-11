@@ -4,13 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
-	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
+	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -20,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
 )
 
@@ -158,55 +158,135 @@ func Test_newGcpServices_ReturnsInitializedGcpServices(t *testing.T) {
 }
 
 func Test_GetProviderByNode(t *testing.T) {
-	origAuthType := common.AuthType
-	originalGetPasswordFromCacheOrSecretManager := GetPasswordFromCacheOrSecretManager
-	defer func() {
-		common.AuthType = origAuthType
-		GetPasswordFromCacheOrSecretManager = originalGetPasswordFromCacheOrSecretManager
-	}()
-
 	ctx := context.Background()
-	node := &models2.Node{
-		Username:          "user",
-		Password:          "pass",
-		SecretID:          "secret-id",
-		EndpointAddress:   "1.2.3.4",
-		EndpointAddresses: []string{},
-	}
 
-	t.Run("Password from Secret Manager", func(t *testing.T) {
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
-		// Mock GetPasswordFromCacheOrSecretManager
-		GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) string {
-			return "secret-pass"
+	t.Run("USER_CERTIFICATE success", func(t *testing.T) {
+		origAuthType := common.AuthType
+		defer func() { common.AuthType = origAuthType }()
+		common.AuthType = common.USER_CERTIFICATE
+
+		node := &models2.Node{
+			Name:                           "node1",
+			CertificateID:                  "cert-id",
+			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "1.2.3.4"},
 		}
-		node.EndpointAddresses = []string{}
+
+		origGetCert := GetCertificateFromCacheOrSecretManager
+		defer func() { GetCertificateFromCacheOrSecretManager = origGetCert }()
+		GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certID string) (*models2.Certificate, error) {
+			return &models2.Certificate{
+				SignedCertificate:        "signed",
+				InterMediateCertificates: []string{"intermediate"},
+				CommonName:               "common",
+				PrivateKey:               "key",
+				RootCaCertificate:        "rootCaCert",
+			}, nil
+		}
+
 		provider, err := GetProviderByNode(ctx, node)
 		assert.NoError(t, err)
 		assert.NotNil(t, provider)
 	})
 
-	t.Run("Password from Node", func(t *testing.T) {
+	t.Run("USER_CERTIFICATE error", func(t *testing.T) {
+		origAuthType := common.AuthType
+		defer func() { common.AuthType = origAuthType }()
 		common.AuthType = common.USER_CERTIFICATE
-		node.EndpointAddresses = []string{}
+
+		node := &models2.Node{
+			Name:                           "node1",
+			CertificateID:                  "cert-id",
+			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "1.2.3.4"},
+		}
+
+		origGetCert := GetCertificateFromCacheOrSecretManager
+		defer func() { GetCertificateFromCacheOrSecretManager = origGetCert }()
+		GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certID string) (*models2.Certificate, error) {
+			return nil, errors.New("error")
+		}
+
+		provider, err := GetProviderByNode(ctx, node)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "error")
+		assert.Nil(t, provider)
+	})
+
+	t.Run("USERNAME_PWD_SEC_MGR success", func(t *testing.T) {
+		origAuthType := common.AuthType
+		defer func() { common.AuthType = origAuthType }()
+		common.AuthType = common.USERNAME_PWD_SEC_MGR
+
+		node := &models2.Node{
+			Name:                           "node2",
+			SecretID:                       "secret-id",
+			EndpointAddress:                "1.2.3.4",
+			EndpointAddressesToHostNameMap: map[string]string{},
+		}
+
+		origGetPwd := GetPasswordFromCacheOrSecretManager
+		defer func() { GetPasswordFromCacheOrSecretManager = origGetPwd }()
+		GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+			return "pwd", nil
+		}
+
 		provider, err := GetProviderByNode(ctx, node)
 		assert.NoError(t, err)
 		assert.NotNil(t, provider)
 	})
 
-	t.Run("No Endpoint Address", func(t *testing.T) {
-		common.AuthType = common.USER_CERTIFICATE
-		node.EndpointAddresses = []string{}
-		node.EndpointAddress = ""
+	t.Run("USERNAME_PWD_SEC_MGR error", func(t *testing.T) {
+		origAuthType := common.AuthType
+		defer func() { common.AuthType = origAuthType }()
+		common.AuthType = common.USERNAME_PWD_SEC_MGR
+
+		node := &models2.Node{
+			Name:                           "node2",
+			SecretID:                       "secret-id",
+			EndpointAddress:                "1.2.3.4",
+			EndpointAddressesToHostNameMap: map[string]string{},
+		}
+
+		origGetPwd := GetPasswordFromCacheOrSecretManager
+		defer func() { GetPasswordFromCacheOrSecretManager = origGetPwd }()
+		GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+			return "", errors.New("error")
+		}
+
+		provider, err := GetProviderByNode(ctx, node)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "error")
+		assert.Nil(t, provider)
+	})
+
+	t.Run("Password from node, missing endpoint address", func(t *testing.T) {
+		origAuthType := common.AuthType
+		defer func() { common.AuthType = origAuthType }()
+		common.AuthType = common.USERNAME_PWD
+
+		node := &models2.Node{
+			Name:                           "node3",
+			Password:                       "pwd",
+			EndpointAddressesToHostNameMap: map[string]string{},
+			EndpointAddress:                "",
+		}
+
 		provider, err := GetProviderByNode(ctx, node)
 		assert.Error(t, err)
 		assert.Nil(t, provider)
 	})
 
-	t.Run("Already has EndpointAddresses", func(t *testing.T) {
-		common.AuthType = common.USER_CERTIFICATE
-		node.EndpointAddresses = []string{"5.6.7.8"}
-		node.EndpointAddress = ""
+	t.Run("Password from node, endpoint address present", func(t *testing.T) {
+		origAuthType := common.AuthType
+		defer func() { common.AuthType = origAuthType }()
+		common.AuthType = common.USERNAME_PWD
+
+		node := &models2.Node{
+			Name:                           "node3",
+			Password:                       "pwd",
+			EndpointAddressesToHostNameMap: map[string]string{},
+			EndpointAddress:                "1.2.3.4",
+		}
+
 		provider, err := GetProviderByNode(ctx, node)
 		assert.NoError(t, err)
 		assert.NotNil(t, provider)

@@ -95,7 +95,7 @@ func (wf *internalVolumeReplicationResumeWorkflow) Run(ctx workflow.Context, arg
 		return nil, err
 	}
 
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Username: replication.Volume.Pool.Username, Password: replication.Volume.Pool.Password, SecretID: replication.Volume.Pool.SecretID})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: replication.Volume.Pool.PoolCredentials.Password, SecretID: replication.Volume.Pool.PoolCredentials.SecretID, CertificateID: replication.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: replication.Volume.Pool.DeploymentName})
 	var replicationResumeResponse *vsa.VolumeReplication
 	err = workflow.ExecuteActivity(ctx, replicationActivity.ResumeVolumeReplication, replication, node, forceResume).Get(ctx, &replicationResumeResponse)
 	if err != nil {

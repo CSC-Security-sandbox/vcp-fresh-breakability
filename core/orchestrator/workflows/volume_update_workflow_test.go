@@ -77,7 +77,11 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success() {
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -129,7 +133,12 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPo
 
 	// Case : No existing snapshot policy, new policy provided
 	volume1 := &datamodel.Volume{
-		Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account:        &datamodel.Account{Name: "test_account"},
 		SizeInBytes:    100,
 		SnapshotPolicy: nil,
@@ -196,7 +205,12 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPo
 
 	// Case : No existing snapshot policy, new policy provided
 	volume1 := &datamodel.Volume{
-		Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account:        &datamodel.Account{Name: "test_account"},
 		SizeInBytes:    100,
 		SnapshotPolicy: nil,
@@ -260,7 +274,11 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPo
 
 	// Case : Existing snapshot policy, new policy provided (update)
 	volume2 := &datamodel.Volume{
-		Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
 		Account:     &datamodel.Account{Name: "test_account"},
 		SizeInBytes: 100,
 		SnapshotPolicy: &datamodel.SnapshotPolicy{
@@ -399,7 +417,12 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPo
 
 	// Case : No snapshot policy provided in params (should skip snapshot policy logic)
 	volume3 := &datamodel.Volume{
-		Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account:     &datamodel.Account{Name: "test_account"},
 		SizeInBytes: 100,
 	}
@@ -449,7 +472,12 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SnapshotPolicy_OnlyEna
 	s.env.OnActivity(updateActivity.UpdateSnapshotPolicyInOntap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	volume := &datamodel.Volume{
-		Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account:     &datamodel.Account{Name: "test_account"},
 		SizeInBytes: 100,
 		SnapshotPolicy: &datamodel.SnapshotPolicy{
@@ -505,7 +533,12 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_NoSizeChange() {
 
 	// Execute workflow with no size change
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -556,7 +589,12 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Failure() {
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "test-volume-uuid"}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "test-volume-uuid"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -608,7 +646,14 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_BPSuccess() {
 
 	// Execute workflow with no size change
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -679,7 +724,12 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_FindTenancyDetailsFail
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -789,7 +839,12 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_CheckBackupVaultExistI
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -847,7 +902,12 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_CheckBucketResourceNam
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -907,7 +967,12 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GenerateResourceNamesF
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -968,7 +1033,12 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_CreateBucketForBackupV
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -1033,7 +1103,12 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateBucketDetailsOfB
 
 	// Execute workflow
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},
@@ -1088,7 +1163,12 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_AutoTier() {
 
 	// Execute workflow with no size change
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
 		Account: &datamodel.Account{
 			Name: "test_account",
 		},

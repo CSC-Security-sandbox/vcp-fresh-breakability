@@ -12,31 +12,35 @@ import (
 
 type Pool struct {
 	BaseModel
-	Name                    string          `gorm:"column:name"`
-	Description             string          `gorm:"column:description"`
-	State                   string          `gorm:"column:state"`
-	StateDetails            string          `gorm:"column:state_details"`
-	VendorID                string          `gorm:"column:vendor_id"`
-	ServiceLevel            string          `gorm:"column:service_level"`
-	SizeInBytes             int64           `gorm:"column:size_in_bytes"`
-	UsedBytes               int64           `gorm:"column:used_bytes"`
-	Network                 string          `gorm:"column:network;type:varchar(2048)"`
-	AllowAutoTiering        bool            `gorm:"column:allow_auto_tiering;default:false"`
-	HotTierSizeInBytes      int64           `gorm:"column:hot_tier_size_in_bytes"`
-	EnableHotTierAutoResize bool            `gorm:"column:enable_hot_tier_auto_resize;default:false"`
-	AccountID               int64           `gorm:"column:account_id;uniqueIndex:idx_account_deployment"`
-	Account                 *Account        `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	PoolAttributes          *PoolAttributes `gorm:"column:pool_attributes;type:jsonb"`
-	ClusterDetails          ClusterDetails  `gorm:"column:cluster_details;type:jsonb"`
-	QosType                 string          `gorm:"column:qos_type"`
-	Username                string          `gorm:"column:username"`
-	Password                string          `gorm:"column:password"`
-	AutoTierBucketName      string          `gorm:"column:auto_tier_bucket_name;type:text"`
-	ServiceAccountId        string          `gorm:"column:service_account_id;type:text"`
-	SecretID                string          `gorm:"column:secret_id"`
+	Name                    string           `gorm:"column:name"`
+	Description             string           `gorm:"column:description"`
+	State                   string           `gorm:"column:state"`
+	StateDetails            string           `gorm:"column:state_details"`
+	VendorID                string           `gorm:"column:vendor_id"`
+	ServiceLevel            string           `gorm:"column:service_level"`
+	SizeInBytes             int64            `gorm:"column:size_in_bytes"`
+	UsedBytes               int64            `gorm:"column:used_bytes"`
+	Network                 string           `gorm:"column:network;type:varchar(2048)"`
+	AllowAutoTiering        bool             `gorm:"column:allow_auto_tiering;default:false"`
+	HotTierSizeInBytes      int64            `gorm:"column:hot_tier_size_in_bytes"`
+	EnableHotTierAutoResize bool             `gorm:"column:enable_hot_tier_auto_resize;default:false"`
+	AccountID               int64            `gorm:"column:account_id"`
+	Account                 *Account         `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	PoolAttributes          *PoolAttributes  `gorm:"column:pool_attributes;type:jsonb"`
+	ClusterDetails          ClusterDetails   `gorm:"column:cluster_details;type:jsonb"`
+	QosType                 string           `gorm:"column:qos_type"`
+	AutoTierBucketName      string           `gorm:"column:auto_tier_bucket_name;type:text"`
+	ServiceAccountId        string           `gorm:"column:service_account_id;type:text"`
+	KmsConfigID             sql.NullInt64    `gorm:"index"`
+	KmsConfig               *KmsConfig       `gorm:"ForeignKey:KmsConfigID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	DeploymentName          string          `gorm:"column:deployment_name;uniqueIndex:idx_account_deployment"`
-	KmsConfigID             sql.NullInt64   `gorm:"index"`
-	KmsConfig               *KmsConfig      `gorm:"ForeignKey:KmsConfigID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	PoolCredentials         *PoolCredentials `gorm:"column:pool_credentials;type:jsonb"`
+}
+
+type PoolCredentials struct {
+	SecretID      string `json:"secret_id"`
+	CertificateID string `json:"certificate_id"`
+	Password      string `json:"password"`
 }
 
 type PoolView struct {
@@ -70,6 +74,7 @@ type Node struct {
 	State           string       `gorm:"column:state;type:text"`
 	StateDetails    string       `gorm:"column:state_details;type:text"`
 	EndpointAddress string       `gorm:"column:endpoint_Address;type:text"`
+	HostDNSName     string       `gorm:"column:host_dns_name;type:text"`
 	NodeAttributes  *NodeDetails `gorm:"column:node_attributes;type:jsonb"`
 	PoolID          int64        `gorm:"column:pool_id;type:bigint"`
 	ZoneName        string       `gorm:"column:zone_name;type:text"`
@@ -102,6 +107,20 @@ func (cd *ClusterDetails) Scan(value interface{}) error {
 // Value implements the driver.Valuer interface for ClusterDetails
 func (cd ClusterDetails) Value() (driver.Value, error) {
 	return json.Marshal(cd)
+}
+
+// Scan implements the Scanner interface for PoolCredentials
+func (pc *PoolCredentials) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, pc)
+}
+
+// Value implements the Valuer interface for PoolCredentials
+func (pc PoolCredentials) Value() (driver.Value, error) {
+	return json.Marshal(pc)
 }
 
 type Volume struct {

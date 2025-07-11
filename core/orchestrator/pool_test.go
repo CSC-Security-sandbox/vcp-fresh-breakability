@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -228,7 +229,11 @@ func TestCreatePool(t *testing.T) {
 				Iops:            1024,
 			},
 		}
-
+		originalnodePassword := common.NodePassword
+		common.NodePassword = "password"
+		defer func() {
+			common.NodePassword = originalnodePassword
+		}()
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return nil, errors.New("account not found")
 		}
@@ -261,6 +266,11 @@ func TestCreatePool(t *testing.T) {
 			},
 			Name: "test_account",
 		}
+		originalnodePassword := common.NodePassword
+		common.NodePassword = "password"
+		defer func() {
+			common.NodePassword = originalnodePassword
+		}()
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
@@ -330,6 +340,135 @@ func TestCreatePool(t *testing.T) {
 			},
 			Name: "test_account",
 		}
+		originalnodePassword := common.NodePassword
+		common.NodePassword = "password"
+
+		authType := common.AuthType
+		common.AuthType = common.USERNAME_PWD
+		defer func() {
+			common.AuthType = authType // Reset to original value after test
+			common.NodePassword = originalnodePassword
+		}()
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+			return nil
+		}
+
+		pool, _, err := orch.CreatePool(ctx, params)
+		if err != nil {
+			t.Errorf("Expected nil, got error")
+		}
+		assert.Equal(t, pool.Name, params.Name)
+		assert.Equal(t, pool.VendorSubNetID, params.VendorSubNetID)
+		assert.Equal(t, pool.AccountName, params.AccountName)
+	})
+	t.Run("WhenCreatePoolSucceedsWithCert", func(tt *testing.T) {
+		ctx, _, orch, temporal := setup(tt)
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		params := &common.CreatePoolParams{
+			AccountName:      "test_account",
+			Region:           "test_region",
+			PrimaryZone:      "test_zone",
+			SecondaryZone:    "",
+			Name:             "test_pool",
+			VendorID:         "test_vendor",
+			SizeInBytes:      1024,
+			AllowAutoTiering: true,
+			VendorSubNetID:   "test_network",
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				Enabled:         true,
+				ThroughputMibps: 64,
+				Iops:            1024,
+			},
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		authType := common.AuthType
+		common.AuthType = common.USER_CERTIFICATE
+		defer func() {
+			common.AuthType = authType // Reset to original value after test
+		}()
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		ValidateCreatePoolParams = func(params *common.CreatePoolParams) error {
+			return nil
+		}
+
+		pool, _, err := orch.CreatePool(ctx, params)
+		if err != nil {
+			t.Errorf("Expected nil, got error")
+		}
+		assert.Equal(t, pool.Name, params.Name)
+		assert.Equal(t, pool.VendorSubNetID, params.VendorSubNetID)
+		assert.Equal(t, pool.AccountName, params.AccountName)
+	})
+	t.Run("WhenCreatePoolSucceedsWithPasswordInSecretManager", func(tt *testing.T) {
+		ctx, _, orch, temporal := setup(tt)
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		// Create a PersistenceStore instance with the in-memory database
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		params := &common.CreatePoolParams{
+			AccountName:      "test_account",
+			Region:           "test_region",
+			PrimaryZone:      "test_zone",
+			SecondaryZone:    "",
+			Name:             "test_pool",
+			VendorID:         "test_vendor",
+			SizeInBytes:      1024,
+			AllowAutoTiering: true,
+			VendorSubNetID:   "test_network",
+			CustomPerformanceParams: &common.CustomPerformanceParams{
+				Enabled:         true,
+				ThroughputMibps: 64,
+				Iops:            1024,
+			},
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+			},
+			Name: "test_account",
+		}
+		authType := common.AuthType
+		common.AuthType = common.USERNAME_PWD_SEC_MGR
+		defer func() {
+			common.AuthType = authType // Reset to original value after test
+		}()
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
 		}
@@ -1282,11 +1421,13 @@ func TestConvertDatastorePoolsToModelWithoutAccountNameParam_ReturnsCorrectModel
 				Network:               "mock-cluster-network",
 			},
 			QosType:            "mock-qos-type",
-			Username:           "mock-username",
-			Password:           "mock-password",
 			AutoTierBucketName: "mock-bucket-name",
 			ServiceAccountId:   "mock-service-account-id",
-			SecretID:           "mock-secret-id",
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "mock-password",
+				SecretID:      "mock-secret-id",
+				CertificateID: "mock-certificate-id",
+			},
 		},
 		Throughput:   100.5,
 		QuotaInBytes: 2048 * 1024 * 1024, // 2 GiB
@@ -1302,50 +1443,62 @@ func TestConvertDatastorePoolsToModelWithoutAccountNameParam_ReturnsCorrectModel
 }
 
 func Test_getInterClusterLifsFromONTAP(t *testing.T) {
-	origGetProviderByNode := GetProviderByNode
-	defer func() { GetProviderByNode = origGetProviderByNode }()
-
-	node := &datamodel.Node{
-		Name:            "test-node",
-		EndpointAddress: "10.0.0.1",
-		NodeAttributes: &datamodel.NodeDetails{
-			InstanceType: "InstanceType",
+	// Prepare test data
+	nodes := []*datamodel.Node{
+		{
+			Name:           "node1",
+			NodeAttributes: &datamodel.NodeDetails{},
 		},
-		ZoneName: "zone",
 	}
-	pool := &datamodel.PoolView{Pool: datamodel.Pool{
-		Username: "user",
-	}}
-	nodes := []*datamodel.Node{node}
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "pass",
+				SecretID:      "secret",
+				CertificateID: "cert",
+			},
+		},
+	}
 
 	t.Run("success", func(t *testing.T) {
-		mockProv := new(vsa.MockProvider)
-		expectedLifs := []*vsa.InterclusterLif{{}}
-		GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
-			return mockProv, nil
+		origGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+
+		mockProvider := new(vsa.MockProvider)
+		expectedLifs := []*vsa.InterclusterLif{{Address: "1.2.3.4"}}
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
-		mockProv.On("GetInterclusterLIFs", "default-intercluster").Return(expectedLifs, nil)
-		lifs, err := _getInterClusterLifsFromONTAP(context.Background(), nodes, pool)
+		mockProvider.On("GetInterclusterLIFs", "default-intercluster").Return(expectedLifs, nil)
+
+		lifs, err := _getInterClusterLifsFromONTAP(context.Background(), nodes, poolView)
 		assert.NoError(t, err)
 		assert.Equal(t, expectedLifs, lifs)
 	})
 
 	t.Run("provider error", func(t *testing.T) {
-		GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
-			return nil, errors.New("provider error")
+		origGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, fmt.Errorf("provider error")
 		}
-		lifs, err := _getInterClusterLifsFromONTAP(context.Background(), nodes, pool)
+		lifs, err := _getInterClusterLifsFromONTAP(context.Background(), nodes, poolView)
 		assert.Error(t, err)
 		assert.Nil(t, lifs)
 	})
 
 	t.Run("GetInterclusterLIFs error", func(t *testing.T) {
-		mockProv := new(vsa.MockProvider)
-		GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
-			return mockProv, nil
+		origGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+
+		mockProvider := new(vsa.MockProvider)
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
-		mockProv.On("GetInterclusterLIFs", "default-intercluster").Return(nil, errors.New("lif error"))
-		lifs, err := _getInterClusterLifsFromONTAP(context.Background(), nodes, pool)
+		mockProvider.On("GetInterclusterLIFs", "default-intercluster").Return(nil, fmt.Errorf("lif error"))
+
+		lifs, err := _getInterClusterLifsFromONTAP(context.Background(), nodes, poolView)
 		assert.Error(t, err)
 		assert.Nil(t, lifs)
 	})

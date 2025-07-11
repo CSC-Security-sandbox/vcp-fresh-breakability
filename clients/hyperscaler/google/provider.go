@@ -351,7 +351,6 @@ func _initializePrivateCaService(ctx context.Context) (*privateca.Service, error
 	logger := util.GetLogger(ctx)
 	scopesOption := option.WithScopes(privateca.CloudPlatformScope)
 	opts := []option.ClientOption{scopesOption}
-	logger.Debug(fmt.Sprintf("opts: %#v", opts))
 
 	if MockMetaDataHost != "" {
 		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", privateca.CloudPlatformScope)))
@@ -382,7 +381,6 @@ func _initializeSecretManagerService(ctx context.Context) (*secretmanager.Servic
 	logger := util.GetLogger(ctx)
 	scopesOption := option.WithScopes(secretmanager.CloudPlatformScope)
 	opts := []option.ClientOption{scopesOption}
-	logger.Debug(fmt.Sprintf("opts: %#v", opts))
 
 	if MockMetaDataHost != "" {
 		opts = append(opts, option.WithTokenSource(google.ComputeTokenSource("", secretmanager.CloudPlatformScope)))

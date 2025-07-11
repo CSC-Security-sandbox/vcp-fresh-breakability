@@ -100,7 +100,6 @@ type OntapCertificate struct {
 	InterMediateCertificate []string `json:"intermediate_certificate"` // Intermediate certificate for ONTAP
 	CommonName              string   `json:"common_name"`              // Common name for ONTAP
 	CaCertificate           string   `json:"ca_certificate"`           // CA certificate for ONTAP
-	DNSName                 string   `json:"cert_dns"`                 // DNS name for the certificate
 }
 
 // OntapCredentials holds the credentials for ONTAP, including the certificate and username/password.

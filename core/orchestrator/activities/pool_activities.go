@@ -11,10 +11,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"go.temporal.io/sdk/activity"
-	"google.golang.org/api/iam/v1"
-	"google.golang.org/api/servicenetworking/v1"
-	"gorm.io/gorm"
 	"os"
 	"strconv"
 	"strings"
@@ -38,50 +34,61 @@ import (
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
+	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/servicenetworking/v1"
+	"gorm.io/gorm"
 	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
 
 var (
-	FindTenancyAndGetSubnetwork               = _findTenancyAndGetSubnetwork
-	DeploymentsInsert                         = common.DeploymentsInsert
-	PrepareVlmConfig                          = _prepareVlmConfig
-	PrepareVlmConfigForVLMClient              = _prepareVlmConfigForVLMClient
-	ReadFile                                  = os.ReadFile
-	GetVLMClient                              = _getVLMClient
-	SaveNodeDetails                           = _saveNodeDetails
-	DeleteLIFs                                = _deleteLIFs
-	DeleteSVMs                                = _deleteSVMs
-	FailedSVMs                                = _failedSVMs
-	DeleteNodes                               = _deleteNodes
-	FailedNodes                               = _failedNodes
-	DeletingNodes                             = _deletingNodes
-	DeletingSVMs                              = _deletingSVMs
-	CreateVPC                                 = _createVPC
-	InsertSubnet                              = _insertSubnet
-	InsertFirewall                            = _insertFirewall
-	SetupNetworkWithFirewall                  = setupNetworkWithFirewall
-	SetupNetworkFirewallsForIscsi             = setupNetworkFirewallsForIscsi
-	CreateGCPBucket                           = _createGCPBucket
-	CreateServiceAccountAndAttachRole         = _createServiceAccountAndAttachRole
-	DeleteSrvcAccount                         = _deleteServiceAccount
-	DeleteGCPBucket                           = _deleteGCPBucket
-	GetTenantAndSNHostProject                 = _getTenantAndSNHostProject
-	GenerateAndCreateCertificateForVSACluster = _generateAndCreateCertificateForVSACluster
-	GeneratePasswordForVSACluster             = _generatePasswordForVSACluster
-	GetPasswordForVSACluster                  = _getPasswordForVSACluster
-	GetPasswordFromCacheOrSecretManager       = _getPasswordFromCacheOrSecretManager
-	GenerateCSR                               = _generateCSR
-	DeletePasswordFromCacheAndSecretManager   = _deletePasswordFromSecretManagerAndCache
-	LoadVMRSConfig                            = vmrs_config.LoadConfig
-	CreateDecisionMaker                       = vmrs_decision.NewDecisionMaker
-	vlmConfigFilePath                         = env.GetString("VLM_CONFIG_FILE_PATH", "common/vsa_config/vlm-config.json")
-	ValidateVlmConfigInputs                   = _validateVlmConfigInputs
-	CreateSubnetwork                          = _createSubnetwork
-	ReleaseSubnet                             = _releaseSubnet
+	FindTenancyAndGetSubnetwork       = _findTenancyAndGetSubnetwork
+	DeploymentsInsert                 = common.DeploymentsInsert
+	PrepareVlmConfig                  = _prepareVlmConfig
+	PrepareVlmConfigForVLMClient      = _prepareVlmConfigForVLMClient
+	ReadFile                          = os.ReadFile
+	GetVLMClient                      = _getVLMClient
+	SaveNodeDetails                   = _saveNodeDetails
+	DeleteLIFs                        = _deleteLIFs
+	DeleteSVMs                        = _deleteSVMs
+	FailedSVMs                        = _failedSVMs
+	DeleteNodes                       = _deleteNodes
+	FailedNodes                       = _failedNodes
+	DeletingNodes                     = _deletingNodes
+	DeletingSVMs                      = _deletingSVMs
+	CreateVPC                         = _createVPC
+	InsertSubnet                      = _insertSubnet
+	InsertFirewall                    = _insertFirewall
+	SetupNetworkWithFirewall          = setupNetworkWithFirewall
+	SetupNetworkFirewallsForIscsi     = setupNetworkFirewallsForIscsi
+	CreateGCPBucket                   = _createGCPBucket
+	CreateServiceAccountAndAttachRole = _createServiceAccountAndAttachRole
+	DeleteSrvcAccount                 = _deleteServiceAccount
+	DeleteGCPBucket                   = _deleteGCPBucket
+	GetTenantAndSNHostProject         = _getTenantAndSNHostProject
+	LoadVMRSConfig                    = vmrs_config.LoadConfig
+	CreateDecisionMaker               = vmrs_decision.NewDecisionMaker
+	vlmConfigFilePath                 = env.GetString("VLM_CONFIG_FILE_PATH", "common/vsa_config/vlm-config.json")
+	ValidateVlmConfigInputs           = _validateVlmConfigInputs
+	CreateSubnetwork                  = _createSubnetwork
+	ReleaseSubnet                     = _releaseSubnet
 
 	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
 	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
-	enforceMinSPConfig = env.GetBool("ENFORCE_MIN_SP_CONFIG", false)
+	enforceMinSPConfig                                  = env.GetBool("ENFORCE_MIN_SP_CONFIG", false)
+	GenerateAndCreateCertificateForVSACluster           = _generateAndCreateCertificateForVSACluster
+	GeneratePasswordForVSACluster                       = _generatePasswordForVSACluster
+	GetPasswordForVSACluster                            = _getPasswordForVSACluster
+	GetPasswordFromCacheOrSecretManager                 = _getPasswordFromCacheOrSecretManager
+	GenerateCSR                                         = _generateCSR
+	DeletePasswordFromCacheAndSecretManager             = _deletePasswordFromSecretManagerAndCache
+	DeleteCloudDNSRecord                                = _deleteCloudDNSRecord
+	GetOrCreateCloudDNSRecord                           = _getOrCreateCloudDNSRecord
+	GetCertificateAndPrivateKeyByID                     = _getCertificateAndPrivateKeyByID
+	GetOrCreatePrivateKeyInSecretManagerAndCache        = _getOrCreatePrivateKeyInSecretManagerAndCache
+	GetOrCreateCertificateInCASAndPrivateKeyInSM        = _getOrCreateCertificateInCASAndPrivateKeyInSM
+	GetCertificateFromCacheOrSecretManager              = _getCertificateFromCacheOrSecretManager
+	RevokeCertificateAndDeleteFromCacheAndSecretManager = _revokeCertificateAndDeleteFromCacheAndSecretManager
 )
 
 type PoolActivity struct {
@@ -343,55 +350,128 @@ func (j *PoolActivity) SetupNetwork(ctx context.Context, region, project, snHost
 	return nil
 }
 
-func (j *PoolActivity) CreateCertificate(ctx context.Context, region, clusterName string) error {
+func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamodel.Pool, region, clusterName string) (*vlm.OntapCredentials, error) {
+	credentials := &vlm.OntapCredentials{}
+	gcpService, getGcpServiceErr := GetGCPService(ctx)
+	if getGcpServiceErr != nil {
+		return nil, getGcpServiceErr
+	}
+
+	switch commonparams.AuthType {
+	case commonparams.USER_CERTIFICATE:
+		// Generate and create a certificate for the VSA cluster in CAS and fallthrough to generate and create the password for VSA cluster in Secret Manager as well
+		certificate, err := GenerateAndCreateCertificateForVSACluster(gcpService, region, pool.PoolCredentials.CertificateID, clusterName)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		credentials.Certificate.CommonName = certificate.Certificate.SubjectCommonName
+		credentials.Certificate.Certificate = certificate.Certificate.PemCertificate
+		credentials.Certificate.PrivateKey = certificate.Secret.SecretVersion.Value
+		credentials.Certificate.InterMediateCertificate = certificate.Certificate.PemCertificateChain
+		credentials.Certificate.CaCertificate = certificate.Certificate.RootCACertificate
+		fallthrough
+	case commonparams.USERNAME_PWD_SEC_MGR:
+		secret, err := GeneratePasswordForVSACluster(gcpService, commonparams.SecretManagerProjectID, region, pool.PoolCredentials.SecretID)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		credentials.AdminPassword = secret.SecretVersion.Value
+	default:
+		credentials.AdminPassword = pool.PoolCredentials.Password
+	}
+	return credentials, nil
+}
+
+func (j *PoolActivity) DeleteOnTapCredentials(ctx context.Context, pool *datamodel.Pool) error {
 	gcpService, err := GetGCPService(ctx)
 	if err != nil {
 		return err
 	}
-
-	// Generate a unique certificate ID and common name
-	uuid := utils.RandomUUID()
-	domains := fmt.Sprintf("*.%s.%s", clusterName, commonparams.VsaDeployedDnsName)
-	params := &hyperscaler_models.CustomCertificateParam{
-		Region:           region,
-		CaPoolName:       commonparams.CaPoolName,
-		CaName:           commonparams.CaName,
-		CertificateID:    uuid,
-		CommonName:       commonparams.VCP_ADMIN,
-		Domains:          []string{domains},
-		CertOwningEntity: commonparams.CaPoolDeployedProjectID,
-	}
-	_, _, err = GenerateAndCreateCertificateForVSACluster(gcpService, params)
-	if err != nil {
-		return err
+	switch commonparams.AuthType {
+	case commonparams.USER_CERTIFICATE:
+		// Revoke the certificates and delete the private key from secret manager and cache then fallthrough to delete the password from secret manager and cache
+		err = RevokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, pool.PoolCredentials.CertificateID)
+		if err != nil {
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		fallthrough
+	case commonparams.USERNAME_PWD_SEC_MGR:
+		err = DeletePasswordFromCacheAndSecretManager(gcpService, pool.PoolCredentials.SecretID)
+		if err != nil {
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	default:
+		return nil
 	}
 	return nil
 }
 
-// CreateSecret creates a secret in GCP Secret Manager for the VSA cluster
-func (j *PoolActivity) CreateSecret(ctx context.Context, region, secretID string) (*hyperscaler_models.CustomSecret, error) {
-	gcpService, err := GetGCPService(ctx)
-	if err != nil {
-		return nil, err
+func (j *PoolActivity) GetOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
+	credentials := &vlm.OntapCredentials{}
+	switch commonparams.AuthType {
+	case commonparams.USER_CERTIFICATE:
+		certificate, err := GetCertificateFromCacheOrSecretManager(ctx, pool.PoolCredentials.CertificateID)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		credentials.Certificate.CommonName = certificate.CommonName
+		credentials.Certificate.Certificate = certificate.SignedCertificate
+		credentials.Certificate.PrivateKey = certificate.PrivateKey
+		credentials.Certificate.InterMediateCertificate = certificate.InterMediateCertificates
+		credentials.Certificate.CaCertificate = certificate.RootCaCertificate
+		fallthrough
+	case commonparams.USERNAME_PWD_SEC_MGR:
+		secret, err := GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		credentials.AdminPassword = secret
+	default:
+		credentials.AdminPassword = pool.PoolCredentials.Password
 	}
-	secret, err := GeneratePasswordForVSACluster(gcpService, commonparams.SecretManagerProjectID, region, secretID)
-	if err != nil {
-		return nil, err
-	}
-	return secret, nil
+	return credentials, nil
 }
 
-// DeleteSecret deletes a secret from GCP Secret Manager for the VSA cluster
-func (j *PoolActivity) DeleteSecret(ctx context.Context, secretID string) error {
-	gcpService, err := GetGCPService(ctx)
+func _revokeCertificateAndDeleteFromCacheAndSecretManager(gcpService hyperscaler.GoogleServices, certificateID string) error {
+	logger := gcpService.GetLogger()
+	_, err := gcpService.GetCertificate(commonparams.CaPoolDeployedProjectID, commonparams.Region, commonparams.CaPoolName, certificateID)
 	if err != nil {
+		logger.Errorf("Failed to get certificate from cache for project %s and region %s", commonparams.CaPoolDeployedProjectID, commonparams.Region)
+		return err
+	}
+	certObject := &hyperscaler_models.CustomCertificate{
+		CertOwningEntity: commonparams.CaPoolDeployedProjectID,
+		Region:           commonparams.Region,
+		CaGroupName:      commonparams.CaPoolName,
+		CertificateID:    certificateID,
+	}
+
+	// delete the certificate from CAS
+	_, err = gcpService.RevokeCertificate(certObject)
+	if err != nil {
+		logger.Errorf("Failed to revoke certificate for project %s and region %s", commonparams.CaPoolDeployedProjectID, commonparams.Region)
 		return err
 	}
 
-	err = DeletePasswordFromCacheAndSecretManager(gcpService, commonparams.SecretManagerProjectID, secretID)
+	_, err = gcpService.GetSecretWithLatestVersion(commonparams.SecretManagerProjectID, certificateID)
 	if err != nil {
+		logger.Errorf("Failed to get private key from secret manager for project %s and certificate %s", commonparams.SecretManagerProjectID, certificateID)
 		return err
 	}
+
+	// delete the private key from secret manager
+	err = gcpService.DeleteSecret(commonparams.SecretManagerProjectID, certificateID)
+	if err != nil {
+		logger.Errorf("Failed to delete private key from secret manager for project %s and certificate %s", commonparams.SecretManagerProjectID, certificateID)
+		return err
+	}
+
+	// delete from cache if not expired
+	done := commonparams.RemoveFromCertAuthCache(certificateID)
+	if !done {
+		logger.Errorf("Failed to remove certificate %s from cache", certificateID)
+	}
+
 	return nil
 }
 
@@ -627,25 +707,25 @@ func _validateVlmConfigInputs(vlmConfig *vlm.VLMConfig, decision *vmrs.Decision,
 }
 
 // Update VSA cluster by invoking VLM.
-func (j *PoolActivity) UpdateVSACluster(ctx context.Context, dup *vlmconfig.DeploymentUpdateParams) (*vlmconfig.VLMConfig, error) {
+func (j *PoolActivity) UpdateVSACluster(ctx context.Context, currentVlmConfig *vlmconfig.VLMConfig, newVlmConfig *vlmconfig.VLMConfig, credential vlmconfig.OntapCredentials) (*vlmconfig.VLMConfig, error) {
 	logger := util.GetLogger(ctx)
-	vlmClient := GetVLMClient(ctx, logger, dup.VlmConfig)
+	vlmClient := GetVLMClient(ctx, logger, currentVlmConfig)
 
-	err := vlmClient.VSAClusterDeployUpdate(ctx, dup)
+	vlmConfig, err := vlmClient.VSAClusterDeployUpdate(ctx, credential, currentVlmConfig, newVlmConfig)
 	if err != nil {
 		logger.Error("Failed to update VSA cluster", "error", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return dup.VlmConfig, nil
+	return vlmConfig, nil
 }
 
-func (j *PoolActivity) CreateVlmConfig(ctx context.Context, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, decision *vmrs.Decision, password string, saEmail string, autoTierBucket string) (*vlmconfig.VLMConfig, error) {
+func (j *PoolActivity) CreateVlmConfig(ctx context.Context, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, decision *vmrs.Decision, saEmail string, autoTierBucket string) (*vlmconfig.VLMConfig, error) {
 	cfg := &vlmconfig.VLMConfig{}
-	err := PrepareVlmConfigForVLMClient(cfg, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, decision, password, saEmail, autoTierBucket)
+	err := PrepareVlmConfigForVLMClient(cfg, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, decision, saEmail, autoTierBucket)
 	return cfg, vsaerrors.WrapAsTemporalApplicationError(err)
 }
 
-func _prepareVlmConfigForVLMClient(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, decision *vmrs.Decision, password string, saEmail string, autoTierBucket string) error {
+func _prepareVlmConfigForVLMClient(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, decision *vmrs.Decision, saEmail string, autoTierBucket string) error {
 	vlmContent, err := ReadFile(vlmConfigFilePath)
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrFileReadError, err)
@@ -693,10 +773,6 @@ func _prepareVlmConfigForVLMClient(cfg *vlmconfig.VLMConfig, deploymentName, reg
 		ServiceAccountEmail: saEmail,
 		BucketName:          autoTierBucket,
 	}
-
-	cfg.Deployment.OntapCredentials.Username = env.GetString("VSA_NODE_USERNAME", "")
-	cfg.Deployment.OntapCredentials.Password = password
-
 	// Bootargs for key manager
 	cfg.Deployment.UserBootargs = keyManagerBootarg
 
@@ -711,17 +787,92 @@ func assignNetworkConfigForVLMClient(cfg *vlmconfig.VLMConfig, lifType vlmconfig
 	}
 }
 
-func (j *PoolActivity) SaveVSANodeDetails(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlm.VLMConfig, ontapCredentials *vlm.OntapCredentials) (node1 *datamodel.Node, err error) {
+// CreateCloudDNSRecords creates DNS records for the VSA cluster's nodes in the cloud DNS service
+func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlmconfig.VLMConfig, clusterName string) (*map[string]string, error) {
+	hostMap := make(map[string]string)
+	if commonparams.AuthType == commonparams.USER_CERTIFICATE {
+		if len(vlmConfig.Cloud.HAPairs) == 0 {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("no cluster details provided")))
+		}
+		for i, details := range vlmConfig.Cloud.HAPairs {
+			if len(details.VM1.SystemLIFs) == 0 || len(details.VM2.SystemLIFs) == 0 {
+				return nil, vsaerrors.WrapAsTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("no system LIFs provided for VMs")))
+			}
+			gcpService, err := GetGCPService(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			IpaddressVm1 := details.VM1.SystemLIFs[vlmconfig.LIFTypeNodeMgmt].IP
+			haPairNode1 := fmt.Sprintf("%s-%d.%s.%s.", "dns", (2*i)+1, clusterName, commonparams.VsaDeployedDnsName)
+			record1, err := GetOrCreateCloudDNSRecord(gcpService, IpaddressVm1, haPairNode1)
+			if err != nil {
+				return nil, err
+			}
+			hostMap[IpaddressVm1] = record1.RecordName
+
+			IpaddressVm2 := details.VM2.SystemLIFs[vlmconfig.LIFTypeNodeMgmt].IP
+			haPairNode2 := fmt.Sprintf("%s-%d.%s.%s.", "dns", (2*i)+2, clusterName, commonparams.VsaDeployedDnsName)
+			record2, err := GetOrCreateCloudDNSRecord(gcpService, IpaddressVm2, haPairNode2)
+			if err != nil {
+				return nil, err
+			}
+			hostMap[IpaddressVm2] = record2.RecordName
+		}
+		return &hostMap, nil
+	}
+	return &hostMap, nil
+}
+
+func (j *PoolActivity) DeleteCloudDNSRecords(ctx context.Context, hostMap map[string]string) error {
+	if commonparams.AuthType == commonparams.USER_CERTIFICATE {
+		gcpService, err := GetGCPService(ctx)
+		if err != nil {
+			return err
+		}
+		// Delete entries for each node
+		for _, host := range hostMap {
+			// Check if the node is already deleted
+			err = DeleteCloudDNSRecord(gcpService, host)
+			if err != nil {
+				util.GetLogger(ctx).Errorf("Failed to delete DNS record for host %s: %v", host, err)
+				return vsaerrors.WrapAsTemporalApplicationError(err)
+			}
+		}
+	}
+	return nil
+}
+
+func (j *PoolActivity) GetCloudDNSRecords(ctx context.Context, poolId int64) (*map[string]string, error) {
+	hostMap := make(map[string]string)
+	if commonparams.AuthType == commonparams.USER_CERTIFICATE {
+		se := j.SE
+		nodes, err := se.GetNodesByPoolID(ctx, poolId)
+		if err != nil {
+			return &hostMap, err
+		}
+		if len(nodes) == 0 {
+			return &hostMap, errors.New("no node found for the pool")
+		}
+		for _, node := range nodes {
+			hostMap[node.EndpointAddress] = node.HostDNSName
+		}
+	}
+	return &hostMap, nil
+}
+
+func (j *PoolActivity) SaveVSANodeDetails(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlm.VLMConfig, deploymentName string, hostMap map[string]string) (node1 *datamodel.Node, err error) {
 	if len(vlmConfig.Cloud.HAPairs) == 0 {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(
 			vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("no cluster details provided")))
 	}
 	for _, details := range vlmConfig.Cloud.HAPairs {
-		node1, err = SaveNodeDetails(ctx, j.SE, details.VM1, vlmConfig.Deployment, ontapCredentials, pool)
+		node1, err = SaveNodeDetails(ctx, j.SE, details.VM1, vlmConfig.Deployment, pool, deploymentName, hostMap)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
-		_, err = SaveNodeDetails(ctx, j.SE, details.VM2, vlmConfig.Deployment, ontapCredentials, pool)
+		_, err = SaveNodeDetails(ctx, j.SE, details.VM2, vlmConfig.Deployment, pool, deploymentName, hostMap)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -729,24 +880,23 @@ func (j *PoolActivity) SaveVSANodeDetails(ctx context.Context, pool *datamodel.P
 	return node1, nil
 }
 
-func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMConfig, deploymentConfig vlm.DeploymentConfig, ontapCredentials *vlm.OntapCredentials, pool *datamodel.Pool) (*datamodel.Node, error) {
+func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMConfig, deploymentConfig vlm.DeploymentConfig, pool *datamodel.Pool, deploymentName string, hostMap map[string]string) (*datamodel.Node, error) {
 	node := &models.Node{
-		Name:            vmConfig.HostName,
-		EndpointAddress: vmConfig.SystemLIFs[vlm.LIFTypeNodeMgmt].IP,
-		Username:        pool.Username,
-		Zone:            vmConfig.Zone,
-		InstanceType:    deploymentConfig.VSAInstanceType,
+		Name:                           vmConfig.HostName,
+		EndpointAddress:                vmConfig.SystemLIFs[vlm.LIFTypeNodeMgmt].IP,
+		Zone:                           vmConfig.Zone,
+		InstanceType:                   deploymentConfig.VSAInstanceType,
+		DeploymentName:                 deploymentName,
+		EndpointAddressesToHostNameMap: hostMap,
+		CertificateID:                  pool.PoolCredentials.CertificateID,
+		SecretID:                       pool.PoolCredentials.SecretID,
+		Password:                       pool.PoolCredentials.Password,
 	}
-	if pool.SecretID != "" {
-		node.SecretID = pool.SecretID
-	} else {
-		node.Password = ontapCredentials.AdminPassword
-	}
+
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-
 	vsaNode, err := provider.GetNodeByName(node.Name)
 	if err != nil {
 		return nil, err
@@ -760,7 +910,11 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMC
 		NodeAttributes:  &datamodel.NodeDetails{ExternalUUID: vsaNode.ExternalUUID, InstanceType: node.InstanceType},
 		ZoneName:        node.Zone,
 	}
-
+	if commonparams.AuthType == commonparams.USER_CERTIFICATE {
+		rec.HostDNSName = hostMap[node.EndpointAddress]
+	} else {
+		rec.HostDNSName = node.EndpointAddress
+	}
 	if _, err = se.CreateNode(ctx, rec); err != nil && !utilErrors.IsConflictErr(err) {
 		return nil, err
 	}
@@ -1301,43 +1455,123 @@ func _insertFirewall(gService hyperscaler.GoogleServices, projectName, firewallN
 }
 
 // _generateAndCreateCertificateForVSACluster generates a CSR and creates a certificate in GCP Certificate Authority Service.
-func _generateAndCreateCertificateForVSACluster(gcpService hyperscaler.GoogleServices, param *hyperscaler_models.CustomCertificateParam) (*hyperscaler_models.CustomCertificate, *hyperscaler_models.CustomSecret, error) {
+func _generateAndCreateCertificateForVSACluster(gcpService hyperscaler.GoogleServices, region, certificateID, clusterName string) (*hyperscaler_models.CustomCertificateResponse, error) {
 	logger := gcpService.GetLogger()
+	domains := fmt.Sprintf("*.%s.%s", clusterName, commonparams.VsaDeployedDnsName)
+	param := &hyperscaler_models.CustomCertificateParam{
+		Region:           region,
+		CertificateID:    certificateID,
+		CaPoolName:       commonparams.CaPoolName,
+		CaName:           commonparams.CaName,
+		CommonName:       commonparams.VCP_ADMIN,
+		Domains:          []string{domains},
+		CertOwningEntity: commonparams.CaPoolDeployedProjectID,
+	}
 	// Generate CSR
 	csrDER, key, err := GenerateCSR(param.CommonName, param.Domains)
 	if err != nil {
 		logger.Errorf("failed to generate CSR for commonName: %s, certificateId : %s, err : %v", param.CommonName, param.CertificateID, err)
-		return nil, nil, err
+		return nil, err
 	}
+
 	pemBlock := pem.Block{
 		Type:  CsrType,
 		Bytes: csrDER,
 	}
 	logger.Debug("Generate CSR for commonName: %s, certificateId : %s", param.CommonName, param.CertificateID)
 
-	certificate, err := commonparams.ValidateAndConvertCertificateParamsToCustomCertificate(param, pemBlock)
+	customCertificate, err := commonparams.ValidateAndConvertCertificateParamsToCustomCertificate(param, pemBlock)
 	if err != nil {
-		return nil, nil, err
-	}
-	// Create the Certificate
-	certificate, err = gcpService.CreateCertificate(certificate)
-	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	// Store the private key in Secret Manager
-	secretName := fmt.Sprintf("%s-%s-%s-%s", param.CertOwningEntity, param.Region, param.CaName, param.CertificateID)
-	secretValue := commonparams.ConvertPrivateKeyToString(key, RsaKeyType)
-	secret, err := gcpService.CreateSecret(param.CertOwningEntity, param.Region, secretName, secretValue)
+	// Create the Certificate
+	cert, secret, err := GetOrCreateCertificateInCASAndPrivateKeyInSM(gcpService, customCertificate, key)
 	if err != nil {
-		// Revoke the certificate if the secret creation fails
-		_, revokeError := gcpService.RevokeCertificate(certificate)
-		if revokeError != nil {
-			return nil, nil, revokeError
+		logger.Errorf("failed to create customCertificate in CAS and private key in SM for commonName: %s, certificateId : %s, err : %v", param.CommonName, param.CertificateID, err)
+		return nil, err
+	}
+
+	// Add the certificate to the cache
+	commonparams.AddToCertAuthCache(certificateID, &models.Certificate{
+		CommonName:               cert.SubjectCommonName,
+		SignedCertificate:        cert.PemCertificate,
+		PrivateKey:               secret.SecretVersion.Value,
+		InterMediateCertificates: cert.PemCertificateChain,
+		RootCaCertificate:        cert.RootCACertificate,
+	})
+	return &hyperscaler_models.CustomCertificateResponse{
+		Certificate: cert,
+		Secret:      secret,
+	}, nil
+}
+
+// _getOrCreateCertificateInCASAndPrivateKeyInSM creates a certificate in GCP Certificate Authority Service and stores the private key in Secret Manager.
+func _getOrCreateCertificateInCASAndPrivateKeyInSM(gcpService hyperscaler.GoogleServices, certificate *hyperscaler_models.CustomCertificate, key *rsa.PrivateKey) (*hyperscaler_models.CustomCertificate, *hyperscaler_models.CustomSecret, error) {
+	// Create the certificate if Get the certificate fails
+	logger := gcpService.GetLogger()
+	var secret *hyperscaler_models.CustomSecret
+	var cert *hyperscaler_models.CustomCertificate
+	cert, err := gcpService.GetCertificate(commonparams.CaPoolDeployedProjectID, certificate.Region, commonparams.CaPoolName, certificate.CertificateID)
+	if err != nil {
+		// Create the Certificate
+		cert, err = gcpService.CreateCertificate(certificate)
+		if err != nil {
+			logger.Errorf("failed to create certificate in CAS for commonName: %s, certificateId : %s, err : %v", certificate.SubjectCommonName, certificate.CertificateID, err)
+			return nil, nil, err
 		}
+		logger.Debugf("created certificate in CAS for commonName: %s, certificateId : %s", certificate.SubjectCommonName, certificate.CertificateID)
+
+		secret, err = GetOrCreatePrivateKeyInSecretManagerAndCache(gcpService, certificate, key)
+		if err != nil {
+			return nil, nil, err
+		}
+		return cert, secret, nil
+	}
+
+	secret, err = GetOrCreatePrivateKeyInSecretManagerAndCache(gcpService, certificate, key)
+	if err != nil {
 		return nil, nil, err
 	}
-	return certificate, secret, nil
+	return cert, secret, nil
+}
+
+func _getOrCreatePrivateKeyInSecretManagerAndCache(gcpService hyperscaler.GoogleServices, certificate *hyperscaler_models.CustomCertificate, key *rsa.PrivateKey) (*hyperscaler_models.CustomSecret, error) {
+	logger := gcpService.GetLogger()
+	secret, err := gcpService.GetSecretWithLatestVersion(commonparams.SecretManagerProjectID, certificate.CertificateID)
+	if err != nil {
+		// Store the private key in Secret Manager
+		secretValue := commonparams.ConvertPrivateKeyToString(key, RsaKeyType)
+		secret, err = gcpService.CreateSecret(commonparams.SecretManagerProjectID, certificate.Region, certificate.CertificateID, secretValue)
+		if err != nil {
+			logger.Errorf("failed to create secret in SM for commonName: %s, certificateId : %s, err : %v", certificate.SubjectCommonName, certificate.CertificateID, err)
+			// Revoke the certificate if the secret creation fails
+			_, revokeError := gcpService.RevokeCertificate(certificate)
+			if revokeError != nil {
+				logger.Errorf("failed to revoke certificate in CAS for commonName: %s, certificateId : %s, err : %v", certificate.SubjectCommonName, certificate.CertificateID, revokeError)
+				return nil, revokeError
+			}
+			return nil, err
+		}
+		logger.Debugf("created secret in SM for commonName: %s, certificateId : %s", certificate.SubjectCommonName, certificate.CertificateID)
+	}
+	return secret, nil
+}
+
+// _getCertificateForVSACluster retrieves the certificate for a VSA cluster from GCP Certificate Authority Service and Private key from Secret Manager.
+func _getCertificateAndPrivateKeyByID(gcpService hyperscaler.GoogleServices, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscaler_models.CustomCertificateResponse, error) {
+	certificate, err := gcpService.GetCertificate(caDeployedProjectID, region, caPoolName, certificateID)
+	if err != nil || certificate == nil {
+		return nil, fmt.Errorf("failed to get certficate for project: %s, region: %s, caPoolName : %s, certificateID : %s, err: %s", caDeployedProjectID, region, caPoolName, certificateID, err)
+	}
+	secret, err := gcpService.GetSecretWithLatestVersion(secretManagerProjectID, certificateID)
+	if err != nil || secret == nil || secret.SecretVersion == nil {
+		return nil, fmt.Errorf("failed to get secret for project: %s, certificateID: %s, err: %s", secretManagerProjectID, certificateID, err)
+	}
+	return &hyperscaler_models.CustomCertificateResponse{
+		Certificate: certificate,
+		Secret:      secret,
+	}, nil
 }
 
 // _generatePasswordForVSACluster generates a strong password and creates a secret in GCP Secret Manager.
@@ -1361,57 +1595,80 @@ func _generatePasswordForVSACluster(gcpService hyperscaler.GoogleServices, proje
 }
 
 // _getPasswordForVSACluster retrieves the password for a VSA cluster from GCP Secret Manager.
-func _getPasswordForVSACluster(ctx context.Context, projectID, secretID string) (*hyperscaler_models.CustomSecret, error) {
-	var gcpService hyperscaler.GoogleServices
-	gcpService, err := GetGCPService(ctx)
-	if err != nil {
-		return nil, err
-	}
-	secret, err := gcpService.GetSecretWithLatestVersion(projectID, secretID)
+func _getPasswordForVSACluster(gcpService hyperscaler.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+	secret, err := gcpService.GetSecretWithLatestVersion(commonparams.SecretManagerProjectID, secretID)
 	if err != nil || secret == nil || secret.SecretVersion == nil {
-		return nil, fmt.Errorf("failed to get secret for project: %s, userName: %s, err: %s", projectID, secretID, err)
+		return nil, fmt.Errorf("failed to get secret for project: %s, userName: %s, err: %s", commonparams.SecretManagerProjectID, secretID, err)
 	}
 	return secret, nil
 }
 
 // _getPasswordFromCacheOrSecretManager retrieves the password for a VSA cluster from cache or GCP Secret Manager if not found in cache.
-func _getPasswordFromCacheOrSecretManager(ctx context.Context, secretID string) string {
+func _getPasswordFromCacheOrSecretManager(ctx context.Context, secretID string) (string, error) {
 	password := ""
 	userCache, exist := commonparams.GetFromUserAuthCache(secretID)
 	if !exist || userCache.Password == "" {
-		secret, err := GetPasswordForVSACluster(ctx, commonparams.SecretManagerProjectID, secretID)
+		gcpService, err := GetGCPService(ctx)
 		if err != nil {
-			return ""
+			return "", err
+		}
+		secret, err := GetPasswordForVSACluster(gcpService, secretID)
+		if err != nil {
+			return "", err
 		}
 		password = secret.SecretVersion.Value
 		commonparams.AddToUserAuthCache(secretID, password)
-		return password
+		return password, nil
 	}
 	password = userCache.Password
-	return password
+	return password, nil
 }
 
 // _deletePasswordFromSecretManagerAndCache generates a strong password and creates a secret in GCP Secret Manager.
-func _deletePasswordFromSecretManagerAndCache(gcpService hyperscaler.GoogleServices, projectID, secretID string) error {
+func _deletePasswordFromSecretManagerAndCache(gcpService hyperscaler.GoogleServices, secretID string) error {
 	logger := gcpService.GetLogger()
-	_, err := gcpService.GetSecretWithLatestVersion(projectID, secretID)
-	if err != nil {
-		logger.Errorf("failed to get password from secret manager for secretID: %s, err : %v", secretID, err)
-		return err
-	}
-	err = gcpService.DeleteSecret(projectID, secretID)
-	if err != nil {
-		logger.Errorf("failed to delete password for secretID: %s, err : %v", secretID, err)
-		return err
-	}
+	_, err := gcpService.GetSecretWithLatestVersion(commonparams.SecretManagerProjectID, secretID)
+	if err == nil {
+		err = gcpService.DeleteSecret(commonparams.SecretManagerProjectID, secretID)
+		if err != nil {
+			logger.Errorf("failed to delete password for secretID: %s, err : %v", secretID, err)
+			return err
+		}
 
-	done := commonparams.RemoveFromUserAuthCache(secretID)
-	if !done {
-		logger.Errorf("failed to remove password from cache for secretID: %s", secretID)
-		return nil
+		done := commonparams.RemoveFromUserAuthCache(secretID)
+		if !done {
+			logger.Errorf("failed to remove password from cache for secretID: %s", secretID)
+			return nil
+		}
 	}
-
 	return nil
+}
+
+// _getCertificateFromCacheOrSecretManager retrieves the certificate from cache or GCP Certificate and Secret Manager.
+func _getCertificateFromCacheOrSecretManager(ctx context.Context, certificateID string) (*models.Certificate, error) {
+	certCache, exist := commonparams.GetCertAuthCache(certificateID)
+	// If not found in cache, fetch from GCP Certificate and Secret Manager
+	if !exist || certCache.Certificate == nil {
+		gcpService, err := GetGCPService(ctx)
+		if err != nil {
+			return nil, err
+		}
+		certificateResponse, err := GetCertificateAndPrivateKeyByID(gcpService, commonparams.CaPoolDeployedProjectID, commonparams.SecretManagerProjectID, commonparams.Region, commonparams.CaPoolName, certificateID)
+		if err != nil {
+			return nil, err
+		}
+		cert := &models.Certificate{
+			SignedCertificate:        certificateResponse.Certificate.CertificateID,
+			PrivateKey:               certificateResponse.Secret.SecretVersion.Value,
+			CommonName:               certificateResponse.Certificate.SubjectCommonName,
+			InterMediateCertificates: certificateResponse.Certificate.PemCertificateChain,
+			RootCaCertificate:        certificateResponse.Certificate.RootCACertificate,
+		}
+		commonparams.AddToCertAuthCache(certificateID, cert)
+		return cert, nil
+	}
+
+	return certCache.Certificate, nil
 }
 
 // _generateCSR generates a Certificate Signing Request (CSR) with the specified common name and domains.
@@ -1478,4 +1735,33 @@ func _generateCSR(commonName string, domains []string) ([]byte, *rsa.PrivateKey,
 	}
 
 	return csrDER, key, nil
+}
+
+// _getOrCreateCloudDNSRecord checks if a Cloud DNS record exists, and if not, creates it.
+func _getOrCreateCloudDNSRecord(gcpService hyperscaler.GoogleServices, recordName, ipAddress string) (*hyperscaler_models.CustomCloudDNSRecord, error) {
+	record, getErr := gcpService.GetResourceRecordSet(commonparams.CaPoolDeployedProjectID, commonparams.VsaManagedZone, recordName)
+	if getErr != nil {
+		gcpService.GetLogger().Debugf("Creating Cloud DNS record: %s.%s with type %s", recordName, commonparams.VsaManagedZone, recordName)
+		record, err := gcpService.CreateResourceRecordSet(commonparams.CaPoolDeployedProjectID, commonparams.VsaManagedZone, ipAddress, recordName)
+		if err != nil {
+			gcpService.GetLogger().Errorf("Failed to create Cloud DNS record: %v", err)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		return record, nil
+	}
+	// If the record already exists, return it
+	return record, nil
+}
+
+func _deleteCloudDNSRecord(gcpService hyperscaler.GoogleServices, recordName string) error {
+	logger := gcpService.GetLogger()
+	_, err := gcpService.GetResourceRecordSet(commonparams.CaPoolDeployedProjectID, commonparams.VsaManagedZone, recordName)
+	if err == nil {
+		logger.Debugf("Deleting Cloud DNS record: %s.%s", recordName, commonparams.VsaManagedZone)
+		err = gcpService.DeleteResourceRecordSet(commonparams.CaPoolDeployedProjectID, commonparams.VsaManagedZone, recordName)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

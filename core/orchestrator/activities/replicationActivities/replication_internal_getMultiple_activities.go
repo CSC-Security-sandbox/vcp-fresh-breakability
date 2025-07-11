@@ -6,7 +6,6 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	vsamodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -110,11 +109,7 @@ func (r *ReplicationInternalGetMultipleActivity) GetReplicationsFromOntap(ctx co
 			continue // Skip if no replications for this pool
 		}
 		// Prepare node for provider
-		nodeModel := &models.Node{
-			EndpointAddress: node.EndpointAddress,
-			Username:        replications[0].Volume.Pool.Username,
-			Password:        replications[0].Volume.Pool.Password,
-		}
+		nodeModel := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: []*datamodel.Node{node}, Password: replications[0].Volume.Pool.PoolCredentials.Password, SecretID: replications[0].Volume.Pool.PoolCredentials.SecretID, DeploymentName: replications[0].Volume.Pool.DeploymentName, CertificateID: replications[0].Volume.Pool.PoolCredentials.CertificateID})
 
 		// Get Ontap provider
 		prov, err := activitiesGetProviderByNode(ctx, nodeModel)
