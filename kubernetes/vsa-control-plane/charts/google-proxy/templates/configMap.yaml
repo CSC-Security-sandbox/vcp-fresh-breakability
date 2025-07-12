@@ -13,9 +13,7 @@ metadata:
 data:
   # TODO: Remove these fields after application code fix
   DB_HOST: "{{ index .Values "database" "host" }}"
-  DB_USER: "{{ index .Values "database" "user" }}"
   DB_NAME: "{{ index .Values "database" "name" }}"
-  DB_ADMIN_USER: "{{ index .Values "database" "adminUser" }}"
   ENV: "{{ index .Values "env" }}"
   GCP_AUTH_ACCEPTED_SERVICE_ACCOUNTS: "{{ index .Values "acceptedSAs" }}"
   GCP_CONSUMER_MGMT_ENDPOINT_URL: "{{ index .Values "gcpConsumerMgmtEndpointUrl" }}"
@@ -25,7 +23,6 @@ data:
   OTEL_GOOGLE_PROJECT_ID: "{{ index .Values "otelGoogleProjectId" }}"
   RUN_MIGRATION_ON_START: "{{ index .Values "runMigrationOnStart" }}"
   TEMPORAL_ADDRESS: "{{ index .Values "temporalAddress" }}"
-  VSA_NODE_USERNAME: "{{ index .Values "vsaNodeUsername" }}"
   {{- include "google_proxy.generateConfigMapData" . | nindent 2 }}
   OBJECT_STORE_PROVIDER: "{{ index .Values "objectStoreProvider" }}"
   OBJECT_STORES_SERVER: "{{ index .Values "objectStoresServer" }}"
@@ -48,10 +45,6 @@ data:
   REGIONAL_SUPPORT_ENABLED: "{{ index .Values "regionalSupportEnabled" }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
-    DB_USER: {{ index .Values "database" "user"  }}
-    DB_PASSWORD: {{ index .Values "database" "password" }}
     DB_NAME: {{ index .Values "database" "name"  }}
-    DB_ADMIN_USER: {{ index .Values "database" "adminUser"  }}
-    DB_ADMIN_PASSWORD: {{ index .Values "database" "adminPassword" }}
     SETUP_NW_HEARTBEAT_TIMEOUT_SEC: {{ index .Values "temporal" "timeouts" "heartbeat" "setupNwSecond"}}
     {{- include "google_proxy.generateConfigMapData" . | nindent 4 }}

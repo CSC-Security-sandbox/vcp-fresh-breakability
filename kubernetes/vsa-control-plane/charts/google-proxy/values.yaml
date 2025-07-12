@@ -11,6 +11,7 @@ localRegion: ""
 otelGoogleProjectId: ""
 runMigrationOnStart: true
 temporalAddress: "temporal-frontend.temporal.svc.cluster.local:7233"
+vsaNodeUsername: ""
 vsaNodePassword: ""
 vsaAuthType: 0 # 0 : username/password, 1 : username/password in secret manager and 2 : certificate authentication
 smcProjectId: ""
@@ -60,3 +61,25 @@ temporal:
   timeouts:
     heartbeat:
       setupNwSecond: 300
+#Enabling for secrets manager
+#flag for enabling/disabling secret manager
+secretManagerEnabled: false # Default is false
+externalSecrets:
+  dbUsername:
+    secretName: "vcp-worker-autopush-sqa-us-e4-db-username-key"
+    secretKey: "dbUsername"
+  dbPassword:
+    secretName: "vcp-worker-autopush-sqa-us-e4-db-password-key"
+    secretKey: "dbPassword"
+  dbAdminUsername:
+    secretName: "vcp-worker-autopush-sqa-us-e4-db-adminUsername-key"
+    secretKey: "dbAdminUsername"
+  dbAdminPassword:
+    secretName: "vcp-worker-autopush-sqa-us-e4-db-adminPassword-key"
+    secretKey: "dbAdminPassword"
+  vsaNodeUsername:
+    secretName: "vcp-worker-autopush-sqa-us-e4-db-node-username"
+    secretKey: "vsaNodeUsername"
+  vsaNodePassword:
+    secretName: "vcp-worker-autopush-sqa-us-e4-db-node-password"
+    secretKey: "vsaNodePassword"

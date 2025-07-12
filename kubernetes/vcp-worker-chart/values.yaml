@@ -90,3 +90,6 @@ workerConfig:
     maxConns: 20
     maxIdleConns: 20
     maxConnLifetime: "1h"
+
+#Enabling or Disabling Secret Manager for Microservice Secrets
+secretManagerEnabled: false

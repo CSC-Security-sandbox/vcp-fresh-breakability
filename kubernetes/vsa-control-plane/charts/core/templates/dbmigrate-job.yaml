@@ -34,37 +34,56 @@ spec:
       serviceAccountName: {{ .Values.serviceAccountName }}
       containers:
         - name: vcp-dbmigrate
-          {{- if .Release.IsUpgrade }}
           command: ["/bin/sh"]
           args:
             - "-c"
-            {{ if .Values.msiEnabled | default false }}
-            - "/vcp-db-migrate --migrate --admin-msi-user={{ .Values.msiUser | default "defaultMSIUser" }}"
+            {{- if .Release.IsUpgrade }}
+              {{- if .Values.msiEnabled | default false }}
+            - "/vcp-db-migrate --migrate --admin-msi-user=${MSI_USER}"
+              {{- else }}
+            - "/vcp-db-migrate --migrate --admin-user=${DB_ADMIN_USERNAME} --admin-pass=${DB_ADMIN_PASSWORD}"
+              {{- end }}
             {{- else }}
-            - "/vcp-db-migrate --migrate --admin-user={{ .Values.dbAdminUser | default "defaultUser" }} --admin-pass={{ .Values.dbAdminPassword | default "defaultPassword" }} "
+              {{- if .Values.msiEnabled | default false }}
+            - "/vcp-db-migrate --setup --admin-msi-user=${MSI_USER} && /vcp-db-migrate --migrate --admin-msi-user=${MSI_USER}"
+              {{- else }}
+            - "/vcp-db-migrate --setup --admin-user=${DB_ADMIN_USERNAME} --admin-pass=${DB_ADMIN_PASSWORD} && /vcp-db-migrate --migrate --admin-user=${DB_ADMIN_USERNAME} --admin-pass=${DB_ADMIN_PASSWORD}"
+              {{- end }}
             {{- end }}
-          {{- else }}
-          command: ["/bin/sh"]
-          args:
-            - "-c"
-            {{ if .Values.msiEnabled | default false }}
-            - "/vcp-db-migrate --setup  --admin-msi-user={{ .Values.msiUser | default "defaultUser" }} && /vcp-db-migrate --migrate  --admin-msi-user={{ .Values.msiUser | default "defaultUser" }}"
-            {{- else }}
-            - "/vcp-db-migrate --setup --admin-pass={{ .Values.dbAdminPassword | default "defaultPassword" }} --admin-user={{ .Values.dbAdminUser | default "defaultUser" }} && /vcp-db-migrate --migrate --admin-pass={{ .Values.dbAdminPassword | default "defaultPassword" }} --admin-user={{ .Values.dbAdminUser | default "defaultUser" }}"
-            {{- end }}
-          {{- end }}
           {{- if .Values.images.vcpDbMigrate.secondary }}
           image: "{{- include "containerImage" (list . (dict "name" "vcpDbMigrate" "secondary" true)) | trim -}}"
           {{- else }}
           image: "{{- include "containerImage" (list . (dict "name" "vcpDbMigrate" "secondary" false)) | trim -}}"
           {{- end }}
-
           imagePullPolicy: {{ .Values.images.vcpDbMigrate.pullPolicy }}
           env:
+            # DB migration admin credentials from Secret
+            - name: DB_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: DB_ADMIN_USERNAME
+            - name: DB_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: DB_ADMIN_PASSWORD
+
+            # MSI user (if enabled)
+            - name: MSI_USER
+              value: {{ .Values.msiUser | default "defaultUser" | quote }}
+
+            # Regular database connection info (user/pass/host etc)
             - name: DB_USER
-              value: {{ .Values.database.user | default "newuser" | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: DB_USERNAME
             - name: DB_PASSWORD
-              value: {{ .Values.database.password | default "newpass" | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: core-service-env-secret
+                  key: DB_PASSWORD
             - name: DB_HOST
               value: {{ .Values.database.host | default "localhost" | quote }}
             - name: DB_PORT
@@ -83,5 +102,3 @@ spec:
               memory: {{ .Values.resources.requests.memory }}
       restartPolicy: Never
 {{- end }}
-
-

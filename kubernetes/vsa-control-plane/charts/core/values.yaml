@@ -1,8 +1,6 @@
 enabled: true
 enableDbMigration: true
 ttlSecondsAfterFinished: 3600
-dbAdminUser: dbAdminUser
-dbAdminPassword: dbAdminPassword
 msiEnabled: false
 msiUser: db-msi-user
 serviceAccountName: vcp-core
@@ -34,6 +32,8 @@ database:
   host: postgres-service
   user: vcp-db-user
   password: vcp-db-pass
+  dbAdminUser: dbAdminUser
+  dbAdminPassword: dbAdminPassword
   name: vcp
   port: 5432
   type: postgres
@@ -49,3 +49,21 @@ resources:
 # Annotations
 serviceAccountAnnotations:
   "iam.gke.io/gcp-service-account": vcp-ci@gcnv-artifact-registry-nonprod.iam.gserviceaccount.com
+
+#Enabling for secrets manager
+#flag for enabling/disabling secret manager
+
+secretManagerEnabled: false
+externalSecrets:
+  dbUsername:
+    secretName: "vcp-worker-autopush-sqa-us-e4-db-username-key"
+    secretKey: "dbUsername"
+  dbPassword:
+    secretName: "vcp-worker-autopush-sqa-us-e4-db-password-key"
+    secretKey: "dbPassword"
+  dbAdminUsername:
+    secretName: "vcp-worker-autopush-sqa-us-e4-db-adminUsername-key"
+    secretKey: "dbAdminUsername"
+  dbAdminPassword:
+    secretName: "vcp-worker-autopush-sqa-us-e4-db-adminPassword-key"
+    secretKey: "dbAdminPassword"
