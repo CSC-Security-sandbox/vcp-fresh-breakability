@@ -23,7 +23,6 @@ data:
   OTEL_GOOGLE_PROJECT_ID: "{{ index .Values "otelGoogleProjectId" }}"
   RUN_MIGRATION_ON_START: "{{ index .Values "runMigrationOnStart" }}"
   TEMPORAL_ADDRESS: "{{ index .Values "temporalAddress" }}"
-  {{- include "google_proxy.generateConfigMapData" . | nindent 2 }}
   OBJECT_STORE_PROVIDER: "{{ index .Values "objectStoreProvider" }}"
   OBJECT_STORES_SERVER: "{{ index .Values "objectStoresServer" }}"
   OBJECT_STORE_AUTH_TYPE: "{{ index .Values "objectStoreAuthType" }}"
@@ -47,4 +46,3 @@ data:
     DB_HOST: {{ index .Values "database" "host" }}
     DB_NAME: {{ index .Values "database" "name"  }}
     SETUP_NW_HEARTBEAT_TIMEOUT_SEC: {{ index .Values "temporal" "timeouts" "heartbeat" "setupNwSecond"}}
-    {{- include "google_proxy.generateConfigMapData" . | nindent 4 }}
