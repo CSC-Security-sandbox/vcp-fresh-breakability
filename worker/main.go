@@ -176,6 +176,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(replicationWorkflows.DeleteInternalSnapshotWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.StopInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.StopReplicationWorkflow)
+	worker.RegisterWorkflow(workflows.RegisterNodeToHarvestFarmWorkflow)
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
@@ -198,6 +199,8 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&replicationActivities.ResumeVolumeReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&resource_events_activities.StartProjectEventActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationRowDeleteActivity{SE: dbcon})
+	worker.RegisterActivity(&activities.RegisterNodeToHarvestFarmActivity{SE: dbcon})
+	worker.RegisterActivity(&activities.UploadHarvestTemplateActivity{})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationDeleteActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.BackupVaultActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalSnapshotsDeleteActivity{SE: dbcon})

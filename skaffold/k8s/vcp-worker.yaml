@@ -104,3 +104,5 @@ spec:
               value: "28"
             - name: ENFORCE_MIN_SP_CONFIG
               value: "true"
+            - name: HARVEST_TEMPLATE_PATH
+              value: "/app/harvest-template.yaml"

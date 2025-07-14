@@ -50,7 +50,9 @@ func SetupSqliteTestDB(dbname string) (*gorm.DB, error) {
 		&datamodel.BackupVault{},
 		&datamodel.Backup{},
 		&datamodel.AdminJobSpec{},
-		&datamodel.BackupPolicy{})
+		&datamodel.BackupPolicy{},
+		&datamodel.NodeNodeGroupMap{},
+		&datamodel.NodeGroup{})
 	if err != nil {
 		return nil, err
 	}
@@ -88,6 +90,8 @@ func ClearInMemoryDB(db *gorm.DB) error {
 		&datamodel.BackupVault{},
 		&datamodel.AdminJobSpec{},
 		&datamodel.Backup{},
+		&datamodel.NodeNodeGroupMap{},
+		&datamodel.NodeGroup{},
 	}
 
 	for _, table := range tables {

@@ -604,3 +604,44 @@ type AdminJobSpec struct {
 	CronExpression string `gorm:"column:cron_expression"`
 	State          string `gorm:"column:state"`
 }
+
+type HarvestConfig struct {
+	PORT                string
+	SERVICE_CONTROL_URL string
+	SERVICE_NAME        string
+	POLLER_NAME         string
+	DATACENTER          string
+	NODE_IP             string
+	AUTH_STYLE          string
+	USERNAME            string
+	PASSWORD            string
+	PROJECT             string
+}
+
+// NodeNodeGroupMap represents the mapping between a node and a node group
+// TableName: node_nodegroup_map
+type NodeNodeGroupMap struct {
+	BaseModel
+	NodeID        int64          `gorm:"not null;uniqueIndex;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;foreignKey:NodeID;references:ID"`
+	NodeGroupID   int64          `gorm:"not null;index;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;foreignKey:NodeGroupID;references:ID"`
+	HarvestConfig *HarvestConfig `gorm:"column:harvest_config;type:jsonb"`
+}
+
+// Scan implements the Scanner interface for PoolAttributes
+func (hc *HarvestConfig) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, hc)
+}
+
+// Value implements the Valuer interface for PoolAttributes
+func (hc HarvestConfig) Value() (driver.Value, error) {
+	return json.Marshal(hc)
+}
+
+type NodeGroup struct {
+	BaseModel
+	Name string `gorm:"column:name;not null;unique"`
+}

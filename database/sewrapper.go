@@ -2470,6 +2470,164 @@ func (re *retryEngine) GetAdminJobSpecsByState(ctx context.Context, state string
 	return var0, err
 }
 
+func (re *retryEngine) CreateNodeNodeGroupMap(ctx context.Context, mapping *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error) {
+	var var0 *datamodel.NodeNodeGroupMap
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateNodeNodeGroupMap(ctx, mapping)
+		if err != nil {
+			re.logError("CreateNodeNodeGroupMap", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetNodeNodeGroupMap(ctx context.Context, id int64) (*datamodel.NodeNodeGroupMap, error) {
+	var var0 *datamodel.NodeNodeGroupMap
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetNodeNodeGroupMap(ctx, id)
+		if err != nil {
+			re.logError("GetNodeNodeGroupMap", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) UpdateNodeNodeGroupMap(ctx context.Context, mapping *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error) {
+	var var0 *datamodel.NodeNodeGroupMap
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateNodeNodeGroupMap(ctx, mapping)
+		if err != nil {
+			re.logError("UpdateNodeNodeGroupMap", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) DeleteNodeNodeGroupMap(ctx context.Context, id int64) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.DeleteNodeNodeGroupMap(ctx, id)
+		if err != nil {
+			re.logError("DeleteNodeNodeGroupMap", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
+func (re *retryEngine) CreateNodeGroup(ctx context.Context, group *datamodel.NodeGroup) (*datamodel.NodeGroup, error) {
+	var var0 *datamodel.NodeGroup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateNodeGroup(ctx, group)
+		if err != nil {
+			re.logError("CreateNodeGroup", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetNodeGroup(ctx context.Context, id int64) (*datamodel.NodeGroup, error) {
+	var var0 *datamodel.NodeGroup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetNodeGroup(ctx, id)
+		if err != nil {
+			re.logError("GetNodeGroup", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) UpdateNodeGroup(ctx context.Context, group *datamodel.NodeGroup) (*datamodel.NodeGroup, error) {
+	var var0 *datamodel.NodeGroup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateNodeGroup(ctx, group)
+		if err != nil {
+			re.logError("UpdateNodeGroup", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) DeleteNodeGroup(ctx context.Context, id int64) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.DeleteNodeGroup(ctx, id)
+		if err != nil {
+			re.logError("DeleteNodeGroup", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
 func (re *retryEngine) ErroredResource(ctx context.Context, resource interface{}, errorMessage string) (interface{}, error) {
 	var var0 interface{}
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -2497,6 +2655,26 @@ func (re *retryEngine) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Conte
 		var0, err = re.dataStore.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, backupVaultUUID, accountID, filters)
 		if err != nil {
 			re.logError("GetBackupsByBackupVaultOwnerIDAndFilter", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) AssignTwoNodesToTwoGroups(ctx context.Context, node1, node2 *datamodel.Node, maxNodesPerGroup int) ([]*datamodel.NodeNodeGroupMap, error) {
+	var var0 []*datamodel.NodeNodeGroupMap
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.AssignTwoNodesToTwoGroups(ctx, node1, node2, maxNodesPerGroup)
+		if err != nil {
+			re.logError("AssignTwoNodesToTwoGroups", err)
 			if !isTransientErr(err) {
 				return false, err
 			}

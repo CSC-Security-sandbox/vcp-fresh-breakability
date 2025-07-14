@@ -1230,3 +1230,80 @@ func TestGetMultipleBackupVaultsReturnsErrorOnDatabaseFailure(tt *testing.T) {
 	_, err := store.GetMultipleBackupVaults(ctx, conditions)
 	assert.Error(tt, err)
 }
+
+func TestAssignTwoNodesToTwoGroups_Storage(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+	// Create two nodes
+	n1 := &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()}, Name: "node1"}
+	n2 := &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()}, Name: "node2"}
+	created1, err := store.CreateNode(ctx, n1)
+	assert.NoError(t, err)
+	created2, err := store.CreateNode(ctx, n2)
+	assert.NoError(t, err)
+	// Assign to groups
+	mappings, err := store.AssignTwoNodesToTwoGroups(ctx, created1, created2, 5)
+	assert.NoError(t, err)
+	assert.Len(t, mappings, 2)
+	assert.NotZero(t, mappings[0].NodeGroupID)
+	assert.NotZero(t, mappings[1].NodeGroupID)
+	assert.NotEqual(t, mappings[0].NodeGroupID, mappings[1].NodeGroupID)
+	// Print for debug
+	t.Logf("Node1 assigned to group %d, Node2 assigned to group %d", mappings[0].NodeGroupID, mappings[1].NodeGroupID)
+}
+
+// Parallel test will not work properly until file based sqlite is implemented, Will uncomment when ready
+// func TestAssignTwoNodesToTwoGroups_Parallel(t *testing.T) {
+//	logger := log.NewLogger()
+//	store, err := SetupStorageForTest(logger)
+//	assert.NoError(t, err)
+//	ctx := context.Background()
+//	var wg sync.WaitGroup
+//	numParallel := 5
+//	errs := make([]error, numParallel)
+//	results := make([][]*datamodel.NodeNodeGroupMap, numParallel)
+//	nodes1 := make([]*datamodel.Node, numParallel)
+//	nodes2 := make([]*datamodel.Node, numParallel)
+//
+//	// Pre-create all nodes serially
+//	for i := 0; i < numParallel; i++ {
+//		n1 := &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()}, Name: "nodeA-" + utils.RandomUUID()}
+//		n2 := &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: utils.RandomUUID()}, Name: "nodeB-" + utils.RandomUUID()}
+//		created1, err1 := store.CreateNode(ctx, n1)
+//		assert.NoError(t, err1)
+//		created2, err2 := store.CreateNode(ctx, n2)
+//		assert.NoError(t, err2)
+//		nodes1[i] = created1
+//		nodes2[i] = created2
+//	}
+//
+//	// Now assign in parallel
+//	for i := 0; i < numParallel; i++ {
+//		wg.Add(1)
+//		go func(idx int) {
+//			defer wg.Done()
+//			mappings, err3 := store.AssignTwoNodesToTwoGroups(ctx, nodes1[idx], nodes2[idx], 5)
+//			if err3 != nil {
+//				errs[idx] = err3
+//				return
+//			}
+//			results[idx] = mappings
+//		}(i)
+//	}
+//	wg.Wait()
+//	for i, err := range errs {
+//		assert.NoError(t, err, "goroutine %d failed", i)
+//	}
+//	for i, mappings := range results {
+//		if mappings == nil {
+//			continue
+//		}
+//		assert.Len(t, mappings, 2)
+//		assert.NotZero(t, mappings[0].NodeGroupID)
+//		assert.NotZero(t, mappings[1].NodeGroupID)
+//		assert.NotEqual(t, mappings[0].NodeGroupID, mappings[1].NodeGroupID)
+//		t.Logf("Parallel %d: Node1 group %d, Node2 group %d", i, mappings[0].NodeGroupID, mappings[1].NodeGroupID)
+//	}
+// }

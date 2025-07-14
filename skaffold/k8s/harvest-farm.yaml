@@ -40,7 +40,7 @@ spec:
     spec:
       containers:
         - name: harvest-farm
-          image: ghcr.io/vcp-vsa-control-plane/harvest-multi:25.07.05-1
+          image: ghcr.io/vcp-vsa-control-plane/harvest-multi:25.07.12-1
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -82,10 +82,10 @@ spec:
               value: "true"
             - name: GCE_METADATA_HOST
               value: host.minikube.internal:9090
+            - name: CHOKIDAR_USEPOLLING
+              value: "true"
           volumeMounts:
             - mountPath: "/configs/harvest"
-              name: "harvest-configs"
-            - mountPath: "/shared-data"
               name: harvest-farm-shared
         - name: otel-collector
           image: otel/opentelemetry-collector-contrib:latest
@@ -132,17 +132,12 @@ spec:
             - mountPath: "/etc/otel-collector-config"
               name: "otel-collector-config"
               readOnly: true
-            - mountPath: "/shared-data"
-              name: harvest-farm-shared
       imagePullSecrets:
         - name: ghcr-secret
       volumes:
         - configMap:
             name: otel-collector-config
           name: "otel-collector-config"
-        - hostPath:
-            path: "/home/docker/harvest-configs"
-          name: "harvest-configs"
         - name: harvest-farm-shared
           persistentVolumeClaim:
             claimName: harvest-farm-shared-pvc
@@ -164,19 +159,20 @@ data:
           scrape_configs:
             - job_name: 'otel-collector'
               scrape_interval: 30s
-              static_configs:
-                - targets: [ 'localhost:12990','localhost:12991' ]
+              http_sd_configs:
+                - url: 'http://localhost:3000/pollers/prometheus-targets'
+                  refresh_interval: 30s
     
     processors:
       batch:
       groupbyattrs:
         keys:
-          - project
+          - tenant_project
       transform:
         error_mode: ignore
         metric_statements:
-          - set(resource.attributes["gcp.project.id"], resource.attributes["project"])
-          - delete_key(resource.attributes, "project")
+          - set(resource.attributes["gcp.project.id"], resource.attributes["tenant_project"])
+          - delete_key(resource.attributes, "tenant_project")
     
     exporters:
       debug:
@@ -189,8 +185,6 @@ data:
         sending_queue:
           enabled: true
           queue_size: 40000
-    #  prometheus:
-    #    endpoint: "localhost:9090"
     
     service:
       pipelines:
@@ -202,7 +196,7 @@ data:
             - groupbyattrs
             - transform
           exporters:
-            - debug
+            # - debug
             - googlecloud
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -262,3 +256,22 @@ spec:
         target:
           type: AverageValue
           averageValue: "1"
+
+---
+apiVersion: coordination.k8s.io/v1
+kind: Lease
+metadata:
+  name: harvest-1
+  namespace: vcp
+spec:
+  leaseDurationSeconds: 60
+---
+# apiVersion: coordination.k8s.io/v1
+# kind: Lease
+# metadata:
+#   name: harvest-2
+#   namespace: vcp
+# spec:
+#   leaseDurationSeconds: 60
+
+

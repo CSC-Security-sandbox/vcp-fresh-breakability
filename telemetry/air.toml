@@ -1,10 +1,10 @@
 [build]
   cmd = "echo"
-  bin = "/app/google-proxy"
+  bin = "/app/telemetry"
   follow_symlink = true
   delay = 1000
   include_dir = []
-  include_file = ["/app/google-proxy"]
+  include_file = ["/app/telemetry"]
 
 [log]
   time = true

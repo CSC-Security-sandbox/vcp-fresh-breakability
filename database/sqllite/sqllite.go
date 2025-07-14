@@ -63,7 +63,7 @@ func CreateOrUpdatePoolView(db *gormwrapper.Wrapper) error {
 		return nil
 	}
 	// SQLSTATE 42P16: column order/type mismatch, drop and recreate
-	if strings.Contains(err.Error(), "42P16") {
+	if strings.Contains(err.Error(), "42P16") || strings.Contains(err.Error(), "already exists") {
 		dropErr := db.Exec("DROP VIEW IF EXISTS pool_views;").Error()
 		if dropErr != nil {
 			return dropErr

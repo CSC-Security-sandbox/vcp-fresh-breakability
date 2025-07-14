@@ -7,8 +7,4 @@ RUN go install github.com/air-verse/air@latest
 RUN mkdir /app
 WORKDIR /app
 
-# Copy Air config for live reload
-COPY common/air.toml /app/air.toml
 
-ENV GOTRACEBACK=all
-ENTRYPOINT ["air", "-c", "/app/air.toml"]

@@ -26,6 +26,67 @@ func (_m *MockStorage) EXPECT() *MockStorage_Expecter {
 	return &MockStorage_Expecter{mock: &_m.Mock}
 }
 
+// AssignTwoNodesToTwoGroups provides a mock function with given fields: ctx, node1, node2, maxNodesPerGroup
+func (_m *MockStorage) AssignTwoNodesToTwoGroups(ctx context.Context, node1 *datamodel.Node, node2 *datamodel.Node, maxNodesPerGroup int) ([]*datamodel.NodeNodeGroupMap, error) {
+	ret := _m.Called(ctx, node1, node2, maxNodesPerGroup)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AssignTwoNodesToTwoGroups")
+	}
+
+	var r0 []*datamodel.NodeNodeGroupMap
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Node, *datamodel.Node, int) ([]*datamodel.NodeNodeGroupMap, error)); ok {
+		return rf(ctx, node1, node2, maxNodesPerGroup)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Node, *datamodel.Node, int) []*datamodel.NodeNodeGroupMap); ok {
+		r0 = rf(ctx, node1, node2, maxNodesPerGroup)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.NodeNodeGroupMap)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Node, *datamodel.Node, int) error); ok {
+		r1 = rf(ctx, node1, node2, maxNodesPerGroup)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_AssignTwoNodesToTwoGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AssignTwoNodesToTwoGroups'
+type MockStorage_AssignTwoNodesToTwoGroups_Call struct {
+	*mock.Call
+}
+
+// AssignTwoNodesToTwoGroups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - node1 *datamodel.Node
+//   - node2 *datamodel.Node
+//   - maxNodesPerGroup int
+func (_e *MockStorage_Expecter) AssignTwoNodesToTwoGroups(ctx interface{}, node1 interface{}, node2 interface{}, maxNodesPerGroup interface{}) *MockStorage_AssignTwoNodesToTwoGroups_Call {
+	return &MockStorage_AssignTwoNodesToTwoGroups_Call{Call: _e.mock.On("AssignTwoNodesToTwoGroups", ctx, node1, node2, maxNodesPerGroup)}
+}
+
+func (_c *MockStorage_AssignTwoNodesToTwoGroups_Call) Run(run func(ctx context.Context, node1 *datamodel.Node, node2 *datamodel.Node, maxNodesPerGroup int)) *MockStorage_AssignTwoNodesToTwoGroups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Node), args[2].(*datamodel.Node), args[3].(int))
+	})
+	return _c
+}
+
+func (_c *MockStorage_AssignTwoNodesToTwoGroups_Call) Return(_a0 []*datamodel.NodeNodeGroupMap, _a1 error) *MockStorage_AssignTwoNodesToTwoGroups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_AssignTwoNodesToTwoGroups_Call) RunAndReturn(run func(context.Context, *datamodel.Node, *datamodel.Node, int) ([]*datamodel.NodeNodeGroupMap, error)) *MockStorage_AssignTwoNodesToTwoGroups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // BackupCountByVolumeID provides a mock function with given fields: ctx, volumeUUID
 func (_m *MockStorage) BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error) {
 	ret := _m.Called(ctx, volumeUUID)
@@ -882,6 +943,124 @@ func (_c *MockStorage_CreateNode_Call) RunAndReturn(run func(context.Context, *d
 	return _c
 }
 
+// CreateNodeGroup provides a mock function with given fields: ctx, group
+func (_m *MockStorage) CreateNodeGroup(ctx context.Context, group *datamodel.NodeGroup) (*datamodel.NodeGroup, error) {
+	ret := _m.Called(ctx, group)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateNodeGroup")
+	}
+
+	var r0 *datamodel.NodeGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.NodeGroup) (*datamodel.NodeGroup, error)); ok {
+		return rf(ctx, group)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.NodeGroup) *datamodel.NodeGroup); ok {
+		r0 = rf(ctx, group)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.NodeGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.NodeGroup) error); ok {
+		r1 = rf(ctx, group)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_CreateNodeGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateNodeGroup'
+type MockStorage_CreateNodeGroup_Call struct {
+	*mock.Call
+}
+
+// CreateNodeGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - group *datamodel.NodeGroup
+func (_e *MockStorage_Expecter) CreateNodeGroup(ctx interface{}, group interface{}) *MockStorage_CreateNodeGroup_Call {
+	return &MockStorage_CreateNodeGroup_Call{Call: _e.mock.On("CreateNodeGroup", ctx, group)}
+}
+
+func (_c *MockStorage_CreateNodeGroup_Call) Run(run func(ctx context.Context, group *datamodel.NodeGroup)) *MockStorage_CreateNodeGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.NodeGroup))
+	})
+	return _c
+}
+
+func (_c *MockStorage_CreateNodeGroup_Call) Return(_a0 *datamodel.NodeGroup, _a1 error) *MockStorage_CreateNodeGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_CreateNodeGroup_Call) RunAndReturn(run func(context.Context, *datamodel.NodeGroup) (*datamodel.NodeGroup, error)) *MockStorage_CreateNodeGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateNodeNodeGroupMap provides a mock function with given fields: ctx, mapping
+func (_m *MockStorage) CreateNodeNodeGroupMap(ctx context.Context, mapping *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error) {
+	ret := _m.Called(ctx, mapping)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateNodeNodeGroupMap")
+	}
+
+	var r0 *datamodel.NodeNodeGroupMap
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error)); ok {
+		return rf(ctx, mapping)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.NodeNodeGroupMap) *datamodel.NodeNodeGroupMap); ok {
+		r0 = rf(ctx, mapping)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.NodeNodeGroupMap)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.NodeNodeGroupMap) error); ok {
+		r1 = rf(ctx, mapping)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_CreateNodeNodeGroupMap_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateNodeNodeGroupMap'
+type MockStorage_CreateNodeNodeGroupMap_Call struct {
+	*mock.Call
+}
+
+// CreateNodeNodeGroupMap is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mapping *datamodel.NodeNodeGroupMap
+func (_e *MockStorage_Expecter) CreateNodeNodeGroupMap(ctx interface{}, mapping interface{}) *MockStorage_CreateNodeNodeGroupMap_Call {
+	return &MockStorage_CreateNodeNodeGroupMap_Call{Call: _e.mock.On("CreateNodeNodeGroupMap", ctx, mapping)}
+}
+
+func (_c *MockStorage_CreateNodeNodeGroupMap_Call) Run(run func(ctx context.Context, mapping *datamodel.NodeNodeGroupMap)) *MockStorage_CreateNodeNodeGroupMap_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.NodeNodeGroupMap))
+	})
+	return _c
+}
+
+func (_c *MockStorage_CreateNodeNodeGroupMap_Call) Return(_a0 *datamodel.NodeNodeGroupMap, _a1 error) *MockStorage_CreateNodeNodeGroupMap_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_CreateNodeNodeGroupMap_Call) RunAndReturn(run func(context.Context, *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error)) *MockStorage_CreateNodeNodeGroupMap_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateSVM provides a mock function with given fields: ctx, svm
 func (_m *MockStorage) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
 	ret := _m.Called(ctx, svm)
@@ -1611,6 +1790,100 @@ func (_c *MockStorage_DeleteNode_Call) Return(_a0 error) *MockStorage_DeleteNode
 }
 
 func (_c *MockStorage_DeleteNode_Call) RunAndReturn(run func(context.Context, *datamodel.Node) error) *MockStorage_DeleteNode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteNodeGroup provides a mock function with given fields: ctx, id
+func (_m *MockStorage) DeleteNodeGroup(ctx context.Context, id int64) error {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteNodeGroup")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_DeleteNodeGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteNodeGroup'
+type MockStorage_DeleteNodeGroup_Call struct {
+	*mock.Call
+}
+
+// DeleteNodeGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+func (_e *MockStorage_Expecter) DeleteNodeGroup(ctx interface{}, id interface{}) *MockStorage_DeleteNodeGroup_Call {
+	return &MockStorage_DeleteNodeGroup_Call{Call: _e.mock.On("DeleteNodeGroup", ctx, id)}
+}
+
+func (_c *MockStorage_DeleteNodeGroup_Call) Run(run func(ctx context.Context, id int64)) *MockStorage_DeleteNodeGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_DeleteNodeGroup_Call) Return(_a0 error) *MockStorage_DeleteNodeGroup_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_DeleteNodeGroup_Call) RunAndReturn(run func(context.Context, int64) error) *MockStorage_DeleteNodeGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteNodeNodeGroupMap provides a mock function with given fields: ctx, id
+func (_m *MockStorage) DeleteNodeNodeGroupMap(ctx context.Context, id int64) error {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteNodeNodeGroupMap")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_DeleteNodeNodeGroupMap_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteNodeNodeGroupMap'
+type MockStorage_DeleteNodeNodeGroupMap_Call struct {
+	*mock.Call
+}
+
+// DeleteNodeNodeGroupMap is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+func (_e *MockStorage_Expecter) DeleteNodeNodeGroupMap(ctx interface{}, id interface{}) *MockStorage_DeleteNodeNodeGroupMap_Call {
+	return &MockStorage_DeleteNodeNodeGroupMap_Call{Call: _e.mock.On("DeleteNodeNodeGroupMap", ctx, id)}
+}
+
+func (_c *MockStorage_DeleteNodeNodeGroupMap_Call) Run(run func(ctx context.Context, id int64)) *MockStorage_DeleteNodeNodeGroupMap_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_DeleteNodeNodeGroupMap_Call) Return(_a0 error) *MockStorage_DeleteNodeNodeGroupMap_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_DeleteNodeNodeGroupMap_Call) RunAndReturn(run func(context.Context, int64) error) *MockStorage_DeleteNodeNodeGroupMap_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3894,6 +4167,124 @@ func (_c *MockStorage_GetMultipleVolumes_Call) Return(_a0 []*datamodel.Volume, _
 }
 
 func (_c *MockStorage_GetMultipleVolumes_Call) RunAndReturn(run func(context.Context, [][]interface{}) ([]*datamodel.Volume, error)) *MockStorage_GetMultipleVolumes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetNodeGroup provides a mock function with given fields: ctx, id
+func (_m *MockStorage) GetNodeGroup(ctx context.Context, id int64) (*datamodel.NodeGroup, error) {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetNodeGroup")
+	}
+
+	var r0 *datamodel.NodeGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (*datamodel.NodeGroup, error)); ok {
+		return rf(ctx, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) *datamodel.NodeGroup); ok {
+		r0 = rf(ctx, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.NodeGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetNodeGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNodeGroup'
+type MockStorage_GetNodeGroup_Call struct {
+	*mock.Call
+}
+
+// GetNodeGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+func (_e *MockStorage_Expecter) GetNodeGroup(ctx interface{}, id interface{}) *MockStorage_GetNodeGroup_Call {
+	return &MockStorage_GetNodeGroup_Call{Call: _e.mock.On("GetNodeGroup", ctx, id)}
+}
+
+func (_c *MockStorage_GetNodeGroup_Call) Run(run func(ctx context.Context, id int64)) *MockStorage_GetNodeGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetNodeGroup_Call) Return(_a0 *datamodel.NodeGroup, _a1 error) *MockStorage_GetNodeGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetNodeGroup_Call) RunAndReturn(run func(context.Context, int64) (*datamodel.NodeGroup, error)) *MockStorage_GetNodeGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetNodeNodeGroupMap provides a mock function with given fields: ctx, id
+func (_m *MockStorage) GetNodeNodeGroupMap(ctx context.Context, id int64) (*datamodel.NodeNodeGroupMap, error) {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetNodeNodeGroupMap")
+	}
+
+	var r0 *datamodel.NodeNodeGroupMap
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (*datamodel.NodeNodeGroupMap, error)); ok {
+		return rf(ctx, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) *datamodel.NodeNodeGroupMap); ok {
+		r0 = rf(ctx, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.NodeNodeGroupMap)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetNodeNodeGroupMap_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNodeNodeGroupMap'
+type MockStorage_GetNodeNodeGroupMap_Call struct {
+	*mock.Call
+}
+
+// GetNodeNodeGroupMap is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+func (_e *MockStorage_Expecter) GetNodeNodeGroupMap(ctx interface{}, id interface{}) *MockStorage_GetNodeNodeGroupMap_Call {
+	return &MockStorage_GetNodeNodeGroupMap_Call{Call: _e.mock.On("GetNodeNodeGroupMap", ctx, id)}
+}
+
+func (_c *MockStorage_GetNodeNodeGroupMap_Call) Run(run func(ctx context.Context, id int64)) *MockStorage_GetNodeNodeGroupMap_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetNodeNodeGroupMap_Call) Return(_a0 *datamodel.NodeNodeGroupMap, _a1 error) *MockStorage_GetNodeNodeGroupMap_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetNodeNodeGroupMap_Call) RunAndReturn(run func(context.Context, int64) (*datamodel.NodeNodeGroupMap, error)) *MockStorage_GetNodeNodeGroupMap_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -6772,6 +7163,124 @@ func (_c *MockStorage_UpdatePoolSubnetNames_Call) Return(_a0 error) *MockStorage
 }
 
 func (_c *MockStorage_UpdatePoolSubnetNames_Call) RunAndReturn(run func(context.Context, string, string, []string) error) *MockStorage_UpdatePoolSubnetNames_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateNodeGroup provides a mock function with given fields: ctx, group
+func (_m *MockStorage) UpdateNodeGroup(ctx context.Context, group *datamodel.NodeGroup) (*datamodel.NodeGroup, error) {
+	ret := _m.Called(ctx, group)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateNodeGroup")
+	}
+
+	var r0 *datamodel.NodeGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.NodeGroup) (*datamodel.NodeGroup, error)); ok {
+		return rf(ctx, group)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.NodeGroup) *datamodel.NodeGroup); ok {
+		r0 = rf(ctx, group)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.NodeGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.NodeGroup) error); ok {
+		r1 = rf(ctx, group)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UpdateNodeGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateNodeGroup'
+type MockStorage_UpdateNodeGroup_Call struct {
+	*mock.Call
+}
+
+// UpdateNodeGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - group *datamodel.NodeGroup
+func (_e *MockStorage_Expecter) UpdateNodeGroup(ctx interface{}, group interface{}) *MockStorage_UpdateNodeGroup_Call {
+	return &MockStorage_UpdateNodeGroup_Call{Call: _e.mock.On("UpdateNodeGroup", ctx, group)}
+}
+
+func (_c *MockStorage_UpdateNodeGroup_Call) Run(run func(ctx context.Context, group *datamodel.NodeGroup)) *MockStorage_UpdateNodeGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.NodeGroup))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateNodeGroup_Call) Return(_a0 *datamodel.NodeGroup, _a1 error) *MockStorage_UpdateNodeGroup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UpdateNodeGroup_Call) RunAndReturn(run func(context.Context, *datamodel.NodeGroup) (*datamodel.NodeGroup, error)) *MockStorage_UpdateNodeGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateNodeNodeGroupMap provides a mock function with given fields: ctx, mapping
+func (_m *MockStorage) UpdateNodeNodeGroupMap(ctx context.Context, mapping *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error) {
+	ret := _m.Called(ctx, mapping)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateNodeNodeGroupMap")
+	}
+
+	var r0 *datamodel.NodeNodeGroupMap
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error)); ok {
+		return rf(ctx, mapping)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.NodeNodeGroupMap) *datamodel.NodeNodeGroupMap); ok {
+		r0 = rf(ctx, mapping)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.NodeNodeGroupMap)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.NodeNodeGroupMap) error); ok {
+		r1 = rf(ctx, mapping)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UpdateNodeNodeGroupMap_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateNodeNodeGroupMap'
+type MockStorage_UpdateNodeNodeGroupMap_Call struct {
+	*mock.Call
+}
+
+// UpdateNodeNodeGroupMap is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mapping *datamodel.NodeNodeGroupMap
+func (_e *MockStorage_Expecter) UpdateNodeNodeGroupMap(ctx interface{}, mapping interface{}) *MockStorage_UpdateNodeNodeGroupMap_Call {
+	return &MockStorage_UpdateNodeNodeGroupMap_Call{Call: _e.mock.On("UpdateNodeNodeGroupMap", ctx, mapping)}
+}
+
+func (_c *MockStorage_UpdateNodeNodeGroupMap_Call) Run(run func(ctx context.Context, mapping *datamodel.NodeNodeGroupMap)) *MockStorage_UpdateNodeNodeGroupMap_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.NodeNodeGroupMap))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateNodeNodeGroupMap_Call) Return(_a0 *datamodel.NodeNodeGroupMap, _a1 error) *MockStorage_UpdateNodeNodeGroupMap_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UpdateNodeNodeGroupMap_Call) RunAndReturn(run func(context.Context, *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error)) *MockStorage_UpdateNodeNodeGroupMap_Call {
 	_c.Call.Return(run)
 	return _c
 }

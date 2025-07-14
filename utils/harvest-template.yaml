@@ -1,0 +1,44 @@
+# Harvest Configuration File
+Exporters:
+  prometheus:
+    exporter: Prometheus
+    local_http_addr: 0.0.0.0
+    port: {{.PORT}}
+  service_control:
+    exporter: ServiceControl
+    url: {{.SERVICE_CONTROL_URL}}
+    service_name: {{.SERVICE_NAME}}
+    mappings:
+      volume:
+        - source: "size_available"
+          target: "netapp.googleapis.com/volume/allocated_bytes"
+        - source: "snapshots_size_used"
+          target: "netapp.googleapis.com/volume/snapshot_bytes"
+Defaults:
+  collectors:
+    - Rest
+    - RestPerf
+  use_insecure_tls: false
+
+Pollers:
+    {{.POLLER_NAME}}:
+      datacenter: {{.DATACENTER}}
+      addr: {{.NODE_IP}}
+      auth_style: {{.AUTH_STYLE}}
+      username: {{.USERNAME}}
+      password: {{.PASSWORD}}
+      labels:
+        - project: {{.PROJECT}}
+      use_insecure_tls: true  # Disable TLS verification when connecting to ONTAP cluster
+      exporters:
+        - service_control
+        - prometheus
+PM2:
+  - name: {{.POLLER_NAME}}
+    script: bin/poller
+    metrics_port: {{.PORT}}
+    conf_path: /opt/harvest/conf
+    harvest_conf: /configs/harvest/c4.yaml
+    poller_name: {{.POLLER_NAME}}
+    auto_restart: true
+    version: 2.0.0

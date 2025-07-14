@@ -191,6 +191,20 @@ type DataStore interface {
 	UpdateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) error
 	GetAdminJobSpecsByState(ctx context.Context, state string) ([]*datamodel.AdminJobSpec, error)
 
+	CreateNodeNodeGroupMap(ctx context.Context, mapping *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error)
+	GetNodeNodeGroupMap(ctx context.Context, id int64) (*datamodel.NodeNodeGroupMap, error)
+	UpdateNodeNodeGroupMap(ctx context.Context, mapping *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error)
+	DeleteNodeNodeGroupMap(ctx context.Context, id int64) error
+
+	CreateNodeGroup(ctx context.Context, group *datamodel.NodeGroup) (*datamodel.NodeGroup, error)
+	GetNodeGroup(ctx context.Context, id int64) (*datamodel.NodeGroup, error)
+	UpdateNodeGroup(ctx context.Context, group *datamodel.NodeGroup) (*datamodel.NodeGroup, error)
+	DeleteNodeGroup(ctx context.Context, id int64) error
+
 	ErroredResource(ctx context.Context, resource interface{}, errorMessage string) (interface{}, error)
 	GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Context, backupVaultUUID string, accountID int64, filters [][]interface{}) ([]*datamodel.Backup, error)
+
+	// AssignTwoNodesToTwoGroups assigns two nodes to two different node groups, ensuring no group exceeds maxNodesPerGroup nodes
+	// Assumes that node1 and node2 are precreated and have valid IDs
+	AssignTwoNodesToTwoGroups(ctx context.Context, node1, node2 *datamodel.Node, maxNodesPerGroup int) ([]*datamodel.NodeNodeGroupMap, error)
 }

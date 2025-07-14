@@ -101,6 +101,8 @@ func SetupInMemoryDB() (*gorm.DB, error) {
 		&datamodel.AdminJobSpec{},
 		&datamodel.Backup{},
 		&datamodel.BackupPolicy{},
+		&datamodel.NodeNodeGroupMap{},
+		&datamodel.NodeGroup{},
 	)
 	if err != nil {
 		return nil, err
@@ -127,6 +129,8 @@ func ClearInMemoryDB(db *gorm.DB) error {
 		&datamodel.AdminJobSpec{},
 		&datamodel.Backup{},
 		&datamodel.BackupPolicy{},
+		&datamodel.NodeNodeGroupMap{},
+		&datamodel.NodeGroup{},
 	}
 
 	for _, table := range tables {
@@ -846,6 +850,26 @@ func (s *PersistenceStore) ErroredResource(ctx context.Context, resource interfa
 	return s.dataStore.ErroredResource(ctx, resource, errMessage)
 }
 
+func (s *PersistenceStore) CreateNodeNodeGroupMap(ctx context.Context, m *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error) {
+	return s.dataStore.CreateNodeNodeGroupMap(ctx, m)
+}
+
+func (s *PersistenceStore) GetNodeNodeGroupMap(ctx context.Context, id int64) (*datamodel.NodeNodeGroupMap, error) {
+	return s.dataStore.GetNodeNodeGroupMap(ctx, id)
+}
+
+func (s *PersistenceStore) UpdateNodeNodeGroupMap(ctx context.Context, m *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error) {
+	return s.dataStore.UpdateNodeNodeGroupMap(ctx, m)
+}
+
+func (s *PersistenceStore) AssignTwoNodesToTwoGroups(ctx context.Context, node1, node2 *datamodel.Node, maxNodesPerGroup int) ([]*datamodel.NodeNodeGroupMap, error) {
+	return s.dataStore.AssignTwoNodesToTwoGroups(ctx, node1, node2, maxNodesPerGroup)
+}
+
+func (s *PersistenceStore) DeleteNodeNodeGroupMap(ctx context.Context, id int64) error {
+	return s.dataStore.DeleteNodeNodeGroupMap(ctx, id)
+}
+
 func (s *PersistenceStore) GetAllVolumesForHG(ctx context.Context, hostGroupUUID string, accountID int64) ([]*datamodel.Volume, error) {
 	return s.dataStore.GetAllVolumesForHG(ctx, hostGroupUUID, accountID)
 }
@@ -876,4 +900,20 @@ func (s *PersistenceStore) GetBackupByNameAndBackupVaultID(ctx context.Context, 
 
 func (s *PersistenceStore) GetMultipleBackupVaults(ctx context.Context, conditions [][]interface{}) ([]*datamodel.BackupVault, error) {
 	return s.dataStore.GetMultipleBackupVaults(ctx, conditions)
+}
+
+func (s *PersistenceStore) CreateNodeGroup(ctx context.Context, group *datamodel.NodeGroup) (*datamodel.NodeGroup, error) {
+	return s.dataStore.CreateNodeGroup(ctx, group)
+}
+
+func (s *PersistenceStore) GetNodeGroup(ctx context.Context, id int64) (*datamodel.NodeGroup, error) {
+	return s.dataStore.GetNodeGroup(ctx, id)
+}
+
+func (s *PersistenceStore) UpdateNodeGroup(ctx context.Context, group *datamodel.NodeGroup) (*datamodel.NodeGroup, error) {
+	return s.dataStore.UpdateNodeGroup(ctx, group)
+}
+
+func (s *PersistenceStore) DeleteNodeGroup(ctx context.Context, id int64) error {
+	return s.dataStore.DeleteNodeGroup(ctx, id)
 }

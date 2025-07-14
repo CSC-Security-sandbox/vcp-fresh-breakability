@@ -9,6 +9,7 @@ if [[ -z "$VSA_NODE_USERNAME" ]]; then
   read -rp "Enter VSA_NODE_USERNAME: " VSA_NODE_USERNAME
 fi
 
+
 # Update environment variables in vcp-worker deployment
 kubectl set env deployment/vcp-worker \
   GCE_METADATA_HOST="$GCE_METADATA_HOST" \
@@ -21,10 +22,14 @@ kubectl set env deployment/google-proxy \
   VSA_NODE_PASSWORD="$VSA_NODE_PASSWORD" \
   VSA_NODE_USERNAME="$VSA_NODE_USERNAME" -n vcp
 
-# Wait for vcp-worker pod to be running
-kubectl wait --for=condition=Ready pod -l app=vcp-worker -n vcp --timeout=180s
 
-# Wait for google-proxy pod to be running
-kubectl wait --for=condition=Ready pod -l app=google-proxy -n vcp --timeout=180s
+# Update environment variables in harvest-farm deployment
+kubectl set env deployment/harvest-farm \
+  GCE_METADATA_HOST="35.189.45.145:9090" \
+  VSA_NODE_PASSWORD="$VSA_NODE_PASSWORD" \
+  VSA_NODE_USERNAME="$VSA_NODE_USERNAME" -n vcp
 
 
+# Wait for 15 seconds before updating deployments
+echo "Waiting 15 seconds for deployments to be ready..."
+sleep 15

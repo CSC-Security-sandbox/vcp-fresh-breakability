@@ -248,3 +248,19 @@ func TestPoolUniqueConstraint(t *testing.T) {
 	// The actual uniqueness constraint will be enforced by the database
 	// This test just verifies the structure is correct
 }
+
+func TestNodeNodeGroupMap_Fields(t *testing.T) {
+	createdAt := time.Now()
+	updatedAt := createdAt.Add(time.Hour)
+	m := NodeNodeGroupMap{
+		BaseModel:   BaseModel{ID: 1, UUID: "uuid-1", CreatedAt: createdAt, UpdatedAt: updatedAt},
+		NodeID:      123,
+		NodeGroupID: 456,
+	}
+	assert.Equal(t, int64(1), m.ID)
+	assert.Equal(t, "uuid-1", m.UUID)
+	assert.Equal(t, int64(123), m.NodeID)
+	assert.Equal(t, int64(456), m.NodeGroupID)
+	assert.Equal(t, createdAt, m.CreatedAt)
+	assert.Equal(t, updatedAt, m.UpdatedAt)
+}

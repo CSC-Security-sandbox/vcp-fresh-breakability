@@ -2,10 +2,17 @@ ARG BASE
 FROM $BASE
 
 # Copy the binary from the builder stage
-COPY /artifacts/vcp-worker /app/app
+COPY /artifacts/vcp-worker /app
 COPY /core/errors/errors.json /app/errors.json
 COPY /common/vsa_config/vlm-config.json /app/vlm-config.json
 COPY /config/vmrs_gcp.yaml /app/vmrs_gcp.yaml
+COPY /core/harvest-template.yaml /app/harvest-template.yaml
+
+# Copy Air config for live reload
+COPY worker/air.toml /app/air.toml
+
+ENV GOTRACEBACK=all
+ENTRYPOINT ["air", "-c", "/app/air.toml"]
 
 # # Set ownership and permissions
 # USER nonroot:nonroot

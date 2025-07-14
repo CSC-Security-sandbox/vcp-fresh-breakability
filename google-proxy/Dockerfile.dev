@@ -1,13 +1,15 @@
 ARG BASE
 FROM $BASE
 
-COPY artifacts/google-proxy /app/app
+COPY artifacts/google-proxy /app
 COPY core/errors/errors.json /app/errors.json
 COPY common/vsa_config /app/vsa_config
 
-# For dev: use Air as entrypoint, otherwise use the binary
-# To use the binary directly in prod, comment the above and uncomment below:
-# ENTRYPOINT ["/app"]
+# Copy Air config for live reload
+COPY google-proxy/air.toml /app/air.toml
+
+ENV GOTRACEBACK=all
+ENTRYPOINT ["air", "-c", "/app/air.toml"]
 
 # Set ownership and permissions
 # USER nonroot:nonroot

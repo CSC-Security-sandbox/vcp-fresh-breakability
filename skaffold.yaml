@@ -106,7 +106,7 @@ profiles:
           sync:
             manual:
               - src: artifacts/google-proxy
-                dest: "/"
+                dest: "/app"
           docker:
             dockerfile: google-proxy/Dockerfile.dev
           requires:
@@ -117,7 +117,7 @@ profiles:
           sync:
             manual:
               - src: "artifacts/vcp-worker"
-                dest: "/"
+                dest: "/app"
           docker:
             dockerfile: worker/Dockerfile.dev
           requires:
@@ -128,7 +128,7 @@ profiles:
           sync:
             manual:
               - src: "artifacts/telemetry"
-                dest: "/"
+                dest: "/app/"
           docker:
             dockerfile: telemetry/Dockerfile.dev
           requires:

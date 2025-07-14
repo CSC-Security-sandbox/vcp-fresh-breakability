@@ -62,6 +62,8 @@ func getModels() []interface{} {
 		datamodel.AdminJobSpec{},
 		datamodel.Backup{},
 		datamodel.BackupPolicy{},
+		datamodel.NodeNodeGroupMap{},
+		datamodel.NodeGroup{},
 	}
 }
 
