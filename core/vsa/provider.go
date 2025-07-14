@@ -84,6 +84,8 @@ type Provider interface {
 	IsGcpKmsReachable(params GetKmsConfigParams) (bool, error)
 	PostClusterLicenseAccessToken(ctx context.Context, clientSecret string) (*string, error)
 	CreateDns(params CreateDnsParams) error
+	CreateQoSGroupPolicy(params CreateQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error)
+	ModifySVMWithQoSPolicy(params ModifySVMWithQoSPolicyParams) error
 }
 
 type OntapRestProvider struct {

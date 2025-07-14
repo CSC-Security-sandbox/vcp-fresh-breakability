@@ -570,6 +570,55 @@ func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Po
 	return createdSvm, nil
 }
 
+// CreateQoSPolicyAndApplyToSVM creates a QoS policy group and applies it to the SVM
+func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *datamodel.Pool, svm *datamodel.Svm, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	logger.Info("Creating QoS policy and applying to SVM", "svmName", svm.Name, "poolName", pool.Name)
+
+	// Get the provider for the node
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Create QoS policy group with default values
+	// These values can be made configurable in the future
+	qosPolicyName := fmt.Sprintf("%s-qos-policy", svm.Name)
+	maxThroughput := pool.PoolAttributes.ThroughputMibps
+	maxIOPS := pool.PoolAttributes.Iops
+
+	// Create the QoS policy group
+	qosPolicyParams := vsa.CreateQoSGroupPolicyParams{
+		Name:          qosPolicyName,
+		SvmName:       svm.Name,
+		MaxThroughput: maxThroughput,
+		MaxIOPS:       maxIOPS,
+	}
+
+	qosPolicyResponse, err := provider.CreateQoSGroupPolicy(qosPolicyParams)
+	if err != nil {
+		logger.Error("Failed to create QoS policy group", "error", err, "policyName", qosPolicyName)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Info("QoS policy group created successfully", "policyName", qosPolicyResponse.Name, "policyUUID", qosPolicyResponse.UUID)
+
+	// Apply the QoS policy to the SVM
+	modifySvmParams := vsa.ModifySVMWithQoSPolicyParams{
+		SvmUUID:       svm.SvmDetails.ExternalUUID,
+		QoSPolicyName: qosPolicyResponse.Name,
+	}
+
+	err = provider.ModifySVMWithQoSPolicy(modifySvmParams)
+	if err != nil {
+		logger.Error("Failed to apply QoS policy to SVM", "error", err, "svmName", svm.Name, "policyName", qosPolicyResponse.Name)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Info("QoS policy applied to SVM successfully", "svmName", svm.Name, "policyName", qosPolicyResponse.Name)
+	return nil
+}
+
 // The IdentifyVMs takes as input the VMRS configuration, the customer requested performance parameters, and the current VLM configuration to identify the optimal VMs to use for the VSA cluster.
 func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName, region, primaryZone, secondaryZone, network string, subnets []string, projectId, snHostProject string, saEmail string, autoTierBucket string) (*vlm.VLMConfig, error) {
 	logger := util.GetLogger(ctx)

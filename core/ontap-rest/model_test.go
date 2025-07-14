@@ -203,6 +203,39 @@ func TestSvmModifyParamsToOntap(t *testing.T) {
 		assert.Equal(tt, "svm-uuid", otParams.UUID)
 		assert.Equal(tt, int64(666), *otParams.Info.RetentionPeriod)
 	})
+	t.Run("WhenQoSPolicyNameSet", func(tt *testing.T) {
+		params := &SvmModifyParams{
+			SvmUUID:       "svm-uuid",
+			QoSPolicyName: nillable.ToPointer("test-qos-policy"),
+		}
+		otParams := svmModifyParamsToOntap(params)
+		assert.Equal(tt, "svm-uuid", otParams.UUID)
+		assert.NotNil(tt, otParams.Info.QosPolicy)
+		assert.Equal(tt, "test-qos-policy", *otParams.Info.QosPolicy.Name)
+	})
+
+	t.Run("WhenQoSPolicyNameIsNil", func(tt *testing.T) {
+		params := &SvmModifyParams{
+			SvmUUID:       "svm-uuid",
+			QoSPolicyName: nil,
+		}
+		otParams := svmModifyParamsToOntap(params)
+		assert.Equal(tt, "svm-uuid", otParams.UUID)
+		assert.Nil(tt, otParams.Info.QosPolicy)
+	})
+
+	t.Run("WhenMultipleFieldsSet", func(tt *testing.T) {
+		params := &SvmModifyParams{
+			SvmUUID:              "svm-uuid",
+			RetentionPeriodHours: nillable.ToPointer(int64(666)),
+			QoSPolicyName:        nillable.ToPointer("test-qos-policy"),
+		}
+		otParams := svmModifyParamsToOntap(params)
+		assert.Equal(tt, "svm-uuid", otParams.UUID)
+		assert.Equal(tt, int64(666), *otParams.Info.RetentionPeriod)
+		assert.NotNil(tt, otParams.Info.QosPolicy)
+		assert.Equal(tt, "test-qos-policy", *otParams.Info.QosPolicy.Name)
+	})
 }
 
 func TestVolumeDeleteParamsToONTAP(t *testing.T) {

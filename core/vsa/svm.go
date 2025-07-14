@@ -41,3 +41,34 @@ func (rc *OntapRestProvider) CreateSVM(params CreateSvmParams) (*ProviderRespons
 		ExternalUUID: *svm.UUID,
 	}, nil
 }
+
+func (rc *OntapRestProvider) ModifySVMWithQoSPolicy(params ModifySVMWithQoSPolicyParams) error {
+	// Get the ONTAP client
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+
+	// Modify the SVM to apply the QoS policy group
+	done, job, err := client.SVM().SvmModify(&ontapRest.SvmModifyParams{
+		SvmUUID:       params.SvmUUID,
+		QoSPolicyName: &params.QoSPolicyName,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Poll the job if it exists
+	if job != nil {
+		if err = client.Poll(job.JobUUID); err != nil {
+			return err
+		}
+	}
+
+	// If done is true, the operation completed synchronously
+	if done {
+		return nil
+	}
+
+	return nil
+}

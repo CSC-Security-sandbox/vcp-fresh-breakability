@@ -4682,3 +4682,219 @@ func Test_createSubnetwork(t *testing.T) {
 		mockSvc.AssertExpectations(t)
 	})
 }
+
+func TestCreateQoSPolicyAndApplyToSVM(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-pool",
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 1000,
+			Iops:            5000,
+		},
+	}
+	svm := &datamodel.Svm{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-svm",
+		SvmDetails: &datamodel.SvmDetails{
+			ExternalUUID: "test-svm-uuid",
+		},
+	}
+	node := &coremodel.Node{
+		Name: "test-node",
+	}
+
+	t.Run("WhenQoSPolicyCreationSucceeds_ThenApplyToSVM", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() {
+			activities.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Mock QoS policy creation
+		expectedQoSPolicy := &vsa.QoSGroupPolicyResponse{
+			Name:          "test-svm-qos-policy",
+			UUID:          "test-qos-uuid",
+			SvmName:       "test-svm",
+			MaxThroughput: 1000,
+			MaxIOPS:       5000,
+		}
+
+		mockProvider.On("CreateQoSGroupPolicy", vsa.CreateQoSGroupPolicyParams{
+			Name:          "test-svm-qos-policy",
+			SvmName:       "test-svm",
+			MaxThroughput: 1000,
+			MaxIOPS:       5000,
+		}).Return(expectedQoSPolicy, nil)
+
+		// Mock SVM modification
+		mockProvider.On("ModifySVMWithQoSPolicy", vsa.ModifySVMWithQoSPolicyParams{
+			SvmUUID:       "test-svm-uuid",
+			QoSPolicyName: "test-svm-qos-policy",
+		}).Return(nil)
+
+		activity := &activities.PoolActivity{}
+		err := activity.CreateQoSPolicyAndApplyToSVM(ctx, pool, svm, node)
+
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetProviderByNodeFails_ThenReturnError", func(tt *testing.T) {
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() {
+			activities.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider error")
+		}
+
+		activity := &activities.PoolActivity{}
+		err := activity.CreateQoSPolicyAndApplyToSVM(ctx, pool, svm, node)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "provider error")
+	})
+
+	t.Run("WhenQoSPolicyCreationFails_ThenReturnError", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() {
+			activities.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("CreateQoSGroupPolicy", mock.Anything).Return(nil, errors.New("qos creation failed"))
+
+		activity := &activities.PoolActivity{}
+		err := activity.CreateQoSPolicyAndApplyToSVM(ctx, pool, svm, node)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "qos creation failed")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSVMModificationFails_ThenReturnError", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() {
+			activities.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Mock QoS policy creation success
+		expectedQoSPolicy := &vsa.QoSGroupPolicyResponse{
+			Name:          "test-svm-qos-policy",
+			UUID:          "test-qos-uuid",
+			SvmName:       "test-svm",
+			MaxThroughput: 1000,
+			MaxIOPS:       5000,
+		}
+
+		mockProvider.On("CreateQoSGroupPolicy", mock.Anything).Return(expectedQoSPolicy, nil)
+
+		// Mock SVM modification failure
+		mockProvider.On("ModifySVMWithQoSPolicy", mock.Anything).Return(errors.New("svm modification failed"))
+
+		activity := &activities.PoolActivity{}
+		err := activity.CreateQoSPolicyAndApplyToSVM(ctx, pool, svm, node)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "svm modification failed")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenQoSPolicyNameIsGeneratedCorrectly", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() {
+			activities.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Mock QoS policy creation with specific name format
+		mockProvider.On("CreateQoSGroupPolicy", vsa.CreateQoSGroupPolicyParams{
+			Name:          "test-svm-qos-policy",
+			SvmName:       "test-svm",
+			MaxThroughput: 1000,
+			MaxIOPS:       5000,
+		}).Return(&vsa.QoSGroupPolicyResponse{
+			Name:          "test-svm-qos-policy",
+			UUID:          "test-qos-uuid",
+			SvmName:       "test-svm",
+			MaxThroughput: 1000,
+			MaxIOPS:       5000,
+		}, nil)
+
+		// Mock SVM modification
+		mockProvider.On("ModifySVMWithQoSPolicy", vsa.ModifySVMWithQoSPolicyParams{
+			SvmUUID:       "test-svm-uuid",
+			QoSPolicyName: "test-svm-qos-policy",
+		}).Return(nil)
+
+		activity := &activities.PoolActivity{}
+		err := activity.CreateQoSPolicyAndApplyToSVM(ctx, pool, svm, node)
+
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+	t.Run("WhenSVMHasDifferentName_ThenUseCorrectName", func(tt *testing.T) {
+		svmWithDifferentName := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "different-svm-name",
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "test-svm-uuid",
+			},
+		}
+
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() {
+			activities.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Mock QoS policy creation with different SVM name
+		mockProvider.On("CreateQoSGroupPolicy", vsa.CreateQoSGroupPolicyParams{
+			Name:          "different-svm-name-qos-policy",
+			SvmName:       "different-svm-name",
+			MaxThroughput: 1000,
+			MaxIOPS:       5000,
+		}).Return(&vsa.QoSGroupPolicyResponse{
+			Name:          "different-svm-name-qos-policy",
+			UUID:          "test-qos-uuid",
+			SvmName:       "different-svm-name",
+			MaxThroughput: 1000,
+			MaxIOPS:       5000,
+		}, nil)
+
+		// Mock SVM modification
+		mockProvider.On("ModifySVMWithQoSPolicy", vsa.ModifySVMWithQoSPolicyParams{
+			SvmUUID:       "test-svm-uuid",
+			QoSPolicyName: "different-svm-name-qos-policy",
+		}).Return(nil)
+
+		activity := &activities.PoolActivity{}
+		err := activity.CreateQoSPolicyAndApplyToSVM(ctx, pool, svmWithDifferentName, node)
+
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+}

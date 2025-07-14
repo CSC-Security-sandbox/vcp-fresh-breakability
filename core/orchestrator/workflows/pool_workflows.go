@@ -303,6 +303,12 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
+	// Create QoS policy and apply it to the SVM
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateQoSPolicyAndApplyToSVM, dbPool, svm, node).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	// Enable KMS for SVM if KMS config is provided
 	err = configureKmsConfigForSvmActivity(ctx, *dbPool, node, svm, params)
 	if err != nil {

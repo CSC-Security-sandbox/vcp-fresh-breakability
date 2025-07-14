@@ -22,6 +22,7 @@ type StorageClient interface {
 
 	QosPolicyGroupCollectionGet(params *QosPolicyGroupCollectionGetParams, ucbf UserCallbackFunc[[]*QosPolicy]) error
 	QosPolicyGroupCollectionModify(params []*QosPolicyGroupModifyCollectionParams) (*QosPolicyModifyCollection, *JobAccepted, error)
+	QoSPolicyGroupCreate(params *QoSPolicyGroupCreateParams) (*QosPolicy, *JobAccepted, error)
 
 	CloudStoreCreate(params *storage.CloudStoreCreateParams) (*JobAccepted, error)
 
@@ -192,6 +193,23 @@ func (sc *storageClient) QosPolicyGroupCollectionModify(params []*QosPolicyGroup
 		return nil, job, nil
 	}
 	return &QosPolicyModifyCollection{QosPolicyJobLinkResponse: *syncResponse.Payload}, nil, nil
+}
+
+// QoSPolicyGroupCreate invokes pkg/ontap-rest/client/storage/Client.QosPolicyCreate
+func (sc *storageClient) QoSPolicyGroupCreate(params *QoSPolicyGroupCreateParams) (*QosPolicy, *JobAccepted, error) {
+	otParams := qosPolicyGroupCreateParamsToONTAP(params)
+	created, accepted, err := sc.api.QosPolicyCreate(otParams, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	if accepted != nil && accepted.Payload != nil && accepted.Payload.Job != nil {
+		job := &JobAccepted{JobUUID: accepted.Payload.Job.UUID.String()}
+		return nil, job, nil
+	}
+	if created != nil && created.Payload != nil && len(created.Payload.Records) > 0 {
+		return &QosPolicy{QosPolicy: *created.Payload.Records[0]}, nil, nil
+	}
+	return nil, nil, errors.New("unexpected response from server while creating QoS policy - received no QoS info")
 }
 
 var paginateSnapshotCollectionGet = _paginate[[]*Snapshot]

@@ -1443,6 +1443,7 @@ type SvmModifyParams struct {
 	CifsAllowed          *bool
 	IscsiAllowed         *bool
 	RetentionPeriodHours *int64
+	QoSPolicyName        *string
 }
 
 func svmModifyParamsToOntap(params *SvmModifyParams) *svm.SvmModifyParams {
@@ -1477,6 +1478,9 @@ func svmModifyParamsToOntap(params *SvmModifyParams) *svm.SvmModifyParams {
 	}
 	if params.NfsAllowed != nil {
 		svmParam.Nfs = &models.SvmInlineNfs{Allowed: params.NfsAllowed}
+	}
+	if params.QoSPolicyName != nil {
+		svmParam.QosPolicy = &models.SvmInlineQosPolicy{Name: params.QoSPolicyName}
 	}
 
 	otParams.SetInfo(svmParam)
@@ -1854,6 +1858,40 @@ func qosPolicyGroupCollectionGetParamsToONTAPCollectionGet(params *QosPolicyGrou
 
 	otParams.SetFields(params.Fields)
 	otParams.SetName(&params.Name)
+	return otParams
+}
+
+// QoSPolicyGroupCreateParams is the input param struct for StorageClient.QoSPolicyGroupCreate
+// Used for creating a shared QoS policy group on ONTAP
+// Throughput in MiBps, IOPS as input, applied to a specific SVM
+// Not for adaptive QoS
+type QoSPolicyGroupCreateParams struct {
+	Name          string // Name of the QoS policy group
+	SvmName       string // SVM to apply the policy on
+	MaxThroughput int64  // Throughput in MiBps
+	MaxIOPS       int64  // Max IOPS
+}
+
+// Conversion function for QoSPolicyGroupCreateParams to ONTAP SDK params
+func qosPolicyGroupCreateParamsToONTAP(params *QoSPolicyGroupCreateParams) *storage.QosPolicyCreateParams {
+	otParams := storage.NewQosPolicyCreateParams()
+	if params == nil {
+		return otParams
+	}
+	info := &models.QosPolicy{
+		Name: &params.Name,
+		Svm: &models.QosPolicyInlineSvm{
+			Name: &params.SvmName,
+		},
+		Fixed: &models.QosPolicyInlineFixed{
+			MaxThroughputMbps: &params.MaxThroughput,
+			MaxThroughputIops: &params.MaxIOPS,
+			CapacityShared:    nillable.ToPointer(true),
+		},
+	}
+	otParams.Info = info
+	otParams.SetReturnRecords(nillable.ToPointer("true"))
+	otParams.SetReturnTimeout(&returnTimeout)
 	return otParams
 }
 
@@ -2371,6 +2409,7 @@ func lunMapCreateParamsToONTAP(params *LunMapCreateParams) *san.LunMapCreatePara
 		Lun: &models.LunMapInlineLun{
 			Name: &params.LunName,
 		},
+
 		Svm: &models.LunMapInlineSvm{
 			Name: &params.SvmName,
 		},

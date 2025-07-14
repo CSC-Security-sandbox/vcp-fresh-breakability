@@ -214,3 +214,150 @@ func TestCreateSVM_PollJob(t *testing.T) {
 		assert.Equal(tt, "getOntapClientFunc error", err.Error())
 	})
 }
+
+func TestModifySVMWithQoSPolicy(t *testing.T) {
+	params := ModifySVMWithQoSPolicyParams{
+		SvmUUID:       "test-svm-uuid",
+		QoSPolicyName: "test-qos-policy",
+	}
+
+	t.Run("WhenSVMModificationSucceeds_ThenReturnNil", func(tt *testing.T) {
+		mockSVM := new(ontaprest.MockSVMClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SVM").Return(mockSVM)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		// Mock successful synchronous modification
+		mockSVM.On("SvmModify", mock.Anything).Return(true, nil, nil)
+
+		err := rc.ModifySVMWithQoSPolicy(params)
+
+		assert.NoError(tt, err)
+		mockSVM.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSVMModificationReturnsJob_ThenPollJobAndReturnNil", func(tt *testing.T) {
+		mockSVM := new(ontaprest.MockSVMClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SVM").Return(mockSVM)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		// Mock asynchronous modification with job
+		job := &ontaprest.JobAccepted{JobUUID: "test-job-uuid"}
+		mockSVM.On("SvmModify", mock.Anything).Return(false, job, nil)
+		mockClient.On("Poll", "test-job-uuid").Return(nil)
+
+		err := rc.ModifySVMWithQoSPolicy(params)
+
+		assert.NoError(tt, err)
+		mockSVM.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetOntapClientFails_ThenReturnError", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("client error")
+		}
+		rc := &OntapRestProvider{}
+
+		err := rc.ModifySVMWithQoSPolicy(params)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "client error", err.Error())
+	})
+
+	t.Run("WhenSVMModifyFails_ThenReturnError", func(tt *testing.T) {
+		mockSVM := new(ontaprest.MockSVMClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SVM").Return(mockSVM)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		// Mock SVM modification failure
+		mockSVM.On("SvmModify", mock.Anything).Return(false, nil, errors.New("svm modify error"))
+
+		err := rc.ModifySVMWithQoSPolicy(params)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "svm modify error", err.Error())
+		mockSVM.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenJobPollingFails_ThenReturnError", func(tt *testing.T) {
+		mockSVM := new(ontaprest.MockSVMClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SVM").Return(mockSVM)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		// Mock asynchronous modification with job
+		job := &ontaprest.JobAccepted{JobUUID: "test-job-uuid"}
+		mockSVM.On("SvmModify", mock.Anything).Return(false, job, nil)
+		mockClient.On("Poll", "test-job-uuid").Return(errors.New("poll error"))
+
+		err := rc.ModifySVMWithQoSPolicy(params)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "poll error", err.Error())
+		mockSVM.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenParamsAreCorrectlyPassed_ThenCallSvmModifyWithCorrectParams", func(tt *testing.T) {
+		mockSVM := new(ontaprest.MockSVMClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SVM").Return(mockSVM)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		// Mock successful modification
+		mockSVM.On("SvmModify", &ontaprest.SvmModifyParams{
+			SvmUUID:       "test-svm-uuid",
+			QoSPolicyName: nillable.ToPointer("test-qos-policy"),
+		}).Return(true, nil, nil)
+
+		err := rc.ModifySVMWithQoSPolicy(params)
+
+		assert.NoError(tt, err)
+		mockSVM.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+}

@@ -439,3 +439,29 @@ type CreateDnsParams struct {
 	Domains []string
 	Servers []string
 }
+
+// CreateQoSGroupPolicyParams is the input struct for Provider.CreateQoSGroupPolicy
+// Throughput in MiB/s, IOPS as input, applied to a specific SVM
+// Not for adaptive QoS
+type CreateQoSGroupPolicyParams struct {
+	Name          string // Name of the QoS policy group
+	SvmName       string // SVM to apply the policy on
+	MaxThroughput int64  // Throughput in MiBps
+	MaxIOPS       int64  // Max IOPS
+}
+
+// QoSGroupPolicyResponse is the output struct for Provider.CreateQoSGroupPolicy
+type QoSGroupPolicyResponse struct {
+	Name          string
+	UUID          string
+	SvmName       string
+	MaxThroughput int64
+	MaxIOPS       int64
+}
+
+// ModifySVMWithQoSPolicyParams is the input struct for Provider.ModifySVMWithQoSPolicy
+// Used to apply a QoS policy group to an existing SVM
+type ModifySVMWithQoSPolicyParams struct {
+	SvmUUID       string // UUID of the SVM to modify
+	QoSPolicyName string // Name of the QoS policy group to apply
+}

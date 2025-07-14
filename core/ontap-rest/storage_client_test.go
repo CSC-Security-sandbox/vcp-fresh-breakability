@@ -1185,3 +1185,207 @@ func TestSnapshotPolicyCreateParamsToONTAP(t *testing.T) {
 		assert.Len(tt, result.Info.SnapshotPolicyInlineCopies, 0)
 	})
 }
+
+func TestQoSPolicyGroupCreate(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+		_, _, err := client.QoSPolicyGroupCreate(&QoSPolicyGroupCreateParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenRESTCallSucceeds_ThenReturnResponse", func(tt *testing.T) {
+		// Mock response data
+		qosPolicyName := "test-policy"
+		transport := &mockTransport{response: &storage.QosPolicyCreateCreated{
+			Location: "some-location",
+			Payload: &models.QosPolicyJobLinkResponse{
+				NumRecords: 1,
+				Records: []*models.QosPolicy{
+					{
+						Name: &qosPolicyName,
+					},
+				},
+			},
+		}}
+
+		// Create the storage API and client
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+
+		// Call the method
+		response, job, err := client.QoSPolicyGroupCreate(&QoSPolicyGroupCreateParams{})
+
+		// Assertions
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.Nil(tt, job)
+		assert.Equal(tt, qosPolicyName, *response.Name)
+	})
+
+	t.Run("WhenAcceptedResponseReturned_ThenReturnJob", func(tt *testing.T) {
+		// Mock response data
+		uuid := strfmt.UUID("123e4567-e89b-12d3-a456-426614174000")
+		transport := &mockTransport{response: &storage.QosPolicyCreateAccepted{
+			Payload: &models.QosPolicyJobLinkResponse{
+				Job: &models.JobLink{
+					UUID: &uuid,
+				},
+			},
+		}}
+
+		// Create the storage API and client
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+
+		// Call the method
+		response, job, err := client.QoSPolicyGroupCreate(&QoSPolicyGroupCreateParams{})
+
+		// Assertions
+		assert.NoError(tt, err)
+		assert.Nil(tt, response)
+		assert.NotNil(tt, job)
+		assert.Equal(tt, uuid, strfmt.UUID(job.JobUUID))
+	})
+	t.Run("WhenAcceptedResponseReturned_WithError", func(tt *testing.T) {
+		// Mock response data
+		transport := &mockTransport{response: &storage.QosPolicyCreateAccepted{
+			Payload: &models.QosPolicyJobLinkResponse{},
+		}}
+
+		// Create the storage API and client
+		storageAPI := storage.New(transport, nil)
+		client := &storageClient{api: storageAPI}
+
+		// Call the method
+		response, job, err := client.QoSPolicyGroupCreate(&QoSPolicyGroupCreateParams{})
+
+		// Assertions
+		assert.NotNil(tt, err)
+		assert.EqualError(tt, err, "unexpected response from server while creating QoS policy - received no QoS info")
+		assert.Nil(tt, response)
+		assert.Nil(tt, job)
+	})
+}
+
+func TestQoSPolicyGroupCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsIsNil_ThenReturnDefaultParams", func(tt *testing.T) {
+		result := qosPolicyGroupCreateParamsToONTAP(nil)
+		assert.NotNil(tt, result)
+		assert.Nil(tt, result.Info)
+	})
+
+	t.Run("WhenParamsIsSet_ThenFieldsAreMappedCorrectly", func(tt *testing.T) {
+		name := "test-policy"
+		svmName := "test-svm"
+		maxThroughput := int64(1000)
+		maxIOPS := int64(5000)
+		params := &QoSPolicyGroupCreateParams{
+			Name:          name,
+			SvmName:       svmName,
+			MaxThroughput: maxThroughput,
+			MaxIOPS:       maxIOPS,
+		}
+		result := qosPolicyGroupCreateParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.Equal(tt, &name, result.Info.Name)
+		assert.NotNil(tt, result.Info.Svm)
+		assert.Equal(tt, &svmName, result.Info.Svm.Name)
+		assert.NotNil(tt, result.Info.Fixed)
+		assert.Equal(tt, &maxThroughput, result.Info.Fixed.MaxThroughputMbps)
+		assert.Equal(tt, &maxIOPS, result.Info.Fixed.MaxThroughputIops)
+		assert.Equal(tt, nillable.ToPointer(true), result.Info.Fixed.CapacityShared)
+	})
+
+	t.Run("WhenParamsHasZeroValues_ThenFieldsAreMappedCorrectly", func(tt *testing.T) {
+		name := "zero-policy"
+		svmName := "zero-svm"
+		params := &QoSPolicyGroupCreateParams{
+			Name:          name,
+			SvmName:       svmName,
+			MaxThroughput: 0,
+			MaxIOPS:       0,
+		}
+		result := qosPolicyGroupCreateParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.Equal(tt, &name, result.Info.Name)
+		assert.NotNil(tt, result.Info.Svm)
+		assert.Equal(tt, &svmName, result.Info.Svm.Name)
+		assert.NotNil(tt, result.Info.Fixed)
+		assert.Equal(tt, nillable.ToPointer(int64(0)), result.Info.Fixed.MaxThroughputMbps)
+		assert.Equal(tt, nillable.ToPointer(int64(0)), result.Info.Fixed.MaxThroughputIops)
+		assert.Equal(tt, nillable.ToPointer(true), result.Info.Fixed.CapacityShared)
+	})
+
+	t.Run("WhenParamsHasNegativeValues_ThenFieldsAreMappedCorrectly", func(tt *testing.T) {
+		name := "negative-policy"
+		svmName := "negative-svm"
+		maxThroughput := int64(-100)
+		maxIOPS := int64(-500)
+		params := &QoSPolicyGroupCreateParams{
+			Name:          name,
+			SvmName:       svmName,
+			MaxThroughput: maxThroughput,
+			MaxIOPS:       maxIOPS,
+		}
+		result := qosPolicyGroupCreateParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.Equal(tt, &name, result.Info.Name)
+		assert.NotNil(tt, result.Info.Svm)
+		assert.Equal(tt, &svmName, result.Info.Svm.Name)
+		assert.NotNil(tt, result.Info.Fixed)
+		assert.Equal(tt, &maxThroughput, result.Info.Fixed.MaxThroughputMbps)
+		assert.Equal(tt, &maxIOPS, result.Info.Fixed.MaxThroughputIops)
+		assert.Equal(tt, nillable.ToPointer(true), result.Info.Fixed.CapacityShared)
+	})
+
+	t.Run("WhenParamsHasLargeValues_ThenFieldsAreMappedCorrectly", func(tt *testing.T) {
+		name := "large-policy"
+		svmName := "large-svm"
+		maxThroughput := int64(999999)
+		maxIOPS := int64(999999)
+		params := &QoSPolicyGroupCreateParams{
+			Name:          name,
+			SvmName:       svmName,
+			MaxThroughput: maxThroughput,
+			MaxIOPS:       maxIOPS,
+		}
+		result := qosPolicyGroupCreateParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.Equal(tt, &name, result.Info.Name)
+		assert.NotNil(tt, result.Info.Svm)
+		assert.Equal(tt, &svmName, result.Info.Svm.Name)
+		assert.NotNil(tt, result.Info.Fixed)
+		assert.Equal(tt, &maxThroughput, result.Info.Fixed.MaxThroughputMbps)
+		assert.Equal(tt, &maxIOPS, result.Info.Fixed.MaxThroughputIops)
+		assert.Equal(tt, nillable.ToPointer(true), result.Info.Fixed.CapacityShared)
+	})
+
+	t.Run("WhenParamsHasEmptyStrings_ThenFieldsAreMappedCorrectly", func(tt *testing.T) {
+		name := ""
+		svmName := ""
+		maxThroughput := int64(100)
+		maxIOPS := int64(500)
+		params := &QoSPolicyGroupCreateParams{
+			Name:          name,
+			SvmName:       svmName,
+			MaxThroughput: maxThroughput,
+			MaxIOPS:       maxIOPS,
+		}
+		result := qosPolicyGroupCreateParamsToONTAP(params)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Info)
+		assert.Equal(tt, &name, result.Info.Name)
+		assert.NotNil(tt, result.Info.Svm)
+		assert.Equal(tt, &svmName, result.Info.Svm.Name)
+		assert.NotNil(tt, result.Info.Fixed)
+		assert.Equal(tt, &maxThroughput, result.Info.Fixed.MaxThroughputMbps)
+		assert.Equal(tt, &maxIOPS, result.Info.Fixed.MaxThroughputIops)
+		assert.Equal(tt, nillable.ToPointer(true), result.Info.Fixed.CapacityShared)
+	})
+}

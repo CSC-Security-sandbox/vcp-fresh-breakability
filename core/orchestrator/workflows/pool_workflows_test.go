@@ -107,6 +107,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -674,6 +675,111 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 }
 
+func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
+	t.Run("WhenCreateQoSPolicyAndApplyToSVMFails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+		defer func() {
+			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+		}()
+
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+				return nil
+			},
+			workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+		)
+
+		// Set up test data
+		params := &common.CreatePoolParams{
+			Name:                    "test-pool",
+			AccountName:             "test-account",
+			SizeInBytes:             1024 * 1024 * 1024, // 1 GB
+			Region:                  "test-region",
+			PrimaryZone:             "test-zone",
+			AllowAutoTiering:        true,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		}
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+			},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
+			RegionalTenantProject: "test-project",
+			SnHostProject:         "test-host-project",
+			Gateway:               "192.168.1.254",
+		}, nil)
+		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("QoS policy creation failed"))
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+		mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+			return mockVSAClientWorkflowManager
+		}
+
+		// Execute workflow
+		env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+
+		// Assert workflow execution
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.Contains(t, env.GetWorkflowError().Error(), "QoS policy creation failed")
+		env.AssertExpectations(t)
+	})
+}
+
 func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 	t.Run("WhenGetKmsConfigActivityReturnsNoError", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
@@ -750,6 +856,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("AccessCryptoKeyWithImpersonationActivity", mock.Anything, mock.Anything).Return(nil)
@@ -857,6 +964,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("some error", kms_activities.ErrTypeKmsConfigNotFound, errors.New("some error")))
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
@@ -971,6 +1079,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("some error", kms_activities.ErrTypeKmsConfigNotFound, errors.New("some error")))
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
@@ -1090,6 +1199,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("some error", kms_activities.ErrTypeKmsConfigNotFound, errors.New("some error")))
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
 		env.OnActivity("CreateAndSyncKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
@@ -1212,6 +1322,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("some error", kms_activities.ErrTypeKmsConfigNotFound, errors.New("some error")))
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything).Return(cvpKmsConfig, nil)
@@ -1326,6 +1437,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("some error", kms_activities.ErrTypeKmsConfigNotFound, errors.New("some error")))
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
@@ -1438,6 +1550,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
 		env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
@@ -1549,6 +1662,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("AccessCryptoKeyWithImpersonationActivity", mock.Anything, mock.Anything).Return(errors.New("error"))
@@ -1662,6 +1776,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
@@ -1778,6 +1893,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
@@ -1894,6 +2010,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
@@ -2009,6 +2126,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
@@ -2225,6 +2343,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
 
