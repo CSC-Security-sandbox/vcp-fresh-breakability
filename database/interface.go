@@ -195,6 +195,10 @@ type DataStore interface {
 	GetNodeNodeGroupMap(ctx context.Context, id int64) (*datamodel.NodeNodeGroupMap, error)
 	UpdateNodeNodeGroupMap(ctx context.Context, mapping *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error)
 	DeleteNodeNodeGroupMap(ctx context.Context, id int64) error
+	// Below one performs soft delete on nodenodegroupmap table
+	DeleteNodeGroupMap(ctx context.Context, nodeGroupMap *datamodel.NodeNodeGroupMap) error
+	GetNodeGroupMapNodeCount(ctx context.Context, nodeGroupID int64) (int64, error)
+	GetNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64) (*datamodel.NodeNodeGroupMap, error)
 
 	CreateNodeGroup(ctx context.Context, group *datamodel.NodeGroup) (*datamodel.NodeGroup, error)
 	GetNodeGroup(ctx context.Context, id int64) (*datamodel.NodeGroup, error)

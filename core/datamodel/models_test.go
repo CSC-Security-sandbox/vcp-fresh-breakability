@@ -256,6 +256,7 @@ func TestNodeNodeGroupMap_Fields(t *testing.T) {
 		BaseModel:   BaseModel{ID: 1, UUID: "uuid-1", CreatedAt: createdAt, UpdatedAt: updatedAt},
 		NodeID:      123,
 		NodeGroupID: 456,
+		NodeGroup:   &NodeGroup{},
 	}
 	assert.Equal(t, int64(1), m.ID)
 	assert.Equal(t, "uuid-1", m.UUID)

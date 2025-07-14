@@ -2549,6 +2549,65 @@ func (re *retryEngine) DeleteNodeNodeGroupMap(ctx context.Context, id int64) err
 	return err
 }
 
+func (re *retryEngine) DeleteNodeGroupMap(ctx context.Context, nodeGroupMap *datamodel.NodeNodeGroupMap) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.DeleteNodeGroupMap(ctx, nodeGroupMap)
+		if err != nil {
+			re.logError("DeleteNodeGroupMap", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
+func (re *retryEngine) GetNodeGroupMapNodeCount(ctx context.Context, nodeGroupID int64) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetNodeGroupMapNodeCount(ctx, nodeGroupID)
+		if err != nil {
+			re.logError("GetNodeGroupMapNodeCount", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64) (*datamodel.NodeNodeGroupMap, error) {
+	var var0 *datamodel.NodeNodeGroupMap
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetNodeNodeGroupMapByNodeID(ctx, nodeID)
+		if err != nil {
+			re.logError("GetNodeNodeGroupMapByNodeID", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) CreateNodeGroup(ctx context.Context, group *datamodel.NodeGroup) (*datamodel.NodeGroup, error) {
 	var var0 *datamodel.NodeGroup
 	err := retry.Do(func(attempt int) (bool, error) {

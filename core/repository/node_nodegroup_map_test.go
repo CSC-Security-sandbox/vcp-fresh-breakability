@@ -20,7 +20,11 @@ func setupNodeNodeGroupMapTestRepo(t *testing.T) (*DataStoreRepository, *datamod
 	repo := &DataStoreRepository{db: wrapper}
 	err = ClearInMemoryDB(db)
 	assert.NoError(t, err)
-	mapping := &datamodel.NodeNodeGroupMap{NodeID: 1, NodeGroupID: 2, HarvestConfig: &datamodel.HarvestConfig{}}
+	mapping := &datamodel.NodeNodeGroupMap{
+		NodeID: 1, NodeGroupID: 2, HarvestConfig: &datamodel.HarvestConfig{},
+		NodeGroup: &datamodel.NodeGroup{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: uuid.New().String()}, Name: "test-node-group", LeaseName: "test-lease-name"},
+	}
 	return repo, mapping
 }
 
@@ -89,6 +93,7 @@ func TestUpdateNodeNodeGroupMap(t *testing.T) {
 	repo, mapping := setupNodeNodeGroupMapTestRepo(t)
 	created, err := repo.CreateNodeNodeGroupMap(context.Background(), mapping)
 	assert.NoError(t, err)
+	created.NodeGroup.ID = 3
 	created.NodeGroupID = 3
 	updated, err := repo.UpdateNodeNodeGroupMap(context.Background(), created)
 	assert.NoError(t, err)
@@ -490,6 +495,7 @@ func TestCreateNodeNodeGroupMap_RejectsDuplicateMapping(t *testing.T) {
 		BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
 		NodeID:        node.ID,
 		NodeGroupID:   group.ID,
+		NodeGroup:     group,
 		HarvestConfig: &datamodel.HarvestConfig{},
 	}
 	created1, err := repo.CreateNodeNodeGroupMap(ctx, mapping1)
@@ -505,6 +511,7 @@ func TestCreateNodeNodeGroupMap_RejectsDuplicateMapping(t *testing.T) {
 		BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
 		NodeID:        node.ID,   // Same node as first mapping
 		NodeGroupID:   group2.ID, // Different group
+		NodeGroup:     group2,
 		HarvestConfig: &datamodel.HarvestConfig{},
 	}
 	created2, err := repo.CreateNodeNodeGroupMap(ctx, mapping2)
@@ -801,4 +808,73 @@ func TestAssignTwoNodesToTwoGroups_GroupCreateError_Node2_MonkeyPatch(t *testing
 	} else {
 		assert.Contains(t, err.Error(), "simulated group2 creation error")
 	}
+}
+
+func TestDeleteNodeGroupMap(t *testing.T) {
+	repo, mapping := setupNodeNodeGroupMapTestRepo(t)
+	created, err := repo.CreateNodeNodeGroupMap(context.Background(), mapping)
+	assert.NoError(t, err)
+	err = repo.DeleteNodeGroupMap(context.Background(), created)
+	assert.NoError(t, err)
+	deleted, err := repo.GetNodeNodeGroupMap(context.Background(), created.ID)
+	assert.Error(t, err)
+	assert.Nil(t, deleted)
+	assert.Contains(t, err.Error(), "record not found")
+}
+
+func TestGetNodeGroupMapNodeCount_ZeroCount(t *testing.T) {
+	repo, mapping := setupNodeNodeGroupMapTestRepo(t)
+	created, err := repo.CreateNodeNodeGroupMap(context.Background(), mapping)
+	assert.NoError(t, err)
+	err = repo.DeleteNodeGroupMap(context.Background(), created)
+	assert.NoError(t, err)
+	count, err := repo.GetNodeGroupMapNodeCount(context.Background(), created.NodeGroupID)
+	assert.NoError(t, err)
+	assert.Zero(t, count)
+}
+
+func TestGetNodeGroupMapNodeCount_SingleCount(t *testing.T) {
+	repo, mapping := setupNodeNodeGroupMapTestRepo(t)
+	created, err := repo.CreateNodeNodeGroupMap(context.Background(), mapping)
+	assert.NoError(t, err)
+	count, err := repo.GetNodeGroupMapNodeCount(context.Background(), created.NodeGroupID)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+}
+
+func TestGetNodeGroupMapNodeCount_MultiCount(t *testing.T) {
+	repo, mapping := setupNodeNodeGroupMapTestRepo(t)
+	firstRecord, err := repo.CreateNodeNodeGroupMap(context.Background(), mapping)
+	assert.NoError(t, err)
+	assert.NotNil(t, firstRecord)
+	secondMap := &datamodel.NodeNodeGroupMap{NodeID: 5, NodeGroupID: 2, HarvestConfig: &datamodel.HarvestConfig{}}
+	secondMap.UUID = uuid.NewString()
+	secondRecord, err := repo.CreateNodeNodeGroupMap(context.Background(), secondMap)
+	assert.NotNil(t, secondRecord)
+	assert.NoError(t, err)
+	assert.Equal(t, firstRecord.NodeGroupID, secondRecord.NodeGroupID)
+	assert.NotEqual(t, firstRecord.NodeID, secondRecord.NodeID)
+	count, err := repo.GetNodeGroupMapNodeCount(context.Background(), secondRecord.NodeGroupID)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), count)
+}
+
+func TestGetNodeNodeGroupMapByNodeID(t *testing.T) {
+	repo, mapping := setupNodeNodeGroupMapTestRepo(t)
+	dbRecord, err := repo.CreateNodeNodeGroupMap(context.Background(), mapping)
+	assert.NoError(t, err)
+	assert.NotNil(t, dbRecord)
+	result, err := repo.GetNodeNodeGroupMapByNodeID(context.Background(), dbRecord.NodeID)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, result.NodeGroupID, dbRecord.NodeGroupID)
+	assert.Equal(t, result.NodeID, dbRecord.NodeID)
+}
+
+func TestGetNodeNodeGroupMapByNodeID_Error(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	result, err := repo.GetNodeNodeGroupMapByNodeID(context.Background(), int64(1))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+	assert.Nil(t, result)
 }

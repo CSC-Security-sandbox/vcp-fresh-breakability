@@ -485,6 +485,11 @@ func TestDeletePoolWorkflow(t *testing.T) {
 	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 
+	// Mock child workflow
+	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
+		PoolID: 0,
+	}).Return(nil)
+
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
 	}
@@ -561,6 +566,11 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+
+	// Mock child workflow
+	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
+		PoolID: 0,
+	}).Return(nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager

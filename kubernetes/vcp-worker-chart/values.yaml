@@ -73,6 +73,11 @@ workerConfig:
   vsaLifecycleManagerQueuePrefix: "vsa-lifecycle-manager"
   ontapVersion: "9.18.1"
   enforceMinSpConfig: "true"
+  leaseNameSpace: "vcp"
+  harvestHost: "harvest-farm-service.vcp.svc.cluster.local:3000"
+  enableMetrics: "true"
+  harvestRestProtocol: "http"
+
 
   # Database configuration
   database:

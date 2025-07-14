@@ -623,7 +623,8 @@ type HarvestConfig struct {
 type NodeNodeGroupMap struct {
 	BaseModel
 	NodeID        int64          `gorm:"not null;uniqueIndex;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;foreignKey:NodeID;references:ID"`
-	NodeGroupID   int64          `gorm:"not null;index;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;foreignKey:NodeGroupID;references:ID"`
+	NodeGroupID   int64          `gorm:"not null;index;column:node_group_id;type:bigint"`
+	NodeGroup     *NodeGroup     `gorm:"ForeignKey:NodeGroupID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	HarvestConfig *HarvestConfig `gorm:"column:harvest_config;type:jsonb"`
 }
 
@@ -643,5 +644,6 @@ func (hc HarvestConfig) Value() (driver.Value, error) {
 
 type NodeGroup struct {
 	BaseModel
-	Name string `gorm:"column:name;not null;unique"`
+	Name      string `gorm:"column:name;not null;unique"`
+	LeaseName string `gorm:"column:lease_name"`
 }

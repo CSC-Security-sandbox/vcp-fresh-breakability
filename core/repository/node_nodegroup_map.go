@@ -38,7 +38,20 @@ func (d *DataStoreRepository) CreateNodeNodeGroupMap(ctx context.Context, mappin
 // GetNodeNodeGroupMap retrieves a node to nodegroup mapping by ID
 func (d *DataStoreRepository) GetNodeNodeGroupMap(ctx context.Context, id int64) (*datamodel.NodeNodeGroupMap, error) {
 	var mapping datamodel.NodeNodeGroupMap
-	err := d.db.GORM().WithContext(ctx).First(&mapping, id).Error
+	err := d.db.GORM().WithContext(ctx).Preload("NodeGroup").First(&mapping, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return &mapping, nil
+}
+
+// GetNodeNodeGroupMapByNodeID retrieves nodegroup map by NodeID
+func (d *DataStoreRepository) GetNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64) (*datamodel.NodeNodeGroupMap, error) {
+	var mapping datamodel.NodeNodeGroupMap
+	err := d.db.GORM().WithContext(ctx).Preload("NodeGroup").Where("node_id = ?", nodeID).First(&mapping).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, err)
@@ -103,8 +116,8 @@ func (d *DataStoreRepository) AssignTwoNodesToTwoGroups(ctx context.Context, nod
 	// Check if nodes are already assigned to groups
 	logger.Debugf("Checking existing mappings for node1.ID=%d and node2.ID=%d", node1.ID, node2.ID)
 	var existingMapping1, existingMapping2 datamodel.NodeNodeGroupMap
-	err1 := tx.Where("node_id = ?", node1.ID).First(&existingMapping1).Error
-	err2 := tx.Where("node_id = ?", node2.ID).First(&existingMapping2).Error
+	err1 := tx.Preload("NodeGroup").Where("node_id = ?", node1.ID).First(&existingMapping1).Error
+	err2 := tx.Preload("NodeGroup").Where("node_id = ?", node2.ID).First(&existingMapping2).Error
 
 	// If both nodes already have mappings, return them (idempotent behavior)
 	if err1 == nil && err2 == nil {
@@ -199,6 +212,7 @@ func (d *DataStoreRepository) AssignTwoNodesToTwoGroups(ctx context.Context, nod
 			BaseModel:     datamodel.BaseModel{UUID: uuid.New().String()},
 			NodeID:        node1.ID,
 			NodeGroupID:   group1.ID,
+			NodeGroup:     &group1,
 			HarvestConfig: renderHarvestConfig(*node1),
 		}
 		if err := tx.Create(mapping1).Error; err != nil {
@@ -218,6 +232,7 @@ func (d *DataStoreRepository) AssignTwoNodesToTwoGroups(ctx context.Context, nod
 			BaseModel:     datamodel.BaseModel{UUID: uuid.New().String()},
 			NodeID:        node2.ID,
 			NodeGroupID:   group2.ID,
+			NodeGroup:     &group2,
 			HarvestConfig: renderHarvestConfig(*node2),
 		}
 		if err := tx.Create(mapping2).Error; err != nil {
@@ -255,4 +270,31 @@ func _generateRandomNodeGroup(ctx context.Context, d *DataStoreRepository, group
 	}
 	group1Ptr, err := d.CreateNodeGroup(ctx, &group1)
 	return group1Ptr, err
+}
+
+func (d *DataStoreRepository) DeleteNodeGroupMap(ctx context.Context, nodeGroupMap *datamodel.NodeNodeGroupMap) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+	nodeGroupMap.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
+	err = tx.Updates(nodeGroupMap).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+	return nil
+}
+
+// GetNodeGroupMapNodeCount returns the number of pollers associated with respect to leaseID
+func (d *DataStoreRepository) GetNodeGroupMapNodeCount(ctx context.Context, nodeGroupID int64) (int64, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var count int64
+	err := db.Model(&datamodel.NodeNodeGroupMap{}).Where("node_group_id = ?", nodeGroupID).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }

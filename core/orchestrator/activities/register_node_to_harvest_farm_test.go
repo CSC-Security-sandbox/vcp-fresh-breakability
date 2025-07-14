@@ -3,15 +3,15 @@ package activities
 import (
 	"context"
 	"errors"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"gorm.io/gorm"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
 )
 
 func TestRegisterNodeToHarvestFarm_Success(t *testing.T) {
@@ -124,4 +124,86 @@ func TestUploadHarvestTemplate_HTTPError(t *testing.T) {
 	}
 	ctx := context.Background()
 	assert.Error(t, activity.UploadHarvestTemplate(ctx, input))
+}
+
+// Below test case will test whether k8's lease is been created
+func TestValidateAndCreateKubernetesLease_Success(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	ctx := context.Background()
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+
+	nodeGroupsMap := getNodeGroupMap(false, false)
+	// nodeGroups := getNodeGroups(false)
+
+	for _, nodeGroupMap := range nodeGroupsMap {
+		mockSE.On("UpdateNodeGroup", ctx, nodeGroupMap.NodeGroup).Return(nodeGroupMap.NodeGroup, nil)
+	}
+
+	oldCreateKubernetesLease := createKubernetesLease
+	// Mock create lease which is in utils
+	createKubernetesLease = func(ctx context.Context, leaseNameSpace, leaseName string) error {
+		return nil
+	}
+	defer func() { createKubernetesLease = oldCreateKubernetesLease }()
+
+	err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
+	assert.NoError(t, err)
+	mockSE.AssertExpectations(t)
+}
+
+// Below test case will test for leaseClient failure
+func TestValidateAndCreateKubernetesLease_Failure(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	ctx := context.Background()
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+
+	nodeGroupsMap := getNodeGroupMap(false, false)
+
+	oldCreateKubernetesLease := createKubernetesLease
+	// Mock create lease which is in utils
+	createKubernetesLease = func(ctx context.Context, leaseNameSpace, leaseName string) error {
+		return errors.New("lease-client-error")
+	}
+	defer func() { createKubernetesLease = oldCreateKubernetesLease }()
+
+	err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "lease-client-error")
+	mockSE.AssertExpectations(t)
+}
+
+// Below test case will test that no k8's lease is getting created as LeaseName is already updated
+func TestValidateAndCreateKubernetesLease(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	ctx := context.Background()
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+
+	nodeGroupsMap := getNodeGroupMap(false, true)
+
+	err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
+	assert.NoError(t, err)
+	mockSE.AssertExpectations(t)
+}
+
+// Below test case will test when GetNodeGroup call to DB fails
+func TestValidateAndCreateKubernetesLease_DBError(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	ctx := context.Background()
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+
+	nodeGroupsMap := getNodeGroupMap(false, false)
+
+	mockSE.On("UpdateNodeGroup", ctx, nodeGroupsMap[0].NodeGroup).Return(nil, gorm.ErrRecordNotFound)
+
+	oldCreateKubernetesLease := createKubernetesLease
+	// Mock create lease which is in utils
+	createKubernetesLease = func(ctx context.Context, leaseNameSpace, leaseName string) error {
+		return nil
+	}
+	defer func() { createKubernetesLease = oldCreateKubernetesLease }()
+
+	err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
+	assert.Error(t, err)
+	assert.Equal(t, "record not found", err.Error())
+	mockSE.AssertExpectations(t)
 }

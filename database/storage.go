@@ -917,3 +917,15 @@ func (s *PersistenceStore) UpdateNodeGroup(ctx context.Context, group *datamodel
 func (s *PersistenceStore) DeleteNodeGroup(ctx context.Context, id int64) error {
 	return s.dataStore.DeleteNodeGroup(ctx, id)
 }
+
+func (s *PersistenceStore) DeleteNodeGroupMap(ctx context.Context, nodeGroupMap *datamodel.NodeNodeGroupMap) error {
+	return s.dataStore.DeleteNodeGroupMap(ctx, nodeGroupMap)
+}
+
+func (s *PersistenceStore) GetNodeGroupMapNodeCount(ctx context.Context, nodeGroupID int64) (int64, error) {
+	return s.dataStore.GetNodeGroupMapNodeCount(ctx, nodeGroupID)
+}
+
+func (s *PersistenceStore) GetNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64) (*datamodel.NodeNodeGroupMap, error) {
+	return s.dataStore.GetNodeNodeGroupMapByNodeID(ctx, nodeID)
+}

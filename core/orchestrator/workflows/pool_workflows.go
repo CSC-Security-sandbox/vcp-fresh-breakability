@@ -40,6 +40,7 @@ var (
 	configureKmsConfigForSvmActivity                   = _configureKmsConfigForSvmActivity
 	getSignedJwtToken                                  = auth.GetSignedJwtToken
 	GetNewVSAClientWorkflowManager                     = _getNewVSAClientWorkflowManager
+	enableMetrics                                      = env.GetBool("ENABLE_METRICS", true)
 )
 
 const (
@@ -617,7 +618,19 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
-	return nil, err
+	if enableMetrics {
+		// Execute Child Work to start poller on harvest farm
+		childWorkflowOptions := workflow.ChildWorkflowOptions{}
+		childCtx := workflow.WithChildOptions(ctx, childWorkflowOptions)
+		unregisterParams := &unRegisterNodeFromHarvestFarmParams{
+			PoolID: dbPool.ID,
+		}
+		err = workflow.ExecuteChildWorkflow(ctx, UnRegisterNodeFromHarvestFarmWorkflow, unregisterParams).Get(childCtx, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nil, nil
 }
 
 func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {

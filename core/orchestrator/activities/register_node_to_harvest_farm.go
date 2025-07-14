@@ -15,6 +15,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+const (
+	leasePrefix = "harvest-"
+)
+
+var (
+	createKubernetesLease = utils.CreateKubernetesLease
+)
+
 // RegisterNodeToHarvestFarmInput holds input parameters for the activity
 type RegisterNodeToHarvestFarmInput struct {
 	PoolID           int64
@@ -70,6 +78,33 @@ func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(ctx contex
 
 	logger.Infof("Successfully registered and assigned nodes %d and %d to groups", nodes[0].ID, nodes[1].ID)
 	return nodeMappings, nil
+}
+
+func (a *RegisterNodeToHarvestFarmActivity) ValidateAndCreateKubernetesLease(ctx context.Context, nodeGroupsMap []*datamodel.NodeNodeGroupMap) error {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+	for _, nodeGroupMap := range nodeGroupsMap {
+		nodeGroup := nodeGroupMap.NodeGroup
+		if nodeGroup == nil {
+			logger.Errorf("Failed to fetch node group details of node groupID:%s", nodeGroupMap.NodeGroupID)
+			return errors.New("failed to fetch node group details from nodeGroup Map table")
+		}
+		if nodeGroup.LeaseName == "" {
+			logger.Infof("Creating new k8's lease for node group: %d", nodeGroup.ID)
+			leaseName := leasePrefix + nodeGroup.UUID
+			err := createKubernetesLease(ctx, vcpLeaseNameSpace, leaseName)
+			if err != nil {
+				logger.Errorf("Failed to create k8s lease for node group %d: %v", nodeGroup.ID, err)
+				return err
+			}
+			nodeGroup.LeaseName = leaseName
+			if _, err := se.UpdateNodeGroup(ctx, nodeGroup); err != nil {
+				logger.Errorf("Failed to update k8s lease info in DB for node group %d: %v", nodeGroup.ID, err)
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // UploadHarvestTemplateActivity handles uploading the rendered template as YAML via REST

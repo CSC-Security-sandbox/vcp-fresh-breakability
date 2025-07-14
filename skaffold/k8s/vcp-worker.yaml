@@ -106,3 +106,37 @@ spec:
               value: "true"
             - name: HARVEST_TEMPLATE_PATH
               value: "/app/harvest-template.yaml"
+            - name: LEASE_NAMESPACE
+              value: "vcp"
+            - name: HARVEST_HOST
+              value: "harvest-farm-service.vcp.svc.cluster.local:3000"
+            - name: ENABLE_METRICS
+              value: "true"
+            - name: HARVEST_REST_PROTOCOL
+              value: "http"
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: harvest-farm-lease-create
+  namespace: vcp
+rules:
+  - apiGroups: [ "coordination.k8s.io" ]
+    resources: [ "leases" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: harvest-farm-lease-create-binding
+  namespace: vcp
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: vcp
+roleRef:
+  kind: Role
+  name: harvest-farm-lease-create
+  apiGroup: rbac.authorization.k8s.io
+---
