@@ -33,7 +33,7 @@ type Pool struct {
 	ServiceAccountId        string           `gorm:"column:service_account_id;type:text"`
 	KmsConfigID             sql.NullInt64    `gorm:"index"`
 	KmsConfig               *KmsConfig       `gorm:"ForeignKey:KmsConfigID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	DeploymentName          string          `gorm:"column:deployment_name;uniqueIndex:idx_account_deployment"`
+	DeploymentName          string           `gorm:"column:deployment_name;uniqueIndex:idx_account_deployment"`
 	PoolCredentials         *PoolCredentials `gorm:"column:pool_credentials;type:jsonb"`
 }
 
@@ -309,7 +309,7 @@ type SvmDetails struct {
 	ExternalKmsConfigUUID string `json:"external_kms_config_uuid"`
 }
 
-func (sd SvmDetails) Scan(value interface{}) error {
+func (sd *SvmDetails) Scan(value interface{}) error {
 	bytes, ok := value.([]byte)
 	if !ok {
 		return errors.New("type assertion to []byte failed")
@@ -325,7 +325,7 @@ type LifDetails struct {
 	ExternalUUID string `json:"external_uuid"`
 }
 
-func (nd LifDetails) Scan(value interface{}) error {
+func (nd *LifDetails) Scan(value interface{}) error {
 	bytes, ok := value.([]byte)
 	if !ok {
 		return errors.New("type assertion to []byte failed")

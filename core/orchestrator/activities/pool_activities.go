@@ -557,8 +557,8 @@ func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Po
 		lifRec := &datamodel.Lif{
 			Name:       lif.Name,
 			AccountID:  pool.AccountID,
-			NodeID:     nodes[i].ID,                             // FIXME : need to get the node name from the lif object - VLM changes
-			LifDetails: &datamodel.LifDetails{ExternalUUID: ""}, // FIXME : = need to get the external UUID from the lif object - VLM changes
+			NodeID:     nodes[i].ID, // FIXME : need to get the node name from the lif object - VLM changes
+			LifDetails: &datamodel.LifDetails{ExternalUUID: lif.Uuid},
 			IPAddress:  ip,
 			SubnetMask: vsa.DefaultNetmask,
 		}
