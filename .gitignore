@@ -41,3 +41,4 @@ build/
 /kubernetes/charts/*.tgz
 
 artifacts/
+app/

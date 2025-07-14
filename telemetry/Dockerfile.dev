@@ -2,7 +2,7 @@ ARG BASE
 FROM $BASE
 
 # Copy the binary to the production image from the builder stage.
-COPY artifacts/telemetry /app
+COPY app/telemetry /app
 
 # Copy Air config for live reload
 COPY telemetry/air.toml /app/air.toml

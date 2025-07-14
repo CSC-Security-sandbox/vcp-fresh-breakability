@@ -1,7 +1,7 @@
 ARG BASE
 FROM $BASE
 
-COPY artifacts/google-proxy /app
+COPY app/google-proxy /app
 COPY core/errors/errors.json /app/errors.json
 COPY common/vsa_config /app/vsa_config
 
