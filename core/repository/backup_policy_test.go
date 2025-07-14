@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/gorm"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"gorm.io/gorm"
 )
 
 func TestGetBackupPolicyByNameAndOwnerID(t *testing.T) {
@@ -275,6 +276,45 @@ func TestCreateBackupPolicyEntryInVCP(t *testing.T) {
 		assert.NotNil(tt, result, "Expected result to not be nil")
 		assert.Equal(tt, backupPolicy.UUID, result.UUID, "Expected backup policy UUID to match")
 		assert.Equal(tt, account.Name, result.Account.Name, "Expected account name to match")
+	})
+
+	t.Run("ReturnsExistingBackupPolicyIfAlreadyExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 101, UUID: "test-account-uuid-101"},
+			Name:      "test_account_101",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Expected no error when creating account")
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-101"},
+			Name:      "backup-policy-name-101",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(backupPolicy).Error()
+		assert.NoError(tt, err)
+
+		defer func() {
+			getBackupPolicyWithDetails = _getBackupPolicyWithDetails
+		}()
+		getBackupPolicyWithDetails = func(db *gorm.DB, query *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
+			return backupPolicy, nil
+		}
+
+		result, err := store.CreateBackupPolicyEntryInVCP(context.Background(), backupPolicy)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, backupPolicy.UUID, result.UUID)
+		assert.Equal(tt, account.Name, result.Account.Name)
 	})
 
 	t.Run("WhenCreateBackupPolicyEntryInVCPFailsWhenAccountIDDoesNotExist", func(tt *testing.T) {

@@ -277,9 +277,18 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	if dbVolume.DataProtection != nil && dbVolume.DataProtection.BackupPolicyID != "" {
-		err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBackupPolicyWhenVolumeAttachedInVCP, &dbVolume, &region).Get(ctx, nil)
+		var backupPolicyExists bool
+		err = workflow.ExecuteActivity(ctx, volumeActivity.CheckIfBackupPolicyExistsInVCP, dbVolume.DataProtection.BackupPolicyID, dbVolume.AccountID).Get(ctx, &backupPolicyExists)
 		if err != nil {
 			return nil, err
+		}
+
+		if !backupPolicyExists {
+			var vcpBackupPolicy *datamodel.BackupPolicy
+			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBackupPolicyFetchedFromSDE, &dbVolume, region).Get(ctx, &vcpBackupPolicy)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

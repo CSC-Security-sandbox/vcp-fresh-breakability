@@ -1443,129 +1443,6 @@ func TestBackupVaultVCPError(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
-func TestBackupPolicyAttachWhenVolumeCreateInVCP(t *testing.T) {
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-	region := "us-central1"
-	backupPolicyID := "backup-policy-id"
-	accountName := "project-number"
-	accountId := int64(123)
-
-	volume := &datamodel.Volume{
-		DataProtection: &datamodel.DataProtection{BackupPolicyID: backupPolicyID},
-		Account:        &datamodel.Account{Name: accountName},
-		AccountID:      accountId,
-	}
-
-	t.Run("ReturnsNilIfBackupPolicyExistsInDB", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountId).Return(&datamodel.BackupPolicy{}, nil)
-		err := activity.CreateBackupPolicyWhenVolumeAttachedInVCP(ctx, volume, region)
-		assert.NoError(tt, err)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("ReturnsErrorIfGetBackupPolicyByUUIDFailsWithOtherError", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountId).Return(nil, errors.New("db error"))
-		err := activity.CreateBackupPolicyWhenVolumeAttachedInVCP(ctx, volume, region)
-		assert.Error(tt, err)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("CreatesBackupPolicyIfNotFoundInVCPAndFoundInCVP", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		name := "backup-policy-name"
-		volumeCount := int64(10)
-		backupPolicy := &cvpModels.BackupPolicyV1beta{
-			BackupPolicyID: backupPolicyID,
-			State:          "READY",
-			ResourceID:     &name,
-			VolumeCount:    &volumeCount,
-		}
-
-		// Mock cvpClient and related calls
-		mockCvpClient := backup_policy.NewMockClientService(t)
-		originalCreateCvpClient := activities.CvpCreateClient
-		activities.CvpCreateClient = func(logger log.Logger, token string) cvpapi.Cvp {
-			return cvpapi.Cvp{BackupPolicy: mockCvpClient}
-		}
-		defer func() { activities.CvpCreateClient = originalCreateCvpClient }()
-		dbBackupPolicy := &datamodel.BackupPolicy{
-			BaseModel:      datamodel.BaseModel{UUID: backupPolicyID},
-			Name:           name,
-			LifeCycleState: models.LifeCycleStateAvailable,
-		}
-
-		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountId).Return(nil, utilErrors.NewNotFoundErr("backup policy", &backupPolicyID))
-		mockCvpClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(&backup_policy.V1betaDescribeBackupPolicyOK{
-			Payload: &cvpModels.BackupPolicyDetailsV1beta{
-				BackupPolicyV1beta: *backupPolicy,
-			},
-		}, nil)
-		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(dbBackupPolicy, nil)
-
-		err := activity.CreateBackupPolicyWhenVolumeAttachedInVCP(ctx, volume, region)
-		assert.NoError(tt, err)
-		assert.Equal(tt, dbBackupPolicy.Name, *backupPolicy.ResourceID)
-		assert.Equal(tt, dbBackupPolicy.UUID, volume.DataProtection.BackupPolicyID)
-		assert.Equal(tt, dbBackupPolicy.LifeCycleState, models.LifeCycleStateAvailable)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("CreatesBackupPolicyIfNotFoundInVCPAndCVPDescribeFails", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		// Mock cvpClient and related calls
-		mockCvpClient := backup_policy.NewMockClientService(t)
-		originalCreateCvpClient := activities.CvpCreateClient
-		activities.CvpCreateClient = func(logger log.Logger, token string) cvpapi.Cvp {
-			return cvpapi.Cvp{BackupPolicy: mockCvpClient}
-		}
-		defer func() { activities.CvpCreateClient = originalCreateCvpClient }()
-
-		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountId).Return(nil, utilErrors.NewNotFoundErr("backup policy", &backupPolicyID))
-		mockCvpClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(nil, errors.New("internal server error"))
-
-		err := activity.CreateBackupPolicyWhenVolumeAttachedInVCP(ctx, volume, region)
-		assert.Error(tt, err)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("CreatesBackupPolicyFoundInCVPAndVCPEntryFails", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		activity := activities.VolumeCreateActivity{SE: mockStorage}
-		name := "backup-policy-name"
-		backupPolicy := &cvpModels.BackupPolicyV1beta{
-			BackupPolicyID: backupPolicyID,
-			State:          "READY",
-			ResourceID:     &name,
-		}
-
-		// Mock cvpClient and related calls
-		mockCvpClient := backup_policy.NewMockClientService(t)
-		originalCreateCvpClient := activities.CvpCreateClient
-		activities.CvpCreateClient = func(logger log.Logger, token string) cvpapi.Cvp {
-			return cvpapi.Cvp{BackupPolicy: mockCvpClient}
-		}
-		defer func() { activities.CvpCreateClient = originalCreateCvpClient }()
-
-		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, accountId).Return(nil, utilErrors.NewNotFoundErr("backup policy", &backupPolicyID))
-		mockCvpClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(&backup_policy.V1betaDescribeBackupPolicyOK{
-			Payload: &cvpModels.BackupPolicyDetailsV1beta{
-				BackupPolicyV1beta: *backupPolicy,
-			},
-		}, nil)
-		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(nil, errors.New("failed to create backup policy entry in VCP"))
-
-		err := activity.CreateBackupPolicyWhenVolumeAttachedInVCP(ctx, volume, region)
-		assert.Error(tt, err)
-		mockStorage.AssertExpectations(tt)
-	})
-}
-
 func Test_FindTenancy(t *testing.T) {
 	ctx := context.TODO()
 	consumerVPC := "test-vpc"
@@ -2114,5 +1991,153 @@ func TestUpdateLunName(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, lun)
 		mockProvider.AssertExpectations(t)
+	})
+}
+
+func TestCheckIfBackupPolicyExistsInVCP(t *testing.T) {
+	ctx := context.Background()
+	backupPolicyUUID := "test-uuid"
+	accountId := int64(123)
+
+	t.Run("ReturnsTrueIfBackupPolicyExists", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockStorage}
+		mockBackupPolicy := &datamodel.BackupPolicy{}
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountId).Return(mockBackupPolicy, nil)
+		ok, err := activity.CheckIfBackupPolicyExistsInVCP(ctx, backupPolicyUUID, accountId)
+		assert.NoError(t, err)
+		assert.True(t, ok)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("ReturnsFalseIfBackupPolicyNotFound", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockStorage}
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountId).
+			Return(nil, utilErrors.NewNotFoundErr("backup policy", &backupPolicyUUID))
+		ok, err := activity.CheckIfBackupPolicyExistsInVCP(ctx, backupPolicyUUID, accountId)
+		assert.NoError(t, err)
+		assert.False(t, ok)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("ReturnsErrorIfOtherError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockStorage}
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountId).
+			Return(nil, utilErrors.New("db error"))
+		ok, err := activity.CheckIfBackupPolicyExistsInVCP(ctx, backupPolicyUUID, accountId)
+		assert.Error(t, err)
+		assert.False(t, ok)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestCreateBackupPolicyFetchedFromSDESucceeds(t *testing.T) {
+	ctx := context.Background()
+	region := "us-central1"
+	backupPolicyUUID := "test-backup-policy-uuid"
+	accountName := "test-account"
+	accountID := int64(123)
+
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupPolicyID: backupPolicyUUID},
+		Account:        &datamodel.Account{Name: accountName},
+		AccountID:      accountID,
+	}
+
+	t.Run("CreateBackupPolicyFetchedFromSDESucceeds", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockStorage}
+		mockClient := backup_policy.NewMockClientService(t)
+
+		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+		originalCreateClient := activities.CvpCreateClient
+		defer func() { activities.CvpCreateClient = originalCreateClient }()
+		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		mockBackupPolicy := &cvpModels.BackupPolicyDetailsV1beta{
+			BackupPolicyV1beta: cvpModels.BackupPolicyV1beta{
+				BackupPolicyID: backupPolicyUUID,
+				State:          models.LifeCycleStateREADY,
+			},
+		}
+		mockClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(&backup_policy.V1betaDescribeBackupPolicyOK{
+			Payload: mockBackupPolicy,
+		}, nil)
+		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(&datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: backupPolicyUUID}, AccountID: accountID, LifeCycleState: models.LifeCycleStateREADY, LifeCycleStateDetails: models.LifeCycleStateAvailableDetails}, nil)
+
+		res, err := activity.CreateBackupPolicyFetchedFromSDE(ctx, volume, region)
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+		assert.Equal(t, backupPolicyUUID, res.UUID)
+		assert.Equal(t, accountID, res.AccountID)
+	})
+
+	t.Run("CreateBackupPolicyFetchedFromSDEFailsWhenCVPReturnsError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockStorage}
+		mockClient := backup_policy.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+		originalCreateClient := activities.CvpCreateClient
+		defer func() { activities.CvpCreateClient = originalCreateClient }()
+		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		mockClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(nil, errors.New("cvp error"))
+		res, err := activity.CreateBackupPolicyFetchedFromSDE(ctx, volume, region)
+		assert.Error(t, err)
+		assert.Nil(t, res)
+	})
+
+	t.Run("CreateBackupPolicyFetchedFromSDEFailsWhenCVPReturnsNil", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockStorage}
+		mockClient := backup_policy.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+		originalCreateClient := activities.CvpCreateClient
+		defer func() { activities.CvpCreateClient = originalCreateClient }()
+		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		mockClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(&backup_policy.V1betaDescribeBackupPolicyOK{
+			Payload: nil,
+		}, nil)
+
+		res, err := activity.CreateBackupPolicyFetchedFromSDE(ctx, volume, region)
+		assert.Error(t, err)
+		assert.Nil(t, res)
+	})
+
+	t.Run("CreateBackupPolicyFetchedFromSDEFailsWithDBError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockStorage}
+		mockClient := backup_policy.NewMockClientService(t)
+
+		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+		originalCreateClient := activities.CvpCreateClient
+		defer func() { activities.CvpCreateClient = originalCreateClient }()
+		activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		mockBackupPolicy := &cvpModels.BackupPolicyDetailsV1beta{
+			BackupPolicyV1beta: cvpModels.BackupPolicyV1beta{
+				BackupPolicyID: backupPolicyUUID,
+				State:          models.LifeCycleStateREADY,
+			},
+		}
+		mockClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(&backup_policy.V1betaDescribeBackupPolicyOK{
+			Payload: mockBackupPolicy,
+		}, nil)
+		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(nil, errors.New("db error"))
+
+		res, err := activity.CreateBackupPolicyFetchedFromSDE(ctx, volume, region)
+		assert.Error(t, err)
+		assert.Nil(t, res)
 	})
 }

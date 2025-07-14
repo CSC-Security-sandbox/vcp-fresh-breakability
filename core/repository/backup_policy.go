@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
@@ -78,21 +79,21 @@ func (d *DataStoreRepository) CreateBackupPolicyEntryInVCP(ctx context.Context, 
 
 		err = tx.Create(backupPolicy).Error
 		if err != nil {
-			return nil, err
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
 		}
 
 		dbBackupPolicyDetail, err := getBackupPolicyWithDetails(tx, backupPolicy)
 		if err != nil {
-			return nil, err
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 		}
 		return dbBackupPolicyDetail, nil
 	} else if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	logger.Warnf("Backup policy with name %s already exists for account ID %d", backupPolicy.Name, backupPolicy.AccountID)
-	dbBackupPolicyDetail, err := getBackupPolicyWithDetails(tx, &dbBackupPolicy)
+	dbBackupPolicyDetail, err := getBackupPolicyWithDetails(db, &datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: dbBackupPolicy.UUID}, AccountID: dbBackupPolicy.AccountID})
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return dbBackupPolicyDetail, nil
 }
