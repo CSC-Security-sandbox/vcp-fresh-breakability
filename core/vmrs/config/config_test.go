@@ -23,6 +23,10 @@ func TestParseConfig(t *testing.T) {
 				HyperscalerPerfLimits: vmrs.HyperscalerPerfLimits{
 					VMSelectionStrategy: vmrs.LeastCostSingleVM,
 					MaxNumHAPairs:       12,
+					MaxDiskOverprovisioningFactors: vmrs.PerfAmplificationFactors{
+						IOPS:       1.1,
+						Throughput: 1.1,
+					},
 					OntapOverheads: vmrs.OntapOverheads{
 						AmplificationFactors: vmrs.AmplificationFactors{
 							PerfAmplificationFactors: vmrs.PerfAmplificationFactors{
@@ -99,6 +103,10 @@ func TestParseConfig(t *testing.T) {
 				HyperscalerPerfLimits: vmrs.HyperscalerPerfLimits{
 					VMSelectionStrategy: vmrs.LeastCostSingleVM,
 					MaxNumHAPairs:       12,
+					MaxDiskOverprovisioningFactors: vmrs.PerfAmplificationFactors{
+						IOPS:       1.1,
+						Throughput: 1.1,
+					},
 					OntapOverheads: vmrs.OntapOverheads{
 						AmplificationFactors: vmrs.AmplificationFactors{
 							PerfAmplificationFactors: vmrs.PerfAmplificationFactors{
@@ -227,6 +235,13 @@ Key: 'HyperscalerPerfLimits.OntapOverheads.HotspotPreventionFactors.Throughput' 
    3 |     amplification_factors:
    4 |       iops: 1.1
    5 |        (path: testdata/missing_vm_selection_strategy.yaml)`,
+			expectedConfig: nil,
+		},
+		{
+			name:           "MissingMaxDiskOverprovisioningFactorsField",
+			configFilename: "testdata/missing_disk_overprovisioning_factors.yaml",
+			expectedError: `[vmrs] ConfigParseError: failed to parse config file due to error: Key: 'HyperscalerPerfLimits.MaxDiskOverprovisioningFactors.IOPS' Error:Field validation for 'IOPS' failed on the 'required' tag
+Key: 'HyperscalerPerfLimits.MaxDiskOverprovisioningFactors.Throughput' Error:Field validation for 'Throughput' failed on the 'required' tag (path: testdata/missing_disk_overprovisioning_factors.yaml)`,
 			expectedConfig: nil,
 		},
 	}

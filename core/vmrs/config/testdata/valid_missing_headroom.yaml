@@ -33,3 +33,6 @@ vmrs:
           throughput_in_mibs: 12
           capacity_in_gib: 13
         relative_cost: 8
+  max_disk_overprovisioning_factors:
+    iops: 1.1
+    throughput: 1.1

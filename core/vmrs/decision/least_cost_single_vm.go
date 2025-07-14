@@ -49,9 +49,28 @@ func (d *LeastCostSingleVMDecisionMaker) FindOptimalVMs(config *vmrs.VMRSConfig,
 	for _, vm := range d.vmsSortedByCost {
 		if scaledCustomerRequest.DesiredIOPS <= vm.OntapLimits.IOPS && scaledCustomerRequest.DesiredThroughputInMiBs <= vm.OntapLimits.ThroughputInMiBs && scaledCustomerRequest.DesiredCapacityInGiB <= vm.OntapLimits.CapacityInGiB {
 			// The VM satisfies the customer request limits. When provisioning the VM, we need to upscale the customer requested performance by the overheads specified in the VMRSConfig.
+			// But, we also don't want to overprovision by more than what we can actually use.
+			// If the VM supports a max. of V IOPS or MiB/s, we can provision the disk with a maximum of V * MaxOverprovisioningFactor IOPS or MiB/s.
+			//
+			// An example:
+			// Let's say the customer requests 5120 MiB/s for the cluster and the VM supports a max. of 5200 MiB/s.
+			// Let's assume that the amplification factor for IOPS is 1.1, and the workload headroom is 0.3 (30% headroom), and hotspotting is 0.1 (10% headroom).
+			// In this case, the scaled customer request would be:
+			// 5120 * 1.1 * 1.3 * 1.1 = 8053 MiB/s.
+			// We don't want to provision 8 disks with 8053/8 = 1006.625 MiB/s each, because it's wasteful.
+			//
+			// Let's assume that VMRSConfig specifies a max. overprovisioning factor of 1.1 for throughput.
+			// In this case, we can provision the cluster with a maximum of 5200 * 1.1 = 5720 MiB/s.
+			// For 8 disks, this would mean that we can provision each disk with 5720/8 = 715 MiB/s.
+			diskProvisioningLimits := vmrs.CustomerRequestedPerformance{
+				DesiredIOPS:             min(scaledCustomerRequest.DesiredIOPS, int64(math.Ceil(float64(vm.DiskLimits.IOPS)*config.HyperscalerPerfLimits.MaxDiskOverprovisioningFactors.IOPS))),
+				DesiredThroughputInMiBs: min(scaledCustomerRequest.DesiredThroughputInMiBs, int64(math.Ceil(float64(vm.DiskLimits.ThroughputInMiBs)*config.HyperscalerPerfLimits.MaxDiskOverprovisioningFactors.Throughput))),
+				DesiredCapacityInGiB:    scaledCustomerRequest.DesiredCapacityInGiB,
+			}
+
 			return &vmrs.Decision{
 				ChosenVMs:               []string{vm.VMType},
-				StoragePoolRequirements: scaledCustomerRequest,
+				StoragePoolRequirements: diskProvisioningLimits,
 			}, nil
 		}
 	}

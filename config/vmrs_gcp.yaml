@@ -46,11 +46,19 @@
 vmrs:
   selection_strategy: "least_cost_single_vm"
   max_num_ha_pairs: 12
+  max_disk_overprovisioning_factors:
+    iops: 1.1
+    throughput: 1.1
   ontap_overheads:
     amplification_factors:
       iops: 1
       throughput: 1
       capacity: 1.2
+    workload_headroom:
+      - workload: all
+        headroom:
+          iops: 0.3
+          throughput: 0.3
     num_disks_per_zone: 8
     hotspot_prevention_factors:
       iops: 1.1
@@ -125,8 +133,17 @@ vmrs:
         relative_cost: 44
       - vm_type: c4-standard-88
         ontap_perf:
-          iops: 160000
-          throughput_in_mibs: 4800
+          # We don't want to derate the largest instance type.
+          # One way to do that would be to add more conditional code in the VMRS go module.
+          # Another, more flexible way is to account for derating within the numbers provided by the perf team.
+          # We arrived at the numbers for IOPS and throughput by taking the max. we want to allow (from the VM),
+          # dividing by 0.7 (because we derate the VM perf. by multiplying with 0.7 in the go module - at 30%),
+          # and finally rounding them up to an event number.
+          # Example:
+          # IOPS: 160000/0.7 = 228571.xy
+          # Throughput: 5120 (what we want to allow over the entire cluster made up of large VMs) / 0.7 = 7314.xy
+          iops: 230000
+          throughput_in_mibs: 7500
           capacity_in_gib: 512000
         disk_perf:
           iops: 160000

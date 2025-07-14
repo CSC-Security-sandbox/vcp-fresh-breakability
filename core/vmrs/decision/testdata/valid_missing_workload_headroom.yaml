@@ -1,6 +1,9 @@
 vmrs:
   selection_strategy: "least_cost_single_vm"
   max_num_ha_pairs: 12
+  max_disk_overprovisioning_factors:
+    iops: 1.1
+    throughput: 1.1
   ontap_overheads:
     num_disks_per_zone: 4
     amplification_factors:

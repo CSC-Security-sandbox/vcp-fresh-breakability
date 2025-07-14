@@ -47,8 +47,8 @@ func TestNewLeastCostSingleVMDecisionMaker(t *testing.T) {
 			expectedDecision: &vmrs.Decision{
 				ChosenVMs: []string{"c4-standard-16"},
 				StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
-					DesiredIOPS:             16,
-					DesiredThroughputInMiBs: 18,
+					DesiredIOPS:             13,
+					DesiredThroughputInMiBs: 14,
 					DesiredCapacityInGiB:    13,
 				},
 			},

@@ -41,3 +41,6 @@ vmrs:
           capacity_in_gib: 13
         relative_cost: 8
   selection_strategy: "least_cost_single_vm"
+  max_disk_overprovisioning_factors:
+    iops: 1.1
+    throughput: 1.1

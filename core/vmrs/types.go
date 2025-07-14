@@ -31,6 +31,8 @@ type HyperscalerPerfLimits struct {
 	OntapOverheads OntapOverheads `yaml:"ontap_overheads" validate:"required"`
 	// The list of performance limits for different disk types.
 	DiskPerfLimits []DiskTypePerfLimit `yaml:"disk_limits" validate:"required,min=1"`
+	// The max. multiplier by which disks can be overprovisioned.
+	MaxDiskOverprovisioningFactors PerfAmplificationFactors `yaml:"max_disk_overprovisioning_factors" validate:"required"`
 }
 
 // OntapOverheads contains the overheads that need to be accounted for when provisioning volumes.

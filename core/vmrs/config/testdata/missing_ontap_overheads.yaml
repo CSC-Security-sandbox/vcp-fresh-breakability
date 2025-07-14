@@ -24,3 +24,6 @@ vmrs:
         relative_cost: 8
   max_num_ha_pairs: 12
   selection_strategy: "least_cost_single_vm"
+  max_disk_overprovisioning_factors:
+    iops: 1.1
+    throughput: 1.1
