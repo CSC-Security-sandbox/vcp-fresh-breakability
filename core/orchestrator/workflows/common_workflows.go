@@ -3,11 +3,13 @@ package workflows
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	dbmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -30,6 +32,8 @@ const (
 	WorkflowStatusPending   = "PENDING"
 
 	StatusQueryName = "status"
+
+	pollDBJobWaitTimeSecond = 30
 )
 
 var (
@@ -137,6 +141,11 @@ func (bw *BaseWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err
 				updatedJob.TrackingID = 0
 				updatedJob.ErrorDetails = []byte(err.Error())
 			}
+		} else {
+			// If the error is not an application error, we set the tracking ID to 0 and the error details to the error message.
+			// This is required so that generic errors that are not of type ApplicationError do not get lost.
+			updatedJob.TrackingID = 0
+			updatedJob.ErrorDetails = []byte(err.Error())
 		}
 	}
 
@@ -167,4 +176,38 @@ func getSnapshotPolicyName(volume *datamodel.Volume) string {
 		return volume.SnapshotPolicy.Name
 	}
 	return ""
+}
+
+// PollOnDBJob waits for a db job to complete, taking a workflow context, job UUID, and timeout as input.
+func PollOnDBJob(ctx workflow.Context, jobUUID string, timeout time.Duration) error {
+	startTime := workflow.Now(ctx)
+	commonActivity := activities.CommonActivities{}
+
+	for {
+		// Check if the timeout has been reached.
+		if workflow.Now(ctx).Sub(startTime) > timeout {
+			return fmt.Errorf("db job %s timed out after %v", jobUUID, timeout)
+		}
+
+		// Execute GetJob as an activity to fetch the latest job state.
+		var job *datamodel.Job
+		err := executeActivity(ctx, commonActivity.GetJob, jobUUID).Get(ctx, &job)
+		if err != nil {
+			return fmt.Errorf("failed to get db job status for %s: %w", jobUUID, err)
+		}
+
+		// Check the job state.
+		if job.State == string(dbmodels.JobsStateDONE) {
+			if job.ErrorDetails != nil {
+				return errors.New("job completed with error: " + string(job.ErrorDetails))
+			}
+			return nil
+		}
+
+		// Sleep for a some duration before checking again.
+		err = workflow.Sleep(ctx, pollDBJobWaitTimeSecond*time.Second)
+		if err != nil {
+			return fmt.Errorf("failed to sleep while waiting for db job %s: %w", jobUUID, err)
+		}
+	}
 }

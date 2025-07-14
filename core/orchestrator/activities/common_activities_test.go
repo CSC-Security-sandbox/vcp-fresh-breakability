@@ -703,3 +703,42 @@ func Test_getPoolsBySubnetwork(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 }
+
+func TestCommonActivities_GetJob(t *testing.T) {
+	ctx := context.Background()
+	jobUUID := "test-job-uuid"
+	expectedJob := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: jobUUID},
+		State:     "PROCESSING",
+	}
+
+	t.Run("success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := CommonActivities{SE: mockStorage}
+		mockStorage.On("GetJob", ctx, jobUUID).Return(expectedJob, nil)
+		job, err := activity.GetJob(ctx, jobUUID)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedJob, job)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("error from storage", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := CommonActivities{SE: mockStorage}
+		mockStorage.On("GetJob", ctx, jobUUID).Return(nil, errors.New("db error"))
+		job, err := activity.GetJob(ctx, jobUUID)
+		assert.Error(t, err)
+		assert.Nil(t, job)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("job not found", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := CommonActivities{SE: mockStorage}
+		mockStorage.On("GetJob", ctx, jobUUID).Return(nil, nil)
+		job, err := activity.GetJob(ctx, jobUUID)
+		assert.Error(t, err)
+		assert.Nil(t, job)
+		mockStorage.AssertExpectations(t)
+	})
+}

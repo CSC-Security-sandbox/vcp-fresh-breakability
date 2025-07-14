@@ -833,3 +833,9 @@ func _parsePEMCertificate(pemCert, typeOfCertificate string) (*x509.CertPool, er
 
 	return byteCert, nil
 }
+
+// GetVPCNameFromSubnetID extracts the VPC name from a given vendor subnet ID.
+func GetVPCNameFromSubnetID(vendorSubNetID string) string {
+	parts := strings.Split(vendorSubNetID, "/")
+	return parts[len(parts)-1]
+}

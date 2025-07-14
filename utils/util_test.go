@@ -1376,3 +1376,24 @@ func TestGetAuthTokenFromContext(t *testing.T) {
 		assert.Equal(tt, "", got)
 	})
 }
+
+func TestGetVPCNameFromSubnetID(t *testing.T) {
+	tests := []struct {
+		name           string
+		vendorSubNetID string
+		expectedVPC    string
+	}{
+		{
+			name:           "ValidSubnetID",
+			vendorSubNetID: "projects/project-id/regions/us-central1/subnetworks/my-vpc-name",
+			expectedVPC:    "my-vpc-name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetVPCNameFromSubnetID(tt.vendorSubNetID)
+			assert.Equal(t, tt.expectedVPC, got)
+		})
+	}
+}

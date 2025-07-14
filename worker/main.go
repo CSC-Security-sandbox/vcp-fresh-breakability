@@ -146,6 +146,7 @@ func initializeTemporalClient(logger log.Logger) (workflowEngine.WorkflowEngine,
 func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.Storage) {
 	worker.RegisterWorkflow(workflows.SequenceWorkflow)
 	worker.RegisterWorkflow(workflows.CreatePoolWorkflow)
+	worker.RegisterWorkflow(workflows.PoolDataSubnetWorkFlow)
 	worker.RegisterWorkflow(workflows.UpdatePoolWorkflow)
 	worker.RegisterWorkflow(workflows.DeletePoolWorkflow)
 	worker.RegisterWorkflow(workflows.CreateVolumeWorkflow)
@@ -180,6 +181,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
+	worker.RegisterActivity(&workflows.SubnetActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.VolumeUpdateActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.VolumeDeleteActivity{SE: dbcon})

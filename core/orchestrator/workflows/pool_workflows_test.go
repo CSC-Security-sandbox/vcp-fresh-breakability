@@ -1,8 +1,8 @@
 package workflows
 
 import (
-	"testing"
-
+	"context"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -12,16 +12,20 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	envs "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
+	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
+	"testing"
 )
 
 func TestCreatePoolWorkflow(t *testing.T) {
@@ -42,7 +46,9 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 	}()
 
-	env.RegisterActivity(&activities.CommonActivities{})
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 
 	// Set up test data
@@ -76,7 +82,12 @@ func TestCreatePoolWorkflow(t *testing.T) {
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
 		RegionalTenantProject: "test-project",
@@ -114,6 +125,222 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	// Assert workflow execution
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_CreateSubnetJobFailure(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+	}
+
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("subnet create failed"))
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_PollJobError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+	}
+
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(nil, errors.New("job poll failed"))
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_GetTenancyDetailsError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+	}
+
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(nil, errors.New("get tenancy details failed"))
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
 }
 
@@ -371,7 +598,9 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 	}()
 
-	env.RegisterActivity(&activities.CommonActivities{})
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 
 	// Set up test data
@@ -392,7 +621,12 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 	// Mock activity responses
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
 		RegionalTenantProject: "test-project",
@@ -449,7 +683,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		}()
 
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
@@ -481,7 +717,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
@@ -546,7 +787,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		}()
 
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
@@ -579,7 +822,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
@@ -648,7 +896,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		}()
 
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterWorkflowWithOptions(
@@ -686,7 +936,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
@@ -757,7 +1012,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		}()
 
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
@@ -797,7 +1054,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
@@ -867,7 +1129,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		}()
 
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterWorkflowWithOptions(
@@ -913,7 +1177,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
@@ -982,7 +1251,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		}()
 
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterWorkflowWithOptions(
@@ -1020,7 +1291,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
@@ -1088,7 +1364,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		}()
 
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterWorkflowWithOptions(
@@ -1125,7 +1403,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
@@ -1192,7 +1475,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		}()
 
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterWorkflowWithOptions(
@@ -1229,7 +1514,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
@@ -1297,7 +1587,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		}()
 
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterWorkflowWithOptions(
@@ -1335,7 +1627,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
@@ -1406,7 +1703,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		}()
 
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterWorkflowWithOptions(
@@ -1444,7 +1743,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
@@ -1515,7 +1819,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		}()
 
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterWorkflowWithOptions(
@@ -1553,7 +1859,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
@@ -1624,7 +1935,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 		}()
 
-		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterWorkflowWithOptions(
@@ -1661,7 +1974,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-		env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
 			RegionalTenantProject: "test-project",
@@ -1842,7 +2160,9 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 	}()
 
-	env.RegisterActivity(&activities.CommonActivities{})
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 
 	// Set up test data
@@ -1868,8 +2188,13 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	}
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(1)
-	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
-	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
 		RegionalTenantProject: "test-project",
@@ -1914,64 +2239,6 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
-func TestCreatePoolWorkflow_FailurePoolDataSubnetFlow(t *testing.T) {
-	var ts testsuite.WorkflowTestSuite
-	env := ts.NewTestWorkflowEnvironment()
-	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-	mockHeader := &commonpb.Header{
-		Fields: map[string]*commonpb.Payload{
-			"logParam": encodedValue,
-		},
-	}
-	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
-	env.RegisterActivity(&activities.PoolActivity{})
-
-	// Set up test data
-	params := &common.CreatePoolParams{
-		Name:                    "test-pool",
-		AccountName:             "test-account",
-		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
-		Region:                  "test-region",
-		PrimaryZone:             "test-zone",
-		SecondaryZone:           "test-secondary-zone",
-		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
-	}
-	pool := &datamodel.Pool{
-		PoolCredentials: &datamodel.PoolCredentials{Password: "password", SecretID: "secret-id"},
-	}
-	defer func() {
-		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
-	}()
-	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
-		return nil
-	}
-
-	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Once()
-	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("failed to update job status")).Times(10)
-
-	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything, mock.Anything).Return("tenant-project", nil)
-	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get pool data subnet"))
-	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
-	// Execute workflow
-	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
-
-	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
-	if err != nil {
-		t.Fatalf("Failed to query workflow: %v", err)
-	}
-
-	// Assert workflow execution
-	assert.True(t, env.IsWorkflowCompleted())
-	assert.Error(t, env.GetWorkflowError())
-	assert.Contains(t, env.GetWorkflowError().Error(), "failed to update job status")
-	env.AssertExpectations(t)
-}
-
 func TestCreatePoolWorkflow_FailureUpdatePoolSubnet(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -1983,7 +2250,9 @@ func TestCreatePoolWorkflow_FailureUpdatePoolSubnet(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-	env.RegisterActivity(&activities.CommonActivities{})
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 
 	// Set up test data
@@ -2011,7 +2280,12 @@ func TestCreatePoolWorkflow_FailureUpdatePoolSubnet(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("failed to update job status")).Times(10)
 
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything, mock.Anything).Return("tenant-project", nil)
-	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
 		RegionalTenantProject: "test-project",
@@ -2083,4 +2357,398 @@ func TestPoolDataSubnetWorkFlow(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow_RunError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "PROCESSING",
+	}).Return(nil).Once()
+	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to fetch subnet"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State:        "DONE",
+		ErrorDetails: []byte("activity error (type: CreateOrGetSubnetwork, scheduledEventID: 0, startedEventID: 0, identity: ): failed to fetch subnet"),
+	}).Return(nil).Once()
+
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "tenant-project")
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow_UpdateJobError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "PROCESSING",
+	}).Return(nil).Once()
+	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to fetch subnet"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State:        "DONE",
+		ErrorDetails: []byte("activity error (type: CreateOrGetSubnetwork, scheduledEventID: 0, startedEventID: 0, identity: ): failed to fetch subnet"),
+	}).Return(errors.New("failed to update job status")).Once()
+
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "tenant-project")
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestCreateSubnetJob_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+	mockStorage := database.NewMockStorage(t)
+
+	subnetActivity := &SubnetActivity{SE: mockStorage}
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		Region:      "test-region",
+		PrimaryZone: "test-zone",
+	}
+	pool := &datamodel.Pool{
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		},
+	}
+	tenantProjectNumber := "test-tenant-project"
+	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
+
+	origFetchTemporalClient := fetchTemporalClient
+	// Patch fetchTemporalClient to return mockOntap
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockTemp
+	}
+	defer func() {
+		fetchTemporalClient = origFetchTemporalClient
+	}()
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+	origExecuteWorkflowSeq := ExecuteWorkflowSeq
+	ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+		return nil
+	}
+	defer func() { ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+	// Mock dependencies if any (none in this method directly)
+	env.RegisterActivity(subnetActivity.CreateSubnetJob)
+
+	mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	}, nil)
+
+	// Execute activity
+	future, err := env.ExecuteActivity(subnetActivity.CreateSubnetJob, params, pool, tenantProjectNumber)
+	assert.NoError(t, err)
+
+	var result string
+	err = future.Get(&result)
+	assert.NoError(t, err)
+}
+
+func TestCreateSubnetJob_WorkflowError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+	mockStorage := database.NewMockStorage(t)
+
+	subnetActivity := &SubnetActivity{SE: mockStorage}
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		Region:      "test-region",
+		PrimaryZone: "test-zone",
+	}
+	pool := &datamodel.Pool{
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		},
+	}
+	tenantProjectNumber := "test-tenant-project"
+	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
+
+	origFetchTemporalClient := fetchTemporalClient
+	// Patch fetchTemporalClient to return mockOntap
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockTemp
+	}
+	defer func() {
+		fetchTemporalClient = origFetchTemporalClient
+	}()
+
+	// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+	origExecuteWorkflowSeq := ExecuteWorkflowSeq
+	ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+		return errors.New("test workflow error")
+	}
+	defer func() { ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+	// Mock dependencies if any (none in this method directly)
+	env.RegisterActivity(subnetActivity.CreateSubnetJob)
+
+	mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+	}, nil)
+
+	// Execute activity
+	_, err := env.ExecuteActivity(subnetActivity.CreateSubnetJob, params, pool, tenantProjectNumber)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "test workflow error")
+}
+
+func TestCreateSubnetJob_JobError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+	mockStorage := database.NewMockStorage(t)
+
+	subnetActivity := &SubnetActivity{SE: mockStorage}
+
+	params := &common.CreatePoolParams{
+		Name:        "test-pool",
+		AccountName: "test-account",
+		Region:      "test-region",
+		PrimaryZone: "test-zone",
+	}
+	pool := &datamodel.Pool{
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		},
+	}
+	tenantProjectNumber := "test-tenant-project"
+	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
+
+	origFetchTemporalClient := fetchTemporalClient
+	// Patch fetchTemporalClient to return mockOntap
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockTemp
+	}
+	defer func() {
+		fetchTemporalClient = origFetchTemporalClient
+	}()
+
+	// Mock dependencies if any (none in this method directly)
+	env.RegisterActivity(subnetActivity.CreateSubnetJob)
+
+	mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(nil, errors.New("test job error"))
+
+	// Execute activity
+	_, err := env.ExecuteActivity(subnetActivity.CreateSubnetJob, params, pool, tenantProjectNumber)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "test job error")
+}
+
+type mockEncVal struct {
+	err   bool
+	value subnetWorkflowResult
+}
+
+func (m mockEncVal) Get(valuePtr interface{}) error {
+	if m.err {
+		return fmt.Errorf("encoding error for value: %+v", valuePtr)
+	}
+
+	v, ok := valuePtr.(*subnetWorkflowResult)
+	if !ok {
+		return fmt.Errorf("expected *subnetWorkflowResult, got %T", valuePtr)
+	}
+
+	*v = m.value
+	return nil
+}
+
+func (m mockEncVal) HasValue() bool {
+	return true
+}
+
+func TestSubnetActivity_GetTenancyDetails_Success(t *testing.T) {
+	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
+	subnetActivity := &SubnetActivity{}
+	origFetchTemporalClient := fetchTemporalClient
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockTemp
+	}
+	defer func() { fetchTemporalClient = origFetchTemporalClient }()
+
+	expectedResult := subnetWorkflowResult{
+		TenancyDetails: &common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
+			RegionalTenantProject: "test-project",
+			SnHostProject:         "test-host-project",
+			Gateway:               "192.168.1.254",
+		},
+		WorkflowStatus: &WorkflowStatus{Status: WorkflowStatusCompleted},
+	}
+	mockTemp.On("QueryWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockEncVal{value: expectedResult}, nil)
+
+	result, err := subnetActivity.GetTenancyDetails(context.Background(), "test-workflow-id")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedResult.TenancyDetails, result)
+}
+
+func TestSubnetActivity_GetTenancyDetails_QueryWorkflowError(t *testing.T) {
+	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
+	subnetActivity := &SubnetActivity{}
+	origFetchTemporalClient := fetchTemporalClient
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockTemp
+	}
+	defer func() { fetchTemporalClient = origFetchTemporalClient }()
+
+	mockTemp.On("QueryWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("query error"))
+
+	result, err := subnetActivity.GetTenancyDetails(context.Background(), "test-workflow-id")
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestSubnetActivity_GetTenancyDetails_EncodingError(t *testing.T) {
+	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
+	subnetActivity := &SubnetActivity{}
+	origFetchTemporalClient := fetchTemporalClient
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockTemp
+	}
+	defer func() { fetchTemporalClient = origFetchTemporalClient }()
+
+	mockTemp.On("QueryWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockEncVal{err: true}, nil)
+
+	result, err := subnetActivity.GetTenancyDetails(context.Background(), "test-workflow-id")
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestSubnetActivity_GetTenancyDetails_WorkflowStatusNil(t *testing.T) {
+	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
+	subnetActivity := &SubnetActivity{}
+	origFetchTemporalClient := fetchTemporalClient
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockTemp
+	}
+	defer func() { fetchTemporalClient = origFetchTemporalClient }()
+
+	mockTemp.On("QueryWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockEncVal{value: subnetWorkflowResult{}}, nil)
+
+	result, err := subnetActivity.GetTenancyDetails(context.Background(), "test-workflow-id")
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestSubnetActivity_GetTenancyDetails_WorkflowStatusNotCompleted(t *testing.T) {
+	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
+	subnetActivity := &SubnetActivity{}
+	origFetchTemporalClient := fetchTemporalClient
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockTemp
+	}
+	defer func() { fetchTemporalClient = origFetchTemporalClient }()
+
+	mockTemp.On("QueryWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockEncVal{
+		value: subnetWorkflowResult{
+			WorkflowStatus: &WorkflowStatus{Status: "not-completed"},
+		},
+	}, nil)
+
+	result, err := subnetActivity.GetTenancyDetails(context.Background(), "test-workflow-id")
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestSubnetActivity_GetTenancyDetails_ResultNilError(t *testing.T) {
+	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
+	subnetActivity := &SubnetActivity{}
+	origFetchTemporalClient := fetchTemporalClient
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockTemp
+	}
+	defer func() { fetchTemporalClient = origFetchTemporalClient }()
+
+	mockTemp.On("QueryWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockEncVal{
+		value: subnetWorkflowResult{
+			WorkflowStatus: &WorkflowStatus{Status: WorkflowStatusCompleted},
+		},
+	}, nil)
+
+	result, err := subnetActivity.GetTenancyDetails(context.Background(), "test-workflow-id")
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "returned tenancy details as nil")
 }

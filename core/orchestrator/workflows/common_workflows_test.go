@@ -5,15 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
 )
 
@@ -247,6 +250,95 @@ func TestGetSnapshotPolicyName(t *testing.T) {
 		result := getSnapshotPolicyName(volume)
 		assert.Equal(t, "", result)
 	})
+}
+
+func WfTest(ctx workflow.Context, jobUUID string, timeout time.Duration) error {
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: timeout,
+	})
+	err := PollOnDBJob(ctx, jobUUID, timeout)
+	if err != nil {
+		return fmt.Errorf("workflow test failed: %w", err)
+	}
+	return nil
+}
+func TestWaitForDBJob_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	commonActivity := activities.CommonActivities{}
+	jobUUID := "job-uuid"
+	job := &datamodel.Job{
+		State: "DONE",
+	}
+
+	env.OnActivity(commonActivity.GetJob, mock.Anything, jobUUID).Return(job, nil)
+
+	env.RegisterActivity(commonActivity.GetJob)
+	env.ExecuteWorkflow(WfTest, jobUUID, 1*time.Minute)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestWaitForDBJob_JobWithErrorDetails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	commonActivity := activities.CommonActivities{}
+
+	jobUUID := "job-uuid"
+	job := &datamodel.Job{
+		State:        "DONE",
+		ErrorDetails: []byte("some error"),
+	}
+
+	env.OnActivity(commonActivity.GetJob, mock.Anything, jobUUID).Return(job, nil)
+
+	env.RegisterActivity(commonActivity.GetJob)
+	env.ExecuteWorkflow(WfTest, jobUUID, 1*time.Minute)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "job completed with error")
+}
+
+func TestWaitForDBJob_Timeout(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	commonActivity := activities.CommonActivities{}
+
+	jobUUID := "job-uuid"
+	job := &datamodel.Job{
+		State: "PENDING",
+	}
+
+	env.OnActivity(commonActivity.GetJob, mock.Anything, jobUUID).Return(job, nil)
+
+	env.RegisterActivity(commonActivity.GetJob)
+	env.ExecuteWorkflow(WfTest, jobUUID, 1*time.Millisecond)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "timed out")
+}
+
+func TestWaitForDBJob_GetJobFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	commonActivity := activities.CommonActivities{}
+
+	jobUUID := "job-uuid"
+
+	env.OnActivity(commonActivity.GetJob, mock.Anything, jobUUID).Return(nil, assert.AnError)
+
+	env.RegisterActivity(commonActivity.GetJob)
+	env.ExecuteWorkflow(WfTest, jobUUID, 1*time.Minute)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get db job status")
 }
 
 func TestCreateNodeForProviderWithPool_CERT(t *testing.T) {

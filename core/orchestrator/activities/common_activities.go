@@ -53,6 +53,18 @@ func (ca CommonActivities) UpdateJobStatus(ctx context.Context, job *datamodel.J
 	return se.UpdateJob(ctx, job.UUID, job.State, job.TrackingID, job.ErrorDetails)
 }
 
+func (ca CommonActivities) GetJob(ctx context.Context, jobUUID string) (*datamodel.Job, error) {
+	se := ca.SE
+	job, err := se.GetJob(ctx, jobUUID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if job == nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDescribingJob, fmt.Errorf("job with UUID %s not found", jobUUID))
+	}
+	return job, nil
+}
+
 // DescribeJob gives the status of a job in the database.
 func DescribeJob(ctx context.Context, jobId, basepath, jwtToken, projectNumber, location *string) error {
 	if jobId == nil {
