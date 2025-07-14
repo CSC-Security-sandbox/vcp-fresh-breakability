@@ -15,6 +15,7 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -29,6 +30,7 @@ const (
 )
 
 var (
+	backupEnabled                     = env.GetBool("BACKUP_ENABLED", false)
 	utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 	listBackupsToCVP                  = _listBackupsToCVP
 	getBackupsFromCVP                 = _getBackupsFromCVP
@@ -37,6 +39,12 @@ var (
 
 func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver.BackupUuidListV1beta, params gcpgenserver.V1betaGetMultipleBackupsParams) (gcpgenserver.V1betaGetMultipleBackupsRes, error) {
 	logger := util.GetLogger(ctx)
+	if !backupEnabled {
+		return &gcpgenserver.V1betaGetMultipleBackupsBadRequest{
+			Code:    400,
+			Message: "Backup feature is currently not enabled.",
+		}, nil
+	}
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	listBackups, err := h.Orchestrator.GetBackupsUnderBackupVault(ctx, params.BackupVaultId, params.ProjectNumber, req.BackupUuids)
 	if err != nil && errors.IsUserInputValidationErr(err) {
@@ -136,6 +144,12 @@ func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver
 // V1betaCreateBackup creates a backup for a given volume.
 func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.BackupCreateV1beta, params gcpgenserver.V1betaCreateBackupParams) (gcpgenserver.V1betaCreateBackupRes, error) {
 	logger := util.GetLogger(ctx)
+	if !backupEnabled {
+		return &gcpgenserver.V1betaCreateBackupBadRequest{
+			Code:    400,
+			Message: "Backup feature is currently not enabled.",
+		}, nil
+	}
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
@@ -325,6 +339,12 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 
 func (h Handler) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params gcpgenserver.V1betaDeleteBackupUnderBackupVaultParams) (gcpgenserver.V1betaDeleteBackupUnderBackupVaultRes, error) {
 	logger := util.GetLogger(ctx)
+	if !backupEnabled {
+		return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultBadRequest{
+			Code:    400,
+			Message: "Backup feature is currently not enabled.",
+		}, nil
+	}
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := utilParseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {

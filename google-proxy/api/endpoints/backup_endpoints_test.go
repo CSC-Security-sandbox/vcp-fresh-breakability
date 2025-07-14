@@ -25,6 +25,9 @@ import (
 
 // V1betaGetMultipleBackups unittests
 func TestV1GetMultipleBackups(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	t.Run("WhenGetMultipleBackupsSuccess", func(t *testing.T) {
 		// Define request
 		// Create a mock client
@@ -550,9 +553,11 @@ func TestV1betaCreateBackup(t *testing.T) {
 
 		originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 		originalCheckIfBackupExistInCVP := checkIfBackupExistInCVP
+		origBackupEnabled := backupEnabled
 		defer func() {
 			utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 			checkIfBackupExistInCVP = originalCheckIfBackupExistInCVP
+			backupEnabled = origBackupEnabled
 		}()
 		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
@@ -560,7 +565,7 @@ func TestV1betaCreateBackup(t *testing.T) {
 		checkIfBackupExistInCVP = func(ctx context.Context, backupID *string, params gcpgenserver.V1betaCreateBackupParams) (bool, error) {
 			return false, nil // Backup doesn't exist in CVP
 		}
-
+		backupEnabled = true
 		// Mock volume exists in VSA
 		volume := &coremodels.Volume{
 			BaseModel: coremodels.BaseModel{
@@ -610,9 +615,12 @@ func TestV1betaCreateBackup(t *testing.T) {
 
 		originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 		originalCheckIfBackupExistInCVP := checkIfBackupExistInCVP
+		origBackupEnabled := backupEnabled
+		backupEnabled = true
 		defer func() {
 			utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 			checkIfBackupExistInCVP = originalCheckIfBackupExistInCVP
+			backupEnabled = origBackupEnabled
 		}()
 		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
@@ -657,6 +665,9 @@ func TestV1betaCreateBackup(t *testing.T) {
 
 // Test cases for V1betaGetMultipleBackups
 func TestV1betaGetMultipleBackups_NotFound(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	mockClient := backups.NewMockClientService(t)
 	params := gcpgenserver.V1betaGetMultipleBackupsParams{}
 	req := &gcpgenserver.BackupUuidListV1beta{
@@ -690,6 +701,9 @@ func TestV1betaGetMultipleBackups_NotFound(t *testing.T) {
 }
 
 func TestV1betaGetMultipleBackups_InternalServerError(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	mockClient := backups.NewMockClientService(t)
 	params := gcpgenserver.V1betaGetMultipleBackupsParams{}
 	req := &gcpgenserver.BackupUuidListV1beta{
@@ -724,6 +738,9 @@ func TestV1betaGetMultipleBackups_InternalServerError(t *testing.T) {
 
 // Test cases for missing lines in V1betaGetMultipleBackups
 func TestV1betaGetMultipleBackups_MissingLines(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	t.Run("WhenGetMultipleBackupsFailsWithInternalServerError", func(t *testing.T) {
 		// Mock client
 		mockClient := backups.NewMockClientService(t)
@@ -888,6 +905,9 @@ func TestV1betaCreateBackup_CVPErrorCases(t *testing.T) {
 		err      error
 		expected any
 	}
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	cases := []cvpErrCase{
 		{
 			name: "BadRequest",
@@ -979,6 +999,9 @@ func TestV1betaCreateBackup_CVPErrorCases(t *testing.T) {
 }
 
 func TestV1betaCreateBackup_CVPCreateBackupCreatedAndAccepted(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	t.Run("ReturnsCreatedBackupWhenCVPBackupCreated", func(t *testing.T) {
 		logger := &log.MockLogger{}
 		ctx := context.Background()
@@ -1143,6 +1166,9 @@ func TestV1betaCreateBackup_CVPCreateBackupCreatedAndAccepted(t *testing.T) {
 }
 
 func TestV1betaDeleteBackupUnderBackupVault(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	t.Run("WhenParsingRegionAndZoneFails", func(tt *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -2356,4 +2382,62 @@ func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
 		assert.Equal(t, "us-west1", result.BackupRegion.Value)
 		assert.Equal(t, "us-west1", result.VolumeRegion.Value)
 	})
+}
+
+// TestV1betaCreateBackup_BackupDisabled tests the scenario where backup creation is disabled.
+func TestV1betaCreateBackup_BackupDisabled(t *testing.T) {
+	// Save and restore the original value
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = false
+
+	handler := Handler{}
+	req := &gcpgenserver.BackupCreateV1beta{}
+	params := gcpgenserver.V1betaCreateBackupParams{}
+
+	result, err := handler.V1betaCreateBackup(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.V1betaCreateBackupBadRequest{}, result)
+	badRequest := result.(*gcpgenserver.V1betaCreateBackupBadRequest)
+	assert.Equal(t, float64(400), badRequest.Code)
+	assert.Equal(t, "Backup feature is currently not enabled.", badRequest.Message)
+}
+
+// TestV1betaDeleteBackupUnderBackupVault_BackupDisabled tests the scenario where backup deletion is disabled.
+func TestV1betaDeleteBackupUnderBackupVault_BackupDisabled(t *testing.T) {
+	// Save and restore the original value
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = false
+
+	handler := Handler{}
+	params := gcpgenserver.V1betaDeleteBackupUnderBackupVaultParams{}
+
+	result, err := handler.V1betaDeleteBackupUnderBackupVault(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.V1betaDeleteBackupUnderBackupVaultBadRequest{}, result)
+	badRequest := result.(*gcpgenserver.V1betaDeleteBackupUnderBackupVaultBadRequest)
+	assert.Equal(t, float64(400), badRequest.Code)
+	assert.Equal(t, "Backup feature is currently not enabled.", badRequest.Message)
+}
+
+// TestV1betaGetMultipleBackups_BackupDisabled tests the scenario where fetching multiple backups is disabled.
+func TestV1betaGetMultipleBackups_BackupDisabled(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = false
+
+	handler := Handler{}
+	req := &gcpgenserver.BackupUuidListV1beta{}
+	params := gcpgenserver.V1betaGetMultipleBackupsParams{}
+
+	result, err := handler.V1betaGetMultipleBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.V1betaGetMultipleBackupsBadRequest{}, result)
+	badRequest := result.(*gcpgenserver.V1betaGetMultipleBackupsBadRequest)
+	assert.Equal(t, float64(400), badRequest.Code)
+	assert.Equal(t, "Backup feature is currently not enabled.", badRequest.Message)
 }

@@ -117,7 +117,6 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 				Message: err.Error(),
 			}, nil
 		}
-
 		logger.Error("Failed to create volume", "error", err.Error())
 		return &gcpgenserver.V1betaCreateVolumeInternalServerError{Code: 500, Message: err.Error()}, err
 	}
@@ -244,6 +243,9 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		}
 	}
 	if req.Volume.BackupConfig.IsSet() {
+		if !backupEnabled {
+			return nil, errors.NewUserInputValidationErr("Backup feature is currently not enabled.")
+		}
 		param.DataProtection = &models.DataProtection{}
 		reqBackupConfig, _ := req.Volume.BackupConfig.Get()
 		if reqBackupConfig.BackupVaultId.IsSet() {
@@ -408,6 +410,9 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 	}
 
 	if req.BackupConfig.IsSet() {
+		if !backupEnabled {
+			return nil, errors.NewUserInputValidationErr("Backup feature is currently not enabled.")
+		}
 		param.DataProtection = &models.DataProtection{}
 		reqBackupConfig, _ := req.BackupConfig.Get()
 		if reqBackupConfig.BackupVaultId.IsSet() {

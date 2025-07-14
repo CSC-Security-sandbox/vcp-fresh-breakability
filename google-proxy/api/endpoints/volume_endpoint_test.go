@@ -24,6 +24,9 @@ import (
 )
 
 func TestPrepareCreateVolumeParams(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	t.Run("ValidInputWithBlockProperties", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
@@ -1314,7 +1317,9 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		VolumeId:      "vol",
 	}
 	region := "region"
-
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	t.Run("WhenAllFieldsSet_ThenFieldsAreMapped", func(t *testing.T) {
 		labels := make(map[string]string)
 		labels["k"] = "v"
@@ -2073,6 +2078,112 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.Equal(t, "LINUX", string(out.BlockProperties.Value.OsType.Value))
 		assert.Equal(t, "ISCSI", string(out.Protocols[0]))
 	})
+}
+
+// TestPrepareUpdateVolumeParams_BackupDisabled tests the scenario where backup is disabled
+func TestV1betaCreateVolume_BackupNotSupported(t *testing.T) {
+	origPrepare := prepareCreateVolumeParams
+	origParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		prepareCreateVolumeParams = origPrepare
+		utils.ParseAndValidateRegionAndZone = origParseAndValidateRegionAndZone
+	}()
+	prepareCreateVolumeParams = func(req *gcpgenserver.VolumeCreateV1beta, params gcpgenserver.V1betaCreateVolumeParams, region string) (*common.CreateVolumeParams, error) {
+		return nil, errors.NewUserInputValidationErr("Backup feature is currently not enabled.")
+	}
+	utils.ParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+		return "us-e4", "", nil
+	}
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	req := &gcpgenserver.VolumeCreateV1beta{}
+
+	result, err := handler.V1betaCreateVolume(context.Background(), req, params)
+	assert.NoError(t, err)
+	badRequest, ok := result.(*gcpgenserver.V1betaCreateVolumeBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, float64(400), badRequest.Code)
+	assert.Equal(t, "Backup feature is currently not enabled.", badRequest.Message)
+}
+
+// TestPrepareCreateVolumeParams_BackupDisabled tests the scenario where backup is disabled
+func TestPrepareCreateVolumeParams_BackupDisabled(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = false
+
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(gcpgenserver.BackupConfigV1beta{
+				BackupVaultId: gcpgenserver.NewOptNilString("backup-vault-id"),
+			}),
+		},
+	}
+
+	out, err := _prepareCreateVolumeParams(req, params, "region")
+	assert.Nil(t, out)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Backup feature is currently not enabled.")
+}
+
+// TestV1betaUpdateVolume_BackupNotSupported tests the scenario where backup is disabled
+func TestV1betaUpdateVolume_BackupNotSupported(t *testing.T) {
+	origPrepare := prepareUpdateVolumeParams
+	origParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		prepareUpdateVolumeParams = origPrepare
+		utils.ParseAndValidateRegionAndZone = origParseAndValidateRegionAndZone
+	}()
+	prepareUpdateVolumeParams = func(req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams, region string) (*common.UpdateVolumeParams, error) {
+		return nil, errors.NewUserInputValidationErr("Backup feature is currently not enabled.")
+	}
+	utils.ParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+		return "us-e4", "", nil
+	}
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	handler := Handler{Orchestrator: mockOrchestrator}
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "us-e4",
+		VolumeId:      "vol-1",
+	}
+	req := &gcpgenserver.VolumeUpdateV1beta{}
+
+	result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
+	assert.NoError(t, err)
+	badRequest, ok := result.(*gcpgenserver.V1betaUpdateVolumeBadRequest)
+	assert.True(t, ok)
+	assert.Equal(t, float64(400), badRequest.Code)
+	assert.Equal(t, "Backup feature is currently not enabled.", badRequest.Message)
+}
+
+// TestV1betaUpdateVolume tests the V1betaUpdateVolume handler
+func TestPrepareUpdateVolumeParams_BackupDisabled(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = false
+
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+		VolumeId:      "vol-1",
+	}
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(gcpgenserver.BackupConfigV1beta{}),
+	}
+
+	out, err := _prepareUpdateVolumeParams(req, params, "region")
+	assert.Nil(t, out)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Backup feature is currently not enabled.")
 }
 
 func TestPrepareCreateVolumeParams_WithAutoTieringFeatureDisabled(t *testing.T) {
