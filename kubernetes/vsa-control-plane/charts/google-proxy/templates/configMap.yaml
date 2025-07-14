@@ -43,6 +43,10 @@ data:
   REFRESH_ADMIN_JOB_SPECS: "{{ index .Values "refreshAdminJobSpecs" }}"
   AUTO_TIERING_ENABLED: "{{ index .Values "autoTieringEnabled" }}"
   REGIONAL_SUPPORT_ENABLED: "{{ index .Values "regionalSupportEnabled" }}"
+  MIN_QUOTA_IN_BYTES_POOL: "{{ index .Values "minQuotaInBytesPool" }}"
+  MIN_QUOTA_IN_BYTES_VOLUME: "{{ index .Values "minQuotaInBytesVolume" }}"
+  MAX_QUOTA_IN_BYTES_VOLUME: "{{ index .Values "maxQuotaInBytesVolume" }}"
+  JWK_KIDS_URL: "{{ index .Values "jwkKidsUrl" }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_NAME: {{ index .Values "database" "name"  }}
