@@ -39,7 +39,6 @@ global:
     dbType: "postgres"
     dbUser: "coreuser"
     enableTemporalDataEncryption: "true"
-    env: ""
     idleTimeout: "120s"
     jwkKidsUrl: ""
     jwkTimeoutSeconds: "30"

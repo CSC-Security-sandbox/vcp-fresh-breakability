@@ -2,12 +2,14 @@ package workflows
 
 import (
 	"fmt"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -23,8 +25,180 @@ var (
 	runningEnv = env.GetString("ENV", "")
 )
 
+// Volume provisioning phases
+const (
+	PhasePre  = "pre"  // Pre-provisioning phase
+	PhasePost = "post" // Post-provisioning phase
+)
+
 // Enforcing the WorkflowInterface on volumeCreateWorkflow
 var _ WorkflowInterface = &volumeCreateWorkflow{}
+
+// PreVolumeProvisioningParams encapsulates parameters for pre-provisioning hooks
+type PreVolumeProvisioningParams struct {
+	Ctx      workflow.Context
+	DBVolume *datamodel.Volume
+	Node     *models.Node
+}
+
+// PostVolumeProvisioningParams encapsulates parameters for post-provisioning hooks
+type PostVolumeProvisioningParams struct {
+	Ctx                 workflow.Context
+	DBVolume            *datamodel.Volume
+	Node                *models.Node
+	VolCreateResponse   *vsa.VolumeResponse
+	IsRestoreFromBackup bool
+}
+
+// selectVolumeChildWorkflow selects the appropriate child workflow based on volume characteristics.
+// Currently implements protocol-based selection (ISCSI for block, NFSv3/NFSv4/SMB for file protocols).
+// This function is designed to be extensible for future volume attributes beyond protocols
+// (e.g. performance tier, large volume, etc.).
+//
+// Parameters:
+//   - protocols: Slice of protocol strings to determine workflow type
+//   - phase: Provisioning phase (use PhasePre or PhasePost constants)
+func selectVolumeChildWorkflow(protocols []string, phase string) (interface{}, error) {
+	if utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolISCSI) {
+		switch phase {
+		case PhasePre:
+			return PreBlockVolumeWorkflow, nil
+		case PhasePost:
+			return PostBlockVolumeWorkflow, nil
+		default:
+			return nil, fmt.Errorf("invalid phase: %s", phase)
+		}
+	}
+	if utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolNFSv3) || utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolNFSv4) || utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolSMB) {
+		if !utils.FileProtocolSupported {
+			return nil, fmt.Errorf("file protocols are not enabled")
+		}
+		switch phase {
+		case PhasePre:
+			return PreFileVolumeWorkflow, nil
+		case PhasePost:
+			return PostFileVolumeWorkflow, nil
+		default:
+			return nil, fmt.Errorf("invalid phase: %s", phase)
+		}
+	}
+	return nil, fmt.Errorf("unsupported or unspecified protocol: %v", protocols)
+}
+
+// PreBlockVolumeWorkflow handles pre-provisioning for block volumes
+func PreBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node) error {
+	// Additional pre-provisioning steps for block volumes if needed
+	return nil
+}
+
+// PostBlockVolumeWorkflow handles post-provisioning for block volumes
+func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool) error {
+	volumeActivity := &activities.VolumeCreateActivity{}
+	var err error
+	var hostGroups []*datamodel.HostGroup
+
+	// Configure activity options for child workflow
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return err
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	// Get host groups for block volume
+	err = workflow.ExecuteActivity(ctx, volumeActivity.GetHosts, &dbVolume).Get(ctx, &hostGroups)
+	if err != nil {
+		return err
+	}
+
+	hostParams := createHostParamsFromHostGroups(hostGroups, dbVolume)
+
+	// Create igroup for block volume
+	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateIgroup, &dbVolume, &hostParams, node).Get(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	// Create LUN for block volume
+	var lun *vsa.LunResponse
+
+	if isRestoreFromBackup {
+		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lun)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLun, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lun)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Create LUN map for block volume
+	lunMapParams := createLunMapParams(lun.Name, dbVolume.Svm.Name, hostParams)
+	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLunMap, &dbVolume, &lunMapParams, node).Get(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	dbVolume.VolumeAttributes.BlockProperties.LunSerialNumber = lun.SerialNumber
+	dbVolume.VolumeAttributes.BlockProperties.LunUUID = lun.ExternalUUID
+	return nil
+}
+
+// PreFileVolumeWorkflow handles pre-provisioning for file volumes
+func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node) error {
+	// Configure activity options for child workflow
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return err
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	log := util.GetLogger(ctx)
+	log.Info("File pre-provisioning: create export policy, etc. (placeholder)")
+	return nil
+}
+
+// PostFileVolumeWorkflow handles post-provisioning for file volumes
+func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool) error {
+	// Configure activity options for child workflow
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return err
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	log := util.GetLogger(ctx)
+	log.Info("File post-provisioning: anything after volume create. (placeholder)")
+	return nil
+}
 
 // CreateVolumeWorkflow Volume Workflow process volume related requests from a customer.
 func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume, backupVault *datamodel.BackupVault, backup *datamodel.Backup) (gcpgenserver.V1betaDescribeVolumeRes, error) {
@@ -80,9 +254,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if createVolumeParams.Snapshot != nil {
 		snapshot = createVolumeParams.Snapshot
 	}
-	backupPath := createVolumeParams.BackupPath
 	backupVault := args[2].(*datamodel.BackupVault)
 	backup := args[3].(*datamodel.Backup)
+	isRestoreFromBackup := createVolumeParams.BackupPath != "" && backup != nil
 	volumeActivity := &activities.VolumeCreateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -111,12 +285,6 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}()
 
-	var hostGroups []*datamodel.HostGroup
-	err = workflow.ExecuteActivity(ctx, volumeActivity.GetHosts, &dbVolume).Get(ctx, &hostGroups)
-	if err != nil {
-		return nil, err
-	}
-
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbVolume.Pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
@@ -124,6 +292,16 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: dbVolume.Pool.PoolCredentials.Password, SecretID: dbVolume.Pool.PoolCredentials.SecretID, DeploymentName: dbVolume.Pool.DeploymentName, CertificateID: dbVolume.Pool.PoolCredentials.CertificateID})
+
+	// Pre-provisioning child workflow
+	preWorkflowFunc, err := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePre)
+	if err != nil {
+		return nil, err
+	}
+	err = workflow.ExecuteChildWorkflow(ctx, preWorkflowFunc, dbVolume, node).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
 	rollbackManager.AddActivity(activities.VolumeDeleteActivity.DeleteSnapshotPolicyInONTAP, getSnapshotPolicyName(dbVolume), &node) // This will delete the snapshotPolicy if exists
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateSnapshotPolicyInONTAP, &dbVolume, &node).Get(ctx, nil)
 	if err != nil {
@@ -137,16 +315,9 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	rollbackManager.AddActivity(activities.VolumeDeleteActivity.DeleteVolumeInONTAP, volCreateResponse.ExternalUUID, dbVolume.Name, &node) // This will delete the lunMap & lun if exists
 
-	hostParams := createHostParamsFromHostGroups(hostGroups, dbVolume)
-	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateIgroup, &dbVolume, &hostParams, &node).Get(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var lun *vsa.LunResponse
-	// If backupPath is provided, we will restore the volume from the backup
+	// If isRestoreFromBackup is true, we will restore the volume from the backup
 	// backup path example: "projects/123456789/locations/us-e4/backupVaults/bv1/backups/backupName"
-	if backupPath != "" && backup != nil {
+	if isRestoreFromBackup {
 		objStore := &common.CloudTarget{}
 		smDestinationPath := getSmSourcePath(dbVolume)
 		smSourcePath, err := getSmSourcePathForRestore(backupVault, backup)
@@ -207,19 +378,14 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, fmt.Errorf("snapmirror transfer failed for restore with status: %s", status)
 			}
 		}
-		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lun)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLun, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lun)
-		if err != nil {
-			return nil, err
-		}
 	}
 
-	lunMapParams := createLunMapParams(lun.Name, dbVolume.Svm.Name, hostParams)
-	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLunMap, &dbVolume, &lunMapParams, &node).Get(ctx, nil)
+	// Post-provisioning child workflow
+	postWorkflowFunc, err := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePost)
+	if err != nil {
+		return nil, err
+	}
+	err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, volCreateResponse, isRestoreFromBackup).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -292,8 +458,6 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}
 
-	dbVolume.VolumeAttributes.BlockProperties.LunSerialNumber = lun.SerialNumber
-	dbVolume.VolumeAttributes.BlockProperties.LunUUID = lun.ExternalUUID
 	err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeDetails, &dbVolume, &volCreateResponse).Get(ctx, nil)
 	if err != nil {
 		return nil, err

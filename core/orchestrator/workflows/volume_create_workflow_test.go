@@ -7,10 +7,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -42,6 +44,10 @@ func (s *UnitTestSuite) SetupTest() {
 	// Register workflow
 	s.env.RegisterWorkflow(CreateVolumeWorkflow)
 	s.env.RegisterWorkflow(CreateBackupWorkflow)
+	s.env.RegisterWorkflow(PreBlockVolumeWorkflow)
+	s.env.RegisterWorkflow(PostBlockVolumeWorkflow)
+	s.env.RegisterWorkflow(PreFileVolumeWorkflow)
+	s.env.RegisterWorkflow(PostFileVolumeWorkflow)
 }
 
 func (s *UnitTestSuite) AfterTest() {
@@ -52,6 +58,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Success() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -61,7 +68,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Success() {
 			},
 		},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
-		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
 	}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -70,6 +77,15 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Success() {
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
 	s.env.RegisterActivity(volumeCreateActivity.InitiateSplitForVolume)
+	s.env.RegisterActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(volumeCreateActivity.CreateVolumeInONTAP)
+	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
+	s.env.RegisterActivity(volumeCreateActivity.CreateIgroup)
+	s.env.RegisterActivity(volumeCreateActivity.CreateLun)
+	s.env.RegisterActivity(volumeCreateActivity.CreateLunMap)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP)
 
 	// Mock activities
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
@@ -77,6 +93,9 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Success() {
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "lun_test",
@@ -94,7 +113,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Success() {
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
 
-	// Assert workflow failed
+	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
@@ -113,7 +132,7 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_Failure() {
 				CertificateID: "",
 			}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
-		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, IsDataProtection: true},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, IsDataProtection: true, Protocols: []string{utils.ProtocolISCSI}},
 	}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -181,7 +200,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Failure_UpdateVolumeDetails() 
 				CertificateID: "",
 			}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
-		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
 	}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2)
@@ -505,7 +524,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyInVCPSucceed
 			Password: "password",
 		}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
-		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
 		DataProtection: &datamodel.DataProtection{
 			BackupPolicyID: "backup-policy-id",
 		},
@@ -840,6 +859,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateSnapshotPolicyInONTAP() 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
 			PoolCredentials: &datamodel.PoolCredentials{
@@ -848,7 +868,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateSnapshotPolicyInONTAP() 
 				CertificateID: "",
 			}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
-		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
 		SnapshotPolicy: &datamodel.SnapshotPolicy{
 			Name:      "policy1",
 			IsEnabled: true,
@@ -869,9 +889,18 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateSnapshotPolicyInONTAP() 
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
 	s.env.RegisterActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(volumeCreateActivity.CreateVolumeInONTAP)
+	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
+	s.env.RegisterActivity(volumeCreateActivity.CreateIgroup)
+	s.env.RegisterActivity(volumeCreateActivity.CreateLun)
+	s.env.RegisterActivity(volumeCreateActivity.CreateLunMap)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 	s.env.RegisterActivity(volumeCreateActivity.InitiateSplitForVolume)
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -890,6 +919,9 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateSnapshotPolicyInONTAP() 
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow (success path)
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
@@ -908,9 +940,21 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateSnapshotPolicyInONTAP() 
 	}
 	s.env.SetHeader(mockHeader)
 	s.env.RegisterWorkflow(CreateVolumeWorkflow)
+	s.env.RegisterWorkflow(PreBlockVolumeWorkflow)
+	s.env.RegisterWorkflow(PostBlockVolumeWorkflow)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
 	s.env.RegisterActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(volumeCreateActivity.CreateVolumeInONTAP)
+	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
+	s.env.RegisterActivity(volumeCreateActivity.CreateIgroup)
+	s.env.RegisterActivity(volumeCreateActivity.CreateLun)
+	s.env.RegisterActivity(volumeCreateActivity.CreateLunMap)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+	s.env.RegisterActivity(volumeCreateActivity.InitiateSplitForVolume)
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
 		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27"}},
@@ -928,6 +972,9 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateSnapshotPolicyInONTAP() 
 	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("snapshot policy error"))
 	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume, nil, nil)
@@ -948,7 +995,7 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_Success() {
 				CertificateID: "",
 			}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
-		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, IsDataProtection: true},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, IsDataProtection: true, Protocols: []string{utils.ProtocolISCSI}},
 	}
 	backupVault := &datamodel.BackupVault{
 		Name:          "test-backup-vault",
@@ -1327,7 +1374,7 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_UpdateLunError() {
 			CertificateID: "",
 		}},
 		Svm:              &datamodel.Svm{Name: "svm_test"},
-		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, IsDataProtection: true},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, IsDataProtection: true, Protocols: []string{utils.ProtocolISCSI}},
 	}
 	backupVault := &datamodel.BackupVault{
 		Name:          "test-backup-vault",
@@ -1389,4 +1436,287 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_UpdateLunError() {
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "workflow execution error")
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_Success() {
+	// Test PreFileVolumeWorkflow with file protocol
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolNFSv3}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	// Enable file protocols for testing
+	originalValue := utils.FileProtocolSupported
+	utils.FileProtocolSupported = true
+	defer func() { utils.FileProtocolSupported = originalValue }()
+
+	// Execute the workflow
+	s.env.ExecuteWorkflow(PreFileVolumeWorkflow, volume, node)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_FileProtocolsDisabled() {
+	// Test PreFileVolumeWorkflow when file protocols are disabled
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolNFSv3}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	// Disable file protocols for testing
+	originalValue := utils.FileProtocolSupported
+	utils.FileProtocolSupported = false
+	defer func() { utils.FileProtocolSupported = originalValue }()
+
+	// Execute the workflow
+	s.env.ExecuteWorkflow(PreFileVolumeWorkflow, volume, node)
+
+	// Assert workflow completed successfully (should handle disabled protocols gracefully)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_Success() {
+	// Test PostFileVolumeWorkflow with file protocol
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolNFSv3}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
+	isRestoreFromBackup := false
+
+	// Enable file protocols for testing
+	originalValue := utils.FileProtocolSupported
+	utils.FileProtocolSupported = true
+	defer func() { utils.FileProtocolSupported = originalValue }()
+
+	// Execute the workflow
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_FileProtocolsDisabled() {
+	// Test PostFileVolumeWorkflow when file protocols are disabled
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolNFSv3}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
+	isRestoreFromBackup := false
+
+	// Disable file protocols for testing
+	originalValue := utils.FileProtocolSupported
+	utils.FileProtocolSupported = false
+	defer func() { utils.FileProtocolSupported = originalValue }()
+
+	// Execute the workflow
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+
+	// Assert workflow completed successfully (should handle disabled protocols gracefully)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_ISCSI() {
+	// Test selectVolumeChildWorkflow with ISCSI protocol
+	protocols := []string{utils.ProtocolISCSI}
+
+	// Test pre phase
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
+	assert.Nil(s.T(), err)
+	assert.NotNil(s.T(), preWorkflow)
+	// Verify it returns a function that can be called
+	assert.IsType(s.T(), PreBlockVolumeWorkflow, preWorkflow)
+
+	// Test post phase
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
+	assert.Nil(s.T(), err)
+	assert.NotNil(s.T(), postWorkflow)
+	// Verify it returns a function that can be called
+	assert.IsType(s.T(), PostBlockVolumeWorkflow, postWorkflow)
+
+	// Test invalid phase
+	invalidWorkflow, err := selectVolumeChildWorkflow(protocols, "invalid")
+	assert.NotNil(s.T(), err)
+	assert.Nil(s.T(), invalidWorkflow)
+	assert.Contains(s.T(), err.Error(), "invalid phase")
+}
+
+func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_NFSv3() {
+	// Test selectVolumeChildWorkflow with NFSv3 protocol
+	protocols := []string{utils.ProtocolNFSv3}
+
+	// Enable file protocols for testing
+	originalValue := utils.FileProtocolSupported
+	utils.FileProtocolSupported = true
+	defer func() { utils.FileProtocolSupported = originalValue }()
+
+	// Test pre phase
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
+	assert.Nil(s.T(), err)
+	assert.NotNil(s.T(), preWorkflow)
+	// Verify it returns a function that can be called
+	assert.IsType(s.T(), PreFileVolumeWorkflow, preWorkflow)
+
+	// Test post phase
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
+	assert.Nil(s.T(), err)
+	assert.NotNil(s.T(), postWorkflow)
+	// Verify it returns a function that can be called
+	assert.IsType(s.T(), PostFileVolumeWorkflow, postWorkflow)
+}
+
+func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_NFSv4() {
+	// Test selectVolumeChildWorkflow with NFSv4 protocol
+	protocols := []string{utils.ProtocolNFSv4}
+
+	// Enable file protocols for testing
+	originalValue := utils.FileProtocolSupported
+	utils.FileProtocolSupported = true
+	defer func() { utils.FileProtocolSupported = originalValue }()
+
+	// Test pre phase
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
+	assert.Nil(s.T(), err)
+	assert.NotNil(s.T(), preWorkflow)
+	// Verify it returns a function that can be called
+	assert.IsType(s.T(), PreFileVolumeWorkflow, preWorkflow)
+
+	// Test post phase
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
+	assert.Nil(s.T(), err)
+	assert.NotNil(s.T(), postWorkflow)
+	// Verify it returns a function that can be called
+	assert.IsType(s.T(), PostFileVolumeWorkflow, postWorkflow)
+}
+
+func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_SMB() {
+	// Test selectVolumeChildWorkflow with SMB protocol
+	protocols := []string{utils.ProtocolSMB}
+
+	// Enable file protocols for testing
+	originalValue := utils.FileProtocolSupported
+	utils.FileProtocolSupported = true
+	defer func() { utils.FileProtocolSupported = originalValue }()
+
+	// Test pre phase
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
+	assert.Nil(s.T(), err)
+	assert.NotNil(s.T(), preWorkflow)
+	// Verify it returns a function that can be called
+	assert.IsType(s.T(), PreFileVolumeWorkflow, preWorkflow)
+	// Test post phase
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
+	assert.Nil(s.T(), err)
+	assert.NotNil(s.T(), postWorkflow)
+	// Verify it returns a function that can be called
+	assert.IsType(s.T(), PostFileVolumeWorkflow, postWorkflow)
+}
+
+func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_FileProtocolsDisabled() {
+	// Test selectVolumeChildWorkflow when file protocols are disabled
+	protocols := []string{utils.ProtocolNFSv3}
+
+	// Disable file protocols for testing
+	originalValue := utils.FileProtocolSupported
+	utils.FileProtocolSupported = false
+	defer func() { utils.FileProtocolSupported = originalValue }()
+
+	// Test pre phase
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
+	assert.NotNil(s.T(), err)
+	assert.Nil(s.T(), preWorkflow)
+	assert.Contains(s.T(), err.Error(), "file protocols are not enabled")
+
+	// Test post phase
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
+	assert.NotNil(s.T(), err)
+	assert.Nil(s.T(), postWorkflow)
+	assert.Contains(s.T(), err.Error(), "file protocols are not enabled")
+}
+
+func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_UnsupportedProtocol() {
+	// Test selectVolumeChildWorkflow with unsupported protocol
+	protocols := []string{"UNSUPPORTED_PROTOCOL"}
+
+	// Test pre phase
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
+	assert.NotNil(s.T(), err)
+	assert.Nil(s.T(), preWorkflow)
+	assert.Contains(s.T(), err.Error(), "unsupported or unspecified protocol")
+
+	// Test post phase
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
+	assert.NotNil(s.T(), err)
+	assert.Nil(s.T(), postWorkflow)
+	assert.Contains(s.T(), err.Error(), "unsupported or unspecified protocol")
+}
+
+func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_EmptyProtocols() {
+	// Test selectVolumeChildWorkflow with empty protocols
+	protocols := []string{}
+
+	// Test pre phase
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
+	assert.NotNil(s.T(), err)
+	assert.Nil(s.T(), preWorkflow)
+	assert.Contains(s.T(), err.Error(), "unsupported or unspecified protocol")
+
+	// Test post phase
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
+	assert.NotNil(s.T(), err)
+	assert.Nil(s.T(), postWorkflow)
+	assert.Contains(s.T(), err.Error(), "unsupported or unspecified protocol")
+}
+
+func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_MixedProtocols() {
+	// Test selectVolumeChildWorkflow with mixed protocols (should prioritize ISCSI)
+	protocols := []string{utils.ProtocolISCSI, utils.ProtocolNFSv3}
+
+	// Test pre phase
+	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre)
+	assert.Nil(s.T(), err)
+	assert.NotNil(s.T(), preWorkflow)
+	// Verify it returns a function that can be called
+	assert.IsType(s.T(), PreBlockVolumeWorkflow, preWorkflow)
+
+	// Test post phase
+	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost)
+	assert.Nil(s.T(), err)
+	assert.NotNil(s.T(), postWorkflow)
+	// Verify it returns a function that can be called
+	assert.IsType(s.T(), PostBlockVolumeWorkflow, postWorkflow)
 }

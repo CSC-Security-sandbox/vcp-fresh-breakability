@@ -289,6 +289,44 @@ func _getIPAddressForVolume(ctx context.Context, se database.Storage, volume *da
 	return lif.IPAddress, nil
 }
 
+// VolumeTypeProcessor defines protocol-specific validation for volume creation
+type VolumeTypeProcessor interface {
+	Validate(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error
+}
+
+type BlockVolumeProcessor struct{}
+type FileVolumeProcessor struct{}
+
+func (v *BlockVolumeProcessor) Validate(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+	// Block-specific validation: host group checks, block properties, etc.
+	if params.BlockProperties != nil {
+		hostGroupUUIDs := params.BlockProperties.HostGroupUUIDs
+		err := validateBlockProperties(ctx, se, hostGroupUUIDs, accountID)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (v *FileVolumeProcessor) Validate(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+	// TODO: Add file (NFS/SMB) specific validation here
+	return nil
+}
+
+func GetVolumeTypeValidator(protocols []string) (VolumeTypeProcessor, error) {
+	if utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolISCSI) {
+		return &BlockVolumeProcessor{}, nil
+	}
+	if utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolNFSv3) || utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolNFSv4) || utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolSMB) {
+		if !utils.FileProtocolSupported {
+			return nil, customerrors.NewUserInputValidationErr("file protocols are not enabled")
+		}
+		return &FileVolumeProcessor{}, nil
+	}
+	return nil, customerrors.NewUserInputValidationErr("unsupported or unspecified protocol")
+}
+
 func _validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 	if params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytesVolume {
 		return customerrors.NewUserInputValidationErr("volume size must be between 100 GiB and 102,400 GiB.")
@@ -335,14 +373,6 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 	}
 
-	if params.BlockProperties != nil {
-		hostGroupUUIDs := params.BlockProperties.HostGroupUUIDs
-		err = validateBlockProperties(ctx, se, hostGroupUUIDs, pool.Account.ID)
-		if err != nil {
-			return err
-		}
-	}
-
 	if params.DataProtection != nil && params.DataProtection.BackupPolicyId != "" {
 		// Validate assigning backup policy to the volume
 		if params.DataProtection.BackupVaultID == "" {
@@ -364,7 +394,12 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 	}
 
-	return nil
+	// Protocol-specific validation
+	validator, err := GetVolumeTypeValidator(params.Protocols)
+	if err != nil {
+		return err
+	}
+	return validator.Validate(ctx, se, params, pool.AccountID)
 }
 
 func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) *models.Volume {

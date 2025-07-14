@@ -2,7 +2,6 @@ enabled: true
 serviceAccountName: google-proxy
 replicaCount: 1
 
-env: ""  # To be kept empty for GKE
 acceptedSAs: "" # Comma-separated list of service account emails that are allowed to access the Google Proxy APIs.
 gcpConsumerMgmtEndpointUrl: ""
 gcpServiceNetworkingEndpointUrl: ""
@@ -29,6 +28,7 @@ crrEnabled: false
 refreshAdminJobSpecs: false
 autoTieringEnabled: false
 regionalSupportEnabled: true
+filesProtocolSupport: false
 backupEnabled: false
 minQuotaInBytesPool: "1099511627776" # 1TB in bytes
 minQuotaInBytesVolume: "1073741824" # 1GB in bytes

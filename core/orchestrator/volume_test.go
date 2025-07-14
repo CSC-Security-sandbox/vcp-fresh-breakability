@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -2424,6 +2425,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 				BackupPolicyId:         "test-backup-policy-id",
 				BackupChainBytes:       &[]int64{1000}[0],
 			},
+			Protocols: []string{utils.ProtocolISCSI},
 		}
 
 		poolView := &datamodel.PoolView{
@@ -3141,6 +3143,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			BlockProperties: &common.BlockPropertiesRequest{
 				OSType: "linux",
 			},
+			Protocols: []string{utils.ProtocolISCSI},
 		}
 		poolView, err := store.GetPool(ctx, params.PoolID, account.ID)
 		if err != nil {
@@ -3249,6 +3252,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"1"},
 			},
+			Protocols: []string{utils.ProtocolISCSI},
 		}
 
 		poolView := &datamodel.PoolView{
@@ -3366,6 +3370,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"testhg"},
 			},
+			Protocols: []string{utils.ProtocolISCSI},
 		}
 
 		poolView := &datamodel.PoolView{
@@ -3484,6 +3489,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 				OSType:         "linux",
 				HostGroupUUIDs: []string{"test-volume-uuid2"},
 			},
+			Protocols: []string{utils.ProtocolISCSI},
 		}
 
 		poolView := &datamodel.PoolView{
@@ -3982,6 +3988,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			TieringPolicy: &common.TieringPolicy{
 				CoolAccess: false,
 			},
+			Protocols: []string{utils.ProtocolISCSI},
 		}
 		poolView, err := store.GetPool(ctx, params.PoolID, account.ID)
 		if err != nil {
@@ -4157,6 +4164,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			DataProtection: &models.DataProtection{
 				BackupVaultID: "test-vault",
 			},
+			Protocols: []string{utils.ProtocolISCSI},
 		}
 
 		poolView := &datamodel.PoolView{
@@ -4177,6 +4185,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 				BackupVaultID:          "test-vault",
 				ScheduledBackupEnabled: &scheduledBackupEnable,
 			},
+			Protocols: []string{utils.ProtocolISCSI},
 		}
 
 		poolView := &datamodel.PoolView{
@@ -5081,5 +5090,112 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		params := &common.UpdateVolumeParams{}
 		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
 		assert.NoError(tt, err)
+	})
+}
+
+func TestBlockVolumeValidator_Validate(t *testing.T) {
+	t.Run("Valid block properties", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"}, Name: "test_account"}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			t.Fatalf("Failed to create account: %v", err)
+		}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}, Name: "test_pool", AccountID: account.ID, State: models.LifeCycleStateREADY, Account: account}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			t.Fatalf("Failed to create pool: %v", err)
+		}
+		hg := &datamodel.HostGroup{BaseModel: datamodel.BaseModel{UUID: "hg-uuid"}, Name: "hg1", State: models.LifeCycleStateREADY, AccountID: account.ID}
+		err = store.DB().Create(hg).Error
+		if err != nil {
+			t.Fatalf("Failed to create host group: %v", err)
+		}
+		params := &common.CreateVolumeParams{
+			Name:            "dummy-name",
+			PoolID:          pool.UUID,
+			QuotaInBytes:    minQuotaInBytesVolume + 1,
+			BlockProperties: &common.BlockPropertiesRequest{OSType: "linux", HostGroupUUIDs: []string{"hg-uuid"}},
+		}
+		validator := &BlockVolumeProcessor{}
+		err = validator.Validate(ctx, store, params, account.ID)
+		assert.Nil(tt, err)
+	})
+	t.Run("Invalid host group UUID", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"}, Name: "test_account"}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			t.Fatalf("Failed to create account: %v", err)
+		}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}, Name: "test_pool", AccountID: account.ID, State: models.LifeCycleStateREADY, Account: account}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			t.Fatalf("Failed to create pool: %v", err)
+		}
+		params := &common.CreateVolumeParams{
+			Name:            "dummy-name",
+			PoolID:          pool.UUID,
+			QuotaInBytes:    minQuotaInBytesVolume + 1,
+			BlockProperties: &common.BlockPropertiesRequest{OSType: "linux", HostGroupUUIDs: []string{"non-existent-hg"}},
+		}
+		validator := &BlockVolumeProcessor{}
+		err = validator.Validate(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
+	})
+}
+
+func TestGetVolumeTypeValidator(t *testing.T) {
+	oldFlag := utils.FileProtocolSupported
+	t.Cleanup(func() { utils.FileProtocolSupported = oldFlag })
+
+	t.Run("ISCSI returns BlockVolumeProcessor", func(tt *testing.T) {
+		validator, err := GetVolumeTypeValidator([]string{"iscsi"})
+		assert.IsType(tt, &BlockVolumeProcessor{}, validator)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("File-based protocol returns error if flag is false", func(tt *testing.T) {
+		utils.FileProtocolSupported = false
+		validator, err := GetVolumeTypeValidator([]string{"nfsv4"})
+		assert.Nil(tt, validator)
+		assert.ErrorContains(tt, err, "file protocols are not enabled")
+	})
+
+	t.Run("File-based protocol returns FileVolumeProcessor if flag is true", func(tt *testing.T) {
+		utils.FileProtocolSupported = true
+		validator, err := GetVolumeTypeValidator([]string{"nfsv4"})
+		assert.IsType(tt, &FileVolumeProcessor{}, validator)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Unknown protocol returns error", func(tt *testing.T) {
+		validator, err := GetVolumeTypeValidator([]string{"UNKNOWN"})
+		assert.Nil(tt, validator)
+		assert.ErrorContains(tt, err, "unsupported or unspecified protocol")
+	})
+
+	t.Run("No protocol specified returns error", func(tt *testing.T) {
+		validator, err := GetVolumeTypeValidator([]string{})
+		assert.Nil(tt, validator)
+		assert.ErrorContains(tt, err, "unsupported or unspecified protocol")
 	})
 }

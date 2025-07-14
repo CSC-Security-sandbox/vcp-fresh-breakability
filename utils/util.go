@@ -56,6 +56,8 @@ var (
 	MinQuotaInBytesVolumeForVolume = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 107374182400)    // 100 GiB
 	MaxQuotaInBytesVolumeForVolume = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 109951162777605) // 102,400 GiB
 	ParsePEMCertificate            = _parsePEMCertificate
+	// FileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
+	FileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
 )
 
 const (
@@ -87,6 +89,15 @@ func ItemsInSliceUnique(in []string) bool {
 func ContainsString(arr []string, elem string) bool {
 	for _, obj := range arr {
 		if obj == elem {
+			return true
+		}
+	}
+	return false
+}
+
+func ContainsStringCaseInsensitive(slice []string, item string) bool {
+	for _, s := range slice {
+		if strings.EqualFold(s, item) {
 			return true
 		}
 	}

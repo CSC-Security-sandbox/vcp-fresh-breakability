@@ -5,7 +5,7 @@
   "deployment": {
     "provider": "gcp",
     "deployment_id": "test3-id",
-    "serial_number_prefix": "908201400000000000",
+    "serial_number_prefix": "935201400000000000",
     "region": "us-east1",
     "zone": {
       "zone1": "us-east1-b",
@@ -78,7 +78,8 @@
       "ext_ip_for_node_mgmt": true,
       "disable_data_nic_tier1": false,
       "enable_premium_tier_data": false,
-      "disable_gvnic": false
+      "disable_gvnic": false,
+      "enable_nfs_v3_support": true
     },
     "ontap_credentials": {
       "certificate": {

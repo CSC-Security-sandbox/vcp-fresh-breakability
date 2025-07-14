@@ -79,6 +79,103 @@ func TestContainsString(t *testing.T) {
 	}
 }
 
+func TestContainsStringCaseInsensitive(t *testing.T) {
+	tests := []struct {
+		name  string
+		slice []string
+		item  string
+		want  bool
+	}{
+		{
+			name:  "ExactMatch",
+			slice: []string{"hello", "world", "test"},
+			item:  "hello",
+			want:  true,
+		},
+		{
+			name:  "CaseInsensitiveMatchUppercase",
+			slice: []string{"hello", "world", "test"},
+			item:  "HELLO",
+			want:  true,
+		},
+		{
+			name:  "CaseInsensitiveMatchLowercase",
+			slice: []string{"HELLO", "WORLD", "TEST"},
+			item:  "hello",
+			want:  true,
+		},
+		{
+			name:  "CaseInsensitiveMatchMixedCase",
+			slice: []string{"Hello", "World", "Test"},
+			item:  "hELLO",
+			want:  true,
+		},
+		{
+			name:  "NoMatch",
+			slice: []string{"hello", "world", "test"},
+			item:  "missing",
+			want:  false,
+		},
+		{
+			name:  "EmptySlice",
+			slice: []string{},
+			item:  "hello",
+			want:  false,
+		},
+		{
+			name:  "EmptyItem",
+			slice: []string{"hello", "world", "test"},
+			item:  "",
+			want:  false,
+		},
+		{
+			name:  "EmptyItemInSlice",
+			slice: []string{"hello", "", "test"},
+			item:  "",
+			want:  true,
+		},
+		{
+			name:  "SpecialCharacters",
+			slice: []string{"hello-world", "test_case", "dot.test"},
+			item:  "HELLO-WORLD",
+			want:  true,
+		},
+		{
+			name:  "Numbers",
+			slice: []string{"123", "456", "789"},
+			item:  "123",
+			want:  true,
+		},
+		{
+			name:  "UnicodeCharacters",
+			slice: []string{"café", "naïve", "résumé"},
+			item:  "CAFÉ",
+			want:  true,
+		},
+		{
+			name:  "ProtocolNames",
+			slice: []string{"iscsi", "nfsv3", "nfsv4", "smb"},
+			item:  "ISCSI",
+			want:  true,
+		},
+		{
+			name:  "ProtocolNamesMixedCase",
+			slice: []string{"ISCSI", "NFSV3", "NFSV4", "SMB"},
+			item:  "nfsv3",
+			want:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ContainsStringCaseInsensitive(tt.slice, tt.item)
+			if got != tt.want {
+				t.Errorf("ContainsStringCaseInsensitive(%v, %q) = %v, want %v", tt.slice, tt.item, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestEnvToInt32Conversion(t *testing.T) {
 	tests := []struct {
 		envVal string
