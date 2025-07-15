@@ -1494,3 +1494,56 @@ func TestGetVPCNameFromSubnetID(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractLunNameFromPath(t *testing.T) {
+	tests := []struct {
+		testName     string
+		fullLunName  string
+		expectedName string
+	}{
+		{
+			"WhenFullLunNameIsPassed_ThenReturnLunName_1",
+			"/vol/volume1752243551/lun_volume1752243551",
+			"lun_volume1752243551",
+		},
+		{
+			"WhenFullLunNameIsPassed_ThenReturnLunName_2",
+			"/vol/my_volume/lun_my_volume",
+			"lun_my_volume",
+		},
+		{
+			"WhenFullLunNameIsPassed_ThenReturnLunName_3",
+			"/vol/test_volume_123/lun_test_volume_123",
+			"lun_test_volume_123",
+		},
+		{
+			"WhenSimpleLunNameIsPassed_ThenReturnSameName",
+			"lun_simple_volume",
+			"lun_simple_volume",
+		},
+		{
+			"WhenNestedPathIsPassed_ThenReturnLastSegment",
+			"/vol/parent/child/lun_nested_volume",
+			"lun_nested_volume",
+		},
+		{
+			"WhenEmptyStringIsPassed_ThenReturnEmptyString",
+			"/vol/parent/child/lun_nested_volume//",
+			"lun_nested_volume",
+		},
+		{
+			"WhenEmptyStringIsPassed_ThenReturnEmptyString",
+			"",
+			"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.testName, func(t *testing.T) {
+			got := ExtractLunNameFromPath(tt.fullLunName)
+			if got != tt.expectedName {
+				t.Errorf("ExtractLunNameFromPath(%s) = %s, want %s", tt.fullLunName, got, tt.expectedName)
+			}
+		})
+	}
+}

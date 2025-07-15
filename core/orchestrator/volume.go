@@ -432,6 +432,7 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 	if attributes.BlockProperties != nil {
 		res.BlockProperties = &models.BlockProperties{
 			OSType:          attributes.BlockProperties.OSType,
+			LunName:         attributes.BlockProperties.LunName,
 			LunSerialNumber: attributes.BlockProperties.LunSerialNumber,
 			HostGroupDetail: convertHostGroupDetails(attributes.BlockProperties.HostGroupDetails),
 		}

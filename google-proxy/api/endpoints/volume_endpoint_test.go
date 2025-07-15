@@ -2382,3 +2382,91 @@ func TestRestoreWhenBackupFeatureNotEnabled_ReturnsError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Backup feature is currently not enabled.")
 }
+
+func TestConvertModelToVCPVolume_MountPoints(t *testing.T) {
+	t.Run("WhenVolumeIsReadyAndLunNamePresent_ShouldAddMountPoints", func(tt *testing.T) {
+		// Setup a volume with READY state and non-empty LunName
+		vol := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			DisplayName:    "test-volume",
+			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateREADY),
+			IPAddress:      "10.72.177.17",
+			BlockProperties: &models.BlockProperties{
+				OSType:  "LINUX",
+				LunName: "lun-123",
+			},
+			ProtocolTypes: []string{"ISCSI"},
+		}
+
+		// Convert the model to VCP volume
+		result := convertModelToVCPVolume(vol)
+
+		// Verify mount points are added
+		assert.NotNil(tt, result.MountPoints)
+		assert.Len(tt, result.MountPoints, 1)
+		assert.Equal(tt, "10.72.177.17", result.MountPoints[0].IpAddress.Value)
+		assert.Equal(tt, gcpgenserver.ProtocolsV1betaISCSI, result.MountPoints[0].Protocol.Value)
+		assert.NotEmpty(tt, result.MountPoints[0].Instructions.Value)
+		assert.Contains(tt, result.MountPoints[0].Instructions.Value, "lun-123")
+	})
+
+	t.Run("WhenVolumeNotReady_ShouldNotAddMountPoints", func(tt *testing.T) {
+		// Setup a volume with non-READY state but with LunName
+		vol := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			DisplayName:    "test-volume",
+			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateCREATING), // Not READY
+			IPAddress:      "10.72.177.17",
+			BlockProperties: &models.BlockProperties{
+				OSType:  "LINUX",
+				LunName: "lun-123", // Has LUN name
+			},
+			ProtocolTypes: []string{"ISCSI"},
+		}
+
+		// Convert the model to VCP volume
+		result := convertModelToVCPVolume(vol)
+
+		// Verify mount points are not added
+		assert.Empty(tt, result.MountPoints)
+	})
+
+	t.Run("WhenNoLunName_ShouldNotAddMountPoints", func(tt *testing.T) {
+		// Setup a volume with READY state but empty LunName
+		vol := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			DisplayName:    "test-volume",
+			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateREADY), // READY
+			IPAddress:      "10.72.177.17",
+			BlockProperties: &models.BlockProperties{
+				OSType:  "LINUX",
+				LunName: "", // Empty LUN name
+			},
+			ProtocolTypes: []string{"ISCSI"},
+		}
+
+		// Convert the model to VCP volume
+		result := convertModelToVCPVolume(vol)
+
+		// Verify mount points are not added
+		assert.Empty(tt, result.MountPoints)
+	})
+
+	t.Run("WhenNoBlockProperties_ShouldNotAddMountPoints", func(tt *testing.T) {
+		// Setup a volume with READY state but no BlockProperties
+		vol := &models.Volume{
+			BaseModel:       models.BaseModel{UUID: "vol-1"},
+			DisplayName:     "test-volume",
+			LifeCycleState:  string(gcpgenserver.VolumeV1betaVolumeStateREADY), // READY
+			IPAddress:       "10.72.177.17",
+			BlockProperties: nil, // No BlockProperties
+			ProtocolTypes:   []string{"ISCSI"},
+		}
+
+		// Convert the model to VCP volume
+		result := convertModelToVCPVolume(vol)
+
+		// Verify mount points are not added and no panic occurs
+		assert.Empty(tt, result.MountPoints)
+	})
+}

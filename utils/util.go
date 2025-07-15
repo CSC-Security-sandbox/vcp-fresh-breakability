@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -595,6 +596,16 @@ func _generateRandomString(length int) (string, error) {
 
 func GetLunName(volumeName string) string {
 	return "lun_" + volumeName
+}
+
+// ExtractLunNameFromPath extracts the LUN name from a full LUN name string. eg: "/vol/volume1752243551/lun_volume1752243551" to "lun_volume1752243551"
+func ExtractLunNameFromPath(fullLunName string) string {
+	trimmed := strings.TrimSpace(fullLunName)
+	if trimmed == "" {
+		return ""
+	}
+	// Use filepath.Base to get the last component of the path
+	return filepath.Base(trimmed)
 }
 
 func IsTransitionalState(state string) bool {

@@ -185,6 +185,7 @@ type VolumeAttributes struct {
 type BlockProperties struct {
 	OSType           string            `json:"os_type"`
 	HostGroupDetails []HostGroupDetail `json:"host_group_details"`
+	LunName          string            `json:"lun_name"`
 	LunSerialNumber  string            `json:"serial_number"`
 	LunUUID          string            `json:"lun_uuid"`
 }

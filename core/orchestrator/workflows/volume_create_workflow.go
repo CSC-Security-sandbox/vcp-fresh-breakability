@@ -149,6 +149,7 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 		return nil, err
 	}
 
+	dbVolume.VolumeAttributes.BlockProperties.LunName = utils.ExtractLunNameFromPath(lun.Name)
 	dbVolume.VolumeAttributes.BlockProperties.LunSerialNumber = lun.SerialNumber
 	dbVolume.VolumeAttributes.BlockProperties.LunUUID = lun.ExternalUUID
 	return dbVolume, nil

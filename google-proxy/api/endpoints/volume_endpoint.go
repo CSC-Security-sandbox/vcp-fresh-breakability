@@ -597,12 +597,13 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 			blockPropertiesV1beta.HostGroupIds = append(blockPropertiesV1beta.HostGroupIds, hostGroup.HostGroupID)
 		}
 		res.BlockProperties = gcpgenserver.NewOptBlockPropertiesV1beta(blockPropertiesV1beta)
-		if volume.LifeCycleState == string(gcpgenserver.VolumeV1betaVolumeStateREADY) {
+		// Only show mount points if volume is ready and has valid LUN name
+		if volume.LifeCycleState == string(gcpgenserver.VolumeV1betaVolumeStateREADY) && volume.BlockProperties.LunName != "" {
 			res.MountPoints = make([]gcpgenserver.MountPointV1beta, 0)
 			res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
 				IpAddress:    gcpgenserver.NewOptString(volume.IPAddress),
 				Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1betaISCSI),
-				Instructions: getMountInstructions(volume.BlockProperties.OSType, volume.IPAddress, volume.DisplayName),
+				Instructions: getMountInstructions(volume.BlockProperties.OSType, volume.IPAddress, volume.BlockProperties.LunName),
 			})
 		}
 	}
@@ -647,7 +648,7 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 	return res
 }
 
-func getMountInstructions(osType string, ipAddress string, volName string) gcpgenserver.OptString {
+func getMountInstructions(osType string, ipAddress string, lunName string) gcpgenserver.OptString {
 	instructions := ""
 	switch osType {
 	case "LINUX":
@@ -675,7 +676,7 @@ Create a mount point and mount the device:
 $ sudo mkdir /mnt/%s
 $ sudo mount /dev/sdb /mnt/%s
 To mount automatically on reboot, add to /etc/stab:
-$ /dev/sdb /mnt/%s ext4 defaults 0 0`, ipAddress, ipAddress, "lun_"+volName, "lun_"+volName, "lun_"+volName)
+$ /dev/sdb /mnt/%s ext4 defaults 0 0`, ipAddress, ipAddress, lunName, lunName, lunName)
 		return gcpgenserver.NewOptString(instructions)
 	case "WINDOWS":
 		instructions = `Mount instructions for iSCS target on Windows

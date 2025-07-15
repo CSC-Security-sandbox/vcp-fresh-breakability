@@ -40,6 +40,7 @@ type TieringPolicy struct {
 type BlockProperties struct {
 	OSType          string
 	HostGroupDetail []HostGroupDetails
+	LunName         string
 	LunSerialNumber string
 }
 
