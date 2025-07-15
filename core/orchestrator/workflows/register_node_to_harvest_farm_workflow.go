@@ -69,6 +69,7 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 			NonRetryableErrorTypes: []string{"not enough nodes found for pool",
 				"node group assignment returned insufficient mappings for pool",
 				"node1 and node2 must be different nodes",
+				"failed to fetch node group details from nodeGroup Map table",
 			},
 		},
 	}
@@ -87,6 +88,11 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 		return nil, err
 	}
 
+	// 2. Validate and create kubernetes lease if required.
+	err = workflow.ExecuteActivity(ctx, registerActivity.ValidateAndCreateKubernetesLease, nodeMappings).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
 	//  This is will be addressed by PR #683
 	// // 2. Render and upload a Harvest template for each node mapping (sequentially)
 	// uploadInput := activities.UploadHarvestTemplateInput{

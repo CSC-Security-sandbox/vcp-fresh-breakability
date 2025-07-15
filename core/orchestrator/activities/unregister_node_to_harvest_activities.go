@@ -80,7 +80,7 @@ func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) DeleteNodeGrou
 	logger := util.GetLogger(ctx)
 	se := unRegisterNodeToHarvest.SE
 	for _, nodeGroupMapping := range nodeGroupMappings {
-		err := se.DeleteNodeNodeGroupMap(ctx, nodeGroupMapping.NodeID)
+		err := se.DeleteNodeNodeGroupMap(ctx, nodeGroupMapping.ID)
 		if err != nil {
 			logger.Warnf("failed to delete nodeGroupMap for node %s: %w", nodeGroupMapping.NodeID, err)
 			return err
