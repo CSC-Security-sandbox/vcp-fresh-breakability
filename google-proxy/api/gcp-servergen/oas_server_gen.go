@@ -209,6 +209,12 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
 	V1betaDescribeVolume(ctx context.Context, params V1betaDescribeVolumeParams) (V1betaDescribeVolumeRes, error)
+	// V1betaEncryptVolumes implements v1beta_encryptVolumes operation.
+	//
+	// Migrates all volumes to VSA CMEK encryption.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes
+	V1betaEncryptVolumes(ctx context.Context, params V1betaEncryptVolumesParams) (V1betaEncryptVolumesRes, error)
 	// V1betaFinishProjectEvent implements v1beta_finishProjectEvent operation.
 	//
 	// Finishes the project state for a 1P account based on the path parameter and project state value.

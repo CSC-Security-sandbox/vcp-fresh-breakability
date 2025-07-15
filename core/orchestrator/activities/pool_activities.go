@@ -157,6 +157,16 @@ func (j *PoolActivity) FailedPool(ctx context.Context, pool *datamodel.Pool, err
 	return nil
 }
 
+func (j *PoolActivity) FailedPoolActivity(ctx context.Context, pool *datamodel.Pool, errMsg string) error {
+	se := j.SE
+	pool.State = models.LifeCycleStateError
+	_, err := se.ErroredResource(ctx, pool, errMsg)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
+}
+
 func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := j.SE
 	pool, err := se.CreatedPool(ctx, pool)
@@ -198,6 +208,26 @@ func (j *PoolActivity) DeletePoolResourcesOnRollback(ctx context.Context, pool *
 func (j *PoolActivity) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := j.SE
 	return se.UpdatedPool(ctx, pool)
+}
+
+func (j *PoolActivity) UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+	se := j.SE
+	pool, err := se.UpdatingPool(ctx, pool)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return pool, nil
+}
+
+func (j *PoolActivity) UpdatePoolState(ctx context.Context, pool *datamodel.Pool, state string, stateDetails string) (*datamodel.Pool, error) {
+	se := j.SE
+	pool, err := se.UpdatePoolState(ctx, pool, state, stateDetails)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return pool, nil
 }
 
 // FindTenancy finds the tenancy unit for a customer
@@ -982,6 +1012,26 @@ func (j *PoolActivity) GetPool(ctx context.Context, pool *datamodel.Pool) (*data
 	}
 	dbPool := repository.ConvertPoolViewToPool(poolView)
 	return dbPool, nil
+}
+
+func (j *PoolActivity) GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error) {
+	se := j.SE
+	pools, err := se.GetPoolsByAccountName(ctx, accountName)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return pools, err
+}
+
+func (j *PoolActivity) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {
+	se := j.SE
+	svm, err := se.GetSvmForPoolID(ctx, poolID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return svm, nil
 }
 
 func (j *PoolActivity) DeletingPoolResources(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {

@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -2139,5 +2140,34 @@ func TestCreateBackupPolicyFetchedFromSDESucceeds(t *testing.T) {
 		res, err := activity.CreateBackupPolicyFetchedFromSDE(ctx, volume, region)
 		assert.Error(t, err)
 		assert.Nil(t, res)
+	})
+}
+
+func TestGetVolumesByPoolID(t *testing.T) {
+	t.Run("WhenGetVolumesByPoolIdReturnsVolumes", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockSE}
+		ctx := context.Background()
+		poolID := int64(1)
+		vol1 := &datamodel.Volume{BaseModel: datamodel.BaseModel{ID: int64(1)}}
+		var volumes []*datamodel.Volume
+		volumes = append(volumes, vol1)
+
+		mockSE.On("GetVolumesByPoolID", ctx, poolID).Return(volumes, nil)
+		result, err := activity.GetVolumesByPoolID(ctx, poolID)
+		assert.NoError(t, err)
+		assert.Equal(t, volumes, result)
+	})
+	t.Run("WhenGetVolumesByPoolIdReturnsError", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.VolumeCreateActivity{SE: mockSE}
+		ctx := context.Background()
+		poolID := int64(1)
+
+		mockSE.On("GetVolumesByPoolID", ctx, poolID).Return(nil, vsaerrors.WrapAsTemporalApplicationError(errors.New("get volumes ran into error")))
+		result, err := activity.GetVolumesByPoolID(ctx, poolID)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "get volumes ran into error")
+		assert.Nil(t, result)
 	})
 }

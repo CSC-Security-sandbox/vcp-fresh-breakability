@@ -1969,6 +1969,65 @@ func (_c *MockHandler_V1betaDescribeVolume_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// V1betaEncryptVolumes provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaEncryptVolumes(ctx context.Context, params V1betaEncryptVolumesParams) (V1betaEncryptVolumesRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaEncryptVolumes")
+	}
+
+	var r0 V1betaEncryptVolumesRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaEncryptVolumesParams) (V1betaEncryptVolumesRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaEncryptVolumesParams) V1betaEncryptVolumesRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaEncryptVolumesRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaEncryptVolumesParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaEncryptVolumes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaEncryptVolumes'
+type MockHandler_V1betaEncryptVolumes_Call struct {
+	*mock.Call
+}
+
+// V1betaEncryptVolumes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1betaEncryptVolumesParams
+func (_e *MockHandler_Expecter) V1betaEncryptVolumes(ctx interface{}, params interface{}) *MockHandler_V1betaEncryptVolumes_Call {
+	return &MockHandler_V1betaEncryptVolumes_Call{Call: _e.mock.On("V1betaEncryptVolumes", ctx, params)}
+}
+
+func (_c *MockHandler_V1betaEncryptVolumes_Call) Run(run func(ctx context.Context, params V1betaEncryptVolumesParams)) *MockHandler_V1betaEncryptVolumes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1betaEncryptVolumesParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaEncryptVolumes_Call) Return(_a0 V1betaEncryptVolumesRes, _a1 error) *MockHandler_V1betaEncryptVolumes_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaEncryptVolumes_Call) RunAndReturn(run func(context.Context, V1betaEncryptVolumesParams) (V1betaEncryptVolumesRes, error)) *MockHandler_V1betaEncryptVolumes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaFinishProjectEvent provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaFinishProjectEvent(ctx context.Context, req *StateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error) {
 	ret := _m.Called(ctx, req, params)

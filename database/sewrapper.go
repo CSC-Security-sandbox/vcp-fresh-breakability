@@ -112,6 +112,26 @@ func (re *retryEngine) UpdatePoolSubnetNames(ctx context.Context, poolUUID, snHo
 	return err
 }
 
+func (re *retryEngine) UpdatePoolState(ctx context.Context, pool *datamodel.Pool, state string, stateDetails string) (*datamodel.Pool, error) {
+	var var0 *datamodel.Pool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdatePoolState(ctx, pool, state, stateDetails)
+		if err != nil {
+			re.logError("UpdatePoolState", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) DeletePool(ctx context.Context, pool *datamodel.Pool) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
@@ -276,6 +296,26 @@ func (re *retryEngine) UpdatePoolWithKmsConfigID(ctx context.Context, pool *data
 		var0, err = re.dataStore.UpdatePoolWithKmsConfigID(ctx, pool, kmsConfigUUID)
 		if err != nil {
 			re.logError("UpdatePoolWithKmsConfigID", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error) {
+	var var0 []*datamodel.Pool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetPoolsByAccountName(ctx, accountName)
+		if err != nil {
+			re.logError("GetPoolsByAccountName", err)
 			if !isTransientErr(err) {
 				return false, err
 			}
@@ -870,6 +910,26 @@ func (re *retryEngine) GetJobsWithCondition(ctx context.Context, filter utils.Fi
 		var0, err = re.dataStore.GetJobsWithCondition(ctx, filter)
 		if err != nil {
 			re.logError("GetJobsWithCondition", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetOngoingMigrateKmsConfigJob(ctx context.Context, accountId int64) (*datamodel.Job, error) {
+	var var0 *datamodel.Job
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetOngoingMigrateKmsConfigJob(ctx, accountId)
+		if err != nil {
+			re.logError("GetOngoingMigrateKmsConfigJob", err)
 			if !isTransientErr(err) {
 				return false, err
 			}

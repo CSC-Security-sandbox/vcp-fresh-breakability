@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
@@ -1157,6 +1158,130 @@ func TestGetPoolByName(t *testing.T) {
 	})
 }
 
+func TestGetPoolsByAccountName(t *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	if err != nil {
+		t.Fatalf("Failed to clean up test database: %v", err)
+	}
+
+	account1 := &datamodel.Account{BaseModel: datamodel.BaseModel{
+		ID: 1, UUID: "test-account-uuid-1"}, Name: "test-account-1"}
+	account2 := &datamodel.Account{BaseModel: datamodel.BaseModel{
+		ID: 2, UUID: "test-account-uuid-2"}, Name: "test-account-2"}
+	account3 := &datamodel.Account{BaseModel: datamodel.BaseModel{
+		ID: 3, UUID: "test-account-uuid-3"}, Name: "test-account-3"}
+	var accounts []*datamodel.Account
+	accounts = append(accounts, account1, account2, account3)
+
+	pool1 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-1"},
+		Name: "test-pool-1", AccountID: account1.ID, Account: account1, DeploymentName: "pool1"}
+	pool2 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-2"},
+		Name: "test-pool-2", AccountID: account2.ID, Account: account2, DeploymentName: "pool2"}
+	pool3 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-3"},
+		Name: "test-pool-3", AccountID: account1.ID, Account: account1, DeploymentName: "pool3"}
+
+	var pools []*datamodel.Pool
+	pools = append(pools, pool1, pool2, pool3)
+
+	err = store.db.Create(accounts).Error()
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+	err = store.db.Create(pools).Error()
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	t.Run("WhenPoolsExist", func(tt *testing.T) {
+		result, errDB := store.GetPoolsByAccountName(context.Background(), "test-account-1")
+		assert.NoError(tt, errDB)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, 2, len(result))
+		assert.Equal(tt, "test-pool-uuid-1", result[0].UUID)
+		assert.Equal(tt, "test-pool-uuid-3", result[1].UUID)
+	})
+	t.Run("WhenPoolsDontExist", func(tt *testing.T) {
+		result, errDB := store.GetPoolsByAccountName(context.Background(), "test-account-3")
+		assert.NoError(tt, errDB)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, 0, len(result))
+	})
+}
+
+func TestUpdatePoolWithKmsConfigIDUTs(t *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	if err != nil {
+		t.Fatalf("Failed to clean up test database: %v", err)
+	}
+
+	account1 := &datamodel.Account{BaseModel: datamodel.BaseModel{
+		ID: 1, UUID: "test-account-uuid-1"}, Name: "test-account-1"}
+	account2 := &datamodel.Account{BaseModel: datamodel.BaseModel{
+		ID: 2, UUID: "test-account-uuid-2"}, Name: "test-account-2"}
+	var accounts []*datamodel.Account
+	accounts = append(accounts, account1, account2)
+
+	pool1 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-1"},
+		Name: "test-pool-1", AccountID: account1.ID, Account: account1, DeploymentName: "deployment-name1"}
+	pool2 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-2"},
+		Name: "test-pool-2", AccountID: account2.ID, Account: account2, DeploymentName: "deployment-name2"}
+	pool3 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-3"},
+		Name: "test-pool-3", AccountID: account1.ID, Account: account1, DeploymentName: "deployment-name3"}
+
+	var pools []*datamodel.Pool
+	pools = append(pools, pool1, pool2)
+
+	kmsConfigs := []*datamodel.KmsConfig{
+		{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "kmsConfig-uuid1", DeletedAt: nil}, Name: "kmsConfig1"},
+		{BaseModel: datamodel.BaseModel{ID: int64(2), UUID: "kmsConfig-uuid2", DeletedAt: nil}, Name: "kmsConfig2"},
+	}
+
+	err = store.db.Create(accounts).Error()
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+	err = store.db.Create(pools).Error()
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+	err = store.db.Create(kmsConfigs).Error()
+	if err != nil {
+		t.Fatalf("Failed to create kmsConfig: %v", err)
+	}
+	t.Run("WhenDbQuerySucceeds", func(tt *testing.T) {
+		result, errDB := store.UpdatePoolWithKmsConfigID(context.Background(), pool1, "kmsConfig-uuid1")
+		assert.NoError(tt, errDB)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, result.KmsConfigID, sql.NullInt64{Int64: 1, Valid: true})
+	})
+	t.Run("WhenKmsConfigDoesNotExist", func(tt *testing.T) {
+		result, errDB := store.UpdatePoolWithKmsConfigID(context.Background(), pool1, "kmsConfig-uuid3")
+		assert.Error(tt, errDB)
+		assert.Nil(tt, result)
+		assert.Errorf(tt, errDB, "record not found not found")
+	})
+	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
+		result, errDB := store.UpdatePoolWithKmsConfigID(context.Background(), pool3, "kmsConfig-uuid1")
+		assert.Error(tt, errDB)
+		assert.Nil(tt, result)
+		assert.Errorf(tt, errDB, "record not found not found")
+	})
+}
+
 // Unit test for ConvertPoolViewToPool
 func TestConvertPoolViewToPool(t *testing.T) {
 	view := &datamodel.PoolView{
@@ -1376,5 +1501,75 @@ func TestUpdatePoolWithKmsConfigID(t *testing.T) {
 		updatedPool, err := store.UpdatePoolWithKmsConfigID(context.Background(), pool, "kms-uuid")
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedPool)
+	})
+}
+
+func TestUpdatePoolState(t *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	if err != nil {
+		t.Fatalf("Failed to clean up test database: %v", err)
+	}
+
+	// Re-using test data from other units tests...
+	account1 := &datamodel.Account{BaseModel: datamodel.BaseModel{
+		ID: 1, UUID: "test-account-uuid-1"}, Name: "test-account-1"}
+	account2 := &datamodel.Account{BaseModel: datamodel.BaseModel{
+		ID: 2, UUID: "test-account-uuid-2"}, Name: "test-account-2"}
+	var accounts []*datamodel.Account
+	accounts = append(accounts, account1, account2)
+
+	pool1 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-1"}, DeploymentName: "deployment-name1",
+		Name: "test-pool-1", AccountID: account1.ID, Account: account1, State: models.LifeCycleStateCreated, StateDetails: models.LifeCycleStateCreatingDetails}
+	pool2 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-2"}, DeploymentName: "deployment-name2",
+		Name: "test-pool-2", AccountID: account2.ID, Account: account2}
+	pool3 := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-3"}, DeploymentName: "deployment-name3",
+		Name: "test-pool-3", AccountID: account1.ID, Account: account1}
+
+	var pools []*datamodel.Pool
+	pools = append(pools, pool1, pool2)
+
+	kmsConfigs := []*datamodel.KmsConfig{
+		{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "kmsConfig-uuid1", DeletedAt: nil}, Name: "kmsConfig1"},
+		{BaseModel: datamodel.BaseModel{ID: int64(2), UUID: "kmsConfig-uuid2", DeletedAt: nil}, Name: "kmsConfig2"},
+	}
+
+	err = store.db.Create(accounts).Error()
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+	err = store.db.Create(pools).Error()
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+	err = store.db.Create(kmsConfigs).Error()
+	if err != nil {
+		t.Fatalf("Failed to create kmsConfig: %v", err)
+	}
+	t.Run("WhenDbUpdateSucceedsWithStateAlreadyDefined", func(tt *testing.T) {
+		result, errDB := store.UpdatePoolState(context.Background(), pool1, models.LifeCycleStateMigrating, models.LifeCycleStateMigratingDetails)
+		assert.NoError(tt, errDB)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, result.State, models.LifeCycleStateMigrating)
+		assert.Equal(tt, result.StateDetails, models.LifeCycleStateMigratingDetails)
+	})
+	t.Run("WhenDbUpdateSucceedsWithStateNotDefined", func(tt *testing.T) {
+		result, errDB := store.UpdatePoolState(context.Background(), pool2, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
+		assert.NoError(tt, errDB)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, result.State, models.LifeCycleStateUpdating)
+		assert.Equal(tt, result.StateDetails, models.LifeCycleStateUpdatingDetails)
+	})
+	t.Run("WhenDbUpdateIsUnableToFindRecord", func(tt *testing.T) {
+		result, errDB := store.UpdatePoolState(context.Background(), pool3, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
+		assert.Nil(tt, result)
+		assert.Error(tt, errDB)
+		assert.EqualError(tt, errDB, "[0] undefined error: pool not found")
 	})
 }

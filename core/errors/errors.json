@@ -268,5 +268,11 @@
     "message": "Invalid Operation Name",
     "retriable": false,
     "http_code": 500
+  },
+  "6063": {
+    "description": "Cmek Migration failure",
+    "message": "Cmek Migration failure",
+    "retriable": false,
+    "http_code": 500
   }
 }

@@ -9,11 +9,13 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 )
 
@@ -94,4 +96,17 @@ func (j *KmsConfigActivity) CheckVsaKmsConfigReachableActivity(ctx context.Conte
 		return temporal.NewNonRetryableApplicationError("GCP KMS key is not reachable from VSA Clusters", ErrTypeKmsConfigNotReachableVsaCluster, err)
 	}
 	return err
+}
+
+// GetOntapRestProviderForPool retrieves the provider for the pool
+func (j *KmsConfigActivity) GetOntapRestProviderForPoolActivity(ctx context.Context, pool *datamodel.Pool) (vsa.Provider, error) {
+	logger := util.GetLogger(ctx)
+	se := j.SE
+
+	provider, errGetProvider := backgroundactivities.GetOntapRestProviderForPool(ctx, se, pool)
+	if errGetProvider != nil {
+		logger.Errorf("Failed to get provider for pool with UUID %s in VSA: %v", pool.UUID, errGetProvider)
+		return nil, errGetProvider
+	}
+	return provider, nil
 }

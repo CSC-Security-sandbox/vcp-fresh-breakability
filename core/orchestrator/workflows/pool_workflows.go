@@ -677,7 +677,7 @@ func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool
 			}
 
 			// create and sync the KMS configuration with the SDE KMS configuration
-			createKmsConfigParams := convertToCreateKmsConfigParams(cvpKmsConfig, params)
+			createKmsConfigParams := ConvertToCreateKmsConfigParams(cvpKmsConfig, params)
 			err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateAndSyncKmsConfigActivity, createKmsConfigParams).Get(ctx, kmsConfig)
 			if err != nil {
 				return err
@@ -731,7 +731,8 @@ func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool
 	return nil
 }
 
-func convertToCreateKmsConfigParams(params cvpmodels.KmsConfigV1beta, createPoolParams *common.CreatePoolParams) *common.CreateKmsConfigParams {
+// ConvertToCreateKmsConfigParams transforms from CVP datamodel to VSA datamodel
+func ConvertToCreateKmsConfigParams(params cvpmodels.KmsConfigV1beta, createPoolParams *common.CreatePoolParams) *common.CreateKmsConfigParams {
 	createConfigParams := &common.CreateKmsConfigParams{}
 
 	createConfigParams.ProjectNumber = createPoolParams.AccountName

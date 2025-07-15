@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -33,7 +34,9 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterWorkflow(DeleteKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
-		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		mockStorage := database.NewMockStorage(t)
+		// No UpdateKmsConfigState call expected in success case
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{SE: mockStorage})
 
 		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
@@ -79,7 +82,9 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterWorkflow(DeleteKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
-		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		mockStorage := database.NewMockStorage(t)
+		// No UpdateKmsConfigState call expected in success case
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{SE: mockStorage})
 
 		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
@@ -93,7 +98,7 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 
 		// Mock activity responses
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(nil)
+		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(nil, nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
@@ -115,7 +120,10 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
-		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		mockStorage := database.NewMockStorage(t)
+		// UpdateKmsConfigState should be called in the defer function when there's an error
+		mockStorage.On("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.KmsConfig{}, nil)
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{SE: mockStorage})
 
 		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
@@ -132,7 +140,7 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 			},
 		}
 		// Mock activity responses
-		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(errors.New(400, "error returned"))
+		env.OnActivity("DeleteSDEKmsConfig", mock.Anything, kmsConfig, params).Return(nil, errors.New(400, "error returned"))
 
 		// Register the workflow
 		env.RegisterWorkflow(func(ctx workflow.Context, params *common.DeleteKmsConfigParams, kmsConfig *datamodel.KmsConfig) (interface{}, error) {

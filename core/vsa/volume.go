@@ -198,3 +198,57 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 	}
 	return client.Poll(job.JobUUID)
 }
+
+func (rc *OntapRestProvider) UpdateVolumeEnableEncryption(params UpdateVolumeParams) error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+	success, job, err := client.Storage().VolumeModify(
+		&ontapRest.VolumeModifyParams{
+			UUID:             params.UUID,
+			EncryptionEnable: &params.EncryptionEnable,
+		})
+	if err != nil {
+		return err
+	}
+	if success {
+		return nil
+	}
+	return client.Poll(job.JobUUID)
+}
+
+func (rc *OntapRestProvider) GetVolumeEncryptionStatus(params GetVolumeParams) (*VolumeResponse, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	volumeGetParams := &ontapRest.VolumeGetParams{
+		BaseParams: ontapRest.BaseParams{Fields: []string{"encryption.*"}},
+		UUID:       params.UUID,
+		Name:       params.VolumeName,
+		SvmName:    &params.SvmName,
+	}
+	vol, err := client.Storage().VolumeGet(volumeGetParams)
+	if err != nil {
+		return nil, err
+	}
+	if vol == nil || vol.Name == nil || vol.UUID == nil {
+		return nil, errors.NewNotFoundErr("volume", nil)
+	}
+	if vol.Encryption == nil {
+		return nil, errors.New("Encryption field is not populated in Get Volume from VSA")
+	}
+
+	return &VolumeResponse{
+		ProviderResponse: ProviderResponse{
+			Name:         *vol.Name,
+			ExternalUUID: *vol.UUID,
+		},
+		Encryption: Encryption{
+			Enabled: vol.Encryption.Enabled,
+			State:   vol.Encryption.State,
+			Type:    vol.Encryption.Type,
+		},
+	}, nil
+}

@@ -3,6 +3,7 @@ package kms_activities
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
@@ -39,8 +40,10 @@ const (
 	serviceNameCmek                        = "cmek"
 	ErrTypeKmsConfigNotFound               = "KmsConfigNotFound"
 	ErrTypeKmsConfigNotReachableVsaCluster = "KmsConfigNotReachableVsaCluster"
+	ErrTypeDNSExists                       = "DNSEntryExists"
 	RetryTimeOutForGetCryptoKey            = 1 * time.Minute
 	RetryIntervalForGetCryptoKey           = 5 * time.Second
+	GcpKmsConfigHealthError                = "specified key <key_name> in <key_ring> does not exist or service permissions are incorrect"
 )
 
 type KmsConfigActivity struct {
@@ -86,6 +89,24 @@ func (j *KmsConfigActivity) PollKmsConfigOperationActivity(ctx context.Context, 
 		}
 	}
 	return nil
+}
+
+func GetResponseforPollCvpOperation(ctx context.Context, responsePayloadName string, projectNumber string, locationID string) (*cvpClientModels.OperationV1beta, error) {
+	jwtToken := utils.GetAuthTokenFromContext(ctx)
+	logger := util.GetLogger(ctx)
+	cvpClient := createClient(logger, jwtToken)
+
+	operationUUID := utils.GetOperationUUID(responsePayloadName)
+	operationParams := async.NewV1betaDescribeOperationParams()
+	operationParams.OperationID = operationUUID
+	operationParams.ProjectNumber = projectNumber
+	operationParams.LocationID = locationID
+
+	payload, err := pollCvpOperationForWorkflow(ctx, cvpClient, operationParams)
+	if err != nil {
+		return nil, err
+	}
+	return payload, nil
 }
 
 // CreateVSAKmsConfigSAKeyActivity creates a service account key for the given KMS configuration.
@@ -267,4 +288,61 @@ func _synchronizeServiceAccountKeys(ctx context.Context, gcpService hyperscaler.
 	}
 
 	return &key.PrivateKeyData, nil
+}
+
+// UpdateKmsConfigHealth updates the state and attributes of the KmsConfig based on the results of the Verify operation
+func UpdateKmsConfigHealth(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig, isHealthy bool, healthError string, kmsConfigInUse bool) error {
+	var err error
+	state := models.LifeCycleStateUnknown
+	stateDetails := models.LifeCycleStateUnknownDetails
+
+	switch isHealthy {
+	case true:
+		state = models.LifeCycleStateREADY
+		stateDetails = models.LifeCycleStateReadyDetails
+		// Keep the state as in user if the KMS config is in use (in use meaning that there are SVMs using this KMS config)
+		if kmsConfigInUse {
+			state = models.LifeCycleStateInUse
+			stateDetails = models.LifeCycleStateAvailableDetails
+		}
+	case false:
+		// If the KMS config is in error state, do not update the state to ready.
+		state = models.LifeCycleStateError
+		stateDetails = healthError
+		healthErrorMessage := strings.Replace(strings.Replace(GcpKmsConfigHealthError, "<key_name>", kmsConfig.KeyName, 1), "<key_ring>", kmsConfig.KeyRing, 1)
+		// Keep the state as created if the health error message indicates that the key does not exist or service permissions are incorrect.
+		if strings.Contains(stateDetails, healthErrorMessage) {
+			state = models.LifeCycleStateCreated
+		}
+	}
+
+	// Update the KMS config state and details
+	kmsConfig, err = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, state, stateDetails)
+	if err != nil {
+		return err
+	}
+
+	// Update the KMS config Attributes with the health check response
+	kmsConfig.KmsAttributes.SdeKmsConfigIsHealthy = isHealthy
+	kmsConfig.KmsAttributes.SdeKmsConfigHealthError = healthError
+	_, err = se.UpdateKmsConfigAttributes(ctx, kmsConfig.UUID, kmsConfig.KmsAttributes)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func isKmsConfigInUse(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig) (bool, error) {
+	if kmsConfig.State == models.LifeCycleStateInUse {
+		return true, nil
+	}
+	svms, err := se.GetSvmsByKmsConfigID(ctx, kmsConfig.ID)
+	if err != nil && !errors.IsNotFoundErr(err) {
+		return false, err
+	}
+	if len(svms) > 0 {
+		return true, nil
+	}
+	return false, nil
 }

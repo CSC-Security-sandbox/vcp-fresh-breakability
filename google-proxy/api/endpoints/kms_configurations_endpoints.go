@@ -27,6 +27,7 @@ import (
 var (
 	roleName               = "cmekNetAppVolumesRole"
 	parseKmsConfigResponse = _parseKmsConfigResponse
+	encodeEncryptVolumeV1beta = _encodeEncryptVolumeV1beta
 )
 
 const uriFormat = "^projects\\/[^\\/]+\\/locations\\/[^\\/]+\\/keyRings\\/[^\\/]+\\/cryptoKeys.+$"
@@ -670,6 +671,100 @@ func (h Handler) V1betaGetMultipleKmsConfigs(ctx context.Context, req *gcpgenser
 	return &operationResponse, nil
 }
 
+func (h Handler) V1betaEncryptVolumes(ctx context.Context, params gcpgenserver.V1betaEncryptVolumesParams) (gcpgenserver.V1betaEncryptVolumesRes, error) {
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaEncryptVolumesBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	getMultipleKmsParams := gcpgenserver.V1betaGetMultipleKmsConfigsParams{
+		ProjectNumber:  params.ProjectNumber,
+		LocationId:     params.LocationId,
+		XCorrelationID: params.XCorrelationID,
+	}
+	kmsConfigIdArray := []string{params.KmsConfigId}
+	getMultipleKmsBody := gcpgenserver.KmsConfigIdListV1beta{
+		KmsConfigIds: kmsConfigIdArray,
+	}
+
+	getMultipleKmsResponse, err := h.V1betaGetMultipleKmsConfigs(ctx, &getMultipleKmsBody, getMultipleKmsParams)
+	if err != nil {
+		return nil, err
+	}
+	if _, ok := getMultipleKmsResponse.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK); !ok {
+		return &gcpgenserver.V1betaEncryptVolumesInternalServerError{
+			Code:    500,
+			Message: fmt.Sprintf("Unknown error encountered during GetMultipleKmsConfigs with CMEK policy UUID %s", params.KmsConfigId),
+		}, nil
+	}
+	if len(getMultipleKmsResponse.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations) == 0 {
+		return &gcpgenserver.V1betaEncryptVolumesBadRequest{
+			Code:    404,
+			Message: fmt.Sprintf("CMEK policy with UUID %s not found", params.KmsConfigId),
+		}, nil
+	}
+
+	migrateKmsConfigParams := &common.MigrateKmsConfigParams{
+		UUID:          params.KmsConfigId,
+		LocationID:    params.LocationId,
+		ProjectNumber: params.ProjectNumber,
+		AccountName:   params.ProjectNumber,
+		State:         string(getMultipleKmsResponse.(*gcpgenserver.V1betaGetMultipleKmsConfigsOK).KmsConfigurations[0].KmsState.Value),
+	}
+
+	operationID, err := h.Orchestrator.MigrateKmsConfig(ctx, migrateKmsConfigParams)
+	if err != nil {
+		if errors.IsBadRequestErr(err) {
+			return &gcpgenserver.V1betaEncryptVolumesBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		return &gcpgenserver.V1betaEncryptVolumesInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+	if operationID == "" {
+		return &gcpgenserver.V1betaEncryptVolumesInternalServerError{
+			Code:    500,
+			Message: "Job ID not returned by VCP for CMEK policy migration",
+		}, nil
+	}
+
+	operationV1Beta, err := convertEncryptVolumesToOperationV1Beta(params, operationID)
+	if err != nil {
+		return nil, err
+	}
+	return operationV1Beta, nil
+}
+
+func convertEncryptVolumesToOperationV1Beta(params gcpgenserver.V1betaEncryptVolumesParams, operationID string) (*gcpgenserver.OperationV1beta, error) {
+	encryptStatus := models.EncryptVolumeStatusV1beta{
+		UUID:   params.KmsConfigId,
+		Status: coremodel.LifeCycleStateUpdating,
+	}
+	encryptVolume := models.EncryptVolumeV1beta{
+		EncryptionStatus: &encryptStatus,
+	}
+
+	jsonRaw, err := encodeEncryptVolumeV1beta(&encryptVolume)
+	if err != nil {
+		return nil, err
+	}
+
+	operationResponse := gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
+		Response: jsonRaw,
+		Done:     gcpgenserver.NewOptBool(false),
+	}
+	return &operationResponse, nil
+}
+
 func (h Handler) V1betaDeleteKmsConfiguration(ctx context.Context, params gcpgenserver.V1betaDeleteKmsConfigurationParams) (gcpgenserver.V1betaDeleteKmsConfigurationRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
@@ -910,6 +1005,14 @@ func categorizeCvpClientErrorsForGetMultipleKmsConfigs(cvpErr error, logger log.
 // encodeKmsConfigV1 encodes a KmsConfigV1 struct to JSON.
 func encodeKmsConfigV1(kmsConfigV1beta *gcpgenserver.KmsConfigV1beta) (jx.Raw, error) {
 	data, err := json.Marshal(kmsConfigV1beta)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func _encodeEncryptVolumeV1beta(encryptVolumeV1beta *models.EncryptVolumeV1beta) (jx.Raw, error) {
+	data, err := json.Marshal(encryptVolumeV1beta)
 	if err != nil {
 		return nil, err
 	}

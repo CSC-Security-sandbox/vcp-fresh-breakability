@@ -54,6 +54,7 @@ type DataStore interface {
 	UpdatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
 	UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error)
 	UpdatePoolSubnetNames(ctx context.Context, poolUUID, snHostProject string, subnetNames []string) error
+	UpdatePoolState(ctx context.Context, pool *datamodel.Pool, state string, stateDetails string) (*datamodel.Pool, error)
 	DeletePool(ctx context.Context, pool *datamodel.Pool) error
 	DeletingPool(ctx context.Context, pool *datamodel.Pool) error
 	DescribePool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error)
@@ -63,6 +64,7 @@ type DataStore interface {
 	GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error)
 	SavePoolWithVsaDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error
 	UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error)
+	GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error)
 
 	CreateVolume(ctx context.Context, volume *datamodel.Volume, isRestore bool) (*datamodel.Volume, error)
 	GetVolume(ctx context.Context, id string) (*datamodel.Volume, error)
@@ -97,6 +99,7 @@ type DataStore interface {
 	UpdateJob(ctx context.Context, jobID string, status string, trackingID int, errorDetails string) error
 	GetJob(ctx context.Context, jobID string) (*datamodel.Job, error)
 	GetJobsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Job, error)
+	GetOngoingMigrateKmsConfigJob(ctx context.Context, accountId int64) (*datamodel.Job, error)
 
 	GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error)
 	GetNodesByPoolID(ctx context.Context, poolId int64) ([]*datamodel.Node, error)

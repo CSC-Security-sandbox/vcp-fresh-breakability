@@ -93,7 +93,7 @@ func (wf *updateKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}
 	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
 	defer func() {
 		if err != nil && kmsConfig.UUID != "" {
-			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateKmsConfigState, kmsConfig, params, models.LifeCycleStateError, err.Error()).Get(ctx, nil)
+			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateKmsConfigState, kmsConfig, models.LifeCycleStateError, err.Error()).Get(ctx, nil)
 		}
 	}()
 

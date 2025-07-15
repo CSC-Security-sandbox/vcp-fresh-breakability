@@ -202,7 +202,7 @@ func TestGetMultipleKMSConfigsDBErrorCondition(t *testing.T) {
 	err = ClearInMemoryDB(store.db.GORM())
 	assert.NoError(t, err, "Failed to clean up test database")
 
-	t.Run("RetrievesKMSConfigsSuccessfully", func(tt *testing.T) {
+	t.Run("WhenRetrieveKMSConfigsRunsIntoDBError", func(tt *testing.T) {
 		dbErr := db.Migrator().DropTable(&datamodel.KmsConfig{})
 		if dbErr != nil {
 			assert.Fail(tt, "Dropping table KmsConfig from in-memory DB failed; aborting test")

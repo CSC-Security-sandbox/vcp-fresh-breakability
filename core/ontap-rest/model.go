@@ -951,6 +951,7 @@ type VolumeModifyParams struct {
 	QosPolicy                      *string
 	AntiRansomwareState            *string
 	TieringPolicy                  *TieringPolicy
+	EncryptionEnable               *bool
 }
 
 // FlexcacheModifyParams is the input param struct for storageClient.FlexcacheModify
@@ -1092,6 +1093,9 @@ func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModify
 	}
 	if params.AntiRansomwareState != nil {
 		info.AntiRansomware = &models.VolumeInlineAntiRansomware{State: params.AntiRansomwareState}
+	}
+	if params.EncryptionEnable != nil {
+		info.Encryption = &models.VolumeInlineEncryption{Enabled: params.EncryptionEnable}
 	}
 
 	otParams.SetInfo(info)

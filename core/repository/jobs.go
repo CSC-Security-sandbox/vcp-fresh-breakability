@@ -103,3 +103,20 @@ func _getJobWithDetails(db *gorm.DB, query *datamodel.Job) (*datamodel.Job, erro
 	}
 	return job, nil
 }
+
+func (d *DataStoreRepository) GetOngoingMigrateKmsConfigJob(ctx context.Context, accountId int64) (*datamodel.Job, error) {
+	var job datamodel.Job
+	err := d.db.GORM().WithContext(ctx).Where(
+		"account_id = ? AND type = ? AND (state = ? OR state = ?)",
+		accountId, models.JobTypeMigrateKmsConfig, models.JobsStateNEW, models.JobsStatePROCESSING,
+	).First(&job).Error
+
+	if err != nil {
+		if vsaerrors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, errors.NewNotFoundErr("job", nil))
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	return &job, nil
+}

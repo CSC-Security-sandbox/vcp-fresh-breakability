@@ -37,6 +37,23 @@ type Protocols struct {
 	EnableIscsi bool
 }
 
+type VolumeInlineEncryptionStatus struct {
+	Code    *string
+	Message *string
+}
+
+type Encryption struct {
+	Action              *string
+	Enabled             *bool
+	KeyCreateTime       *strfmt.DateTime
+	KeyID               *string
+	KeyManagerAttribute *string
+	Rekey               *bool
+	State               *string
+	Status              *VolumeInlineEncryptionStatus
+	Type                *string
+}
+
 type ProviderResponse struct {
 	Name         string
 	ExternalUUID string
@@ -49,6 +66,7 @@ type VolumeResponse struct {
 	State              string
 	SnapshotPolicyName string
 	SnapReserve        int64
+	Encryption
 }
 
 type CreateLifParams struct {
@@ -133,6 +151,7 @@ type UpdateVolumeParams struct {
 	InitiateSplit      bool // Indicates whether to initiate a split for volume restore or clone
 	TieringPolicy      *TieringPolicy
 	SnapReserve        *int64
+	EncryptionEnable bool
 }
 
 type GetVolumeParams struct {

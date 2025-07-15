@@ -6215,6 +6215,78 @@ func (s *V1betaDescribeVolumeUnauthorized) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaEncryptVolumesBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEncryptVolumesBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEncryptVolumesConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEncryptVolumesConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEncryptVolumesForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEncryptVolumesForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEncryptVolumesInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEncryptVolumesInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEncryptVolumesNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEncryptVolumesNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEncryptVolumesTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEncryptVolumesTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEncryptVolumesUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEncryptVolumesUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaEncryptVolumesUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaEncryptVolumesUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaFinishProjectEventAccepted) SetFake() {
 	var unwrapped OperationV1beta
 	{

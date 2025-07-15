@@ -407,6 +407,14 @@ func (s *PersistenceStore) UpdatePoolSubnetNames(ctx context.Context, poolUUID, 
 	return s.dataStore.UpdatePoolSubnetNames(ctx, poolUUID, snHostProject, subnetNames)
 }
 
+func (s *PersistenceStore) UpdatePoolState(ctx context.Context, pool *datamodel.Pool, state string, stateDetails string) (*datamodel.Pool, error) {
+	return s.dataStore.UpdatePoolState(ctx, pool, state, stateDetails)
+}
+
+func (s *PersistenceStore) GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error) {
+	return s.dataStore.GetPoolsByAccountName(ctx, accountName)
+}
+
 func (s *PersistenceStore) DeletePool(ctx context.Context, pool *datamodel.Pool) error {
 	return s.dataStore.DeletePool(ctx, pool)
 }
@@ -553,6 +561,10 @@ func (s *PersistenceStore) GetJobsWithCondition(ctx context.Context, filter util
 
 func (s *PersistenceStore) GetPoolByVendorID(ctx context.Context, vendorID string, accountID int64) (*datamodel.PoolView, error) {
 	return s.dataStore.GetPoolByVendorID(ctx, vendorID, accountID)
+}
+
+func (s *PersistenceStore) GetOngoingMigrateKmsConfigJob(ctx context.Context, accountId int64) (*datamodel.Job, error) {
+	return s.dataStore.GetOngoingMigrateKmsConfigJob(ctx, accountId)
 }
 
 func (s *PersistenceStore) GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error) {

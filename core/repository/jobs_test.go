@@ -341,3 +341,51 @@ func TestListOngoingPoolJobsWithKmsConfigId(t *testing.T) {
 		assert.Empty(tt, jobs, "Expected no jobs, got %v", jobs)
 	})
 }
+
+func TestGetOngoingMigrateKmsConfigJob(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err, "Failed to set up test database")
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err, "Failed to clean up test database")
+
+	jobs := []*datamodel.Job{
+		{BaseModel: datamodel.BaseModel{UUID: "uuid1"}, Type: "MIGRATE_KMS_CONFIG", State: "NEW",
+			AccountID: sql.NullInt64{Int64: 1, Valid: true}},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid2"}, Type: "CREATE_POOL", State: "NEW",
+			AccountID: sql.NullInt64{Int64: 2, Valid: true}},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid3"}, Type: "MIGRATE_KMS_CONFIG", State: "DONE",
+			AccountID: sql.NullInt64{Int64: 3, Valid: true}},
+	}
+
+	err = store.db.Create(jobs).Error()
+	if err != nil {
+		t.Fatalf("Failed to create Jobs table: %v", err)
+	}
+	t.Run("WhenQueriedJobIsPresent", func(tt *testing.T) {
+		result, errQuery := store.GetOngoingMigrateKmsConfigJob(context.Background(), int64(1))
+		assert.NoError(tt, errQuery)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, result.UUID, "uuid1")
+	})
+	t.Run("WhenQueriedJobIsPerformingAnotherAction", func(tt *testing.T) {
+		result, errQuery := store.GetOngoingMigrateKmsConfigJob(context.Background(), int64(2))
+		assert.Nil(tt, result)
+		assert.Error(tt, errQuery)
+		assert.EqualError(tt, errQuery, "[0] undefined error: job not found")
+	})
+	t.Run("WhenQueriedJobStateIsNeitherNewNorProcessing", func(tt *testing.T) {
+		result, errQuery := store.GetOngoingMigrateKmsConfigJob(context.Background(), int64(3))
+		assert.Nil(tt, result)
+		assert.Error(tt, errQuery)
+		assert.EqualError(tt, errQuery, "[0] undefined error: job not found")
+	})
+	t.Run("WhenQueriedJobAccountIdIsNotPresent", func(tt *testing.T) {
+		result, errQuery := store.GetOngoingMigrateKmsConfigJob(context.Background(), int64(4))
+		assert.Nil(tt, result)
+		assert.Error(tt, errQuery)
+		assert.EqualError(tt, errQuery, "[0] undefined error: job not found")
+	})
+}

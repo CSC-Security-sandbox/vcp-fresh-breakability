@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
@@ -318,5 +319,40 @@ func TestCheckVsaKmsConfigReachableActivity(t *testing.T) {
 		err := mockActivity.CheckVsaKmsConfigReachableActivity(ctx, svm, node)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "GCP KMS key is not reachable from VSA Clusters")
+	})
+}
+
+func TestGetOntapRestProviderForPoolActivity(t *testing.T) {
+	t.Run("WhenGetOntapRestProviderForPoolReturnsError", func(t *testing.T) {
+		mockActivity := &KmsConfigActivity{}
+		ctx := context.Background()
+		pool := &datamodel.Pool{}
+
+		origGetOntapRestProviderForPool := backgroundactivities.GetOntapRestProviderForPool
+		backgroundactivities.GetOntapRestProviderForPool = func(_ context.Context, _ database.Storage, _ *datamodel.Pool) (vsa.Provider, error) {
+			return nil, errors.New("Unable to provision provider")
+		}
+		defer func() { backgroundactivities.GetOntapRestProviderForPool = origGetOntapRestProviderForPool }()
+
+		provider, err := mockActivity.GetOntapRestProviderForPoolActivity(ctx, pool)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Unable to provision provider")
+		assert.Nil(t, provider)
+	})
+	t.Run("WhenGetOntapRestProviderForPoolReturnsProvider", func(t *testing.T) {
+		mockActivity := &KmsConfigActivity{}
+		ctx := context.Background()
+		pool := &datamodel.Pool{}
+		providerVSA := vsa.NewProvider(ctx, vsa.ProviderDetails{})
+
+		origGetOntapRestProviderForPool := backgroundactivities.GetOntapRestProviderForPool
+		backgroundactivities.GetOntapRestProviderForPool = func(_ context.Context, _ database.Storage, _ *datamodel.Pool) (vsa.Provider, error) {
+			return providerVSA, nil
+		}
+		defer func() { backgroundactivities.GetOntapRestProviderForPool = origGetOntapRestProviderForPool }()
+
+		provider, err := mockActivity.GetOntapRestProviderForPoolActivity(ctx, pool)
+		assert.NoError(t, err)
+		assert.NotNil(t, provider)
 	})
 }

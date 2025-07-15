@@ -310,6 +310,15 @@ func (UnimplementedHandler) V1betaDescribeVolume(ctx context.Context, params V1b
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaEncryptVolumes implements v1beta_encryptVolumes operation.
+//
+// Migrates all volumes to VSA CMEK encryption.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes
+func (UnimplementedHandler) V1betaEncryptVolumes(ctx context.Context, params V1betaEncryptVolumesParams) (r V1betaEncryptVolumesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaFinishProjectEvent implements v1beta_finishProjectEvent operation.
 //
 // Finishes the project state for a 1P account based on the path parameter and project state value.

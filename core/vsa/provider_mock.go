@@ -1941,6 +1941,64 @@ func (_c *MockProvider_GetVolume_Call) RunAndReturn(run func(GetVolumeParams) (*
 	return _c
 }
 
+// GetVolumeEncryptionStatus provides a mock function with given fields: params
+func (_m *MockProvider) GetVolumeEncryptionStatus(params GetVolumeParams) (*VolumeResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeEncryptionStatus")
+	}
+
+	var r0 *VolumeResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(GetVolumeParams) (*VolumeResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(GetVolumeParams) *VolumeResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(GetVolumeParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetVolumeEncryptionStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeEncryptionStatus'
+type MockProvider_GetVolumeEncryptionStatus_Call struct {
+	*mock.Call
+}
+
+// GetVolumeEncryptionStatus is a helper method to define mock.On call
+//   - params GetVolumeParams
+func (_e *MockProvider_Expecter) GetVolumeEncryptionStatus(params interface{}) *MockProvider_GetVolumeEncryptionStatus_Call {
+	return &MockProvider_GetVolumeEncryptionStatus_Call{Call: _e.mock.On("GetVolumeEncryptionStatus", params)}
+}
+
+func (_c *MockProvider_GetVolumeEncryptionStatus_Call) Run(run func(params GetVolumeParams)) *MockProvider_GetVolumeEncryptionStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(GetVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetVolumeEncryptionStatus_Call) Return(_a0 *VolumeResponse, _a1 error) *MockProvider_GetVolumeEncryptionStatus_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetVolumeEncryptionStatus_Call) RunAndReturn(run func(GetVolumeParams) (*VolumeResponse, error)) *MockProvider_GetVolumeEncryptionStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolumeReplication provides a mock function with given fields: replication
 func (_m *MockProvider) GetVolumeReplication(replication *VolumeReplication) (*VolumeReplication, error) {
 	ret := _m.Called(replication)
@@ -3626,6 +3684,52 @@ func (_c *MockProvider_UpdateVolume_Call) Return(_a0 error) *MockProvider_Update
 }
 
 func (_c *MockProvider_UpdateVolume_Call) RunAndReturn(run func(UpdateVolumeParams) error) *MockProvider_UpdateVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateVolumeEnableEncryption provides a mock function with given fields: params
+func (_m *MockProvider) UpdateVolumeEnableEncryption(params UpdateVolumeParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVolumeEnableEncryption")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(UpdateVolumeParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_UpdateVolumeEnableEncryption_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVolumeEnableEncryption'
+type MockProvider_UpdateVolumeEnableEncryption_Call struct {
+	*mock.Call
+}
+
+// UpdateVolumeEnableEncryption is a helper method to define mock.On call
+//   - params UpdateVolumeParams
+func (_e *MockProvider_Expecter) UpdateVolumeEnableEncryption(params interface{}) *MockProvider_UpdateVolumeEnableEncryption_Call {
+	return &MockProvider_UpdateVolumeEnableEncryption_Call{Call: _e.mock.On("UpdateVolumeEnableEncryption", params)}
+}
+
+func (_c *MockProvider_UpdateVolumeEnableEncryption_Call) Run(run func(params UpdateVolumeParams)) *MockProvider_UpdateVolumeEnableEncryption_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(UpdateVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_UpdateVolumeEnableEncryption_Call) Return(_a0 error) *MockProvider_UpdateVolumeEnableEncryption_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_UpdateVolumeEnableEncryption_Call) RunAndReturn(run func(UpdateVolumeParams) error) *MockProvider_UpdateVolumeEnableEncryption_Call {
 	_c.Call.Return(run)
 	return _c
 }

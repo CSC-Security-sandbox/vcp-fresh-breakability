@@ -4371,6 +4371,65 @@ func (_c *MockDataStore_GetNodesByPoolID_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// GetOngoingMigrateKmsConfigJob provides a mock function with given fields: ctx, accountId
+func (_m *MockDataStore) GetOngoingMigrateKmsConfigJob(ctx context.Context, accountId int64) (*datamodel.Job, error) {
+	ret := _m.Called(ctx, accountId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetOngoingMigrateKmsConfigJob")
+	}
+
+	var r0 *datamodel.Job
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (*datamodel.Job, error)); ok {
+		return rf(ctx, accountId)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) *datamodel.Job); ok {
+		r0 = rf(ctx, accountId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, accountId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetOngoingMigrateKmsConfigJob_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetOngoingMigrateKmsConfigJob'
+type MockDataStore_GetOngoingMigrateKmsConfigJob_Call struct {
+	*mock.Call
+}
+
+// GetOngoingMigrateKmsConfigJob is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId int64
+func (_e *MockDataStore_Expecter) GetOngoingMigrateKmsConfigJob(ctx interface{}, accountId interface{}) *MockDataStore_GetOngoingMigrateKmsConfigJob_Call {
+	return &MockDataStore_GetOngoingMigrateKmsConfigJob_Call{Call: _e.mock.On("GetOngoingMigrateKmsConfigJob", ctx, accountId)}
+}
+
+func (_c *MockDataStore_GetOngoingMigrateKmsConfigJob_Call) Run(run func(ctx context.Context, accountId int64)) *MockDataStore_GetOngoingMigrateKmsConfigJob_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetOngoingMigrateKmsConfigJob_Call) Return(_a0 *datamodel.Job, _a1 error) *MockDataStore_GetOngoingMigrateKmsConfigJob_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetOngoingMigrateKmsConfigJob_Call) RunAndReturn(run func(context.Context, int64) (*datamodel.Job, error)) *MockDataStore_GetOngoingMigrateKmsConfigJob_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetPool provides a mock function with given fields: ctx, poolUUID, accountID
 func (_m *MockDataStore) GetPool(ctx context.Context, poolUUID string, accountID int64) (*datamodel.PoolView, error) {
 	ret := _m.Called(ctx, poolUUID, accountID)
@@ -4605,6 +4664,65 @@ func (_c *MockDataStore_GetReplicationSnapshotsByVolumeID_Call) Return(_a0 []*da
 }
 
 func (_c *MockDataStore_GetReplicationSnapshotsByVolumeID_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.Snapshot, error)) *MockDataStore_GetReplicationSnapshotsByVolumeID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetPoolsByAccountName provides a mock function with given fields: ctx, accountName
+func (_m *MockDataStore) GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error) {
+	ret := _m.Called(ctx, accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPoolsByAccountName")
+	}
+
+	var r0 []*datamodel.Pool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*datamodel.Pool, error)); ok {
+		return rf(ctx, accountName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*datamodel.Pool); ok {
+		r0 = rf(ctx, accountName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Pool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, accountName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetPoolsByAccountName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPoolsByAccountName'
+type MockDataStore_GetPoolsByAccountName_Call struct {
+	*mock.Call
+}
+
+// GetPoolsByAccountName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountName string
+func (_e *MockDataStore_Expecter) GetPoolsByAccountName(ctx interface{}, accountName interface{}) *MockDataStore_GetPoolsByAccountName_Call {
+	return &MockDataStore_GetPoolsByAccountName_Call{Call: _e.mock.On("GetPoolsByAccountName", ctx, accountName)}
+}
+
+func (_c *MockDataStore_GetPoolsByAccountName_Call) Run(run func(ctx context.Context, accountName string)) *MockDataStore_GetPoolsByAccountName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetPoolsByAccountName_Call) Return(_a0 []*datamodel.Pool, _a1 error) *MockDataStore_GetPoolsByAccountName_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetPoolsByAccountName_Call) RunAndReturn(run func(context.Context, string) ([]*datamodel.Pool, error)) *MockDataStore_GetPoolsByAccountName_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -7134,6 +7252,67 @@ func (_c *MockDataStore_UpdateNodeNodeGroupMap_Call) Return(_a0 *datamodel.NodeN
 }
 
 func (_c *MockDataStore_UpdateNodeNodeGroupMap_Call) RunAndReturn(run func(context.Context, *datamodel.NodeNodeGroupMap) (*datamodel.NodeNodeGroupMap, error)) *MockDataStore_UpdateNodeNodeGroupMap_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdatePoolState provides a mock function with given fields: ctx, pool, state, stateDetails
+func (_m *MockDataStore) UpdatePoolState(ctx context.Context, pool *datamodel.Pool, state string, stateDetails string) (*datamodel.Pool, error) {
+	ret := _m.Called(ctx, pool, state, stateDetails)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatePoolState")
+	}
+
+	var r0 *datamodel.Pool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Pool, string, string) (*datamodel.Pool, error)); ok {
+		return rf(ctx, pool, state, stateDetails)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Pool, string, string) *datamodel.Pool); ok {
+		r0 = rf(ctx, pool, state, stateDetails)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Pool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Pool, string, string) error); ok {
+		r1 = rf(ctx, pool, state, stateDetails)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_UpdatePoolState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdatePoolState'
+type MockDataStore_UpdatePoolState_Call struct {
+	*mock.Call
+}
+
+// UpdatePoolState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - pool *datamodel.Pool
+//   - state string
+//   - stateDetails string
+func (_e *MockDataStore_Expecter) UpdatePoolState(ctx interface{}, pool interface{}, state interface{}, stateDetails interface{}) *MockDataStore_UpdatePoolState_Call {
+	return &MockDataStore_UpdatePoolState_Call{Call: _e.mock.On("UpdatePoolState", ctx, pool, state, stateDetails)}
+}
+
+func (_c *MockDataStore_UpdatePoolState_Call) Run(run func(ctx context.Context, pool *datamodel.Pool, state string, stateDetails string)) *MockDataStore_UpdatePoolState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Pool), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdatePoolState_Call) Return(_a0 *datamodel.Pool, _a1 error) *MockDataStore_UpdatePoolState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_UpdatePoolState_Call) RunAndReturn(run func(context.Context, *datamodel.Pool, string, string) (*datamodel.Pool, error)) *MockDataStore_UpdatePoolState_Call {
 	_c.Call.Return(run)
 	return _c
 }

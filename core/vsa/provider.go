@@ -31,8 +31,10 @@ type Provider interface {
 	CreateVolume(params CreateVolumeParams) (*VolumeResponse, error)
 	DeleteVolume(volumeUUID, volumeName string) error
 	GetVolume(params GetVolumeParams) (*VolumeResponse, error)
+	GetVolumeEncryptionStatus(params GetVolumeParams) (*VolumeResponse, error)
 	GetVolumes() ([]*Volume, error)
 	UpdateVolume(params UpdateVolumeParams) error
+	UpdateVolumeEnableEncryption(params UpdateVolumeParams) error
 	IgroupCreate(params IgroupCreateParams) (string, error)
 	IgroupGet(name, svm *string) (*ontapRest.Igroup, error)
 	IgroupExists(name string, svm *string) (bool, *ontapRest.Igroup, error)

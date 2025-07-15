@@ -374,6 +374,18 @@ type V1betaDescribeVolumeParams struct {
 	VolumeId string
 }
 
+// V1betaEncryptVolumesParams is parameters of v1beta_encryptVolumes operation.
+type V1betaEncryptVolumesParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Uuid v4 used to identify the GCP KMS credentials.
+	KmsConfigId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaFinishProjectEventParams is parameters of v1beta_finishProjectEvent operation.
 type V1betaFinishProjectEventParams struct {
 	// The project number of the GCP project owning the resource being acted upon.

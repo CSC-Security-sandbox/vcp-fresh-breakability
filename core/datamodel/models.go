@@ -217,7 +217,7 @@ type Svm struct {
 	Account      *Account      `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	PoolID       int64         `gorm:"column:pool_id"`
 	Pool         *Pool         `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	KmsConfigID  sql.NullInt64 `json:"-" gorm:"index"`
+	KmsConfigID  sql.NullInt64 `json:"kmsConfigID" gorm:"index"`
 	KmsConfig    *KmsConfig    `json:"-" gorm:"ForeignKey:KmsConfigID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 }
 

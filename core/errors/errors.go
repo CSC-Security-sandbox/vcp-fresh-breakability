@@ -136,6 +136,7 @@ const (
 	ErrCVPClientStartProjectEventError                               = 6060
 	ErrInvalidOperationName                                          = 6061
 	ErrDeHydrateSnapshots                                            = 6062
+	ErrKMSMigration                                                  = 6063
 )
 
 type Error interface {

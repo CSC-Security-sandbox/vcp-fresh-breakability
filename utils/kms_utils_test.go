@@ -1,9 +1,11 @@
 package utils
 
 import (
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 )
 
 func TestParseKeyFullPathResource(t *testing.T) {
@@ -79,5 +81,71 @@ func TestParseServiceAccountEmail(t *testing.T) {
 				t.Errorf("expected %v, got %v", test.expected, result)
 			}
 		}
+	}
+}
+
+func TestDetermineStartToCloseTimeoutBasedOnUsedSize(t *testing.T) {
+	// Generated using GitHub copilot
+	tests := []struct {
+		name            string
+		volumes         []*datamodel.Volume
+		expectedTimeout int64
+	}{
+		{
+			name: "Low occupied space (<10GB)",
+			volumes: []*datamodel.Volume{
+				{UsedBytes: 5 * 1024 * 1024 * 1024}, // 5GB
+			},
+			expectedTimeout: 15,
+		},
+		{
+			name: "Less than 100GB",
+			volumes: []*datamodel.Volume{
+				{UsedBytes: 50 * 1024 * 1024 * 1024}, // 50GB
+			},
+			expectedTimeout: 30,
+		},
+		{
+			name: "Less than 500GB",
+			volumes: []*datamodel.Volume{
+				{UsedBytes: 300 * 1024 * 1024 * 1024}, // 300GB
+			},
+			expectedTimeout: 150,
+		},
+		{
+			name: "Less than 1000GB",
+			volumes: []*datamodel.Volume{
+				{UsedBytes: 800 * 1024 * 1024 * 1024}, // 800GB
+			},
+			expectedTimeout: 300,
+		},
+		{
+			name: "Less than 5000GB",
+			volumes: []*datamodel.Volume{
+				{UsedBytes: 4000 * 1024 * 1024 * 1024}, // 4000GB
+			},
+			expectedTimeout: 1500,
+		},
+		{
+			name: "Less than 10000GB",
+			volumes: []*datamodel.Volume{
+				{UsedBytes: 9000 * 1024 * 1024 * 1024}, // 9000GB
+			},
+			expectedTimeout: 3000,
+		},
+		{
+			name: "Greater than or equal to 10000GB",
+			volumes: []*datamodel.Volume{
+				{UsedBytes: 12000 * 1024 * 1024 * 1024}, // 12000GB
+			},
+			expectedTimeout: 10000,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			timeout := DetermineStartToCloseTimeoutBasedOnUsedSize(tt.volumes)
+			assert.Equal(t, tt.expectedTimeout, timeout)
+		})
 	}
 }

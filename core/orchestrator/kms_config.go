@@ -3,12 +3,11 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
-	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
@@ -45,6 +44,7 @@ type KmsConfigInterface interface {
 	CheckAndUpdateKmsConfigHealth(ctx context.Context, params *models.KmsConfigCheck) (*models.KmsConfig, error)
 	AccessCryptoKeyWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error
 	DeleteKmsConfig(ctx context.Context, params *common.DeleteKmsConfigParams) (*models.KmsConfig, string, error)
+	MigrateKmsConfig(ctx context.Context, params *common.MigrateKmsConfigParams) (string, error)
 }
 
 // CreateKmsConfig creates a new KMS configuration.
@@ -285,6 +285,79 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	return convertDataStoreKmsConfigToModel(kmsConfig), createdJob.UUID, nil
 }
 
+func (o *Orchestrator) MigrateKmsConfig(ctx context.Context, params *common.MigrateKmsConfigParams) (string, error) {
+	return migrateKmsConfig(ctx, o.storage, o.temporal, params)
+}
+
+func migrateKmsConfig(ctx context.Context, se database.Storage, temporal client.Client, params *common.MigrateKmsConfigParams) (string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		return "", err
+	}
+
+	localEntryPresent := false
+	params.SdeUUID = params.UUID
+	dbKmsConfig, err := se.GetKmsConfigByUUID(ctx, params.UUID)
+	if err != nil {
+		if !errors.IsNotFoundErr(err) {
+			return "", err
+		}
+	} else {
+		if dbKmsConfig.KmsAttributes != nil && dbKmsConfig.KmsAttributes.SdeKmsConfigUUID != "" {
+			params.SdeUUID = dbKmsConfig.KmsAttributes.SdeKmsConfigUUID
+			localEntryPresent = true
+		} else {
+			return "", errors.New("KmsAttributes property not present within KmsConfig DB entry in VCP")
+		}
+	}
+
+	// Check for validation errors before starting the workflow because SDE does not return...
+	// ...validation errors as part of operation response. Also use this to return ongoing migration job (if present)
+	ongoingJobUuid, errValidate := validateKmsConfigState(ctx, se, params.State, account.ID, localEntryPresent)
+	if errValidate != nil {
+		return "", errValidate
+	} else if ongoingJobUuid != "" {
+		return ongoingJobUuid, nil
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeMigrateKmsConfig),
+		State:        string(models.JobsStateNEW),
+		ResourceName: params.Name,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+	}
+	createdJob, errJob := se.CreateJob(ctx, job)
+	if errJob != nil {
+		logger.Error("Failed to create job in database", "error", errJob)
+		return "", errJob
+	}
+
+	if localEntryPresent {
+		_, errUpdateState := se.UpdateKmsConfigState(ctx, params.UUID, models.LifeCycleStateMigrating, models.LifeCycleStateMigratingDetails)
+		if errUpdateState != nil {
+			return "", errUpdateState
+		}
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		kms_workflows.MigrateKmsConfigWorkflow,
+		params,
+	)
+	if err != nil {
+		logger.Error("Failure encountered during CMEK migrate workflow: ", "error", err)
+		return "", err
+	}
+
+	return createdJob.UUID, nil
+}
+
 func convertDataStoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.KmsConfig {
 	if kmsConfig == nil || kmsConfig.UUID == "" {
 		return nil
@@ -387,41 +460,9 @@ func (o *Orchestrator) CheckAndUpdateKmsConfigHealth(ctx context.Context, config
 		return nil, err
 	}
 
-	state := models.LifeCycleStateUnknown
-	stateDetails := models.LifeCycleStateUnknownDetails
-
-	switch configCheck.IsHealthy {
-	case true:
-		state = models.LifeCycleStateREADY
-		stateDetails = models.LifeCycleStateReadyDetails
-		// keep the state as in user if the KMS config is in use (in use meaning that there are SVMs using this KMS config)
-		if kmsConfigInUse {
-			state = models.LifeCycleStateInUse
-			stateDetails = models.LifeCycleStateAvailableDetails
-		}
-	case false:
-		// If the KMS config is in error state, do not update the state to ready.
-		state = models.LifeCycleStateError
-		stateDetails = configCheck.HealthError
-		healthErrorMessage := strings.Replace(strings.Replace(GcpKmsConfigHealthError, "<key_name>", kmsConfig.KeyName, 1), "<key_ring>", kmsConfig.KeyRing, 1)
-		// Keep the state as created if the health error message indicates that the key does not exist or service permissions are incorrect.
-		if strings.Contains(stateDetails, healthErrorMessage) {
-			state = models.LifeCycleStateCreated
-		}
-	}
-
-	// Update the KMS config state and details
-	kmsConfig, err = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, state, stateDetails)
-	if err != nil {
-		return nil, err
-	}
-
-	// Update the KMS config Attributes with the health check response
-	kmsConfig.KmsAttributes.SdeKmsConfigIsHealthy = configCheck.IsHealthy
-	kmsConfig.KmsAttributes.SdeKmsConfigHealthError = configCheck.HealthError
-	kmsConfig, err = se.UpdateKmsConfigAttributes(ctx, kmsConfig.UUID, kmsConfig.KmsAttributes)
-	if err != nil {
-		return nil, err
+	errUpdateHealth := kms_activities.UpdateKmsConfigHealth(ctx, se, kmsConfig, configCheck.IsHealthy, configCheck.HealthError, kmsConfigInUse)
+	if errUpdateHealth != nil {
+		return nil, errUpdateHealth
 	}
 
 	return convertDataStoreKmsConfigToModel(kmsConfig), nil
@@ -501,4 +542,22 @@ func convertDatastoreServiceAccountToModel(sa *datamodel.ServiceAccount) *models
 		ServiceAccountEmail:            sa.ServiceAccountEmail,
 		ServiceAccountPasswordLocation: sa.ServiceAccountPasswordLocation,
 	}
+}
+
+func validateKmsConfigState(ctx context.Context, se database.Storage, kmsConfigState string, accountId int64, localEntry bool) (string, error) {
+	if kmsConfigState == models.LifeCycleStateUpdating || kmsConfigState == models.LifeCycleStateMigrating {
+		jobMigration, dbErr := se.GetOngoingMigrateKmsConfigJob(ctx, accountId)
+		if dbErr != nil {
+			if errors.IsNotFoundErr(dbErr) {
+				// In this case there is an Update job that is ongoing, which is not a migration job
+				return "", errors.NewBadRequestErr("CMEK Configuration is undergoing an Update operation")
+			}
+			return "", dbErr
+		}
+		return jobMigration.UUID, nil
+	}
+	if kmsConfigState != models.LifeCycleStateREADY && kmsConfigState != models.LifeCycleStateInUse {
+		return "", errors.NewBadRequestErr("CMEK Configuration needs to be in either Ready or In_Use state for migration")
+	}
+	return "", nil
 }

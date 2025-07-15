@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"go.temporal.io/sdk/client"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-faster/jx"
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -327,6 +329,291 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, float64(409), result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Code)
+	})
+}
+
+// V1betaEncryptVolumes' unit-tests
+func TestV1betaEncryptVolumes(t *testing.T) {
+	t.Run("V1betaEncryptVolumesWhenOrchestratorGetMultipleKMSReturnsNotFound", func(t *testing.T) {
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		// Mock of VCP Orchestrator and Datastore - Reusing data from other UTs
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		serviceAccounts := []*datamodel.ServiceAccount{
+			{BaseModel: datamodel.BaseModel{ID: int64(111), UUID: "uuid10"}, Name: "ServiceAccount1"},
+			{BaseModel: datamodel.BaseModel{ID: int64(222), UUID: "uuid20"}, Name: "ServiceAccount2"},
+		}
+		err = store.DB().Create(serviceAccounts).Error
+		if err != nil {
+			t.Fatalf("Failed to create Service-Accounts table: %v", err)
+		}
+
+		kmsConfigs := []*datamodel.KmsConfig{
+			{BaseModel: datamodel.BaseModel{UUID: "uuid1", DeletedAt: nil}, Name: "kmsConfig1", ResourceID: "Resource-Id1-VCP", ServiceAccountID: &serviceAccounts[0].ID,
+				KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sdeServiceAccount1@account.com"}},
+			{BaseModel: datamodel.BaseModel{UUID: "uuid2", DeletedAt: nil}, Name: "kmsConfig2", ResourceID: "Resource-Id2-VCP", ServiceAccountID: &serviceAccounts[1].ID,
+				KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sdeServiceAccount2@account.com"}},
+		}
+		err = store.DB().Create(kmsConfigs).Error
+		if err != nil {
+			t.Fatalf("Failed to create KMS Configs table: %v", err)
+		}
+
+		handler := Handler{}
+		orchInstance := orchestrator.NewOrchestrator(store, nil)
+		handler.Orchestrator = orchInstance
+
+		// Mock of CVP Client
+		mockClient := kms_configurations.NewMockClientService(t)
+		kmsConfigsCVP := make([]*models.KmsConfigV1beta, 0)
+		mockResponse := &kms_configurations.V1betaGetMultipleKmsConfigsOK{
+			Payload: &kms_configurations.V1betaGetMultipleKmsConfigsOKBody{
+				KmsConfigurations: kmsConfigsCVP,
+			},
+		}
+
+		mockClient.EXPECT().
+			V1betaGetMultipleKmsConfigs(mock.Anything).
+			Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		params := gcpgenserver.V1betaEncryptVolumesParams{
+			LocationId:     "local",
+			ProjectNumber:  "test-project",
+			KmsConfigId:    "uuid99",
+			XCorrelationID: gcpgenserver.NewOptString("x-correlationId"),
+		}
+
+		result, err := handler.V1betaEncryptVolumes(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		assert.Equal(t, float64(404), result.(*gcpgenserver.V1betaEncryptVolumesBadRequest).Code)
+		assert.Equal(t, "CMEK policy with UUID uuid99 not found", result.(*gcpgenserver.V1betaEncryptVolumesBadRequest).Message)
+	})
+	t.Run("V1betaEncryptVolumesWhenOrchestratorEncryptVolumesReturnsError", func(t *testing.T) {
+		params := gcpgenserver.V1betaEncryptVolumesParams{
+			LocationId:     "local",
+			ProjectNumber:  "test-project",
+			KmsConfigId:    "uuid1",
+			XCorrelationID: gcpgenserver.NewOptString("x-correlationId"),
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		// Mock of VCP Orchestrator and Datastore - Reusing data from other UTs
+		mockLogger := log.NewLogger()
+		store, err := database.NewTestStorage(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		serviceAccounts := []*datamodel.ServiceAccount{
+			{BaseModel: datamodel.BaseModel{ID: int64(111), UUID: "uuid10"}, Name: "ServiceAccount1"},
+			{BaseModel: datamodel.BaseModel{ID: int64(222), UUID: "uuid20"}, Name: "ServiceAccount2"},
+		}
+		err = store.DB().Create(serviceAccounts).Error
+		if err != nil {
+			t.Fatalf("Failed to create Service-Accounts table: %v", err)
+		}
+
+		kmsConfigs := []*datamodel.KmsConfig{
+			{BaseModel: datamodel.BaseModel{UUID: "uuid1", DeletedAt: nil}, Name: "kmsConfig1", ResourceID: "Resource-Id1-VCP", ServiceAccountID: &serviceAccounts[0].ID,
+				KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sdeServiceAccount1@account.com"}},
+			{BaseModel: datamodel.BaseModel{UUID: "uuid2", DeletedAt: nil}, Name: "kmsConfig2", ResourceID: "Resource-Id2-VCP", ServiceAccountID: &serviceAccounts[1].ID,
+				KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sdeServiceAccount2@account.com"}},
+		}
+		err = store.DB().Create(kmsConfigs).Error
+		if err != nil {
+			t.Fatalf("Failed to create KMS Configs table: %v", err)
+		}
+
+		handler := Handler{}
+		orchInstance := orchestrator.NewOrchestrator(store, nil)
+		handler.Orchestrator = orchInstance
+
+		result, err := handler.V1betaEncryptVolumes(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaEncryptVolumesInternalServerError).Code)
+		assert.Equal(t, "[0] undefined error: account not found", result.(*gcpgenserver.V1betaEncryptVolumesInternalServerError).Message)
+	})
+	t.Run("V1betaEncryptVolumesWhenOrchestratorEncryptVolumesReturnsEmptyOperation", func(tt *testing.T) {
+		params := gcpgenserver.V1betaEncryptVolumesParams{
+			LocationId:     "local",
+			ProjectNumber:  "test-project",
+			KmsConfigId:    "uuid1",
+			XCorrelationID: gcpgenserver.NewOptString("x-correlationId"),
+		}
+		kmsConfigsResult := make([]*vsaCoreModels.KmsConfig, 0)
+		kmsConfigsResult = append(kmsConfigsResult, &vsaCoreModels.KmsConfig{
+			Name: "uuid1",
+		})
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().GetMultipleKMSConfigs(mock.Anything, mock.Anything).Return(kmsConfigsResult, nil)
+		mockOrchestrator.EXPECT().MigrateKmsConfig(mock.Anything, mock.Anything).Return("", nil)
+		handlerForOrch := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handlerForOrch.V1betaEncryptVolumes(context.Background(), params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "Job ID not returned by VCP for CMEK policy migration", result.(*gcpgenserver.V1betaEncryptVolumesInternalServerError).Message)
+		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaEncryptVolumesInternalServerError).Code)
+	})
+	t.Run("V1betaEncryptVolumesWhenEncryptVolumesIsSuccessful", func(tt *testing.T) {
+		params := gcpgenserver.V1betaEncryptVolumesParams{
+			LocationId:     "local",
+			ProjectNumber:  "test-project",
+			KmsConfigId:    "uuid1",
+			XCorrelationID: gcpgenserver.NewOptString("x-correlationId"),
+		}
+		kmsConfigsResult := make([]*vsaCoreModels.KmsConfig, 0)
+		kmsConfigsResult = append(kmsConfigsResult, &vsaCoreModels.KmsConfig{
+			Name: "uuid1",
+		})
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().GetMultipleKMSConfigs(mock.Anything, mock.Anything).Return(kmsConfigsResult, nil)
+		mockOrchestrator.EXPECT().MigrateKmsConfig(mock.Anything, mock.Anything).Return("operationID", nil)
+		handlerForOrch := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handlerForOrch.V1betaEncryptVolumes(context.Background(), params)
+
+		var encryptStatus models.EncryptVolumeStatusV1beta
+
+		errMarshall := json.Unmarshal(result.(*gcpgenserver.OperationV1beta).Response, &encryptStatus)
+		if errMarshall != nil {
+			tt.Errorf("Error unmarshalling JSON: %v\n", err)
+		}
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "/v1beta/projects/test-project/locations/local/operations/operationID", result.(*gcpgenserver.OperationV1beta).Name.Value)
+	})
+}
+
+func TestV1betaEncryptVolumesWhenParseAndValidateRegionAndZoneReturnsError(t *testing.T) {
+	handler := Handler{}
+	params := gcpgenserver.V1betaEncryptVolumesParams{
+		LocationId:    "invalid-location",
+		ProjectNumber: "test-project",
+	}
+	result, err := handler.V1betaEncryptVolumes(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaEncryptVolumesBadRequest).Code)
+	assert.Equal(t, "LocationID represents neither a region nor a zone", result.(*gcpgenserver.V1betaEncryptVolumesBadRequest).Message)
+}
+
+func TestConvertEncryptVolumesToOperationV1Beta(t *testing.T) {
+	// Generated using CoPilot
+	t.Run("SuccessfulConversion", func(t *testing.T) {
+		params := gcpgenserver.V1betaEncryptVolumesParams{
+			KmsConfigId:   "test-kms-config-id",
+			ProjectNumber: "test-project-number",
+			LocationId:    "test-location-id",
+		}
+		operationID := "test-operation-id"
+
+		result, err := convertEncryptVolumesToOperationV1Beta(params, operationID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID), result.Name.Value)
+		assert.False(t, result.Done.Value)
+		assert.NotNil(t, result.Response)
+	})
+	t.Run("ErrorDuringJSONEncoding", func(t *testing.T) {
+		// Simulate an error by passing invalid data to the JSON encoder
+		originalFunc := encodeEncryptVolumeV1beta
+		defer func() { encodeEncryptVolumeV1beta = originalFunc }() // Restore the original function after the test
+
+		encodeEncryptVolumeV1beta = func(*models.EncryptVolumeV1beta) (jx.Raw, error) {
+			return nil, fmt.Errorf("JSON encoding error")
+		}
+
+		params := gcpgenserver.V1betaEncryptVolumesParams{
+			KmsConfigId:   "test-kms-config-id",
+			ProjectNumber: "test-project-number",
+			LocationId:    "test-location-id",
+		}
+		operationID := "test-operation-id"
+
+		result, err := convertEncryptVolumesToOperationV1Beta(params, operationID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, "JSON encoding error", err.Error())
+	})
+}
+
+func TestEncodeEncryptVolumeV1beta(t *testing.T) {
+	// Generated using CoPilot
+	t.Run("SuccessfulEncoding", func(t *testing.T) {
+		encryptVolume := &models.EncryptVolumeV1beta{
+			EncryptionStatus: &models.EncryptVolumeStatusV1beta{
+				UUID:   "test-uuid",
+				Status: "UPDATING",
+			},
+		}
+
+		result, err := encodeEncryptVolumeV1beta(encryptVolume)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		var decoded map[string]interface{}
+		err = json.Unmarshal(result, &decoded)
+		assert.NoError(t, err)
 	})
 }
 

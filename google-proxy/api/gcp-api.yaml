@@ -3756,6 +3756,57 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes:
+    post:
+      operationId: v1beta_encryptVolumes
+      summary: Migrates volumes to VSA CMEK encryption
+      description: Migrates all volumes to VSA CMEK encryption.
+      tags:
+        - kms-configurations
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/KmsConfigIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '202':
+          description: Encrypting volumes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                application/json:
+                "done": false
+                "name": "/v1beta/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1"
+                "response": {
+                  "EncryptionStatus": {
+                    "UUID": "6bed33e1-cc9c-e0b5-ac63-24e9410e64c3",
+                    "status": "updating"
+                  }
+                }
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/getMultipleKmsConfigs:
     post:
       summary: List specified KMS configurations
@@ -5308,7 +5359,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProjectStateUpdate_v1beta'
+              $ref: '#/components/schemas/StateUpdate_v1beta'
         required: true
       responses:
         "201":
@@ -5460,7 +5511,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProjectStateUpdate_v1beta'
+              $ref: '#/components/schemas/StateUpdate_v1beta'
         required: true
       responses:
         "201":

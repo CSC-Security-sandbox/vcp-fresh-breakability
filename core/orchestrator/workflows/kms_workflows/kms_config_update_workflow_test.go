@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -33,7 +34,8 @@ func TestUpdateKmsConfigWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterWorkflow(UpdateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
-		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{SE: mockStorage})
 
 		// Set up test data
 		params := &common.UpdateKmsConfigParams{
@@ -79,7 +81,8 @@ func TestUpdateKmsConfigWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterWorkflow(UpdateKmsConfigWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{})
-		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{SE: mockStorage})
 
 		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
@@ -118,7 +121,9 @@ func TestUpdateKmsConfigWorkflow(t *testing.T) {
 		}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
-		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.KmsConfig{}, nil)
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{SE: mockStorage})
 
 		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil

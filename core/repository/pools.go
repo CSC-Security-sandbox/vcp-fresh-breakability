@@ -195,6 +195,32 @@ func (d *DataStoreRepository) UpdatePoolSubnetNames(ctx context.Context, poolUUI
 	return nil
 }
 
+func (d *DataStoreRepository) UpdatePoolState(ctx context.Context, pool *datamodel.Pool, state string, stateDetails string) (*datamodel.Pool, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	pool.UpdatedAt = time.Now()
+	pool.State = state
+	pool.StateDetails = stateDetails
+
+	// Ensure a WHERE clause by explicitly using the primary key
+	if err = tx.Model(&datamodel.Pool{}).
+		Where("uuid = ?", pool.UUID).
+		Updates(pool).Error; err != nil {
+		return nil, err
+	}
+	updatedPoolView, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
+	if err != nil {
+		return nil, err
+	}
+	return ConvertPoolViewToPool(updatedPoolView), nil
+}
+
 // DeletePool deletes a pool from the database
 func (d *DataStoreRepository) DeletePool(ctx context.Context, pool *datamodel.Pool) error {
 	db := d.db.GORM().WithContext(ctx)
@@ -299,6 +325,22 @@ func (d *DataStoreRepository) SavePoolWithVsaDetails(ctx context.Context, pool *
 	return nil
 }
 
+func (d *DataStoreRepository) GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error) {
+	var pools []*datamodel.Pool
+
+	err := d.db.GORM().WithContext(ctx).
+		Preload("Account").
+		Joins("JOIN accounts ON pools.account_id = accounts.id").
+		Where("accounts.name = ?", accountName).
+		Find(&pools).
+		Error
+
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return pools, nil
+}
+
 // ConvertPoolViewToPool converts a PoolView to a Pool for use in CRUD operations.
 func ConvertPoolViewToPool(view *datamodel.PoolView) *datamodel.Pool {
 	if view == nil {
@@ -344,7 +386,7 @@ func ConvertPoolToPoolView(pool *datamodel.Pool) *datamodel.PoolView {
 }
 
 // UpdatePoolWithKmsConfigID updates the KMS configuration for a pool
-func (d *DataStoreRepository) UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfiUUID string) (*datamodel.Pool, error) {
+func (d *DataStoreRepository) UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
@@ -353,7 +395,7 @@ func (d *DataStoreRepository) UpdatePoolWithKmsConfigID(ctx context.Context, poo
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 
-	kmsConfig, err := getKmsConfigByUUID(tx, kmsConfiUUID)
+	kmsConfig, err := getKmsConfigByUUID(tx, kmsConfigUUID)
 	if err != nil {
 		return nil, err
 	}

@@ -129,6 +129,10 @@ type V1betaDescribeVolumeRes interface {
 	v1betaDescribeVolumeRes()
 }
 
+type V1betaEncryptVolumesRes interface {
+	v1betaEncryptVolumesRes()
+}
+
 type V1betaFinishProjectEventRes interface {
 	v1betaFinishProjectEventRes()
 }

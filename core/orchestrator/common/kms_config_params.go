@@ -48,3 +48,15 @@ type DeleteKmsConfigParams struct {
 	Region         string
 	XCorrelationID string
 }
+
+type MigrateKmsConfigParams struct {
+	LocationID     string
+	ProjectNumber  string
+	UUID           string
+	SdeUUID        string
+	State          string
+	Name           string
+	AccountName    string
+	XCorrelationID string
+	ResourceID     string
+}

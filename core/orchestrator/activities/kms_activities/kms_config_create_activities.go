@@ -2,6 +2,7 @@ package kms_activities
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
@@ -103,6 +104,10 @@ func (j *KmsConfigActivity) CreateDnsActivity(ctx context.Context, node *models.
 	}
 	err = provider.CreateDns(dnsCreateParams)
 	if err != nil {
+		if strings.Contains(err.Error(), "duplicate entry") {
+			logger.Info("Create DNS Activity - DNS entry already present in VSA", "error", err)
+			return nil
+		}
 		logger.Error("Failed to create dns", "error", err)
 		return err
 	}

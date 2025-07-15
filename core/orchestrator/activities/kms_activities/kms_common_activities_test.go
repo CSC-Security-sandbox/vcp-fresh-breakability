@@ -862,3 +862,193 @@ func TestPollCvpOperationForWorkflow(t *testing.T) {
 		assert.Nil(t, resp)
 	})
 }
+
+func TestGetResponseforPollCvpOperation(t *testing.T) {
+	mockLogger := log.NewLogger()
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, mockLogger)
+	mockClient := kms_configurations.NewMockClientService(t)
+
+	cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+	originalCreateClient := createClient
+
+	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	responsePayloadName := "responsePayloadName"
+	projectNumber := "projectNumber"
+	locationID := "locationID"
+	t.Run("WhenPollCvpOperationForWorkflowReturnsError", func(tt *testing.T) {
+		defer func() {
+			createClient = originalCreateClient
+			pollCvpOperationForWorkflow = _pollCvpOperationForWorkflow
+		}()
+		pollCvpOperationForWorkflow = func(ctx context.Context, cvpClient cvpapi.Cvp, operationParams *async.V1betaDescribeOperationParams) (*cvpModels.OperationV1beta, error) {
+			return nil, errors.New("new error")
+		}
+
+		payload, errPoll := GetResponseforPollCvpOperation(ctx, responsePayloadName, projectNumber, locationID)
+		assert.Error(tt, errPoll)
+		assert.Nil(tt, payload)
+	})
+	t.Run("WhenPollCvpOperationForWorkflowReturnsPayload", func(tt *testing.T) {
+		defer func() {
+			createClient = originalCreateClient
+			pollCvpOperationForWorkflow = _pollCvpOperationForWorkflow
+		}()
+		done := true
+		response := cvpModels.OperationV1beta{
+			Name: "operationName",
+			Done: &done,
+		}
+		pollCvpOperationForWorkflow = func(ctx context.Context, cvpClient cvpapi.Cvp, operationParams *async.V1betaDescribeOperationParams) (*cvpModels.OperationV1beta, error) {
+			return &response, nil
+		}
+
+		responsePoll, errPoll := GetResponseforPollCvpOperation(ctx, responsePayloadName, projectNumber, locationID)
+		assert.NoError(tt, errPoll)
+		assert.NotNil(tt, responsePoll)
+		assert.Equal(tt, responsePoll.Name, "operationName")
+	})
+}
+
+func TestIsKmsConfigInUse(t *testing.T) {
+	ctx := context.Background()
+	t.Run("WhenSvmFound", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return([]*datamodel.Svm{&datamodel.Svm{Name: "svm"}}, nil)
+
+		inuse, err := isKmsConfigInUse(ctx, mockStorage, dbKmsConfig)
+		assert.NoError(tt, err)
+		assert.Equal(tt, inuse, true)
+	})
+	t.Run("WhenSvmNotFoundError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, errors.NewNotFoundErr("svm", nil))
+
+		inuse, err := isKmsConfigInUse(ctx, mockStorage, dbKmsConfig)
+		assert.NoError(tt, err)
+		assert.Equal(tt, inuse, false)
+	})
+	t.Run("WhenSvmOtherError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, errors.New("some error"))
+
+		inuse, err := isKmsConfigInUse(ctx, mockStorage, dbKmsConfig)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "some error")
+		assert.Equal(tt, inuse, false)
+	})
+	t.Run("WhenKmsStateInUse", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateInUse,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+
+		inuse, err := isKmsConfigInUse(ctx, mockStorage, dbKmsConfig)
+		assert.NoError(tt, err)
+		assert.Equal(tt, inuse, true)
+	})
+}
+
+func TestUpdateKmsConfigHealth(t *testing.T) {
+	ctx := context.Background()
+	t.Run("WhenUpdateKmsConfigStateReturnsError", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id", ID: int64(1)},
+			State:          models.LifeCycleStateInUse,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+		}
+		mockSE.On("UpdateKmsConfigState", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("UpdateKmsConfigState error"))
+
+		err := UpdateKmsConfigHealth(ctx, mockSE, dbKmsConfig, true, "healthError", true)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "UpdateKmsConfigState error")
+	})
+	t.Run("WhenKmsConfigIsNotInUse", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		kmsAttributes := datamodel.KmsAttributes{}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id", ID: int64(1)},
+			State:          models.LifeCycleStateCreated,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+			KmsAttributes:  &kmsAttributes,
+		}
+
+		mockSE.On("UpdateKmsConfigState", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(dbKmsConfig, nil)
+		mockSE.On("UpdateKmsConfigAttributes", ctx, mock.Anything, mock.Anything).Return(nil, errors.New("UpdateKmsConfigAttributes error"))
+
+		err := UpdateKmsConfigHealth(ctx, mockSE, dbKmsConfig, true, "", false)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "UpdateKmsConfigAttributes error")
+	})
+	t.Run("KmsConfigIsNotInUseAndUpdateHealthIsSuccessful", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		kmsAttributes := datamodel.KmsAttributes{}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id", ID: int64(1)},
+			State:          models.LifeCycleStateCreated,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+			KmsAttributes:  &kmsAttributes,
+		}
+
+		mockSE.On("UpdateKmsConfigState", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(dbKmsConfig, nil)
+		mockSE.On("UpdateKmsConfigAttributes", ctx, mock.Anything, mock.Anything).Return(nil, nil)
+
+		err := UpdateKmsConfigHealth(ctx, mockSE, dbKmsConfig, true, "", false)
+		assert.NoError(t, err)
+		assert.Nil(t, err)
+	})
+	t.Run("KmsConfigIsInUseAndUpdateHealthIsSuccessful", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		kmsAttributes := datamodel.KmsAttributes{}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id", ID: int64(1)},
+			State:          models.LifeCycleStateInUse,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+			KmsAttributes:  &kmsAttributes,
+		}
+
+		mockSE.On("UpdateKmsConfigState", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(dbKmsConfig, nil)
+		mockSE.On("UpdateKmsConfigAttributes", ctx, mock.Anything, mock.Anything).Return(nil, nil)
+
+		err := UpdateKmsConfigHealth(ctx, mockSE, dbKmsConfig, true, "", true)
+		assert.NoError(t, err)
+		assert.Nil(t, err)
+	})
+	t.Run("KmsConfigIsInNotHealthyAndUpdateHealthIsSuccessful", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		kmsAttributes := datamodel.KmsAttributes{}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id", ID: int64(1)},
+			State:          models.LifeCycleStateInUse,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+			KmsAttributes:  &kmsAttributes,
+		}
+
+		mockSE.On("UpdateKmsConfigState", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(dbKmsConfig, nil)
+		mockSE.On("UpdateKmsConfigAttributes", ctx, mock.Anything, mock.Anything).Return(nil, nil)
+
+		err := UpdateKmsConfigHealth(ctx, mockSE, dbKmsConfig, false, "healthError", false)
+		assert.NoError(t, err)
+		assert.Nil(t, err)
+	})
+}

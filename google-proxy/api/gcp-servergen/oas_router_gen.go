@@ -1612,28 +1612,66 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											return
 										}
 										switch elem[0] {
-										case '/': // Prefix: "/check"
+										case '/': // Prefix: "/"
 
-											if l := len("/check"); len(elem) >= l && elem[0:l] == "/check" {
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
 											if len(elem) == 0 {
-												// Leaf node.
-												switch r.Method {
-												case "GET":
-													s.handleV1betaCheckKmsConfigRequest([3]string{
-														args[0],
-														args[1],
-														args[2],
-													}, elemIsEscaped, w, r)
-												default:
-													s.notAllowed(w, r, "GET")
+												break
+											}
+											switch elem[0] {
+											case 'c': // Prefix: "check"
+
+												if l := len("check"); len(elem) >= l && elem[0:l] == "check" {
+													elem = elem[l:]
+												} else {
+													break
 												}
 
-												return
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "GET":
+														s.handleV1betaCheckKmsConfigRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "GET")
+													}
+
+													return
+												}
+
+											case 'e': // Prefix: "encryptVolumes"
+
+												if l := len("encryptVolumes"); len(elem) >= l && elem[0:l] == "encryptVolumes" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "POST":
+														s.handleV1betaEncryptVolumesRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "POST")
+													}
+
+													return
+												}
+
 											}
 
 										}
@@ -3810,28 +3848,66 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											}
 										}
 										switch elem[0] {
-										case '/': // Prefix: "/check"
+										case '/': // Prefix: "/"
 
-											if l := len("/check"); len(elem) >= l && elem[0:l] == "/check" {
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
 											if len(elem) == 0 {
-												// Leaf node.
-												switch method {
-												case "GET":
-													r.name = V1betaCheckKmsConfigOperation
-													r.summary = "Verifies KMS configuration reachability"
-													r.operationID = "v1beta_checkKmsConfig"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check"
-													r.args = args
-													r.count = 3
-													return r, true
-												default:
-													return
+												break
+											}
+											switch elem[0] {
+											case 'c': // Prefix: "check"
+
+												if l := len("check"); len(elem) >= l && elem[0:l] == "check" {
+													elem = elem[l:]
+												} else {
+													break
 												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "GET":
+														r.name = V1betaCheckKmsConfigOperation
+														r.summary = "Verifies KMS configuration reachability"
+														r.operationID = "v1beta_checkKmsConfig"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/check"
+														r.args = args
+														r.count = 3
+														return r, true
+													default:
+														return
+													}
+												}
+
+											case 'e': // Prefix: "encryptVolumes"
+
+												if l := len("encryptVolumes"); len(elem) >= l && elem[0:l] == "encryptVolumes" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "POST":
+														r.name = V1betaEncryptVolumesOperation
+														r.summary = "Migrates volumes to VSA CMEK encryption"
+														r.operationID = "v1beta_encryptVolumes"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/storage/kmsConfig/{kmsConfigId}/encryptVolumes"
+														r.args = args
+														r.count = 3
+														return r, true
+													default:
+														return
+													}
+												}
+
 											}
 
 										}

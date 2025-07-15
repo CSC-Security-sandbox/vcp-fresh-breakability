@@ -3262,6 +3262,63 @@ func (_c *MockOrchestratorFactory_ListVolumes_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// MigrateKmsConfig provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) MigrateKmsConfig(ctx context.Context, params *common.MigrateKmsConfigParams) (string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MigrateKmsConfig")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.MigrateKmsConfigParams) (string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.MigrateKmsConfigParams) string); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.MigrateKmsConfigParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_MigrateKmsConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MigrateKmsConfig'
+type MockOrchestratorFactory_MigrateKmsConfig_Call struct {
+	*mock.Call
+}
+
+// MigrateKmsConfig is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.MigrateKmsConfigParams
+func (_e *MockOrchestratorFactory_Expecter) MigrateKmsConfig(ctx interface{}, params interface{}) *MockOrchestratorFactory_MigrateKmsConfig_Call {
+	return &MockOrchestratorFactory_MigrateKmsConfig_Call{Call: _e.mock.On("MigrateKmsConfig", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_MigrateKmsConfig_Call) Run(run func(ctx context.Context, params *common.MigrateKmsConfigParams)) *MockOrchestratorFactory_MigrateKmsConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.MigrateKmsConfigParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_MigrateKmsConfig_Call) Return(_a0 string, _a1 error) *MockOrchestratorFactory_MigrateKmsConfig_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_MigrateKmsConfig_Call) RunAndReturn(run func(context.Context, *common.MigrateKmsConfigParams) (string, error)) *MockOrchestratorFactory_MigrateKmsConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // PerformMountCheck provides a mock function with given fields: ctx, replicationUUID, accountName
 func (_m *MockOrchestratorFactory) PerformMountCheck(ctx context.Context, replicationUUID string, accountName string) (*models.Job, error) {
 	ret := _m.Called(ctx, replicationUUID, accountName)

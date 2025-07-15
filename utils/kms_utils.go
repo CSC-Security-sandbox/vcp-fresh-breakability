@@ -2,9 +2,11 @@ package utils
 
 import (
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"regexp"
 	"strings"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 // Constants for error messages, regex patterns, and expected parts
@@ -67,4 +69,52 @@ func ParseServiceAccountEmail(email string) (*ParsedServiceAccount, error) {
 		CustomerProjectID: matches[2],
 		GlobalProjectID:   matches[3],
 	}, nil
+}
+
+// DetermineStartToCloseTimeoutBasedOnUsedSize returns the maxtimeout for polling for pool or volume based on its used size
+func DetermineStartToCloseTimeoutBasedOnUsedSize(volumesForMigration []*datamodel.Volume) int64 {
+	var usedSpaceInGB float64
+
+	if len(volumesForMigration) == 1 {
+		usedSpaceInGB = usedSpaceInGB + float64(volumesForMigration[0].UsedBytes/1024/1024/1024)
+	} else {
+		for _, volume := range volumesForMigration {
+			if volume != nil {
+				usedSpaceInGB = usedSpaceInGB + float64(volume.UsedBytes/1024/1024/1024)
+			}
+		}
+	}
+
+	// Define constants for StartToCloseTimeout (in minutes)
+	// Our experiments have shown roughly a 6-9x increase in encryption times for 10x increase in occupied size
+	const (
+		TimeoutLowOccupied     int64 = 15
+		TimeoutLessThan100GB   int64 = 30
+		TimeoutLessThan500GB   int64 = 150
+		TimeoutLessThan1000GB  int64 = 300
+		TimeoutLessThan5000GB  int64 = 1500
+		TimeoutLessThan10000GB int64 = 3000
+		MaximumTimeout         int64 = 10000
+	)
+
+	var startToCloseTimeout int64
+	switch {
+	case usedSpaceInGB < 10.0:
+		startToCloseTimeout = TimeoutLowOccupied
+	case usedSpaceInGB < 100.0:
+		startToCloseTimeout = TimeoutLessThan100GB
+	case usedSpaceInGB < 500.0:
+		startToCloseTimeout = TimeoutLessThan500GB
+	case usedSpaceInGB < 1000.0:
+		startToCloseTimeout = TimeoutLessThan1000GB
+	case usedSpaceInGB < 5000.0:
+		startToCloseTimeout = TimeoutLessThan5000GB
+	case usedSpaceInGB < 10000.0:
+		startToCloseTimeout = TimeoutLessThan10000GB
+	case usedSpaceInGB >= 10000.0:
+		startToCloseTimeout = MaximumTimeout
+	default:
+		return MaximumTimeout
+	}
+	return startToCloseTimeout
 }

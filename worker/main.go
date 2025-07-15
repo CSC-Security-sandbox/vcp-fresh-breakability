@@ -163,6 +163,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(kms_workflows.UpdateKmsConfigWorkflow)
 	worker.RegisterWorkflow(kms_workflows.DeleteKmsConfigWorkflow)
 	worker.RegisterWorkflow(kms_workflows.CreateKmsConfigWorkflow)
+	worker.RegisterWorkflow(kms_workflows.MigrateKmsConfigWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.CreateInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.CreateVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(workflows.CreateBackupWorkflow)

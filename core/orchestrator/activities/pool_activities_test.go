@@ -5010,3 +5010,87 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 		mgs.AssertExpectations(t)
 	})
 }
+
+func TestUpdatingPool(t *testing.T) {
+	t.Run("WhenUpdatingPoolIsSuccessful", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		ctx := context.Background()
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}}
+		seResult := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, State: coremodel.LifeCycleStateUpdating, StateDetails: coremodel.LifeCycleStateUpdatingDetails}
+
+		mockSE.On("UpdatingPool", ctx, pool).Return(seResult, nil)
+		result, err := activity.UpdatingPool(ctx, pool)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, coremodel.LifeCycleStateUpdating, result.State)
+		assert.Equal(t, coremodel.LifeCycleStateUpdatingDetails, result.StateDetails)
+	})
+	t.Run("WhenUpdatingPoolReturnsError", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		ctx := context.Background()
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}}
+
+		mockSE.On("UpdatingPool", ctx, pool).Return(nil, vsaerrors.WrapAsTemporalApplicationError(errors.New("pool update ran into error")))
+		result, err := activity.UpdatingPool(ctx, pool)
+		assert.Nil(t, result)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "pool update ran into error")
+	})
+}
+
+func TestUpdatePoolState(t *testing.T) {
+	t.Run("WhenUpdatePoolStateIsSuccessful", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		ctx := context.Background()
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}}
+		seResult := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, State: coremodel.LifeCycleStateInUse, StateDetails: coremodel.LifeCycleStateInUseDetails}
+
+		mockSE.On("UpdatePoolState", ctx, pool, coremodel.LifeCycleStateInUse, coremodel.LifeCycleStateInUseDetails).Return(seResult, nil)
+		result, err := activity.UpdatePoolState(ctx, pool, coremodel.LifeCycleStateInUse, coremodel.LifeCycleStateInUseDetails)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, coremodel.LifeCycleStateInUse, result.State)
+		assert.Equal(t, coremodel.LifeCycleStateInUseDetails, result.StateDetails)
+	})
+	t.Run("WhenUpdatePoolStateReturnsError", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		ctx := context.Background()
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}}
+
+		mockSE.On("UpdatePoolState", ctx, pool, coremodel.LifeCycleStateInUse, coremodel.LifeCycleStateInUseDetails).Return(nil, vsaerrors.WrapAsTemporalApplicationError(errors.New("pool state update ran into error")))
+		result, err := activity.UpdatePoolState(ctx, pool, coremodel.LifeCycleStateInUse, coremodel.LifeCycleStateInUseDetails)
+		assert.Nil(t, result)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "pool state update ran into error")
+	})
+}
+
+func TestFailedPoolActivity(t *testing.T) {
+	t.Run("WhenFailedPoolActivityReturnsError", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(tt)
+		ctx := context.Background()
+		activity := &activities.PoolActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}}
+		err := errors.New("Pool update failed")
+		mockSE.On("ErroredResource", ctx, pool, mock.Anything).Return(pool, err)
+		errActivity := activity.FailedPoolActivity(ctx, pool, "error message")
+
+		assert.Error(tt, errActivity)
+	})
+	t.Run("WhenFailedPoolActivityReturnsNil", func(t *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		ctx := context.Background()
+		activity := &activities.PoolActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}}
+		mockSE.On("ErroredResource", ctx, pool, mock.Anything).Return(pool, nil)
+		err := activity.FailedPoolActivity(ctx, pool, "error message")
+
+		assert.Nil(t, err)
+	})
+}

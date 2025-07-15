@@ -718,3 +718,151 @@ func TestUpdateVolume_ForSplit(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
 }
+
+func TestVolumeEncryptionStatus(t *testing.T) {
+	volumeName := "testVolume"
+	volumeUUID := "testUUID"
+	svmName := "testSVM"
+	params := GetVolumeParams{
+		UUID:       volumeUUID,
+		VolumeName: volumeName,
+		SvmName:    svmName,
+	}
+	t.Run("WhenGetVolumeEncryptionStatusReturnsError", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockStorage.On("VolumeGet", mock.Anything).Return(nil, errors.New("Volume not found"))
+		result, err := rc.GetVolumeEncryptionStatus(params)
+		assert.Nil(tt, result)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "Volume not found")
+	})
+	t.Run("WhenGetVolumeEncryptionStatusCallReturnsWithoutVolume", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockStorage.On("VolumeGet", mock.Anything).Return(nil, nil)
+		result, err := rc.GetVolumeEncryptionStatus(params)
+		assert.Nil(tt, result)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "volume not found")
+	})
+	t.Run("WhenGetVolumeEncryptionStatusDoesNotHaveEncryptionField", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: nillable.ToPointer(volumeUUID),
+				Name: &volumeName,
+				Space: &models.VolumeInlineSpace{
+					Available: nillable.GetInt64Ptr(100000), // Example available space
+					Size:      nillable.GetInt64Ptr(200000), // Example total size
+				},
+				State: nillable.ToPointer(models.VolumeStateOnline),
+			},
+		}
+		mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+		result, err := rc.GetVolumeEncryptionStatus(params)
+		assert.Nil(tt, result)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "Encryption field is not populated in Get Volume from VSA")
+	})
+	t.Run("WhenGetVolumeEncryptionStatusSucceeds", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+		enabled := true
+		state := "encrypted"
+		typeEncryption := "volume"
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID: nillable.ToPointer(volumeUUID),
+				Name: &volumeName,
+				Space: &models.VolumeInlineSpace{
+					Available: nillable.GetInt64Ptr(100000), // Example available space
+					Size:      nillable.GetInt64Ptr(200000), // Example total size
+				},
+				State: nillable.ToPointer(models.VolumeStateOnline),
+				Encryption: &models.VolumeInlineEncryption{
+					Enabled: &enabled,
+					State:   &state,
+					Type:    &typeEncryption,
+				},
+			},
+		}
+		mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+
+		result, err := rc.GetVolumeEncryptionStatus(params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.Encryption)
+		assert.True(tt, *result.Enabled)
+		assert.Equal(tt, "volume", *result.Type)
+		assert.Equal(tt, "encrypted", *result.Encryption.State)
+	})
+}
+
+func TestUpdateVolumeEnableEncryption(t *testing.T) {
+	params := UpdateVolumeParams{
+		UUID:             "testUUID",
+		EncryptionEnable: true,
+	}
+	t.Run("WhenUpdateVolumeEnableEncryptionReturnsError", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New("volume modify error"))
+
+		err := rc.UpdateVolumeEnableEncryption(params)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "volume modify error")
+	})
+	t.Run("WhenUpdateVolumeEnableEncryptionReturnsSuccess", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockJob := &ontaprest.JobAccepted{JobUUID: "job-uuid"}
+		mockStorage.On("VolumeModify", mock.Anything).Return(true, mockJob, nil)
+
+		err := rc.UpdateVolumeEnableEncryption(params)
+		assert.NoError(tt, err)
+		assert.Nil(tt, err)
+	})
+}

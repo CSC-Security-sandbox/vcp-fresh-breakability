@@ -2,7 +2,7 @@ package orchestrator
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
+	"database/sql"
 	"gorm.io/gorm"
 	"strings"
 	"testing"
@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -91,6 +92,168 @@ func TestGetMultipleKmsConfigs(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Empty(tt, result)
+	})
+}
+
+func TestMigrateKmsConfig(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	accounts := []*datamodel.Account{{BaseModel: datamodel.BaseModel{UUID: "uuid1", ID: int64(1)}, Name: "account1"}}
+	err = store.DB().Create(accounts).Error
+	if err != nil {
+		t.Fatalf("Failed to create Accounts table: %v", err)
+	}
+
+	serviceAccounts := []*datamodel.ServiceAccount{
+		{BaseModel: datamodel.BaseModel{ID: int64(111), UUID: "uuid10"}, Name: "ServiceAccount1"},
+		{BaseModel: datamodel.BaseModel{ID: int64(222), UUID: "uuid20"}, Name: "ServiceAccount2"},
+	}
+	err = store.DB().Create(serviceAccounts).Error
+	if err != nil {
+		t.Fatalf("Failed to create Service-Accounts table: %v", err)
+	}
+
+	kmsConfigs := []*datamodel.KmsConfig{
+		{BaseModel: datamodel.BaseModel{UUID: "uuid1", DeletedAt: nil}, Name: "kmsConfig1", ServiceAccountID: &serviceAccounts[0].ID, State: models.LifeCycleStateCreated,
+			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sdeServiceAccount1@account.com", SdeKmsConfigUUID: "sdeUuid1"}},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid2", DeletedAt: nil}, Name: "kmsConfig2", ServiceAccountID: &serviceAccounts[1].ID,
+			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sdeServiceAccount2@account.com", SdeKmsConfigUUID: ""}},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid3", DeletedAt: nil}, Name: "kmsConfig3", ServiceAccountID: &serviceAccounts[1].ID, State: models.LifeCycleStateREADY,
+			KmsAttributes: &datamodel.KmsAttributes{SdeServiceAccountEmail: "sdeServiceAccount1@account.com", SdeKmsConfigUUID: "sdeUuid1"}},
+		{BaseModel: datamodel.BaseModel{UUID: "uuid4", DeletedAt: nil}, Name: "kmsConfig4", ServiceAccountID: &serviceAccounts[1].ID},
+	}
+	err = store.DB().Create(kmsConfigs).Error
+	if err != nil {
+		t.Fatalf("Failed to create KMS Configs table: %v", err)
+	}
+
+	mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+	orchInstance := Orchestrator{
+		storage:  store,
+		temporal: mockTemporal,
+	}
+
+	t.Run("WhenGetKmsConfigByUUIDReturnsRecordWithoutKmsAttributes", func(tt *testing.T) {
+		params := common.MigrateKmsConfigParams{
+			LocationID:     "home-location",
+			ProjectNumber:  "my-project",
+			UUID:           "uuid4",
+			AccountName:    "account1",
+			XCorrelationID: "",
+		}
+		result, errMigrate := orchInstance.MigrateKmsConfig(context.Background(), &params)
+		assert.Error(tt, errMigrate)
+		assert.Equal(tt, "KmsAttributes property not present within KmsConfig DB entry in VCP", errMigrate.Error())
+		assert.Equal(tt, "", result)
+	})
+	t.Run("WhenGetKmsConfigByUUIDReturnsRecordWithEmptySdeUUID", func(tt *testing.T) {
+		params := common.MigrateKmsConfigParams{
+			LocationID:     "home-location",
+			ProjectNumber:  "my-project",
+			UUID:           "uuid2",
+			AccountName:    "account1",
+			XCorrelationID: "",
+		}
+		result, errMigrate := orchInstance.MigrateKmsConfig(context.Background(), &params)
+		assert.Error(tt, errMigrate)
+		assert.Equal(tt, "KmsAttributes property not present within KmsConfig DB entry in VCP", errMigrate.Error())
+		assert.Equal(tt, "", result)
+	})
+	t.Run("WhenValidateKmsConfigForMigrationFails", func(tt *testing.T) {
+		params := common.MigrateKmsConfigParams{
+			LocationID:     "home-location",
+			ProjectNumber:  "my-project",
+			UUID:           "uuid1",
+			AccountName:    "account1",
+			XCorrelationID: "",
+		}
+
+		result, errMigrate := orchInstance.MigrateKmsConfig(ctx, &params)
+		assert.Error(tt, errMigrate)
+		assert.Equal(tt, "CMEK Configuration needs to be in either Ready or In_Use state for migration", errMigrate.Error())
+		assert.Equal(tt, "", result)
+	})
+	t.Run("WhenMigrateKmsSuccessfulWithKmsConfigRecordNotFoundInVcpDB", func(tt *testing.T) {
+		params := common.MigrateKmsConfigParams{
+			LocationID:     "home-location",
+			ProjectNumber:  "my-project",
+			UUID:           "uuid99",
+			AccountName:    "account1",
+			XCorrelationID: "",
+			State:          models.LifeCycleStateREADY,
+		}
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, &params).Return(nil, nil)
+
+		result, errMigrate := orchInstance.MigrateKmsConfig(ctx, &params)
+		assert.NoError(tt, errMigrate)
+		assert.NotEmpty(tt, result)
+		assert.Equal(tt, "uuid99", params.SdeUUID)
+	})
+	t.Run("WhenTemporalWorkflowReturnsError", func(tt *testing.T) {
+		mockTemporall := new(workflow_engine.MockTemporalTestClient)
+		orchInstancee := Orchestrator{
+			storage:  store,
+			temporal: mockTemporall,
+		}
+
+		params := common.MigrateKmsConfigParams{
+			LocationID:     "home-location",
+			ProjectNumber:  "my-project",
+			UUID:           "uuid3",
+			AccountName:    "account1",
+			XCorrelationID: "",
+			State:          models.LifeCycleStateREADY,
+		}
+		mockTemporall.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, &params).Return(nil, errors.New("This is a Temporal error"))
+
+		result, errMigrate := orchInstancee.MigrateKmsConfig(ctx, &params)
+		assert.Error(tt, errMigrate)
+		assert.Equal(tt, "This is a Temporal error", errMigrate.Error())
+		assert.Equal(tt, "", result)
+	})
+	t.Run("WhenCreateJobReturnsError", func(tt *testing.T) {
+		params := common.MigrateKmsConfigParams{
+			LocationID:     "home-location",
+			ProjectNumber:  "my-project",
+			UUID:           "uuid3",
+			AccountName:    "account1",
+			XCorrelationID: "",
+			State:          models.LifeCycleStateREADY,
+		}
+		err = store.DB().Migrator().DropTable(&datamodel.Job{})
+		assert.NoError(tt, err)
+
+		result, errMigrate := orchInstance.MigrateKmsConfig(context.Background(), &params)
+		assert.Error(tt, errMigrate)
+		assert.Equal(tt, "no such table: jobs", errMigrate.Error())
+		assert.Equal(tt, "", result)
+	})
+	t.Run("WhenGetKmsConfigByUUIDReturnsError", func(tt *testing.T) {
+		params := common.MigrateKmsConfigParams{
+			LocationID:     "home-location",
+			ProjectNumber:  "my-project",
+			UUID:           "uuid1",
+			AccountName:    "account1",
+			XCorrelationID: "",
+		}
+		err = store.DB().Migrator().DropTable(&datamodel.KmsConfig{})
+		assert.NoError(tt, err)
+
+		result, errMigrate := orchInstance.MigrateKmsConfig(context.Background(), &params)
+		assert.Error(tt, errMigrate)
+		assert.Equal(tt, "no such table: kms_configs", errMigrate.Error())
+		assert.Equal(tt, "", result)
 	})
 }
 
@@ -1273,5 +1436,57 @@ func TestDeleteKmsConfig(t *testing.T) {
 		assert.Contains(tt, err.Error(), "workflow execution failed")
 		assert.Nil(tt, kmsConfig)
 		assert.Empty(tt, jobUUID)
+	})
+}
+
+func TestValidateKmsConfigState(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clean up test storage: %v", err)
+	}
+
+	jobs := []*datamodel.Job{{BaseModel: datamodel.BaseModel{UUID: "uuid1"}, Type: "MIGRATE_KMS_CONFIG", State: "NEW",
+		AccountID: sql.NullInt64{Int64: 1, Valid: true}}}
+
+	err = store.DB().Create(jobs).Error
+	if err != nil {
+		t.Fatalf("Failed to create Jobs table: %v", err)
+	}
+	t.Run("WhenKmsConfigStateIsNotReadyOrInUse", func(tt *testing.T) {
+		jobId, errValidate := validateKmsConfigState(ctx, store, models.LifeCycleStateCreated, int64(1), true)
+		assert.Equal(tt, jobId, "")
+		assert.Error(tt, errValidate)
+		assert.EqualError(tt, errValidate, "CMEK Configuration needs to be in either Ready or In_Use state for migration")
+	})
+	t.Run("WhenKmsConfigStateIsInReadyState", func(tt *testing.T) {
+		jobId, errValidate := validateKmsConfigState(ctx, store, models.LifeCycleStateREADY, int64(1), true)
+
+		assert.NoError(tt, errValidate)
+		assert.Equal(tt, jobId, "")
+	})
+	t.Run("WhenKmsConfigStateIsMigratingAndDBEntryIsNotInVCP", func(tt *testing.T) {
+		jobId, errValidate := validateKmsConfigState(ctx, store, models.LifeCycleStateMigrating, int64(1), false)
+
+		assert.NoError(tt, errValidate)
+		assert.Equal(tt, "uuid1", jobId)
+	})
+	t.Run("WhenKmsConfigStateIsUpdatingAndDBEntryIsInVCP", func(tt *testing.T) {
+		jobId, errValidate := validateKmsConfigState(ctx, store, models.LifeCycleStateUpdating, int64(1), true)
+
+		assert.NoError(tt, errValidate)
+		assert.Equal(tt, "uuid1", jobId)
+	})
+	t.Run("WhenKmsConfigStateIsMigratingAndDBEntryIsInVCP", func(tt *testing.T) {
+		jobId, errValidate := validateKmsConfigState(ctx, store, models.LifeCycleStateMigrating, int64(1), true)
+
+		assert.NoError(tt, errValidate)
+		assert.Equal(tt, "uuid1", jobId)
 	})
 }
