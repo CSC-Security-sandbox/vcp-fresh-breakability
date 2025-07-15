@@ -73,6 +73,7 @@ var (
 	ValidateVlmConfigInputs           = _validateVlmConfigInputs
 	CreateSubnetwork                  = _createSubnetwork
 	ReleaseSubnet                     = _releaseSubnet
+	CheckAndUpdateFirewall            = _checkAndUpdateFirewall
 
 	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
 	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
@@ -125,10 +126,10 @@ const (
 )
 
 var (
-	maxRetries          = env.GetInt("GOOGLE_API_MAX_RETRIES", 6)
-	localRegion         = env.GetString("LOCAL_REGION", "")
-	firewallSourceRange = env.GetString("FIREWALL_SOURCE_RANGE", "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,34.0.0.0/8,46.149.16.0/20,52.94.203.152/29,52.94.203.160/29,185.35.244.0/22,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20,198.18.0.0/15")
-	totalIPPerHAPair    = env.GetInt("TOTAL_IP_PER_HA_PAIR", 6)
+	maxRetries           = env.GetInt("GOOGLE_API_MAX_RETRIES", 6)
+	localRegion          = env.GetString("LOCAL_REGION", "")
+	firewallSourceRanges = env.GetString("FIREWALL_SOURCE_RANGES", "")
+	totalIPPerHAPair     = env.GetInt("TOTAL_IP_PER_HA_PAIR", 6)
 )
 
 func (j *PoolActivity) CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
@@ -336,7 +337,7 @@ func (j *PoolActivity) SetupNetwork(ctx context.Context, region, project, snHost
 		if vpcName == mgmtVpcName {
 			firewallPortRules = []string{"tcp", "udp", "icmp"}
 		}
-		err = SetupNetworkWithFirewall(ctx, project, vpcName, &region, subnetName, fmt.Sprintf("198.18.%d.0/27", i*3), firewallPriority, ingressTrafficDirection, strings.Split(firewallSourceRange, ","), firewallPortRules)
+		err = SetupNetworkWithFirewall(ctx, project, vpcName, &region, subnetName, fmt.Sprintf("198.18.%d.0/27", i*3), firewallPriority, ingressTrafficDirection, strings.Split(firewallSourceRanges, ","), firewallPortRules)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -1482,7 +1483,7 @@ func _insertFirewall(gService hyperscaler.GoogleServices, projectName, firewallN
 	}
 	logger := gService.GetLogger()
 	logger.Info(fmt.Sprintf("Checking if firewall already exists before creating firewall for project : %s  network name : %s firewall name : %s", projectName, vpcName, firewallName))
-	firewallReceived, err := gService.GetFirewall(projectName, firewallName)
+	existingFirewall, err := gService.GetFirewall(projectName, firewallName)
 	if err != nil {
 		logger.Debug(fmt.Sprintf("Error getting firewall for project : %s and network name : %s firewall name : %s . Error : %v", projectName, vpcName, firewallName, err))
 		resourceNotFound, errReceived := resourceNotFoundCheck(err.Error(), projectName, vpcName, "", firewallName)
@@ -1491,9 +1492,8 @@ func _insertFirewall(gService hyperscaler.GoogleServices, projectName, firewallN
 			return errReceived
 		}
 	}
-	if firewallReceived != nil {
-		logger.Debug(fmt.Sprintf("Firewall already exists. Skipping creation. project name : %s , vpc name : %s, firewall name : %s", projectName, vpcName, firewallName))
-		return nil
+	if existingFirewall != nil {
+		return CheckAndUpdateFirewall(gService, existingFirewall, firewallRequest)
 	}
 	logger.Info(fmt.Sprintf("Creating firewall for project : %s and network name : %s ", projectName, vpcName))
 
@@ -1503,6 +1503,24 @@ func _insertFirewall(gService hyperscaler.GoogleServices, projectName, firewallN
 		return err
 	}
 	logger.Info(fmt.Sprintf("Successfully created firewall for  project : %s and  VPC : %s", projectName, vpcName))
+	return nil
+}
+
+// _checkAndUpdateFirewall check if firewall has been updated by checking if all SourceRanges in firewallReceived exist in firewallRequest.SourceRanges
+func _checkAndUpdateFirewall(gService hyperscaler.GoogleServices, existingFirewall, firewallRequest *hyperscaler_models.Firewall) error {
+	var err error
+	needsUpdate := false
+
+	needsUpdate = !utils.IsSliceEqual(firewallRequest.SourceRanges, existingFirewall.SourceRanges)
+	if needsUpdate {
+		gService.GetLogger().Info(fmt.Sprintf("Updating firewall for project : %s and network name : %s, firewall name : %s ", firewallRequest.ProjectName, firewallRequest.VPCNetworkName, firewallRequest.Name))
+		err = gService.UpdateFirewall(firewallRequest)
+		if err != nil {
+			gService.GetLogger().Errorf("Error updating firewall for project : %s and network name : %s firewall name : %s. Error : %v ", firewallRequest.ProjectName, firewallRequest.VPCNetworkName, firewallRequest.Name, err)
+			return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, fmt.Errorf("error updating firewall for project: %s and network name: %s firewall name: %s. Error : %v", firewallRequest.ProjectName, firewallRequest.VPCNetworkName, firewallRequest.Name, err))
+		}
+	}
+	gService.GetLogger().Debug(fmt.Sprintf("Firewall already exists. Skipping creation. project name : %s , vpc name : %s, firewall name : %s", firewallRequest.ProjectName, firewallRequest.VPCNetworkName, firewallRequest.Name))
 	return nil
 }
 

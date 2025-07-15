@@ -63,3 +63,4 @@ data:
   ENABLE_METRICS: {{.Values.workerConfig.enableMetrics | quote}}
   HARVEST_REST_PROTOCOL: {{.Values.workerConfig.harvestRestProtocol | quote}}
 
+  FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.firewallSourceRanges | quote }}

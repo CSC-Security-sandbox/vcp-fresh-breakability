@@ -2185,13 +2185,16 @@ func Test_InsertFirewall(t *testing.T) {
 	logger := util.GetLogger(ctx)
 	t.Run("WhenFirewallAlreadyExists", func(tt *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(tt)
-
+		t.Setenv("FIREWALL_SOURCE_RANGES", "10.0.0.0/8,192.168.0.0/16")
 		InsertFirewall := activities.InsertFirewall
 		defer func() {
 			activities.InsertFirewall = InsertFirewall
 		}()
+		existingFirewall := &models.Firewall{
+			SourceRanges: []string{"10.0.0.0/8", "192.168.0.0/16"}, // Same source ranges as expected
+		}
 		mgs.On("GetLogger").Return(logger)
-		mgs.On("GetFirewall", projectName, firewallName).Return(&models.Firewall{}, nil)
+		mgs.On("GetFirewall", projectName, firewallName).Return(existingFirewall, nil)
 
 		err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, firewallSourceRanges, firewallAllowedPortRules)
 		assert.NoError(tt, err)
@@ -2200,6 +2203,7 @@ func Test_InsertFirewall(t *testing.T) {
 
 	t.Run("WhenGetFirewallFailsWithNonNotFoundError", func(tt *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(tt)
+		t.Setenv("FIREWALL_SOURCE_RANGES", "10.0.0.0/8,192.168.0.0/16")
 
 		InsertFirewall := activities.InsertFirewall
 		defer func() {
@@ -2222,6 +2226,7 @@ func Test_InsertFirewall(t *testing.T) {
 
 	t.Run("WhenInsertFirewallFails", func(tt *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(tt)
+		t.Setenv("FIREWALL_SOURCE_RANGES", "10.0.0.0/8,192.168.0.0/16")
 
 		InsertFirewall := activities.InsertFirewall
 		defer func() {
@@ -2247,6 +2252,7 @@ func Test_InsertFirewall(t *testing.T) {
 
 	t.Run("WhenInsertFirewallSucceeds", func(tt *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(tt)
+		t.Setenv("FIREWALL_SOURCE_RANGES", "10.0.0.0/8,192.168.0.0/16")
 
 		InsertFirewall := activities.InsertFirewall
 		defer func() {
@@ -4896,5 +4902,111 @@ func TestCreateQoSPolicyAndApplyToSVM(t *testing.T) {
 
 		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func Test_checkAndUpdateFirewall(t *testing.T) {
+	sourceRanges1 := []string{"10.0.0.0/24", "192.168.1.0/24"}
+	sourceRanges2 := []string{"10.0.0.0/24", "192.168.2.0/24"}
+	sourceRanges3 := []string{"10.0.0.0/24", "192.168.1.0/24", "172.16.0.0/12"}
+	sourceRanges4 := []string{"10.0.0.0/24"}
+	sourceRanges5 := []string{"10.1.0.0/24", "192.168.1.0/24"}
+	sourceRanges6 := []string{"192.168.1.0/24", "10.0.0.0/24"}
+	t.Run("whenNoChangeInSourceRange", func(t *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		existingFirewall := &models.Firewall{
+			SourceRanges: sourceRanges1,
+		}
+		firewallRequest := &models.Firewall{
+			SourceRanges: sourceRanges1,
+		}
+		mgs.On("GetLogger").Return(log.NewLogger())
+		err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+	})
+	t.Run("whenFirewallEdited", func(t *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		existingFirewall := &models.Firewall{
+			SourceRanges: sourceRanges1,
+		}
+		firewallRequest := &models.Firewall{
+			SourceRanges: sourceRanges2,
+		}
+		mgs.On("GetLogger").Return(log.NewLogger())
+		mgs.On("UpdateFirewall", firewallRequest).Return(nil)
+		err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+	})
+	t.Run("whenNewFirewallRemovedSuccess", func(t *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		existingFirewall := &models.Firewall{
+			SourceRanges: sourceRanges1,
+		}
+		firewallRequest := &models.Firewall{
+			SourceRanges: sourceRanges4,
+		}
+		mgs.On("UpdateFirewall", firewallRequest).Return(nil)
+		mgs.On("GetLogger").Return(log.NewLogger())
+		err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+	})
+	t.Run("whenNewFirewallAddedSuccess", func(t *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		existingFirewall := &models.Firewall{
+			SourceRanges: sourceRanges1,
+		}
+		firewallRequest := &models.Firewall{
+			SourceRanges: sourceRanges3,
+		}
+		mgs.On("UpdateFirewall", firewallRequest).Return(nil)
+		mgs.On("GetLogger").Return(log.NewLogger())
+		err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+	})
+	t.Run("whenNewFirewallIsDifferentSuccess", func(t *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		existingFirewall := &models.Firewall{
+			SourceRanges: sourceRanges1,
+		}
+		firewallRequest := &models.Firewall{
+			SourceRanges: sourceRanges4,
+		}
+		mgs.On("UpdateFirewall", firewallRequest).Return(nil)
+		mgs.On("GetLogger").Return(log.NewLogger())
+		err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		assert.NoError(t, err)
+		mgs.AssertExpectations(t)
+	})
+	t.Run("whenNewFirewallIsDifferentFails", func(t *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		existingFirewall := &models.Firewall{
+			SourceRanges: sourceRanges1,
+		}
+		firewallRequest := &models.Firewall{
+			SourceRanges: sourceRanges5,
+		}
+		mgs.On("UpdateFirewall", firewallRequest).Return(errors.New("update error"))
+		mgs.On("GetLogger").Return(log.NewLogger())
+		err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		assert.Error(t, err, "update error")
+		mgs.AssertExpectations(t)
+	})
+	t.Run("whenFirewallOrderChanged", func(t *testing.T) {
+		mgs := hyperscaler.NewMockGoogleServices(t)
+		existingFirewall := &models.Firewall{
+			SourceRanges: sourceRanges1,
+		}
+		firewallRequest := &models.Firewall{
+			SourceRanges: sourceRanges6,
+		}
+		mgs.On("GetLogger").Return(log.NewLogger())
+		// No update should be needed when only order is different
+		err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		assert.NoError(t, err, "should not error when only order is different")
+		mgs.AssertExpectations(t)
 	})
 }

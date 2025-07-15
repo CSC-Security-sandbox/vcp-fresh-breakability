@@ -23,6 +23,7 @@ var (
 	createSubnetwork                 = _createSubnetwork
 	createVPC                        = _createVPC
 	insertFirewall                   = _insertFirewall
+	updateFirewall                   = _updateFirewall
 )
 
 // GetTenantProject lists registered tenancy units for the customer project
@@ -345,6 +346,26 @@ func (gcpService *GcpServices) InsertFirewall(firewallRule *models.Firewall) err
 	return nil
 }
 
+// UpdateFirewall creates a firewall rule in a project using compute API. This function also waits until the operation concludes
+func (gcpService *GcpServices) UpdateFirewall(firewallRule *models.Firewall) error {
+	projectName := firewallRule.ProjectName
+	firewallName := firewallRule.Name
+	gcpService.Logger.Debugf("Updating firewall rule %s for project %s ", firewallName, projectName)
+
+	operation, err := updateFirewall(gcpService, firewallRule)
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
+	}
+	gcpService.Logger.Debugf("Waiting for compute network operation status during firewall rule updation project name: %s firewall rule: %s", projectName, firewallName)
+	_, err = waitForComputeNetGlobalOpStatus(gcpService, projectName, operation.Name)
+	if err != nil {
+		gcpService.Logger.Errorf("Failed to update firewall rule %s for project %s. Error : %v", firewallName, projectName, err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
+	}
+	gcpService.Logger.Debugf("Successfully updated firewall for project name : %s, firewall name : %s", projectName, firewallName)
+	return nil
+}
+
 // _insertFirewall creates an operation to create a firewall rule in a project using compute API. Reference : https://cloud.google.com/compute/docs/reference/rest/v1/firewalls/insert
 func _insertFirewall(gcpService *GcpServices, request *models.Firewall) (*models.ComputeOperation, error) {
 	defer gcpService.Retry.Reset()
@@ -363,5 +384,21 @@ func _insertFirewall(gcpService *GcpServices, request *models.Firewall) (*models
 		return _insertFirewall(gcpService, request)
 	}
 	gcpService.Logger.Debugf("Operation to insert firewall created successfully for project name : %s, firewall name : %s", projectName, firewallName)
+	return convertComputeOpToComputeOp(op), nil
+}
+
+// _updateFirewall creates an operation to update an existing firewall rule in a project using the compute API. Reference: https://cloud.google.com/compute/docs/reference/rest/v1/firewalls/update
+func _updateFirewall(gcpService *GcpServices, request *models.Firewall) (*models.ComputeOperation, error) {
+	defer gcpService.Retry.Reset()
+	firewallName := request.Name
+	projectName := request.ProjectName
+	gcpService.Logger.Debugf("Updating firewall rule %s for project %s ", firewallName, request.ProjectName)
+
+	op, err := gcpService.AdminGCPService.computeService.Firewalls.Update(projectName, firewallName, convertToGoogleFirewallRule(request)).Context(gcpService.Ctx).Do()
+	if err != nil {
+		gcpService.Logger.Debugf("Retrying to update firewall for project name : %s, firewall name : %s", projectName, firewallName)
+		return nil, err
+	}
+	gcpService.Logger.Debugf("Operation to update firewall created successfully for project name : %s, firewall name : %s", projectName, firewallName)
 	return convertComputeOpToComputeOp(op), nil
 }

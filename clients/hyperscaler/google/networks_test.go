@@ -1763,3 +1763,161 @@ func TestGcpServices_GetContext(t *testing.T) {
 		assert.Equal(t, gcpService.Ctx, got)
 	})
 }
+
+func TestGcpServices_UpdateFirewall(t *testing.T) {
+	ctx := context.Background()
+	projectName := "test-project"
+	firewallName := "test-firewall"
+	firewallRule := &models.Firewall{
+		Name:        firewallName,
+		ProjectName: projectName,
+	}
+	gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
+
+	t.Run("WhenUpdateFirewallFails", func(t *testing.T) {
+		origUpdate := updateFirewall
+		updateFirewall = func(_ *GcpServices, _ *models.Firewall) (*models.ComputeOperation, error) {
+			return nil, fmt.Errorf("update error")
+		}
+		defer func() { updateFirewall = origUpdate }()
+		err := gService.UpdateFirewall(firewallRule)
+		if err == nil || !strings.Contains(err.Error(), "update error") {
+			t.Errorf("expected update error, got %v", err)
+		}
+	})
+
+	t.Run("WhenWaitForComputeNetGlobalOpStatusFails", func(t *testing.T) {
+		origUpdate := updateFirewall
+		updateFirewall = func(_ *GcpServices, _ *models.Firewall) (*models.ComputeOperation, error) {
+			return &models.ComputeOperation{Name: "op-1"}, nil
+		}
+		defer func() { updateFirewall = origUpdate }()
+		origWait := waitForComputeNetGlobalOpStatus
+		waitForComputeNetGlobalOpStatus = func(_ *GcpServices, _, _ string) (*models.ComputeOperation, error) {
+			return nil, fmt.Errorf("wait error")
+		}
+		defer func() { waitForComputeNetGlobalOpStatus = origWait }()
+		err := gService.UpdateFirewall(firewallRule)
+		if err == nil || !strings.Contains(err.Error(), "wait error") {
+			t.Errorf("expected wait error, got %v", err)
+		}
+	})
+
+	t.Run("WhenSuccess", func(t *testing.T) {
+		origUpdate := updateFirewall
+		updateFirewall = func(_ *GcpServices, _ *models.Firewall) (*models.ComputeOperation, error) {
+			return &models.ComputeOperation{Name: "op-1"}, nil
+		}
+		defer func() { updateFirewall = origUpdate }()
+		origWait := waitForComputeNetGlobalOpStatus
+		waitForComputeNetGlobalOpStatus = func(_ *GcpServices, _, _ string) (*models.ComputeOperation, error) {
+			return &models.ComputeOperation{Name: "op-1"}, nil
+		}
+		defer func() { waitForComputeNetGlobalOpStatus = origWait }()
+		err := gService.UpdateFirewall(firewallRule)
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
+	})
+}
+
+func Test_updateFirewall(t *testing.T) {
+	projectName := "1079058383248"
+	vpcName := "vpc1"
+	firewallName := "ingress-" + vpcName
+	url := "/projects/1079058383248/global/firewalls/" + firewallName
+	allowedPortRules := []string{"tcp", "icmp", "udp"}
+	sourceRanges := []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}
+	firewallRule := &models.Firewall{
+		Name:             firewallName,
+		Description:      "Allow incoming traffic on specific ports",
+		VPCNetworkName:   fmt.Sprintf("projects/%s/global/networks/%s", projectName, vpcName),
+		AllowedPortRules: allowedPortRules,
+		ProjectName:      projectName,
+		SourceRanges:     sourceRanges,
+		Direction:        "INGRESS",
+		Priority:         1000,
+	}
+
+	t.Run("WhenUpdateFails", func(tt *testing.T) {
+		defer testReset(tt)
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				rw.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		}))
+		ctx := context.Background()
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		_, err = updateFirewall(gService, firewallRule)
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if !strings.Contains(err.Error(), "googleapi: got HTTP response code 400 with body") {
+				tt.Errorf("Unexpected error: %s", err.Error())
+			}
+		}
+		updateFirewall = _updateFirewall
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		defer testReset(tt)
+		operationName := "random-operation-name"
+		resp := &compute.Operation{Name: operationName}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		ctx := context.Background()
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		out, err := updateFirewall(gService, firewallRule)
+		if err != nil {
+			tt.Errorf("Unexpected error: %s", err.Error())
+		} else {
+			if out == nil {
+				tt.Errorf("Output unexpectedly nil")
+			} else {
+				if out.Name != operationName {
+					tt.Errorf("Unexpected subnetwork name %s", out.Name)
+				}
+			}
+			if gService.Retry.GetRetryCount() != 0 {
+				tt.Errorf("RetryStrategy was not reset %d", gService.Retry.GetRetryCount())
+			}
+		}
+		updateFirewall = _updateFirewall
+	})
+}

@@ -24,6 +24,7 @@ type Services interface {
 	ListSubnetworks(projectName, region string) (*[]models.Subnet, error)
 
 	InsertFirewall(firewallRule *models.Firewall) error
+	UpdateFirewall(firewallRule *models.Firewall) error
 	GetFirewall(projectName string, firewallName string) (*models.Firewall, error)
 
 	CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string) error

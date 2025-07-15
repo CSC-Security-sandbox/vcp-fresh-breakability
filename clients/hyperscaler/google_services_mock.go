@@ -1974,6 +1974,52 @@ func (_c *MockGoogleServices_RevokeCertificate_Call) RunAndReturn(run func(*mode
 	return _c
 }
 
+// UpdateFirewall provides a mock function with given fields: firewallRule
+func (_m *MockGoogleServices) UpdateFirewall(firewallRule *models.Firewall) error {
+	ret := _m.Called(firewallRule)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateFirewall")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*models.Firewall) error); ok {
+		r0 = rf(firewallRule)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockGoogleServices_UpdateFirewall_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateFirewall'
+type MockGoogleServices_UpdateFirewall_Call struct {
+	*mock.Call
+}
+
+// UpdateFirewall is a helper method to define mock.On call
+//   - firewallRule *models.Firewall
+func (_e *MockGoogleServices_Expecter) UpdateFirewall(firewallRule interface{}) *MockGoogleServices_UpdateFirewall_Call {
+	return &MockGoogleServices_UpdateFirewall_Call{Call: _e.mock.On("UpdateFirewall", firewallRule)}
+}
+
+func (_c *MockGoogleServices_UpdateFirewall_Call) Run(run func(firewallRule *models.Firewall)) *MockGoogleServices_UpdateFirewall_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*models.Firewall))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_UpdateFirewall_Call) Return(_a0 error) *MockGoogleServices_UpdateFirewall_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockGoogleServices_UpdateFirewall_Call) RunAndReturn(run func(*models.Firewall) error) *MockGoogleServices_UpdateFirewall_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockGoogleServices creates a new instance of MockGoogleServices. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockGoogleServices(t interface {
