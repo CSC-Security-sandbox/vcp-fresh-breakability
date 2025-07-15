@@ -159,6 +159,9 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 
 	var backupPath string
 	if req.BackupPath.IsSet() {
+		if !backupEnabled {
+			return nil, errors.NewUserInputValidationErr("Backup feature is currently not enabled.")
+		}
 		backupPath = req.BackupPath.Value
 		components := strings.Split(backupPath, "/")
 		// Ensure there are enough components to avoid out of range errors

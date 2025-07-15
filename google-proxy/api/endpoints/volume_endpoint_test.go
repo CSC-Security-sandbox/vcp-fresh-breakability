@@ -2361,3 +2361,24 @@ func TestValidateVolumeQuotaSize(t *testing.T) {
 		assert.Contains(tt, err.Error(), "volume size must be between 100 GiB and 102400 GiB")
 	})
 }
+
+// BackupFeatureNotEnabled_ReturnsError tests the scenario where backup feature is not enabled
+func TestRestoreWhenBackupFeatureNotEnabled_ReturnsError(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = false
+
+	req := &gcpgenserver.VolumeCreateV1beta{
+		BackupPath: gcpgenserver.NewOptString("/backup/path"),
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+
+	result, err := _prepareCreateVolumeParams(req, params, region)
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Backup feature is currently not enabled.")
+}
