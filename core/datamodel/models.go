@@ -256,7 +256,7 @@ type Job struct {
 	Type          string         `json:"type"`
 	State         string         `json:"state" gorm:"index"`
 	TrackingID    int            `json:"trackingID"`
-	ErrorDetails  []byte         `json:"errorDetails" gorm:"type:bytea"`
+	ErrorDetails  string         `json:"errorDetails"`
 	AccountID     sql.NullInt64  `json:"-" gorm:"index"`
 	IsAdminJob    bool           `json:"isAdminJob" gorm:"default:false"`
 	WorkflowID    string         `json:"workflowID"`

@@ -47,7 +47,7 @@ func (d *DataStoreRepository) GetJob(ctx context.Context, id string) (*datamodel
 	return getJobWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: id}})
 }
 
-func (d *DataStoreRepository) UpdateJob(ctx context.Context, id, status string, trackingID int, errorDetails []byte) error {
+func (d *DataStoreRepository) UpdateJob(ctx context.Context, id, status string, trackingID int, errorDetails string) error {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {

@@ -824,7 +824,7 @@ func (re *retryEngine) CreateJob(ctx context.Context, job *datamodel.Job) (*data
 	return var0, err
 }
 
-func (re *retryEngine) UpdateJob(ctx context.Context, jobID string, status string, trackingID int, errorDetails []byte) error {
+func (re *retryEngine) UpdateJob(ctx context.Context, jobID string, status string, trackingID int, errorDetails string) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
 		err = re.dataStore.UpdateJob(ctx, jobID, status, trackingID, errorDetails)
@@ -1355,13 +1355,33 @@ func (re *retryEngine) UpdateSnapshot(ctx context.Context, snapshot *datamodel.S
 	return var0, err
 }
 
-func (re *retryEngine) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
+func (re *retryEngine) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, volumeID int64) (*datamodel.Snapshot, error) {
 	var var0 *datamodel.Snapshot
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetSnapshotByUUID(ctx, uuid, accountID, isParentSnapshot)
+		var0, err = re.dataStore.GetSnapshotByUUID(ctx, uuid, accountID, volumeID)
 		if err != nil {
 			re.logError("GetSnapshotByUUID", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetSnapshotByPoolID(ctx context.Context, SnapshotUUID string, accountID int64, poolID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
+	var var0 *datamodel.Snapshot
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetSnapshotByPoolID(ctx, SnapshotUUID, accountID, poolID, isParentSnapshot)
+		if err != nil {
+			re.logError("GetSnapshotByPoolID", err)
 			if !isTransientErr(err) {
 				return false, err
 			}

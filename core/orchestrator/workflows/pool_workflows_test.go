@@ -2525,7 +2525,7 @@ func TestPoolDataSubnetWorkFlow_RunError(t *testing.T) {
 			UUID: "default-test-workflow-id",
 		},
 		State:        "DONE",
-		ErrorDetails: []byte("activity error (type: CreateOrGetSubnetwork, scheduledEventID: 0, startedEventID: 0, identity: ): failed to fetch subnet"),
+		ErrorDetails: "activity error (type: CreateOrGetSubnetwork, scheduledEventID: 0, startedEventID: 0, identity: ): failed to fetch subnet",
 	}).Return(nil).Once()
 
 	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "tenant-project")
@@ -2578,7 +2578,7 @@ func TestPoolDataSubnetWorkFlow_UpdateJobError(t *testing.T) {
 			UUID: "default-test-workflow-id",
 		},
 		State:        "DONE",
-		ErrorDetails: []byte("activity error (type: CreateOrGetSubnetwork, scheduledEventID: 0, startedEventID: 0, identity: ): failed to fetch subnet"),
+		ErrorDetails: "activity error (type: CreateOrGetSubnetwork, scheduledEventID: 0, startedEventID: 0, identity: ): failed to fetch subnet",
 	}).Return(errors.New("failed to update job status")).Once()
 
 	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "tenant-project")

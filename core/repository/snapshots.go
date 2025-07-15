@@ -55,12 +55,9 @@ func (d *DataStoreRepository) CreatingSnapshot(ctx context.Context, snapshot *da
 	return snapshot, nil
 }
 
-func getSnapshotWithDetails(db *gorm.DB, query *datamodel.Snapshot, isParentSnapshot bool) (*datamodel.Snapshot, error) {
+func getSnapshotWithDetails(db *gorm.DB, query *datamodel.Snapshot) (*datamodel.Snapshot, error) {
 	snapshot := &datamodel.Snapshot{}
 	db = db.Preload("Account").Preload("Volume")
-	if isParentSnapshot {
-		db = db.Preload("Volume.Svm")
-	}
 	err := db.First(&snapshot, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -79,7 +76,7 @@ func (d *DataStoreRepository) UpdateSnapshot(ctx context.Context, snapshot *data
 		return nil, err
 	}
 	defer commitOrRollbackOnError(logger, tx, &err)
-	dbSnapshot, err := getSnapshotWithDetails(tx, &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshot.UUID}}, false)
+	dbSnapshot, err := getSnapshotWithDetails(tx, &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshot.UUID}})
 	if err != nil {
 		return nil, err
 	}
@@ -105,8 +102,37 @@ func (d *DataStoreRepository) GetAppConsistentSnapshotsForVolume(ctx context.Con
 	return d.GetSnapshotsWithCondition(ctx, *filter)
 }
 
-func (d *DataStoreRepository) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
-	return getSnapshotWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Snapshot{AccountID: accountID, BaseModel: datamodel.BaseModel{UUID: uuid}}, isParentSnapshot)
+// GetSnapshotByUUID Retrieves a snapshot by UUID, account ID, and volume ID from the database.
+func (d *DataStoreRepository) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, volumeID int64) (*datamodel.Snapshot, error) {
+	return getSnapshotWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Snapshot{AccountID: accountID, VolumeID: volumeID, BaseModel: datamodel.BaseModel{UUID: uuid}})
+}
+
+// GetSnapshotByPoolID Retrieves a snapshot by UUID, account ID, and pool ID, validating the pool association and optionally preloading parent snapshot details.
+func (d *DataStoreRepository) GetSnapshotByPoolID(ctx context.Context, uuid string, accountID int64, poolID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
+	db := d.db.GORM().WithContext(ctx).Preload("Volume").Preload("Volume.Pool")
+	if isParentSnapshot {
+		db = db.Preload("Volume.Svm")
+	}
+
+	snapshot := &datamodel.Snapshot{}
+	err := db.First(&snapshot, &datamodel.Snapshot{
+		AccountID: accountID,
+		BaseModel: datamodel.BaseModel{UUID: uuid},
+	}).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "snapshot", &uuid)
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	// Check if the PoolID of the associated volume matches the provided PoolID
+	if snapshot.Volume != nil && snapshot.Volume.PoolID == poolID {
+		return snapshot, nil
+	}
+
+	return nil, customerrors.NewNotFoundErr("snapshot not found for the given pool ID", &uuid)
 }
 
 func (d *DataStoreRepository) GetSnapshotsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Snapshot, error) {
@@ -166,7 +192,7 @@ func (d *DataStoreRepository) DeleteSnapshot(ctx context.Context, snapshotUUID s
 }
 
 func _deleteSnapshot(db *gorm.DB, snapshotUUID string) (*datamodel.Snapshot, error) {
-	snapshot, err := getSnapshotWithDetails(db, &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshotUUID}}, false)
+	snapshot, err := getSnapshotWithDetails(db, &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshotUUID}})
 	if err != nil {
 		return nil, err
 	}
@@ -211,6 +237,9 @@ func (d *DataStoreRepository) BatchDeleteSnapshots(ctx context.Context, snapshot
 	var snapshots []*datamodel.Snapshot
 	err = tx.Model(&snapshots).Clauses(clause.Returning{}).Where("id IN ?", snapshotIDs).Updates(
 		datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
+			},
 			State:        models.LifeCycleStateDeleted,
 			StateDetails: models.LifeCycleStateDeletedDetails,
 		}).Error

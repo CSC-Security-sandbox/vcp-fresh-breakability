@@ -64,7 +64,7 @@ func GetLogger(ctx interface{}) log.Logger {
 	logger, err := ctxHandler.extractLogger()
 	if err != nil {
 		newLogger := log.NewLogger()
-		newLogger.Error("failed to extract logger from context")
+		newLogger.Debug("failed to extract logger from context")
 		return newLogger
 	}
 	return logger

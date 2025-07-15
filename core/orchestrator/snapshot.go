@@ -98,9 +98,14 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 			for _, job := range jobs {
 				for _, snapshot := range existingSnapshots {
 					if snapshot.Name == job.ResourceName {
-						logger.Infof("Found ongoing snapshot creation job for account %s with name %s. Job UUID: %s", params.AccountName, params.Name, job.UUID)
-						dataStoreSnap := ConvertDatastoreSnapshotToModel(snapshot)
-						return dataStoreSnap, job.UUID, nil
+						if snapshot.State == models.LifeCycleStateREADY {
+							logger.Warnf("Snapshot with name %s already exists", snapshot.Name)
+							return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceAlreadyExistsError, customerrors.NewConflictErr("snapshot already exists"))
+						} else {
+							logger.Infof("Found ongoing snapshot creation job for account %s with name %s. Job UUID: %s", params.AccountName, params.Name, job.UUID)
+							dataStoreSnap := ConvertDatastoreSnapshotToModel(snapshot)
+							return dataStoreSnap, job.UUID, nil
+						}
 					}
 				}
 			}
@@ -174,7 +179,7 @@ func _getSnapshot(ctx context.Context, se database.Storage, params *common.GetSn
 		return nil, err
 	}
 
-	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotUUID, volume.Account.ID, false)
+	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotUUID, volume.Account.ID, volume.ID)
 	if err != nil {
 		logger.Errorf("Failed to get snapshot: %s. Error: %v", params.SnapshotUUID, err)
 		return nil, err
@@ -261,13 +266,13 @@ func _updateSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	_, err = VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
+	volume, err := VolumeOwnershipCheck(ctx, se, params.VolumeID, params.AccountName)
 	if err != nil {
 		logger.Errorf("Failed to validate volume ownership")
 		return nil, "", err
 	}
 
-	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotUUID, account.ID, false)
+	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotUUID, account.ID, volume.ID)
 	if err != nil {
 		logger.Errorf("Failed to get snapshot: %s. Error: %v", params.SnapshotUUID, err)
 		return nil, "", err
@@ -367,7 +372,7 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID, volume.Account.ID, false)
+	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID, volume.Account.ID, volume.ID)
 	if err != nil {
 		return nil, "", err
 	}

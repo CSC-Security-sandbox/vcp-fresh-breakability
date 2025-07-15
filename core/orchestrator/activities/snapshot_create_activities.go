@@ -2,6 +2,7 @@ package activities
 
 import (
 	"context"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -10,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"gorm.io/gorm"
 )
 
 type SnapshotCreateActivity struct {
@@ -38,6 +40,7 @@ func (a *SnapshotCreateActivity) CreateSnapshotInONTAP(ctx context.Context, snap
 func (a *SnapshotCreateActivity) UpdateSnapshotDetails(ctx context.Context, dbSnapshot *datamodel.Snapshot, snapshotCreateResponse *vsa.SnapshotProviderResponse) error {
 	se := a.SE
 	if snapshotCreateResponse == nil {
+		dbSnapshot.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
 		dbSnapshot.State = models.LifeCycleStateError
 		dbSnapshot.StateDetails = models.LifeCycleStateCreationErrorDetails
 	} else {

@@ -288,7 +288,7 @@ func TestWaitForDBJob_JobWithErrorDetails(t *testing.T) {
 	jobUUID := "job-uuid"
 	job := &datamodel.Job{
 		State:        "DONE",
-		ErrorDetails: []byte("some error"),
+		ErrorDetails: "some error",
 	}
 
 	env.OnActivity(commonActivity.GetJob, mock.Anything, jobUUID).Return(job, nil)

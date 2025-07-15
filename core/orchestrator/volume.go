@@ -70,7 +70,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	if params.SnapshotID != "" {
-		dbSnapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID, account.ID, true)
+		dbSnapshot, err := se.GetSnapshotByPoolID(ctx, params.SnapshotID, account.ID, pool.ID, true)
 		if err != nil {
 			logger.Error("Failed to fetch parent snapshot for volume creation. Please use the correct snapshot and retry again.", "error", err)
 			return nil, "", err

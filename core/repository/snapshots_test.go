@@ -240,7 +240,10 @@ func TestGetSnapshot(t *testing.T) {
 
 		// Create a volume
 		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+				ID:   1,
+			},
 			Name:      "test_volume",
 			AccountID: 1,
 		}
@@ -259,7 +262,7 @@ func TestGetSnapshot(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create snapshot")
 
 		// Get the snapshot
-		retrievedSnapshot, err := store.GetSnapshotByUUID(ctx, snapshot.UUID, 1, false)
+		retrievedSnapshot, err := store.GetSnapshotByUUID(ctx, snapshot.UUID, 1, volume.ID)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.NotNil(tt, retrievedSnapshot, "Expected snapshot to be retrieved")
 		assert.Equal(tt, snapshot.UUID, retrievedSnapshot.UUID, "Expected UUID %v, got %v", snapshot.UUID, retrievedSnapshot.UUID)
@@ -281,9 +284,140 @@ func TestGetSnapshot(t *testing.T) {
 
 		// Try to get a non-existent snapshot
 		nonExistentUUID := "non-existent-uuid"
-		_, err = store.GetSnapshotByUUID(ctx, nonExistentUUID, 1, false)
+		_, err = store.GetSnapshotByUUID(ctx, nonExistentUUID, 1, 1)
 		assert.Error(tt, err, "Expected error when snapshot does not exist")
 		assert.ErrorContains(tt, err, "not found", "Expected error 'not found', got %v", err)
+	})
+}
+
+func TestGetSnapshotByPoolID(t *testing.T) {
+	logger := log.NewLogger()
+	ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, logger)
+
+	t.Run("WhenSnapshotExistsForPoolID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create a pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		// Create a volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Create a snapshot
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			VolumeID:  volume.ID,
+			AccountID: account.ID,
+		}
+		err = store.db.Create(snapshot).Error()
+		assert.NoError(tt, err, "Failed to create snapshot")
+
+		// Get the snapshot by pool ID
+		retrievedSnapshot, err := store.GetSnapshotByPoolID(ctx, snapshot.UUID, account.ID, pool.ID, false)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, retrievedSnapshot, "Expected snapshot to be retrieved")
+		assert.Equal(tt, snapshot.UUID, retrievedSnapshot.UUID, "Expected UUID %v, got %v", snapshot.UUID, retrievedSnapshot.UUID)
+		assert.Equal(tt, snapshot.Name, retrievedSnapshot.Name, "Expected name %v, got %v", snapshot.Name, retrievedSnapshot.Name)
+		assert.Equal(tt, snapshot.VolumeID, retrievedSnapshot.VolumeID, "Expected VolumeID %v, got %v", snapshot.VolumeID, retrievedSnapshot.VolumeID)
+		assert.Equal(tt, volume.PoolID, retrievedSnapshot.Volume.PoolID, "Expected PoolID %v, got %v", volume.PoolID, retrievedSnapshot.Volume.PoolID)
+	})
+
+	t.Run("WhenSnapshotDoesNotExistForPoolID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an account
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		// Create a pool
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+
+		// Create a volume
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+		}
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Create a snapshot
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			VolumeID:  volume.ID,
+			AccountID: account.ID,
+		}
+		err = store.db.Create(snapshot).Error()
+		assert.NoError(tt, err, "Failed to create snapshot")
+
+		// Try to get the snapshot with a non-matching pool ID
+		retrievedSnapshot, err := store.GetSnapshotByPoolID(ctx, snapshot.UUID, account.ID, 999, false)
+		assert.Error(tt, err, "Expected error when pool ID does not match")
+		assert.Nil(tt, retrievedSnapshot, "Expected nil snapshot")
+		assert.ErrorContains(tt, err, "snapshot not found for the given pool ID", "Expected error 'snapshot not found for the given pool ID', got %v", err)
+	})
+
+	t.Run("WhenSnapshotDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Try to get a non-existent snapshot
+		nonExistentUUID := "non-existent-uuid"
+		retrievedSnapshot, err := store.GetSnapshotByPoolID(ctx, nonExistentUUID, 1, 1, false)
+		assert.Error(tt, err, "Expected error when snapshot does not exist")
+		assert.Nil(tt, retrievedSnapshot, "Expected nil snapshot")
+		assert.ErrorContains(tt, err, "snapshot 'non-existent-uuid' not found", "Expected error 'snapshot 'non-existent-uuid' not found', got %v", err)
 	})
 }
 
@@ -351,7 +485,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		assert.Equal(tt, models.LifeCycleStateDeleted, deletedSnapshot.State, "Expected snapshot state %v, got %v", models.LifeCycleStateDeleted, deletedSnapshot.State)
 		assert.Equal(tt, models.LifeCycleStateDeletedDetails, deletedSnapshot.StateDetails, "Expected snapshot state details %v, got %v", "", deletedSnapshot.StateDetails)
 
-		_, err = store.GetSnapshotByUUID(context.Background(), snapshot.UUID, account.ID, false)
+		_, err = store.GetSnapshotByUUID(context.Background(), snapshot.UUID, account.ID, volume.ID)
 		if !customerrors.IsNotFoundErr(err) {
 			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
 		}
@@ -535,14 +669,22 @@ func TestBatchDeleteSnapshots(t *testing.T) {
 		}
 		assert.Len(tt, deletedSnapshots, 2)
 
-		updatedSnapshot1, err := store.GetSnapshotByUUID(context.Background(), snapshot1.UUID, 1, false)
+		updatedSnapshot1 := &datamodel.Snapshot{}
+		err = store.db.GORM().Unscoped().First(updatedSnapshot1, "uuid = ?", snapshot1.UUID).Error
 		if err != nil {
-			tt.Fatalf("Failed to fetch updated snapshot: %v", err)
+			tt.Fatalf("Failed to fetch updated snapshot1: %v", err)
 		}
-		updatedSnapshot2, err := store.GetSnapshotByUUID(context.Background(), snapshot2.UUID, 1, false)
+
+		updatedSnapshot2 := &datamodel.Snapshot{}
+		err = store.db.GORM().Unscoped().First(updatedSnapshot2, "uuid = ?", snapshot2.UUID).Error
 		if err != nil {
-			tt.Fatalf("Failed to fetch updated snapshot: %v", err)
+			tt.Fatalf("Failed to fetch updated snapshot2: %v", err)
 		}
+		assert.NotNil(tt, updatedSnapshot1.DeletedAt, "Expected DeletedAt to be not nil")
+		assert.NotNil(tt, updatedSnapshot2.DeletedAt, "Expected DeletedAt to be not nil")
+
+		assert.Equal(tt, models.LifeCycleStateDeletedDetails, updatedSnapshot1.StateDetails)
+		assert.Equal(tt, models.LifeCycleStateDeletedDetails, updatedSnapshot2.StateDetails)
 
 		assert.Equal(tt, models.LifeCycleStateDeleted, updatedSnapshot1.State)
 		assert.Equal(tt, models.LifeCycleStateDeleted, updatedSnapshot2.State)

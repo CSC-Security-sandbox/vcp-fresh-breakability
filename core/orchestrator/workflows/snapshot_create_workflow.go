@@ -91,8 +91,8 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
 	dbSnapshot := snapshot
-
-	dbSnapshot.Description = wf.ID // Storing the job UUID in the comments param while requesting ONTAP
+	snapshotDescription := dbSnapshot.Description // Storing the description in a variable such that we can update this in DB.
+	dbSnapshot.Description = wf.ID                // Storing the job UUID in the comments param while requesting ONTAP
 
 	logger.Infof("Starting the snapshot creation workflow for snapshot: %s", dbSnapshot.Name)
 	var dbNodes []*datamodel.Node
@@ -105,6 +105,7 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 
 	var snapshotCreateResponse *vsa.SnapshotProviderResponse
 	defer func() {
+		dbSnapshot.Description = snapshotDescription
 		updateErr := workflow.ExecuteActivity(ctx, snapshotActivity.UpdateSnapshotDetails, &dbSnapshot, snapshotCreateResponse).Get(ctx, nil)
 		if updateErr != nil {
 			// Since activity has failed, activity will reflect the error in the temporal workflow.

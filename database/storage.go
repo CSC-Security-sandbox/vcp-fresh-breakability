@@ -539,7 +539,7 @@ func (s *PersistenceStore) CreateJob(ctx context.Context, job *datamodel.Job) (*
 	return s.dataStore.CreateJob(ctx, job)
 }
 
-func (s *PersistenceStore) UpdateJob(ctx context.Context, id string, status string, trackingID int, errorDetails []byte) error {
+func (s *PersistenceStore) UpdateJob(ctx context.Context, id string, status string, trackingID int, errorDetails string) error {
 	return s.dataStore.UpdateJob(ctx, id, status, trackingID, errorDetails)
 }
 
@@ -647,8 +647,12 @@ func (s *PersistenceStore) UpdateSnapshot(ctx context.Context, snapshot *datamod
 	return s.dataStore.UpdateSnapshot(ctx, snapshot)
 }
 
-func (s *PersistenceStore) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
-	return s.dataStore.GetSnapshotByUUID(ctx, uuid, accountID, isParentSnapshot)
+func (s *PersistenceStore) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, volumeID int64) (*datamodel.Snapshot, error) {
+	return s.dataStore.GetSnapshotByUUID(ctx, uuid, accountID, volumeID)
+}
+
+func (s *PersistenceStore) GetSnapshotByPoolID(ctx context.Context, uuid string, accountID int64, poolID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
+	return s.dataStore.GetSnapshotByPoolID(ctx, uuid, accountID, poolID, isParentSnapshot)
 }
 
 func (s *PersistenceStore) GetSnapshotsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Snapshot, error) {

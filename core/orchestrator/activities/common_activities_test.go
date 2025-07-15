@@ -34,7 +34,7 @@ func TestUpdateJobStatus_Success(t *testing.T) {
 		},
 		State:        models.JobStateSuccess,
 		TrackingID:   1003,
-		ErrorDetails: []byte("Requested Resource is not found"),
+		ErrorDetails: "Requested Resource is not found",
 	}
 
 	mockStorage.On("UpdateJob", ctx, job.UUID, job.State, job.TrackingID, job.ErrorDetails).Return(nil)
@@ -58,7 +58,7 @@ func TestUpdateJobStatus(t *testing.T) {
 		},
 		State:        models.JobStateSuccess,
 		TrackingID:   1003,
-		ErrorDetails: []byte("Requested Resource is not found"),
+		ErrorDetails: "Requested Resource is not found",
 	}
 
 	mockStorage.On("UpdateJob", ctx, job.UUID, job.State, job.TrackingID, job.ErrorDetails).Return(nil)

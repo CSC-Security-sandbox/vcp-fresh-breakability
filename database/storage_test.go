@@ -406,7 +406,7 @@ func TestUpdateJob(t *testing.T) {
 	job := &datamodel.Job{ResourceName: "job3"}
 	created, err := store.CreateJob(ctx, job)
 	assert.NoError(t, err)
-	err = store.UpdateJob(ctx, created.UUID, "done", 0, nil)
+	err = store.UpdateJob(ctx, created.UUID, "done", 0, "")
 	assert.NoError(t, err)
 }
 
@@ -531,7 +531,7 @@ func TestGetSnapshot(t *testing.T) {
 	snap := &datamodel.Snapshot{Name: "snap3"}
 	created, err := store.CreatingSnapshot(ctx, snap)
 	assert.NoError(t, err)
-	found, err := store.GetSnapshotByUUID(ctx, created.UUID, 0, false)
+	found, err := store.GetSnapshotByUUID(ctx, created.UUID, 0, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, found)
 	assert.Equal(t, "snap3", found.Name)
@@ -672,17 +672,33 @@ func TestBatchDeleteSnapshots(t *testing.T) {
 	_, err = store.CreatingSnapshot(ctx, snap2)
 	assert.NoError(t, err)
 
+	// Batch delete snapshots
 	deletedSnapshots, err := store.BatchDeleteSnapshots(ctx, []int64{snap1.ID, snap2.ID})
 	assert.NoError(t, err)
 	assert.Len(t, deletedSnapshots, 2)
 
-	snap1, err = store.GetSnapshotByUUID(ctx, snap1.UUID, createdAcc.ID, false)
-	assert.NoError(t, err)
-	snap2, err = store.GetSnapshotByUUID(ctx, snap2.UUID, createdAcc.ID, false)
-	assert.NoError(t, err)
+	// Verify snapshots are marked as deleted
+	for _, snap := range deletedSnapshots {
+		assert.Equal(t, models.LifeCycleStateDeleted, snap.State)
+		assert.Equal(t, models.LifeCycleStateDeletedDetails, snap.StateDetails)
+		assert.NotNil(t, snap.DeletedAt)
+	}
 
-	assert.Equal(t, models.LifeCycleStateDeleted, snap1.State)
-	assert.Equal(t, models.LifeCycleStateDeleted, snap2.State)
+	// Attempt to retrieve snapshots by UUID (should return not found)
+	_, err = store.GetSnapshotByUUID(ctx, snap1.UUID, createdAcc.ID, createdVol.ID)
+	assert.Error(t, err)
+	_, err = store.GetSnapshotByUUID(ctx, snap2.UUID, createdAcc.ID, createdVol.ID)
+	assert.Error(t, err)
+
+	// Query directly to confirm DeletedAt is set
+	var deletedSnap1, deletedSnap2 datamodel.Snapshot
+	err = store.DB().Unscoped().Where("id = ?", snap1.ID).First(&deletedSnap1).Error
+	assert.NoError(t, err)
+	assert.NotNil(t, deletedSnap1.DeletedAt)
+
+	err = store.DB().Unscoped().Where("id = ?", snap2.ID).First(&deletedSnap2).Error
+	assert.NoError(t, err)
+	assert.NotNil(t, deletedSnap2.DeletedAt)
 }
 
 func TestGetReplicationSnapshotsByVolumeID(t *testing.T) {

@@ -613,7 +613,7 @@ func TestCreateVolume(t *testing.T) {
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := createVolume(ctx, store, temporal, params)
 		assert.Nil(tt, volume, "Expected nil volume")
-		assert.EqualError(tt, err, "Parent snapshot is not in a valid state for volume creation. Please wait for the snapshot to be ready and retry again.")
+		assert.EqualError(tt, err, "snapshot not found for the given pool ID 'test-snapshot-id' not found")
 	})
 	t.Run("WhenCreateVolumeSuccessWithBP", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})

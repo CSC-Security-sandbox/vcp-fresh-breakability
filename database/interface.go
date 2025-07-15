@@ -94,7 +94,7 @@ type DataStore interface {
 	CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error)
 
 	CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error)
-	UpdateJob(ctx context.Context, jobID string, status string, trackingID int, errorDetails []byte) error
+	UpdateJob(ctx context.Context, jobID string, status string, trackingID int, errorDetails string) error
 	GetJob(ctx context.Context, jobID string) (*datamodel.Job, error)
 	GetJobsWithCondition(ctx context.Context, filter utils.Filter) ([]*datamodel.Job, error)
 
@@ -127,7 +127,8 @@ type DataStore interface {
 
 	CreatingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error)
 	UpdateSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) (*datamodel.Snapshot, error)
-	GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, isParentSnapshot bool) (*datamodel.Snapshot, error)
+	GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, volumeID int64) (*datamodel.Snapshot, error)
+	GetSnapshotByPoolID(ctx context.Context, SnapshotUUID string, accountID int64, poolID int64, isParentSnapshot bool) (*datamodel.Snapshot, error)
 	GetSnapshotsByVolumeID(ctx context.Context, volumeID int64) ([]*datamodel.Snapshot, error)
 	GetWronglyDeletedSnapshot(ctx context.Context, snapshotExternalUUID string) (*datamodel.Snapshot, error)
 	UnDeleteSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error

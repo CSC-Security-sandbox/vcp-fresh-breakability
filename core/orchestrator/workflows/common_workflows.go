@@ -132,20 +132,20 @@ func (bw *BaseWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err
 				if err != nil {
 					bw.Logger.Warn("Couldn't find tracking ID/original error details in the application error", err)
 					updatedJob.TrackingID = -1
-					updatedJob.ErrorDetails = []byte(err.Error())
+					updatedJob.ErrorDetails = err.Error()
 				}
 
 				updatedJob.TrackingID = trackingID
-				updatedJob.ErrorDetails = []byte(errorDetails)
+				updatedJob.ErrorDetails = errorDetails
 			} else {
 				updatedJob.TrackingID = 0
-				updatedJob.ErrorDetails = []byte(err.Error())
+				updatedJob.ErrorDetails = err.Error()
 			}
 		} else {
 			// If the error is not an application error, we set the tracking ID to 0 and the error details to the error message.
 			// This is required so that generic errors that are not of type ApplicationError do not get lost.
 			updatedJob.TrackingID = 0
-			updatedJob.ErrorDetails = []byte(err.Error())
+			updatedJob.ErrorDetails = err.Error()
 		}
 	}
 
@@ -198,8 +198,8 @@ func PollOnDBJob(ctx workflow.Context, jobUUID string, timeout time.Duration) er
 
 		// Check the job state.
 		if job.State == string(dbmodels.JobsStateDONE) {
-			if job.ErrorDetails != nil {
-				return errors.New("job completed with error: " + string(job.ErrorDetails))
+			if job.ErrorDetails != "" {
+				return errors.New("job completed with error: " + job.ErrorDetails)
 			}
 			return nil
 		}

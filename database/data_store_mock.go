@@ -4668,9 +4668,71 @@ func (_c *MockDataStore_GetServiceAccountFromEmail_Call) RunAndReturn(run func(c
 	return _c
 }
 
-// GetSnapshotByUUID provides a mock function with given fields: ctx, uuid, accountID, isParentSnapshot
-func (_m *MockDataStore) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
-	ret := _m.Called(ctx, uuid, accountID, isParentSnapshot)
+// GetSnapshotByPoolID provides a mock function with given fields: ctx, SnapshotUUID, accountID, poolID, isParentSnapshot
+func (_m *MockDataStore) GetSnapshotByPoolID(ctx context.Context, SnapshotUUID string, accountID int64, poolID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
+	ret := _m.Called(ctx, SnapshotUUID, accountID, poolID, isParentSnapshot)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSnapshotByPoolID")
+	}
+
+	var r0 *datamodel.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, int64, bool) (*datamodel.Snapshot, error)); ok {
+		return rf(ctx, SnapshotUUID, accountID, poolID, isParentSnapshot)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, int64, bool) *datamodel.Snapshot); ok {
+		r0 = rf(ctx, SnapshotUUID, accountID, poolID, isParentSnapshot)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64, int64, bool) error); ok {
+		r1 = rf(ctx, SnapshotUUID, accountID, poolID, isParentSnapshot)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetSnapshotByPoolID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSnapshotByPoolID'
+type MockDataStore_GetSnapshotByPoolID_Call struct {
+	*mock.Call
+}
+
+// GetSnapshotByPoolID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - SnapshotUUID string
+//   - accountID int64
+//   - poolID int64
+//   - isParentSnapshot bool
+func (_e *MockDataStore_Expecter) GetSnapshotByPoolID(ctx interface{}, SnapshotUUID interface{}, accountID interface{}, poolID interface{}, isParentSnapshot interface{}) *MockDataStore_GetSnapshotByPoolID_Call {
+	return &MockDataStore_GetSnapshotByPoolID_Call{Call: _e.mock.On("GetSnapshotByPoolID", ctx, SnapshotUUID, accountID, poolID, isParentSnapshot)}
+}
+
+func (_c *MockDataStore_GetSnapshotByPoolID_Call) Run(run func(ctx context.Context, SnapshotUUID string, accountID int64, poolID int64, isParentSnapshot bool)) *MockDataStore_GetSnapshotByPoolID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(int64), args[4].(bool))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetSnapshotByPoolID_Call) Return(_a0 *datamodel.Snapshot, _a1 error) *MockDataStore_GetSnapshotByPoolID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetSnapshotByPoolID_Call) RunAndReturn(run func(context.Context, string, int64, int64, bool) (*datamodel.Snapshot, error)) *MockDataStore_GetSnapshotByPoolID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSnapshotByUUID provides a mock function with given fields: ctx, uuid, accountID, volumeID
+func (_m *MockDataStore) GetSnapshotByUUID(ctx context.Context, uuid string, accountID int64, volumeID int64) (*datamodel.Snapshot, error) {
+	ret := _m.Called(ctx, uuid, accountID, volumeID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetSnapshotByUUID")
@@ -4678,19 +4740,19 @@ func (_m *MockDataStore) GetSnapshotByUUID(ctx context.Context, uuid string, acc
 
 	var r0 *datamodel.Snapshot
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64, bool) (*datamodel.Snapshot, error)); ok {
-		return rf(ctx, uuid, accountID, isParentSnapshot)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, int64) (*datamodel.Snapshot, error)); ok {
+		return rf(ctx, uuid, accountID, volumeID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, int64, bool) *datamodel.Snapshot); ok {
-		r0 = rf(ctx, uuid, accountID, isParentSnapshot)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, int64) *datamodel.Snapshot); ok {
+		r0 = rf(ctx, uuid, accountID, volumeID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.Snapshot)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, int64, bool) error); ok {
-		r1 = rf(ctx, uuid, accountID, isParentSnapshot)
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64, int64) error); ok {
+		r1 = rf(ctx, uuid, accountID, volumeID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4707,14 +4769,14 @@ type MockDataStore_GetSnapshotByUUID_Call struct {
 //   - ctx context.Context
 //   - uuid string
 //   - accountID int64
-//   - isParentSnapshot bool
-func (_e *MockDataStore_Expecter) GetSnapshotByUUID(ctx interface{}, uuid interface{}, accountID interface{}, isParentSnapshot interface{}) *MockDataStore_GetSnapshotByUUID_Call {
-	return &MockDataStore_GetSnapshotByUUID_Call{Call: _e.mock.On("GetSnapshotByUUID", ctx, uuid, accountID, isParentSnapshot)}
+//   - volumeID int64
+func (_e *MockDataStore_Expecter) GetSnapshotByUUID(ctx interface{}, uuid interface{}, accountID interface{}, volumeID interface{}) *MockDataStore_GetSnapshotByUUID_Call {
+	return &MockDataStore_GetSnapshotByUUID_Call{Call: _e.mock.On("GetSnapshotByUUID", ctx, uuid, accountID, volumeID)}
 }
 
-func (_c *MockDataStore_GetSnapshotByUUID_Call) Run(run func(ctx context.Context, uuid string, accountID int64, isParentSnapshot bool)) *MockDataStore_GetSnapshotByUUID_Call {
+func (_c *MockDataStore_GetSnapshotByUUID_Call) Run(run func(ctx context.Context, uuid string, accountID int64, volumeID int64)) *MockDataStore_GetSnapshotByUUID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(bool))
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(int64))
 	})
 	return _c
 }
@@ -4724,7 +4786,7 @@ func (_c *MockDataStore_GetSnapshotByUUID_Call) Return(_a0 *datamodel.Snapshot, 
 	return _c
 }
 
-func (_c *MockDataStore_GetSnapshotByUUID_Call) RunAndReturn(run func(context.Context, string, int64, bool) (*datamodel.Snapshot, error)) *MockDataStore_GetSnapshotByUUID_Call {
+func (_c *MockDataStore_GetSnapshotByUUID_Call) RunAndReturn(run func(context.Context, string, int64, int64) (*datamodel.Snapshot, error)) *MockDataStore_GetSnapshotByUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -6679,7 +6741,7 @@ func (_c *MockDataStore_UpdateHostGroupsState_Call) RunAndReturn(run func(contex
 }
 
 // UpdateJob provides a mock function with given fields: ctx, jobID, status, trackingID, errorDetails
-func (_m *MockDataStore) UpdateJob(ctx context.Context, jobID string, status string, trackingID int, errorDetails []byte) error {
+func (_m *MockDataStore) UpdateJob(ctx context.Context, jobID string, status string, trackingID int, errorDetails string) error {
 	ret := _m.Called(ctx, jobID, status, trackingID, errorDetails)
 
 	if len(ret) == 0 {
@@ -6687,7 +6749,7 @@ func (_m *MockDataStore) UpdateJob(ctx context.Context, jobID string, status str
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, int, []byte) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int, string) error); ok {
 		r0 = rf(ctx, jobID, status, trackingID, errorDetails)
 	} else {
 		r0 = ret.Error(0)
@@ -6706,14 +6768,14 @@ type MockDataStore_UpdateJob_Call struct {
 //   - jobID string
 //   - status string
 //   - trackingID int
-//   - errorDetails []byte
+//   - errorDetails string
 func (_e *MockDataStore_Expecter) UpdateJob(ctx interface{}, jobID interface{}, status interface{}, trackingID interface{}, errorDetails interface{}) *MockDataStore_UpdateJob_Call {
 	return &MockDataStore_UpdateJob_Call{Call: _e.mock.On("UpdateJob", ctx, jobID, status, trackingID, errorDetails)}
 }
 
-func (_c *MockDataStore_UpdateJob_Call) Run(run func(ctx context.Context, jobID string, status string, trackingID int, errorDetails []byte)) *MockDataStore_UpdateJob_Call {
+func (_c *MockDataStore_UpdateJob_Call) Run(run func(ctx context.Context, jobID string, status string, trackingID int, errorDetails string)) *MockDataStore_UpdateJob_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(int), args[4].([]byte))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(int), args[4].(string))
 	})
 	return _c
 }
@@ -6723,7 +6785,7 @@ func (_c *MockDataStore_UpdateJob_Call) Return(_a0 error) *MockDataStore_UpdateJ
 	return _c
 }
 
-func (_c *MockDataStore_UpdateJob_Call) RunAndReturn(run func(context.Context, string, string, int, []byte) error) *MockDataStore_UpdateJob_Call {
+func (_c *MockDataStore_UpdateJob_Call) RunAndReturn(run func(context.Context, string, string, int, string) error) *MockDataStore_UpdateJob_Call {
 	_c.Call.Return(run)
 	return _c
 }

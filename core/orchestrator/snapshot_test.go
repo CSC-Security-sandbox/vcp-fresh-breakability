@@ -127,7 +127,7 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 			VolumeID:    volume.ID,
 			Account:     account,
 			Volume:      volume,
-			State:       models.LifeCycleStateREADY,
+			State:       models.LifeCycleStateCreating,
 		}
 		err = store.DB().Create(existingSnapshot).Error
 		assert.NoError(tt, err)
