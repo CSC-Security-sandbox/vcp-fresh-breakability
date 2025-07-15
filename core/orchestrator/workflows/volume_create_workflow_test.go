@@ -1720,3 +1720,253 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_MixedProtocols() {
 	// Verify it returns a function that can be called
 	assert.IsType(s.T(), PostBlockVolumeWorkflow, postWorkflow)
 }
+
+func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_PopulateRetryPolicyError() {
+	// Test PostBlockVolumeWorkflow when PopulateRetryPolicyParams fails
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
+	isRestoreFromBackup := false
+
+	// Set invalid environment variable to cause PopulateRetryPolicyParams to fail
+	originalStartToCloseTimeout := StartToCloseTimeout
+	StartToCloseTimeout = "invalid-duration"
+	defer func() { StartToCloseTimeout = originalStartToCloseTimeout }()
+
+	// Execute the workflow
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "invalid duration")
+}
+
+func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_GetHostsError() {
+	// Test PostBlockVolumeWorkflow when GetHosts fails
+	mockStorage := database.NewMockStorage(s.T())
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
+	isRestoreFromBackup := false
+
+	// Register activities
+	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
+
+	// Mock GetHosts to return error
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return(nil, errors.New("get hosts error"))
+
+	// Execute the workflow
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "get hosts error")
+}
+
+func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateIgroupError() {
+	// Test PostBlockVolumeWorkflow when CreateIgroup fails
+	mockStorage := database.NewMockStorage(s.T())
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
+	isRestoreFromBackup := false
+
+	// Register activities
+	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
+	s.env.RegisterActivity(volumeCreateActivity.CreateIgroup)
+
+	// Mock activities
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("create igroup error"))
+
+	// Execute the workflow
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "create igroup error")
+}
+
+func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateLunNameError() {
+	// Test PostBlockVolumeWorkflow when UpdateLunName fails (restore from backup)
+	mockStorage := database.NewMockStorage(s.T())
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
+	isRestoreFromBackup := true
+
+	// Register activities
+	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
+	s.env.RegisterActivity(volumeCreateActivity.CreateIgroup)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateLunName)
+
+	// Mock activities
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("update lun name error"))
+
+	// Execute the workflow
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "update lun name error")
+}
+
+func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunError() {
+	// Test PostBlockVolumeWorkflow when CreateLun fails (not restore from backup)
+	mockStorage := database.NewMockStorage(s.T())
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
+	isRestoreFromBackup := false
+
+	// Register activities
+	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
+	s.env.RegisterActivity(volumeCreateActivity.CreateIgroup)
+	s.env.RegisterActivity(volumeCreateActivity.CreateLun)
+
+	// Mock activities
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("create lun error"))
+
+	// Execute the workflow
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "create lun error")
+}
+
+func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunMapError() {
+	// Test PostBlockVolumeWorkflow when CreateLunMap fails
+	mockStorage := database.NewMockStorage(s.T())
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
+	isRestoreFromBackup := false
+
+	// Register activities
+	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
+	s.env.RegisterActivity(volumeCreateActivity.CreateIgroup)
+	s.env.RegisterActivity(volumeCreateActivity.CreateLun)
+	s.env.RegisterActivity(volumeCreateActivity.CreateLunMap)
+
+	// Mock activities
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("create lun map error"))
+
+	// Execute the workflow
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "create lun map error")
+}
+
+func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_PopulateRetryPolicyError() {
+	// Test PreFileVolumeWorkflow when PopulateRetryPolicyParams fails
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolNFSv3}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	// Set invalid environment variable to cause PopulateRetryPolicyParams to fail
+	originalStartToCloseTimeout := StartToCloseTimeout
+	StartToCloseTimeout = "invalid-duration"
+	defer func() { StartToCloseTimeout = originalStartToCloseTimeout }()
+
+	// Execute the workflow
+	s.env.ExecuteWorkflow(PreFileVolumeWorkflow, volume, node)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "invalid duration")
+}

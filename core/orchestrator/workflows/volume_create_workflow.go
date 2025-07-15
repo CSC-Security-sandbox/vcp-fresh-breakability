@@ -86,13 +86,13 @@ func selectVolumeChildWorkflow(protocols []string, phase string) (interface{}, e
 }
 
 // PreBlockVolumeWorkflow handles pre-provisioning for block volumes
-func PreBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node) error {
+func PreBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node) (*datamodel.Volume, error) {
 	// Additional pre-provisioning steps for block volumes if needed
-	return nil
+	return dbVolume, nil
 }
 
 // PostBlockVolumeWorkflow handles post-provisioning for block volumes
-func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool) error {
+func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool) (*datamodel.Volume, error) {
 	volumeActivity := &activities.VolumeCreateActivity{}
 	var err error
 	var hostGroups []*datamodel.HostGroup
@@ -100,7 +100,7 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 	// Configure activity options for child workflow
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -116,7 +116,7 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 	// Get host groups for block volume
 	err = workflow.ExecuteActivity(ctx, volumeActivity.GetHosts, &dbVolume).Get(ctx, &hostGroups)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	hostParams := createHostParamsFromHostGroups(hostGroups, dbVolume)
@@ -124,7 +124,7 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 	// Create igroup for block volume
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateIgroup, &dbVolume, &hostParams, node).Get(ctx, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Create LUN for block volume
@@ -133,12 +133,12 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 	if isRestoreFromBackup {
 		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lun)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	} else {
 		err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLun, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lun)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -146,20 +146,20 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 	lunMapParams := createLunMapParams(lun.Name, dbVolume.Svm.Name, hostParams)
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateLunMap, &dbVolume, &lunMapParams, node).Get(ctx, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	dbVolume.VolumeAttributes.BlockProperties.LunSerialNumber = lun.SerialNumber
 	dbVolume.VolumeAttributes.BlockProperties.LunUUID = lun.ExternalUUID
-	return nil
+	return dbVolume, nil
 }
 
 // PreFileVolumeWorkflow handles pre-provisioning for file volumes
-func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node) error {
+func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node) (*datamodel.Volume, error) {
 	// Configure activity options for child workflow
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -174,15 +174,15 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 
 	log := util.GetLogger(ctx)
 	log.Info("File pre-provisioning: create export policy, etc. (placeholder)")
-	return nil
+	return dbVolume, nil
 }
 
 // PostFileVolumeWorkflow handles post-provisioning for file volumes
-func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool) error {
+func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool) (*datamodel.Volume, error) {
 	// Configure activity options for child workflow
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -197,7 +197,7 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 
 	log := util.GetLogger(ctx)
 	log.Info("File post-provisioning: anything after volume create. (placeholder)")
-	return nil
+	return dbVolume, nil
 }
 
 // CreateVolumeWorkflow Volume Workflow process volume related requests from a customer.
@@ -298,9 +298,15 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if err != nil {
 		return nil, err
 	}
-	err = workflow.ExecuteChildWorkflow(ctx, preWorkflowFunc, dbVolume, node).Get(ctx, nil)
+	var preUpdatedVolume *datamodel.Volume
+	err = workflow.ExecuteChildWorkflow(ctx, preWorkflowFunc, dbVolume, node).Get(ctx, &preUpdatedVolume)
 	if err != nil {
 		return nil, err
+	}
+
+	// Update the dbVolume with any changes from the pre-workflow
+	if preUpdatedVolume != nil {
+		dbVolume = preUpdatedVolume
 	}
 	rollbackManager.AddActivity(activities.VolumeDeleteActivity.DeleteSnapshotPolicyInONTAP, getSnapshotPolicyName(dbVolume), &node) // This will delete the snapshotPolicy if exists
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateSnapshotPolicyInONTAP, &dbVolume, &node).Get(ctx, nil)
@@ -385,9 +391,15 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if err != nil {
 		return nil, err
 	}
-	err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, volCreateResponse, isRestoreFromBackup).Get(ctx, nil)
+	var updatedVolume *datamodel.Volume
+	err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, volCreateResponse, isRestoreFromBackup).Get(ctx, &updatedVolume)
 	if err != nil {
 		return nil, err
+	}
+
+	// Update the dbVolume with the changes from the child workflow
+	if updatedVolume != nil {
+		dbVolume = updatedVolume
 	}
 
 	dbVolume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
