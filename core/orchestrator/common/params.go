@@ -58,28 +58,28 @@ type HostParams struct {
 
 // CreateVolumeParams describes parameters supplied to CreatePool
 type CreateVolumeParams struct {
-	AccountName      string
-	Region           string
-	Name             string
-	Description      string
-	Network          string
-	PoolID           string
-	VendorID         string
-	CreationToken    string
-	DisplayName      string
-	QuotaInBytes     uint64
-	IsDataProtection bool
-	Protocols        []string
-	BlockProperties  *BlockPropertiesRequest
-	SnapReserve      int64
-	DataProtection   *models.DataProtection
-	SnapshotID       string
-	SnapshotPolicy   *models.SnapshotPolicy
-	Snapshot         *datamodel.Snapshot
-	TieringPolicy    *TieringPolicy
-	BackupID         string
-	BackupPath       string
-	Labels           *datamodel.JSONB
+	AccountName       string
+	Region            string
+	Name              string
+	Description       string
+	Network           string
+	PoolID            string
+	VendorID          string
+	CreationToken     string
+	DisplayName       string
+	QuotaInBytes      uint64
+	IsDataProtection  bool
+	Protocols         []string
+	BlockProperties   *BlockPropertiesRequest
+	SnapReserve       int64
+	DataProtection    *models.DataProtection
+	SnapshotID        string
+	SnapshotPolicy    *models.SnapshotPolicy
+	Snapshot          *datamodel.Snapshot
+	AutoTieringPolicy *AutoTieringPolicy
+	BackupID          string
+	BackupPath        string
+	Labels            *datamodel.JSONB
 }
 
 type SnapmirrorRelationshipParams struct {
@@ -89,12 +89,12 @@ type SnapmirrorRelationshipParams struct {
 	IsRestore       bool
 }
 
-// TieringPolicy describes the auto tiering policy for a volume
-type TieringPolicy struct {
-	CoolAccess                bool
-	CoolnessPeriod            int32
-	CoolAccessTieringPolicy   string
-	CoolAccessRetrievalPolicy string
+// AutoTieringPolicy describes the auto tiering policy for a volume
+type AutoTieringPolicy struct {
+	CoolAccessEnabled    bool
+	CoolingThresholdDays int32
+	TieringPolicy        string
+	RetrievalPolicy      string
 }
 
 type BlockPropertiesRequest struct {
@@ -105,23 +105,23 @@ type BlockPropertiesRequest struct {
 
 // UpdateVolumeParams describes parameters supplied to UpdateVolume
 type UpdateVolumeParams struct {
-	AccountName     string
-	Region          string
-	Name            string
-	Description     string
-	Network         string
-	PoolID          string
-	VolumeId        string
-	VendorID        string
-	QuotaInBytes    int64
-	Protocols       []string
-	Labels          *datamodel.JSONB
-	SnapReserve     *int64
-	BlockProperties *BlockPropertiesRequest
-	SnapshotPolicy  *models.SnapshotPolicy
-	DataProtection  *models.DataProtection
-	InitiateSplit   bool
-	TieringPolicy   *TieringPolicy
+	AccountName       string
+	Region            string
+	Name              string
+	Description       string
+	Network           string
+	PoolID            string
+	VolumeId          string
+	VendorID          string
+	QuotaInBytes      int64
+	Protocols         []string
+	Labels            *datamodel.JSONB
+	SnapReserve       *int64
+	BlockProperties   *BlockPropertiesRequest
+	SnapshotPolicy    *models.SnapshotPolicy
+	DataProtection    *models.DataProtection
+	InitiateSplit     bool
+	AutoTieringPolicy *AutoTieringPolicy
 }
 
 type CreateLunMapParams struct {

@@ -849,10 +849,12 @@ func TestValidateUpdatePoolParams(t *testing.T) {
 		autoTieringEnabled = true
 
 		pool := &datamodel.Pool{
-			QosType:            QosTypeAuto,
-			AllowAutoTiering:   true,
-			HotTierSizeInBytes: int64(minQuotaInBytesPool * 2),
-			SizeInBytes:        int64(minQuotaInBytesPool * 3),
+			QosType:          QosTypeAuto,
+			AllowAutoTiering: true,
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes: int64(minQuotaInBytesPool * 2),
+			},
+			SizeInBytes: int64(minQuotaInBytesPool * 3),
 		}
 		params := &common.UpdatePoolParams{
 			QosType:            QosTypeAuto,
@@ -871,10 +873,12 @@ func TestValidateUpdatePoolParams(t *testing.T) {
 		autoTieringEnabled = true
 
 		pool := &datamodel.Pool{
-			QosType:            QosTypeAuto,
-			AllowAutoTiering:   true,
-			HotTierSizeInBytes: int64(minQuotaInBytesPool),
-			SizeInBytes:        int64(minQuotaInBytesPool * 2),
+			QosType:          QosTypeAuto,
+			AllowAutoTiering: true,
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes: int64(minQuotaInBytesPool),
+			},
+			SizeInBytes: int64(minQuotaInBytesPool * 2),
 		}
 		params := &common.UpdatePoolParams{
 			QosType:            QosTypeAuto,
@@ -1387,19 +1391,22 @@ func TestConvertDatastorePoolsToModelWithoutAccountNameParam_ReturnsCorrectModel
 				UpdatedAt: time.Now(),
 				DeletedAt: nil,
 			},
-			Name:                    "mock-pool",
-			Description:             "Mock pool description",
-			State:                   "ACTIVE",
-			StateDetails:            "Mock state details",
-			VendorID:                "mock-vendor-id",
-			ServiceLevel:            "mock-service-level",
-			SizeInBytes:             1024 * 1024 * 1024, // 1 GiB
-			UsedBytes:               512 * 1024 * 1024,  // 512 MiB
-			Network:                 "mock-network",
-			AllowAutoTiering:        true,
-			HotTierSizeInBytes:      256 * 1024 * 1024, // 256 MiB
-			EnableHotTierAutoResize: false,
-			AccountID:               1,
+			Name:             "mock-pool",
+			Description:      "Mock pool description",
+			State:            "ACTIVE",
+			StateDetails:     "Mock state details",
+			VendorID:         "mock-vendor-id",
+			ServiceLevel:     "mock-service-level",
+			SizeInBytes:      1024 * 1024 * 1024, // 1 GiB
+			UsedBytes:        512 * 1024 * 1024,  // 512 MiB
+			Network:          "mock-network",
+			AllowAutoTiering: true,
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes:      256 * 1024 * 1024, // 256 MiB
+				EnableHotTierAutoResize: false,
+				BucketName:              "mock-bucket-name",
+			},
+			AccountID: 1,
 			Account: &datamodel.Account{
 				BaseModel: datamodel.BaseModel{
 					ID:        1,
@@ -1426,9 +1433,8 @@ func TestConvertDatastorePoolsToModelWithoutAccountNameParam_ReturnsCorrectModel
 				SnHostProject:         "mock-sn-host-project",
 				Network:               "mock-cluster-network",
 			},
-			QosType:            "mock-qos-type",
-			AutoTierBucketName: "mock-bucket-name",
-			ServiceAccountId:   "mock-service-account-id",
+			QosType:          "mock-qos-type",
+			ServiceAccountId: "mock-service-account-id",
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password:      "mock-password",
 				SecretID:      "mock-secret-id",
@@ -1519,7 +1525,9 @@ func TestValidateUpdatePoolParams_AutoTieringDisabled(t *testing.T) {
 			SizeInBytes:      minQuotaInBytesPool,
 		}
 		pool := &datamodel.Pool{
-			HotTierSizeInBytes: 0,
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes: 0,
+			},
 		}
 
 		err := _validateUpdatePoolParams(params, pool)
@@ -1534,7 +1542,9 @@ func TestValidateUpdatePoolParams_AutoTieringDisabled(t *testing.T) {
 			HotTierSizeInBytes:       minQuotaInBytesPool,
 		}
 		pool := &datamodel.Pool{
-			HotTierSizeInBytes: 0, // Non-zero value
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes: 0,
+			},
 		}
 
 		err := _validateUpdatePoolParams(params, pool)
@@ -1550,7 +1560,9 @@ func TestValidateUpdatePoolParams_AutoTieringDisabled(t *testing.T) {
 			TotalIops:                float64(minCustomIops + 10),
 		}
 		pool := &datamodel.Pool{
-			HotTierSizeInBytes: 0,
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				HotTierSizeInBytes: 0,
+			},
 		}
 
 		err := _validateUpdatePoolParams(params, pool)

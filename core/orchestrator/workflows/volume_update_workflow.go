@@ -203,7 +203,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			}
 			ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, token)
 		}
-		
+
 		tenancyDetails := &common.TenancyInfo{}
 		err = workflow.ExecuteActivity(ctx, updateActivity.FindTenancyDetails, volume.VolumeAttributes.VendorSubnetID, volume.Account.Name, &params.Region).Get(ctx, &tenancyDetails)
 		if err != nil {
@@ -279,9 +279,9 @@ func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeP
 		return true
 	}
 
-	if response.Size == params.QuotaInBytes && params.TieringPolicy != nil {
-		if params.TieringPolicy.CoolAccess != existingVolume.CoolAccess ||
-			(params.TieringPolicy.CoolAccess && params.TieringPolicy.CoolnessPeriod != existingVolume.CoolnessPeriod) {
+	if response.Size == params.QuotaInBytes && params.AutoTieringPolicy != nil {
+		if params.AutoTieringPolicy.CoolAccessEnabled != existingVolume.CoolAccessEnabled ||
+				(params.AutoTieringPolicy.CoolAccessEnabled && existingVolume.AutoTieringPolicy != nil && params.AutoTieringPolicy.CoolingThresholdDays != existingVolume.AutoTieringPolicy.CoolingThresholdDays) {
 			return true
 		}
 	}
@@ -291,14 +291,20 @@ func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeP
 }
 
 func getUpdateParamsForRollback(volResponse *vsa.VolumeResponse, existingVolume *datamodel.Volume) *common.UpdateVolumeParams {
-	return &common.UpdateVolumeParams{
+	params := &common.UpdateVolumeParams{
 		// Set the necessary parameters for rolling back the volume update
 		QuotaInBytes: volResponse.Size,
-		TieringPolicy: &common.TieringPolicy{
-			CoolAccess:                existingVolume.CoolAccess,
-			CoolnessPeriod:            existingVolume.CoolnessPeriod,
-			CoolAccessTieringPolicy:   existingVolume.CoolAccessTieringPolicy,
-			CoolAccessRetrievalPolicy: existingVolume.CoolAccessRetrievalPolicy,
-		},
 	}
+
+	// Set AutoTieringPolicy if it exists
+	if existingVolume.AutoTieringPolicy != nil {
+		params.AutoTieringPolicy = &common.AutoTieringPolicy{
+			CoolAccessEnabled:    existingVolume.CoolAccessEnabled,
+			CoolingThresholdDays: existingVolume.AutoTieringPolicy.CoolingThresholdDays,
+			TieringPolicy:        existingVolume.AutoTieringPolicy.TieringPolicy,
+			RetrievalPolicy:      existingVolume.AutoTieringPolicy.RetrievalPolicy,
+		}
+	}
+
+	return params
 }

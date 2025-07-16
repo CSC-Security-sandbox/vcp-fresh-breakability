@@ -1373,3 +1373,32 @@ func TestValidateLabels_ValueExceedsMaxByte(t *testing.T) {
 	assert.Contains(t, err.Error(), "label value")
 	assert.Contains(t, err.Error(), "length can't exceed")
 }
+
+func TestGetEnableHotTierAutoResize(t *testing.T) {
+	t.Run("WhenConfigIsNil", func(tt *testing.T) {
+		result := getEnableHotTierAutoResize(nil)
+		assert.False(tt, result)
+	})
+
+	t.Run("WhenConfigIsNotNilAndEnableHotTierAutoResizeIsTrue", func(tt *testing.T) {
+		config := &models.AutoTieringConfig{
+			EnableHotTierAutoResize: true,
+		}
+		result := getEnableHotTierAutoResize(config)
+		assert.True(tt, result)
+	})
+}
+func TestGetHotTierSizeInBytes(t *testing.T) {
+	t.Run("WhenConfigIsNil", func(tt *testing.T) {
+		result := getHotTierSizeInBytes(nil)
+		assert.Equal(tt, float64(0), result)
+	})
+
+	t.Run("WhenConfigIsNotNil", func(tt *testing.T) {
+		config := &models.AutoTieringConfig{
+			HotTierSizeInBytes: 1024,
+		}
+		result := getHotTierSizeInBytes(config)
+		assert.Equal(tt, float64(1024), result)
+	})
+}

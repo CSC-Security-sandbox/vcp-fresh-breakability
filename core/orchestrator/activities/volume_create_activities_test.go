@@ -118,9 +118,9 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		volume := &datamodel.Volume{
-			Name:       "test-volume",
-			Svm:        &datamodel.Svm{Name: "test-svm"},
-			CoolAccess: false,
+			Name:              "test-volume",
+			Svm:               &datamodel.Svm{Name: "test-svm"},
+			CoolAccessEnabled: false,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
 			},
@@ -159,12 +159,14 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		volume := &datamodel.Volume{
-			Name:                      "test-volume",
-			Svm:                       &datamodel.Svm{Name: "test-svm"},
-			CoolAccess:                true,
-			CoolAccessTieringPolicy:   "auto",
-			CoolAccessRetrievalPolicy: "onread",
-			CoolnessPeriod:            45,
+			Name:              "test-volume",
+			Svm:               &datamodel.Svm{Name: "test-svm"},
+			CoolAccessEnabled: true,
+			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+				TieringPolicy:        "auto",
+				RetrievalPolicy:      "onread",
+				CoolingThresholdDays: 45,
+			},
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
 			},

@@ -89,10 +89,10 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 		},
 	}
 
-	if volume.CoolAccess {
-		params.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&volume.CoolAccessTieringPolicy, ontapModels.VolumeInlineTieringPolicyAuto)
-		params.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&volume.CoolAccessRetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
-		params.TieringPolicy.CoolnessPeriod = int64(volume.CoolnessPeriod)
+	if volume.CoolAccessEnabled && volume.AutoTieringPolicy != nil {
+		params.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&volume.AutoTieringPolicy.TieringPolicy, ontapModels.VolumeInlineTieringPolicyAuto)
+		params.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&volume.AutoTieringPolicy.RetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
+		params.TieringPolicy.CoolnessPeriod = int64(volume.AutoTieringPolicy.CoolingThresholdDays)
 	}
 
 	res, err := provider.CreateVolume(params)

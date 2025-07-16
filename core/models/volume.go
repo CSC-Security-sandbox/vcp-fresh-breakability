@@ -26,15 +26,15 @@ type Volume struct {
 	UsedBytes             uint64
 	EncryptionType        string
 	SnapReserve           int64
-	TieringPolicy         *TieringPolicy
+	AutoTieringPolicy     *AutoTieringPolicy
 	Labels                map[string]string
 }
 
-// TieringPolicy describes the auto tiering policy for a volume
-type TieringPolicy struct {
-	CoolAccess              bool
-	CoolnessPeriod          int32
-	CoolAccessTieringPolicy string
+// AutoTieringPolicy describes the auto tiering policy for a volume
+type AutoTieringPolicy struct {
+	CoolAccessEnabled    bool
+	CoolingThresholdDays int32
+	TieringPolicy        string
 }
 
 type BlockProperties struct {

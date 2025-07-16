@@ -211,7 +211,12 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if err != nil {
 		return nil, err
 	}
-	dbPool.AutoTierBucketName = AutoTierBucketName
+	// Update AutoTieringConfig with bucket name
+	if dbPool.AutoTieringConfig == nil {
+		dbPool.AutoTieringConfig = &datamodel.AutoTieringConfig{}
+	}
+	dbPool.AutoTieringConfig.BucketName = AutoTierBucketName
+
 	credConfig := &vlm.OntapCredentials{}
 	// Generate a deterministic, unique cluster name (Deployment ID) for the pool using pool name, account name, and primary zone.
 	// This avoids collisions when the same pool name is used in different zones or accounts.
@@ -238,11 +243,16 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// Find the optimal VMs based on the customer requested performance.
 	vlmConfig := &vlm.VLMConfig{}
 
+	bucketName := ""
+	if pool.AutoTieringConfig != nil {
+		bucketName = pool.AutoTieringConfig.BucketName
+	}
+
 	deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
 	prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, clusterName, VLMCloudProvider, tenancyDetails.RegionalTenantProject)
 	rollbackManager.AddWorkflow(vlm.VSALifecycleManagerQueue, vlm.DeleteVSAClusterDeploymentWorkflowName, deleteVSAClusterDeploymentRequest)
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, clusterName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkNames, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, serviceAccount.Email, pool.AutoTierBucketName).Get(ctx, vlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, clusterName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkNames, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, serviceAccount.Email, bucketName).Get(ctx, vlmConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +464,11 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		},
 	}
 	currentVlmConfig := &vlmconfig.VLMConfig{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVlmConfig, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, dsc, pool.KmsConfig.ServiceAccount.ServiceAccountEmail, pool.AutoTierBucketName).Get(ctx, currentVlmConfig)
+	bucketName := ""
+	if pool.AutoTieringConfig != nil {
+		bucketName = pool.AutoTieringConfig.BucketName
+	}
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateVlmConfig, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, dsc, pool.KmsConfig.ServiceAccount.ServiceAccountEmail, bucketName).Get(ctx, currentVlmConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -467,7 +481,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	newVlmConfig := &vlm.VLMConfig{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, pool.KmsConfig.ServiceAccount.ServiceAccountEmail, pool.AutoTierBucketName).Get(ctx, newVlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, pool.KmsConfig.ServiceAccount.ServiceAccountEmail, bucketName).Get(ctx, newVlmConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -618,7 +632,12 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteAutoTierBucket, dbPool.AutoTierBucketName).Get(ctx, nil)
+	bucketName := ""
+	if dbPool.AutoTieringConfig != nil {
+		bucketName = dbPool.AutoTieringConfig.BucketName
+	}
+
+	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteAutoTierBucket, bucketName).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

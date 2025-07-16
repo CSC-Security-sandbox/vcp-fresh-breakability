@@ -12,29 +12,27 @@ import (
 
 type Pool struct {
 	BaseModel
-	Name                    string           `gorm:"column:name"`
-	Description             string           `gorm:"column:description"`
-	State                   string           `gorm:"column:state"`
-	StateDetails            string           `gorm:"column:state_details"`
-	VendorID                string           `gorm:"column:vendor_id"`
-	ServiceLevel            string           `gorm:"column:service_level"`
-	SizeInBytes             int64            `gorm:"column:size_in_bytes"`
-	UsedBytes               int64            `gorm:"column:used_bytes"`
-	Network                 string           `gorm:"column:network;type:varchar(2048)"`
-	AllowAutoTiering        bool             `gorm:"column:allow_auto_tiering;default:false"`
-	HotTierSizeInBytes      int64            `gorm:"column:hot_tier_size_in_bytes"`
-	EnableHotTierAutoResize bool             `gorm:"column:enable_hot_tier_auto_resize;default:false"`
-	AccountID               int64            `gorm:"column:account_id"`
-	Account                 *Account         `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	PoolAttributes          *PoolAttributes  `gorm:"column:pool_attributes;type:jsonb"`
-	ClusterDetails          ClusterDetails   `gorm:"column:cluster_details;type:jsonb"`
-	QosType                 string           `gorm:"column:qos_type"`
-	AutoTierBucketName      string           `gorm:"column:auto_tier_bucket_name;type:text"`
-	ServiceAccountId        string           `gorm:"column:service_account_id;type:text"`
-	KmsConfigID             sql.NullInt64    `gorm:"index"`
-	KmsConfig               *KmsConfig       `gorm:"ForeignKey:KmsConfigID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	DeploymentName          string           `gorm:"column:deployment_name;uniqueIndex:idx_account_deployment"`
-	PoolCredentials         *PoolCredentials `gorm:"column:pool_credentials;type:jsonb"`
+	Name              string             `gorm:"column:name"`
+	Description       string             `gorm:"column:description"`
+	State             string             `gorm:"column:state"`
+	StateDetails      string             `gorm:"column:state_details"`
+	VendorID          string             `gorm:"column:vendor_id"`
+	ServiceLevel      string             `gorm:"column:service_level"`
+	SizeInBytes       int64              `gorm:"column:size_in_bytes"`
+	UsedBytes         int64              `gorm:"column:used_bytes"`
+	Network           string             `gorm:"column:network;type:varchar(2048)"`
+	AllowAutoTiering  bool               `gorm:"column:allow_auto_tiering;default:false"`
+	AccountID         int64              `gorm:"column:account_id"`
+	Account           *Account           `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	PoolAttributes    *PoolAttributes    `gorm:"column:pool_attributes;type:jsonb"`
+	ClusterDetails    ClusterDetails     `gorm:"column:cluster_details;type:jsonb"`
+	QosType           string             `gorm:"column:qos_type"`
+	AutoTieringConfig *AutoTieringConfig `gorm:"column:auto_tiering_config;type:jsonb"`
+	ServiceAccountId  string             `gorm:"column:service_account_id;type:text"`
+	KmsConfigID       sql.NullInt64      `gorm:"index"`
+	KmsConfig         *KmsConfig         `gorm:"ForeignKey:KmsConfigID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	DeploymentName    string             `gorm:"column:deployment_name;uniqueIndex:idx_account_deployment"`
+	PoolCredentials   *PoolCredentials   `gorm:"column:pool_credentials;type:jsonb"`
 }
 
 type PoolCredentials struct {
@@ -127,28 +125,26 @@ func (pc PoolCredentials) Value() (driver.Value, error) {
 
 type Volume struct {
 	BaseModel
-	Name                      string            `gorm:"column:name"`
-	Description               string            `gorm:"column:description"`
-	State                     string            `gorm:"column:state"`
-	StateDetails              string            `gorm:"column:state_details"`
-	Health                    string            `gorm:"column:health"`
-	MountPath                 string            `gorm:"column:mount_path"`
-	SizeInBytes               int64             `gorm:"column:size_in_bytes"`
-	Throughput                int64             `gorm:"column:throughput"`
-	AccountID                 int64             `gorm:"column:account_id"`
-	PoolID                    int64             `gorm:"column:pool_id"`
-	SvmID                     int64             `gorm:"column:svm_id"`
-	Account                   *Account          `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	Pool                      *Pool             `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	Svm                       *Svm              `gorm:"ForeignKey:SvmID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	VolumeAttributes          *VolumeAttributes `gorm:"column:volume_attributes;type:jsonb"`
-	DataProtection            *DataProtection   `gorm:"column:data_protection;type:jsonb"`
-	SnapshotPolicy            *SnapshotPolicy   `gorm:"column:snapshot_policy;type:jsonb"`
-	UsedBytes                 uint64            `gorm:"column:used_bytes"`
-	CoolAccess                bool              `gorm:"column:cool_access"`
-	CoolAccessTieringPolicy   string            `gorm:"column:cool_access_tiering_policy"`
-	CoolnessPeriod            int32             `gorm:"column:coolness_period"`
-	CoolAccessRetrievalPolicy string            `gorm:"column:cool_access_retrieval_policy"`
+	Name              string             `gorm:"column:name"`
+	Description       string             `gorm:"column:description"`
+	State             string             `gorm:"column:state"`
+	StateDetails      string             `gorm:"column:state_details"`
+	Health            string             `gorm:"column:health"`
+	MountPath         string             `gorm:"column:mount_path"`
+	SizeInBytes       int64              `gorm:"column:size_in_bytes"`
+	Throughput        int64              `gorm:"column:throughput"`
+	AccountID         int64              `gorm:"column:account_id"`
+	PoolID            int64              `gorm:"column:pool_id"`
+	SvmID             int64              `gorm:"column:svm_id"`
+	Account           *Account           `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Pool              *Pool              `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	Svm               *Svm               `gorm:"ForeignKey:SvmID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
+	VolumeAttributes  *VolumeAttributes  `gorm:"column:volume_attributes;type:jsonb"`
+	DataProtection    *DataProtection    `gorm:"column:data_protection;type:jsonb"`
+	SnapshotPolicy    *SnapshotPolicy    `gorm:"column:snapshot_policy;type:jsonb"`
+	UsedBytes         uint64             `gorm:"column:used_bytes"`
+	CoolAccessEnabled bool               `gorm:"column:cool_access_enabled"`
+	AutoTieringPolicy *AutoTieringPolicy `gorm:"column:auto_tiering_policy;type:jsonb"`
 }
 
 // JSONB is a custom type to handle JSONB columns in PostgreSQL
@@ -659,4 +655,52 @@ type NodeGroupAssignmentParams struct {
 	MaxNodesPerGroup int
 	CustomerProject  string
 	TenantProject    string // Adding this for future extensibility
+}
+
+type AutoTieringConfig struct {
+	HotTierSizeInBytes      int64  `json:"hot_tier_size_in_bytes"`
+	EnableHotTierAutoResize bool   `json:"enable_hot_tier_auto_resize"`
+	BucketName              string `json:"bucket_name"`
+}
+
+// Scan implements the sql.Scanner interface for AutoTieringConfig
+func (atc *AutoTieringConfig) Scan(value interface{}) error {
+	if value == nil {
+		*atc = AutoTieringConfig{}
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, atc)
+}
+
+// Value implements the driver.Valuer interface for AutoTieringConfig
+func (atc AutoTieringConfig) Value() (driver.Value, error) {
+	return json.Marshal(atc)
+}
+
+type AutoTieringPolicy struct {
+	TieringPolicy        string `json:"tiering_policy"`
+	CoolingThresholdDays int32  `json:"cooling_threshold_days"`
+	RetrievalPolicy      string `json:"retrieval_policy"`
+}
+
+// Scan implements the sql.Scanner interface for AutoTieringPolicy
+func (atp *AutoTieringPolicy) Scan(value interface{}) error {
+	if value == nil {
+		*atp = AutoTieringPolicy{}
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(bytes, atp)
+}
+
+// Value implements the driver.Valuer interface for AutoTieringPolicy
+func (atp AutoTieringPolicy) Value() (driver.Value, error) {
+	return json.Marshal(atp)
 }

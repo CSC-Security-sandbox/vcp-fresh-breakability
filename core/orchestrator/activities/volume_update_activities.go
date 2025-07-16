@@ -43,12 +43,12 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 		SnapshotPolicyName: snapshotPolicyName,
 		SnapReserve:        params.SnapReserve,
 	}
-	if params.TieringPolicy != nil {
+	if params.AutoTieringPolicy != nil {
 		updateVolumeParams.TieringPolicy = &vsa.TieringPolicy{}
-		if params.TieringPolicy.CoolAccess {
-			updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&params.TieringPolicy.CoolAccessTieringPolicy, ontapModels.VolumeInlineTieringPolicyAuto)
-			updateVolumeParams.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&params.TieringPolicy.CoolAccessRetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
-			updateVolumeParams.TieringPolicy.CoolnessPeriod = int64(params.TieringPolicy.CoolnessPeriod)
+		if params.AutoTieringPolicy.CoolAccessEnabled {
+			updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&params.AutoTieringPolicy.TieringPolicy, ontapModels.VolumeInlineTieringPolicyAuto)
+			updateVolumeParams.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&params.AutoTieringPolicy.RetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
+			updateVolumeParams.TieringPolicy.CoolnessPeriod = int64(params.AutoTieringPolicy.CoolingThresholdDays)
 		} else {
 			updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = ontapModels.VolumeInlineTieringPolicyNone
 		}
@@ -292,17 +292,18 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 		volume.VolumeAttributes.BlockProperties.HostGroupDetails = hgDetails
 	}
 
-	if params.TieringPolicy != nil &&
-		(params.TieringPolicy.CoolAccess != volume.CoolAccess ||
-			(params.TieringPolicy.CoolAccess && params.TieringPolicy.CoolnessPeriod != volume.CoolnessPeriod)) {
-		updates["cool_access"] = params.TieringPolicy.CoolAccess
-		updates["cool_access_tiering_policy"] = params.TieringPolicy.CoolAccessTieringPolicy
-		updates["coolness_period"] = nil
-		updates["cool_access_retrieval_policy"] = nil
-		if params.TieringPolicy.CoolAccessRetrievalPolicy != ontapModels.VolumeInlineTieringPolicyNone {
-			updates["cool_access_retrieval_policy"] = params.TieringPolicy.CoolAccessRetrievalPolicy
-			updates["coolness_period"] = params.TieringPolicy.CoolnessPeriod
+	if params.AutoTieringPolicy != nil &&
+		(params.AutoTieringPolicy.CoolAccessEnabled != volume.CoolAccessEnabled ||
+			(params.AutoTieringPolicy.CoolAccessEnabled && volume.AutoTieringPolicy != nil && params.AutoTieringPolicy.CoolingThresholdDays != volume.AutoTieringPolicy.CoolingThresholdDays)) {
+		updates["cool_access_enabled"] = params.AutoTieringPolicy.CoolAccessEnabled
+		autoTieringPolicy := &datamodel.AutoTieringPolicy{
+			TieringPolicy: params.AutoTieringPolicy.TieringPolicy,
 		}
+		if params.AutoTieringPolicy.TieringPolicy != ontapModels.VolumeInlineTieringPolicyNone {
+			autoTieringPolicy.CoolingThresholdDays = params.AutoTieringPolicy.CoolingThresholdDays
+			autoTieringPolicy.RetrievalPolicy = params.AutoTieringPolicy.RetrievalPolicy
+		}
+		updates["auto_tiering_policy"] = autoTieringPolicy
 	}
 
 	updates["volume_attributes"] = volume.VolumeAttributes

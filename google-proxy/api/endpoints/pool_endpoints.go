@@ -536,8 +536,8 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		Unified:                 gcpgenserver.NewOptBool(true),
 		StorageClass:            gcpgenserver.NewOptStorageClassV1beta("SOFTWARE"),
 		AllowAutoTiering:        gcpgenserver.NewOptNilBool(pool.AllowAutoTiering),
-		HotTierSizeInBytes:      gcpgenserver.NewOptNilFloat64(float64(pool.HotTierSizeInBytes)),
-		EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(pool.EnableHotTierAutoResize),
+		HotTierSizeInBytes:      gcpgenserver.NewOptNilFloat64(getHotTierSizeInBytes(pool.AutoTieringConfig)),
+		EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(getEnableHotTierAutoResize(pool.AutoTieringConfig)),
 		AllocatedBytes:          gcpgenserver.NewOptNilFloat64(pool.PoolAttributes.AllocatedBytes),
 		NumberOfVolumes:         gcpgenserver.NewOptNilInt32(int32(pool.PoolAttributes.NumberOfVolumes)),
 		EncryptionType:          gcpgenserver.NewOptPoolV1betaEncryptionType(gcpgenserver.PoolV1betaEncryptionType(utils.GetEncryptionType(nil))), // pass pool.KmsConfigID
@@ -624,6 +624,21 @@ func convertToPoolV1beta(pool *cvpmodels.PoolV1beta) *gcpgenserver.PoolV1beta {
 		UnifiedPool: gcpgenserver.NewOptBool(false),
 		Unified:     gcpgenserver.NewOptBool(false),
 	}
+}
+
+// Helper functions for AutoTieringConfig field access
+func getHotTierSizeInBytes(config *models.AutoTieringConfig) float64 {
+	if config == nil {
+		return 0
+	}
+	return float64(config.HotTierSizeInBytes)
+}
+
+func getEnableHotTierAutoResize(config *models.AutoTieringConfig) bool {
+	if config == nil {
+		return false
+	}
+	return config.EnableHotTierAutoResize
 }
 
 // validateCreatePoolParams validates the parameters for creating a pool.

@@ -412,7 +412,9 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 				ServiceAccountEmail: "test-sa-email",
 			},
 		},
-		AutoTierBucketName: "test-auto-tier-bucket",
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: "test-auto-tier-bucket",
+		},
 	}
 
 	// Register activity mocks.
@@ -476,9 +478,11 @@ func TestDeletePoolWorkflow(t *testing.T) {
 	}
 
 	pool := &datamodel.Pool{
-		Name:               "test-pool",
-		AutoTierBucketName: "test-bucket",
-		ServiceAccountId:   "test-service-account",
+		Name: "test-pool",
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: "test-bucket",
+		},
+		ServiceAccountId: "test-service-account",
 		ClusterDetails: datamodel.ClusterDetails{
 			RegionalTenantProject: "test-tenant",
 		},
@@ -547,9 +551,11 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 	env.RegisterActivity(&activities.PoolActivity{})
 
 	pool := &datamodel.Pool{
-		Name:               "test-pool",
-		AutoTierBucketName: "test-bucket",
-		ServiceAccountId:   "test-service-account",
+		Name: "test-pool",
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: "test-bucket",
+		},
+		ServiceAccountId: "test-service-account",
 		ClusterDetails: datamodel.ClusterDetails{
 			RegionalTenantProject: "test-tenant",
 		},

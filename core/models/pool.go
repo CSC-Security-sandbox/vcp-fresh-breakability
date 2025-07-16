@@ -17,14 +17,12 @@ type Pool struct {
 	UtilizedThroughputMibps float64
 	Tags                    string
 	AllowAutoTiering        bool
-	HotTierSizeInBytes      uint64
-	EnableHotTierAutoResize bool
 	VendorSubNetID          string
 	QosType                 string
 	PoolAttributes          *PoolAttributes
 	ClusterAttributes       *ClusterAttributes
 	CustomPerformanceParams *CustomPerformanceParams
-	AutoTierBucketName      string
+	AutoTieringConfig       *AutoTieringConfig
 	SaAccountID             string
 	DeploymentName          string
 }
@@ -55,4 +53,11 @@ type CustomPerformanceParams struct {
 	Enabled    bool
 	Throughput float64
 	Iops       int64
+}
+
+// AutoTieringConfig describes the auto-tiering configuration for a pool
+type AutoTieringConfig struct {
+	HotTierSizeInBytes      uint64
+	EnableHotTierAutoResize bool
+	BucketName              string
 }

@@ -161,8 +161,8 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPo
 				},
 			},
 		},
-		TieringPolicy: &common.TieringPolicy{
-			CoolAccess: false,
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			CoolAccessEnabled: false,
 		},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params1, volume1)
@@ -305,8 +305,8 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPo
 				},
 			},
 		},
-		TieringPolicy: &common.TieringPolicy{
-			CoolAccess: false,
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			CoolAccessEnabled: false,
 		},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params2, volume2)
@@ -429,8 +429,8 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success_WithSnapshotPo
 	params3 := &common.UpdateVolumeParams{
 		QuotaInBytes:   200,
 		SnapshotPolicy: nil,
-		TieringPolicy: &common.TieringPolicy{
-			CoolAccess: false,
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			CoolAccessEnabled: false,
 		},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params3, volume3)
@@ -495,8 +495,8 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SnapshotPolicy_OnlyEna
 			IsEnabled: true,
 			Schedules: []*models.SnapshotPolicySchedule{}, // Empty schedules
 		},
-		TieringPolicy: &common.TieringPolicy{
-			CoolAccess: false,
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			CoolAccessEnabled: false,
 		},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
@@ -546,8 +546,8 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_NoSizeChange() {
 	}
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes: 100,
-		TieringPolicy: &common.TieringPolicy{
-			CoolAccess: false,
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			CoolAccessEnabled: false,
 		},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
@@ -676,8 +676,8 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_BPSuccess() {
 		BlockProperties: &common.BlockPropertiesRequest{
 			HostGroupUUIDs: []string{"hg-uuid-3"},
 		},
-		TieringPolicy: &common.TieringPolicy{
-			CoolAccess: false,
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			CoolAccessEnabled: false,
 		},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
@@ -1185,17 +1185,19 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_AutoTier() {
 				},
 			},
 		},
-		CoolAccess:     true,
-		CoolnessPeriod: 5,
+		CoolAccessEnabled: true,
+		AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+			CoolingThresholdDays: 5,
+		},
 	}
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes: 100,
 		BlockProperties: &common.BlockPropertiesRequest{
 			HostGroupUUIDs: []string{"hg-uuid-3"},
 		},
-		TieringPolicy: &common.TieringPolicy{
-			CoolAccess:     true,
-			CoolnessPeriod: 10,
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			CoolAccessEnabled:    true,
+			CoolingThresholdDays: 10,
 		},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
@@ -1227,8 +1229,8 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_AutoTier() {
 	// New params for second run
 	params2 := &common.UpdateVolumeParams{
 		QuotaInBytes: 100,
-		TieringPolicy: &common.TieringPolicy{
-			CoolAccess: false,
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			CoolAccessEnabled: false,
 		},
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params2, volume)
@@ -1253,12 +1255,12 @@ func TestIsUpdateRequired(t *testing.T) {
 			},
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes: 200,
-				TieringPolicy: &common.TieringPolicy{
-					CoolAccess: false,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled: false,
 				},
 			},
 			existingVolume: &datamodel.Volume{
-				CoolAccess: false,
+				CoolAccessEnabled: false,
 			},
 			want: true,
 		},
@@ -1269,12 +1271,12 @@ func TestIsUpdateRequired(t *testing.T) {
 			},
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes: 200,
-				TieringPolicy: &common.TieringPolicy{
-					CoolAccess: false,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled: false,
 				},
 			},
 			existingVolume: &datamodel.Volume{
-				CoolAccess: false,
+				CoolAccessEnabled: false,
 			},
 			want: false,
 		},
@@ -1287,12 +1289,12 @@ func TestIsUpdateRequired(t *testing.T) {
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes: 150,
 				SnapReserve:  &[]int64{20}[0],
-				TieringPolicy: &common.TieringPolicy{
-					CoolAccess: false,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled: false,
 				},
 			},
 			existingVolume: &datamodel.Volume{
-				CoolAccess: false,
+				CoolAccessEnabled: false,
 			},
 			want: true,
 		},
@@ -1305,12 +1307,12 @@ func TestIsUpdateRequired(t *testing.T) {
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes: 150,
 				SnapReserve:  &[]int64{10}[0],
-				TieringPolicy: &common.TieringPolicy{
-					CoolAccess: false,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled: false,
 				},
 			},
 			existingVolume: &datamodel.Volume{
-				CoolAccess: false,
+				CoolAccessEnabled: false,
 			},
 			want: false,
 		},
@@ -1323,12 +1325,12 @@ func TestIsUpdateRequired(t *testing.T) {
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes:   150,
 				SnapshotPolicy: &models.SnapshotPolicy{Name: "new-policy"},
-				TieringPolicy: &common.TieringPolicy{
-					CoolAccess: false,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled: false,
 				},
 			},
 			existingVolume: &datamodel.Volume{
-				CoolAccess: false,
+				CoolAccessEnabled: false,
 			},
 			want: true,
 		},
@@ -1341,83 +1343,87 @@ func TestIsUpdateRequired(t *testing.T) {
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes:   150,
 				SnapshotPolicy: &models.SnapshotPolicy{Name: "policy1"},
-				TieringPolicy: &common.TieringPolicy{
-					CoolAccess: false,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled: false,
 				},
 			},
 			existingVolume: &datamodel.Volume{
-				CoolAccess: false,
+				CoolAccessEnabled: false,
 			},
 			want: false,
 		},
 		{
-			name: "CoolAccess changed from false to true - update required",
+			name: "CoolAccessEnabled changed from false to true - update required",
 			response: &vsa.VolumeResponse{
 				Size: 150,
 			},
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes: 150,
-				TieringPolicy: &common.TieringPolicy{
-					CoolAccess:     true,
-					CoolnessPeriod: 10,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled:    true,
+					CoolingThresholdDays: 10,
 				},
 			},
 			existingVolume: &datamodel.Volume{
-				CoolAccess:     false,
-				CoolnessPeriod: 5,
+				CoolAccessEnabled: false,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+					CoolingThresholdDays: 5,
+				},
 			},
 			want: true,
 		},
 		{
-			name: "CoolAccess changed from true to false - update required",
+			name: "CoolAccessEnabled changed from true to false - update required",
 			response: &vsa.VolumeResponse{
 				Size: 150,
 			},
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes: 150,
-				TieringPolicy: &common.TieringPolicy{
-					CoolAccess: false,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled: false,
 				},
 			},
 			existingVolume: &datamodel.Volume{
-				CoolAccess:     true,
-				CoolnessPeriod: 10,
+				CoolAccessEnabled: true,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+					CoolingThresholdDays: 10,
+				},
 			},
 			want: true,
 		},
 		{
-			name: "CoolnessPeriod changed when CoolAccess is true - update required",
+			name: "CoolnessPeriod changed when CoolAccessEnabled is true - update required",
 			response: &vsa.VolumeResponse{
 				Size: 150,
 			},
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes: 150,
-				TieringPolicy: &common.TieringPolicy{
-					CoolAccess:     true,
-					CoolnessPeriod: 15,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled:    true,
+					CoolingThresholdDays: 15,
 				},
 			},
 			existingVolume: &datamodel.Volume{
-				CoolAccess:     true,
-				CoolnessPeriod: 10,
+				CoolAccessEnabled: true,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{CoolingThresholdDays: 10},
 			},
 			want: true,
 		},
 		{
-			name: "CoolnessPeriod changed when CoolAccess is false - no update required",
+			name: "CoolnessPeriod changed when CoolAccessEnabled is false - no update required",
 			response: &vsa.VolumeResponse{
 				Size: 150,
 			},
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes: 150,
-				TieringPolicy: &common.TieringPolicy{
-					CoolAccess:     false,
-					CoolnessPeriod: 15,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled:    false,
+					CoolingThresholdDays: 15,
 				},
 			},
 			existingVolume: &datamodel.Volume{
-				CoolAccess:     false,
-				CoolnessPeriod: 10,
+				CoolAccessEnabled: false,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{CoolingThresholdDays: 10},
 			},
 			want: false,
 		},
@@ -1432,14 +1438,14 @@ func TestIsUpdateRequired(t *testing.T) {
 				QuotaInBytes:   150,
 				SnapReserve:    &[]int64{10}[0],
 				SnapshotPolicy: &models.SnapshotPolicy{Name: "policy1"},
-				TieringPolicy: &common.TieringPolicy{
-					CoolAccess:     true,
-					CoolnessPeriod: 10,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled:    true,
+					CoolingThresholdDays: 10,
 				},
 			},
 			existingVolume: &datamodel.Volume{
-				CoolAccess:     true,
-				CoolnessPeriod: 10,
+				CoolAccessEnabled: true,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{CoolingThresholdDays: 10},
 			},
 			want: false,
 		},
@@ -1454,14 +1460,14 @@ func TestIsUpdateRequired(t *testing.T) {
 				QuotaInBytes:   200,
 				SnapReserve:    &[]int64{15}[0],
 				SnapshotPolicy: &models.SnapshotPolicy{Name: "new-policy"},
-				TieringPolicy: &common.TieringPolicy{
-					CoolAccess:     true,
-					CoolnessPeriod: 20,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled:    true,
+					CoolingThresholdDays: 20,
 				},
 			},
 			existingVolume: &datamodel.Volume{
-				CoolAccess:     false,
-				CoolnessPeriod: 10,
+				CoolAccessEnabled: false,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{CoolingThresholdDays: 10},
 			},
 			want: true,
 		},
@@ -1474,12 +1480,12 @@ func TestIsUpdateRequired(t *testing.T) {
 			},
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes: 150,
-				TieringPolicy: &common.TieringPolicy{
-					CoolAccess: false,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled: false,
 				},
 			},
 			existingVolume: &datamodel.Volume{
-				CoolAccess: false,
+				CoolAccessEnabled: false,
 			},
 			want: false,
 		},
@@ -1490,12 +1496,12 @@ func TestIsUpdateRequired(t *testing.T) {
 			},
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes: 100,
-				TieringPolicy: &common.TieringPolicy{
-					CoolAccess: false,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled: false,
 				},
 			},
 			existingVolume: &datamodel.Volume{
-				CoolAccess: false,
+				CoolAccessEnabled: false,
 			},
 			want: false,
 		},
@@ -1516,6 +1522,179 @@ func TestIsUpdateRequired(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := isUpdateRequired(tt.response, tt.params, tt.existingVolume)
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestGetUpdateParamsForRollback(t *testing.T) {
+	tests := []struct {
+		name           string
+		volResponse    *vsa.VolumeResponse
+		existingVolume *datamodel.Volume
+		expected       *common.UpdateVolumeParams
+	}{
+		{
+			name: "Volume with AutoTieringPolicy - all fields populated",
+			volResponse: &vsa.VolumeResponse{
+				Size: 1024 * 1024 * 1024, // 1GB
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccessEnabled: true,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+					CoolingThresholdDays: 30,
+					TieringPolicy:        "auto",
+					RetrievalPolicy:      "default",
+				},
+			},
+			expected: &common.UpdateVolumeParams{
+				QuotaInBytes: 1024 * 1024 * 1024,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled:    true,
+					CoolingThresholdDays: 30,
+					TieringPolicy:        "auto",
+					RetrievalPolicy:      "default",
+				},
+			},
+		},
+		{
+			name: "Volume with AutoTieringPolicy - CoolAccessEnabled false",
+			volResponse: &vsa.VolumeResponse{
+				Size: 2048 * 1024 * 1024, // 2GB
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccessEnabled: false,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+					CoolingThresholdDays: 15,
+					TieringPolicy:        "none",
+					RetrievalPolicy:      "never",
+				},
+			},
+			expected: &common.UpdateVolumeParams{
+				QuotaInBytes: 2048 * 1024 * 1024,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled:    false,
+					CoolingThresholdDays: 15,
+					TieringPolicy:        "none",
+					RetrievalPolicy:      "never",
+				},
+			},
+		},
+		{
+			name: "Volume with AutoTieringPolicy - zero cooling threshold",
+			volResponse: &vsa.VolumeResponse{
+				Size: 512 * 1024 * 1024, // 512MB
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccessEnabled: true,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+					CoolingThresholdDays: 0,
+					TieringPolicy:        "snapshot-only",
+					RetrievalPolicy:      "on-read",
+				},
+			},
+			expected: &common.UpdateVolumeParams{
+				QuotaInBytes: 512 * 1024 * 1024,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled:    true,
+					CoolingThresholdDays: 0,
+					TieringPolicy:        "snapshot-only",
+					RetrievalPolicy:      "on-read",
+				},
+			},
+		},
+		{
+			name: "Volume with AutoTieringPolicy - empty string policies",
+			volResponse: &vsa.VolumeResponse{
+				Size: 4096 * 1024 * 1024, // 4GB
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccessEnabled: true,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+					CoolingThresholdDays: 90,
+					TieringPolicy:        "",
+					RetrievalPolicy:      "",
+				},
+			},
+			expected: &common.UpdateVolumeParams{
+				QuotaInBytes: 4096 * 1024 * 1024,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled:    true,
+					CoolingThresholdDays: 90,
+					TieringPolicy:        "",
+					RetrievalPolicy:      "",
+				},
+			},
+		},
+		{
+			name: "Volume without AutoTieringPolicy - nil policy",
+			volResponse: &vsa.VolumeResponse{
+				Size: 1024 * 1024 * 1024, // 1GB
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccessEnabled: false,
+				AutoTieringPolicy: nil,
+			},
+			expected: &common.UpdateVolumeParams{
+				QuotaInBytes: 1024 * 1024 * 1024,
+				// AutoTieringPolicy should be nil
+			},
+		},
+		{
+			name: "Volume with CoolAccessEnabled but nil AutoTieringPolicy",
+			volResponse: &vsa.VolumeResponse{
+				Size: 2048 * 1024 * 1024, // 2GB
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccessEnabled: true,
+				AutoTieringPolicy: nil,
+			},
+			expected: &common.UpdateVolumeParams{
+				QuotaInBytes: 2048 * 1024 * 1024,
+				// AutoTieringPolicy should be nil even though CoolAccessEnabled is true
+			},
+		},
+		{
+			name: "Volume with cooling threshold days",
+			volResponse: &vsa.VolumeResponse{
+				Size: 8192 * 1024 * 1024, // 8GB
+			},
+			existingVolume: &datamodel.Volume{
+				CoolAccessEnabled: true,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+					CoolingThresholdDays: 183, // Maximum allowed days
+					TieringPolicy:        "auto",
+					RetrievalPolicy:      "default",
+				},
+			},
+			expected: &common.UpdateVolumeParams{
+				QuotaInBytes: 8192 * 1024 * 1024,
+				AutoTieringPolicy: &common.AutoTieringPolicy{
+					CoolAccessEnabled:    true,
+					CoolingThresholdDays: 183,
+					TieringPolicy:        "auto",
+					RetrievalPolicy:      "default",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getUpdateParamsForRollback(tt.volResponse, tt.existingVolume)
+
+			// Assert basic fields
+			assert.Equal(t, tt.expected.QuotaInBytes, result.QuotaInBytes)
+
+			// Assert AutoTieringPolicy
+			if tt.expected.AutoTieringPolicy == nil {
+				assert.Nil(t, result.AutoTieringPolicy)
+			} else {
+				assert.NotNil(t, result.AutoTieringPolicy)
+				assert.Equal(t, tt.expected.AutoTieringPolicy.CoolAccessEnabled, result.AutoTieringPolicy.CoolAccessEnabled)
+				assert.Equal(t, tt.expected.AutoTieringPolicy.CoolingThresholdDays, result.AutoTieringPolicy.CoolingThresholdDays)
+				assert.Equal(t, tt.expected.AutoTieringPolicy.TieringPolicy, result.AutoTieringPolicy.TieringPolicy)
+				assert.Equal(t, tt.expected.AutoTieringPolicy.RetrievalPolicy, result.AutoTieringPolicy.RetrievalPolicy)
+			}
 		})
 	}
 }

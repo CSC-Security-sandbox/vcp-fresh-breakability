@@ -1284,6 +1284,10 @@ func TestUpdatePoolWithKmsConfigIDUTs(t *testing.T) {
 
 // Unit test for ConvertPoolViewToPool
 func TestConvertPoolViewToPool(t *testing.T) {
+	autoTiering := &datamodel.AutoTieringConfig{
+		HotTierSizeInBytes:      200,
+		EnableHotTierAutoResize: true,
+	}
 	view := &datamodel.PoolView{
 		Pool: datamodel.Pool{
 			BaseModel:               datamodel.BaseModel{UUID: "uuid-1"},
@@ -1297,8 +1301,7 @@ func TestConvertPoolViewToPool(t *testing.T) {
 			UsedBytes:               500,
 			Network:                 "net-1",
 			AllowAutoTiering:        true,
-			HotTierSizeInBytes:      200,
-			EnableHotTierAutoResize: true,
+			AutoTieringConfig: autoTiering,
 			AccountID:               1,
 			Account:                 &datamodel.Account{Name: "acc"},
 			ClusterDetails:          datamodel.ClusterDetails{ExternalName: "cluster"},

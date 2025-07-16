@@ -34,8 +34,8 @@ var (
 )
 
 const (
-	minCoolnessPeriodDays   = 2
-	maxCoolnessPeriodDays   = 183
+	minCoolingThresholdDays = 2
+	maxCoolingThresholdDays = 183
 	MaxBackupPathComponents = 8 // The expected number of components in the backup path
 	BackupNameIndex         = 7 // The index of the backup name in the components
 	BackupVaultNameIndex    = 5 // The index of the backup vault name in the components
@@ -150,11 +150,13 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 	}
 
-	if params.TieringPolicy != nil && params.TieringPolicy.CoolAccess {
-		volumeObj.CoolAccess = params.TieringPolicy.CoolAccess
-		volumeObj.CoolAccessTieringPolicy = params.TieringPolicy.CoolAccessTieringPolicy
-		volumeObj.CoolnessPeriod = params.TieringPolicy.CoolnessPeriod
-		volumeObj.CoolAccessRetrievalPolicy = params.TieringPolicy.CoolAccessRetrievalPolicy
+	if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.CoolAccessEnabled {
+		volumeObj.CoolAccessEnabled = params.AutoTieringPolicy.CoolAccessEnabled
+		volumeObj.AutoTieringPolicy = &datamodel.AutoTieringPolicy{
+			TieringPolicy:        params.AutoTieringPolicy.TieringPolicy,
+			CoolingThresholdDays: params.AutoTieringPolicy.CoolingThresholdDays,
+			RetrievalPolicy:      params.AutoTieringPolicy.RetrievalPolicy,
+		}
 	}
 
 	var isRestore bool
@@ -386,10 +388,10 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 	}
 
-	if !pool.AllowAutoTiering && params.TieringPolicy != nil && params.TieringPolicy.CoolAccess {
+	if !pool.AllowAutoTiering && params.AutoTieringPolicy != nil && params.AutoTieringPolicy.CoolAccessEnabled {
 		return customerrors.NewUserInputValidationErr("Auto Tiering is not allowed for this volume. Please enable Auto Tiering on the Pool and try again")
-	} else if params.TieringPolicy != nil && params.TieringPolicy.CoolAccess {
-		if params.TieringPolicy.CoolnessPeriod < minCoolnessPeriodDays || params.TieringPolicy.CoolnessPeriod > maxCoolnessPeriodDays {
+	} else if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.CoolAccessEnabled {
+		if params.AutoTieringPolicy.CoolingThresholdDays < minCoolingThresholdDays || params.AutoTieringPolicy.CoolingThresholdDays > maxCoolingThresholdDays {
 			return customerrors.NewUserInputValidationErr("Auto Tiering Cooling Threshold days must be between 2 and 183 days")
 		}
 	}
@@ -464,11 +466,11 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 		}
 	}
 
-	if volume.CoolAccess {
-		res.TieringPolicy = &models.TieringPolicy{
-			CoolAccess:              volume.CoolAccess,
-			CoolnessPeriod:          volume.CoolnessPeriod,
-			CoolAccessTieringPolicy: volume.CoolAccessTieringPolicy,
+	if volume.CoolAccessEnabled && volume.AutoTieringPolicy != nil {
+		res.AutoTieringPolicy = &models.AutoTieringPolicy{
+			CoolAccessEnabled:    volume.CoolAccessEnabled,
+			CoolingThresholdDays: volume.AutoTieringPolicy.CoolingThresholdDays,
+			TieringPolicy:        volume.AutoTieringPolicy.TieringPolicy,
 		}
 	}
 
@@ -690,10 +692,10 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		}
 	}
 
-	if !pool.AllowAutoTiering && params.TieringPolicy != nil && params.TieringPolicy.CoolAccess {
+	if !pool.AllowAutoTiering && params.AutoTieringPolicy != nil && params.AutoTieringPolicy.CoolAccessEnabled {
 		return customerrors.NewUserInputValidationErr("Auto Tiering is not allowed for this volume. Please enable Auto Tiering on the Pool and try again")
-	} else if params.TieringPolicy != nil && params.TieringPolicy.CoolAccess {
-		if params.TieringPolicy.CoolnessPeriod < minCoolnessPeriodDays || params.TieringPolicy.CoolnessPeriod > maxCoolnessPeriodDays {
+	} else if params.AutoTieringPolicy != nil && params.AutoTieringPolicy.CoolAccessEnabled {
+		if params.AutoTieringPolicy.CoolingThresholdDays < minCoolingThresholdDays || params.AutoTieringPolicy.CoolingThresholdDays > maxCoolingThresholdDays {
 			return customerrors.NewUserInputValidationErr("Auto Tiering Cooling Threshold days must be between 2 and 183 days")
 		}
 	}

@@ -241,7 +241,10 @@ func TestConvertToVolumeReplicationInternalV1Beta(t *testing.T) {
 
 func TestConvertToPoolInternalV1Beta(t *testing.T) {
 	timenow := time.Now()
-
+	autoTieringConfig := &models.AutoTieringConfig{
+		HotTierSizeInBytes:      0,
+		EnableHotTierAutoResize: false,
+	}
 	pool := &models.Pool{
 		BaseModel: models.BaseModel{
 			ID:        1,
@@ -262,8 +265,7 @@ func TestConvertToPoolInternalV1Beta(t *testing.T) {
 		TotalThroughputMibps:    0,
 		UtilizedThroughputMibps: 0,
 		AllowAutoTiering:        false,
-		HotTierSizeInBytes:      0,
-		EnableHotTierAutoResize: false,
+		AutoTieringConfig:       autoTieringConfig,
 		VendorSubNetID:          "vendor-subnet-id",
 		QosType:                 "none",
 		PoolAttributes: &models.PoolAttributes{

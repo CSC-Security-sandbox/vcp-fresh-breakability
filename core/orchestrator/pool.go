@@ -85,18 +85,20 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		BaseModel: datamodel.BaseModel{
 			UUID: utils.RandomUUID(),
 		},
-		Name:                    params.Name,
-		Account:                 account,
-		AccountID:               account.ID,
-		VendorID:                params.VendorID,
-		Network:                 params.VendorSubNetID,
-		SizeInBytes:             int64(params.SizeInBytes),
-		AllowAutoTiering:        params.AllowAutoTiering,
-		HotTierSizeInBytes:      int64(params.HotTierSizeInBytes),
-		EnableHotTierAutoResize: params.EnableHotTierAutoResize,
-		Description:             params.Description,
-		ServiceLevel:            params.ServiceLevel,
-		QosType:                 params.QosType,
+		Name:             params.Name,
+		Account:          account,
+		AccountID:        account.ID,
+		VendorID:         params.VendorID,
+		Network:          params.VendorSubNetID,
+		SizeInBytes:      int64(params.SizeInBytes),
+		AllowAutoTiering: params.AllowAutoTiering,
+		Description:      params.Description,
+		ServiceLevel:     params.ServiceLevel,
+		QosType:          params.QosType,
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			HotTierSizeInBytes:      int64(params.HotTierSizeInBytes),
+			EnableHotTierAutoResize: params.EnableHotTierAutoResize,
+		},
 		PoolAttributes: &datamodel.PoolAttributes{
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			Iops:            params.CustomPerformanceParams.Iops,
@@ -293,7 +295,7 @@ func _validateUpdatePoolParams(params *commonparams.UpdatePoolParams, pool *data
 	if params.AllowAutoTiering {
 		if !pool.AllowAutoTiering && params.HotTierSizeInBytes < uint64(pool.SizeInBytes) {
 			return customerrors.NewUserInputValidationErr("Given hot tier size is not supported. Hot tier size cannot be less than existing pool size")
-		} else if pool.AllowAutoTiering && params.HotTierSizeInBytes < uint64(pool.HotTierSizeInBytes) {
+		} else if pool.AllowAutoTiering && pool.AutoTieringConfig != nil && params.HotTierSizeInBytes < uint64(pool.AutoTieringConfig.HotTierSizeInBytes) {
 			return customerrors.NewUserInputValidationErr("Given hot tier size is not supported. Hot tier size must be greater than existing hot tier size")
 		}
 	} else if pool.AllowAutoTiering {
@@ -555,6 +557,15 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 	if pool.PoolAttributes != nil && pool.PoolAttributes.Labels != nil {
 		labels = convertJSONBToMap(pool.PoolAttributes.Labels)
 	}
+
+	var autoTieringConfig *models.AutoTieringConfig
+	if pool.AutoTieringConfig != nil {
+		autoTieringConfig = &models.AutoTieringConfig{
+			HotTierSizeInBytes:      uint64(pool.AutoTieringConfig.HotTierSizeInBytes),
+			EnableHotTierAutoResize: pool.AutoTieringConfig.EnableHotTierAutoResize,
+		}
+	}
+
 	return &models.Pool{
 		BaseModel: models.BaseModel{
 			UUID:      pool.UUID,
@@ -562,19 +573,17 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 			UpdatedAt: pool.UpdatedAt,
 			DeletedAt: DeletedAtOrNil(pool.DeletedAt),
 		},
-		AccountName:             accountName,
-		Name:                    pool.Name,
-		Description:             pool.Description,
-		SizeInBytes:             uint64(pool.SizeInBytes),
-		State:                   pool.State,
-		StateDetails:            pool.StateDetails,
-		AllowAutoTiering:        pool.AllowAutoTiering,
-		VendorSubNetID:          pool.Network,
-		ServiceLevel:            pool.ServiceLevel,
-		QosType:                 pool.QosType,
-		HotTierSizeInBytes:      uint64(pool.HotTierSizeInBytes),
-		EnableHotTierAutoResize: pool.EnableHotTierAutoResize,
-		DeploymentName:          pool.DeploymentName,
+		AccountName:      accountName,
+		Name:             pool.Name,
+		Description:      pool.Description,
+		SizeInBytes:      uint64(pool.SizeInBytes),
+		State:            pool.State,
+		StateDetails:     pool.StateDetails,
+		AllowAutoTiering: pool.AllowAutoTiering,
+		VendorSubNetID:   pool.Network,
+		ServiceLevel:     pool.ServiceLevel,
+		QosType:          pool.QosType,
+		DeploymentName:   pool.DeploymentName,
 		PoolAttributes: &models.PoolAttributes{
 			AllocatedBytes:  float64(pool.QuotaInBytes),
 			NumberOfVolumes: pool.VolumeCount,
@@ -582,6 +591,7 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 			SecondaryZone:   pool.PoolAttributes.SecondaryZone,
 			Labels:          labels,
 		},
+		AutoTieringConfig: autoTieringConfig,
 		CustomPerformanceParams: &models.CustomPerformanceParams{
 			Enabled:    true,
 			Throughput: float64(pool.PoolAttributes.ThroughputMibps),

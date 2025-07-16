@@ -222,16 +222,16 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if !autoTieringEnabled {
 			return nil, errors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
 		}
-		param.TieringPolicy = &common.TieringPolicy{}
+		param.AutoTieringPolicy = &common.AutoTieringPolicy{}
 		switch req.Volume.TieringPolicy.Value.TierAction.Value {
 		case gcpgenserver.TieringPolicyV1betaTierActionENABLED:
-			param.TieringPolicy.CoolAccess = true
-			param.TieringPolicy.CoolAccessTieringPolicy = ontapmodels.VolumeInlineTieringPolicyAuto
-			param.TieringPolicy.CoolAccessRetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
-			param.TieringPolicy.CoolnessPeriod = req.Volume.TieringPolicy.Value.CoolingThresholdDays.Value
+			param.AutoTieringPolicy.CoolAccessEnabled = true
+			param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAuto
+			param.AutoTieringPolicy.RetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
+			param.AutoTieringPolicy.CoolingThresholdDays = req.Volume.TieringPolicy.Value.CoolingThresholdDays.Value
 		case gcpgenserver.TieringPolicyV1betaTierActionPAUSED:
-			param.TieringPolicy.CoolAccess = false
-			param.TieringPolicy.CoolAccessTieringPolicy = ontapmodels.VolumeInlineTieringPolicyNone
+			param.AutoTieringPolicy.CoolAccessEnabled = false
+			param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyNone
 		}
 	}
 
@@ -399,16 +399,16 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		if !autoTieringEnabled {
 			return nil, errors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
 		}
-		param.TieringPolicy = &common.TieringPolicy{}
+		param.AutoTieringPolicy = &common.AutoTieringPolicy{}
 		switch req.TieringPolicy.Value.TierAction.Value {
 		case gcpgenserver.TieringPolicyV1betaTierActionENABLED:
-			param.TieringPolicy.CoolAccess = true
-			param.TieringPolicy.CoolAccessTieringPolicy = ontapmodels.VolumeInlineTieringPolicyAuto
-			param.TieringPolicy.CoolAccessRetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
-			param.TieringPolicy.CoolnessPeriod = req.TieringPolicy.Value.CoolingThresholdDays.Value
+			param.AutoTieringPolicy.CoolAccessEnabled = true
+			param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAuto
+			param.AutoTieringPolicy.RetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
+			param.AutoTieringPolicy.CoolingThresholdDays = req.TieringPolicy.Value.CoolingThresholdDays.Value
 		case gcpgenserver.TieringPolicyV1betaTierActionPAUSED:
-			param.TieringPolicy.CoolAccess = false
-			param.TieringPolicy.CoolAccessTieringPolicy = ontapmodels.VolumeInlineTieringPolicyNone
+			param.AutoTieringPolicy.CoolAccessEnabled = false
+			param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyNone
 		}
 	}
 
@@ -637,11 +637,11 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		res.SnapshotPolicy = gcpgenserver.NewOptSnapshotPolicyV1beta(*convertToSnapshotPolicyV2(volume.SnapshotPolicy))
 	}
 
-	if volume.TieringPolicy != nil && volume.TieringPolicy.CoolAccess {
+	if volume.AutoTieringPolicy != nil && volume.AutoTieringPolicy.CoolAccessEnabled {
 		res.TieringPolicy = gcpgenserver.NewOptTieringPolicyV1beta(
 			gcpgenserver.TieringPolicyV1beta{
 				TierAction:           gcpgenserver.NewOptNilTieringPolicyV1betaTierAction(gcpgenserver.TieringPolicyV1betaTierActionENABLED),
-				CoolingThresholdDays: gcpgenserver.NewOptNilInt32(volume.TieringPolicy.CoolnessPeriod),
+				CoolingThresholdDays: gcpgenserver.NewOptNilInt32(volume.AutoTieringPolicy.CoolingThresholdDays),
 			})
 	}
 
