@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -1025,6 +1026,38 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, float64(409), result.(*gcpgenserver.V1betaDeletePoolConflict).Code)
 		assert.Equal(tt, "Pool has active volumes", result.(*gcpgenserver.V1betaDeletePoolConflict).Message)
+	})
+	t.Run("WhenPoolIsAlreadyDeleted", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaDeletePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "deletable-pool-id",
+		}
+
+		createdAt := time.Now()
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID:      "deletable-pool-id",
+				CreatedAt: createdAt,
+				UpdatedAt: createdAt,
+				DeletedAt: &createdAt,
+			},
+			PoolAttributes: &models.PoolAttributes{},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaDeletePool(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "operation-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenPoolDeletionSucceeds", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)

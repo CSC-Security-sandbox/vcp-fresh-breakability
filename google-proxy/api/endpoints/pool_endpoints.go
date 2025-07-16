@@ -210,6 +210,16 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 			return &gcpgenserver.V1betaDeletePoolInternalServerError{}, err
 		}
 	}
+	if existingPool.DeletedAt != nil {
+		resp, err := encodePoolV1(convertToPoolV1Beta(existingPool))
+		if err != nil {
+			return nil, err
+		}
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.OptString{Value: "operation-id"},
+			Response: resp,
+		}, nil
+	}
 	deletePoolParams := &common.DeletePoolParams{
 		AccountName: params.ProjectNumber,
 		PoolID:      existingPool.UUID,
