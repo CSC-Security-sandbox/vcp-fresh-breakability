@@ -1,3 +1,4 @@
+# Harvest port range configuration
 global:
   primaryImageRegistry: ghcr.io
   primaryImageRegistryPath: vcp-vsa-control-plane
@@ -73,10 +74,18 @@ workerConfig:
   vsaLifecycleManagerQueuePrefix: "vsa-lifecycle-manager"
   ontapVersion: "9.18.1"
   enforceMinSpConfig: "true"
+  maxNodesPerGroup: 200
+
+  # Harvest Configuration
+  serviceControlUrl: "https://servicecontrol.googleapis.com"
+  serviceName: "autopush-netapp.sandbox.googleapis.com"
+  datacenter: "us-west-1"
   leaseNameSpace: "vcp"
   harvestHost: "harvest-farm-service.vcp.svc.cluster.local:3000"
-  enableMetrics: "true"
+  enableMetrics: "false"
   harvestRestProtocol: "http"
+  harvestPortStart: 13001
+  harvestPortEnd: 13500
   firewallSourceRanges: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,34.0.0.0/8,46.149.16.0/20,52.94.203.152/29,52.94.203.160/29,185.35.244.0/22,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20,198.18.0.0/15"
 
   # Database configuration

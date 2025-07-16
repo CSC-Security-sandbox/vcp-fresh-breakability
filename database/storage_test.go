@@ -1260,7 +1260,12 @@ func TestAssignTwoNodesToTwoGroups_Storage(t *testing.T) {
 	created2, err := store.CreateNode(ctx, n2)
 	assert.NoError(t, err)
 	// Assign to groups
-	mappings, err := store.AssignTwoNodesToTwoGroups(ctx, created1, created2, 5)
+	mappings, err := store.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            created1,
+		Node2:            created2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "accountID",
+	})
 	assert.NoError(t, err)
 	assert.Len(t, mappings, 2)
 	assert.NotZero(t, mappings[0].NodeGroupID)

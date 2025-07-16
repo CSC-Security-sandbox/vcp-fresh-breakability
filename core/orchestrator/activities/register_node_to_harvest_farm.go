@@ -5,14 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"mime/multipart"
-	"net/http"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"io"
+	"mime/multipart"
+	"net/http"
 )
 
 const (
@@ -65,7 +64,13 @@ func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(ctx contex
 		return nil, fmt.Errorf("not enough nodes found for pool")
 	}
 
-	nodeMappings, err := a.SE.AssignTwoNodesToTwoGroups(ctx, nodes[0], nodes[1], input.MaxNodesPerGroup)
+	nodeMappings, err := a.SE.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            nodes[0],
+		Node2:            nodes[1],
+		MaxNodesPerGroup: input.MaxNodesPerGroup,
+		CustomerProject:  input.CustomerProjectID,
+		TenantProject:    input.TenantProjectID,
+	})
 	if err != nil {
 		logger.Errorf("Failed to assign nodes to groups for pool ID %d: %v", input.PoolID, err)
 		return nil, fmt.Errorf("error assigning nodes to groups for pool ID %d: %w", input.PoolID, err)
@@ -120,24 +125,43 @@ type UploadHarvestTemplateInput struct {
 	UploadURL    string
 }
 
+// UploadYAMLFileInput is the input struct for uploadYAMLFile
+type UploadYAMLFileInput struct {
+	URL       string
+	YAML      string
+	LeaseName string
+	NodeID    int64
+}
+
 // uploadYAMLFile uploads the given YAML content as a file via HTTP POST multipart/form-data
-func uploadYAMLFile(ctx context.Context, url string, yamlContent string) (*http.Response, error) {
+func uploadYAMLFile(ctx context.Context, input UploadYAMLFileInput) (*http.Response, error) {
 	var buf bytes.Buffer
+	logger := util.GetLogger(ctx)
 	writer := multipart.NewWriter(&buf)
-	part, err := writer.CreateFormFile("file", "harvest.yaml")
+	fileName := fmt.Sprintf("%s%d.yaml", leasePrefix, input.NodeID) // Append nodeID to the file name
+	part, err := writer.CreateFormFile("file", fileName)
 	if err != nil {
 		return nil, errors.New("failed to create form file: " + err.Error())
 	}
-	_, err = part.Write([]byte(yamlContent))
+	_, err = part.Write([]byte(input.YAML))
+	logger.Debugf("Uploading YAML content %s", input.YAML)
 	if err != nil {
 		return nil, errors.New("failed to write YAML content: " + err.Error())
+	}
+	// Add leaseName as a form field
+	if input.LeaseName != "" {
+		err = writer.WriteField("leaseName", input.LeaseName)
+		if err != nil {
+			return nil, errors.New("failed to write leaseName field: " + err.Error())
+		}
 	}
 	if err := writer.Close(); err != nil {
 		return nil, errors.New("failed to close multipart writer: " + err.Error())
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, &buf)
+	req, err := http.NewRequestWithContext(ctx, "POST", input.URL, &buf)
 	if err != nil {
+		logger.Errorf("Failed to create HTTP request for uploading YAML file: %v", err)
 		return nil, errors.New("failed to create HTTP request: " + err.Error())
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -163,6 +187,11 @@ func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Contex
 			logger.Errorf("NodeNodeGroupMap is nil at index %d", i)
 			return errors.New("invalid node mapping: nil mapping")
 		}
+		// Fail if NodeGroup is nil or LeaseName is empty
+		if mapping.NodeGroup == nil || mapping.NodeGroup.LeaseName == "" {
+			logger.Errorf("NodeGroup is nil or LeaseName is empty for node mapping at index %d. Upload cannot proceed.", i)
+			return errors.New("invalid node mapping: NodeGroup is nil or LeaseName is empty; cannot upload YAML")
+		}
 		if mapping.HarvestConfig == nil {
 			logger.Errorf("HarvestConfig is nil for node mapping at index %d", i)
 			return errors.New("invalid node mapping: nil HarvestConfig")
@@ -172,7 +201,17 @@ func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Contex
 			logger.Errorf("Failed to render template for node mapping %d: %v", i, err)
 			return errors.New("template render failed for node mapping: " + err.Error())
 		}
-		resp, err := uploadYAMLFile(ctx, input.UploadURL, tmplStr)
+		// Only access LeaseName if NodeGroup is not nil
+		leaseName := ""
+		if mapping.NodeGroup != nil {
+			leaseName = mapping.NodeGroup.LeaseName
+		}
+		resp, err := uploadYAMLFile(ctx, UploadYAMLFileInput{
+			URL:       input.UploadURL,
+			YAML:      tmplStr,
+			LeaseName: leaseName,
+			NodeID:    mapping.NodeID,
+		})
 		if err != nil {
 			logger.Errorf("Failed to upload YAML template for node mapping %d: %v", i, err)
 			return errors.New("upload failed for node mapping: " + err.Error())
@@ -183,7 +222,7 @@ func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Contex
 		}
 
 		// Always read and close the response body to avoid resource leaks
-		_, readErr := io.ReadAll(resp.Body)
+		body, readErr := io.ReadAll(resp.Body)
 		closeErr := resp.Body.Close()
 		if readErr != nil {
 			logger.Warnf("Failed to read response body for node mapping %d: %v", i, readErr)
@@ -195,8 +234,8 @@ func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Contex
 		}
 
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			logger.Errorf("Upload failed for node mapping %d with status: %s", i, resp.Status)
-			return errors.New("upload failed: " + resp.Status)
+			logger.Errorf("Upload failed for node mapping %d with status: %s, response: %s", i, resp.Status, string(body))
+			return fmt.Errorf("upload failed for node mapping %d: %s", i, resp.Status)
 		}
 		logger.Infof("Successfully uploaded rendered template for node mapping %d as YAML file", i)
 	}

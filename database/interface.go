@@ -214,5 +214,5 @@ type DataStore interface {
 
 	// AssignTwoNodesToTwoGroups assigns two nodes to two different node groups, ensuring no group exceeds maxNodesPerGroup nodes
 	// Assumes that node1 and node2 are precreated and have valid IDs
-	AssignTwoNodesToTwoGroups(ctx context.Context, node1, node2 *datamodel.Node, maxNodesPerGroup int) ([]*datamodel.NodeNodeGroupMap, error)
+	AssignTwoNodesToTwoGroups(ctx context.Context, params datamodel.NodeGroupAssignmentParams) ([]*datamodel.NodeNodeGroupMap, error)
 }

@@ -2807,11 +2807,11 @@ func (re *retryEngine) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Conte
 	return var0, err
 }
 
-func (re *retryEngine) AssignTwoNodesToTwoGroups(ctx context.Context, node1, node2 *datamodel.Node, maxNodesPerGroup int) ([]*datamodel.NodeNodeGroupMap, error) {
+func (re *retryEngine) AssignTwoNodesToTwoGroups(ctx context.Context, params datamodel.NodeGroupAssignmentParams) ([]*datamodel.NodeNodeGroupMap, error) {
 	var var0 []*datamodel.NodeNodeGroupMap
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.AssignTwoNodesToTwoGroups(ctx, node1, node2, maxNodesPerGroup)
+		var0, err = re.dataStore.AssignTwoNodesToTwoGroups(ctx, params)
 		if err != nil {
 			re.logError("AssignTwoNodesToTwoGroups", err)
 			if !isTransientErr(err) {

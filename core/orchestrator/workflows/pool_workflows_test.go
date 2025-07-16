@@ -116,6 +116,15 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		return mockVSAClientWorkflowManager
 	}
 
+	enableMetrics = true
+	// Mock child workflow execution
+	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, RegisterNodeToHarvestFarmWorkflowInput{
+		PoolID:            0,
+		CustomerProjectID: "test-account",
+		MaxNodesPerGroup:  200,
+		TenantProjectID:   "test-project",
+	}).Return(nil)
+
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 
 	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -781,6 +790,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 }
 
 func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
+	enableMetrics = true
 	t.Run("WhenGetKmsConfigActivityReturnsNoError", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
@@ -871,6 +881,14 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
 		}
+
+		// Mock child workflow execution
+		env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, RegisterNodeToHarvestFarmWorkflowInput{
+			PoolID:            0,
+			CustomerProjectID: "test-account",
+			MaxNodesPerGroup:  200,
+			TenantProjectID:   "test-project",
+		}).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
@@ -981,6 +999,14 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
 		}
+
+		// Mock child workflow execution
+		env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, RegisterNodeToHarvestFarmWorkflowInput{
+			PoolID:            0,
+			CustomerProjectID: "test-account",
+			MaxNodesPerGroup:  200,
+			TenantProjectID:   "test-project",
+		}).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
@@ -2274,6 +2300,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	enableMetrics = true
 	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
 	mockHeader := &commonpb.Header{
 		Fields: map[string]*commonpb.Payload{
@@ -2353,6 +2380,14 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
 	}
+
+	// Mock child workflow execution
+	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, RegisterNodeToHarvestFarmWorkflowInput{
+		PoolID:            0,
+		CustomerProjectID: "test-account",
+		MaxNodesPerGroup:  200,
+		TenantProjectID:   "test-project",
+	}).Return(nil)
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 

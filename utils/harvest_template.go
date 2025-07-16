@@ -10,9 +10,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 )
 
-//go:embed harvest-template.yaml
-var harvestTemplate string
-
 // RenderTemplate takes a HarvestTemplateTokens struct and a template string, and returns the substituted YAML string.
 func RenderTemplate(tmplStr string, tokens *datamodel.HarvestConfig) (string, error) {
 	tmpl, err := template.New("harvest").Option("missingkey=error").Parse(tmplStr)
@@ -28,6 +25,10 @@ func RenderTemplate(tmplStr string, tokens *datamodel.HarvestConfig) (string, er
 }
 
 func RenderHarvestTemplate(tokens *datamodel.HarvestConfig) (string, error) {
+	harvestTemplate, err := LoadHarvestTemplate()
+	if err != nil {
+		return "", err
+	}
 	return RenderTemplate(harvestTemplate, tokens)
 }
 

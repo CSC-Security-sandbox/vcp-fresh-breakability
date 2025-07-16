@@ -106,18 +106,19 @@ spec:
               value: "true"
             - name: HARVEST_TEMPLATE_PATH
               value: "/app/harvest-template.yaml"
+            - name: MAX_NODES_PER_GROUP
+              value: "200"
             - name: LEASE_NAMESPACE
               value: "vcp"
             - name: HARVEST_HOST
               value: "harvest-farm-service.vcp.svc.cluster.local:3000"
             - name: ENABLE_METRICS
-              value: "true"
+              value: "false"
             - name: HARVEST_REST_PROTOCOL
               value: "http"
             - name: FIREWALL_SOURCE_RANGES
               value: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,34.0.0.0/8,46.149.16.0/20,52.94.203.152/29,52.94.203.160/29,185.35.244.0/22,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20,198.18.0.0/15"
 
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -141,4 +142,3 @@ roleRef:
   kind: Role
   name: harvest-farm-lease-create
   apiGroup: rbac.authorization.k8s.io
----

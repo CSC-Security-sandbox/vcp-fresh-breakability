@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -75,6 +76,7 @@ func TestGetNodeNodeGroupMap(t *testing.T) {
 	assert.NotNil(t, got)
 	assert.Equal(t, created.ID, got.ID)
 }
+
 func TestDeleteNodeNodeGroupMap_NotFound(t *testing.T) {
 	repo, _ := setupNodeNodeGroupMapTestRepo(t)
 	ctx := context.Background()
@@ -146,7 +148,13 @@ func TestAssignTwoNodesToTwoGroups_CreatesMappings(t *testing.T) {
 	assert.NoError(t, err)
 	node2, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n2"})
 	assert.NoError(t, err)
-	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 100)
+	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 100,
+		CustomerProject:  "account-id",
+		TenantProject:    "tenant-project",
+	})
 	assert.NoError(t, err)
 	assert.Len(t, mappings, 2)
 	assert.NotEqual(t, mappings[0].NodeGroupID, mappings[1].NodeGroupID)
@@ -169,7 +177,12 @@ func TestAssignTwoNodesToTwoGroups_GroupLimit(t *testing.T) {
 	node2, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n2"})
 	assert.NoError(t, err)
 	// Should create a new group for node1 since group1 is full
-	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 5)
+	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.NoError(t, err)
 	assert.Len(t, mappings, 2)
 	assert.NotEqual(t, group1.ID, mappings[0].NodeGroupID)
@@ -198,7 +211,12 @@ func TestAssignTwoNodesToTwoGroups_BothGroupsFull(t *testing.T) {
 	node2, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n2"})
 	assert.NoError(t, err)
 	// Should create new groups for both nodes since both groups are full
-	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 5)
+	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.NoError(t, err)
 	assert.Len(t, mappings, 2)
 	assert.NotEqual(t, group1.ID, mappings[0].NodeGroupID)
@@ -213,7 +231,12 @@ func TestAssignTwoNodesToTwoGroups_TransactionRollback(t *testing.T) {
 	node2, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n2"})
 	assert.NoError(t, err)
 	// Simulate error by passing invalid maxNodesPerGroup (e.g., 0)
-	_, err = repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 0)
+	_, err = repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 0,
+		CustomerProject:  "account-id",
+	})
 	assert.Error(t, err)
 }
 
@@ -240,7 +263,12 @@ func TestAssignTwoNodesToTwoGroups_PartiallyFullGroups(t *testing.T) {
 	node2, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n2"})
 	assert.NoError(t, err)
 	// Should assign both nodes to the existing groups since they are not full
-	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 5)
+	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.NoError(t, err)
 	assert.Len(t, mappings, 2)
 	assert.Contains(t, []int64{group1.ID, group2.ID}, mappings[0].NodeGroupID)
@@ -250,7 +278,12 @@ func TestAssignTwoNodesToTwoGroups_PartiallyFullGroups(t *testing.T) {
 func TestAssignTwoNodesToTwoGroups_NilNodes(t *testing.T) {
 	repo, _ := setupNodeNodeGroupMapTestRepo(t)
 	ctx := context.Background()
-	_, err := repo.AssignTwoNodesToTwoGroups(ctx, nil, nil, 5)
+	_, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            nil,
+		Node2:            nil,
+		MaxNodesPerGroup: 0,
+		CustomerProject:  "account-id",
+	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "node1 or node2 is nil") // or the actual error message from implementation
 }
@@ -260,7 +293,12 @@ func TestAssignTwoNodesToTwoGroups_SameNode(t *testing.T) {
 	ctx := context.Background()
 	node, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n-same"})
 	assert.NoError(t, err)
-	_, err = repo.AssignTwoNodesToTwoGroups(ctx, node, node, 5)
+	_, err = repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node,
+		Node2:            node,
+		MaxNodesPerGroup: 0,
+		CustomerProject:  "account-id",
+	})
 	assert.Error(t, err)
 }
 
@@ -271,7 +309,12 @@ func TestAssignTwoNodesToTwoGroups_InvalidMaxNodes(t *testing.T) {
 	assert.NoError(t, err)
 	node2, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n2"})
 	assert.NoError(t, err)
-	_, err = repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, -1)
+	_, err = repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 0,
+		CustomerProject:  "account-id",
+	})
 	assert.Error(t, err)
 }
 
@@ -282,7 +325,12 @@ func TestAssignTwoNodesToTwoGroups_ZeroMaxNodes(t *testing.T) {
 	assert.NoError(t, err)
 	node2, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n2"})
 	assert.NoError(t, err)
-	_, err = repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 0)
+	_, err = repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 0,
+		CustomerProject:  "account-id",
+	})
 	assert.Error(t, err)
 }
 
@@ -291,7 +339,12 @@ func TestAssignTwoNodesToTwoGroups_NonexistentNodes(t *testing.T) {
 	ctx := context.Background()
 	node1 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 99999}, Name: "ghost1"}
 	node2 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 88888}, Name: "ghost2"}
-	_, err := repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 5)
+	_, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	// Should still succeed, as the function assumes nodes are pre-created and only uses their IDs
 	assert.NoError(t, err)
 }
@@ -384,7 +437,12 @@ func TestAssignTwoNodesToTwoGroups_Idempotent(t *testing.T) {
 	assert.NoError(t, err)
 
 	// First call - should create new mappings
-	mappings1, err := repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 5)
+	mappings1, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.NoError(t, err)
 	assert.Len(t, mappings1, 2)
 
@@ -393,7 +451,12 @@ func TestAssignTwoNodesToTwoGroups_Idempotent(t *testing.T) {
 	originalMapping2 := mappings1[1]
 
 	// Second call with same nodes - should return the same mappings (idempotent)
-	mappings2, err := repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 5)
+	mappings2, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.NoError(t, err)
 	assert.Len(t, mappings2, 2)
 
@@ -409,7 +472,12 @@ func TestAssignTwoNodesToTwoGroups_Idempotent(t *testing.T) {
 	assert.Equal(t, originalMapping2.UUID, mappings2[1].UUID)
 
 	// Third call - should still return the same mappings
-	mappings3, err := repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 10) // different maxNodesPerGroup shouldn't matter
+	mappings3, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 10,
+		CustomerProject:  "account-id",
+	}) // different maxNodesPerGroup shouldn't matter
 	assert.NoError(t, err)
 	assert.Len(t, mappings3, 2)
 
@@ -441,7 +509,12 @@ func TestAssignTwoNodesToTwoGroups_IdempotentPartialAssignment(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Call AssignTwoNodesToTwoGroups - node1 already has mapping, node2 doesn't
-	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 5)
+	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.NoError(t, err)
 	assert.Len(t, mappings, 2)
 
@@ -461,7 +534,12 @@ func TestAssignTwoNodesToTwoGroups_IdempotentPartialAssignment(t *testing.T) {
 	assert.NotEqual(t, node1Mapping.NodeGroupID, node2Mapping.NodeGroupID) // Different groups
 
 	// Call again - should return the same mappings
-	mappings2, err := repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 5)
+	mappings2, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.NoError(t, err)
 	assert.Len(t, mappings2, 2)
 
@@ -548,7 +626,12 @@ func TestAssignTwoNodesToTwoGroups_HandlesExistingConstraint(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Call AssignTwoNodesToTwoGroups - should handle existing mapping gracefully
-	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 5)
+	mappings, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.NoError(t, err)
 	assert.Len(t, mappings, 2)
 
@@ -586,7 +669,12 @@ func TestAssignTwoNodesToTwoGroups_DBReadError(t *testing.T) {
 	_ = dbConn.Close()
 	wrapper := gorm.New(db)
 	badRepo := &DataStoreRepository{db: wrapper}
-	_, err = badRepo.AssignTwoNodesToTwoGroups(ctx, n1, n2, 5)
+	_, err = badRepo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            n1,
+		Node2:            n2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.Error(t, err)
 	var ce *vsaerrors.CustomError
 	if errors.As(err, &ce) && ce.OriginalErr != nil {
@@ -611,7 +699,12 @@ func TestAssignTwoNodesToTwoGroups_GroupFetchError(t *testing.T) {
 		uuid.NewString(), node1.ID, 99999, "{}", time.Now(), time.Now()).Error
 	assert.NoError(t, err)
 
-	_, err = repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 5)
+	_, err = repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.Error(t, err)
 	var ce *vsaerrors.CustomError
 	if errors.As(err, &ce) && ce.OriginalErr != nil {
@@ -628,7 +721,12 @@ func TestAssignTwoNodesToTwoGroups_GenerateGroupError(t *testing.T) {
 	ctx := context.Background()
 
 	// Test with nil nodes to trigger validation error
-	_, err := repo.AssignTwoNodesToTwoGroups(ctx, nil, nil, 5)
+	_, err := repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            nil,
+		Node2:            nil,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "node1 or node2 is nil")
 }
@@ -643,7 +741,12 @@ func TestAssignTwoNodesToTwoGroups_MappingCreateError(t *testing.T) {
 	n1, err := repo.CreateNode(ctx, &datamodel.Node{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "n-same"})
 	assert.NoError(t, err)
 
-	_, err = repo.AssignTwoNodesToTwoGroups(ctx, n1, n1, 5)
+	_, err = repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            n1,
+		Node2:            n1,
+		MaxNodesPerGroup: 0,
+		CustomerProject:  "account-id",
+	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "node1 and node2 must be different nodes")
 }
@@ -678,7 +781,12 @@ func TestAssignTwoNodesToTwoGroups_Node2GroupFetchError(t *testing.T) {
 	assert.NoError(t, err)
 
 	// This should trigger the group fetch error for node2 (lines 161-162)
-	_, err = repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 5)
+	_, err = repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.Error(t, err)
 	var ce *vsaerrors.CustomError
 	if errors.As(err, &ce) && ce.OriginalErr != nil {
@@ -717,7 +825,12 @@ func TestAssignTwoNodesToTwoGroups_Node1GroupFetchError(t *testing.T) {
 	err = db.Delete(&datamodel.NodeGroup{}, tempGroup.ID).Error
 	assert.NoError(t, err)
 
-	_, err = repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 5)
+	_, err = repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.Error(t, err)
 	var ce *vsaerrors.CustomError
 	if errors.As(err, &ce) && ce.OriginalErr != nil {
@@ -742,7 +855,12 @@ func TestAssignTwoNodesToTwoGroups_GroupCreateError_Node1(t *testing.T) {
 	_ = dbConn.Close()
 	badRepo := &DataStoreRepository{db: gorm.New(db)}
 
-	_, err = badRepo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 1)
+	_, err = badRepo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "undefined error: sql: database is closed",
 		"error should contain 'undefined error: sql: database is closed', got: %v", err)
@@ -764,7 +882,12 @@ func TestAssignTwoNodesToTwoGroups_GroupCreateError_Node1_MonkeyPatch(t *testing
 	}
 	defer func() { generateRandomNodeGroup = orig }()
 
-	_, err = repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 1)
+	_, err = repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 5,
+		CustomerProject:  "account-id",
+	})
 	assert.Error(t, err)
 	var ce *vsaerrors.CustomError
 	if errors.As(err, &ce) && ce.OriginalErr != nil {
@@ -800,7 +923,12 @@ func TestAssignTwoNodesToTwoGroups_GroupCreateError_Node2_MonkeyPatch(t *testing
 	}
 	defer func() { generateRandomNodeGroup = orig }()
 
-	_, err = repo.AssignTwoNodesToTwoGroups(ctx, node1, node2, 1)
+	_, err = repo.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: 1,
+		CustomerProject:  "account-id",
+	})
 	assert.Error(t, err)
 	var ce *vsaerrors.CustomError
 	if errors.As(err, &ce) && ce.OriginalErr != nil {
@@ -877,4 +1005,42 @@ func TestGetNodeNodeGroupMapByNodeID_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 	assert.Nil(t, result)
+}
+
+func TestGetFirstAvailablePort_QueryError(t *testing.T) {
+	db, _ := SetupTestDB()
+	wrapper := gorm.New(db)
+	tx := wrapper.GORM()
+	// Simulate query error directly
+	tx.Error = errors.New("simulated query error")
+	_, err := GetFirstAvailablePort(tx, 1)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "simulated query error")
+}
+
+func TestGetFirstAvailablePort_ParseError(t *testing.T) {
+	db, _ := SetupTestDB()
+	wrapper := gorm.New(db)
+	tx := wrapper.GORM()
+	tx.Create(&datamodel.NodeNodeGroupMap{NodeID: 1, NodeGroupID: 1, HarvestConfig: &datamodel.HarvestConfig{PORT: "notanint"}})
+	_, err := GetFirstAvailablePort(tx, 1)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse port")
+}
+
+func TestGetFirstAvailablePort_AllPortsUsed(t *testing.T) {
+	db, _ := SetupTestDB()
+	wrapper := gorm.New(db)
+	tx := wrapper.GORM()
+	for port := portStart; port <= portEnd; port++ {
+		tx.Create(&datamodel.NodeNodeGroupMap{
+			BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+			NodeID:        int64(port),
+			NodeGroupID:   1,
+			HarvestConfig: &datamodel.HarvestConfig{PORT: fmt.Sprintf("%d", port)},
+		})
+	}
+	_, err := GetFirstAvailablePort(tx, 1)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no available port found")
 }

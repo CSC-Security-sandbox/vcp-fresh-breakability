@@ -246,7 +246,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: harvest-farm
-  minReplicas: 1
+  minReplicas: 2
   maxReplicas: 20
   metrics:
     - type: Pods
@@ -258,20 +258,5 @@ spec:
           averageValue: "1"
 
 ---
-apiVersion: coordination.k8s.io/v1
-kind: Lease
-metadata:
-  name: harvest-1
-  namespace: vcp
-spec:
-  leaseDurationSeconds: 60
----
-# apiVersion: coordination.k8s.io/v1
-# kind: Lease
-# metadata:
-#   name: harvest-2
-#   namespace: vcp
-# spec:
-#   leaseDurationSeconds: 60
 
 

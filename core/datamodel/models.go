@@ -617,6 +617,8 @@ type HarvestConfig struct {
 	USERNAME            string
 	PASSWORD            string
 	PROJECT             string
+	LEASE_NAME          string
+	FILE_NAME           string
 }
 
 // NodeNodeGroupMap represents the mapping between a node and a node group
@@ -647,4 +649,13 @@ type NodeGroup struct {
 	BaseModel
 	Name      string `gorm:"column:name;not null;unique"`
 	LeaseName string `gorm:"column:lease_name"`
+}
+
+// NodeGroupAssignmentParams holds parameters for node group assignment
+type NodeGroupAssignmentParams struct {
+	Node1            *Node
+	Node2            *Node
+	MaxNodesPerGroup int
+	CustomerProject  string
+	TenantProject    string // Adding this for future extensibility
 }

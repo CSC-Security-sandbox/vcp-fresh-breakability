@@ -878,8 +878,8 @@ func (s *PersistenceStore) UpdateNodeNodeGroupMap(ctx context.Context, m *datamo
 	return s.dataStore.UpdateNodeNodeGroupMap(ctx, m)
 }
 
-func (s *PersistenceStore) AssignTwoNodesToTwoGroups(ctx context.Context, node1, node2 *datamodel.Node, maxNodesPerGroup int) ([]*datamodel.NodeNodeGroupMap, error) {
-	return s.dataStore.AssignTwoNodesToTwoGroups(ctx, node1, node2, maxNodesPerGroup)
+func (s *PersistenceStore) AssignTwoNodesToTwoGroups(ctx context.Context, params datamodel.NodeGroupAssignmentParams) ([]*datamodel.NodeNodeGroupMap, error) {
+	return s.dataStore.AssignTwoNodesToTwoGroups(ctx, params)
 }
 
 func (s *PersistenceStore) DeleteNodeNodeGroupMap(ctx context.Context, id int64) error {

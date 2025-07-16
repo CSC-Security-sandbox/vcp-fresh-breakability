@@ -4,11 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"go.temporal.io/api/enums/v1"
-	"go.temporal.io/sdk/activity"
-	"go.temporal.io/sdk/client"
-	"time"
-
+	"github.com/google/uuid"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -27,20 +23,25 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 	"google.golang.org/api/iam/v1"
 	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
+	"time"
 )
 
 var (
 	_                                WorkflowInterface = &createPoolWorkflow{} // Enforcing the WorkflowInterface on createPoolWorkflow
 	setupNwHeartbeatTimeout                            = env.GetUint64("SETUP_NW_HEARTBEAT_TIMEOUT_SEC", 300)
 	vmrsConfigPath                                     = env.GetString("VMRS_CONFIG_PATH", "config/vmrs_gcp.yaml")
+	maxNodesPerGroup                                   = env.GetInt("MAX_NODES_PER_GROUP", 200)
+	enableMetrics                                      = env.GetBool("ENABLE_METRICS", false)
 	configureKmsConfigForSvmActivity                   = _configureKmsConfigForSvmActivity
 	getSignedJwtToken                                  = auth.GetSignedJwtToken
 	GetNewVSAClientWorkflowManager                     = _getNewVSAClientWorkflowManager
-	enableMetrics                                      = env.GetBool("ENABLE_METRICS", true)
 )
 
 const (
@@ -321,6 +322,23 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
+	// Enable billing metrics related workflow(NodeToHarvestFarmWorkflow), when enableMetrics is true
+	if enableMetrics {
+		registerNodeToHarvestFarmWorkflowInput := RegisterNodeToHarvestFarmWorkflowInput{
+			PoolID:            dbPool.ID,
+			MaxNodesPerGroup:  maxNodesPerGroup,
+			CustomerProjectID: params.AccountName,
+			TenantProjectID:   *tenantProjectNumber,
+		}
+
+		ctx = workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+			WorkflowID: "register-node-to-harvest-farm" + uuid.New().String(),
+			TaskQueue:  workflowengine.CustomerTaskQueue,
+		})
+		if err := workflow.ExecuteChildWorkflow(ctx, RegisterNodeToHarvestFarmWorkflow, registerNodeToHarvestFarmWorkflowInput).Get(ctx, nil); err != nil {
+			return nil, err
+		}
+	}
 	return nil, err
 }
 

@@ -26,9 +26,9 @@ func (_m *MockStorage) EXPECT() *MockStorage_Expecter {
 	return &MockStorage_Expecter{mock: &_m.Mock}
 }
 
-// AssignTwoNodesToTwoGroups provides a mock function with given fields: ctx, node1, node2, maxNodesPerGroup
-func (_m *MockStorage) AssignTwoNodesToTwoGroups(ctx context.Context, node1 *datamodel.Node, node2 *datamodel.Node, maxNodesPerGroup int) ([]*datamodel.NodeNodeGroupMap, error) {
-	ret := _m.Called(ctx, node1, node2, maxNodesPerGroup)
+// AssignTwoNodesToTwoGroups provides a mock function with given fields: ctx, params
+func (_m *MockStorage) AssignTwoNodesToTwoGroups(ctx context.Context, params datamodel.NodeGroupAssignmentParams) ([]*datamodel.NodeNodeGroupMap, error) {
+	ret := _m.Called(ctx, params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AssignTwoNodesToTwoGroups")
@@ -36,19 +36,19 @@ func (_m *MockStorage) AssignTwoNodesToTwoGroups(ctx context.Context, node1 *dat
 
 	var r0 []*datamodel.NodeNodeGroupMap
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Node, *datamodel.Node, int) ([]*datamodel.NodeNodeGroupMap, error)); ok {
-		return rf(ctx, node1, node2, maxNodesPerGroup)
+	if rf, ok := ret.Get(0).(func(context.Context, datamodel.NodeGroupAssignmentParams) ([]*datamodel.NodeNodeGroupMap, error)); ok {
+		return rf(ctx, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Node, *datamodel.Node, int) []*datamodel.NodeNodeGroupMap); ok {
-		r0 = rf(ctx, node1, node2, maxNodesPerGroup)
+	if rf, ok := ret.Get(0).(func(context.Context, datamodel.NodeGroupAssignmentParams) []*datamodel.NodeNodeGroupMap); ok {
+		r0 = rf(ctx, params)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*datamodel.NodeNodeGroupMap)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Node, *datamodel.Node, int) error); ok {
-		r1 = rf(ctx, node1, node2, maxNodesPerGroup)
+	if rf, ok := ret.Get(1).(func(context.Context, datamodel.NodeGroupAssignmentParams) error); ok {
+		r1 = rf(ctx, params)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -63,16 +63,14 @@ type MockStorage_AssignTwoNodesToTwoGroups_Call struct {
 
 // AssignTwoNodesToTwoGroups is a helper method to define mock.On call
 //   - ctx context.Context
-//   - node1 *datamodel.Node
-//   - node2 *datamodel.Node
-//   - maxNodesPerGroup int
-func (_e *MockStorage_Expecter) AssignTwoNodesToTwoGroups(ctx interface{}, node1 interface{}, node2 interface{}, maxNodesPerGroup interface{}) *MockStorage_AssignTwoNodesToTwoGroups_Call {
-	return &MockStorage_AssignTwoNodesToTwoGroups_Call{Call: _e.mock.On("AssignTwoNodesToTwoGroups", ctx, node1, node2, maxNodesPerGroup)}
+//   - params datamodel.NodeGroupAssignmentParams
+func (_e *MockStorage_Expecter) AssignTwoNodesToTwoGroups(ctx interface{}, params interface{}) *MockStorage_AssignTwoNodesToTwoGroups_Call {
+	return &MockStorage_AssignTwoNodesToTwoGroups_Call{Call: _e.mock.On("AssignTwoNodesToTwoGroups", ctx, params)}
 }
 
-func (_c *MockStorage_AssignTwoNodesToTwoGroups_Call) Run(run func(ctx context.Context, node1 *datamodel.Node, node2 *datamodel.Node, maxNodesPerGroup int)) *MockStorage_AssignTwoNodesToTwoGroups_Call {
+func (_c *MockStorage_AssignTwoNodesToTwoGroups_Call) Run(run func(ctx context.Context, params datamodel.NodeGroupAssignmentParams)) *MockStorage_AssignTwoNodesToTwoGroups_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.Node), args[2].(*datamodel.Node), args[3].(int))
+		run(args[0].(context.Context), args[1].(datamodel.NodeGroupAssignmentParams))
 	})
 	return _c
 }
@@ -82,7 +80,7 @@ func (_c *MockStorage_AssignTwoNodesToTwoGroups_Call) Return(_a0 []*datamodel.No
 	return _c
 }
 
-func (_c *MockStorage_AssignTwoNodesToTwoGroups_Call) RunAndReturn(run func(context.Context, *datamodel.Node, *datamodel.Node, int) ([]*datamodel.NodeNodeGroupMap, error)) *MockStorage_AssignTwoNodesToTwoGroups_Call {
+func (_c *MockStorage_AssignTwoNodesToTwoGroups_Call) RunAndReturn(run func(context.Context, datamodel.NodeGroupAssignmentParams) ([]*datamodel.NodeNodeGroupMap, error)) *MockStorage_AssignTwoNodesToTwoGroups_Call {
 	_c.Call.Return(run)
 	return _c
 }

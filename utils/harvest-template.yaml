@@ -21,24 +21,24 @@ Defaults:
   use_insecure_tls: false
 
 Pollers:
-    {{.POLLER_NAME}}:
-      datacenter: {{.DATACENTER}}
-      addr: {{.NODE_IP}}
-      auth_style: {{.AUTH_STYLE}}
-      username: {{.USERNAME}}
-      password: {{.PASSWORD}}
-      labels:
-        - project: {{.PROJECT}}
-      use_insecure_tls: true  # Disable TLS verification when connecting to ONTAP cluster
-      exporters:
-        - service_control
-        - prometheus
+  {{.POLLER_NAME}}:
+    datacenter: {{.DATACENTER}}
+    addr: {{.NODE_IP}}
+    auth_style: {{.AUTH_STYLE}}
+    username: {{.USERNAME}}
+    password: {{.PASSWORD}}
+    labels:
+      - project: {{.PROJECT}}
+    use_insecure_tls: true  # Disable TLS verification when connecting to ONTAP cluster
+    exporters:
+      - service_control
+      - prometheus
 PM2:
   - name: {{.POLLER_NAME}}
-    script: bin/poller
+    script: /opt/harvest/bin/poller
     metrics_port: {{.PORT}}
     conf_path: /opt/harvest/conf
-    harvest_conf: /configs/harvest/c4.yaml
+    harvest_conf: /configs/harvest/{{.LEASE_NAME}}/{{.FILE_NAME}}
     poller_name: {{.POLLER_NAME}}
     auto_restart: true
     version: 2.0.0

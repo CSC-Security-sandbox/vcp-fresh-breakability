@@ -1,3 +1,5 @@
+  HARVEST_PORT_START: {{ .Values.harvestPortStart | quote }}
+  HARVEST_PORT_END: {{ .Values.harvestPortEnd | quote }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -58,9 +60,14 @@ data:
   VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX: {{ .Values.workerConfig.vsaLifecycleManagerQueuePrefix | quote }}
   ONTAP_VERSION: {{ .Values.workerConfig.ontapVersion | quote }}
   ENFORCE_MIN_SP_CONFIG: {{ .Values.workerConfig.enforceMinSpConfig | quote }}
+  MAX_NODES_PER_GROUP: {{ .Values.workerConfig.maxNodesPerGroup | quote }}
+  SERVICE_CONTROL_URL: {{ .Values.workerConfig.serviceControlUrl | quote }}
+  SERVICE_NAME: {{ .Values.workerConfig.serviceName | quote }}
+  DATACENTER: {{ .Values.workerConfig.datacenter | quote }}
+  HARVEST_PORT_START: {{ .Values.workerConfig.harvestPortStart | quote }}
+  HARVEST_PORT_END: {{ .Values.workerConfig.harvestPortEnd | quote }}
   LEASE_NAMESPACE: {{.Values.workerConfig.leaseNameSpace | quote}}
   HARVEST_HOST: {{.Values.workerConfig.harvestHost | quote}}
   ENABLE_METRICS: {{.Values.workerConfig.enableMetrics | quote}}
   HARVEST_REST_PROTOCOL: {{.Values.workerConfig.harvestRestProtocol | quote}}
-
   FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.firewallSourceRanges | quote }}

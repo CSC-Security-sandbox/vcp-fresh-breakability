@@ -12,7 +12,7 @@ import (
 )
 
 func TestRegisterNodeToHarvestFarmWorkflowInput(t *testing.T) {
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 123, MaxNodesPerGroup: 5}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 123, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 	assert.Equal(t, int64(123), input.PoolID)
 	assert.Equal(t, 5, input.MaxNodesPerGroup)
 }
@@ -27,17 +27,27 @@ func TestRegisterNodeToHarvestFarmWorkflow_ExecutesSuccessfully(t *testing.T) {
 	ts := &testsuite.WorkflowTestSuite{}
 	env := ts.NewTestWorkflowEnvironment()
 
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 5}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 
 	mockStorage := &database.MockStorage{}
 	activity := newTestActivityWithMockStorage(mockStorage)
 	env.RegisterActivity(activity)
 
+	// Mock the UploadHarvestTemplate activity to return success
+	uploadActivity := &activities.UploadHarvestTemplateActivity{}
+	env.OnActivity(uploadActivity.UploadHarvestTemplate, mock.Anything, mock.Anything).Return(nil)
+
 	node1 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 101}}
 	node2 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 102}}
 
 	mockStorage.On("GetNodesByPoolID", mock.Anything, input.PoolID).Return([]*datamodel.Node{node1, node2}, nil)
-	mockStorage.On("AssignTwoNodesToTwoGroups", mock.Anything, node1, node2, input.MaxNodesPerGroup).Return([]*datamodel.NodeNodeGroupMap{{NodeID: node1.ID}, {NodeID: node2.ID}}, nil)
+	mockStorage.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: input.MaxNodesPerGroup,
+		CustomerProject:  input.CustomerProjectID,
+		TenantProject:    input.TenantProjectID,
+	}).Return([]*datamodel.NodeNodeGroupMap{{NodeID: node1.ID, HarvestConfig: &datamodel.HarvestConfig{}}, {NodeID: node2.ID, HarvestConfig: &datamodel.HarvestConfig{}}}, nil)
 
 	// Mock validate and create lease activity
 	env.OnActivity(activity.ValidateAndCreateKubernetesLease, mock.Anything, mock.Anything).Return(nil)
@@ -53,7 +63,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_ActivityFails(t *testing.T) {
 	ts := &testsuite.WorkflowTestSuite{}
 	env := ts.NewTestWorkflowEnvironment()
 
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 5}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 
 	mockStorage := &database.MockStorage{}
 	activity := newTestActivityWithMockStorage(mockStorage)
@@ -74,7 +84,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_InvalidInput(t *testing.T) {
 	ts := &testsuite.WorkflowTestSuite{}
 	env := ts.NewTestWorkflowEnvironment()
 
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 0}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 0, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 
 	mockStorage := &database.MockStorage{}
 	activity := newTestActivityWithMockStorage(mockStorage)
@@ -83,7 +93,13 @@ func TestRegisterNodeToHarvestFarmWorkflow_InvalidInput(t *testing.T) {
 	node1 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 101}}
 	node2 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 102}}
 	mockStorage.On("GetNodesByPoolID", mock.Anything, input.PoolID).Return([]*datamodel.Node{node1, node2}, nil)
-	mockStorage.On("AssignTwoNodesToTwoGroups", mock.Anything, node1, node2, input.MaxNodesPerGroup).Return(nil, assert.AnError)
+	mockStorage.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: input.MaxNodesPerGroup,
+		CustomerProject:  "customer-project",
+		TenantProject:    input.TenantProjectID,
+	}).Return(nil, assert.AnError)
 
 	env.OnActivity(activity.ValidateAndCreateKubernetesLease, mock.Anything, mock.Anything).Return(nil)
 
@@ -98,7 +114,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_SameNodeIDs(t *testing.T) {
 	ts := &testsuite.WorkflowTestSuite{}
 	env := ts.NewTestWorkflowEnvironment()
 
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 5}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 
 	mockStorage := &database.MockStorage{}
 	activity := newTestActivityWithMockStorage(mockStorage)
@@ -107,7 +123,13 @@ func TestRegisterNodeToHarvestFarmWorkflow_SameNodeIDs(t *testing.T) {
 	node1 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 101}}
 	node2 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 101}} // same ID
 	mockStorage.On("GetNodesByPoolID", mock.Anything, input.PoolID).Return([]*datamodel.Node{node1, node2}, nil)
-	mockStorage.On("AssignTwoNodesToTwoGroups", mock.Anything, node1, node2, input.MaxNodesPerGroup).Return(nil, assert.AnError)
+	mockStorage.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: input.MaxNodesPerGroup,
+		CustomerProject:  "customer-project",
+		TenantProject:    input.TenantProjectID,
+	}).Return(nil, assert.AnError)
 
 	env.ExecuteWorkflow(RegisterNodeToHarvestFarmWorkflow, input)
 
@@ -121,16 +143,26 @@ func TestRegisterNodeToHarvestFarmWorkflow_LargeGroupSize(t *testing.T) {
 	env := ts.NewTestWorkflowEnvironment()
 
 	// Test with a large group size
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 1000}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 1000, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 
 	mockStorage := &database.MockStorage{}
 	activity := newTestActivityWithMockStorage(mockStorage)
 	env.RegisterActivity(activity)
 
+	// Mock the UploadHarvestTemplate activity to return success
+	uploadActivity := &activities.UploadHarvestTemplateActivity{}
+	env.OnActivity(uploadActivity.UploadHarvestTemplate, mock.Anything, mock.Anything).Return(nil)
+
 	node1 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 101}}
 	node2 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 102}}
 	mockStorage.On("GetNodesByPoolID", mock.Anything, input.PoolID).Return([]*datamodel.Node{node1, node2}, nil)
-	mockStorage.On("AssignTwoNodesToTwoGroups", mock.Anything, node1, node2, input.MaxNodesPerGroup).Return([]*datamodel.NodeNodeGroupMap{{NodeID: node1.ID}, {NodeID: node2.ID}}, nil)
+	mockStorage.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: input.MaxNodesPerGroup,
+		CustomerProject:  "customer-project",
+		TenantProject:    input.TenantProjectID,
+	}).Return([]*datamodel.NodeNodeGroupMap{{NodeID: node1.ID}, {NodeID: node2.ID}}, nil)
 
 	env.OnActivity(activity.ValidateAndCreateKubernetesLease, mock.Anything, mock.Anything).Return(nil)
 
@@ -145,7 +177,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_LeaseCreateFailure(t *testing.T) {
 	ts := &testsuite.WorkflowTestSuite{}
 	env := ts.NewTestWorkflowEnvironment()
 
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 5}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 
 	mockStorage := &database.MockStorage{}
 	activity := newTestActivityWithMockStorage(mockStorage)
@@ -155,13 +187,61 @@ func TestRegisterNodeToHarvestFarmWorkflow_LeaseCreateFailure(t *testing.T) {
 	node2 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 102}}
 
 	mockStorage.On("GetNodesByPoolID", mock.Anything, input.PoolID).Return([]*datamodel.Node{node1, node2}, nil)
-	mockStorage.On("AssignTwoNodesToTwoGroups", mock.Anything, node1, node2, input.MaxNodesPerGroup).Return([]*datamodel.NodeNodeGroupMap{{NodeID: node1.ID}, {NodeID: node2.ID}}, nil)
-
+	mockStorage.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: input.MaxNodesPerGroup,
+		CustomerProject:  input.CustomerProjectID,
+		TenantProject:    input.TenantProjectID,
+	}).Return([]*datamodel.NodeNodeGroupMap{{NodeID: node1.ID}, {NodeID: node2.ID}}, nil)
 	env.ExecuteWorkflow(RegisterNodeToHarvestFarmWorkflow, input)
 
 	wfErr := env.GetWorkflowError()
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, wfErr)
 	assert.Contains(t, wfErr.Error(), "failed to fetch node group details from nodeGroup Map table")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestRegisterNodeToHarvestFarmWorkflow_UploadHarvestTemplateFails(t *testing.T) {
+	ts := &testsuite.WorkflowTestSuite{}
+	env := ts.NewTestWorkflowEnvironment()
+
+	input := RegisterNodeToHarvestFarmWorkflowInput{
+		PoolID:            1,
+		MaxNodesPerGroup:  5,
+		CustomerProjectID: "customer-project",
+		TenantProjectID:   "tenant-project",
+	}
+
+	mockStorage := &database.MockStorage{}
+	activity := newTestActivityWithMockStorage(mockStorage)
+	env.RegisterActivity(activity)
+
+	uploadActivity := &activities.UploadHarvestTemplateActivity{}
+	env.OnActivity(uploadActivity.UploadHarvestTemplate, mock.Anything, mock.Anything).Return(assert.AnError)
+
+	node1 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 101}}
+	node2 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 102}}
+	mockStorage.On("GetNodesByPoolID", mock.Anything, input.PoolID).Return([]*datamodel.Node{node1, node2}, nil)
+	mockStorage.On("AssignTwoNodesToTwoGroups", mock.Anything, datamodel.NodeGroupAssignmentParams{
+		Node1:            node1,
+		Node2:            node2,
+		MaxNodesPerGroup: input.MaxNodesPerGroup,
+		CustomerProject:  input.CustomerProjectID,
+		TenantProject:    input.TenantProjectID,
+	}).Return([]*datamodel.NodeNodeGroupMap{
+		{NodeID: node1.ID, HarvestConfig: &datamodel.HarvestConfig{}},
+		{NodeID: node2.ID, HarvestConfig: &datamodel.HarvestConfig{}},
+	}, nil)
+
+	env.OnActivity(activity.ValidateAndCreateKubernetesLease, mock.Anything, mock.Anything).Return(nil)
+
+	env.ExecuteWorkflow(RegisterNodeToHarvestFarmWorkflow, input)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), assert.AnError.Error())
 	mockStorage.AssertExpectations(t)
 }
