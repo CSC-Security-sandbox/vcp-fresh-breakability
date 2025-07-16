@@ -7,9 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/db"
 )
@@ -73,7 +72,7 @@ func TestGetDbConnection(t *testing.T) {
 	// Check if the connection is of the expected type
 	db.InitializeDatabase = func(ctx context.Context, cfg *common.Config, logger log.Logger) (database.Storage, error) {
 		mockDB := &database.MockStorage{} // Assuming you have a mock implementation
-		return mockDB, errors.New("Failed to initialize database")
+		return mockDB, errors.New("failed to initialize database")
 	}
 	_, err = db.GetDbConnection(ctx, logger)
 	assert.NotNil(t, err)
@@ -157,15 +156,6 @@ func TestInitializeDatabase(t *testing.T) {
 	dbCon, err = db.InitializeDatabase(ctx, cfg, logger)
 	assert.Error(t, err)
 	assert.Nil(t, dbCon)
-}
-
-type MockStorage struct {
-	mock.Mock
-}
-
-func (m *MockStorage) Connect(isAdmin bool) error {
-	args := m.Called(isAdmin)
-	return args.Error(0)
 }
 
 func TestDoConnect(t *testing.T) {

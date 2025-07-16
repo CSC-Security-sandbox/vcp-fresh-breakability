@@ -14,7 +14,8 @@ import (
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
@@ -475,9 +476,9 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 	}
 
 	// Check if replication exists in the database
-	filter := utils.CreateFilterWithConditions(
-		utils.NewFilterCondition("account_id", "=", account.ID),
-		utils.NewFilterCondition("uri", "in", params.ReplicationURIs))
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("account_id", "=", account.ID),
+		utils2.NewFilterCondition("uri", "in", params.ReplicationURIs))
 	replications, err := se.ListVolumeReplications(ctx, *filter)
 	if err != nil {
 		logger.Errorf("Failed to list replications for account %s: %v", params.AccountName, err)

@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	dbmock "github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	dbmock "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/api/telemetry-servergen"
 	procMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/processor"
 )

@@ -12,8 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -96,7 +95,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	dbPool := repository.ConvertPoolViewToPool(pool)
+	dbPool := database.ConvertPoolViewToPool(pool)
 	volumeObj := &datamodel.Volume{
 		Name:        params.Name,
 		Account:     account,

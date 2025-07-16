@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 )
 
 type SnapshotUpdateActivity struct {

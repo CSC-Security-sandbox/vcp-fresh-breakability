@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/api/telemetry-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/processor"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"

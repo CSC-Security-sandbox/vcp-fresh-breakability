@@ -13,9 +13,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -153,7 +153,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		return nil, "", err
 	}
 
-	poolView := repository.ConvertPoolToPoolView(dbPool)
+	poolView := database.ConvertPoolToPoolView(dbPool)
 	return convertDatastorePoolToModel(poolView, account.Name), createdJob.UUID, nil
 }
 
@@ -178,7 +178,7 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 		}
 		return nil, "", err
 	}
-	dbPool := repository.ConvertPoolViewToPool(dbPoolView)
+	dbPool := database.ConvertPoolViewToPool(dbPoolView)
 	err = ValidateUpdatePoolParams(params, dbPool)
 	if err != nil {
 		return nil, "", err
@@ -215,7 +215,7 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 		logger.Error("Failed to start pool update workflow: ", "error", err)
 		return nil, "", err
 	}
-	poolView := repository.ConvertPoolToPoolView(pool)
+	poolView := database.ConvertPoolToPoolView(pool)
 	return convertDatastorePoolToModel(poolView, account.Name), createdJob.UUID, nil
 }
 
@@ -357,7 +357,7 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
 	}
-	dbpool := repository.ConvertPoolViewToPool(pool)
+	dbpool := database.ConvertPoolViewToPool(pool)
 	if err = se.DeletingPool(ctx, dbpool); err != nil {
 		return nil, "", err
 	}
@@ -391,7 +391,7 @@ func (o *Orchestrator) ListPools(ctx context.Context, accountName string, includ
 		return nil, err
 	}
 
-	filter := utils.CreateFilterWithConditions(utils.NewFilterCondition("account_id", "=", account.ID))
+	filter := utils2.CreateFilterWithConditions(utils2.NewFilterCondition("account_id", "=", account.ID))
 	filter.SetIncludeDeleted(includeDeleted)
 	pools, err := se.ListPools(ctx, filter)
 	if err != nil {
@@ -422,9 +422,9 @@ func (o *Orchestrator) GetMultiplePools(ctx context.Context, accountName string,
 		return nil, err
 	}
 
-	filter := utils.CreateFilterWithConditions(
-		utils.NewFilterCondition("uuid", "in", poolUUIDs),
-		utils.NewFilterCondition("account_id", "=", account.ID))
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("uuid", "in", poolUUIDs),
+		utils2.NewFilterCondition("account_id", "=", account.ID))
 	pools, err := se.ListPools(ctx, filter)
 	if err != nil {
 		return nil, err

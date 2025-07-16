@@ -16,9 +16,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -131,7 +131,7 @@ func TestConvertDatastorePoolToModel_ValidPool_ReturnsCorrectModel(t *testing.T)
 	}
 	accountName := "test-account"
 
-	dbPoolView := repository.ConvertPoolToPoolView(datastorePool)
+	dbPoolView := database.ConvertPoolToPoolView(datastorePool)
 	result := convertDatastorePoolToModel(dbPoolView, accountName)
 
 	assert.Equal(t, datastorePool.UUID, result.UUID)
@@ -173,7 +173,7 @@ func TestConvertDatastorePoolToModel_NilDeletedAt_ReturnsNilDeletedAt(t *testing
 		},
 	}
 	accountName := "test-account"
-	dbPoolView := repository.ConvertPoolToPoolView(datastorePool)
+	dbPoolView := database.ConvertPoolToPoolView(datastorePool)
 	result := convertDatastorePoolToModel(dbPoolView, accountName)
 
 	assert.Nil(t, result.DeletedAt)
@@ -204,7 +204,7 @@ func TestConvertDatastorePoolToModel_InvalidDeletedAt_ReturnsNilDeletedAt(t *tes
 		},
 	}
 	accountName := "test-account"
-	dbPoolView := repository.ConvertPoolToPoolView(datastorePool)
+	dbPoolView := database.ConvertPoolToPoolView(datastorePool)
 	result := convertDatastorePoolToModel(dbPoolView, accountName)
 
 	assert.Nil(t, result.DeletedAt)
@@ -1195,7 +1195,7 @@ func TestListAllPools_ErrorFromStorage(t *testing.T) {
 	mockStorage := new(database.MockStorage)
 
 	// Simulate error from ListPools
-	mockStorage.EXPECT().ListPools(ctx, (*utils.Filter)(nil)).Return(nil, errors.New("db error"))
+	mockStorage.EXPECT().ListPools(ctx, (*utils2.Filter)(nil)).Return(nil, errors.New("db error"))
 
 	orch := Orchestrator{storage: mockStorage}
 
@@ -1250,7 +1250,7 @@ func TestGetPoolByName(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
 			Name:      "test-pool",
 		}
-		poolView := repository.ConvertPoolToPoolView(poolResp)
+		poolView := database.ConvertPoolToPoolView(poolResp)
 		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolView, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nil, errors.New("node not found"))
 		_, err := GetPoolByName(ctx, mockStorage, "test-pool", "test-account", queryDepthOne)
@@ -1269,7 +1269,7 @@ func TestGetPoolByName(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
 			Name:      "test-pool",
 		}
-		poolView := repository.ConvertPoolToPoolView(poolResp)
+		poolView := database.ConvertPoolToPoolView(poolResp)
 		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolView, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nil, nil)
 		_, err := GetPoolByName(ctx, mockStorage, "test-pool", "test-account", queryDepthZero)
@@ -1293,7 +1293,7 @@ func TestGetPoolByName(t *testing.T) {
 			Name:      "test-node",
 		},
 		}
-		poolView := repository.ConvertPoolToPoolView(poolResp)
+		poolView := database.ConvertPoolToPoolView(poolResp)
 		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolView, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodeResp, nil)
 
@@ -1327,7 +1327,7 @@ func TestGetPoolByName(t *testing.T) {
 			Name:      "test-node",
 		},
 		}
-		poolView := repository.ConvertPoolToPoolView(poolResp)
+		poolView := database.ConvertPoolToPoolView(poolResp)
 		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolView, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodeResp, nil)
 		interClusterLifResp := []*vsa.InterclusterLif{
@@ -1372,7 +1372,7 @@ func TestGetPoolByName(t *testing.T) {
 				Name:      "test-node",
 			},
 		}
-		poolView := repository.ConvertPoolToPoolView(poolResp)
+		poolView := database.ConvertPoolToPoolView(poolResp)
 		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolView, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodeResp, nil)
 

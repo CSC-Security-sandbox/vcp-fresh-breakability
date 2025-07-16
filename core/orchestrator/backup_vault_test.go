@@ -3,18 +3,18 @@ package orchestrator
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/mock"
-	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	workflow_engine_mock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
-	"gorm.io/gorm"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	workflow_engine_mock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	"gorm.io/gorm"
 )
 
 func TestCheck(t *testing.T) {

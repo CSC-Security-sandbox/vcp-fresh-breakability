@@ -22,8 +22,8 @@ func TestLoggingMiddleware(t *testing.T) {
 	t.Run("Injecting logger into request context", func(t *testing.T) {
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := r.Context().Value(middleware.ContextSLoggerKey)
-			assert.NotNil(t, logger, "Logger should not be nil in context")
-			assert.IsType(t, &Slogger{}, logger, "Logger should be of type Slogger")
+			assert.NotNil(t, logger, "logger should not be nil in context")
+			assert.IsType(t, &Slogger{}, logger, "logger should be of type Slogger")
 		})
 
 		logmiddleware := LoggingMiddleware(nextHandler)
@@ -36,7 +36,7 @@ func TestLoggingMiddleware(t *testing.T) {
 	t.Run("Missing logger in context", func(t *testing.T) {
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := r.Context().Value(middleware.ContextSLoggerKey)
-			assert.Nil(t, logger, "Logger should be nil if not injected")
+			assert.Nil(t, logger, "logger should be nil if not injected")
 		})
 
 		req, _ := http.NewRequest("GET", "/", nil)
@@ -48,8 +48,8 @@ func TestLoggingMiddleware(t *testing.T) {
 	t.Run("Missing headers in HTTP request", func(t *testing.T) {
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := r.Context().Value(middleware.ContextSLoggerKey)
-			assert.NotNil(t, logger, "Logger should not be nil in context")
-			assert.IsType(t, &Slogger{}, logger, "Logger should be of type Slogger")
+			assert.NotNil(t, logger, "logger should not be nil in context")
+			assert.IsType(t, &Slogger{}, logger, "logger should be of type Slogger")
 		})
 
 		logmiddleware := LoggingMiddleware(nextHandler)
@@ -62,8 +62,8 @@ func TestLoggingMiddleware(t *testing.T) {
 	t.Run("Inject logger into request context with headers", func(t *testing.T) {
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := r.Context().Value(middleware.ContextSLoggerKey)
-			assert.NotNil(t, logger, "Logger should not be nil in context")
-			assert.IsType(t, &Slogger{}, logger, "Logger should be of type Slogger")
+			assert.NotNil(t, logger, "logger should not be nil in context")
+			assert.IsType(t, &Slogger{}, logger, "logger should be of type Slogger")
 		})
 
 		logmiddleware := LoggingMiddleware(nextHandler)
@@ -104,7 +104,7 @@ func TestExtractFieldsFromHttpRequest(t *testing.T) {
 
 // TestGetLogger tests the getLogger function
 func TestGetLogger(t *testing.T) {
-	t.Run("Logger Type as slog", func(t *testing.T) {
+	t.Run("logger Type as slog", func(t *testing.T) {
 		config := Config{
 			LoggerType: "slog",
 		}
@@ -112,7 +112,7 @@ func TestGetLogger(t *testing.T) {
 		assert.IsType(t, &Slogger{}, logger)
 	})
 
-	t.Run("Invalid Logger Type", func(t *testing.T) {
+	t.Run("Invalid logger Type", func(t *testing.T) {
 		config := Config{
 			LoggerType: "unknown",
 		}
@@ -120,7 +120,7 @@ func TestGetLogger(t *testing.T) {
 		assert.IsType(t, &Slogger{}, logger)
 	})
 
-	t.Run("Logger Type is Empty", func(t *testing.T) {
+	t.Run("logger Type is Empty", func(t *testing.T) {
 		config := Config{
 			LoggerType: "",
 		}

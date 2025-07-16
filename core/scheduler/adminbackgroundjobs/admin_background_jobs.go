@@ -10,7 +10,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/jobmanagerworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflow_engine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"go.temporal.io/api/enums/v1"

@@ -3,7 +3,6 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
-	"gorm.io/gorm"
 	"strings"
 	"testing"
 	"time"
@@ -14,13 +13,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"go.temporal.io/sdk/client"
+	"gorm.io/gorm"
 )
 
 func TestGetMultipleKmsConfigs(t *testing.T) {

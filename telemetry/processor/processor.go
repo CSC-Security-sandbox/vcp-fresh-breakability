@@ -3,7 +3,7 @@ package processor
 import (
 	"context"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/collector"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/performance"

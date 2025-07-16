@@ -5,7 +5,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
@@ -27,7 +27,7 @@ type unRegisterNodeFromHarvestFarmWorkflow struct {
 // Enforcing the WorkflowInterface on unRegisterNodeToHarvestFarmWorkflow
 var _ WorkflowInterface = &unRegisterNodeFromHarvestFarmWorkflow{}
 
-// UnRegisterNodeToHarvestFarmWorkflow is a Temporal workflow that un-registers a node to the Harvest farm
+// UnRegisterNodeFromHarvestFarmWorkflow is a Temporal workflow that un-registers a node to the Harvest farm
 func UnRegisterNodeFromHarvestFarmWorkflow(ctx workflow.Context, params *unRegisterNodeFromHarvestFarmParams) error {
 	wf := new(unRegisterNodeFromHarvestFarmWorkflow)
 	err := wf.Setup(ctx, params)

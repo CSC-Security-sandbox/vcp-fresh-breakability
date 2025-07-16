@@ -3,11 +3,13 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -46,10 +48,10 @@ func _createOrGetStartProjectEventJob(ctx context.Context, se database.Storage, 
 	}
 
 	jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
-	filter := utils.CreateFilterWithConditions(
-		utils.NewFilterCondition("account_id", "=", account.ID),
-		utils.NewFilterCondition("type", "=", jobType),
-		utils.NewFilterCondition("state", "in", jobTransitioningStates))
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("account_id", "=", account.ID),
+		utils2.NewFilterCondition("type", "=", jobType),
+		utils2.NewFilterCondition("state", "in", jobTransitioningStates))
 
 	jobs, err := se.GetJobsWithCondition(ctx, *filter)
 	if err != nil && !errors.IsNotFoundErr(err) {

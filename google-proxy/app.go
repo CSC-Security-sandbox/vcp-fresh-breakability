@@ -17,8 +17,9 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler/adminbackgroundjobs"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
-	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/postgres"
+	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/drivers/postgres"
+	dbtuils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/endpoints"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/middleware"
@@ -117,8 +118,8 @@ func main() {
 	logger.Info("Server stopped gracefully")
 }
 
-func GetDBConfig(cfg *common.Config) database.DbConfig {
-	dbConfig := database.DbConfig{
+func GetDBConfig(cfg *common.Config) dbtuils.DbConfig {
+	dbConfig := dbtuils.DbConfig{
 		Type:            cfg.DBType,
 		Host:            cfg.DBHost,
 		Port:            cfg.DBPort,

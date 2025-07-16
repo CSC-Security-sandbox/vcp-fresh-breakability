@@ -17,7 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
-// This program generates "../../database/sewrapper.go". It can be invoked by running:
+// This program generates "../../database/vcp/sewrapper.go". It can be invoked by running:
 // 1. "go run main.go" from the current directory
 // 2. "go generate" from ../../database
 
@@ -126,7 +126,7 @@ func (v *FileVisitor) Visit(node ast.Node) (w ast.Visitor) {
 
 func main() {
 	// Read source
-	dat, err := ioutil.ReadFile("../../database/interface.go")
+	dat, err := ioutil.ReadFile("../../database/vcp/interface.go")
 	check(err)
 	src = string(dat)
 
@@ -134,7 +134,7 @@ func main() {
 
 	fset := token.NewFileSet() // positions are relative to fset
 
-	f, err := parser.ParseFile(fset, "../../database/interface.go", src, parser.AllErrors)
+	f, err := parser.ParseFile(fset, "../../database/vcp/interface.go", src, parser.AllErrors)
 	check(err)
 	offset = f.Pos()
 
@@ -158,7 +158,7 @@ func main() {
 		Modified:  filteredList,
 		Unchanged: nochangeList,
 	}
-	fname := "../../database/sewrapper.go"
+	fname := "../../database/vcp/sewrapper.go"
 	logger.Info("Generating", "fname", fname)
 	f1, err := os.Create(fname)
 	check(err)
@@ -234,7 +234,7 @@ import (
 	"context"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 )

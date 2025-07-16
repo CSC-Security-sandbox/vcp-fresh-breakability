@@ -23,12 +23,11 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
 	vmrs_config "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/config"
 	vmrs_decision "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/decision"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -1011,7 +1010,7 @@ func (j *PoolActivity) GetPool(ctx context.Context, pool *datamodel.Pool) (*data
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	dbPool := repository.ConvertPoolViewToPool(poolView)
+	dbPool := database.ConvertPoolViewToPool(poolView)
 	return dbPool, nil
 }
 

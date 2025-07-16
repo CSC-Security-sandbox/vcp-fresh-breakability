@@ -1,7 +1,7 @@
 package temporalmanager
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	workflowEngine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"go.temporal.io/sdk/client"
 )

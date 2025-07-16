@@ -8,7 +8,8 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -72,7 +73,7 @@ func (hgu *HostGroupUpdateActivity) UpdateIGroups(ctx context.Context, hg *datam
 		updatedHG[volume.Pool.UUID] = true
 	}
 
-	filter := utils.CreateFilterWithConditions(utils.NewFilterCondition("account_id", "=", hg.AccountID))
+	filter := utils2.CreateFilterWithConditions(utils2.NewFilterCondition("account_id", "=", hg.AccountID))
 	pools, err := hgu.SE.ListPools(ctx, filter)
 	if err != nil {
 		logger.Errorf("Failed to get pools for account: %s, error: %s", hg.AccountID, err.Error())

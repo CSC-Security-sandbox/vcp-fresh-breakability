@@ -10,7 +10,7 @@ command_exists() {
 
 generate_retry_engine_code_for_DB_operations(){
   echo "starting to generate retry engine code for DB operations"
-  pushd ../cmd/retry-engine-generator > /dev/null
+  pushd ../../cmd/retry-engine-generator > /dev/null
   go run main.go
   echo "successfully created retry engine code for DB operations"
 }
@@ -23,7 +23,7 @@ cleanup() {
 generate_retry_engine() {
   echo "Generating retry engine code for DB operations..."
 
-  pushd ../database > /dev/null
+  pushd ../database/vcp > /dev/null
 
   if ! generate_retryEngineWrapper_checksums; then
     echo "Failed to generate checksums due to missing files."
@@ -34,10 +34,10 @@ generate_retry_engine() {
 
     generate_retry_engine_code_for_DB_operations
 
-    pushd ../../database
+    pushd ../../database/vcp
     generate_retryEngineWrapper_checksums
 
-    mv newChecksumsFile.checksum ../checksums/retry-engine-checksums
+    mv newChecksumsFile.checksum ../../checksums/retry-engine-checksums
 
   else
     echo "Everything is up to date. Retry engine code is already the latest."

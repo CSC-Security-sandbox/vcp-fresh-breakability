@@ -3,18 +3,18 @@ package activities
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"gorm.io/gorm"
 	"net/http"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"gorm.io/gorm"
 )
 
 const (

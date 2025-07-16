@@ -24,11 +24,10 @@ import (
 	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
 	vmrs_decision "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/decision"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -65,7 +64,7 @@ func TestGetPool_Success(t *testing.T) {
 	activity := activities.PoolActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{Name: "test-pool"}}
-	pool := repository.ConvertPoolViewToPool(poolView)
+	pool := database.ConvertPoolViewToPool(poolView)
 
 	mockStorage.On("GetPool", ctx, poolView.UUID, int64(0)).Return(poolView, nil)
 

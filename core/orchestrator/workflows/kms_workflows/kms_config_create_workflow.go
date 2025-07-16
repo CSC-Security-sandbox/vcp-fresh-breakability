@@ -30,7 +30,7 @@ var (
 	getSignedJwtToken = auth.GetSignedJwtToken
 )
 
-// CreateKmsConfigWorkflow KMS Config Workflow process pool related requests from a customer.
+// CreateKmsConfigWorkflow KMS config Workflow process pool related requests from a customer.
 func CreateKmsConfigWorkflow(ctx workflow.Context, params *common.CreateKmsConfigParams, kmsConfig *datamodel.KmsConfig) (interface{}, error) {
 	kmsConfigWorkflow := new(createKmsConfigWorkflow)
 	err := kmsConfigWorkflow.Setup(ctx, params)

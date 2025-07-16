@@ -5,13 +5,14 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 // GetDBConfig retrieves the database configuration from the common config.
-var GetDBConfig = func(cfg *common.Config) database.DbConfig {
-	dbConfig := database.DbConfig{
+var GetDBConfig = func(cfg *common.Config) dbutils.DbConfig {
+	dbConfig := dbutils.DbConfig{
 		Type:            cfg.DBType,
 		Host:            cfg.DBHost,
 		Port:            cfg.DBPort,

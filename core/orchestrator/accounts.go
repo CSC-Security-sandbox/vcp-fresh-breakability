@@ -7,7 +7,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 )
 
@@ -50,6 +50,7 @@ func _createAccount(ctx context.Context, se database.Storage, accountName string
 		State: models.AccountStateEnabled,
 		Tags:  tags,
 	}
+
 	createdAccount, err := se.CreateAccount(ctx, dbAccount)
 	if err != nil {
 		return nil, err

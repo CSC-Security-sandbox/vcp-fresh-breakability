@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"

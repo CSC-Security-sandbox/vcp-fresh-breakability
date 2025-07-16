@@ -18,7 +18,8 @@ import (
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -550,9 +551,9 @@ func GetCCFEURI(projectNumber, location, volumeName, replicationName string) str
 func _validateReplicationParams(ctx context.Context, event *CommonReplicationEventParams, accountID int64, se database.Storage) error {
 	logger := util.GetLogger(ctx)
 	ccfeURI := internalUtilGetCCFEURI(event.AccountName, event.Location, event.VolumeResourceID, event.ReplicationResourceID)
-	filter := utils.CreateFilterWithConditions(
-		utils.NewFilterCondition("account_id", "=", accountID),
-		utils.NewFilterCondition("uri", "=", ccfeURI))
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("account_id", "=", accountID),
+		utils2.NewFilterCondition("uri", "=", ccfeURI))
 	replicationDb, err := se.ListVolumeReplications(ctx, *filter)
 	if err != nil {
 		return errors.NewVCPError(errors.ErrDatabaseDataReadError, err)

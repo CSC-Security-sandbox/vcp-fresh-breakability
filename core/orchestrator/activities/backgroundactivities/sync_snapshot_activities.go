@@ -10,9 +10,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/repository"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -52,7 +52,7 @@ func (a *SyncSnapshotActivity) ListPools(ctx context.Context) ([]*datamodel.Pool
 	logger := util.GetLogger(ctx)
 	se := a.SE
 
-	filter := utils.CreateFilterWithConditions(utils.NewFilterCondition("state", "=", models.LifeCycleStateREADY))
+	filter := utils2.CreateFilterWithConditions(utils2.NewFilterCondition("state", "=", models.LifeCycleStateREADY))
 	poolViews, err := se.ListPools(ctx, filter)
 	if err != nil {
 		logger.Errorf("Failed to list pools: %v", err)
@@ -61,7 +61,7 @@ func (a *SyncSnapshotActivity) ListPools(ctx context.Context) ([]*datamodel.Pool
 
 	var pools []*datamodel.Pool
 	for _, poolView := range poolViews {
-		pools = append(pools, repository.ConvertPoolViewToPool(poolView))
+		pools = append(pools, database.ConvertPoolViewToPool(poolView))
 	}
 	return pools, nil
 }

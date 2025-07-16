@@ -11,7 +11,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -71,10 +72,10 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	}
 
 	// Check and return early if a snapshot with the same name is already in creation for this volume and account
-	filter := utils.CreateFilterWithConditions(
-		utils.NewFilterCondition("name", "=", params.Name),
-		utils.NewFilterCondition("account_id", "=", account.ID),
-		utils.NewFilterCondition("volume_id", "=", volume.ID))
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("name", "=", params.Name),
+		utils2.NewFilterCondition("account_id", "=", account.ID),
+		utils2.NewFilterCondition("volume_id", "=", volume.ID))
 	existingSnapshots, err := se.GetSnapshotsWithCondition(ctx, *filter)
 	if err != nil {
 		logger.Errorf("Failed to get snapshots with conditions: %v. Error: %v", filter, err)
@@ -82,12 +83,12 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	}
 
 	if len(existingSnapshots) > 0 {
-		filter := utils.CreateFilterWithConditions(
-			utils.NewFilterCondition("resource_name", "=", params.Name),
-			utils.NewFilterCondition("account_id", "=", account.ID),
-			utils.NewFilterCondition("type", "=", string(models.JobTypeCreateSnapshot)),
-			utils.NewFilterCondition("state", "!=", string(models.JobsStateDONE)),
-			utils.NewFilterCondition("state", "!=", string(models.JobsStateERROR)))
+		filter := utils2.CreateFilterWithConditions(
+			utils2.NewFilterCondition("resource_name", "=", params.Name),
+			utils2.NewFilterCondition("account_id", "=", account.ID),
+			utils2.NewFilterCondition("type", "=", string(models.JobTypeCreateSnapshot)),
+			utils2.NewFilterCondition("state", "!=", string(models.JobsStateDONE)),
+			utils2.NewFilterCondition("state", "!=", string(models.JobsStateERROR)))
 
 		jobs, err := se.GetJobsWithCondition(ctx, *filter)
 		if err != nil {
@@ -236,10 +237,10 @@ func (o *Orchestrator) GetMultipleSnapshots(ctx context.Context, volumeUuid stri
 		return nil, err
 	}
 
-	filter := utils.CreateFilterWithConditions(
-		utils.NewFilterCondition("account_id", "=", account.ID),
-		utils.NewFilterCondition("volume_id", "=", volume.ID),
-		utils.NewFilterCondition("uuid", "in", snapshotUUIDs))
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("account_id", "=", account.ID),
+		utils2.NewFilterCondition("volume_id", "=", volume.ID),
+		utils2.NewFilterCondition("uuid", "in", snapshotUUIDs))
 
 	dbSnapshots, err := se.GetSnapshotsWithCondition(ctx, *filter)
 	if err != nil {

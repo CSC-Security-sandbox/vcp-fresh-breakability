@@ -43,3 +43,5 @@ run:
     - core/vsa/provider_mock.go
     - telemetry/performance/sink_mock.go
     - core/vsa/provider_mock.go
+    - database/vcp/data_store_mock.go
+    - database/vcp/storage_mock.go

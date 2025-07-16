@@ -10,7 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -131,7 +131,7 @@ func _getKmsConfig(ctx context.Context, se database.Storage, temporal client.Cli
 	return convertDatastoreKmsConfigToModel(dbKmsConfig), nil
 }
 
-// GetMultipleKMSConfigs gets KMS Config records for the UUIDs provided
+// GetMultipleKMSConfigs gets KMS config records for the UUIDs provided
 func (o *Orchestrator) GetMultipleKMSConfigs(ctx context.Context, kmsConfigUUIDList []string) ([]*models.KmsConfig, error) {
 	se := o.storage
 

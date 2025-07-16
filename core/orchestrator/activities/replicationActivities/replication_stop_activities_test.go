@@ -3,15 +3,15 @@ package replicationActivities
 import (
 	"context"
 	"errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestGetSrcBasePathStop(t *testing.T) {

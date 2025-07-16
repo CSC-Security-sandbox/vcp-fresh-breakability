@@ -7,8 +7,9 @@ import (
 	"os"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
-	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/postgres"
+	_ "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/drivers/postgres"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -23,7 +24,7 @@ func main() {
 	logger := slogger.NewLogger()
 	cfg := common.LoadConfig()
 
-	dbConfig := database.DbConfig{
+	dbConfig := dbutils.DbConfig{
 		Type:            cfg.DBType,
 		Host:            cfg.DBHost,
 		Port:            cfg.DBPort,
@@ -66,7 +67,7 @@ func main() {
 	}
 }
 
-func setupDatabase(ctx context.Context, dbConfig database.DbConfig, logger slogger.Logger) error {
+func setupDatabase(ctx context.Context, dbConfig dbutils.DbConfig, logger slogger.Logger) error {
 	dbConfig.Name = common.DefaultDB
 	storage, err := database.New(dbConfig, logger)
 	if err != nil {
@@ -75,7 +76,7 @@ func setupDatabase(ctx context.Context, dbConfig database.DbConfig, logger slogg
 	return storage.SetupDatabase(ctx)
 }
 
-func performRollback(ctx context.Context, dbConfig database.DbConfig, logger slogger.Logger) error {
+func performRollback(ctx context.Context, dbConfig dbutils.DbConfig, logger slogger.Logger) error {
 	storage, err := database.New(dbConfig, logger)
 	if err == nil {
 		err = storage.Connect(true)
@@ -92,7 +93,7 @@ func performRollback(ctx context.Context, dbConfig database.DbConfig, logger slo
 	return storage.Rollback(ctx)
 }
 
-func performMigration(ctx context.Context, dbConfig database.DbConfig, logger slogger.Logger) error {
+func performMigration(ctx context.Context, dbConfig dbutils.DbConfig, logger slogger.Logger) error {
 	storage, err := database.New(dbConfig, logger)
 	if err == nil {
 		err = storage.Connect(true)

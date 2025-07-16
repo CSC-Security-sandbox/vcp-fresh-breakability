@@ -3,10 +3,6 @@ package kms_activities
 import (
 	"context"
 	"database/sql"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
-	googleOauth2 "golang.org/x/oauth2/google"
-	"google.golang.org/api/cloudkms/v1"
 	"net/http"
 	"testing"
 	"time"
@@ -23,11 +19,15 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
+	googleOauth2 "golang.org/x/oauth2/google"
+	"google.golang.org/api/cloudkms/v1"
 	"google.golang.org/api/iam/v1"
 )
 

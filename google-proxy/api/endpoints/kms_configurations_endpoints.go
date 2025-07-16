@@ -329,7 +329,7 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 	switch kmsConfig.State {
 	case coremodel.LifeCycleStateError:
 		return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
-			Message: "Kms Config is in error state, please delete the config and try again",
+			Message: "Kms config is in error state, please delete the config and try again",
 			Code:    http.StatusConflict,
 		}, nil
 	}
