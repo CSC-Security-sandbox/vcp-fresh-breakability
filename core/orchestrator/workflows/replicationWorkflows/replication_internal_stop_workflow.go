@@ -106,7 +106,7 @@ func (wf *internalVolumeReplicationStopWorkflow) Run(ctx workflow.Context, args 
 	if err != nil {
 		return nil, err
 	}
-	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSnapMirrorFromOntap, dbReplication, node).Get(ctx, &dbReplication)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSnapMirrorFromOntap, dbReplication, node).Get(ctx, &vsaReplication)
 	if err != nil {
 		return nil, err
 	}

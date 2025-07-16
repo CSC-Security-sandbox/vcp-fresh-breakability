@@ -47,6 +47,7 @@ var (
 	VerifyDstReplicationResume  = _verifyDstReplicationResume
 	VerifyDstReplicationStop    = _verifyDstReplicationStop
 	VerifyDstVolume             = _verifyDstVolume
+	VerifyDstReplication        = _verifyDstReplication
 
 	InternalUtilGetCallbackToken   = auth.GetSignedAccessToken
 	InternalUtilGetSignedToken     = auth.GetSignedJwtToken
@@ -794,4 +795,32 @@ func convertReplicationResponseToModels(response *googleproxyclient.V1betaGetMul
 	}
 	replication.CreatedAt = response.Replications[0].CreatedAt.Value
 	return &replication
+}
+
+func _verifyDstReplication(ctx context.Context, event *DeleteReplicationEvent) (*coreModels.VolumeReplication, error) {
+	logger := util.GetLogger(ctx)
+	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
+	if err != nil || dstReplication == nil {
+		logger.Error("getReplication error", common.Error(err))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
+	}
+
+	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateMIRRORED {
+		logger.Error("Replication in mirrored state", common.Error(err))
+		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Destination replication is in mirror_state: %v expected_mirror_state: %v", models.ReplicationV1betaMirrorStateMIRRORED, models.ReplicationV1betaMirrorStateSTOPPED))
+	}
+
+	// Check if replication is in valid state
+	if *dstReplication.MirrorState != models.ReplicationV1betaMirrorStateSTOPPED && *dstReplication.MirrorState != models.ReplicationV1betaMirrorStateUNINITIALIZED {
+		logger.Error("Replication should be in PREPARING or STOPPED state before deleting", common.Error(err))
+		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Expected mirror state: %v or %v", models.ReplicationV1betaMirrorStatePREPARING, models.ReplicationV1betaMirrorStateSTOPPED))
+	}
+
+	// Edge Case where mirrorState is uninitialized but data is being transferred and state is PENDING_SVM_PEERING.
+	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateUNINITIALIZED && *dstReplication.RelationshipStatus == coreModels.SnapmirrorRelationshipTransferring {
+		logger.Error("Replication needs to be in stopped state", common.Error(err))
+		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status should be %s", models.VolumeReplicationCVPV1betaRelationshipStatusIdle))
+	}
+
+	return dstReplication, nil
 }

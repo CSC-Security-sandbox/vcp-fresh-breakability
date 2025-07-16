@@ -137,7 +137,7 @@ func (h Handler) V1betaInternalReleaseVolumeReplication(ctx context.Context, par
 func (h Handler) V1betaInternalDeleteVolumeReplication(ctx context.Context, params gcpgenserver.V1betaInternalDeleteVolumeReplicationParams) (gcpgenserver.V1betaInternalDeleteVolumeReplicationRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	volumeReplication, job, err := h.Orchestrator.DeleteVolumeReplication(ctx, params.VolumeReplicationId)
+	volumeReplication, job, err := h.Orchestrator.DeleteReplicationInternal(ctx, params.VolumeReplicationId)
 	if err != nil {
 		logger.Error("Failed to delete replication", "error", err.Error())
 		if errors.IsNotFoundErr(err) {

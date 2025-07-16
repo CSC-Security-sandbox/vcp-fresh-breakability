@@ -58,7 +58,7 @@ func (wf *createVolumeReplicationWorkflow) Setup(ctx workflow.Context, input int
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
 	wf.CustomerID = createReplicationParams.AccountName
-	wf.Status = "created"
+	wf.Status = workflows.WorkflowStatusCreated
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
 	logger := util.GetLogger(ctx)
 	wf.Logger = logger

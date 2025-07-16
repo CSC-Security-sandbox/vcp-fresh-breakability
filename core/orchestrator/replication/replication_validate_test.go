@@ -1277,3 +1277,105 @@ func TestGetReplication(t *testing.T) {
 		assert.NoError(tt, err)
 	})
 }
+
+func TestVerifyDstReplicationDelete(t *testing.T) {
+	event := &DeleteReplicationEvent{
+		CommonReplicationEventParams: CommonReplicationEventParams{
+			DstBasePath:              "dstPath",
+			DestinationProjectNumber: "destinationProjectNumber",
+			DstToken:                 "dstToken",
+			ReplicationModel: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "dstLocation",
+					DestinationReplicationUUID: "dstUUID",
+				},
+			},
+		},
+	}
+	t.Run("WhenGetReplicationError", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, errors.New("some error")
+		}
+		_, err := _verifyDstReplication(ctx, event)
+		assert.Error(tt, err)
+	})
+	t.Run("WhenMirrorStateMirrored", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		mirrorState := "MIRRORED"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState: &mirrorState,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+		expectedError := errors.NewUserInputValidationErr(fmt.Sprintf("Destination replication is in mirror_state: %v expected_mirror_state: %v", models.ReplicationV1betaMirrorStateMIRRORED, models.ReplicationV1betaMirrorStateSTOPPED))
+
+		_, err := _verifyDstReplication(ctx, event)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenMirrorStatePreparing", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		mirrorState := "ABORTED"
+		relationshipStatus := "transferring"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+		expectedError := errors.NewUserInputValidationErr(fmt.Sprintf("Expected mirror state: %v or %v", models.ReplicationV1betaMirrorStatePREPARING, models.ReplicationV1betaMirrorStateSTOPPED))
+
+		_, err := _verifyDstReplication(ctx, event)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenMirrorStateUninitialized", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		mirrorState := "UNINITIALIZED"
+		relationshipStatus := "transferring"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+		expectedError := errors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status should be %s", models.VolumeReplicationCVPV1betaRelationshipStatusIdle))
+		_, err := _verifyDstReplication(ctx, event)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		mirrorState := "STOPPED"
+		relationshipStatus := "IDLE"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+		resp, err := _verifyDstReplication(ctx, event)
+		assert.NoError(tt, err)
+		assert.Equal(tt, dstReplication, resp)
+	})
+}

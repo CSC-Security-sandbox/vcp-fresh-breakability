@@ -137,6 +137,8 @@ const (
 	ErrInvalidOperationName                                          = 6061
 	ErrDeHydrateSnapshots                                            = 6062
 	ErrKMSMigration                                                  = 6063
+	ErrDeHydrateVolume                                               = 6063
+	ErrDeHydrateVolumeReplication                                    = 6064
 )
 
 type Error interface {

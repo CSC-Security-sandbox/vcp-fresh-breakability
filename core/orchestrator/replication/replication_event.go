@@ -135,3 +135,23 @@ type ResumeReplicationResult struct {
 	JobId            *string
 	DbVolReplication *datamodel.VolumeReplication
 }
+
+type DeleteReplicationEvent struct {
+	ReplicationEventBase
+	CommonReplicationEventParams
+}
+
+type DeleteReplicationResult struct {
+	Ctx              context.Context
+	Event            *DeleteReplicationEvent
+	DstBasePath      *string
+	SrcBasePath      *string
+	DstProjectNumber *string
+	SrcProjectNumber *string
+	DstJwtToken      *string
+	SrcJwtToken      *string
+	DstReplication   *googleproxyclient.VolumeReplicationInternalV1beta
+	DstVolume        *gcpgenserver.VolumeV1beta
+	Error            error
+	JobId            string
+}

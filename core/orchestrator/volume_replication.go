@@ -28,28 +28,34 @@ import (
 )
 
 var (
-	createVolumeReplicationInternal            = _createVolumeReplicationInternal
-	createVolumeReplication                    = _createVolumeReplication
+	// Internal functions for orchestrator package
+	createVolumeReplicationInternal = _createVolumeReplicationInternal
+	stopReplicationInternal         = _stopReplicationInternal
+	resumeReplicationInternal       = _resumeReplicationInternal
+	deleteReplicationInternal       = _deleteReplicationInternal
+
+	createVolumeReplication  = _createVolumeReplication
+	stopReplication          = _stopReplication
+	resumeReplication        = _resumeReplication
+	deleteReplication        = _deleteReplication
+	releaseVolumeReplication = _releaseVolumeReplication
+
+	validateCreateReplicationParams = replication.ValidateCreateReplicationParams
+	validateReplicationParams       = replication.ValidateReplicationParams
+	verifyDstReplicationResume      = replication.VerifyDstReplicationResume
+	verifyDstReplicationStop        = replication.VerifyDstReplicationStop
+	VerifyDstReplicationDelete      = replication.VerifyDstReplication
+
 	convertCreateReplicationParamsToEventParam = _convertCreateReplicationParamsToEventParam
 	getReplicationObjects                      = _getReplicationObjects
 	googleProxyInternalGetMultipleReplications = _googleProxyInternalGetMultipleReplications
-	stopReplicationInternal                    = _stopReplicationInternal
-	stopReplication                            = _stopReplication
-	validateCreateReplicationParams            = replication.ValidateCreateReplicationParams
-	validateReplicationParams                  = replication.ValidateReplicationParams
-	verifyDstReplicationResume                 = replication.VerifyDstReplicationResume
-	verifyDstReplicationStop                   = replication.VerifyDstReplicationStop
-	resumeReplication                          = _resumeReplication
-	resumeReplicationInternal                  = _resumeReplicationInternal
+	GetProjectNumberForRegion                  = _getProjectNumberForRegion
 
 	utilParseRegionAndZone            = utils.ParseRegionAndZone
 	utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 	utilsGetPairedRegionUri           = utils.GetPairedRegionURI
 	utilsParseProjectNumberFromURI    = utils.ParseProjectNumberFromURI
-	GetProjectNumberForRegion         = _getProjectNumberForRegion
 	authGetSignedJwtToken             = auth.GetSignedJwtToken
-	releaseVolumeReplication          = _releaseVolumeReplication
-	deleteVolumeReplication           = _deleteVolumeReplication
 )
 
 func (o *Orchestrator) CreateVolumeReplicationInternal(ctx context.Context, params *commonparams.CreateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error) {
@@ -948,11 +954,11 @@ func (o *Orchestrator) GetReplication(ctx context.Context, volumeReplicationId s
 	return convertDataStoreReplicationToModel(replication), nil
 }
 
-func (o *Orchestrator) DeleteVolumeReplication(ctx context.Context, volumeReplicationId string) (*models.VolumeReplication, *datamodel.Job, error) {
-	return deleteVolumeReplication(ctx, o.storage, o.temporal, volumeReplicationId)
+func (o *Orchestrator) DeleteReplicationInternal(ctx context.Context, volumeReplicationId string) (*models.VolumeReplication, *datamodel.Job, error) {
+	return deleteReplicationInternal(ctx, o.storage, o.temporal, volumeReplicationId)
 }
 
-func _deleteVolumeReplication(ctx context.Context, se database.Storage, temporal client.Client, volumeReplicationId string) (*models.VolumeReplication, *datamodel.Job, error) {
+func _deleteReplicationInternal(ctx context.Context, se database.Storage, temporal client.Client, volumeReplicationId string) (*models.VolumeReplication, *datamodel.Job, error) {
 	logger := util.GetLogger(ctx)
 
 	dbVolumeReplication, err := se.GetVolumeReplication(ctx, volumeReplicationId)
@@ -1009,4 +1015,77 @@ func _deleteVolumeReplication(ctx context.Context, se database.Storage, temporal
 	}
 
 	return convertDataStoreReplicationToModel(dbVolumeReplication), createdJob, nil
+}
+
+func (o *Orchestrator) DeleteReplication(ctx context.Context, params *commonparams.DeleteReplicationParams) (*models.VolumeReplication, string, error) {
+	return deleteReplication(ctx, o.storage, o.temporal, params)
+}
+
+func _deleteReplication(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.DeleteReplicationParams) (*models.VolumeReplication, string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		logger.Error("Failed to get or create account", "error", err)
+
+		return nil, "", err
+	}
+
+	event := replication.DeleteReplicationEvent{
+		CommonReplicationEventParams: replication.CommonReplicationEventParams{
+			VolumeResourceID:      params.VolumeResourceId,
+			ReplicationResourceID: params.ReplicationResourceId,
+			AccountName:           params.AccountName,
+			XCorrelationID:        &params.CorrelationId,
+			Location:              params.Region,
+			Zone:                  params.Zone,
+		},
+	}
+
+	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
+	if err != nil {
+		return nil, "", err
+	}
+
+	dstReplication, err := VerifyDstReplicationDelete(ctx, &event)
+	if err != nil {
+		return nil, "", err
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeDeleteVolumeReplication),
+		State:        string(models.JobsStateNEW),
+		ResourceName: event.ReplicationModel.Uri,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: event.ReplicationModel.UUID,
+			PoolUUID:     event.ReplicationModel.Volume.Pool.UUID,
+		},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		replicationWorkflows.ReplicationDeleteWorkflow,
+		params,
+		&event,
+	)
+	if err != nil {
+		logger.Error("Failed to execute workflow", "error", err)
+		return nil, "", err
+	}
+
+	dstReplication.State = models.LifeCycleStateDeleting
+	dstReplication.StateDetails = models.LifeCycleStateDeletingDetails
+	dstReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
+	return dstReplication, createdJob.UUID, nil
 }

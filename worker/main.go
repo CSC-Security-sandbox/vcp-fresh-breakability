@@ -184,6 +184,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(replicationWorkflows.StopReplicationWorkflow)
 	worker.RegisterWorkflow(workflows.RegisterNodeToHarvestFarmWorkflow)
 	worker.RegisterWorkflow(workflows.UnRegisterNodeFromHarvestFarmWorkflow)
+	worker.RegisterWorkflow(replicationWorkflows.ReplicationDeleteWorkflow)
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
@@ -215,4 +216,5 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&replicationActivities.InternalStopVolumeReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.StopVolumeReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.UnRegisterNodeFromHarvestActivity{SE: dbcon})
+	worker.RegisterActivity(&replicationActivities.DeleteVolumeReplicationActivity{SE: dbcon})
 }

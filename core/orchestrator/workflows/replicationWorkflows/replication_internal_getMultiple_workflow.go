@@ -51,7 +51,7 @@ func (wf *replicationInternalGetMultipleWorkflow) Setup(ctx workflow.Context, in
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
 	wf.CustomerID = tParams.AccountName
-	wf.Status = "created"
+	wf.Status = workflows.WorkflowStatusCreated
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
 	logger := util.GetLogger(ctx)
 	wf.Logger = logger

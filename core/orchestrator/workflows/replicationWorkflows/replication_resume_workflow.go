@@ -53,7 +53,7 @@ func (wf *ReplicationResumeWorkflow) Setup(ctx workflow.Context, input interface
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
 	wf.CustomerID = resumeReplicationParams.AccountName
-	wf.Status = "created"
+	wf.Status = workflows.WorkflowStatusCreated
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
 	logger := util.GetLogger(ctx)
 	wf.Logger = logger

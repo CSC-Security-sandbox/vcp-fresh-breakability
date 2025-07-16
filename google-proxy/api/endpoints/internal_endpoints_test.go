@@ -717,7 +717,7 @@ func TestV1betaInternalDeleteVolumeReplication(t *testing.T) {
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
-		mockOrchestrator.EXPECT().DeleteVolumeReplication(ctx, params.VolumeReplicationId).Return(nil, nil, errors.New("delete error"))
+		mockOrchestrator.EXPECT().DeleteReplicationInternal(ctx, params.VolumeReplicationId).Return(nil, nil, errors.New("delete error"))
 		resp, err := handler.V1betaInternalDeleteVolumeReplication(ctx, params)
 		assert.NoError(tt, err)
 		assert.IsType(tt, &gcpgenserver.V1betaInternalDeleteVolumeReplicationInternalServerError{}, resp)
@@ -740,7 +740,7 @@ func TestV1betaInternalDeleteVolumeReplication(t *testing.T) {
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
-		mockOrchestrator.EXPECT().DeleteVolumeReplication(ctx, params.VolumeReplicationId).Return(nil, nil, errors.NewNotFoundErr("Volume replication not found", nil))
+		mockOrchestrator.EXPECT().DeleteReplicationInternal(ctx, params.VolumeReplicationId).Return(nil, nil, errors.NewNotFoundErr("Volume replication not found", nil))
 		resp, err := handler.V1betaInternalDeleteVolumeReplication(ctx, params)
 		assert.NoError(tt, err)
 		assert.IsType(tt, &gcpgenserver.V1betaInternalDeleteVolumeReplicationBadRequest{}, resp)
@@ -824,7 +824,7 @@ func TestV1betaInternalDeleteVolumeReplication(t *testing.T) {
 				},
 			},
 		}
-		mockOrchestrator.EXPECT().DeleteVolumeReplication(ctx, mock.Anything).Return(volumeReplication, job, nil)
+		mockOrchestrator.EXPECT().DeleteReplicationInternal(ctx, mock.Anything).Return(volumeReplication, job, nil)
 		resp, err := handler.V1betaInternalDeleteVolumeReplication(ctx, params)
 		assert.NoError(tt, err)
 		assert.Equal(tt, expectedResponse, resp)

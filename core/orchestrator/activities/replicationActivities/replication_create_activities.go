@@ -390,6 +390,7 @@ func _convertVolumeReplicationCreateParams(result replication.CreateReplicationR
 		DestinationHostName:   result.DstPool.ClusterName.Value,
 		DestinationServerName: *result.DstSvm,
 		DestinationVolumeName: result.DstVolume.ResourceId,
+		VolumeReplicationUuid: googleproxyclient.NewOptString(result.DbVolReplication.UUID),
 		DestinationVolumeUuid: googleproxyclient.NewOptString(result.DstVolume.VolumeId.Value),
 		DestinationPoolUuid:   googleproxyclient.NewOptString(result.DstPool.PoolId.Value),
 		Name:                  googleproxyclient.NewOptString(*result.Event.CreateReplicationParams.ResourceID),

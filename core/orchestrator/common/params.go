@@ -439,3 +439,12 @@ type StopReplicationParams struct {
 	Zone                  string
 	ForceStop             bool
 }
+
+type DeleteReplicationParams struct {
+	AccountName           string
+	Region                string
+	CorrelationId         string
+	VolumeResourceId      string
+	ReplicationResourceId string
+	Zone                  string
+}
