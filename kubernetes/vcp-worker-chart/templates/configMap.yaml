@@ -1,5 +1,3 @@
-  HARVEST_PORT_START: {{ .Values.harvestPortStart | quote }}
-  HARVEST_PORT_END: {{ .Values.harvestPortEnd | quote }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
