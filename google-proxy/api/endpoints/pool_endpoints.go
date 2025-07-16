@@ -396,8 +396,7 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 		}, nil
 	}
 
-	vendorId := fmt.Sprintf("/projects/%v/locations/%v/pools/%s", params.ProjectNumber, params.LocationId, params.PoolId)
-	existingPool, err := h.Orchestrator.GetPoolByVendorID(ctx, vendorId, params.ProjectNumber)
+	existingPool, err := h.Orchestrator.DescribePool(ctx, params.PoolId, params.ProjectNumber)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			logger.Info("Pool not found", "uuid", params.PoolId)

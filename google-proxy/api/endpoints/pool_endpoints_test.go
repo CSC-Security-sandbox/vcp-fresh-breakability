@@ -708,8 +708,8 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 				return "us-east4", "", nil
 			}
 
-			// Set orchestrator to return a pool when GetPool is called.
-			mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
+			// Set orchestrator to return a pool when DescribePool is called.
+			mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
 				BaseModel: models.BaseModel{
 					UUID: "pool-uuid",
 				},
@@ -774,8 +774,8 @@ func TestV1betaUpdatePool(t *testing.T) {
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		// Set orchestrator to return a pool when GetPool is called.
-		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("pool not found", nil))
+		// Set orchestrator to return a pool when DescribePool is called.
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("pool not found", nil))
 
 		params := gcpgenserver.V1betaUpdatePoolParams{
 			LocationId:    "us-east4",
@@ -803,8 +803,8 @@ func TestV1betaUpdatePool(t *testing.T) {
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		// Set orchestrator to return a pool when GetPool is called.
-		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
+		// Set orchestrator to return a pool when DescribePool is called.
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "pool-uuid",
 			},
@@ -853,8 +853,8 @@ func TestV1betaUpdatePool(t *testing.T) {
 		}
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		// Set orchestrator to return a pool when GetPool is called.
-		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
+		// Set orchestrator to return a pool when DescribePool is called.
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "pool-uuid",
 			},
@@ -908,8 +908,8 @@ func TestV1betaUpdatePool(t *testing.T) {
 		}
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		// Set orchestrator to return a pool when GetPool is called.
-		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
+		// Set orchestrator to return a pool when DescribePool is called.
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
 				UUID: "pool-uuid",
 			},
