@@ -21,12 +21,13 @@ type NodeProviderInput struct {
 	SecretID       string
 	CertificateID  string
 	DeploymentName string
+	AuthType      int
 }
 
 // CreateNodeForProvider creates a node for a given provider using the provided information.
 func _createNodeForProvider(inp NodeProviderInput) *models.Node {
 	endpointAddressToHostNameMap := make(map[string]string)
-	if AuthType == USER_CERTIFICATE {
+	if inp.AuthType == USER_CERTIFICATE {
 		for _, node := range inp.Nodes {
 			if node.EndpointAddress != "" {
 				endpointAddressToHostNameMap[node.EndpointAddress] = node.HostDNSName
@@ -37,6 +38,7 @@ func _createNodeForProvider(inp NodeProviderInput) *models.Node {
 			DeploymentName:                 inp.DeploymentName,
 			CertificateID:                  inp.CertificateID,
 			SecretID:                       inp.SecretID,
+			AuthType:                       inp.AuthType,
 		}
 	}
 
@@ -51,5 +53,6 @@ func _createNodeForProvider(inp NodeProviderInput) *models.Node {
 		Password:                       inp.Password,
 		DeploymentName:                 inp.DeploymentName,
 		SecretID:                       inp.SecretID,
+		AuthType:                       inp.AuthType,
 	}
 }

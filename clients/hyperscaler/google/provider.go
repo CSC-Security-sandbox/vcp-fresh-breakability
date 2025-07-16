@@ -9,7 +9,6 @@ import (
 
 	"cloud.google.com/go/storage"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	logger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -162,28 +161,23 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		log.Error("Error initializeCloudProjectsService", err)
 		return nil, err
 	}
-
-	var privateCaService *privateca.Service
-	var cloudDnsService *dns.Service
-	if common.AuthType == common.USER_CERTIFICATE {
-		log.Debug("Calling initializePrivateCaService")
-		privateCaService, err = initializePrivateCaService(ctx)
-		if err != nil {
-			log.Errorf("Error initializePrivateCaService :%s", err.Error())
-			return nil, err
-		}
-		log.Debug("Calling initializeCloudDnsService")
-		cloudDnsService, err = initializeCloudDnsService(ctx)
-		if err != nil {
-			log.Errorf("Error initializeCloudDnsService :%s", err.Error())
-			return nil, err
-		}
+	log.Debug("Calling initializePrivateCaService")
+	privateCaService, err := initializePrivateCaService(ctx)
+	if err != nil {
+		log.Errorf("Error initializePrivateCaService :%s", err.Error())
+		return nil, err
 	}
-
 	log.Debug("Calling initializeSecretManagerService")
 	secretManagerService, err := initializeSecretManagerService(ctx)
 	if err != nil {
 		log.Errorf("Error initializeSecretManagerService :%s", err.Error())
+		return nil, err
+	}
+
+	log.Debug("Calling initializeCloudDnsService")
+	cloudDnsService, err := initializeCloudDnsService(ctx)
+	if err != nil {
+		log.Errorf("Error initializeCloudDnsService :%s", err.Error())
 		return nil, err
 	}
 
@@ -195,10 +189,8 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		iamService:           iamService,
 		secretManagerService: secretManagerService,
 		cloudProjectsService: cloudProjectService,
-	}
-	if common.AuthType == common.USER_CERTIFICATE {
-		gServices.privateCaService = privateCaService
-		gServices.cloudDnsService = cloudDnsService
+		privateCaService:     privateCaService,
+		cloudDnsService:      cloudDnsService,
 	}
 	return &gServices, nil
 }

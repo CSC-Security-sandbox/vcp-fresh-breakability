@@ -342,11 +342,6 @@ func TestWaitForDBJob_GetJobFails(t *testing.T) {
 }
 
 func TestCreateNodeForProviderWithPool_CERT(t *testing.T) {
-	// Save and restore AuthType
-	origAuthType := commonparams.AuthType
-	commonparams.AuthType = commonparams.USER_CERTIFICATE
-	defer func() { commonparams.AuthType = origAuthType }()
-
 	dbNodes := []*datamodel.Node{
 		{EndpointAddress: "1.1.1.1", HostDNSName: "host1"},
 		{EndpointAddress: "2.2.2.2", HostDNSName: "host2"},
@@ -355,20 +350,16 @@ func TestCreateNodeForProviderWithPool_CERT(t *testing.T) {
 		DeploymentName: "cluster1",
 		PoolCredentials: &datamodel.PoolCredentials{
 			CertificateID: "cert-123",
+			AuthType:      commonparams.USER_CERTIFICATE,
 		},
 	}
-	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID})
+	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID, AuthType: pool.PoolCredentials.AuthType})
 	assert.Equal(t, map[string]string{"1.1.1.1": "host1", "2.2.2.2": "host2"}, node.EndpointAddressesToHostNameMap)
 	assert.Equal(t, "cluster1", node.DeploymentName)
 	assert.Equal(t, "cert-123", node.CertificateID)
 }
 
 func TestCreateNodeForProviderWithPool_NonCERT(t *testing.T) {
-	// Save and restore AuthType
-	origAuthType := commonparams.AuthType
-	commonparams.AuthType = commonparams.USERNAME_PWD_SEC_MGR
-	defer func() { commonparams.AuthType = origAuthType }()
-
 	dbNodes := []*datamodel.Node{
 		{EndpointAddress: "1.1.1.1"},
 		{EndpointAddress: "2.2.2.2"},
@@ -377,10 +368,11 @@ func TestCreateNodeForProviderWithPool_NonCERT(t *testing.T) {
 		DeploymentName: "cluster2",
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "secret",
+			AuthType: commonparams.USERNAME_PWD,
 		},
 	}
 
-	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID})
+	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID, AuthType: pool.PoolCredentials.AuthType})
 	assert.Equal(t, map[string]string{"1.1.1.1": "1.1.1.1", "2.2.2.2": "2.2.2.2"}, node.EndpointAddressesToHostNameMap)
 	assert.Equal(t, "secret", node.Password)
 	assert.Equal(t, "cluster2", node.DeploymentName)

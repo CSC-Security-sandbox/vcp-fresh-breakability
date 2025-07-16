@@ -16,7 +16,7 @@ var GetProviderByNode = _getProviderByNode
 
 // _getProviderByNode creates a new vsa.Provider instance using the details from the provided node.
 func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-	if commonparams.AuthType == commonparams.USER_CERTIFICATE {
+	if node.AuthType == commonparams.USER_CERTIFICATE {
 		certificate, err := activities.GetCertificateFromCacheOrSecretManager(ctx, node.CertificateID)
 		if err != nil {
 			util.GetLogger(ctx).Errorf("Failed to get certificate for node %s: %v", node.Name, err)
@@ -37,7 +37,7 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 	}
 
 	var password string
-	if commonparams.AuthType == commonparams.USERNAME_PWD_SEC_MGR {
+	if node.AuthType == commonparams.USERNAME_PWD_SEC_MGR {
 		secret, err := activities.GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
 		if err != nil {
 			util.GetLogger(ctx).Errorf("Failed to get password for node %s: %v", node.Name, err)

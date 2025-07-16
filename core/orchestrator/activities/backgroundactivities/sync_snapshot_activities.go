@@ -312,6 +312,7 @@ func _getOntapRestProviderForPool(ctx context.Context, se database.Storage, pool
 		SecretID:       pool.PoolCredentials.SecretID,
 		CertificateID:  pool.PoolCredentials.CertificateID,
 		DeploymentName: pool.DeploymentName,
+		AuthType:       pool.PoolCredentials.AuthType,
 	})
 
 	provider, err := activities.GetProviderByNode(ctx, node)

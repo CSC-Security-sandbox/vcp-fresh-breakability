@@ -13,7 +13,6 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -275,11 +274,6 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeCloudProjectsService = _initializeCloudProjectsService
 	})
 	t.Run("initializePrivateCaServiceFails", func(t *testing.T) {
-		originalCertificateBasedAuthEnabled := common.AuthType
-		common.AuthType = common.USER_CERTIFICATE
-		defer func() {
-			common.AuthType = originalCertificateBasedAuthEnabled
-		}()
 		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
 			return &serviceconsumermanagement.APIService{
 				BasePath: "",
@@ -365,11 +359,6 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeSecretManagerService = _initializeSecretManagerService
 	})
 	t.Run("initializeCloudDnsServiceFails", func(t *testing.T) {
-		originalCertificateBasedAuthEnabled := common.AuthType
-		common.AuthType = common.USER_CERTIFICATE
-		defer func() {
-			common.AuthType = originalCertificateBasedAuthEnabled
-		}()
 		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
 			return &serviceconsumermanagement.APIService{
 				BasePath: "",
@@ -414,67 +403,6 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeIamService = _initializeIamService
 	})
 	t.Run("WhenOK", func(t *testing.T) {
-		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
-			return &serviceconsumermanagement.APIService{
-				BasePath: "",
-			}, nil
-		}
-		initializeNetworkingService = func(ctx context.Context) (*servicenetworking.APIService, error) {
-			return &servicenetworking.APIService{
-				BasePath: "",
-			}, nil
-		}
-		initializeComputeService = func(ctx context.Context) (*compute.Service, error) {
-			return &compute.Service{
-				BasePath: "",
-			}, nil
-		}
-		initializePrivateCaService = func(ctx context.Context) (*privateca.Service, error) {
-			return &privateca.Service{
-				BasePath: "",
-			}, nil
-		}
-		initializeSecretManagerService = func(ctx context.Context) (*secretmanager.Service, error) {
-			return &secretmanager.Service{
-				BasePath: "",
-			}, nil
-		}
-		initializeIamService = func(ctx context.Context) (*iam.Service, error) {
-			return &iam.Service{
-				BasePath: "",
-			}, nil
-		}
-
-		initializeCloudProjectsService = func(ctx context.Context) (*cloudresourcemanager.Service, error) {
-			return &cloudresourcemanager.Service{
-				BasePath: "",
-			}, nil
-		}
-
-		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
-			return &storage.Client{}, nil
-		}
-
-		_, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
-		if err != nil {
-			t.Error("Unexpected error")
-		}
-		initializeManagementService = _initializeManagementService
-		initializeNetworkingService = _initializeNetworkingService
-		initializeComputeService = _initializeComputeService
-		initializePrivateCaService = _initializePrivateCaService
-		initializeSecretManagerService = _initializeSecretManagerService
-		initializeStorageService = _initializeStorageService
-		initializeIamService = _initializeIamService
-		initializeCloudProjectsService = _initializeCloudProjectsService
-	})
-
-	t.Run("WhenOKWithAuthTypeAsCert", func(t *testing.T) {
-		originalCertificateBasedAuthEnabled := common.AuthType
-		common.AuthType = common.USER_CERTIFICATE
-		defer func() {
-			common.AuthType = originalCertificateBasedAuthEnabled
-		}()
 		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
 			return &serviceconsumermanagement.APIService{
 				BasePath: "",

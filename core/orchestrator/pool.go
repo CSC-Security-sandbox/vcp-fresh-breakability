@@ -112,18 +112,21 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 			SecretID:      fmt.Sprintf("%s-secret", poolObj.DeploymentName),
 			CertificateID: fmt.Sprintf("%s-cert", poolObj.DeploymentName),
 			Password:      "",
+			AuthType:      commonparams.USER_CERTIFICATE,
 		}
 	case commonparams.USERNAME_PWD_SEC_MGR:
 		poolObj.PoolCredentials = &datamodel.PoolCredentials{
 			SecretID:      fmt.Sprintf("%s-secret", poolObj.DeploymentName),
 			CertificateID: "",
 			Password:      "",
+			AuthType:      commonparams.USERNAME_PWD_SEC_MGR,
 		}
 	default:
 		poolObj.PoolCredentials = &datamodel.PoolCredentials{
 			SecretID:      "",
 			CertificateID: "",
 			Password:      commonparams.NodePassword,
+			AuthType:      commonparams.USERNAME_PWD,
 		}
 	}
 
@@ -491,7 +494,7 @@ func _getInterClusterLifsFromONTAP(ctx context.Context, nodes []*datamodel.Node,
 	logger := util.GetLogger(ctx)
 
 	pool := &pools.Pool
-	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: nodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID})
+	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: nodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID, AuthType: pool.PoolCredentials.AuthType})
 	provider, err := activities.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)

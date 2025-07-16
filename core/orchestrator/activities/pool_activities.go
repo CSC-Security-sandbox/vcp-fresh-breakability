@@ -391,7 +391,7 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 		return nil, getGcpServiceErr
 	}
 
-	switch commonparams.AuthType {
+	switch pool.PoolCredentials.AuthType {
 	case commonparams.USER_CERTIFICATE:
 		// Generate and create a certificate for the VSA cluster in CAS and fallthrough to generate and create the password for VSA cluster in Secret Manager as well
 		certificate, err := GenerateAndCreateCertificateForVSACluster(gcpService, region, pool.PoolCredentials.CertificateID, clusterName)
@@ -421,7 +421,7 @@ func (j *PoolActivity) DeleteOnTapCredentials(ctx context.Context, pool *datamod
 	if err != nil {
 		return err
 	}
-	switch commonparams.AuthType {
+	switch pool.PoolCredentials.AuthType {
 	case commonparams.USER_CERTIFICATE:
 		// Revoke the certificates and delete the private key from secret manager and cache then fallthrough to delete the password from secret manager and cache
 		err = RevokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, pool.PoolCredentials.CertificateID)
@@ -442,7 +442,7 @@ func (j *PoolActivity) DeleteOnTapCredentials(ctx context.Context, pool *datamod
 
 func (j *PoolActivity) GetOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
 	credentials := &vlm.OntapCredentials{}
-	switch commonparams.AuthType {
+	switch pool.PoolCredentials.AuthType {
 	case commonparams.USER_CERTIFICATE:
 		certificate, err := GetCertificateFromCacheOrSecretManager(ctx, pool.PoolCredentials.CertificateID)
 		if err != nil {
@@ -871,9 +871,9 @@ func assignNetworkConfigForVLMClient(cfg *vlmconfig.VLMConfig, lifType vlmconfig
 }
 
 // CreateCloudDNSRecords creates DNS records for the VSA cluster's nodes in the cloud DNS service
-func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlmconfig.VLMConfig, clusterName string) (*map[string]string, error) {
+func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlmconfig.VLMConfig, clusterName string, authType int) (*map[string]string, error) {
 	hostMap := make(map[string]string)
-	if commonparams.AuthType == commonparams.USER_CERTIFICATE {
+	if authType == commonparams.USER_CERTIFICATE {
 		if len(vlmConfig.Cloud.HAPairs) == 0 {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("no cluster details provided")))
 		}
@@ -908,8 +908,8 @@ func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm
 	return &hostMap, nil
 }
 
-func (j *PoolActivity) DeleteCloudDNSRecords(ctx context.Context, hostMap map[string]string) error {
-	if commonparams.AuthType == commonparams.USER_CERTIFICATE {
+func (j *PoolActivity) DeleteCloudDNSRecords(ctx context.Context, hostMap map[string]string, authType int) error {
+	if authType == commonparams.USER_CERTIFICATE {
 		gcpService, err := GetGCPService(ctx)
 		if err != nil {
 			return err
@@ -927,9 +927,9 @@ func (j *PoolActivity) DeleteCloudDNSRecords(ctx context.Context, hostMap map[st
 	return nil
 }
 
-func (j *PoolActivity) GetCloudDNSRecords(ctx context.Context, poolId int64) (*map[string]string, error) {
+func (j *PoolActivity) GetCloudDNSRecords(ctx context.Context, poolId int64, authType int) (*map[string]string, error) {
 	hostMap := make(map[string]string)
-	if commonparams.AuthType == commonparams.USER_CERTIFICATE {
+	if authType == commonparams.USER_CERTIFICATE {
 		se := j.SE
 		nodes, err := se.GetNodesByPoolID(ctx, poolId)
 		if err != nil {
@@ -974,6 +974,7 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMC
 		CertificateID:                  pool.PoolCredentials.CertificateID,
 		SecretID:                       pool.PoolCredentials.SecretID,
 		Password:                       pool.PoolCredentials.Password,
+		AuthType:                       pool.PoolCredentials.AuthType,
 	}
 
 	provider, err := GetProviderByNode(ctx, node)
@@ -993,7 +994,7 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMC
 		NodeAttributes:  &datamodel.NodeDetails{ExternalUUID: vsaNode.ExternalUUID, InstanceType: node.InstanceType},
 		ZoneName:        node.Zone,
 	}
-	if commonparams.AuthType == commonparams.USER_CERTIFICATE {
+	if pool.PoolCredentials.AuthType == commonparams.USER_CERTIFICATE {
 		rec.HostDNSName = hostMap[node.EndpointAddress]
 	} else {
 		rec.HostDNSName = node.EndpointAddress

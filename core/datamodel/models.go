@@ -41,6 +41,7 @@ type PoolCredentials struct {
 	SecretID      string `json:"secret_id"`
 	CertificateID string `json:"certificate_id"`
 	Password      string `json:"password"`
+	AuthType      int    `json:"auth_type"`
 }
 
 type PoolView struct {

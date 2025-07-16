@@ -14,4 +14,5 @@ type Node struct {
 	Zone                           string
 	State                          string
 	DeploymentName                 string
+	AuthType                       int
 }

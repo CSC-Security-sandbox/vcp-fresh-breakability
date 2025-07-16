@@ -15,14 +15,11 @@ func Test_GetProviderByNode(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("USER_CERTIFICATE success", func(t *testing.T) {
-		origAuthType := common.AuthType
-		defer func() { common.AuthType = origAuthType }()
-		common.AuthType = common.USER_CERTIFICATE
-
 		node := &models2.Node{
 			Name:                           "node1",
 			CertificateID:                  "cert-id",
 			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "1.2.3.4"},
+			AuthType:                       common.USER_CERTIFICATE,
 		}
 
 		origGetCert := activities.GetCertificateFromCacheOrSecretManager
@@ -43,14 +40,11 @@ func Test_GetProviderByNode(t *testing.T) {
 	})
 
 	t.Run("USER_CERTIFICATE error", func(t *testing.T) {
-		origAuthType := common.AuthType
-		defer func() { common.AuthType = origAuthType }()
-		common.AuthType = common.USER_CERTIFICATE
-
 		node := &models2.Node{
 			Name:                           "node1",
 			CertificateID:                  "cert-id",
 			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "1.2.3.4"},
+			AuthType:                       common.USER_CERTIFICATE,
 		}
 
 		origGetCert := activities.GetCertificateFromCacheOrSecretManager
@@ -66,15 +60,12 @@ func Test_GetProviderByNode(t *testing.T) {
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR success", func(t *testing.T) {
-		origAuthType := common.AuthType
-		defer func() { common.AuthType = origAuthType }()
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
-
 		node := &models2.Node{
 			Name:                           "node2",
 			SecretID:                       "secret-id",
 			EndpointAddress:                "1.2.3.4",
 			EndpointAddressesToHostNameMap: map[string]string{},
+			AuthType:                       common.USERNAME_PWD_SEC_MGR,
 		}
 
 		origGetPwd := activities.GetPasswordFromCacheOrSecretManager
@@ -89,15 +80,12 @@ func Test_GetProviderByNode(t *testing.T) {
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR error", func(t *testing.T) {
-		origAuthType := common.AuthType
-		defer func() { common.AuthType = origAuthType }()
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
-
 		node := &models2.Node{
 			Name:                           "node2",
 			SecretID:                       "secret-id",
 			EndpointAddress:                "1.2.3.4",
 			EndpointAddressesToHostNameMap: map[string]string{},
+			AuthType:                       common.USERNAME_PWD_SEC_MGR,
 		}
 
 		origGetPwd := activities.GetPasswordFromCacheOrSecretManager
@@ -113,15 +101,12 @@ func Test_GetProviderByNode(t *testing.T) {
 	})
 
 	t.Run("Password from node, missing endpoint address", func(t *testing.T) {
-		origAuthType := common.AuthType
-		defer func() { common.AuthType = origAuthType }()
-		common.AuthType = common.USERNAME_PWD
-
 		node := &models2.Node{
 			Name:                           "node3",
 			Password:                       "pwd",
 			EndpointAddressesToHostNameMap: map[string]string{},
 			EndpointAddress:                "",
+			AuthType:                       common.USERNAME_PWD,
 		}
 
 		provider, err := GetProviderByNode(ctx, node)
@@ -130,15 +115,12 @@ func Test_GetProviderByNode(t *testing.T) {
 	})
 
 	t.Run("Password from node, endpoint address present", func(t *testing.T) {
-		origAuthType := common.AuthType
-		defer func() { common.AuthType = origAuthType }()
-		common.AuthType = common.USERNAME_PWD
-
 		node := &models2.Node{
 			Name:                           "node3",
 			Password:                       "pwd",
 			EndpointAddressesToHostNameMap: map[string]string{},
 			EndpointAddress:                "1.2.3.4",
+			AuthType:                       common.USERNAME_PWD,
 		}
 
 		provider, err := GetProviderByNode(ctx, node)

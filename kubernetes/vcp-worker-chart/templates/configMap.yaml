@@ -44,7 +44,6 @@ data:
   GCP_HYDRATE_ENABLED: {{ .Values.workerConfig.gcpHydrateEnabled | quote }}
   GCP_HYDRATE_BATCH_SIZE: {{ .Values.workerConfig.gcpHydrateBatchSize | quote }}
   VSA_NODE_PASSWORD: {{ .Values.workerConfig.vsaNodePassword | quote }}
-  VSA_AUTH_TYPE: {{ .Values.workerConfig.vsaAuthType | quote }}
   CERTIFICATE_LIFETIME: {{ .Values.workerConfig.certificateLifetime | quote }}
   CA_POOL_NAME: {{ .Values.workerConfig.caPoolName | quote }}
   CA_NAME: {{ .Values.workerConfig.caName | quote }}

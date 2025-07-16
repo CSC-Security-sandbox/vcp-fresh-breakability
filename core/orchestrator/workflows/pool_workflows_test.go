@@ -3,6 +3,8 @@ package workflows
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -25,7 +27,6 @@ import (
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
-	"testing"
 )
 
 func TestCreatePoolWorkflow(t *testing.T) {
@@ -66,6 +67,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
+			AuthType: common.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
 			Iops:            params.CustomPerformanceParams.Iops,
@@ -110,7 +112,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
@@ -389,6 +391,7 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
+			AuthType: common.USERNAME_PWD,
 		},
 		// Set additional fields if required.
 		ClusterDetails: datamodel.ClusterDetails{
@@ -482,6 +485,7 @@ func TestDeletePoolWorkflow(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
+			AuthType: common.USERNAME_PWD,
 		},
 	}
 
@@ -494,6 +498,9 @@ func TestDeletePoolWorkflow(t *testing.T) {
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 
 	// Mock child workflow
 	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
@@ -504,9 +511,6 @@ func TestDeletePoolWorkflow(t *testing.T) {
 		return mockVSAClientWorkflowManager
 	}
 
-	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	// Execute workflow
 	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
 
@@ -542,40 +546,44 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
 
+	pool := &datamodel.Pool{
+		Name:               "test-pool",
+		AutoTierBucketName: "test-bucket",
+		ServiceAccountId:   "test-service-account",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-tenant",
+		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: common.USERNAME_PWD,
+		},
+	}
 	// Set up test data
 	params := &common.DeletePoolParams{
 		PoolID:      "test-pool",
 		AccountName: "test-account",
 	}
-	pool := &datamodel.Pool{
-		PoolCredentials: &datamodel.PoolCredentials{
-			Password: "",
-			SecretID: "test-secret-id",
-		},
-	}
 
-	originalAuthType := common.AuthType
-	common.AuthType = common.USERNAME_PWD_SEC_MGR
 	originalProjectID := common.SecretManagerProjectID
 	common.SecretManagerProjectID = "123456789"
 
 	defer func() {
-		common.AuthType = originalAuthType
 		common.SecretManagerProjectID = originalProjectID
 	}()
 
 	// Mock activity responses
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
 
 	// Mock child workflow
 	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
@@ -760,7 +768,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("QoS policy creation failed"))
-		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
@@ -1117,7 +1125,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1235,7 +1243,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1358,7 +1366,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1472,7 +1480,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1584,7 +1592,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1697,7 +1705,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1814,7 +1822,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -1931,7 +1939,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -2048,7 +2056,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -2165,7 +2173,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 

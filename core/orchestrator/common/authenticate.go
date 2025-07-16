@@ -39,46 +39,35 @@ var (
 )
 
 func ValidateEnvironmentVariables() error {
-	switch AuthType {
-	case USERNAME_PWD_SEC_MGR:
-		if Region == "" {
-			return errors.New(500, "LOCAL_REGION must be set when using username/password authentication with secret manager")
-		}
-		if SecretManagerProjectID == "" {
-			return errors.New(500, "SECRET_MANAGER_PROJECT_ID must be set when using username/password authentication with secret manager")
-		}
-	case USER_CERTIFICATE:
-		if Region == "" {
-			return errors.New(500, "LOCAL_REGION must be set when using certificate authentication")
-		}
-		if CaName == "" {
-			return errors.New(500, "CA_NAME must be set when using certificate authentication")
-		}
-		if CaPoolName == "" {
-			return errors.New(500, "CA_POOL_NAME must be set when using certificate authentication")
-		}
-		if CaPoolDeployedProjectID == "" {
-			return errors.New(500, "CA_POOL_DEPLOYED_PROJECT_ID must be set when using certificate authentication")
-		}
-		if SecretManagerProjectID == "" {
-			return errors.New(500, "SECRET_MANAGER_PROJECT_ID must be set when using certificate authentication")
-		}
-		if VsaDeployedDnsName == "" {
-			return errors.New(500, "VSA_DEPLOYED_DNS_NAME must be set when using certificate authentication")
-		}
-		if VsaManagedZone == "" {
-			return errors.New(500, "VSA_MANAGED_ZONE must be set when using certificate authentication")
-		}
-		if CertificateLifetime == "" {
-			return errors.New(500, "CERTIFICATE_LIFETIME must be set when using certificate authentication")
-		}
-		if CloudDNSCacheTTL == 0 {
-			return errors.New(500, "CLOUD_DNS_CACHE_TTL must be set when using certificate authentication")
-		}
-	default:
-		if NodePassword == "" {
-			return errors.New(500, "VSA_NODE_PASSWORD must be set when using username/password authentication")
-		}
+	if Region == "" {
+		return errors.New(500, "LOCAL_REGION must be set for authentication")
+	}
+	if CaName == "" {
+		return errors.New(500, "CA_NAME must be set for authentication")
+	}
+	if CaPoolName == "" {
+		return errors.New(500, "CA_POOL_NAME must be set for authentication")
+	}
+	if CaPoolDeployedProjectID == "" {
+		return errors.New(500, "CA_POOL_DEPLOYED_PROJECT_ID must be set for authentication")
+	}
+	if SecretManagerProjectID == "" {
+		return errors.New(500, "SECRET_MANAGER_PROJECT_ID must be set for authentication")
+	}
+	if VsaDeployedDnsName == "" {
+		return errors.New(500, "VSA_DEPLOYED_DNS_NAME must be set for authentication")
+	}
+	if VsaManagedZone == "" {
+		return errors.New(500, "VSA_MANAGED_ZONE must be set for authentication")
+	}
+	if CertificateLifetime == "" {
+		return errors.New(500, "CERTIFICATE_LIFETIME must be set for authentication")
+	}
+	if CloudDNSCacheTTL == 0 {
+		return errors.New(500, "CLOUD_DNS_CACHE_TTL must be set for authentication")
+	}
+	if NodePassword == "" {
+		return errors.New(500, "VSA_NODE_PASSWORD must be set for authentication")
 	}
 	return nil
 }

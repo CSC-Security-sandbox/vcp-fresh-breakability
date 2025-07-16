@@ -257,7 +257,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if err != nil {
 		return nil, err
 	}
-	rollbackManager.AddActivity(poolActivity.DeleteCloudDNSRecords, hostMap)
+	rollbackManager.AddActivity(poolActivity.DeleteCloudDNSRecords, hostMap, pool.PoolCredentials.AuthType)
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, createVSAClusterDeploymentResponse.VLMConfig, pool.DeploymentName, hostMap).Get(ctx, nil)
 	if err != nil {
@@ -269,7 +269,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if err != nil {
 		return nil, err
 	}
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID, AuthType: pool.PoolCredentials.AuthType})
 
 	var ontapVersion string
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetOntapVersion, node).Get(ctx, &ontapVersion)
@@ -599,12 +599,12 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	hostMap := make(map[string]string)
-	err = workflow.ExecuteActivity(ctx, poolActivity.GetCloudDNSRecords, dbPool.ID).Get(ctx, &hostMap)
+	err = workflow.ExecuteActivity(ctx, poolActivity.GetCloudDNSRecords, dbPool.ID, dbPool.PoolCredentials.AuthType).Get(ctx, &hostMap)
 	if err != nil {
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteCloudDNSRecords, hostMap).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteCloudDNSRecords, hostMap, dbPool.PoolCredentials.AuthType).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

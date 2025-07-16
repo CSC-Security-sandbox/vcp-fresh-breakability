@@ -13,36 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func TestValidateEnvironmentVariables_UsernamePwdSecMgr(t *testing.T) {
-	originalAuthtype := AuthType
-	originalRegion := Region
-	originalSecretManagerProjectID := SecretManagerProjectID
-	AuthType = USERNAME_PWD_SEC_MGR // Set AuthType to USERNAME_PWD_SEC_MGR for this test
-	SecretManagerProjectID = ""     // Reset CaPoolDeployedProjectID for this test
-	Region = ""
-
-	defer func() {
-		AuthType = originalAuthtype                             // Restore original AuthType after test
-		SecretManagerProjectID = originalSecretManagerProjectID // Restore original SecretManagerProjectID
-		Region = originalRegion                                 // Restore original Region
-	}()
-
-	err := ValidateEnvironmentVariables()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "LOCAL_REGION must be set when using username/password authentication with secret manager")
-
-	Region = "us-central1" // Reset Region for this test
-
-	err = ValidateEnvironmentVariables()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "SECRET_MANAGER_PROJECT_ID must be set when using username/password authentication with secret manager")
-
-	SecretManagerProjectID = "projectID" // Reset SecretManagerProjectID for this test
-	err = ValidateEnvironmentVariables()
-	assert.NoError(t, err)
-}
-
-func TestValidateEnvironmentVariables_UserCertificate(t *testing.T) {
+func TestValidateEnvironmentVariables(t *testing.T) {
 	originalAuthtype := AuthType
 	originalSecretmanagerProjectID := SecretManagerProjectID
 	originalCaDeployedProjectID := CaPoolDeployedProjectID
@@ -53,6 +24,7 @@ func TestValidateEnvironmentVariables_UserCertificate(t *testing.T) {
 	originalCertificateLifetime := CertificateLifetime
 	originalRegion := Region
 	originalCloudDNSCacheTTL := CloudDNSCacheTTL
+	orignalNodePassword := NodePassword
 
 	AuthType = USER_CERTIFICATE // Set AuthType to USER_CERTIFICATE for this test
 	SecretManagerProjectID = ""
@@ -64,6 +36,7 @@ func TestValidateEnvironmentVariables_UserCertificate(t *testing.T) {
 	CertificateLifetime = ""     // Reset CertificateLifetime for this test
 	Region = ""
 	CloudDNSCacheTTL = 0
+	NodePassword = ""
 
 	defer func() {
 		AuthType = originalAuthtype                             // Restore original AuthType after test
@@ -76,70 +49,58 @@ func TestValidateEnvironmentVariables_UserCertificate(t *testing.T) {
 		CertificateLifetime = originalCertificateLifetime
 		Region = originalRegion
 		CloudDNSCacheTTL = originalCloudDNSCacheTTL // Restore original CloudDNSCacheTTL
+		NodePassword = orignalNodePassword
 	}()
 
 	err := ValidateEnvironmentVariables()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "LOCAL_REGION must be set when using certificate authentication")
+	assert.Contains(t, err.Error(), "LOCAL_REGION must be set for authentication")
 
 	Region = "us-central1" // Reset Region for this test
 
 	err = ValidateEnvironmentVariables()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "CA_NAME must be set when using certificate authentication")
+	assert.Contains(t, err.Error(), "CA_NAME must be set for authentication")
 
 	CaName = "ca-name"
 	err = ValidateEnvironmentVariables()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "CA_POOL_NAME must be set when using certificate authentication")
+	assert.Contains(t, err.Error(), "CA_POOL_NAME must be set for authentication")
 
 	CaPoolName = "ca-pool-name"
 	err = ValidateEnvironmentVariables()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "CA_POOL_DEPLOYED_PROJECT_ID must be set when using certificate authentication")
+	assert.Contains(t, err.Error(), "CA_POOL_DEPLOYED_PROJECT_ID must be set for authentication")
 
 	CaPoolDeployedProjectID = "ca-pool-deployed-project-id"
 	err = ValidateEnvironmentVariables()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "SECRET_MANAGER_PROJECT_ID must be set when using certificate authentication")
+	assert.Contains(t, err.Error(), "SECRET_MANAGER_PROJECT_ID must be set for authentication")
 
 	SecretManagerProjectID = "secret-manager-project-id"
 	err = ValidateEnvironmentVariables()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "VSA_DEPLOYED_DNS_NAME must be set when using certificate authentication")
+	assert.Contains(t, err.Error(), "VSA_DEPLOYED_DNS_NAME must be set for authentication")
 
 	VsaDeployedDnsName = "vsa-deployed-dns-name"
 	err = ValidateEnvironmentVariables()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "VSA_MANAGED_ZONE must be set when using certificate authentication")
+	assert.Contains(t, err.Error(), "VSA_MANAGED_ZONE must be set for authentication")
 
 	VsaManagedZone = "vsa-managed-zone"
 	err = ValidateEnvironmentVariables()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "CERTIFICATE_LIFETIME must be set when using certificate authentication")
+	assert.Contains(t, err.Error(), "CERTIFICATE_LIFETIME must be set for authentication")
 
 	CertificateLifetime = "30000s"
 	err = ValidateEnvironmentVariables()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "CLOUD_DNS_CACHE_TTL must be set when using certificate authentication")
+	assert.Contains(t, err.Error(), "CLOUD_DNS_CACHE_TTL must be set for authentication")
 
 	CloudDNSCacheTTL = 300
 	err = ValidateEnvironmentVariables()
-	assert.NoError(t, err)
-}
-
-func TestValidateEnvironmentVariables_Default(t *testing.T) {
-	originalAuthtype := AuthType
-	orignalNodePassword := NodePassword
-	AuthType = USERNAME_PWD // Set AuthType to USERNAME_PWD for this test
-	defer func() {
-		AuthType = originalAuthtype        // Restore original AuthType after test
-		NodePassword = orignalNodePassword // Restore original NodePassword
-	}()
-	NodePassword = ""
-	err := ValidateEnvironmentVariables()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "VSA_NODE_PASSWORD must be set when using username/password authentication")
+	assert.Contains(t, err.Error(), "VSA_NODE_PASSWORD must be set for authentication")
 
 	NodePassword = "node-password"
 	err = ValidateEnvironmentVariables()

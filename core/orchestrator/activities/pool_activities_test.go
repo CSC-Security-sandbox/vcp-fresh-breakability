@@ -3632,11 +3632,6 @@ func Test_GetAndCreateCloudDNSRecord(t *testing.T) {
 }
 
 func TestPoolActivity_GetCloudDNSRecords(t *testing.T) {
-	originalAuthType := commonparams.AuthType
-	commonparams.AuthType = commonparams.USER_CERTIFICATE
-	defer func() {
-		commonparams.AuthType = originalAuthType
-	}()
 	t.Run("GetNode_Success", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		activity := activities.PoolActivity{SE: mockStorage}
@@ -3655,7 +3650,7 @@ func TestPoolActivity_GetCloudDNSRecords(t *testing.T) {
 
 		mockStorage.On("GetNodesByPoolID", ctx, poolId).Return(expectedNode, nil)
 
-		mapHost, err := activity.GetCloudDNSRecords(ctx, poolId)
+		mapHost, err := activity.GetCloudDNSRecords(ctx, poolId, commonparams.USER_CERTIFICATE)
 
 		assert.NoError(tt, err)
 		mapHostExpected := &map[string]string{"1.2.3.4": "test-node.example.com"}
@@ -3670,7 +3665,7 @@ func TestPoolActivity_GetCloudDNSRecords(t *testing.T) {
 
 		mockStorage.On("GetNodesByPoolID", ctx, poolId).Return(nil, gorm.ErrInvalidDB)
 
-		mapHost, err := activity.GetCloudDNSRecords(ctx, poolId)
+		mapHost, err := activity.GetCloudDNSRecords(ctx, poolId, commonparams.USER_CERTIFICATE)
 
 		expectedHost := &map[string]string{}
 		assert.Error(tt, err)
@@ -3685,7 +3680,7 @@ func TestPoolActivity_GetCloudDNSRecords(t *testing.T) {
 
 		mockStorage.On("GetNodesByPoolID", ctx, poolId).Return([]*datamodel.Node{}, nil)
 
-		hostMap, err := activity.GetCloudDNSRecords(ctx, poolId)
+		hostMap, err := activity.GetCloudDNSRecords(ctx, poolId, commonparams.USER_CERTIFICATE)
 
 		expectedHost := &map[string]string{}
 		assert.Error(tt, err)
@@ -3696,11 +3691,6 @@ func TestPoolActivity_GetCloudDNSRecords(t *testing.T) {
 }
 
 func TestPoolActivity_DeleteCloudDNSRecords(t *testing.T) {
-	originalAuthType := commonparams.AuthType
-	commonparams.AuthType = commonparams.USER_CERTIFICATE
-	defer func() {
-		commonparams.AuthType = originalAuthType
-	}()
 	ctx := context.Background()
 	hostMap := map[string]string{
 		"1.2.3.4": "dns-1.test-cluster.example.com.",
@@ -3722,7 +3712,7 @@ func TestPoolActivity_DeleteCloudDNSRecords(t *testing.T) {
 		activities.DeleteCloudDNSRecord = func(gcpService hyperscaler.GoogleServices, recordName string) error {
 			return nil
 		}
-		err := activity.DeleteCloudDNSRecords(ctx, hostMap)
+		err := activity.DeleteCloudDNSRecords(ctx, hostMap, commonparams.USER_CERTIFICATE)
 		assert.NoError(t, err)
 	})
 
@@ -3736,7 +3726,7 @@ func TestPoolActivity_DeleteCloudDNSRecords(t *testing.T) {
 		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, fmt.Errorf("gcp error")
 		}
-		err := activity.DeleteCloudDNSRecords(ctx, hostMap)
+		err := activity.DeleteCloudDNSRecords(ctx, hostMap, commonparams.USER_CERTIFICATE)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "gcp error")
 	})
@@ -3756,25 +3746,18 @@ func TestPoolActivity_DeleteCloudDNSRecords(t *testing.T) {
 		activities.DeleteCloudDNSRecord = func(gcpService hyperscaler.GoogleServices, recordName string) error {
 			return fmt.Errorf("delete error")
 		}
-		err := activity.DeleteCloudDNSRecords(ctx, hostMap)
+		err := activity.DeleteCloudDNSRecords(ctx, hostMap, commonparams.USER_CERTIFICATE)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "delete error")
 	})
 	t.Run("does nothing if not USER_CERTIFICATE", func(t *testing.T) {
 		activity := &activities.PoolActivity{}
-		commonparams.AuthType = commonparams.USERNAME_PWD_SEC_MGR
-		err := activity.DeleteCloudDNSRecords(ctx, hostMap)
+		err := activity.DeleteCloudDNSRecords(ctx, hostMap, commonparams.USERNAME_PWD)
 		assert.NoError(t, err)
 	})
-	commonparams.AuthType = originalAuthType
 }
 
 func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
-	// Save and restore AuthType
-	originalAuthType := commonparams.AuthType
-	commonparams.AuthType = commonparams.USER_CERTIFICATE
-	defer func() { commonparams.AuthType = originalAuthType }()
-
 	ctx := context.Background()
 	clusterName := "testcluster"
 	commonparams.VsaDeployedDnsName = "example.com"
@@ -3814,7 +3797,7 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 			},
 		}
 		pa := &activities.PoolActivity{}
-		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName)
+		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName, commonparams.USER_CERTIFICATE)
 		assert.NoError(t, err)
 		assert.NotNil(t, hostMap)
 		assert.Equal(t, 2, len(*hostMap))
@@ -3828,7 +3811,7 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 			},
 		}
 		pa := &activities.PoolActivity{}
-		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName)
+		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName, commonparams.USER_CERTIFICATE)
 		assert.Error(t, err)
 		assert.Nil(t, hostMap)
 	})
@@ -3846,7 +3829,7 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 			},
 		}
 		pa := &activities.PoolActivity{}
-		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName)
+		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName, commonparams.USER_CERTIFICATE)
 		assert.Error(t, err)
 		assert.Nil(t, hostMap)
 	})
@@ -3875,17 +3858,16 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 			},
 		}
 		pa := &activities.PoolActivity{}
-		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName)
+		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName, commonparams.USER_CERTIFICATE)
 		assert.Error(t, err)
 		assert.Nil(t, hostMap)
 	})
 
 	// Not USER_CERTIFICATE auth type
 	t.Run("not user certificate", func(t *testing.T) {
-		commonparams.AuthType = commonparams.USERNAME_PWD_SEC_MGR
 		vlmConfig := &vlmconfig.VLMConfig{}
 		pa := &activities.PoolActivity{}
-		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName)
+		hostMap, err := pa.CreateCloudDNSRecords(ctx, vlmConfig, clusterName, commonparams.USERNAME_PWD)
 		assert.NoError(t, err)
 		assert.NotNil(t, hostMap)
 		assert.Equal(t, 0, len(*hostMap))
@@ -3895,13 +3877,6 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 	activity := &activities.PoolActivity{}
 	ctx := context.Background()
-	pool := &datamodel.Pool{
-		PoolCredentials: &datamodel.PoolCredentials{
-			CertificateID: "cert-id",
-			SecretID:      "secret-id",
-			Password:      "password",
-		},
-	}
 
 	origGetGCPService := activities.GetGCPService
 	origRevokeCert := activities.RevokeCertificateAndDeleteFromCacheAndSecretManager
@@ -3917,7 +3892,14 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 	}
 
 	t.Run("USER_CERTIFICATE success", func(t *testing.T) {
-		commonparams.AuthType = commonparams.USER_CERTIFICATE
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-id",
+				SecretID:      "secret-id",
+				Password:      "password",
+				AuthType:      commonparams.USER_CERTIFICATE,
+			},
+		}
 		activities.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler.GoogleServices, certID string) error {
 			assert.Equal(t, "cert-id", certID)
 			return nil
@@ -3931,7 +3913,14 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 	})
 
 	t.Run("USER_CERTIFICATE failure due to secret error ", func(t *testing.T) {
-		commonparams.AuthType = commonparams.USER_CERTIFICATE
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-id",
+				SecretID:      "secret-id",
+				Password:      "password",
+				AuthType:      commonparams.USER_CERTIFICATE,
+			},
+		}
 		activities.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler.GoogleServices, certID string) error {
 			assert.Equal(t, "cert-id", certID)
 			return nil
@@ -3945,7 +3934,14 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 	})
 
 	t.Run("USER_CERTIFICATE error", func(t *testing.T) {
-		commonparams.AuthType = commonparams.USER_CERTIFICATE
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-id",
+				SecretID:      "secret-id",
+				Password:      "password",
+				AuthType:      commonparams.USER_CERTIFICATE,
+			},
+		}
 		activities.RevokeCertificateAndDeleteFromCacheAndSecretManager = func(gcpService hyperscaler.GoogleServices, certID string) error {
 			return errors.New("revoke error")
 		}
@@ -3955,7 +3951,14 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR success", func(t *testing.T) {
-		commonparams.AuthType = commonparams.USERNAME_PWD_SEC_MGR
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-id",
+				SecretID:      "secret-id",
+				Password:      "password",
+				AuthType:      commonparams.USERNAME_PWD_SEC_MGR,
+			},
+		}
 		activities.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler.GoogleServices, secretID string) error {
 			assert.Equal(t, "secret-id", secretID)
 			return nil
@@ -3965,7 +3968,14 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR error", func(t *testing.T) {
-		commonparams.AuthType = commonparams.USERNAME_PWD_SEC_MGR
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-id",
+				SecretID:      "secret-id",
+				Password:      "password",
+				AuthType:      commonparams.USERNAME_PWD_SEC_MGR,
+			},
+		}
 		activities.DeletePasswordFromCacheAndSecretManager = func(gcpService hyperscaler.GoogleServices, secretID string) error {
 			return errors.New("delete error")
 		}
@@ -3975,12 +3985,27 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 	})
 
 	t.Run("default password - no cert no secret-manager", func(t *testing.T) {
-		commonparams.AuthType = commonparams.USERNAME_PWD
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-id",
+				SecretID:      "secret-id",
+				Password:      "password",
+				AuthType:      commonparams.USERNAME_PWD,
+			},
+		}
 		err := activity.DeleteOnTapCredentials(ctx, pool)
 		assert.NoError(t, err)
 	})
 
 	t.Run("GetGCPService error", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-id",
+				SecretID:      "secret-id",
+				Password:      "password",
+				AuthType:      commonparams.USERNAME_PWD,
+			},
+		}
 		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, errors.New("gcp error")
 		}
@@ -3995,13 +4020,6 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 	ctx := context.Background()
 	region := "us-central1"
 	clusterName := "test-cluster"
-	pool := &datamodel.Pool{
-		PoolCredentials: &datamodel.PoolCredentials{
-			CertificateID: "cert-id",
-			SecretID:      "secret-id",
-			Password:      "default-password",
-		},
-	}
 
 	origGetGCPService := activities.GetGCPService
 	origGenerateAndCreateCertificateForVSACluster := activities.GenerateAndCreateCertificateForVSACluster
@@ -4017,7 +4035,14 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 	}
 
 	t.Run("USER_CERTIFICATE success", func(t *testing.T) {
-		commonparams.AuthType = commonparams.USER_CERTIFICATE
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-id",
+				SecretID:      "secret-id",
+				Password:      "default-password",
+				AuthType:      commonparams.USER_CERTIFICATE,
+			},
+		}
 		activities.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler.GoogleServices, region, certificateID, clusterName string) (*models.CustomCertificateResponse, error) {
 			return &models.CustomCertificateResponse{
 				Certificate: &models.CustomCertificate{
@@ -4047,7 +4072,14 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 	})
 
 	t.Run("USER_CERTIFICATE error due to secret failure", func(t *testing.T) {
-		commonparams.AuthType = commonparams.USER_CERTIFICATE
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-id",
+				SecretID:      "secret-id",
+				Password:      "password",
+				AuthType:      commonparams.USER_CERTIFICATE,
+			},
+		}
 		activities.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler.GoogleServices, region, certificateID, clusterName string) (*models.CustomCertificateResponse, error) {
 			return &models.CustomCertificateResponse{
 				Certificate: &models.CustomCertificate{
@@ -4069,7 +4101,14 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 	})
 
 	t.Run("USER_CERTIFICATE error", func(t *testing.T) {
-		commonparams.AuthType = commonparams.USER_CERTIFICATE
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-id",
+				SecretID:      "secret-id",
+				Password:      "default-password",
+				AuthType:      commonparams.USER_CERTIFICATE,
+			},
+		}
 		activities.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler.GoogleServices, region, certificateID, clusterName string) (*models.CustomCertificateResponse, error) {
 			return nil, fmt.Errorf("cert error")
 		}
@@ -4079,7 +4118,14 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR success", func(t *testing.T) {
-		commonparams.AuthType = commonparams.USERNAME_PWD_SEC_MGR
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-id",
+				SecretID:      "secret-id",
+				Password:      "default-password",
+				AuthType:      commonparams.USERNAME_PWD_SEC_MGR,
+			},
+		}
 		activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectID, region, secretID string) (*models.CustomSecret, error) {
 			return &models.CustomSecret{
 				SecretVersion: &models.CustomSecretVersion{Value: "pwd"},
@@ -4091,7 +4137,14 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 	})
 
 	t.Run("USERNAME_PWD_SEC_MGR error", func(t *testing.T) {
-		commonparams.AuthType = commonparams.USERNAME_PWD_SEC_MGR
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-id",
+				SecretID:      "secret-id",
+				Password:      "default-password",
+				AuthType:      commonparams.USERNAME_PWD_SEC_MGR,
+			},
+		}
 		activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectID, region, secretID string) (*models.CustomSecret, error) {
 			return nil, fmt.Errorf("pwd error")
 		}
@@ -4101,13 +4154,28 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 	})
 
 	t.Run("default password", func(t *testing.T) {
-		commonparams.AuthType = commonparams.USERNAME_PWD
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-id",
+				SecretID:      "secret-id",
+				Password:      "default-password",
+				AuthType:      commonparams.USERNAME_PWD,
+			},
+		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool, region, clusterName)
 		assert.NoError(t, err)
 		assert.Equal(t, "default-password", creds.AdminPassword)
 	})
 
 	t.Run("GetGCPService error", func(t *testing.T) {
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-id",
+				SecretID:      "secret-id",
+				Password:      "default-password",
+				AuthType:      commonparams.USERNAME_PWD,
+			},
+		}
 		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, fmt.Errorf("gcp error")
 		}

@@ -58,14 +58,13 @@ workerConfig:
   gcpServiceUrl: "https://cloudvolumesgcp-api.netapp.com"
   loggerLevel: "info"
   vmrsConfigPath: "config/vmrs_gcp.yaml"
-  vsaAuthType: 0 # 0 : username/password, 1 : username/password in secret manager and 2 : certificate authentication
   certificateLifetime: "25920000s"
-  caName: ""
-  caPoolName: ""
-  caPoolDeployedProjectId: ""
-  secretManagerProjectId: ""
-  vsaDeployedDnsName: ""
-  vsaManagedZone: ""
+  caName: "20250522-ea9-684"
+  caPoolName: "vsa-pool-ca"
+  caPoolDeployedProjectId: "266893635349"
+  secretManagerProjectId: "266893635349"
+  vsaDeployedDnsName: "au-se1.vsa."
+  vsaManagedZone: "au-se1-vsa"
   vsaSecretCacheCleanupIntervalHours: 24
   vsaSecretAuthCacheExpirationHours: 24
   totalIpPerHaPair: 6

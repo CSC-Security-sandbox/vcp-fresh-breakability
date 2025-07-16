@@ -77,7 +77,7 @@ spec:
             - name: VSA_NODE_PASSWORD
               value: <vsa_node_password_here>
             - name: VSA_NODE_USERNAME
-              value: <vsa_node_username_here>
+              value: admin
             - name: OBJECT_STORE_PROVIDER
               value: "googlecloud"
             - name: OBJECT_STORES_SERVER
@@ -118,6 +118,27 @@ spec:
               value: "http"
             - name: FIREWALL_SOURCE_RANGES
               value: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,34.0.0.0/8,46.149.16.0/20,52.94.203.152/29,52.94.203.160/29,185.35.244.0/22,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20,198.18.0.0/15"
+            - name: CERTIFICATE_LIFETIME
+              value: "25920000s"  # 300 days
+            - name: CA_NAME
+              value: "20250522-ea9-684"
+            - name: CA_POOL_NAME
+              value: "vsa-pool-ca"
+            - name: CA_POOL_DEPLOYED_PROJECT_ID
+              value: "266893635349"
+            - name: SECRET_MANAGER_PROJECT_ID
+              value: "266893635349"
+            - name: VSA_DEPLOYED_DNS_NAME
+              value: "au-se1.vsa."
+            - name: VSA_MANAGED_ZONE
+              value: "au-se1-vsa"
+            - name: VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS
+              value: "24"
+            - name: VSA_SECRET_AUTH_CACHE_EXPIRATION_HOURS
+              value: "24"
+            - name: CLOUD_DNS_CACHE_TTL
+              value: "300"
+
 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

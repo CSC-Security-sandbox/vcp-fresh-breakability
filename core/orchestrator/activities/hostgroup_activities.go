@@ -55,7 +55,7 @@ func (hgu *HostGroupUpdateActivity) UpdateIGroups(ctx context.Context, hg *datam
 			continue
 		}
 
-		provider, getErr := GetProviderByNode(ctx, common.CreateNodeForProvider(common.NodeProviderInput{Nodes: nodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID}))
+		provider, getErr := GetProviderByNode(ctx, common.CreateNodeForProvider(common.NodeProviderInput{Nodes: nodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType}))
 		if getErr != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(getErr)
 		}
@@ -89,7 +89,7 @@ func (hgu *HostGroupUpdateActivity) UpdateIGroups(ctx context.Context, hg *datam
 			logger.Errorf("Failed to get nodes for pool %d: %v", pool.ID, err)
 			continue
 		}
-		provider, getErr := GetProviderByNode(ctx, common.CreateNodeForProvider(common.NodeProviderInput{Nodes: nodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID}))
+		provider, getErr := GetProviderByNode(ctx, common.CreateNodeForProvider(common.NodeProviderInput{Nodes: nodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID, AuthType: pool.PoolCredentials.AuthType}))
 		if getErr != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(getErr)
 		}

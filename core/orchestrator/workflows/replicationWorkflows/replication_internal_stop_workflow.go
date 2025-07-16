@@ -95,7 +95,7 @@ func (wf *internalVolumeReplicationStopWorkflow) Run(ctx workflow.Context, args 
 		return nil, err
 	}
 
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: dbReplication.Volume.Pool.PoolCredentials.Password, SecretID: dbReplication.Volume.Pool.PoolCredentials.SecretID, CertificateID: dbReplication.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: dbReplication.Volume.Pool.DeploymentName})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: dbReplication.Volume.Pool.PoolCredentials.Password, SecretID: dbReplication.Volume.Pool.PoolCredentials.SecretID, CertificateID: dbReplication.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: dbReplication.Volume.Pool.DeploymentName, AuthType: dbReplication.Volume.Pool.PoolCredentials.AuthType})
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.AbortVolumeReplication, dbReplication, node, forceStop).Get(ctx, &vsaReplication)
 	if err != nil {

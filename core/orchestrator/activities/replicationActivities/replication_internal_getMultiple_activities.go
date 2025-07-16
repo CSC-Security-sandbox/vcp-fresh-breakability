@@ -109,7 +109,7 @@ func (r *ReplicationInternalGetMultipleActivity) GetReplicationsFromOntap(ctx co
 			continue // Skip if no replications for this pool
 		}
 		// Prepare node for provider
-		nodeModel := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: []*datamodel.Node{node}, Password: replications[0].Volume.Pool.PoolCredentials.Password, SecretID: replications[0].Volume.Pool.PoolCredentials.SecretID, DeploymentName: replications[0].Volume.Pool.DeploymentName, CertificateID: replications[0].Volume.Pool.PoolCredentials.CertificateID})
+		nodeModel := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: []*datamodel.Node{node}, Password: replications[0].Volume.Pool.PoolCredentials.Password, SecretID: replications[0].Volume.Pool.PoolCredentials.SecretID, DeploymentName: replications[0].Volume.Pool.DeploymentName, CertificateID: replications[0].Volume.Pool.PoolCredentials.CertificateID, AuthType: replications[0].Volume.Pool.PoolCredentials.AuthType})
 
 		// Get Ontap provider
 		prov, err := activitiesGetProviderByNode(ctx, nodeModel)
