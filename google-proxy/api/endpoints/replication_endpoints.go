@@ -34,7 +34,7 @@ func (h Handler) V1betaCreateReplication(ctx context.Context, req *gcpgenserver.
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	if !crrEnabled {
 		return &gcpgenserver.V1betaCreateReplicationForbidden{
-			Code:    403,
+			Code:    400,
 			Message: "CRR is not enabled",
 		}, nil
 	}
@@ -386,7 +386,7 @@ func (h Handler) V1betaResumeReplication(ctx context.Context, params gcpgenserve
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	if !crrEnabled {
 		return &gcpgenserver.V1betaResumeReplicationForbidden{
-			Code:    403,
+			Code:    400,
 			Message: "CRR is not enabled",
 		}, nil
 	}
@@ -446,6 +446,12 @@ func (h Handler) V1betaResumeReplication(ctx context.Context, params gcpgenserve
 func (h Handler) V1betaDeleteReplication(ctx context.Context, req *gcpgenserver.ReplicationDeleteV1beta, params gcpgenserver.V1betaDeleteReplicationParams) (gcpgenserver.V1betaDeleteReplicationRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	if !crrEnabled {
+		return &gcpgenserver.V1betaDeleteReplicationForbidden{
+			Code:    400,
+			Message: "CRR is not enabled",
+		}, nil
+	}
 	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaDeleteReplicationBadRequest{
@@ -548,6 +554,12 @@ func _convertResumeModelToVCPVolumeReplicationV1beta(volumeReplication *models2.
 func (h Handler) V1betaStopReplication(ctx context.Context, req *gcpgenserver.ReplicationStopV1beta, params gcpgenserver.V1betaStopReplicationParams) (gcpgenserver.V1betaStopReplicationRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	if !crrEnabled {
+		return &gcpgenserver.V1betaStopReplicationForbidden{
+			Code:    400,
+			Message: "CRR is not enabled",
+		}, nil
+	}
 	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaStopReplicationBadRequest{

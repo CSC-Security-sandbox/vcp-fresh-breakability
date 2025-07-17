@@ -586,7 +586,7 @@ func TestV1betaCreateReplication(t *testing.T) {
 			Description: gcpgenserver.NewOptString("description"),
 		}
 		result, _ := handler.V1betaCreateReplication(context.Background(), req, params)
-		assert.Equal(tt, float64(403), result.(*gcpgenserver.V1betaCreateReplicationForbidden).Code)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreateReplicationForbidden).Code)
 	})
 	t.Run("WhenCreateReplicationSucceedsWithNoJob", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -792,7 +792,7 @@ func TestV1betaResumeReplication(t *testing.T) {
 			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 		result, _ := handler.V1betaResumeReplication(context.Background(), params)
-		assert.Equal(tt, float64(403), result.(*gcpgenserver.V1betaResumeReplicationForbidden).Code)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaResumeReplicationForbidden).Code)
 	})
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -953,6 +953,24 @@ func TestV1betaResumeReplication(t *testing.T) {
 }
 
 func TestV1betaStopReplication(t *testing.T) {
+	t.Run("WhenCRRNotEnabled", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		defer func() {
+			crrEnabled = env.GetBool("CRR_ENABLED", true)
+		}()
+		crrEnabled = false
+		params := gcpgenserver.V1betaStopReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationStopV1beta{}
+		result, _ := handler.V1betaStopReplication(context.Background(), req, params)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaStopReplicationForbidden).Code)
+	})
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -1060,6 +1078,28 @@ func TestV1betaStopReplication(t *testing.T) {
 // google-proxy/api/endpoints/replication_endpoints_test.go
 
 func TestV1betaDeleteReplication(t *testing.T) {
+	t.Run("WhenCRRNotEnabled", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			crrEnabled = env.GetBool("CRR_ENABLED", true)
+		}()
+		crrEnabled = false
+		req := gcpgenserver.ReplicationDeleteV1beta{
+			CleanupResourcesJobId: gcpgenserver.NewOptString("123"),
+		}
+		params := gcpgenserver.V1betaDeleteReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		result, _ := handler.V1betaDeleteReplication(context.Background(), &req, params)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaDeleteReplicationForbidden).Code)
+	})
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{
