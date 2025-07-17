@@ -17,8 +17,8 @@ import (
 func TestResourceEventsEndpoints(t *testing.T) {
 	t.Run("TestV1betaStartProjectEvent_StateDELETE", func(tt *testing.T) {
 		ctx := context.Background()
-		req := &gcpgenserver.StateUpdateV1beta{
-			State: gcpgenserver.StateUpdateV1betaStateDELETE,
+		req := &gcpgenserver.ProjectStateUpdateV1beta{
+			State: gcpgenserver.ProjectStateUpdateV1betaStateDELETE,
 		}
 		params := gcpgenserver.V1betaStartProjectEventParams{
 			ProjectNumber: "12345",
@@ -41,7 +41,7 @@ func TestResourceEventsEndpoints(t *testing.T) {
 	t.Run("TestV1betaStartProjectEvent_ErrorWhenLocationValidationFails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
-		req := &gcpgenserver.StateUpdateV1beta{}
+		req := &gcpgenserver.ProjectStateUpdateV1beta{}
 		params := gcpgenserver.V1betaStartProjectEventParams{
 			ProjectNumber: "12345",
 			LocationId:    "us-central1",
@@ -68,7 +68,7 @@ func TestResourceEventsEndpoints(t *testing.T) {
 	t.Run("TestV1betaStartProjectEvent_ErrorWhenCreateOrGetStartProjectEventJob", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
-		req := &gcpgenserver.StateUpdateV1beta{}
+		req := &gcpgenserver.ProjectStateUpdateV1beta{}
 		params := gcpgenserver.V1betaStartProjectEventParams{
 			ProjectNumber: "12345",
 			LocationId:    "us-central1",
@@ -92,8 +92,8 @@ func TestResourceEventsEndpoints(t *testing.T) {
 	t.Run("TestV1betaStartProjectEvent_Success", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
-		req := &gcpgenserver.StateUpdateV1beta{
-			State: gcpgenserver.StateUpdateV1betaStateON,
+		req := &gcpgenserver.ProjectStateUpdateV1beta{
+			State: gcpgenserver.ProjectStateUpdateV1betaStateON,
 		}
 		params := gcpgenserver.V1betaStartProjectEventParams{
 			ProjectNumber: "12345",

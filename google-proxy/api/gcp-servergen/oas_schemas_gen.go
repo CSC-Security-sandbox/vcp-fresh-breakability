@@ -11885,6 +11885,71 @@ func (s *PoolV1betaStoragePoolState) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/ProjectStateUpdate_v1beta
+type ProjectStateUpdateV1beta struct {
+	// New state to be updated.
+	State ProjectStateUpdateV1betaState `json:"state"`
+}
+
+// GetState returns the value of State.
+func (s *ProjectStateUpdateV1beta) GetState() ProjectStateUpdateV1betaState {
+	return s.State
+}
+
+// SetState sets the value of State.
+func (s *ProjectStateUpdateV1beta) SetState(val ProjectStateUpdateV1betaState) {
+	s.State = val
+}
+
+// New state to be updated.
+type ProjectStateUpdateV1betaState string
+
+const (
+	ProjectStateUpdateV1betaStateON     ProjectStateUpdateV1betaState = "ON"
+	ProjectStateUpdateV1betaStateOFF    ProjectStateUpdateV1betaState = "OFF"
+	ProjectStateUpdateV1betaStateDELETE ProjectStateUpdateV1betaState = "DELETE"
+)
+
+// AllValues returns all ProjectStateUpdateV1betaState values.
+func (ProjectStateUpdateV1betaState) AllValues() []ProjectStateUpdateV1betaState {
+	return []ProjectStateUpdateV1betaState{
+		ProjectStateUpdateV1betaStateON,
+		ProjectStateUpdateV1betaStateOFF,
+		ProjectStateUpdateV1betaStateDELETE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ProjectStateUpdateV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case ProjectStateUpdateV1betaStateON:
+		return []byte(s), nil
+	case ProjectStateUpdateV1betaStateOFF:
+		return []byte(s), nil
+	case ProjectStateUpdateV1betaStateDELETE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ProjectStateUpdateV1betaState) UnmarshalText(data []byte) error {
+	switch ProjectStateUpdateV1betaState(data) {
+	case ProjectStateUpdateV1betaStateON:
+		*s = ProjectStateUpdateV1betaStateON
+		return nil
+	case ProjectStateUpdateV1betaStateOFF:
+		*s = ProjectStateUpdateV1betaStateOFF
+		return nil
+	case ProjectStateUpdateV1betaStateDELETE:
+		*s = ProjectStateUpdateV1betaStateDELETE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Protocol type through which volume can be accessed.
 // Ref: #/components/schemas/protocols_v1beta
 type ProtocolsV1beta string
@@ -13866,71 +13931,6 @@ func (s *SnapshotV1betaSnapshotState) UnmarshalText(data []byte) error {
 		return nil
 	case SnapshotV1betaSnapshotStateERROR:
 		*s = SnapshotV1betaSnapshotStateERROR
-		return nil
-	default:
-		return errors.Errorf("invalid value: %q", data)
-	}
-}
-
-// Ref: #/components/schemas/StateUpdate_v1beta
-type StateUpdateV1beta struct {
-	// New state to be updated.
-	State StateUpdateV1betaState `json:"state"`
-}
-
-// GetState returns the value of State.
-func (s *StateUpdateV1beta) GetState() StateUpdateV1betaState {
-	return s.State
-}
-
-// SetState sets the value of State.
-func (s *StateUpdateV1beta) SetState(val StateUpdateV1betaState) {
-	s.State = val
-}
-
-// New state to be updated.
-type StateUpdateV1betaState string
-
-const (
-	StateUpdateV1betaStateON     StateUpdateV1betaState = "ON"
-	StateUpdateV1betaStateOFF    StateUpdateV1betaState = "OFF"
-	StateUpdateV1betaStateDELETE StateUpdateV1betaState = "DELETE"
-)
-
-// AllValues returns all StateUpdateV1betaState values.
-func (StateUpdateV1betaState) AllValues() []StateUpdateV1betaState {
-	return []StateUpdateV1betaState{
-		StateUpdateV1betaStateON,
-		StateUpdateV1betaStateOFF,
-		StateUpdateV1betaStateDELETE,
-	}
-}
-
-// MarshalText implements encoding.TextMarshaler.
-func (s StateUpdateV1betaState) MarshalText() ([]byte, error) {
-	switch s {
-	case StateUpdateV1betaStateON:
-		return []byte(s), nil
-	case StateUpdateV1betaStateOFF:
-		return []byte(s), nil
-	case StateUpdateV1betaStateDELETE:
-		return []byte(s), nil
-	default:
-		return nil, errors.Errorf("invalid value: %q", s)
-	}
-}
-
-// UnmarshalText implements encoding.TextUnmarshaler.
-func (s *StateUpdateV1betaState) UnmarshalText(data []byte) error {
-	switch StateUpdateV1betaState(data) {
-	case StateUpdateV1betaStateON:
-		*s = StateUpdateV1betaStateON
-		return nil
-	case StateUpdateV1betaStateOFF:
-		*s = StateUpdateV1betaStateOFF
-		return nil
-	case StateUpdateV1betaStateDELETE:
-		*s = StateUpdateV1betaStateDELETE
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

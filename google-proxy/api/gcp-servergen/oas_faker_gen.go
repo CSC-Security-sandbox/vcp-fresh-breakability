@@ -3440,6 +3440,20 @@ func (s *PoolV1betaStoragePoolState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *ProjectStateUpdateV1beta) SetFake() {
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ProjectStateUpdateV1betaState) SetFake() {
+	*s = ProjectStateUpdateV1betaStateON
+}
+
+// SetFake set fake values.
 func (s *ProtocolsV1beta) SetFake() {
 	*s = ProtocolsV1betaPROTOCOLUNSPECIFIED
 }
@@ -3990,20 +4004,6 @@ func (s *SnapshotV1beta) SetFake() {
 // SetFake set fake values.
 func (s *SnapshotV1betaSnapshotState) SetFake() {
 	*s = SnapshotV1betaSnapshotStateSTATEUNSPECIFIED
-}
-
-// SetFake set fake values.
-func (s *StateUpdateV1beta) SetFake() {
-	{
-		{
-			s.State.SetFake()
-		}
-	}
-}
-
-// SetFake set fake values.
-func (s *StateUpdateV1betaState) SetFake() {
-	*s = StateUpdateV1betaStateON
 }
 
 // SetFake set fake values.

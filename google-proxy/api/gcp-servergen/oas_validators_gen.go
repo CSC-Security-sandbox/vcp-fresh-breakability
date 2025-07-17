@@ -5392,6 +5392,42 @@ func (s PoolV1betaStoragePoolState) Validate() error {
 	}
 }
 
+func (s *ProjectStateUpdateV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ProjectStateUpdateV1betaState) Validate() error {
+	switch s {
+	case "ON":
+		return nil
+	case "OFF":
+		return nil
+	case "DELETE":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s ProtocolsV1beta) Validate() error {
 	switch s {
 	case "PROTOCOL_UNSPECIFIED":
@@ -6722,42 +6758,6 @@ func (s SnapshotV1betaSnapshotState) Validate() error {
 	case "DELETING":
 		return nil
 	case "ERROR":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *StateUpdateV1beta) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.State.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "state",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s StateUpdateV1betaState) Validate() error {
-	switch s {
-	case "ON":
-		return nil
-	case "OFF":
-		return nil
-	case "DELETE":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
