@@ -760,6 +760,10 @@ func (s *PersistenceStore) UpdateBackupVaultInVCP(ctx context.Context, backupVau
 	return s.dataStore.UpdateBackupVaultInVCP(ctx, backupVault, vcpVault)
 }
 
+func (s *PersistenceStore) DeleteBackupVaultInVCP(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error) {
+	return s.dataStore.DeleteBackupVaultInVCP(ctx, backupVaultId)
+}
+
 func (s *PersistenceStore) UpdateBackupVaultState(ctx context.Context, bv *datamodel.BackupVault, state, stateDetails string) (*datamodel.BackupVault, error) {
 	return s.dataStore.UpdateBackupVaultState(ctx, bv, state, stateDetails)
 }
@@ -794,6 +798,14 @@ func (s *PersistenceStore) IsBackupInCreatingorDeletingStateByVolume(ctx context
 
 func (s *PersistenceStore) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Context, backupVaultUUID string, accountID int64, filters [][]interface{}) ([]*datamodel.Backup, error) {
 	return s.dataStore.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, backupVaultUUID, accountID, filters)
+}
+
+func (s *PersistenceStore) GetBackupCountByBackupVaultID(ctx context.Context, backupVaultID int64) (int64, error) {
+	return s.dataStore.GetBackupCountByBackupVaultID(ctx, backupVaultID)
+}
+
+func (s *PersistenceStore) GetVolumeCountByBackupVaultID(ctx context.Context, backupVaultUUID string) (int64, error) {
+	return s.dataStore.GetVolumeCountByBackupVaultID(ctx, backupVaultUUID)
 }
 
 func (s *PersistenceStore) GetBackup(ctx context.Context, backupVaultUUID string, backupUUID string, accountName string) (*datamodel.Backup, error) {

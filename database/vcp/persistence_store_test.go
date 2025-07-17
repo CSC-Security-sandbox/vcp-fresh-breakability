@@ -1246,3 +1246,82 @@ func TestGetMultipleBackupVaultsReturnsErrorOnDatabaseFailure(tt *testing.T) {
 	_, err := store.GetMultipleBackupVaults(ctx, conditions)
 	assert.Error(tt, err)
 }
+
+func TestGetBackupCountByBackupVaultID_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a backup vault
+	backupVault := &datamodel.BackupVault{Name: "test-vault"}
+	createdVault, err := store.CreatingBackupVault(ctx, backupVault)
+	assert.NoError(t, err)
+
+	// Create backups associated with the backup vault
+	backup1 := &datamodel.Backup{BackupVaultID: createdVault.ID, Name: "backup1"}
+	backup2 := &datamodel.Backup{BackupVaultID: createdVault.ID, Name: "backup2"}
+	_, err = store.CreateBackup(ctx, backup1)
+	assert.NoError(t, err)
+	_, err = store.CreateBackup(ctx, backup2)
+	assert.NoError(t, err)
+
+	// Call the method under test
+	count, err := store.GetBackupCountByBackupVaultID(ctx, createdVault.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), count)
+}
+
+func TestGetVolumeCountByBackupVaultID_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a backup vault
+	backupVault := &datamodel.BackupVault{Name: "test-vault"}
+	createdVault, err := store.CreatingBackupVault(ctx, backupVault)
+	assert.NoError(t, err)
+
+	// Create volumes associated with the backup vault
+	volume1 := &datamodel.Volume{DataProtection: &datamodel.DataProtection{BackupVaultID: createdVault.UUID}, Name: "volume1"}
+	volume2 := &datamodel.Volume{DataProtection: &datamodel.DataProtection{BackupVaultID: createdVault.UUID}, Name: "volume2"}
+	_, err = store.CreateVolume(ctx, volume1, false)
+	assert.NoError(t, err)
+	_, err = store.CreateVolume(ctx, volume2, false)
+	assert.NoError(t, err)
+
+	// Call the method under test
+	count, err := store.GetVolumeCountByBackupVaultID(ctx, createdVault.UUID)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), count)
+}
+
+func TestDeleteBackupVaultInVCP_Success(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a backup vault
+	backupVault := &datamodel.BackupVault{Name: "test-vault"}
+	createdVault, err := store.CreatingBackupVault(ctx, backupVault)
+	assert.NoError(t, err)
+
+	// Delete the backup vault
+	deletedVault, err := store.DeleteBackupVaultInVCP(ctx, createdVault.UUID)
+	assert.NoError(t, err)
+	assert.NotNil(t, deletedVault)
+	assert.Equal(t, createdVault.UUID, deletedVault.UUID)
+}
+
+func TestDeleteBackupVaultInVCP_Error(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Attempt to delete a non-existent backup vault
+	_, err := store.DeleteBackupVaultInVCP(ctx, "non-existent-uuid")
+	assert.Error(t, err)
+}

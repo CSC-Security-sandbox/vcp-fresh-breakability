@@ -19,6 +19,32 @@ var (
 	checkBVExists             = _checkBVExists
 )
 
+func (d *DataStoreRepository) DeleteBackupVaultInVCP(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error) {
+	db := d.db.GORM().WithContext(ctx)
+	logger := util.GetLogger(ctx)
+
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	dbBackupVault, err := getBackupVaultWithDetails(tx, &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: backupVaultId}})
+	if err != nil {
+		return nil, err
+	}
+
+	dbBackupVault.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
+	dbBackupVault.LifeCycleState = models.LifeCycleStateDeleted
+	dbBackupVault.LifeCycleStateDetails = models.LifeCycleStateDeletedDetails
+	err = tx.Save(dbBackupVault).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return dbBackupVault, nil
+}
+
 func (d *DataStoreRepository) UpdateBackupVaultInVCP(ctx context.Context, sdeBackupVault *datamodel.BackupVault, dbBackupVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)

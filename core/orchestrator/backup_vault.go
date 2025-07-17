@@ -24,6 +24,7 @@ var (
 	convertDatastoreBackupVaultToModel = _convertDatastoreBackupVaultToModel
 	getBackupVaultByNameAndOwnerID     = _getBackupVaultByNameAndOwnerID
 	updateBackupVault                  = _updateBackupVault
+	deleteBackupVault                  = _deleteBackupVault
 )
 
 // CreateBackupVaultParams describes parameters supplied to CreateBackupVault
@@ -61,6 +62,85 @@ func (o *Orchestrator) ListBackupVaults(ctx context.Context, accountName string)
 	return ListBackupVaultsByOwnerID(ctx, se, account.ID)
 }
 
+func (o *Orchestrator) DeleteBackupVault(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
+	return deleteBackupVault(ctx, o.storage, o.temporal, params)
+}
+
+func _deleteBackupVault(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
+	logger := util.GetLogger(ctx)
+	account, err := getAccountWithName(ctx, se, params.OwnerID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	dbBv, err := se.GetBackupVaultByUUIDndOwnerID(ctx, params.BackupVaultID, account.ID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if dbBv.LifeCycleState == models.LifeCycleStateUpdating || dbBv.LifeCycleState == models.LifeCycleStateDeleting {
+		return nil, "", customerrors.NewUserInputValidationErr("backup vault is in transition state")
+	}
+
+	backups, err := se.GetBackupCountByBackupVaultID(ctx, dbBv.ID)
+	if backups > 0 {
+		return nil, "", customerrors.NewUserInputValidationErr("backup vault has backups, please delete backups before deleting backup vault")
+	}
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, "", customerrors.NewNotFoundErr("backup vault", &params.BackupVaultID)
+		}
+		return nil, "", err
+	}
+
+	volumes, err := se.GetVolumeCountByBackupVaultID(ctx, dbBv.UUID)
+	if volumes > 0 {
+		return nil, "", customerrors.NewUserInputValidationErr("backup vault has volumes attached, please delete volumes before deleting backup vault")
+	}
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, "", customerrors.NewNotFoundErr("backup vault", &params.BackupVaultID)
+		}
+		return nil, "", err
+	}
+
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeDeleteBackupVault),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+
+	dbBV, err := se.UpdateBackupVaultState(ctx, dbBv, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails)
+	if err != nil {
+		return nil, "", err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		workflows.DeleteBackupVaultWorkflow,
+		params,
+		dbBV,
+	)
+	if err != nil {
+		logger.Error("Failed to start backup vault delete workflow: ", "error", err)
+		return nil, "", err
+	}
+	return convertDatastoreBackupVaultToModel(dbBV), createdJob.UUID, nil
+}
+
 func (o *Orchestrator) UpdateBackupVault(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
 	return updateBackupVault(ctx, o.storage, o.temporal, params)
 }
@@ -70,6 +150,15 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 	account, err := getAccountWithName(ctx, se, params.OwnerID)
 	if err != nil {
 		return nil, "", err
+	}
+
+	dbBv, err := se.GetBackupVaultByUUIDndOwnerID(ctx, params.BackupVaultID, account.ID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if dbBv.LifeCycleState == models.LifeCycleStateUpdating || dbBv.LifeCycleState == models.LifeCycleStateDeleting {
+		return nil, "", customerrors.NewUserInputValidationErr("backup vault is in transition state")
 	}
 
 	job := &datamodel.Job{
@@ -86,10 +175,7 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
 	}
-	dbBv, err := se.GetBackupVaultByUUIDndOwnerID(ctx, params.BackupVaultID, account.ID)
-	if err != nil {
-		return nil, "", err
-	}
+
 	dbBV, err := se.UpdateBackupVaultState(ctx, dbBv, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
 	if err != nil {
 		return nil, "", err
@@ -105,7 +191,7 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 		dbBV,
 	)
 	if err != nil {
-		logger.Error("Failed to start backup vault create workflow: ", "error", err)
+		logger.Error("Failed to start backup vault update workflow: ", "error", err)
 		return nil, "", err
 	}
 	return convertDatastoreBackupVaultToModel(dbBV), createdJob.UUID, nil

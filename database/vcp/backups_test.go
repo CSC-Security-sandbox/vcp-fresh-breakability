@@ -814,3 +814,122 @@ func TestBackupCountByVolumeID(t *testing.T) {
 		assert.Equal(tt, int64(0), count)
 	})
 }
+
+func TestBackupCountByBackupVaultIDReturnsCorrectCount(tt *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(tt, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(tt, err)
+
+	backup1 := &datamodel.Backup{
+		BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid1"},
+		BackupVaultID: 1,
+	}
+	backup2 := &datamodel.Backup{
+		BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid2"},
+		BackupVaultID: 1,
+	}
+	err = store.db.Create(backup1).Error()
+	assert.NoError(tt, err)
+	err = store.db.Create(backup2).Error()
+	assert.NoError(tt, err)
+
+	count, err := store.GetBackupCountByBackupVaultID(context.Background(), 1)
+	assert.NoError(tt, err)
+	assert.Equal(tt, int64(2), count)
+}
+
+func TestBackupCountByBackupVaultIDReturnsZeroWhenNoBackups(tt *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(tt, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(tt, err)
+
+	count, err := store.GetBackupCountByBackupVaultID(context.Background(), 1)
+	assert.NoError(tt, err)
+	assert.Equal(tt, int64(0), count)
+}
+
+func TestBackupCountByBackupVaultIDReturnsErrorOnDBFailure(tt *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(tt, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(tt, err)
+
+	// Simulate DB failure by closing the connection
+	sqlDB, err := store.db.GORM().DB()
+	assert.NoError(tt, err)
+	_ = sqlDB.Close()
+
+	count, err := store.GetBackupCountByBackupVaultID(context.Background(), 1)
+	assert.Error(tt, err)
+	assert.Equal(tt, int64(0), count)
+}
+
+func TestReturnsVolumeCountSuccessfully(tt *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(tt, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(tt, err)
+
+	volume := &datamodel.Volume{
+		BaseModel:      datamodel.BaseModel{UUID: "test-volume-uuid"},
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "test-backup-vault-uuid"},
+	}
+	err = store.db.Create(volume).Error()
+	assert.NoError(tt, err)
+
+	count, err := store.GetVolumeCountByBackupVaultID(context.Background(), "test-backup-vault-uuid")
+	assert.NoError(tt, err)
+	assert.Equal(tt, int64(1), count)
+}
+
+func TestReturnsZeroWhenNoVolumesAssociated(tt *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(tt, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(tt, err)
+
+	count, err := store.GetVolumeCountByBackupVaultID(context.Background(), "non-existent-backup-vault-uuid")
+	assert.NoError(tt, err)
+	assert.Equal(tt, int64(0), count)
+}
+
+func TestReturnsErrorOnDBFailure(tt *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(tt, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(tt, err)
+
+	sqlDB, err := store.db.GORM().DB()
+	assert.NoError(tt, err)
+	_ = sqlDB.Close()
+
+	count, err := store.GetVolumeCountByBackupVaultID(context.Background(), "test-backup-vault-uuid")
+	assert.Error(tt, err)
+	assert.Equal(tt, int64(0), count)
+}

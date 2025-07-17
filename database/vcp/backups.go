@@ -69,6 +69,26 @@ func _getBackupWithDetails(db *gorm.DB, query *datamodel.Backup) (*datamodel.Bac
 	return backup, nil
 }
 
+func (d *DataStoreRepository) GetBackupCountByBackupVaultID(ctx context.Context, backupVaultID int64) (int64, error) {
+	var count int64
+	err := d.db.GORM().WithContext(ctx).Model(&datamodel.Backup{}).Where("backup_vault_id = ?", backupVaultID).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (d *DataStoreRepository) GetVolumeCountByBackupVaultID(ctx context.Context, backupVaultUUID string) (int64, error) {
+	var volumeCount int64
+	err := d.db.GORM().WithContext(ctx).Model(&datamodel.Volume{}).
+		Where("data_protection->>'backup_vault_id' = ?", backupVaultUUID).
+		Count(&volumeCount).Error
+	if err != nil {
+		return 0, err
+	}
+	return volumeCount, nil
+}
+
 func (d *DataStoreRepository) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Context, backupVaultUUID string, accountID int64, filters [][]interface{}) ([]*datamodel.Backup, error) {
 	bv, err := d.GetBackupVaultByUUIDndOwnerID(ctx, backupVaultUUID, accountID)
 	if err != nil {

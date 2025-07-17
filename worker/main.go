@@ -185,6 +185,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(workflows.RegisterNodeToHarvestFarmWorkflow)
 	worker.RegisterWorkflow(workflows.UnRegisterNodeFromHarvestFarmWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ReplicationDeleteWorkflow)
+	worker.RegisterWorkflow(workflows.DeleteBackupVaultWorkflow)
 
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})

@@ -2313,7 +2313,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
 			Name:      "test_account",
 		}
 		err = store.DB().Create(account).Error
@@ -2327,6 +2327,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			AccountID: account.ID,
 			State:     models.LifeCycleStateREADY,
 			Network:   "somevpc",
+			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}},
 		}
 
 		err = store.DB().Create(pool).Error
@@ -2403,6 +2404,15 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		err = store.DB().Create(lif2).Error
 		assert.NoError(tt, err, "Failed to create node")
 
+		bv := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-vault-id"},
+			Name:      "test_backup_vault",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.DB().Create(bv).Error
+		assert.NoError(tt, err, "Failed to create bv")
+
 		volume = &datamodel.Volume{
 			BaseModel:    datamodel.BaseModel{UUID: "b"},
 			Name:         "b",
@@ -2416,16 +2426,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create volume")
 
 		params := &common.CreateVolumeParams{
-			Name:         "dummy-name",
-			PoolID:       pool.UUID,
-			QuotaInBytes: minQuotaInBytesPool + 1,
-			DataProtection: &models.DataProtection{
-				ScheduledBackupEnabled: &[]bool{true}[0],
-				BackupVaultID:          "test-backup-vault-id",
-				BackupPolicyId:         "test-backup-policy-id",
-				BackupChainBytes:       &[]int64{1000}[0],
-			},
-			Protocols: []string{utils.ProtocolISCSI},
+			Name:           "dummy-name",
+			PoolID:         pool.UUID,
+			QuotaInBytes:   minQuotaInBytesPool + 1,
+			Protocols:      []string{utils.ProtocolISCSI},
+			DataProtection: &models.DataProtection{BackupVaultID: bv.UUID},
 		}
 
 		poolView := &datamodel.PoolView{
@@ -2434,6 +2439,151 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.Nil(tt, err, "some error")
+	})
+	t.Run("WhenValidateCreateVolumeParamsFailsWhileAttachingErroredBackupVaultToVolume", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+			Network:   "somevpc",
+			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}},
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "a"},
+			Name:         "a",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			SvmID:        svm.ID,
+			Svm:          svm,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		bv := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-id"},
+			Name:                  "test_backup_vault",
+			AccountID:             account.ID,
+			LifeCycleState:        models.LifeCycleStateError,
+			LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+			Account:               account,
+		}
+		err = store.DB().Create(bv).Error
+		assert.NoError(tt, err, "Failed to create bv")
+
+		volume = &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "b"},
+			Name:         "b",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		params := &common.CreateVolumeParams{
+			Name:           "dummy-name",
+			PoolID:         pool.UUID,
+			QuotaInBytes:   minQuotaInBytesPool + 1,
+			Protocols:      []string{utils.ProtocolISCSI},
+			DataProtection: &models.DataProtection{BackupVaultID: "test-backup-vault-id"},
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.Error(tt, err)
 	})
 	t.Run("WhenPoolStateNotReady", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -4028,7 +4178,10 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
 		Name:      "test_pool",
 		AccountID: account.ID,
-		State:     models.LifeCycleStateREADY,
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: account.ID},
+		},
+		State: models.LifeCycleStateREADY,
 	}
 
 	err = store.DB().Create(pool).Error
@@ -4127,6 +4280,13 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 				BackupVaultID:  "test-vault",
 			},
 		}
+		bv := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-bv-uuid1"},
+			Name:      "test_bv1",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(bv).Error
+		assert.NoError(tt, err, "Failed to create backupvault")
 
 		poolView := &datamodel.PoolView{
 			Pool: *pool,
@@ -4469,11 +4629,7 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenUpdateVolumeSuccess", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", SnapshotPolicy: nil,
-			DataProtection: &models.DataProtection{
-				BackupVaultID: "vault-1",
-			},
-		}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", SnapshotPolicy: nil}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
 			SizeInBytes: 100,
@@ -4508,9 +4664,7 @@ func TestUpdateVolume(t *testing.T) {
 	t.Run("WhenUpdateVolumeSuccessWithNoBackupVaultIDInDB", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
-		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol", DataProtection: &models.DataProtection{
-			BackupVaultID: "vault-1",
-		}}
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol"}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
 			SizeInBytes: 100,
@@ -4786,9 +4940,6 @@ func TestUpdateVolume(t *testing.T) {
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
 			AutoTieringPolicy: &common.AutoTieringPolicy{CoolAccessEnabled: false},
-			DataProtection: &models.DataProtection{
-				BackupVaultID: "vault-1",
-			},
 		}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
@@ -5047,6 +5198,9 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 	pool := &datamodel.PoolView{
 		Pool: datamodel.Pool{
 			AllowAutoTiering: true,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			},
 		},
 	}
 
@@ -5092,6 +5246,24 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		params := &common.UpdateVolumeParams{}
 		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
 		assert.NoError(tt, err)
+	})
+	t.Run("WhenAttachErroredBackupVaultToVolumeWhileUpdating", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+
+		// Mock the expected behavior for GetBackupVaultByUUIDndOwnerID
+		bv := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "bv-uuid"},
+			LifeCycleState:        models.LifeCycleStateError,
+			LifeCycleStateDetails: "Backup Vault is ready",
+		}
+		se.On("GetBackupVaultByUUIDndOwnerID", ctx, "bv-uuid", int64(1)).Return(bv, nil)
+
+		volume := &datamodel.Volume{State: "READY", SizeInBytes: 200 * 1024 * 1024 * 1024} // 200 GiB
+		params := &common.UpdateVolumeParams{DataProtection: &models.DataProtection{BackupVaultID: "bv-uuid"}}
+
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.Error(tt, err)
 	})
 }
 

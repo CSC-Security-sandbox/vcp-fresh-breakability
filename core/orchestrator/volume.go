@@ -374,6 +374,18 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 	}
 
+	if params.DataProtection != nil && params.DataProtection.BackupVaultID != "" {
+		bv, err := se.GetBackupVaultByUUIDndOwnerID(ctx, params.DataProtection.BackupVaultID, pool.Account.ID)
+		if err != nil && !customerrors.IsNotFoundErr(err) {
+			return err
+		}
+		if bv != nil {
+			if bv.LifeCycleState == models.LifeCycleStateError {
+				return customerrors.NewUserInputValidationErr("backup vault is in error state, please check the backup vault and try again")
+			}
+		}
+	}
+
 	if params.DataProtection != nil && params.DataProtection.BackupPolicyId != "" {
 		// Validate assigning backup policy to the volume
 		if params.DataProtection.BackupVaultID == "" {
@@ -704,6 +716,18 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		err := validateBlockProperties(ctx, se, hostGroupUUIDs, volume.Account.ID)
 		if err != nil {
 			return err
+		}
+	}
+
+	if params.DataProtection != nil && params.DataProtection.BackupVaultID != "" {
+		bv, err := se.GetBackupVaultByUUIDndOwnerID(ctx, params.DataProtection.BackupVaultID, pool.Account.ID)
+		if err != nil && !customerrors.IsNotFoundErr(err) {
+			return err
+		}
+		if bv != nil {
+			if bv.LifeCycleState == models.LifeCycleStateError {
+				return customerrors.NewUserInputValidationErr("backup vault is in error state, please check the backup vault and try again")
+			}
 		}
 	}
 

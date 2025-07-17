@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"time"
 
+	"github.com/go-faster/jx"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -24,11 +25,17 @@ var (
 	utilsConvertJsonToModel = utils.ConvertJsonToModel
 	cvpCreateClient         = cvp.CreateClient
 	updateBackupVaultInSDE  = _updateBackupVaultInSDE
-	GetSignedToken          = auth.GetSignedJwtToken
 	jsonMarshal             = json.Marshal
+	deleteBackupVaultInSDE  = _deleteBackupVaultInSDE
 )
 
 func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultCreateV1beta, reqPayloadparams gcpgenserver.V1betaCreateBackupVaultParams) (gcpgenserver.V1betaCreateBackupVaultRes, error) {
+	if !backupEnabled {
+		return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
+			Code:    400,
+			Message: "Backup feature is currently not enabled.",
+		}, nil
+	}
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, reqPayloadparams.ProjectNumber, reqPayloadparams.LocationId, nil)
 	_, _, parsingErr := parseAndValidateRegionAndZone(reqPayloadparams.LocationId)
@@ -218,18 +225,7 @@ func convertBackupRetentionPolicyToCvpModelForCreate(brPolicy gcpgenserver.OptBa
 	return nil
 }
 
-func safeBoolPointer(opt gcpgenserver.OptBackupRetentionPolicyV1beta, getter func() bool) *bool {
-	if opt.IsSet() {
-		val := getter()
-		return &val
-	}
-	return nil
-}
-
-func (h Handler) V1betaDeleteBackupVault(ctx context.Context, params gcpgenserver.V1betaDeleteBackupVaultParams) (r gcpgenserver.V1betaDeleteBackupVaultRes, _ error) {
-	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-
+func _deleteBackupVaultInSDE(ctx context.Context, params gcpgenserver.V1betaDeleteBackupVaultParams, logger log.Logger) (r gcpgenserver.V1betaDeleteBackupVaultRes, _ error) {
 	deleteParams := &backup_vault.V1betaDeleteBackupVaultParams{
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
@@ -237,7 +233,7 @@ func (h Handler) V1betaDeleteBackupVault(ctx context.Context, params gcpgenserve
 		BackupVaultID:  params.BackupVaultId,
 	}
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := createClient(logger, jwtToken)
+	cvpClient := cvpCreateClient(logger, jwtToken)
 	deleted, _, err := cvpClient.BackupVault.V1betaDeleteBackupVault(deleteParams)
 	if err != nil {
 		switch e := err.(type) {
@@ -299,11 +295,79 @@ func (h Handler) V1betaDeleteBackupVault(ctx context.Context, params gcpgenserve
 			}, nil
 		}
 	}
-	deletedOperationResponse := convertOperationToOperationV1Beta(deleted.Payload)
-	return deletedOperationResponse, nil
+	return convertOperationToOperationV1Beta(deleted.Payload), nil
+}
+
+func (h Handler) V1betaDeleteBackupVault(ctx context.Context, params gcpgenserver.V1betaDeleteBackupVaultParams) (r gcpgenserver.V1betaDeleteBackupVaultRes, _ error) {
+	if !backupEnabled {
+		return &gcpgenserver.V1betaDeleteBackupVaultBadRequest{
+			Code:    400,
+			Message: "Backup feature is currently not enabled.",
+		}, nil
+	}
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaDeleteBackupVaultBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	_, err := h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			sdeBvResponse, err := deleteBackupVaultInSDE(ctx, params, logger)
+			if err != nil {
+				return nil, err
+			}
+			return sdeBvResponse, nil
+		}
+		return &gcpgenserver.V1betaDeleteBackupVaultInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+
+	param := &commonparams.BackupVaultParams{
+		BackupVaultID: params.BackupVaultId,
+		AccountName:   params.ProjectNumber,
+		OwnerID:       params.ProjectNumber,
+		Region:        params.LocationId,
+	}
+	_, operationID, err := h.Orchestrator.DeleteBackupVault(ctx, param)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			logger.Error("Failed to update backupVault", err.Error())
+			return &gcpgenserver.V1betaDeleteBackupVaultBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to delete backupVault", err.Error())
+		return &gcpgenserver.V1betaDeleteBackupVaultInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+	if operationID != "" {
+		return &gcpgenserver.OperationV1beta{
+			Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
+			Done: gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{}, nil
 }
 
 func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenserver.V1betaDescribeBackupVaultParams) (r gcpgenserver.V1betaDescribeBackupVaultRes, _ error) {
+	if !backupEnabled {
+		return &gcpgenserver.V1betaDescribeBackupVaultBadRequest{
+			Code:    400,
+			Message: "Backup feature is currently not enabled.",
+		}, nil
+	}
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	describeParams := &backup_vault.V1betaDescribeBackupVaultParams{
@@ -373,6 +437,12 @@ func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenser
 }
 
 func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgenserver.BackupVaultUuidListV1beta, params gcpgenserver.V1betaGetMultipleBackupVaultsParams) (r gcpgenserver.V1betaGetMultipleBackupVaultsRes, _ error) {
+	if !backupEnabled {
+		return &gcpgenserver.V1betaGetMultipleBackupVaultsBadRequest{
+			Code:    400,
+			Message: "Backup feature is currently not enabled.",
+		}, nil
+	}
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	body := &models.BackupVaultUUIDListV1beta{
@@ -449,6 +519,12 @@ func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgens
 }
 
 func (h Handler) V1betaListBackupVaults(ctx context.Context, params gcpgenserver.V1betaListBackupVaultsParams) (r gcpgenserver.V1betaListBackupVaultsRes, _ error) {
+	if !backupEnabled {
+		return &gcpgenserver.V1betaListBackupVaultsBadRequest{
+			Code:    400,
+			Message: "Backup feature is currently not enabled.",
+		}, nil
+	}
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	listParams := &backup_vault.V1betaListBackupVaultsParams{
@@ -505,14 +581,7 @@ func updateBackupVaultStateDetails(bvs []*coremodels.BackupVaultV1beta, cvpBvs [
 
 func _updateBackupVaultInSDE(ctx context.Context, req *gcpgenserver.BackupVaultUpdateV1beta, params gcpgenserver.V1betaUpdateBackupVaultParams, description string) (r gcpgenserver.V1betaUpdateBackupVaultRes, _ error) {
 	logger := util.GetLogger(ctx)
-	GetSignedJwtToken, err := GetSignedToken(params.ProjectNumber)
-	if err != nil {
-		logger.Error("Failed to get signed JWT token", "error", err)
-		return &gcpgenserver.V1betaUpdateBackupVaultInternalServerError{
-			Code:    500,
-			Message: "Failed to get signed JWT token",
-		}, nil
-	}
+	GetSignedJwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, GetSignedJwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 	body := &models.BackupVaultUpdateV1beta{
@@ -591,6 +660,12 @@ func _updateBackupVaultInSDE(ctx context.Context, req *gcpgenserver.BackupVaultU
 }
 
 func (h Handler) V1betaUpdateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultUpdateV1beta, params gcpgenserver.V1betaUpdateBackupVaultParams) (r gcpgenserver.V1betaUpdateBackupVaultRes, _ error) {
+	if !backupEnabled {
+		return &gcpgenserver.V1betaUpdateBackupVaultBadRequest{
+			Code:    400,
+			Message: "Backup feature is currently not enabled.",
+		}, nil
+	}
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
@@ -653,13 +728,21 @@ func (h Handler) V1betaUpdateBackupVault(ctx context.Context, req *gcpgenserver.
 	}
 	updated, operationID, err := h.Orchestrator.UpdateBackupVault(ctx, param)
 	if err != nil {
-		logger.Error("Failed to create backupVault", err.Error())
+		if errors.IsUserInputValidationErr(err) {
+			logger.Error("Failed to update backupVault", err.Error())
+			return &gcpgenserver.V1betaUpdateBackupVaultBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to update backupVault", err.Error())
 		return &gcpgenserver.V1betaUpdateBackupVaultInternalServerError{
 			Code:    500,
 			Message: err.Error(),
 		}, nil
 	}
-	bvJSON, err := jsonMarshal(updated)
+	resp := convertCoreModelsToBackupVaultV1beta(updated)
+	bvJSON, err := encodeBackupVaultConfigV1(resp)
 	if err != nil {
 		logger.Error("Failed to marshal backup vault", err.Error())
 		return &gcpgenserver.V1betaUpdateBackupVaultInternalServerError{
@@ -742,4 +825,58 @@ func convertBackupVaultV1Beta(bv *models.BackupVaultV1beta) gcpgenserver.BackupV
 	}
 
 	return convertedBackupVault
+}
+
+func convertCoreModelsToBackupVaultV1beta(beta *coremodels.BackupVaultV1beta) *gcpgenserver.BackupVaultV1beta {
+	var description, sourceBackupVault, destinationBackupVault, sourceRegion, backupRegion, backupVaultType string
+	var backupMinimumEnforcedRetentionDuration int
+	if beta.Description != nil {
+		description = *beta.Description
+	}
+	if beta.BackupVaultType != nil {
+		backupVaultType = *beta.BackupVaultType
+	}
+	if beta.SourceBackupVault != nil {
+		sourceBackupVault = *beta.SourceBackupVault
+	}
+	if beta.DestinationBackupVault != nil {
+		destinationBackupVault = *beta.DestinationBackupVault
+	}
+	if beta.SourceRegion != nil {
+		sourceRegion = *beta.SourceRegion
+	}
+	if beta.BackupRegion != nil {
+		backupRegion = *beta.BackupRegion
+	}
+	if beta.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration != nil {
+		backupMinimumEnforcedRetentionDuration = int(*beta.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration)
+	}
+	return &gcpgenserver.BackupVaultV1beta{
+		BackupVaultId:          gcpgenserver.NewOptString(beta.BackupVaultID),
+		State:                  gcpgenserver.NewOptBackupVaultV1betaState(gcpgenserver.BackupVaultV1betaState(beta.LifeCycleState)),
+		StateDetails:           gcpgenserver.NewOptString(beta.LifeCycleStateDetails),
+		CreatedAt:              gcpgenserver.NewOptDateTime(time.Time(beta.CreatedAt)),
+		Description:            gcpgenserver.NewOptString(description),
+		ResourceId:             beta.Name,
+		DestinationBackupVault: gcpgenserver.NewOptString(destinationBackupVault),
+		SourceBackupVault:      gcpgenserver.NewOptString(sourceBackupVault),
+		SourceRegion:           gcpgenserver.NewOptString(sourceRegion),
+		BackupRegion:           gcpgenserver.NewOptString(backupRegion),
+		BackupVaultType:        gcpgenserver.NewOptBackupVaultV1betaBackupVaultType(gcpgenserver.BackupVaultV1betaBackupVaultType(backupVaultType)),
+		BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyV1beta(gcpgenserver.BackupRetentionPolicyV1beta{
+			BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(backupMinimumEnforcedRetentionDuration),
+			DailyBackupImmutable:               gcpgenserver.NewOptBool(beta.BackupRetentionPolicy.IsDailyBackupImmutable),
+			ManualBackupImmutable:              gcpgenserver.NewOptBool(beta.BackupRetentionPolicy.IsAdhocBackupImmutable),
+			MonthlyBackupImmutable:             gcpgenserver.NewOptBool(beta.BackupRetentionPolicy.IsMonthlyBackupImmutable),
+			WeeklyBackupImmutable:              gcpgenserver.NewOptBool(beta.BackupRetentionPolicy.IsWeeklyBackupImmutable),
+		}),
+	}
+}
+
+func encodeBackupVaultConfigV1(BackupVault *gcpgenserver.BackupVaultV1beta) (jx.Raw, error) {
+	data, err := json.Marshal(BackupVault)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }

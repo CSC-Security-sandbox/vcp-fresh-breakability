@@ -1049,3 +1049,93 @@ func TestGetMultipleBackupVaultsReturnsErrorWhenDatabaseFails(tt *testing.T) {
 		tt.Errorf("Expected error, got nil")
 	}
 }
+
+func TestDeletesBackupVaultSuccessfully(tt *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(tt, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(tt, err)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.db.Create(account).Error()
+	assert.NoError(tt, err)
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+		Name:                  "test_backup_vault",
+		AccountID:             account.ID,
+		Account:               account,
+		LifeCycleState:        models.LifeCycleStateAvailable,
+		LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+	}
+	err = store.db.Create(backupVault).Error()
+	assert.NoError(tt, err)
+
+	deletedVault, err := store.DeleteBackupVaultInVCP(context.Background(), backupVault.UUID)
+	assert.NoError(tt, err)
+	assert.NotNil(tt, deletedVault)
+	assert.Equal(tt, models.LifeCycleStateDeleted, deletedVault.LifeCycleState)
+	assert.Equal(tt, models.LifeCycleStateDeletedDetails, deletedVault.LifeCycleStateDetails)
+	assert.NotNil(tt, deletedVault.DeletedAt)
+}
+
+func TestReturnsErrorWhenBackupVaultDoesNotExist(tt *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(tt, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(tt, err)
+
+	_, err = store.DeleteBackupVaultInVCP(context.Background(), "non-existent-uuid")
+	assert.Error(tt, err)
+	assert.True(tt, errors.Is(err, gorm.ErrRecordNotFound))
+}
+
+func TestReturnsErrorWhenTransactionFails(tt *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(tt, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(tt, err)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	err = store.db.Create(account).Error()
+	assert.NoError(tt, err)
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel:             datamodel.BaseModel{UUID: "test-backup-vault-uuid"},
+		Name:                  "test_backup_vault",
+		AccountID:             account.ID,
+		Account:               account,
+		LifeCycleState:        models.LifeCycleStateAvailable,
+		LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+	}
+	err = store.db.Create(backupVault).Error()
+	assert.NoError(tt, err)
+
+	originalStartTransaction := startTransaction
+	defer func() { startTransaction = originalStartTransaction }()
+	startTransaction = func(db *gorm.DB) (*gorm.DB, error) {
+		return nil, errors.New("mock transaction failure")
+	}
+
+	_, err = store.DeleteBackupVaultInVCP(context.Background(), backupVault.UUID)
+	assert.Error(tt, err)
+	assert.Equal(tt, "mock transaction failure", err.Error())
+}

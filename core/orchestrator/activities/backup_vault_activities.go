@@ -21,10 +21,49 @@ var (
 	convertToBackupVaultDataModel = _convertToBackupVaultDataModel
 	cvpCreateClient               = cvp.CreateClient
 	updateBackupVaultInSDE        = _updateBackupVaultInSDE
+	deleteBackupVaultInSDE        = _deleteBackupVaultInSDE
 )
 
 type BackupVaultActivity struct {
 	SE database.Storage
+}
+
+func (j *BackupVaultActivity) DeleteBackupVaultInSDE(ctx context.Context, paramz *common.BackupVaultParams) (*datamodel.BackupVault, error) {
+	return deleteBackupVaultInSDE(ctx, paramz)
+}
+
+func _deleteBackupVaultInSDE(ctx context.Context, paramz *common.BackupVaultParams) (*datamodel.BackupVault, error) {
+	logger := util.GetLogger(ctx)
+	GetSignedJwtToken := utils.GetAuthTokenFromContext(ctx)
+	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
+	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
+
+	vault, _, err := cvpClient.BackupVault.V1betaDeleteBackupVault(&backup_vault.V1betaDeleteBackupVaultParams{
+		LocationID:     paramz.Region,
+		ProjectNumber:  paramz.OwnerID,
+		XCorrelationID: &xCorrelationID,
+		BackupVaultID:  paramz.BackupVaultID,
+	})
+	if err != nil {
+		logger.Error("Error Deleting BackupVault : ", err)
+		return nil, err
+	}
+
+	responseBytes, err := json.MarshalIndent(vault.Payload.Response, "", "  ")
+	if err != nil {
+		return nil, errors.New("failed to marshal response from SDE BackupVault Deletion")
+	}
+	data := models.BackupVaultV1beta{}
+	err = utilsConvertJsonToModel(responseBytes, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	model, err := convertToBackupVaultDataModel(&data, paramz.Region)
+	if err != nil {
+		return nil, err
+	}
+	return model, nil
 }
 
 // UpdateBackupVaultInSDE ensures idempotency by checking existing BackupVault before creation.
@@ -117,6 +156,15 @@ func (j *BackupVaultActivity) UpdateBackupVaultInVCP(ctx context.Context, bvPara
 	return BackupVault, nil
 }
 
+func (j *BackupVaultActivity) DeleteBackupVaultInVCP(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error) {
+	se := j.SE
+	BackupVault, err := se.DeleteBackupVaultInVCP(ctx, backupVaultId)
+	if err != nil {
+		return nil, err
+	}
+	return BackupVault, nil
+}
+
 func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
 	var resourceID, backupVaultType string
 	var backupRegion, description *string
@@ -167,4 +215,15 @@ func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId str
 		ImmutableAttributes:        immutableFields,
 		CrossRegionBackupVaultName: bv.DestinationBackupVault,
 	}, nil
+}
+
+func (j *BackupVaultActivity) UpdateBackupVaultStateInCaseOfError(ctx context.Context, backupVault *datamodel.BackupVault, state, stateDetails string) error {
+	se := j.SE
+
+	// Update the state of the BackupVault in the database
+	_, err := se.UpdateBackupVaultState(ctx, backupVault, state, stateDetails)
+	if err != nil {
+		return err
+	}
+	return nil
 }

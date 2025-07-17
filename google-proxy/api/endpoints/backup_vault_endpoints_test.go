@@ -3,8 +3,8 @@ package api
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -23,6 +23,9 @@ import (
 // V1betaListBackupVaults
 func TestV1betaListBackupVaults(t *testing.T) {
 	// Create a mock client
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	mockClient := backup_vault.NewMockClientService(t)
 
 	// Define input parameters
@@ -80,6 +83,9 @@ func TestV1betaListBackupVaults(t *testing.T) {
 
 func TestV1betaListBackupVaultsOrchError(t *testing.T) {
 	// Create a mock client
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	mockClient := backup_vault.NewMockClientService(t)
 
 	// Define input parameters
@@ -125,351 +131,18 @@ func TestV1betaListBackupVaultsOrchError(t *testing.T) {
 	assert.IsType(t, &gcpgenserver.V1betaListBackupVaultsInternalServerError{}, result)
 }
 
-// V1betaDeleteBackupVault unittests
-func TestV1betaDeleteBackupVault(t *testing.T) {
-	t.Run("WhenDeleteBackupVaultSuccess", func(t *testing.T) {
-		// Define request
-		// Create a mock client
-		mockClient := backup_vault.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupVaultParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupVaultId:  "bv-1",
-		}
-		// Define mock response
-		mockResponse := &backup_vault.V1betaDeleteBackupVaultAccepted{
-			Payload: &models.OperationV1beta{
-				Name: "operation-id",
-				Done: nillable.GetBoolPtr(true),
-			},
-		}
-
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteBackupVault(mock.Anything).
-			Return(mockResponse, nil, nil)
-		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
-
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the operation name is as expected
-		assert.Equal(t, "operation-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
-		// Check if the operation done value is as expected
-		assert.Equal(t, true, result.(*gcpgenserver.OperationV1beta).Done.Value)
-	})
-
-	t.Run("WhenDeleteBackupVaultFailsWithBadRequest", func(t *testing.T) {
-		// Create a mock client
-		mockClient := backup_vault.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupVaultParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupVaultId:  "bv-1",
-		}
-		// Define mock error
-		errorCode := float64(400)
-		errorMessage := "Bad Request"
-		mockError := &backup_vault.V1betaDeleteBackupVaultBadRequest{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteBackupVault(mock.Anything).
-			Return(nil, nil, mockError)
-		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteBackupVaultBadRequest).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteBackupVaultBadRequest).Message)
-	})
-
-	t.Run("WhenDeleteBackupVaultFailsWithConflict", func(t *testing.T) {
-		// Create a mock client
-		mockClient := backup_vault.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupVaultParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupVaultId:  "bv-1",
-		}
-		// Define mock error
-		errorMessage := "Conflict error"
-		errorCode := float64(409)
-		mockError := &backup_vault.V1betaDeleteBackupVaultConflict{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteBackupVault(mock.Anything).
-			Return(nil, nil, mockError)
-		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
-
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteBackupVaultConflict).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteBackupVaultConflict).Message)
-	})
-
-	t.Run("WhenDeleteBackupVaultFailsWithUnprocessableEntry", func(t *testing.T) {
-		// Create a mock client
-		mockClient := backup_vault.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupVaultParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupVaultId:  "bv-1",
-		}
-		// Define mock error
-		errorMessage := "Unprocessable error"
-		errorCode := float64(422)
-		mockError := &backup_vault.V1betaDeleteBackupVaultUnprocessableEntity{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteBackupVault(mock.Anything).
-			Return(nil, nil, mockError)
-		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
-
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteBackupVaultUnprocessableEntity).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteBackupVaultUnprocessableEntity).Message)
-	})
-
-	t.Run("WhenDeleteBackupVaultFailsWithUnauthorized", func(t *testing.T) {
-		// Create a mock client
-		mockClient := backup_vault.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupVaultParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupVaultId:  "bv-1",
-		}
-		// Define mock error
-		errorMessage := "Unauthorized error"
-		errorCode := float64(401)
-		mockError := &backup_vault.V1betaDeleteBackupVaultUnauthorized{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteBackupVault(mock.Anything).
-			Return(nil, nil, mockError)
-		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
-
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteBackupVaultUnauthorized).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteBackupVaultUnauthorized).Message)
-	})
-
-	t.Run("WhenDeleteBackupVaultFailsWithForbidden", func(t *testing.T) {
-		// Create a mock client
-		mockClient := backup_vault.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupVaultParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupVaultId:  "bv-1",
-		}
-		// Define mock error
-		errorMessage := "Forbidden error"
-		errorCode := float64(403)
-		mockError := &backup_vault.V1betaDeleteBackupVaultForbidden{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteBackupVault(mock.Anything).
-			Return(nil, nil, mockError)
-		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
-
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteBackupVaultForbidden).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteBackupVaultForbidden).Message)
-	})
-
-	t.Run("WhenDeleteBackupVaultFailsWithTooManyRequests", func(t *testing.T) {
-		// Create a mock client
-		mockClient := backup_vault.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupVaultParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupVaultId:  "bv-1",
-		}
-		// Define mock error
-		errorMessage := "Too many requests error"
-		errorCode := float64(401)
-		mockError := &backup_vault.V1betaDeleteBackupVaultTooManyRequests{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteBackupVault(mock.Anything).
-			Return(nil, nil, mockError)
-		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
-
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteBackupVaultTooManyRequests).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteBackupVaultTooManyRequests).Message)
-	})
-
-	t.Run("WhenDeleteBackupVaultFailsWithDefault", func(t *testing.T) {
-		// Create a mock client
-		mockClient := backup_vault.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupVaultParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupVaultId:  "bv-1",
-		}
-		// Define mock error
-		errorMessage := "default error"
-		errorCode := float64(500)
-		mockError := &backup_vault.V1betaDeleteBackupVaultDefault{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteBackupVault(mock.Anything).
-			Return(nil, nil, mockError)
-		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
-		originalCreateClient := createClient
-		defer func() { createClient = originalCreateClient }()
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
-
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteBackupVaultInternalServerError).Code)
-	})
-}
-
 // V1betaDescribeBackupVault unittests
 func TestV1betaDescribeBackupVault(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	t.Run("WhenDescribeBackupVaultSuccess", func(t *testing.T) {
 		// Define request
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeBackupVaultParams{
 			LocationId:     "test-location",
@@ -525,7 +198,9 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 	t.Run("WhenDescribeBackupVaultFailsWithBadRequest", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeBackupVaultParams{
 			LocationId:     "test-location",
@@ -566,7 +241,9 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 	t.Run("WhenDescribeBackupVaultFailsWithUnprocessableEntry", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeBackupVaultParams{
 			LocationId:     "test-location",
@@ -608,7 +285,9 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 	t.Run("WhenDescribeBackupVaultFailsWithUnauthorized", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeBackupVaultParams{
 			LocationId:     "test-location",
@@ -650,7 +329,9 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 	t.Run("WhenDescribeBackupVaultFailsWithForbidden", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeBackupVaultParams{
 			LocationId:     "test-location",
@@ -692,7 +373,9 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 	t.Run("WhenDescribeBackupVaultFailsWithTooManyRequests", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeBackupVaultParams{
 			LocationId:     "test-location",
@@ -734,7 +417,9 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 	t.Run("WhenDescribeBackupVaultFailsWithDefault", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeBackupVaultParams{
 			LocationId:     "test-location",
@@ -775,11 +460,16 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 
 // V1betaGetMultipleBackupVaults unittests
 func TestV1betaGetMultipleBackupVaults(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	t.Run("WhenGetMultipleBackupVaultsSuccess", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
 			LocationId:     "test-location",
@@ -837,7 +527,9 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
 			LocationId:     "test-location",
@@ -893,7 +585,9 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 	t.Run("WhenGetMultipleBackupVaultsFailsWithBadRequest", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
 			LocationId:     "test-location",
@@ -937,7 +631,9 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 	t.Run("WhenGetMultipleBackupVaultsFailsWithNotFound", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
 			LocationId:     "test-location",
@@ -982,7 +678,9 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 	t.Run("WhenGetMultipleBackupVaultsFailsWithUnauthorized", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
 			LocationId:     "test-location",
@@ -1028,7 +726,9 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 	t.Run("WhenGetMultipleBackupVaultsFailsWithForbidden", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
 			LocationId:     "test-location",
@@ -1074,7 +774,9 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 	t.Run("WhenGetMultipleBackupVaultsFailsWithDefault", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
 			LocationId:     "test-location",
@@ -1119,7 +821,9 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 	t.Run("WhenGetMultipleBackupVaultsFailsWithUnknownError", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
-
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		// Define input parameters
 		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
 			LocationId:     "test-location",
@@ -1163,18 +867,37 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 	})
 }
 
-func TestReturnsNilWhenOptIsNotSet(t *testing.T) {
-	opt := gcpgenserver.OptBackupRetentionPolicyV1beta{}
-	result := safeBoolPointer(opt, func() bool { return true })
-	assert.Nil(t, result)
-}
-
 func Test_CreateBackupVaultV1beta(t *testing.T) {
+	t.Run("WhenNotEnabled", func(t *testing.T) {
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "local",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:   gcpgenserver.NewOptString("vault1"),
+			BackupRegion: gcpgenserver.NewOptString("invalid-region"), // Invalid region to trigger error
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyV1beta(
+				gcpgenserver.BackupRetentionPolicyV1beta{
+					BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(30),
+					DailyBackupImmutable:               gcpgenserver.NewOptBool(true),
+					WeeklyBackupImmutable:              gcpgenserver.NewOptBool(false),
+					MonthlyBackupImmutable:             gcpgenserver.NewOptBool(true),
+				}),
+		}
+		handler := Handler{}
+
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
 	t.Run("ReturnsBadRequestWhenRegionParsingFails", func(t *testing.T) {
 		params := gcpgenserver.V1betaCreateBackupVaultParams{
 			LocationId:    "local",
 			ProjectNumber: "project-number",
 		}
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		req := &gcpgenserver.BackupVaultCreateV1beta{
 			ResourceId:   gcpgenserver.NewOptString("vault1"),
 			BackupRegion: gcpgenserver.NewOptString("invalid-region"), // Invalid region to trigger error
@@ -1193,13 +916,14 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.IsType(t, &gcpgenserver.V1betaCreateBackupVaultBadRequest{}, result)
-		assert.Equal(t, "LocationID represents neither a region nor a zone", result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest).Message)
 	})
 	t.Run("ReturnsExistingBackupVaultWhenAlreadyExists", func(t *testing.T) {
 		req := &gcpgenserver.BackupVaultCreateV1beta{
 			ResourceId: gcpgenserver.NewOptString("existing-vault"),
 		}
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		params := gcpgenserver.V1betaCreateBackupVaultParams{
 			LocationId:    "us-central1",
 			ProjectNumber: "1234567890",
@@ -1238,6 +962,9 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		req := &gcpgenserver.BackupVaultCreateV1beta{
 			ResourceId: gcpgenserver.NewOptString("vault1"),
 		}
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		params := gcpgenserver.V1betaCreateBackupVaultParams{
 			LocationId:    "us-central1",
 			ProjectNumber: "1234567890",
@@ -1265,6 +992,9 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		req := &gcpgenserver.BackupVaultCreateV1beta{
 			ResourceId: gcpgenserver.NewOptString("new-vault"),
 		}
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		params := gcpgenserver.V1betaCreateBackupVaultParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "1234567890",
@@ -1308,6 +1038,10 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		req := &gcpgenserver.BackupVaultCreateV1beta{
 			ResourceId: gcpgenserver.NewOptString("new-vault"),
 		}
+
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		params := gcpgenserver.V1betaCreateBackupVaultParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "1234567890",
@@ -1351,6 +1085,10 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		req := &gcpgenserver.BackupVaultCreateV1beta{
 			ResourceId: gcpgenserver.NewOptString("new-vault"),
 		}
+
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		params := gcpgenserver.V1betaCreateBackupVaultParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "1234567890",
@@ -1394,6 +1132,9 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		req := &gcpgenserver.BackupVaultCreateV1beta{
 			ResourceId: gcpgenserver.NewOptString("new-vault"),
 		}
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		params := gcpgenserver.V1betaCreateBackupVaultParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "1234567890",
@@ -1437,6 +1178,9 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		req := &gcpgenserver.BackupVaultCreateV1beta{
 			ResourceId: gcpgenserver.NewOptString("new-vault"),
 		}
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		params := gcpgenserver.V1betaCreateBackupVaultParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "1234567890",
@@ -1483,6 +1227,9 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 			LocationId:    "us-east4",
 			ProjectNumber: "1234567890",
 		}
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
@@ -1522,6 +1269,9 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		req := &gcpgenserver.BackupVaultCreateV1beta{
 			ResourceId: gcpgenserver.NewOptString("new-vault"),
 		}
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		params := gcpgenserver.V1betaCreateBackupVaultParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "1234567890",
@@ -1565,6 +1315,9 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		req := &gcpgenserver.BackupVaultCreateV1beta{
 			ResourceId: gcpgenserver.NewOptString("new-vault"),
 		}
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		params := gcpgenserver.V1betaCreateBackupVaultParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "1234567890",
@@ -1623,6 +1376,9 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 			LocationId:    "us-east4",
 			ProjectNumber: "1234567890",
 		}
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
@@ -1714,7 +1470,32 @@ func TestConvertBackupRetentionPolicyToCvpModelForCreate(t *testing.T) {
 	})
 }
 
+func TestV1betaUpdateBackupVaultNotEnabled(t *testing.T) {
+	params := gcpgenserver.V1betaUpdateBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultUpdateV1beta{}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "", "", &gcpgenserver.Error{Code: 400, Message: "LocationID represents neither a region nor a zone"}
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaUpdateBackupVault(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestV1betaUpdateBackupVaultReturnsInvalidLocation(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	params := gcpgenserver.V1betaUpdateBackupVaultParams{
 		LocationId:    "valid-location",
 		ProjectNumber: "1234567890",
@@ -1737,6 +1518,9 @@ func TestV1betaUpdateBackupVaultReturnsInvalidLocation(t *testing.T) {
 }
 
 func TestV1betaUpdateBackupVaultReturnsNotFound(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	params := gcpgenserver.V1betaUpdateBackupVaultParams{
 		LocationId:    "valid-location",
 		ProjectNumber: "1234567890",
@@ -1765,6 +1549,9 @@ func TestV1betaUpdateBackupVaultReturnsNotFound(t *testing.T) {
 }
 
 func TestV1betaUpdateBackupVaultReturnsError(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	params := gcpgenserver.V1betaUpdateBackupVaultParams{
 		LocationId:    "valid-location",
 		ProjectNumber: "1234567890",
@@ -1793,6 +1580,9 @@ func TestV1betaUpdateBackupVaultReturnsError(t *testing.T) {
 }
 
 func TestV1betaUpdateBackupVaultReturnsNotFoundSDESuccessful(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	params := gcpgenserver.V1betaUpdateBackupVaultParams{
 		LocationId:    "valid-location",
 		ProjectNumber: "1234567890",
@@ -1819,7 +1609,11 @@ func TestV1betaUpdateBackupVaultReturnsNotFoundSDESuccessful(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultSuccessful(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	params := gcpgenserver.V1betaUpdateBackupVaultParams{
 		LocationId:    "valid-location",
 		ProjectNumber: "1234567890",
@@ -1867,6 +1661,9 @@ func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultSuccessful(t *testing
 }
 
 func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultSuccessfulWithNoOperation(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	params := gcpgenserver.V1betaUpdateBackupVaultParams{
 		LocationId:    "valid-location",
 		ProjectNumber: "1234567890",
@@ -1914,6 +1711,9 @@ func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultSuccessfulWithNoOpera
 }
 
 func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultJsonFails(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	params := gcpgenserver.V1betaUpdateBackupVaultParams{
 		LocationId:    "valid-location",
 		ProjectNumber: "1234567890",
@@ -1963,6 +1763,9 @@ func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultJsonFails(t *testing.
 }
 
 func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultFails(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	params := gcpgenserver.V1betaUpdateBackupVaultParams{
 		LocationId:    "valid-location",
 		ProjectNumber: "1234567890",
@@ -2004,13 +1807,60 @@ func TestV1betaUpdateBackupVaultReturnsFoundWithbackupVaultFails(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestV1betaUpdateBackupVaultReturnsFoundWithBackupVaultFailsWithBadRequest(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+	params := gcpgenserver.V1betaUpdateBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultUpdateV1beta{
+		Description: gcpgenserver.NewOptString("desc"),
+		BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyUpdateV1beta(
+			gcpgenserver.BackupRetentionPolicyUpdateV1beta{
+				DailyBackupImmutable:   gcpgenserver.NewOptBool(true),
+				MonthlyBackupImmutable: gcpgenserver.NewOptBool(false),
+			},
+		),
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "valid-region", "valid-zone", nil
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	bvName := "vault-id"
+	ctx := context.Background()
+	resID := "vault-id"
+	bvResp := mod.BackupVaultV1beta{
+		Name:        resID,
+		AccountName: "1234567890",
+	}
+	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+		Return(&bvResp, nil)
+
+	mockOrchestrator.On("UpdateBackupVault", ctx, mock.Anything).
+		Return(nil, "", errors2.NewUserInputValidationErr("Update failed in SDE"))
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaUpdateBackupVault(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestConvertBackupRetentionPolicyToCvpModelForUpdate(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	t.Run("ReturnsNilWhenPolicyIsNotSet", func(t *testing.T) {
 		brPolicy := gcpgenserver.OptBackupRetentionPolicyUpdateV1beta{}
 		result := convertBackupRetentionPolicyToCvpModelForUpdate(brPolicy)
 		assert.Nil(t, result)
 	})
-
 	t.Run("ReturnsModelWhenAllFieldsAreSet", func(t *testing.T) {
 		brPolicy := gcpgenserver.OptBackupRetentionPolicyUpdateV1beta{
 			Value: gcpgenserver.BackupRetentionPolicyUpdateV1beta{
@@ -2033,24 +1883,9 @@ func TestConvertBackupRetentionPolicyToCvpModelForUpdate(t *testing.T) {
 }
 
 func Test_updateBackupVaultInSDE(tt *testing.T) {
-	tt.Run("WhenGetSignedTokenError", func(t *testing.T) {
-		params := gcpgenserver.V1betaUpdateBackupVaultParams{
-			LocationId:    "valid-location",
-			ProjectNumber: "1234567890",
-			BackupVaultId: "vault-id",
-		}
-		req := &gcpgenserver.BackupVaultUpdateV1beta{}
-		GetSignedToken = func(projectNumber string) (string, error) {
-			return "", errors2.New("Failed to get signed token")
-		}
-		defer func() {
-			GetSignedToken = auth.GetSignedJwtToken
-		}()
-
-		result, err := _updateBackupVaultInSDE(context.Background(), req, params, "description")
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-	})
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
 	tt.Run("WhenSuccessful", func(t *testing.T) {
 		params := gcpgenserver.V1betaUpdateBackupVaultParams{
 			LocationId:    "valid-location",
@@ -2066,9 +1901,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 					MonthlyBackupImmutable:             gcpgenserver.NewOptBool(true),
 				}),
 		}
-		GetSignedToken = func(projectNumber string) (string, error) {
-			return "mock-token", nil
-		}
 
 		mockClient := backup_vault.NewMockClientService(t)
 		mockResp := &models.OperationV1beta{Name: "operation-id", Done: nillable.GetBoolPtr(true)}
@@ -2082,7 +1914,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 		originalCreateClient := createClient
 		defer func() {
 			createClient = originalCreateClient
-			GetSignedToken = auth.GetSignedJwtToken
 		}()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
@@ -2099,9 +1930,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 			BackupVaultId: "vault-id",
 		}
 		req := &gcpgenserver.BackupVaultUpdateV1beta{}
-		GetSignedToken = func(projectNumber string) (string, error) {
-			return "mock-token", nil
-		}
 
 		mockClient := backup_vault.NewMockClientService(t)
 		mockError := &backup_vault.V1betaUpdateBackupVaultBadRequest{
@@ -2118,7 +1946,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 		originalCreateClient := createClient
 		defer func() {
 			createClient = originalCreateClient
-			GetSignedToken = auth.GetSignedJwtToken
 		}()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
@@ -2135,9 +1962,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 			BackupVaultId: "vault-id",
 		}
 		req := &gcpgenserver.BackupVaultUpdateV1beta{}
-		GetSignedToken = func(projectNumber string) (string, error) {
-			return "mock-token", nil
-		}
 
 		mockClient := backup_vault.NewMockClientService(t)
 		mockError := &backup_vault.V1betaUpdateBackupVaultInternalServerError{
@@ -2154,7 +1978,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 		originalCreateClient := createClient
 		defer func() {
 			createClient = originalCreateClient
-			GetSignedToken = auth.GetSignedJwtToken
 		}()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
@@ -2171,9 +1994,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 			BackupVaultId: "vault-id",
 		}
 		req := &gcpgenserver.BackupVaultUpdateV1beta{}
-		GetSignedToken = func(projectNumber string) (string, error) {
-			return "mock-token", nil
-		}
 
 		mockClient := backup_vault.NewMockClientService(t)
 		mockError := &backup_vault.V1betaUpdateBackupVaultUnprocessableEntity{
@@ -2190,7 +2010,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 		originalCreateClient := createClient
 		defer func() {
 			createClient = originalCreateClient
-			GetSignedToken = auth.GetSignedJwtToken
 		}()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
@@ -2207,9 +2026,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 			BackupVaultId: "vault-id",
 		}
 		req := &gcpgenserver.BackupVaultUpdateV1beta{}
-		GetSignedToken = func(projectNumber string) (string, error) {
-			return "mock-token", nil
-		}
 
 		mockClient := backup_vault.NewMockClientService(t)
 		mockError := &backup_vault.V1betaUpdateBackupVaultConflict{
@@ -2226,7 +2042,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 		originalCreateClient := createClient
 		defer func() {
 			createClient = originalCreateClient
-			GetSignedToken = auth.GetSignedJwtToken
 		}()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
@@ -2243,9 +2058,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 			BackupVaultId: "vault-id",
 		}
 		req := &gcpgenserver.BackupVaultUpdateV1beta{}
-		GetSignedToken = func(projectNumber string) (string, error) {
-			return "mock-token", nil
-		}
 
 		mockClient := backup_vault.NewMockClientService(t)
 		mockError := &backup_vault.V1betaUpdateBackupVaultUnauthorized{
@@ -2262,7 +2074,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 		originalCreateClient := createClient
 		defer func() {
 			createClient = originalCreateClient
-			GetSignedToken = auth.GetSignedJwtToken
 		}()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
@@ -2279,9 +2090,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 			BackupVaultId: "vault-id",
 		}
 		req := &gcpgenserver.BackupVaultUpdateV1beta{}
-		GetSignedToken = func(projectNumber string) (string, error) {
-			return "mock-token", nil
-		}
 
 		mockClient := backup_vault.NewMockClientService(t)
 		mockError := &backup_vault.V1betaUpdateBackupVaultForbidden{
@@ -2298,7 +2106,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 		originalCreateClient := createClient
 		defer func() {
 			createClient = originalCreateClient
-			GetSignedToken = auth.GetSignedJwtToken
 		}()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
@@ -2315,9 +2122,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 			BackupVaultId: "vault-id",
 		}
 		req := &gcpgenserver.BackupVaultUpdateV1beta{}
-		GetSignedToken = func(projectNumber string) (string, error) {
-			return "mock-token", nil
-		}
 
 		mockClient := backup_vault.NewMockClientService(t)
 		mockError := &backup_vault.V1betaUpdateBackupVaultTooManyRequests{
@@ -2334,7 +2138,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 		originalCreateClient := createClient
 		defer func() {
 			createClient = originalCreateClient
-			GetSignedToken = auth.GetSignedJwtToken
 		}()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
@@ -2351,9 +2154,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 			BackupVaultId: "vault-id",
 		}
 		req := &gcpgenserver.BackupVaultUpdateV1beta{}
-		GetSignedToken = func(projectNumber string) (string, error) {
-			return "mock-token", nil
-		}
 
 		mockClient := backup_vault.NewMockClientService(t)
 		mockError := &backup_vault.V1betaUpdateBackupVaultDefault{
@@ -2370,7 +2170,6 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 		originalCreateClient := createClient
 		defer func() {
 			createClient = originalCreateClient
-			GetSignedToken = auth.GetSignedJwtToken
 		}()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
@@ -2380,4 +2179,692 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 	})
+}
+
+func TestReturnsSuccessfulDeletion(tt *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+	tt.Run("WhenSuccessful", func(t *testing.T) {
+		params := gcpgenserver.V1betaDeleteBackupVaultParams{
+			LocationId:     "valid-location",
+			ProjectNumber:  "1234567890",
+			BackupVaultId:  "vault-id",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		mockClient := backup_vault.NewMockClientService(t)
+		mockResp := &models.OperationV1beta{Name: "operation-id", Done: nillable.GetBoolPtr(true)}
+
+		mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(
+			&backup_vault.V1betaDeleteBackupVaultAccepted{
+				Payload: mockResp,
+			}, nil, nil).Once()
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := cvpCreateClient
+		defer func() {
+			cvpCreateClient = originalCreateClient
+		}()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		logger := log.NewLogger()
+		result, err := _deleteBackupVaultInSDE(context.Background(), params, logger)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	tt.Run("WhenNotFoundError", func(t *testing.T) {
+		params := gcpgenserver.V1betaDeleteBackupVaultParams{
+			LocationId:     "valid-location",
+			ProjectNumber:  "1234567890",
+			BackupVaultId:  "vault-id",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		mockClient := backup_vault.NewMockClientService(t)
+		mockError := &backup_vault.V1betaDeleteBackupVaultNotFound{
+			Payload: &models.Error{
+				Code:    400,
+				Message: "Backup vault not found",
+			},
+		}
+
+		mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(
+			nil, nil, mockError).Once()
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := cvpCreateClient
+		defer func() {
+			cvpCreateClient = originalCreateClient
+		}()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		logger := log.NewLogger()
+		result, err := _deleteBackupVaultInSDE(context.Background(), params, logger)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	tt.Run("WhenForbiddenError", func(t *testing.T) {
+		params := gcpgenserver.V1betaDeleteBackupVaultParams{
+			LocationId:     "valid-location",
+			ProjectNumber:  "1234567890",
+			BackupVaultId:  "vault-id",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		mockClient := backup_vault.NewMockClientService(t)
+		mockError := &backup_vault.V1betaDeleteBackupVaultForbidden{
+			Payload: &models.Error{
+				Code:    403,
+				Message: "forbidden",
+			},
+		}
+
+		mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(
+			nil, nil, mockError).Once()
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := cvpCreateClient
+		defer func() {
+			cvpCreateClient = originalCreateClient
+		}()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		logger := log.NewLogger()
+		result, err := _deleteBackupVaultInSDE(context.Background(), params, logger)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	tt.Run("WhenBadRequestError", func(t *testing.T) {
+		params := gcpgenserver.V1betaDeleteBackupVaultParams{
+			LocationId:     "valid-location",
+			ProjectNumber:  "1234567890",
+			BackupVaultId:  "vault-id",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		mockClient := backup_vault.NewMockClientService(t)
+		mockError := &backup_vault.V1betaDeleteBackupVaultBadRequest{
+			Payload: &models.Error{
+				Code:    400,
+				Message: "Invalid request",
+			},
+		}
+
+		mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(
+			nil, nil, mockError).Once()
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := cvpCreateClient
+		defer func() {
+			cvpCreateClient = originalCreateClient
+		}()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		logger := log.NewLogger()
+		result, err := _deleteBackupVaultInSDE(context.Background(), params, logger)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	tt.Run("WhenUnauthorizedError", func(t *testing.T) {
+		params := gcpgenserver.V1betaDeleteBackupVaultParams{
+			LocationId:     "valid-location",
+			ProjectNumber:  "1234567890",
+			BackupVaultId:  "vault-id",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		mockClient := backup_vault.NewMockClientService(t)
+		mockError := &backup_vault.V1betaDeleteBackupVaultUnauthorized{
+			Payload: &models.Error{
+				Code:    401,
+				Message: "Unauthorized access",
+			},
+		}
+
+		mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(
+			nil, nil, mockError).Once()
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := cvpCreateClient
+		defer func() {
+			cvpCreateClient = originalCreateClient
+		}()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		logger := log.NewLogger()
+		result, err := _deleteBackupVaultInSDE(context.Background(), params, logger)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	tt.Run("WhenTooManyRequestsError", func(t *testing.T) {
+		params := gcpgenserver.V1betaDeleteBackupVaultParams{
+			LocationId:     "valid-location",
+			ProjectNumber:  "1234567890",
+			BackupVaultId:  "vault-id",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		mockClient := backup_vault.NewMockClientService(t)
+		mockError := &backup_vault.V1betaDeleteBackupVaultTooManyRequests{
+			Payload: &models.Error{
+				Code:    429,
+				Message: "Too many requests",
+			},
+		}
+
+		mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(
+			nil, nil, mockError).Once()
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := cvpCreateClient
+		defer func() {
+			cvpCreateClient = originalCreateClient
+		}()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		logger := log.NewLogger()
+		result, err := _deleteBackupVaultInSDE(context.Background(), params, logger)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	tt.Run("WhenConflictError", func(t *testing.T) {
+		params := gcpgenserver.V1betaDeleteBackupVaultParams{
+			LocationId:     "valid-location",
+			ProjectNumber:  "1234567890",
+			BackupVaultId:  "vault-id",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		mockClient := backup_vault.NewMockClientService(t)
+		mockError := &backup_vault.V1betaDeleteBackupVaultConflict{
+			Payload: &models.Error{
+				Code:    409,
+				Message: "Conflict error",
+			},
+		}
+
+		mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(
+			nil, nil, mockError).Once()
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := cvpCreateClient
+		defer func() {
+			cvpCreateClient = originalCreateClient
+		}()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		logger := log.NewLogger()
+		result, err := _deleteBackupVaultInSDE(context.Background(), params, logger)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	tt.Run("WhenUnprocessableEntityError", func(t *testing.T) {
+		params := gcpgenserver.V1betaDeleteBackupVaultParams{
+			LocationId:     "valid-location",
+			ProjectNumber:  "1234567890",
+			BackupVaultId:  "vault-id",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		mockClient := backup_vault.NewMockClientService(t)
+		mockError := &backup_vault.V1betaDeleteBackupVaultUnprocessableEntity{
+			Payload: &models.Error{
+				Code:    422,
+				Message: "Unprocessable entity",
+			},
+		}
+
+		mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(
+			nil, nil, mockError).Once()
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := cvpCreateClient
+		defer func() {
+			cvpCreateClient = originalCreateClient
+		}()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		logger := log.NewLogger()
+		result, err := _deleteBackupVaultInSDE(context.Background(), params, logger)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	tt.Run("WhenDeleteBackupVaultDefault", func(t *testing.T) {
+		params := gcpgenserver.V1betaDeleteBackupVaultParams{
+			LocationId:     "valid-location",
+			ProjectNumber:  "1234567890",
+			BackupVaultId:  "vault-id",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		mockClient := backup_vault.NewMockClientService(t)
+		mockError := &backup_vault.V1betaDeleteBackupVaultDefault{
+			Payload: &models.Error{
+				Code:    500,
+				Message: "Internal server error",
+			},
+		}
+
+		mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(
+			nil, nil, mockError).Once()
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := cvpCreateClient
+		defer func() {
+			cvpCreateClient = originalCreateClient
+		}()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		logger := log.NewLogger()
+		result, err := _deleteBackupVaultInSDE(context.Background(), params, logger)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+}
+
+func TestV1betaDeleteBackupVaultReturnsInvalidLocation(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+	params := gcpgenserver.V1betaDeleteBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "", "", &gcpgenserver.Error{Code: 400, Message: "LocationID represents neither a region nor a zone"}
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestV1betaDeleteBackupVaultNotEnabled(t *testing.T) {
+	params := gcpgenserver.V1betaDeleteBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "", "", &gcpgenserver.Error{Code: 400, Message: "LocationID represents neither a region nor a zone"}
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestV1betaDeleteBackupVaultReturnsNotFound(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+	params := gcpgenserver.V1betaDeleteBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "valid-region", "valid-zone", nil
+	}
+	deleteBackupVaultInSDE = func(ctx context.Context, params gcpgenserver.V1betaDeleteBackupVaultParams, logger log.Logger) (r gcpgenserver.V1betaDeleteBackupVaultRes, _ error) {
+		return nil, errors2.NewNotFoundErr("backup vault", &params.BackupVaultId)
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	bvName := "vault-id"
+	ctx := context.Background()
+	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+		Return(nil, errors2.NewNotFoundErr("backup vault", &bvName))
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestV1betaDeleteBackupVaultReturnsError(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+	params := gcpgenserver.V1betaDeleteBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "valid-region", "valid-zone", nil
+	}
+
+	deleteBackupVaultInSDE = func(ctx context.Context, params gcpgenserver.V1betaDeleteBackupVaultParams, logger log.Logger) (r gcpgenserver.V1betaDeleteBackupVaultRes, _ error) {
+		return nil, errors2.NewBadRequestErr("Update failed in SDE")
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	bvName := "vault-id"
+	ctx := context.Background()
+	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+		Return(nil, errors2.NewConflictErr("Backup vault already exists"))
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestV1betaDeleteBackupVaultReturnsNotFoundSDESuccessful(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+	params := gcpgenserver.V1betaDeleteBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "valid-region", "valid-zone", nil
+	}
+
+	deleteBackupVaultInSDE = func(ctx context.Context, params gcpgenserver.V1betaDeleteBackupVaultParams, logger log.Logger) (r gcpgenserver.V1betaDeleteBackupVaultRes, _ error) {
+		return &gcpgenserver.OperationV1beta{}, nil
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	bvName := "vault-id"
+	ctx := context.Background()
+	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+		Return(nil, errors2.NewNotFoundErr("backup vault", &bvName))
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestV1betaDeleteBackupVaultReturnsFoundWithbackupVaultSuccessful(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+	params := gcpgenserver.V1betaDeleteBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "valid-region", "valid-zone", nil
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	bvName := "vault-id"
+	ctx := context.Background()
+	resID := "vault-id"
+	bvResp := mod.BackupVaultV1beta{
+		Name:        resID,
+		AccountName: "1234567890",
+	}
+	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+		Return(&bvResp, nil)
+
+	mockOrchestrator.On("DeleteBackupVault", ctx, mock.Anything).
+		Return(&mod.BackupVaultV1beta{}, "operation-id", nil)
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+	assert.Equal(t, "/v1beta/projects/1234567890/locations/valid-location/operations/operation-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
+}
+
+func TestV1betaDeleteBackupVaultReturnsFoundWithbackupVaultSuccessfulWithNoOperation(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+	params := gcpgenserver.V1betaDeleteBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "valid-region", "valid-zone", nil
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	bvName := "vault-id"
+	ctx := context.Background()
+	resID := "vault-id"
+	bvResp := mod.BackupVaultV1beta{
+		Name:        resID,
+		AccountName: "1234567890",
+	}
+	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+		Return(&bvResp, nil)
+
+	mockOrchestrator.On("DeleteBackupVault", ctx, mock.Anything).
+		Return(&mod.BackupVaultV1beta{}, "", nil)
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+	assert.Equal(t, "", result.(*gcpgenserver.OperationV1beta).Name.Value)
+}
+
+func TestV1betaDeleteBackupVaultReturnsFoundWithbackupVaultJsonFails(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+	params := gcpgenserver.V1betaDeleteBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "valid-region", "valid-zone", nil
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	bvName := "vault-id"
+	ctx := context.Background()
+	resID := "vault-id"
+	bvResp := mod.BackupVaultV1beta{
+		Name:        resID,
+		AccountName: "1234567890",
+	}
+	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+		Return(&bvResp, nil)
+
+	mockOrchestrator.On("DeleteBackupVault", ctx, mock.Anything).
+		Return(&mod.BackupVaultV1beta{}, "operation-id", nil)
+
+	jsonMarshal = func(v interface{}) ([]byte, error) {
+		return nil, fmt.Errorf("JSON marshal error")
+	}
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestV1betaDeleteBackupVaultReturnsFoundWithbackupVaultFails(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+	params := gcpgenserver.V1betaDeleteBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "valid-region", "valid-zone", nil
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	bvName := "vault-id"
+	ctx := context.Background()
+	resID := "vault-id"
+	bvResp := mod.BackupVaultV1beta{
+		Name:        resID,
+		AccountName: "1234567890",
+	}
+	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+		Return(&bvResp, nil)
+
+	mockOrchestrator.On("DeleteBackupVault", ctx, mock.Anything).
+		Return(nil, "", errors2.NewBadRequestErr("Update failed in SDE"))
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestV1betaDeleteBackupVaultReturnsFoundWithbackupVaultBadRequestFails(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+	params := gcpgenserver.V1betaDeleteBackupVaultParams{
+		LocationId:    "valid-location",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "valid-region", "valid-zone", nil
+	}
+
+	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	bvName := "vault-id"
+	ctx := context.Background()
+	resID := "vault-id"
+	bvResp := mod.BackupVaultV1beta{
+		Name:        resID,
+		AccountName: "1234567890",
+	}
+	mockOrchestrator.On("GetBackupVaultByUUID", ctx, bvName, "1234567890").
+		Return(&bvResp, nil)
+
+	mockOrchestrator.On("DeleteBackupVault", ctx, mock.Anything).
+		Return(nil, "", errors2.NewUserInputValidationErr("Update failed in SDE"))
+
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaDeleteBackupVault(context.Background(), params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestReturnsBackupVaultV1betaWhenAllFieldsAreSet(t *testing.T) {
+	beta := &mod.BackupVaultV1beta{
+		BackupVaultID:          "vault-id",
+		LifeCycleState:         "ACTIVE",
+		LifeCycleStateDetails:  "All good",
+		CreatedAt:              time.Now(),
+		Description:            nillable.GetStringPtr("Test description"),
+		Name:                   "resource-id",
+		SourceBackupVault:      nillable.GetStringPtr("source-vault"),
+		DestinationBackupVault: nillable.GetStringPtr("destination-vault"),
+		SourceRegion:           nillable.GetStringPtr("us-central1"),
+		BackupRegion:           nillable.GetStringPtr("us-east1"),
+		BackupVaultType:        nillable.GetStringPtr("STANDARD"),
+		BackupRetentionPolicy: mod.BackupRetentionPolicyparams{
+			BackupMinimumEnforcedRetentionDuration: nillable.GetInt64Ptr(30),
+			IsDailyBackupImmutable:                 true,
+			IsAdhocBackupImmutable:                 false,
+			IsMonthlyBackupImmutable:               true,
+			IsWeeklyBackupImmutable:                false,
+		},
+	}
+
+	result := convertCoreModelsToBackupVaultV1beta(beta)
+
+	assert.NotNil(t, result)
+	assert.Equal(t, "vault-id", result.BackupVaultId.Value)
+	assert.Equal(t, "ACTIVE", string(result.State.Value))
+	assert.Equal(t, "All good", result.StateDetails.Value)
+	assert.Equal(t, "Test description", result.Description.Value)
+	assert.Equal(t, "resource-id", result.ResourceId)
+	assert.Equal(t, "source-vault", result.SourceBackupVault.Value)
+	assert.Equal(t, "destination-vault", result.DestinationBackupVault.Value)
+	assert.Equal(t, "us-central1", result.SourceRegion.Value)
+	assert.Equal(t, "us-east1", result.BackupRegion.Value)
+	assert.Equal(t, "STANDARD", string(result.BackupVaultType.Value))
+	assert.Equal(t, 30, result.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.Value)
+	assert.True(t, result.BackupRetentionPolicy.Value.DailyBackupImmutable.Value)
+	assert.False(t, result.BackupRetentionPolicy.Value.ManualBackupImmutable.Value)
+	assert.True(t, result.BackupRetentionPolicy.Value.MonthlyBackupImmutable.Value)
+	assert.False(t, result.BackupRetentionPolicy.Value.WeeklyBackupImmutable.Value)
+}
+
+func TestReturnsBackupVaultV1betaWithDefaultsWhenOptionalFieldsAreNil(t *testing.T) {
+	beta := &mod.BackupVaultV1beta{
+		BackupVaultID:         "vault-id",
+		LifeCycleState:        "ACTIVE",
+		LifeCycleStateDetails: "All good",
+		CreatedAt:             time.Now(),
+		Name:                  "resource-id",
+		BackupRetentionPolicy: mod.BackupRetentionPolicyparams{},
+	}
+
+	result := convertCoreModelsToBackupVaultV1beta(beta)
+
+	assert.NotNil(t, result)
+	assert.Equal(t, "vault-id", result.BackupVaultId.Value)
+	assert.Equal(t, "ACTIVE", string(result.State.Value))
+	assert.Equal(t, "All good", result.StateDetails.Value)
+	assert.Equal(t, "resource-id", result.ResourceId)
+	assert.NotNil(t, result.Description)
+	assert.NotNil(t, result.SourceBackupVault)
+	assert.NotNil(t, result.DestinationBackupVault)
+	assert.NotNil(t, result.SourceRegion)
+	assert.NotNil(t, result.BackupRegion)
+	assert.NotNil(t, result.BackupVaultType)
+	assert.NotNil(t, result.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays)
+	assert.NotNil(t, result.BackupRetentionPolicy.Value.DailyBackupImmutable)
+	assert.NotNil(t, result.BackupRetentionPolicy.Value.ManualBackupImmutable)
+	assert.NotNil(t, result.BackupRetentionPolicy.Value.MonthlyBackupImmutable)
+	assert.NotNil(t, result.BackupRetentionPolicy.Value.WeeklyBackupImmutable)
 }

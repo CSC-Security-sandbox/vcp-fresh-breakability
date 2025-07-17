@@ -303,3 +303,186 @@ func TestReturnsErrorWhenUpdateFailsInVCP(t *testing.T) {
 	assert.Nil(t, result)
 	mockStorage.AssertCalled(t, "UpdateBackupVaultInVCP", ctx, bvParams, vcpBvParams)
 }
+
+func TestDeletesBackupVaultSuccessfullyFromVCP(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+
+	backupVaultId := "test-vault-id"
+	expectedBackupVault := &datamodel.BackupVault{
+		Name: "test-vault",
+	}
+
+	mockStorage.On("DeleteBackupVaultInVCP", ctx, backupVaultId).Return(expectedBackupVault, nil).Once()
+
+	activity := BackupVaultActivity{
+		SE: mockStorage,
+	}
+
+	result, err := activity.DeleteBackupVaultInVCP(ctx, backupVaultId)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, expectedBackupVault, result)
+	mockStorage.AssertCalled(t, "DeleteBackupVaultInVCP", ctx, backupVaultId)
+}
+
+func TestReturnsErrorWhenDeleteFailsInVCP(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+
+	backupVaultId := "test-vault-id"
+
+	mockStorage.On("DeleteBackupVaultInVCP", ctx, backupVaultId).Return(nil, errors.New("delete failed")).Once()
+
+	activity := BackupVaultActivity{
+		SE: mockStorage,
+	}
+
+	result, err := activity.DeleteBackupVaultInVCP(ctx, backupVaultId)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	mockStorage.AssertCalled(t, "DeleteBackupVaultInVCP", ctx, backupVaultId)
+}
+
+func TestUpdatesBackupVaultStateSuccessfully(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+
+	backupVault := &datamodel.BackupVault{
+		Name: "test-vault",
+	}
+	state := "ERROR"
+	stateDetails := "Failed due to timeout"
+
+	mockStorage.On("UpdateBackupVaultState", ctx, backupVault, state, stateDetails).Return(backupVault, nil).Once()
+
+	activity := BackupVaultActivity{
+		SE: mockStorage,
+	}
+
+	err := activity.UpdateBackupVaultStateInCaseOfError(ctx, backupVault, state, stateDetails)
+
+	assert.NoError(t, err)
+	mockStorage.AssertCalled(t, "UpdateBackupVaultState", ctx, backupVault, state, stateDetails)
+}
+
+func TestReturnsErrorWhenStateUpdateFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+
+	backupVault := &datamodel.BackupVault{
+		Name: "test-vault",
+	}
+	state := "ERROR"
+	stateDetails := "Failed due to timeout"
+
+	mockStorage.On("UpdateBackupVaultState", ctx, backupVault, state, stateDetails).Return(nil, errors.New("update failed")).Once()
+
+	activity := BackupVaultActivity{
+		SE: mockStorage,
+	}
+
+	err := activity.UpdateBackupVaultStateInCaseOfError(ctx, backupVault, state, stateDetails)
+
+	assert.Error(t, err)
+	mockStorage.AssertCalled(t, "UpdateBackupVaultState", ctx, backupVault, state, stateDetails)
+}
+
+func TestDeletesBackupVaultSuccessfullyFromSDE(t *testing.T) {
+	mockClient := backup_vault.NewMockClientService(t)
+	ctx := context.Background()
+
+	paramz := &common.BackupVaultParams{
+		Region:        "us-central1",
+		OwnerID:       "owner-123",
+		BackupVaultID: "vault-123",
+	}
+
+	mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(
+		&backup_vault.V1betaDeleteBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: map[string]interface{}{
+					"BackupVaultID": "vault-123",
+				},
+			},
+		}, nil, nil).Once()
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	originalCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = originalCreateClient }()
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	activity := BackupVaultActivity{}
+
+	result, err := activity.DeleteBackupVaultInSDE(ctx, paramz)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "vault-123", result.UUID)
+	mockClient.AssertCalled(t, "V1betaDeleteBackupVault", mock.Anything)
+}
+
+func TestReturnsErrorWhenDeleteFailsInSDE(t *testing.T) {
+	mockClient := backup_vault.NewMockClientService(t)
+	ctx := context.Background()
+
+	paramz := &common.BackupVaultParams{
+		Region:        "us-central1",
+		OwnerID:       "owner-123",
+		BackupVaultID: "vault-123",
+	}
+
+	mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(nil, nil, errors.New("delete failed")).Once()
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	originalCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = originalCreateClient }()
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	activity := BackupVaultActivity{}
+
+	result, err := activity.DeleteBackupVaultInSDE(ctx, paramz)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	mockClient.AssertCalled(t, "V1betaDeleteBackupVault", mock.Anything)
+}
+
+func TestReturnsErrorWhenResponseMarshallingFails(t *testing.T) {
+	mockClient := backup_vault.NewMockClientService(t)
+	ctx := context.Background()
+
+	paramz := &common.BackupVaultParams{
+		Region:        "us-central1",
+		OwnerID:       "owner-123",
+		BackupVaultID: "vault-123",
+	}
+
+	mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(
+		&backup_vault.V1betaDeleteBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: make(chan int), // Invalid type to cause marshalling error
+			},
+		}, nil, nil).Once()
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	originalCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = originalCreateClient }()
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	activity := BackupVaultActivity{}
+
+	result, err := activity.DeleteBackupVaultInSDE(ctx, paramz)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	mockClient.AssertCalled(t, "V1betaDeleteBackupVault", mock.Anything)
+}

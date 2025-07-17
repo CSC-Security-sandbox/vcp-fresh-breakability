@@ -2231,6 +2231,66 @@ func (re *retryEngine) GetMultipleBackupVaults(ctx context.Context, conditions [
 	return var0, err
 }
 
+func (re *retryEngine) DeleteBackupVaultInVCP(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error) {
+	var var0 *datamodel.BackupVault
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.DeleteBackupVaultInVCP(ctx, backupVaultId)
+		if err != nil {
+			re.logError("DeleteBackupVaultInVCP", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetVolumeCountByBackupVaultID(ctx context.Context, backupVaultUUID string) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetVolumeCountByBackupVaultID(ctx, backupVaultUUID)
+		if err != nil {
+			re.logError("GetVolumeCountByBackupVaultID", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetBackupCountByBackupVaultID(ctx context.Context, backupVaultID int64) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupCountByBackupVaultID(ctx, backupVaultID)
+		if err != nil {
+			re.logError("GetBackupCountByBackupVaultID", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, backupPolicyUUID string, accountID int64) (*datamodel.BackupPolicy, error) {
 	var var0 *datamodel.BackupPolicy
 	err := retry.Do(func(attempt int) (bool, error) {

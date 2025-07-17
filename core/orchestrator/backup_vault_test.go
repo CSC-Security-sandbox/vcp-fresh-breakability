@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -599,4 +600,117 @@ func TestGetMultipleBackupVaultsReturnsErrorWhenStorageFails(tt *testing.T) {
 	assert.Error(tt, err)
 	assert.Nil(tt, result)
 	assert.Equal(tt, "database error", err.Error())
+}
+
+func TestReturnsErrorWhenBackupVaultHasBackups(t *testing.T) {
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+	ctx := context.Background()
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+	backupVault := &datamodel.BackupVault{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-vault-uuid", ID: 1},
+		LifeCycleState: models.LifeCycleStateAvailable,
+	}
+	job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}
+
+	mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+	mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+	mockStorage.On("GetBackupCountByBackupVaultID", ctx, backupVault.ID).Return(int64(1), nil)
+
+	o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+	result, jobID, err := o.DeleteBackupVault(ctx, &commonparams.BackupVaultParams{
+		OwnerID:       "owner-uuid",
+		BackupVaultID: "backup-vault-uuid",
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, "backup vault has backups, please delete backups before deleting backup vault", err.Error())
+}
+
+func TestReturnsGetBackupVaultByUUIDndOwnerIDErrorWhenBackupVaultHasBackups(t *testing.T) {
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+	ctx := context.Background()
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+	job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}
+
+	mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+	mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(nil, errors.New("backup vault not found"))
+
+	o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+	result, jobID, err := o.DeleteBackupVault(ctx, &commonparams.BackupVaultParams{
+		OwnerID:       "owner-uuid",
+		BackupVaultID: "backup-vault-uuid",
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, "backup vault not found", err.Error())
+}
+
+func TestReturnsJobErrorWhenBackupVaultHasBackups(t *testing.T) {
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+	ctx := context.Background()
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+	backupVault := &datamodel.BackupVault{
+		BaseModel:             datamodel.BaseModel{UUID: "backup-vault-uuid", ID: 1},
+		LifeCycleState:        models.LifeCycleStateAvailable,
+		LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+	}
+	mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+	mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+	mockStorage.On("GetBackupCountByBackupVaultID", ctx, backupVault.ID).Return(int64(1), nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("failed to create job"))
+	o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+	result, jobID, err := o.DeleteBackupVault(ctx, &commonparams.BackupVaultParams{
+		OwnerID:       "owner-uuid",
+		BackupVaultID: "backup-vault-uuid",
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+}
+
+func TestReturnsUpdatingErrorWhenBackupVaultHasBackups(t *testing.T) {
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+	ctx := context.Background()
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+	backupVault := &datamodel.BackupVault{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		LifeCycleState: models.LifeCycleStateUpdating,
+	}
+	var backups []*datamodel.Backup
+	job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}
+
+	mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+	mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+	mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "backup-vault-uuid", int64(1), [][]interface{}(nil)).Return(backups, nil)
+
+	o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+	result, jobID, err := o.DeleteBackupVault(ctx, &commonparams.BackupVaultParams{
+		OwnerID:       "owner-uuid",
+		BackupVaultID: "backup-vault-uuid",
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, "backup vault is in transition state", err.Error())
 }
