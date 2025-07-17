@@ -43,7 +43,7 @@ func TestUpdateVolumeInONTAP_Success(t *testing.T) {
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes: 1024,
 		AutoTieringPolicy: &common.AutoTieringPolicy{
-			CoolAccessEnabled:    true,
+			AutoTieringEnabled:   true,
 			TieringPolicy:        "auto",
 			RetrievalPolicy:      "default",
 			CoolingThresholdDays: 10,
@@ -87,7 +87,7 @@ func TestUpdateVolumeInONTAP_Failure(t *testing.T) {
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes: 2048,
 		AutoTieringPolicy: &common.AutoTieringPolicy{
-			CoolAccessEnabled:    true,
+			AutoTieringEnabled:   true,
 			TieringPolicy:        "auto",
 			RetrievalPolicy:      "default",
 			CoolingThresholdDays: 5,
@@ -198,7 +198,7 @@ func TestUpdateVolumeInDB_Success(t *testing.T) {
 	volume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-123"}, Name: "test-volume"}
 	params := &common.UpdateVolumeParams{QuotaInBytes: 4096,
 		AutoTieringPolicy: &common.AutoTieringPolicy{
-			CoolAccessEnabled:    true,
+			AutoTieringEnabled:   true,
 			TieringPolicy:        "auto",
 			CoolingThresholdDays: 7,
 			RetrievalPolicy:      "default",
@@ -489,14 +489,14 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			},
 			params: &common.UpdateVolumeParams{
 				AutoTieringPolicy: &common.AutoTieringPolicy{
-					CoolAccessEnabled:    true,
+					AutoTieringEnabled:   true,
 					TieringPolicy:        "auto",
 					CoolingThresholdDays: 7,
 					RetrievalPolicy:      "default",
 				},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, _ database.Storage) {
-				assert.Equal(t, true, fields["cool_access_enabled"])
+				assert.Equal(t, true, fields["auto_tiering_enabled"])
 				autoTieringPolicy, _ := fields["auto_tiering_policy"].(*datamodel.AutoTieringPolicy)
 				assert.Equal(t, "auto", autoTieringPolicy.TieringPolicy)
 				assert.Equal(t, int32(7), autoTieringPolicy.CoolingThresholdDays)
@@ -507,25 +507,25 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			dbCallRequired: false,
 		},
 		{
-			name: "WithAutoTieringPolicy_CoolAccessTrue_CoolnessPeriodChanged",
+			name: "WithAutoTieringPolicy_AutoTieringIsTrue_CoolnessPeriodChanged",
 			volume: &datamodel.Volume{
-				VolumeAttributes:  &datamodel.VolumeAttributes{},
-				DataProtection:    &datamodel.DataProtection{},
-				CoolAccessEnabled: false,
+				VolumeAttributes:   &datamodel.VolumeAttributes{},
+				DataProtection:     &datamodel.DataProtection{},
+				AutoTieringEnabled: false,
 				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
 					CoolingThresholdDays: 5,
 				},
 			},
 			params: &common.UpdateVolumeParams{
 				AutoTieringPolicy: &common.AutoTieringPolicy{
-					CoolAccessEnabled:    true,
+					AutoTieringEnabled:   true,
 					TieringPolicy:        "auto",
 					CoolingThresholdDays: 7,
 					RetrievalPolicy:      "default",
 				},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, _ database.Storage) {
-				assert.Equal(t, true, fields["cool_access_enabled"])
+				assert.Equal(t, true, fields["auto_tiering_enabled"])
 				autoTieringPolicy, _ := fields["auto_tiering_policy"].(*datamodel.AutoTieringPolicy)
 				assert.Equal(t, "auto", autoTieringPolicy.TieringPolicy)
 				assert.Equal(t, int32(7), autoTieringPolicy.CoolingThresholdDays)
@@ -536,18 +536,18 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			dbCallRequired: false,
 		},
 		{
-			name: "WithAutoTieringPolicy_CoolAccessTrue_CoolnessPeriodSame",
+			name: "WithAutoTieringPolicy_AutoTieringIsTrue_CoolnessPeriodSame",
 			volume: &datamodel.Volume{
-				VolumeAttributes:  &datamodel.VolumeAttributes{},
-				DataProtection:    &datamodel.DataProtection{},
-				CoolAccessEnabled: true,
+				VolumeAttributes:   &datamodel.VolumeAttributes{},
+				DataProtection:     &datamodel.DataProtection{},
+				AutoTieringEnabled: true,
 				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
 					CoolingThresholdDays: 7,
 				},
 			},
 			params: &common.UpdateVolumeParams{
 				AutoTieringPolicy: &common.AutoTieringPolicy{
-					CoolAccessEnabled:    true,
+					AutoTieringEnabled:   true,
 					TieringPolicy:        "auto",
 					CoolingThresholdDays: 7,
 					RetrievalPolicy:      "default",
@@ -556,7 +556,7 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, _ database.Storage) {
 				// Should not update coolness_period since it's the same
 				assert.NotContains(t, fields, "coolness_period")
-				assert.NotContains(t, fields, "cool_access")
+				assert.NotContains(t, fields, "auto_tiering_enabled")
 				assert.NotContains(t, fields, "cool_access_tiering_policy")
 				assert.NotContains(t, fields, "cool_access_retrieval_policy")
 				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
@@ -565,25 +565,25 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			dbCallRequired: false,
 		},
 		{
-			name: "WithAutoTieringPolicy_CoolAccessFalse",
+			name: "WithAutoTieringPolicy_AutoTieringIsFalse",
 			volume: &datamodel.Volume{
-				VolumeAttributes:  &datamodel.VolumeAttributes{},
-				DataProtection:    &datamodel.DataProtection{},
-				CoolAccessEnabled: true,
+				VolumeAttributes:   &datamodel.VolumeAttributes{},
+				DataProtection:     &datamodel.DataProtection{},
+				AutoTieringEnabled: true,
 				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
 					CoolingThresholdDays: 7,
 				},
 			},
 			params: &common.UpdateVolumeParams{
 				AutoTieringPolicy: &common.AutoTieringPolicy{
-					CoolAccessEnabled:    false,
+					AutoTieringEnabled:   false,
 					TieringPolicy:        "none",
 					CoolingThresholdDays: 0,
 					RetrievalPolicy:      "default",
 				},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, _ database.Storage) {
-				assert.Equal(t, false, fields["cool_access_enabled"])
+				assert.Equal(t, false, fields["auto_tiering_enabled"])
 				autoTieringPolicy, _ := fields["auto_tiering_policy"].(*datamodel.AutoTieringPolicy)
 				assert.Equal(t, "none", autoTieringPolicy.TieringPolicy)
 				assert.Equal(t, autoTieringPolicy.CoolingThresholdDays, int32(0))

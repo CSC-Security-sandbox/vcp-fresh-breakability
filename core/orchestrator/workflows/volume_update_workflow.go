@@ -114,7 +114,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, err
 	}
 
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID,AuthType: volume.Pool.PoolCredentials.AuthType})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType})
 
 	// Update the snapshot policy if it is provided in the params
 	if params.SnapshotPolicy != nil && params.SnapshotPolicy.Name != "" {
@@ -280,8 +280,8 @@ func isUpdateRequired(response *vsa.VolumeResponse, params *common.UpdateVolumeP
 	}
 
 	if response.Size == params.QuotaInBytes && params.AutoTieringPolicy != nil {
-		if params.AutoTieringPolicy.CoolAccessEnabled != existingVolume.CoolAccessEnabled ||
-				(params.AutoTieringPolicy.CoolAccessEnabled && existingVolume.AutoTieringPolicy != nil && params.AutoTieringPolicy.CoolingThresholdDays != existingVolume.AutoTieringPolicy.CoolingThresholdDays) {
+		if params.AutoTieringPolicy.AutoTieringEnabled != existingVolume.AutoTieringEnabled ||
+			(params.AutoTieringPolicy.AutoTieringEnabled && existingVolume.AutoTieringPolicy != nil && params.AutoTieringPolicy.CoolingThresholdDays != existingVolume.AutoTieringPolicy.CoolingThresholdDays) {
 			return true
 		}
 	}
@@ -299,7 +299,7 @@ func getUpdateParamsForRollback(volResponse *vsa.VolumeResponse, existingVolume 
 	// Set AutoTieringPolicy if it exists
 	if existingVolume.AutoTieringPolicy != nil {
 		params.AutoTieringPolicy = &common.AutoTieringPolicy{
-			CoolAccessEnabled:    existingVolume.CoolAccessEnabled,
+			AutoTieringEnabled:   existingVolume.AutoTieringEnabled,
 			CoolingThresholdDays: existingVolume.AutoTieringPolicy.CoolingThresholdDays,
 			TieringPolicy:        existingVolume.AutoTieringPolicy.TieringPolicy,
 			RetrievalPolicy:      existingVolume.AutoTieringPolicy.RetrievalPolicy,

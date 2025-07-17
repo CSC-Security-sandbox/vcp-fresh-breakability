@@ -102,7 +102,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		mockProvider.AssertExpectations(t)
 	})
 
-	t.Run("TestCreateVolumeInONTAP_WhenCoolAccessFalse_DefaultConfigIsSet", func(t *testing.T) {
+	t.Run("TestCreateVolumeInONTAP_WhenAutoTieringIsFalse_DefaultConfigIsSet", func(t *testing.T) {
 		// Arrange
 		mockProvider := new(vsa.MockProvider) // Use the mock provider
 		originalGetProviderByNode := activities.GetProviderByNode
@@ -118,9 +118,9 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		volume := &datamodel.Volume{
-			Name:              "test-volume",
-			Svm:               &datamodel.Svm{Name: "test-svm"},
-			CoolAccessEnabled: false,
+			Name:               "test-volume",
+			Svm:                &datamodel.Svm{Name: "test-svm"},
+			AutoTieringEnabled: false,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
 			},
@@ -143,7 +143,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		mockProvider.AssertExpectations(t)
 	})
 
-	t.Run("TestCreateVolumeInONTAP_WhenCoolAccessTrue_AutoTierConfigIsSet", func(t *testing.T) {
+	t.Run("TestCreateVolumeInONTAP_WhenAutoTieringIsTrue_AutoTierConfigIsSet", func(t *testing.T) {
 		// Arrange
 		mockProvider := new(vsa.MockProvider) // Use the mock provider
 		originalGetProviderByNode := activities.GetProviderByNode
@@ -159,9 +159,9 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		volume := &datamodel.Volume{
-			Name:              "test-volume",
-			Svm:               &datamodel.Svm{Name: "test-svm"},
-			CoolAccessEnabled: true,
+			Name:               "test-volume",
+			Svm:                &datamodel.Svm{Name: "test-svm"},
+			AutoTieringEnabled: true,
 			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
 				TieringPolicy:        "auto",
 				RetrievalPolicy:      "onread",

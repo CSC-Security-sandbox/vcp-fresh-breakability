@@ -839,7 +839,7 @@ func TestCreateVolume(t *testing.T) {
 				BackupChainBytes:       &[]int64{1000}[0],
 			},
 			AutoTieringPolicy: &common.AutoTieringPolicy{
-				CoolAccessEnabled:    true,
+				AutoTieringEnabled:   true,
 				TieringPolicy:        "ENABLED",
 				CoolingThresholdDays: 30,
 			},
@@ -3650,7 +3650,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 
-	t.Run("WhenCoolAccessNotAllowed", func(tt *testing.T) {
+	t.Run("WhenAutoTieringIsNotAllowed", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -3761,7 +3761,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 				HostGroupUUIDs: []string{"test-volume-uuid2"},
 			},
 			AutoTieringPolicy: &common.AutoTieringPolicy{
-				CoolAccessEnabled: true,
+				AutoTieringEnabled: true,
 			},
 		}
 		poolView, err := store.GetPool(ctx, params.PoolID, account.ID)
@@ -3884,7 +3884,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 				HostGroupUUIDs: []string{"test-volume-uuid2"},
 			},
 			AutoTieringPolicy: &common.AutoTieringPolicy{
-				CoolAccessEnabled:    true,
+				AutoTieringEnabled:   true,
 				TieringPolicy:        models2.VolumeInlineTieringPolicyAuto,
 				CoolingThresholdDays: 1,
 			},
@@ -4010,7 +4010,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 				HostGroupUUIDs: []string{"test-volume-uuid2"},
 			},
 			AutoTieringPolicy: &common.AutoTieringPolicy{
-				CoolAccessEnabled:    true,
+				AutoTieringEnabled:   true,
 				CoolingThresholdDays: 184,
 				TieringPolicy:        models2.VolumeInlineTieringPolicyAuto,
 			},
@@ -4025,7 +4025,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "Auto Tiering Cooling Threshold days must be between 2 and 183 days")
 	})
 
-	t.Run("WhenCoolAccessIsFalse", func(tt *testing.T) {
+	t.Run("WhenAutoTieringIsIsFalse", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -4136,7 +4136,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 				HostGroupUUIDs: []string{"test-volume-uuid2"},
 			},
 			AutoTieringPolicy: &common.AutoTieringPolicy{
-				CoolAccessEnabled: false,
+				AutoTieringEnabled: false,
 			},
 			Protocols: []string{utils.ProtocolISCSI},
 		}
@@ -4885,14 +4885,14 @@ func TestUpdateVolume(t *testing.T) {
 		assert.Nil(tt, volume)
 	})
 
-	t.Run("WhenCoolAccessNotAllowed", func(tt *testing.T) {
+	t.Run("WhenAutoTieringIsNotAllowed", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		poolViewNoTiering := &datamodel.PoolView{Pool: datamodel.Pool{AllowAutoTiering: false}}
 		param := &common.UpdateVolumeParams{
 			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200,
-			AutoTieringPolicy: &common.AutoTieringPolicy{CoolAccessEnabled: true, CoolingThresholdDays: 10},
+			AutoTieringPolicy: &common.AutoTieringPolicy{AutoTieringEnabled: true, CoolingThresholdDays: 10},
 		}
 		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol"}
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
@@ -4908,7 +4908,7 @@ func TestUpdateVolume(t *testing.T) {
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		param := &common.UpdateVolumeParams{
 			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200,
-			AutoTieringPolicy: &common.AutoTieringPolicy{CoolAccessEnabled: true, CoolingThresholdDays: 1},
+			AutoTieringPolicy: &common.AutoTieringPolicy{AutoTieringEnabled: true, CoolingThresholdDays: 1},
 		}
 		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol"}
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
@@ -4924,7 +4924,7 @@ func TestUpdateVolume(t *testing.T) {
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		param := &common.UpdateVolumeParams{
 			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200,
-			AutoTieringPolicy: &common.AutoTieringPolicy{CoolAccessEnabled: true, CoolingThresholdDays: 200},
+			AutoTieringPolicy: &common.AutoTieringPolicy{AutoTieringEnabled: true, CoolingThresholdDays: 200},
 		}
 		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol"}
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
@@ -4934,12 +4934,12 @@ func TestUpdateVolume(t *testing.T) {
 		assert.Nil(tt, volume)
 	})
 
-	t.Run("WhenCoolAccessIsFalse", func(tt *testing.T) {
+	t.Run("WhenAutoTieringIsFalse", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200, Name: "vol",
-			AutoTieringPolicy: &common.AutoTieringPolicy{CoolAccessEnabled: false},
+			AutoTieringPolicy: &common.AutoTieringPolicy{AutoTieringEnabled: false},
 		}
 		dbVolume := &datamodel.Volume{
 			BaseModel:   datamodel.BaseModel{UUID: "vid"},
@@ -4986,7 +4986,7 @@ func TestUpdateVolume(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
 			},
-			CoolAccessEnabled: true,
+			AutoTieringEnabled: true,
 			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
 				CoolingThresholdDays: 30,
 			},
@@ -5003,7 +5003,7 @@ func TestUpdateVolume(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, volume)
 		// Ensure the tiering policy remains unchanged
-		assert.Equal(tt, true, dbVolume.CoolAccessEnabled)
+		assert.Equal(tt, true, dbVolume.AutoTieringEnabled)
 		assert.Equal(tt, int32(30), dbVolume.AutoTieringPolicy.CoolingThresholdDays)
 	})
 }

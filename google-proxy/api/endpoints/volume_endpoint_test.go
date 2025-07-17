@@ -271,7 +271,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				BackupPolicyId:         "backup-policy-id",
 			},
 			AutoTieringPolicy: &common.AutoTieringPolicy{
-				CoolAccessEnabled:    true,
+				AutoTieringEnabled:   true,
 				CoolingThresholdDays: 30,
 				TieringPolicy:        "auto",
 				RetrievalPolicy:      "default",
@@ -343,8 +343,8 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				BackupPolicyId:         "backup-policy-id",
 			},
 			AutoTieringPolicy: &common.AutoTieringPolicy{
-				CoolAccessEnabled: false,
-				TieringPolicy:     "none",
+				AutoTieringEnabled: false,
+				TieringPolicy:      "none",
 			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region)
@@ -1470,7 +1470,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		param, err := _prepareUpdateVolumeParams(req, params, region)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, param.AutoTieringPolicy.TieringPolicy)
-		assert.True(t, param.AutoTieringPolicy.CoolAccessEnabled)
+		assert.True(t, param.AutoTieringPolicy.AutoTieringEnabled)
 		assert.Equal(t, int32(30), param.AutoTieringPolicy.CoolingThresholdDays)
 	})
 
@@ -1491,7 +1491,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		param, err := _prepareUpdateVolumeParams(req, params, region)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, param.AutoTieringPolicy.TieringPolicy)
-		assert.False(t, param.AutoTieringPolicy.CoolAccessEnabled)
+		assert.False(t, param.AutoTieringPolicy.AutoTieringEnabled)
 	})
 
 	t.Run("TieringPolicy set with feature disabled", func(t *testing.T) {

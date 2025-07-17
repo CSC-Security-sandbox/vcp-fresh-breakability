@@ -45,7 +45,7 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 	}
 	if params.AutoTieringPolicy != nil {
 		updateVolumeParams.TieringPolicy = &vsa.TieringPolicy{}
-		if params.AutoTieringPolicy.CoolAccessEnabled {
+		if params.AutoTieringPolicy.AutoTieringEnabled {
 			updateVolumeParams.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&params.AutoTieringPolicy.TieringPolicy, ontapModels.VolumeInlineTieringPolicyAuto)
 			updateVolumeParams.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&params.AutoTieringPolicy.RetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
 			updateVolumeParams.TieringPolicy.CoolnessPeriod = int64(params.AutoTieringPolicy.CoolingThresholdDays)
@@ -293,9 +293,9 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 	}
 
 	if params.AutoTieringPolicy != nil &&
-		(params.AutoTieringPolicy.CoolAccessEnabled != volume.CoolAccessEnabled ||
-			(params.AutoTieringPolicy.CoolAccessEnabled && volume.AutoTieringPolicy != nil && params.AutoTieringPolicy.CoolingThresholdDays != volume.AutoTieringPolicy.CoolingThresholdDays)) {
-		updates["cool_access_enabled"] = params.AutoTieringPolicy.CoolAccessEnabled
+		(params.AutoTieringPolicy.AutoTieringEnabled != volume.AutoTieringEnabled ||
+			(params.AutoTieringPolicy.AutoTieringEnabled && volume.AutoTieringPolicy != nil && params.AutoTieringPolicy.CoolingThresholdDays != volume.AutoTieringPolicy.CoolingThresholdDays)) {
+		updates["auto_tiering_enabled"] = params.AutoTieringPolicy.AutoTieringEnabled
 		autoTieringPolicy := &datamodel.AutoTieringPolicy{
 			TieringPolicy: params.AutoTieringPolicy.TieringPolicy,
 		}
