@@ -84,6 +84,10 @@ serviceAccount:
     iam.gke.io/gcp-service-account: otel-collector-sa@netapp-us-c1-autopush-sde-tst.iam.gserviceaccount.com
   name: "gcnv-harvest-sa"
 
+stackdriverAdapter:
+  gcp:
+    serviceAccount: custom-metrics-reader@netapp-us-e4-autopush-sde-tst.iam.gserviceaccount.com
+
 ports:
   otlp:
     enabled: true
