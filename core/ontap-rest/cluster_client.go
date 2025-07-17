@@ -185,7 +185,7 @@ func (cc clusterClient) PostClusterLicenseAccessToken(ctx context.Context, clien
 	param.WithInfo(&info)
 
 	res, err := cc.api.PostClusterAccessToken(param, nil)
-	parsedErr := errors.ParseOntapError(err)
+	parsedErr := errors.ParseOntapError(ctx, err)
 	if err != nil {
 		logger.Errorf("ONTAP error: PostClusterLicenseAccessToken() on ontap failed with error: %+v", parsedErr)
 		return nil, err

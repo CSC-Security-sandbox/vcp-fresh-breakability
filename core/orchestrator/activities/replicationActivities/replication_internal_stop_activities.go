@@ -101,7 +101,7 @@ func (j *InternalStopVolumeReplicationActivity) GetSnapMirrorFromOntap(ctx conte
 		return nil, errors.NewNonRetryableErr(err.Error())
 	}
 	replicationParams := convertToSnapmirrorGetParams(dbReplication, dbReplication.Account.Name)
-	ontapRep, err := provider.GetReplicationDetails(replicationParams)
+	ontapRep, err := provider.GetReplicationDetails(ctx, replicationParams)
 	if err != nil {
 		logger.Errorf("Failed to get replication details from Ontap for replication %s: %v", dbReplication.UUID, err)
 		return nil, errors.NewNonRetryableErr(err.Error())

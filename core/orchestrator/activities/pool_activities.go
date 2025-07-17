@@ -31,21 +31,17 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/activity"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/servicenetworking/v1"
 	"gorm.io/gorm"
-	"netapp.com/vsa/lifecycle-manager/pkg/vlmconfig"
 )
 
 var (
 	DeploymentsInsert                 = common.DeploymentsInsert
 	PrepareVlmConfig                  = _prepareVlmConfig
-	PrepareVlmConfigForVLMClient      = _prepareVlmConfigForVLMClient
 	ReadFile                          = os.ReadFile
-	GetVLMClient                      = _getVLMClient
 	SaveNodeDetails                   = _saveNodeDetails
 	DeleteLIFs                        = _deleteLIFs
 	DeleteSVMs                        = _deleteSVMs
@@ -68,15 +64,17 @@ var (
 	DeleteGCPBucket                   = _deleteGCPBucket
 	LoadVMRSConfig                    = vmrs_config.LoadConfig
 	CreateDecisionMaker               = vmrs_decision.NewDecisionMaker
-	vlmConfigFilePath                 = env.GetString("VLM_CONFIG_FILE_PATH", "common/vsa_config/vlm-config.json")
+	VlmConfigFilePath                 = env.GetString("VLM_CONFIG_FILE_PATH", "common/vsa_config/vlm-config.json")
 	ValidateVlmConfigInputs           = _validateVlmConfigInputs
 	CreateSubnetwork                  = _createSubnetwork
 	ReleaseSubnet                     = _releaseSubnet
 	CheckAndUpdateFirewall            = _checkAndUpdateFirewall
+	LoadVlmConfigFromFile             = loadVlmConfigFromFile
 
 	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
 	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
-	enforceMinSPConfig                                  = env.GetBool("ENFORCE_MIN_SP_CONFIG", false)
+	enforceMinSPConfig = env.GetBool("ENFORCE_MIN_SP_CONFIG", false)
+
 	GenerateAndCreateCertificateForVSACluster           = _generateAndCreateCertificateForVSACluster
 	GeneratePasswordForVSACluster                       = _generatePasswordForVSACluster
 	GetPasswordForVSACluster                            = _getPasswordForVSACluster
@@ -532,10 +530,6 @@ func (j *PoolActivity) SavePoolWithClusterDetails(ctx context.Context, dbPool *d
 	return nil
 }
 
-func _getVLMClient(ctx context.Context, logger log.Logger, vlmConfig *vlmconfig.VLMConfig) vlm.ClientFactory {
-	return vlm.NewClient(ctx, logger, vlmConfig)
-}
-
 func (j *PoolActivity) GetOntapVersion(ctx context.Context, node *models.Node) (*string, error) {
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
@@ -689,20 +683,69 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 	return vlmConfig, nil
 }
 
+func (j *PoolActivity) ConstructCurrentVlmConfig(ctx context.Context, poolId int64, deploymentID string, region string, primaryZone string, secondaryZone string, network string, subnets []string, projectId, snHostProject string, decision *vmrs.Decision, saEmail string, autoTierBucket string) (*vlm.VLMConfig, error) {
+	se := j.SE
+
+	subnet := ""
+	if len(subnets) > 0 {
+		subnet = subnets[len(subnets)-1]
+	}
+
+	vlmConfig := &vlm.VLMConfig{}
+	err := PrepareVlmConfig(vlmConfig, deploymentID, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, decision, saEmail, autoTierBucket)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes, err := se.GetNodesByPoolID(ctx, poolId)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if len(nodes) < 2 {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("not enough nodes in the cluster to create HAPair"))
+	}
+
+	// Map the first two nodes to VM1 and VM2
+	vm1 := vlm.VMConfig{
+		Zone:       nodes[0].ZoneName,
+		Name:       nodes[0].Name,
+		HostName:   nodes[0].Name,
+		NodeIndex:  1,
+		IsMediator: false,
+	}
+	vm2 := vlm.VMConfig{
+		Zone:       nodes[1].ZoneName,
+		Name:       nodes[1].Name,
+		HostName:   nodes[1].Name,
+		NodeIndex:  2,
+		IsMediator: false,
+	}
+
+	vlmConfig.Cloud = vlm.CloudConfig{
+		HAPairs: []vlm.HAPair{
+			{
+				VM1: vm1,
+				VM2: vm2,
+			},
+		},
+	}
+
+	return vlmConfig, nil
+}
+
 func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZone, secondaryZone, network, subnet, regionalTenantProjectID, snHostProject string, decision *vmrs.Decision, vsaClusterSaEmail string, autoTierBucket string) error {
 	if err := ValidateVlmConfigInputs(vlmConfig, decision, deploymentID, region, primaryZone, network, subnet, regionalTenantProjectID, snHostProject, vsaClusterSaEmail); err != nil {
 		return err
 	}
 
-	vlmContent, err := ReadFile(vlmConfigFilePath)
+	// Load the base VLM config from file
+	baseConfig, err := LoadVlmConfigFromFile()
 	if err != nil {
-		return vsaerrors.NewVCPError(vsaerrors.ErrFileReadError, err)
+		return err
 	}
 
-	err = json.Unmarshal(vlmContent, &vlmConfig)
-	if err != nil {
-		return vsaerrors.NewVCPError(vsaerrors.ErrFileReadError, err)
-	}
+	// Copy the loaded config to the provided vlmConfig
+	*vlmConfig = *baseConfig
 
 	vlmConfig.Deployment.GCPConfig = vlm.GCPConfig{
 		ProjectID:           regionalTenantProjectID,
@@ -788,89 +831,24 @@ func _validateVlmConfigInputs(vlmConfig *vlm.VLMConfig, decision *vmrs.Decision,
 	return nil
 }
 
-// Update VSA cluster by invoking VLM.
-func (j *PoolActivity) UpdateVSACluster(ctx context.Context, currentVlmConfig *vlmconfig.VLMConfig, newVlmConfig *vlmconfig.VLMConfig, credential vlmconfig.OntapCredentials) (*vlmconfig.VLMConfig, error) {
-	logger := util.GetLogger(ctx)
-	vlmClient := GetVLMClient(ctx, logger, currentVlmConfig)
+func loadVlmConfigFromFile() (*vlm.VLMConfig, error) {
+	vlmConfig := &vlm.VLMConfig{}
 
-	vlmConfig, err := vlmClient.VSAClusterDeployUpdate(ctx, credential, currentVlmConfig, newVlmConfig)
+	vlmContent, err := ReadFile(VlmConfigFilePath)
 	if err != nil {
-		logger.Error("Failed to update VSA cluster", "error", err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrFileReadError, err)
 	}
+
+	err = json.Unmarshal(vlmContent, vlmConfig)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrFileReadError, err)
+	}
+
 	return vlmConfig, nil
 }
 
-func (j *PoolActivity) CreateVlmConfig(ctx context.Context, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, decision *vmrs.Decision, saEmail string, autoTierBucket string) (*vlmconfig.VLMConfig, error) {
-	cfg := &vlmconfig.VLMConfig{}
-	err := PrepareVlmConfigForVLMClient(cfg, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, decision, saEmail, autoTierBucket)
-	return cfg, vsaerrors.WrapAsTemporalApplicationError(err)
-}
-
-func _prepareVlmConfigForVLMClient(cfg *vlmconfig.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, decision *vmrs.Decision, saEmail string, autoTierBucket string) error {
-	vlmContent, err := ReadFile(vlmConfigFilePath)
-	if err != nil {
-		return vsaerrors.NewVCPError(vsaerrors.ErrFileReadError, err)
-	}
-	err = json.Unmarshal(vlmContent, cfg)
-	if err != nil {
-		return vsaerrors.NewVCPError(vsaerrors.ErrJSONParsingError, err)
-	}
-	cfg.Deployment.DeploymentID = deploymentName
-	cfg.Deployment.DeploymentName = deploymentName
-
-	cfg.Deployment.Zone.Zone1 = primaryZone
-	cfg.Deployment.Zone.Zone2 = secondaryZone
-	if secondaryZone == "" {
-		cfg.Deployment.Zone.Zone2 = primaryZone
-	}
-	cfg.Deployment.Region = region
-
-	cfg.Deployment.SPConfig.Throughput = decision.StoragePoolRequirements.DesiredThroughputInMiBs
-	cfg.Deployment.SPConfig.IOps = decision.StoragePoolRequirements.DesiredIOPS
-	cfg.Deployment.SPConfig.Size = fmt.Sprintf("%dGi", decision.StoragePoolRequirements.DesiredCapacityInGiB)
-	cfg.Deployment.VSAInstanceType = decision.ChosenVMs[0] // VLM currently only supports a single VM type for VSA clusters (homogeneous clusters).
-
-	networkConfigs := map[vlmconfig.VSALIFType]struct {
-		VPC             string
-		Subnet          string
-		SubnetProjectID string
-	}{
-		vlmconfig.LIFTypeNodeMgmt: {"mgmt-vpc", "mgmt-subnet", projectId},
-		vlmconfig.LIFTypeIC:       {"cluster-ic-vpc", "cluster-ic-subnet", projectId},
-		vlmconfig.LIFTypeRSM:      {"rsm-vpc", "rsm-subnet", projectId},
-	}
-
-	// assign network configurations for each LIF type
-	for lifType, config := range networkConfigs {
-		assignNetworkConfigForVLMClient(cfg, lifType, config.VPC, config.Subnet, config.SubnetProjectID)
-	}
-
-	// assign network configuration for data LIF from snHostProject
-	assignNetworkConfigForVLMClient(cfg, vlmconfig.LIFTypeInterCluster, network, subnet, snHostProject)
-
-	cfg.Deployment.GCPConfig = vlmconfig.GCPConfig{
-		ProjectID:           projectId,
-		ImageProjectID:      projectId,
-		ServiceAccountEmail: saEmail,
-		BucketName:          autoTierBucket,
-	}
-	// Bootargs for key manager
-	cfg.Deployment.UserBootargs = keyManagerBootarg
-
-	return nil
-}
-
-func assignNetworkConfigForVLMClient(cfg *vlmconfig.VLMConfig, lifType vlmconfig.VSALIFType, vpc, subnet, subnetProjectID string) {
-	cfg.Deployment.NetConfig[lifType] = vlmconfig.NetworkConfig{
-		VPC:              vpc,
-		Subnet:           subnet,
-		GCPNetworkConfig: vlmconfig.GCPNetworkConfig{SubnetProjectID: subnetProjectID},
-	}
-}
-
 // CreateCloudDNSRecords creates DNS records for the VSA cluster's nodes in the cloud DNS service
-func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlmconfig.VLMConfig, clusterName string, authType int) (*map[string]string, error) {
+func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm.VLMConfig, clusterName string, authType int) (*map[string]string, error) {
 	hostMap := make(map[string]string)
 	if authType == commonparams.USER_CERTIFICATE {
 		if len(vlmConfig.Cloud.HAPairs) == 0 {
@@ -886,7 +864,7 @@ func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm
 				return nil, err
 			}
 
-			IpaddressVm1 := details.VM1.SystemLIFs[vlmconfig.LIFTypeNodeMgmt].IP
+			IpaddressVm1 := details.VM1.SystemLIFs[vlm.LIFTypeNodeMgmt].IP
 			haPairNode1 := fmt.Sprintf("%s-%d.%s.%s.", "dns", (2*i)+1, clusterName, commonparams.VsaDeployedDnsName)
 			record1, err := GetOrCreateCloudDNSRecord(gcpService, IpaddressVm1, haPairNode1)
 			if err != nil {
@@ -894,7 +872,7 @@ func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm
 			}
 			hostMap[IpaddressVm1] = record1.RecordName
 
-			IpaddressVm2 := details.VM2.SystemLIFs[vlmconfig.LIFTypeNodeMgmt].IP
+			IpaddressVm2 := details.VM2.SystemLIFs[vlm.LIFTypeNodeMgmt].IP
 			haPairNode2 := fmt.Sprintf("%s-%d.%s.%s.", "dns", (2*i)+2, clusterName, commonparams.VsaDeployedDnsName)
 			record2, err := GetOrCreateCloudDNSRecord(gcpService, IpaddressVm2, haPairNode2)
 			if err != nil {

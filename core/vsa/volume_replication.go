@@ -11,7 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
-	"netapp.com/vsa/lifecycle-manager/pkg/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
@@ -873,7 +873,7 @@ func isNonExistentVserverEntryError(err error) bool {
 }
 
 // GetReplicationDetails retrieves the details of a specific Volume Replication
-func (rc *OntapRestProvider) GetReplicationDetails(volRep *VolumeReplication) (*VolumeReplication, error) {
+func (rc *OntapRestProvider) GetReplicationDetails(ctx context.Context, volRep *VolumeReplication) (*VolumeReplication, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
 		return nil, err
@@ -900,12 +900,14 @@ func (rc *OntapRestProvider) GetReplicationDetails(volRep *VolumeReplication) (*
 	volRep.LastTransferError = snapmirrorOkResp.Payload.Records[0].LastTransferError
 	volRep.LastTransferEndTime, err = nillableParseStringTimeTotimeTime(snapmirrorOkResp.Payload.Records[0].LastTransferEndTimestamp)
 	if err != nil {
-		log.Errorf("Error in ontap.GetSnapMirror(VolumeReplicationID=%s), err=%s ", volRep.UUID, err)
+		logger := util.GetLogger(ctx)
+		logger.Errorf("Error in ontap.GetSnapMirror(VolumeReplicationID=%s), err=%s ", volRep.UUID, err)
 		return nil, err
 	}
 	volRep.ProgressLastUpdated, err = nillableParseStringTimeTotimeTime(snapmirrorOkResp.Payload.Records[0].ProgressLastUpdated)
 	if err != nil {
-		log.Errorf("Error in ontap.GetSnapMirror(VolumeReplicationID=%s), err=%s ", volRep.UUID, err)
+		logger := util.GetLogger(ctx)
+		logger.Errorf("Error in ontap.GetSnapMirror(VolumeReplicationID=%s), err=%s ", volRep.UUID, err)
 		return nil, err
 	}
 	if snapmirrorOkResp.Payload.Records[0].LastTransferDuration != "" {

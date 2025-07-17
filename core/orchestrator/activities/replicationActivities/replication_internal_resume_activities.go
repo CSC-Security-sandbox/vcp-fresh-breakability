@@ -55,7 +55,7 @@ func (a *InternalVolumeReplicationResumeActivity) GetSnapmirrorDetails(ctx conte
 		DestinationSVMName:    replication.ReplicationAttributes.DestinationSvmName,
 		ExternalUUID:          replication.ReplicationAttributes.ExternalUUID,
 	}
-	resp, err := provider.GetReplicationDetails(vsaResumeParams)
+	resp, err := provider.GetReplicationDetails(ctx, vsaResumeParams)
 	if err != nil {
 		logger.Error("Failed to get snapmirror details", "error", err)
 		return nil, err

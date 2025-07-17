@@ -188,7 +188,7 @@ func TestCheckMountJob(t *testing.T) {
 func TestGetReplicationFromOntap(t *testing.T) {
 	t.Run("ReturnsReplicationWhenGetReplicationDetailsSucceeds", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		mockProvider.On("GetReplicationDetails", mock.Anything).Return(&vsa.VolumeReplication{}, nil)
+		mockProvider.On("GetReplicationDetails", mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
@@ -209,7 +209,7 @@ func TestGetReplicationFromOntap(t *testing.T) {
 
 	t.Run("ReturnsErrorWhenGetReplicationDetailsFails", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		mockProvider.On("GetReplicationDetails", mock.Anything).Return(nil, errors.New("failed to get replication details"))
+		mockProvider.On("GetReplicationDetails", mock.Anything, mock.Anything).Return(nil, errors.New("failed to get replication details"))
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}

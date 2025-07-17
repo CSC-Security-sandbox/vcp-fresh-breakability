@@ -138,17 +138,17 @@ func (_c *MockVlmWorkflowClient_CreateVSASVM_Call) RunAndReturn(run func(interna
 	return _c
 }
 
-// DeleteVSAClusterDeployment provides a mock function with given fields: ctx, deleteVSAClusterDeploymentRequest
-func (_m *MockVlmWorkflowClient) DeleteVSAClusterDeployment(ctx internal.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest) error {
-	ret := _m.Called(ctx, deleteVSAClusterDeploymentRequest)
+// DeleteVSAClusterDeployment provides a mock function with given fields: ctx, deleteVSAClusterDeploymentRequest, ontapVersion
+func (_m *MockVlmWorkflowClient) DeleteVSAClusterDeployment(ctx internal.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest, ontapVersion string) error {
+	ret := _m.Called(ctx, deleteVSAClusterDeploymentRequest, ontapVersion)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteVSAClusterDeployment")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(internal.Context, *DeleteVSAClusterDeploymentRequest) error); ok {
-		r0 = rf(ctx, deleteVSAClusterDeploymentRequest)
+	if rf, ok := ret.Get(0).(func(internal.Context, *DeleteVSAClusterDeploymentRequest, string) error); ok {
+		r0 = rf(ctx, deleteVSAClusterDeploymentRequest, ontapVersion)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -164,13 +164,14 @@ type MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call struct {
 // DeleteVSAClusterDeployment is a helper method to define mock.On call
 //   - ctx internal.Context
 //   - deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest
-func (_e *MockVlmWorkflowClient_Expecter) DeleteVSAClusterDeployment(ctx interface{}, deleteVSAClusterDeploymentRequest interface{}) *MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call {
-	return &MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call{Call: _e.mock.On("DeleteVSAClusterDeployment", ctx, deleteVSAClusterDeploymentRequest)}
+//   - ontapVersion string
+func (_e *MockVlmWorkflowClient_Expecter) DeleteVSAClusterDeployment(ctx interface{}, deleteVSAClusterDeploymentRequest interface{}, ontapVersion interface{}) *MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call {
+	return &MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call{Call: _e.mock.On("DeleteVSAClusterDeployment", ctx, deleteVSAClusterDeploymentRequest, ontapVersion)}
 }
 
-func (_c *MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call) Run(run func(ctx internal.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest)) *MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call {
+func (_c *MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call) Run(run func(ctx internal.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest, ontapVersion string)) *MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(internal.Context), args[1].(*DeleteVSAClusterDeploymentRequest))
+		run(args[0].(internal.Context), args[1].(*DeleteVSAClusterDeploymentRequest), args[2].(string))
 	})
 	return _c
 }
@@ -180,7 +181,67 @@ func (_c *MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call) Return(_a0 erro
 	return _c
 }
 
-func (_c *MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call) RunAndReturn(run func(internal.Context, *DeleteVSAClusterDeploymentRequest) error) *MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call {
+func (_c *MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call) RunAndReturn(run func(internal.Context, *DeleteVSAClusterDeploymentRequest, string) error) *MockVlmWorkflowClient_DeleteVSAClusterDeployment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateVSAClusterDeployment provides a mock function with given fields: ctx, updateVSAClusterDeploymentRequest, ontapVersion
+func (_m *MockVlmWorkflowClient) UpdateVSAClusterDeployment(ctx internal.Context, updateVSAClusterDeploymentRequest *UpdateVSAClusterDeploymentRequest, ontapVersion string) (*UpdateVSAClusterDeploymentResponse, error) {
+	ret := _m.Called(ctx, updateVSAClusterDeploymentRequest, ontapVersion)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVSAClusterDeployment")
+	}
+
+	var r0 *UpdateVSAClusterDeploymentResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(internal.Context, *UpdateVSAClusterDeploymentRequest, string) (*UpdateVSAClusterDeploymentResponse, error)); ok {
+		return rf(ctx, updateVSAClusterDeploymentRequest, ontapVersion)
+	}
+	if rf, ok := ret.Get(0).(func(internal.Context, *UpdateVSAClusterDeploymentRequest, string) *UpdateVSAClusterDeploymentResponse); ok {
+		r0 = rf(ctx, updateVSAClusterDeploymentRequest, ontapVersion)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*UpdateVSAClusterDeploymentResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(internal.Context, *UpdateVSAClusterDeploymentRequest, string) error); ok {
+		r1 = rf(ctx, updateVSAClusterDeploymentRequest, ontapVersion)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVSAClusterDeployment'
+type MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call struct {
+	*mock.Call
+}
+
+// UpdateVSAClusterDeployment is a helper method to define mock.On call
+//   - ctx internal.Context
+//   - updateVSAClusterDeploymentRequest *UpdateVSAClusterDeploymentRequest
+//   - ontapVersion string
+func (_e *MockVlmWorkflowClient_Expecter) UpdateVSAClusterDeployment(ctx interface{}, updateVSAClusterDeploymentRequest interface{}, ontapVersion interface{}) *MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call {
+	return &MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call{Call: _e.mock.On("UpdateVSAClusterDeployment", ctx, updateVSAClusterDeploymentRequest, ontapVersion)}
+}
+
+func (_c *MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call) Run(run func(ctx internal.Context, updateVSAClusterDeploymentRequest *UpdateVSAClusterDeploymentRequest, ontapVersion string)) *MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(internal.Context), args[1].(*UpdateVSAClusterDeploymentRequest), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call) Return(_a0 *UpdateVSAClusterDeploymentResponse, _a1 error) *MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call) RunAndReturn(run func(internal.Context, *UpdateVSAClusterDeploymentRequest, string) (*UpdateVSAClusterDeploymentResponse, error)) *MockVlmWorkflowClient_UpdateVSAClusterDeployment_Call {
 	_c.Call.Return(run)
 	return _c
 }

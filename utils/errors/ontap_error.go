@@ -1,13 +1,15 @@
 package errors
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/go-openapi/runtime"
-	"netapp.com/vsa/lifecycle-manager/pkg/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-func ParseOntapError(err error) error {
+func ParseOntapError(ctx context.Context, err error) error {
+	log := util.GetLogger(ctx)
 	if err == nil {
 		return nil
 	}

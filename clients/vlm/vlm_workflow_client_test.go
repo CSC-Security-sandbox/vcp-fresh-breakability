@@ -37,6 +37,7 @@ func TestCreateVSAClusterDeployment(t *testing.T) {
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
+	assert.Contains(t, VSALifecycleManagerQueue, "9.18.1", "Task queue should contain ONTAP version")
 }
 
 func TestCreateVSAClusterDeployment_Error(t *testing.T) {
@@ -69,6 +70,7 @@ func TestCreateVSAClusterDeployment_Error(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	err := env.GetWorkflowError()
 	assert.Error(t, err)
+	assert.Contains(t, VSALifecycleManagerQueue, "9.18.1", "Task queue should contain ONTAP version")
 }
 
 func TestCreateVSASVM(t *testing.T) {
@@ -92,6 +94,7 @@ func TestCreateVSASVM(t *testing.T) {
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
+	assert.Contains(t, VSALifecycleManagerQueue, "9.18.1", "Task queue should contain ONTAP version")
 }
 
 func TestCreateVSASVM_Error(t *testing.T) {
@@ -115,6 +118,7 @@ func TestCreateVSASVM_Error(t *testing.T) {
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, VSALifecycleManagerQueue, "9.18.1", "Task queue should contain ONTAP version")
 }
 
 func TestCreateVSASVM_ErrorNotAlreadyExists(t *testing.T) {
@@ -139,6 +143,7 @@ func TestCreateVSASVM_ErrorNotAlreadyExists(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	err := env.GetWorkflowError()
 	assert.Error(t, err)
+	assert.Contains(t, VSALifecycleManagerQueue, "9.18.1", "Task queue should contain ONTAP version")
 }
 
 func TestCreateVSASVM_ErrorAlreadyExistsInUseByDifferentVM(t *testing.T) {
@@ -177,14 +182,17 @@ func TestDeleteVSAClusterDeployment(t *testing.T) {
 	)
 
 	deleteReq := &DeleteVSAClusterDeploymentRequest{DeploymentID: "test-deployment-id"}
+	ontapVersion := "1.0.0"
 	vlmManager := NewVSAClientWorkflowManager()
 
 	env.ExecuteWorkflow(func(ctx workflow.Context) error {
-		return vlmManager.DeleteVSAClusterDeployment(ctx, deleteReq)
+		return vlmManager.DeleteVSAClusterDeployment(ctx, deleteReq, ontapVersion)
 	})
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
+	expectedTaskQueue := VSALifecycleManagerQueuePrefix + "-" + ontapVersion
+	assert.Equal(t, "vsa-lifecycle-manager-1.0.0", expectedTaskQueue, "Task queue should contain ONTAP version")
 }
 
 func TestDeleteVSAClusterDeployment_Error(t *testing.T) {
@@ -199,13 +207,16 @@ func TestDeleteVSAClusterDeployment_Error(t *testing.T) {
 	)
 
 	deleteReq := &DeleteVSAClusterDeploymentRequest{DeploymentID: "test-deployment-id"}
+	ontapVersion := "1.0.0"
 	vlmManager := NewVSAClientWorkflowManager()
 
 	env.ExecuteWorkflow(func(ctx workflow.Context) error {
-		return vlmManager.DeleteVSAClusterDeployment(ctx, deleteReq)
+		return vlmManager.DeleteVSAClusterDeployment(ctx, deleteReq, ontapVersion)
 	})
 
 	assert.True(t, env.IsWorkflowCompleted())
+	expectedTaskQueue := VSALifecycleManagerQueuePrefix + "-" + ontapVersion
+	assert.Equal(t, "vsa-lifecycle-manager-1.0.0", expectedTaskQueue, "Task queue should contain ONTAP version")
 	assert.Error(t, env.GetWorkflowError())
 }
 
@@ -214,14 +225,17 @@ func TestDeleteVSAClusterDeployment_EmptyDeploymentID(t *testing.T) {
 	env := ts.NewTestWorkflowEnvironment()
 
 	deleteReq := &DeleteVSAClusterDeploymentRequest{DeploymentID: ""}
+	ontapVersion := "1.0.0"
 	vlmManager := NewVSAClientWorkflowManager()
 
 	env.ExecuteWorkflow(func(ctx workflow.Context) error {
-		return vlmManager.DeleteVSAClusterDeployment(ctx, deleteReq)
+		return vlmManager.DeleteVSAClusterDeployment(ctx, deleteReq, ontapVersion)
 	})
 
 	assert.True(t, env.IsWorkflowCompleted())
 	err := env.GetWorkflowError()
+	expectedTaskQueue := VSALifecycleManagerQueuePrefix + "-" + ontapVersion
+	assert.Equal(t, "vsa-lifecycle-manager-1.0.0", expectedTaskQueue, "Task queue should contain ONTAP version")
 	assert.Error(t, err)
 }
 
@@ -267,4 +281,56 @@ func TestPopulateRetryPolicyParams_InvalidRetryBackoff(t *testing.T) {
 	assert.Nil(t, policy)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid")
+}
+
+func TestUpdateVSAClusterDeployment(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *UpdateVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: UpdateVSAClusterDeploymentWorkflowName},
+	)
+
+	updateVSAClusterDeploymentRequest := &UpdateVSAClusterDeploymentRequest{}
+	ontapVersion := "1.0.0"
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		_, err := vlmManager.UpdateVSAClusterDeployment(ctx, updateVSAClusterDeploymentRequest, ontapVersion)
+		return err
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	expectedTaskQueue := VSALifecycleManagerQueuePrefix + "-" + ontapVersion
+	assert.Equal(t, "vsa-lifecycle-manager-1.0.0", expectedTaskQueue, "Task queue should contain ONTAP version")
+}
+
+func TestUpdateVSAClusterDeployment_Error(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *UpdateVSAClusterDeploymentRequest) error {
+			return errors.New("child workflow failed")
+		},
+		workflow.RegisterOptions{Name: UpdateVSAClusterDeploymentWorkflowName},
+	)
+
+	updateVSAClusterDeploymentRequest := &UpdateVSAClusterDeploymentRequest{}
+	ontapVersion := "1.0.0"
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		_, err := vlmManager.UpdateVSAClusterDeployment(ctx, updateVSAClusterDeploymentRequest, ontapVersion)
+		return err
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	expectedTaskQueue := VSALifecycleManagerQueuePrefix + "-" + ontapVersion
+	assert.Equal(t, "vsa-lifecycle-manager-1.0.0", expectedTaskQueue, "Task queue should contain ONTAP version")
 }

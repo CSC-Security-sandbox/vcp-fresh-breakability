@@ -734,11 +734,11 @@ func TestDeleteVolumeReplication(t *testing.T) {
 			return mockClient, nil
 		}
 		provider := &OntapRestProvider{}
+		expectedError := errors.New("entry not found")
 
 		doCleanupSvmPeering = func(provider *OntapRestProvider, params *DeleteVolumeReplicationParams) error {
 			return nil
 		}
-		expectedError := errors.New("entry not found")
 
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(&returnSnapmirror, nil).Times(1)
@@ -784,6 +784,9 @@ func TestDeleteVolumeReplication(t *testing.T) {
 		doCleanupSvmPeering = func(provider *OntapRestProvider, params *DeleteVolumeReplicationParams) error {
 			return nil
 		}
+		defer func() {
+			doCleanupSvmPeering = cleanupSvmPeering
+		}()
 
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(&returnSnapmirror, nil).Times(1)
@@ -1082,6 +1085,7 @@ func TestReleaseVolumeReplication(t *testing.T) {
 	t.Run("WhenListDestinationsReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+
 		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
 			return mockClient, nil
 		}
@@ -1097,6 +1101,7 @@ func TestReleaseVolumeReplication(t *testing.T) {
 	t.Run("WhenReleaseReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+
 		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
 			return mockClient, nil
 		}
@@ -1113,6 +1118,7 @@ func TestReleaseVolumeReplication(t *testing.T) {
 	t.Run("WhenPollReturnsError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+
 		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
 			return mockClient, nil
 		}
@@ -1130,6 +1136,7 @@ func TestReleaseVolumeReplication(t *testing.T) {
 	t.Run("WhenReleaseReturnsAnotherOperationError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+
 		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
 			return mockClient, nil
 		}
@@ -1156,6 +1163,7 @@ func TestReleaseVolumeReplication(t *testing.T) {
 	t.Run("WhenReleaseReturnsEntryNotFoundError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+
 		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
 			return mockClient, nil
 		}
@@ -1181,6 +1189,7 @@ func TestReleaseVolumeReplication(t *testing.T) {
 	t.Run("WhenReleaseJobReturnsAnotherOperationError", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+
 		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
 			return mockClient, nil
 		}
@@ -1209,6 +1218,7 @@ func TestReleaseVolumeReplication(t *testing.T) {
 	t.Run("WhenVolumeOfflineAndSuccessful", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+
 		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
 			return mockClient, nil
 		}
@@ -1253,6 +1263,7 @@ func TestReleaseVolumeReplication(t *testing.T) {
 	t.Run("WhenCleanupSVMPeeringFails", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+
 		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
 			return mockClient, nil
 		}
@@ -1276,10 +1287,14 @@ func TestReleaseVolumeReplication(t *testing.T) {
 	t.Run("WhenReplicationTypeIsNotExternal", func(tt *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+
 		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
 			return mockClient, nil
 		}
 		provider := &OntapRestProvider{}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", listDestinationParams).Return(destinations, nil).Times(1)
 
 		volumeReplicationCreateParams.VolumeReplication.ClusterPeerID = nillable.ToPointer(uint64(0))
 		svmPeeringCleanupCalled := false
@@ -1293,7 +1308,7 @@ func TestReleaseVolumeReplication(t *testing.T) {
 		}()
 		volumeReplicationCreateParams.VolumeReplication.ReplicationType = ""
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", listDestinationParams).Return(destinations, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", &ontaprest.SnapmirrorRelationshipListParams{}).Return(destinations, nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipRelease", releaseParams).Return(false, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
 		volumeReplication, err := provider.ReleaseVolumeReplication(&volumeReplicationCreateParams)
@@ -1320,9 +1335,293 @@ func TestReleaseVolumeReplication(t *testing.T) {
 		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", listDestinationParams).Return(destinations, nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipRelease", releaseParams).Return(false, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
+
 		volumeReplication, err := provider.ReleaseVolumeReplication(&volumeReplicationCreateParams)
 		assert.NoError(tt, err)
 		assert.NotEmpty(tt, volumeReplication)
+	})
+	t.Run("WhenSuccessfulHybridRep", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{}
+
+		doCleanupSvmPeering = func(provider *OntapRestProvider, params *DeleteVolumeReplicationParams) error {
+			return nil
+		}
+		defer func() {
+			doCleanupSvmPeering = cleanupSvmPeering
+		}()
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", listDestinationParams).Return(destinations, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipRelease", releaseParams).Return(false, jobAccepted, nil).Times(1)
+		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
+
+		volumeReplication, err := provider.ReleaseVolumeReplication(&volumeReplicationCreateParams)
+		assert.NoError(tt, err)
+		assert.NotEmpty(tt, volumeReplication)
+	})
+}
+
+func TestGetReplicationDetails(t *testing.T) {
+	t.Run("WhenGetReplicationDetailsReturnsError", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		defer func() {
+			getOntapClientFunc = getOntapClient
+		}()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{}
+
+		volRep := &VolumeReplication{
+			DestinationVolumeName: "yavin",
+			DestinationSVMName:    "rebel-base",
+			ExternalUUID:          "gold-team",
+		}
+
+		expectedError := errors.New("some error")
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorGetPriv", context.TODO(), "rebel-base:yavin", "gold-team", (*string)(nil)).Return(nil, expectedError).Times(1)
+		res, err := provider.GetReplicationDetails(context.TODO(), volRep)
+		assert.EqualError(tt, err, expectedError.Error())
+		assert.Nil(tt, res)
+	})
+	t.Run("WhenGetReplicationDetailsReturnsSuccessful", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		defer func() {
+			getOntapClientFunc = getOntapClient
+		}()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{}
+
+		volRep := &VolumeReplication{
+			DestinationVolumeName: "yavin",
+			DestinationSVMName:    "rebel-base",
+			ExternalUUID:          "gold-team",
+		}
+
+		data1 := &models2.Data{
+			State:                SnapmirrorStateMirrored,
+			TotalTransferBytes:   int64(10000),
+			LastTransferSize:     int64(5000),
+			LastTransferDuration: "PT1D23H45M59S",
+		}
+
+		expectedResp := snapmirror.SnapmirrorGetOK{
+			Payload: &models2.SnapmirrorResponse{
+				Records: []*models2.Data{data1},
+			},
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorGetPriv", context.TODO(), "rebel-base:yavin", "gold-team", (*string)(nil)).Return(&expectedResp, nil).Times(1)
+		res, err := provider.GetReplicationDetails(context.TODO(), volRep)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, res.MirrorState, SnapmirrorStateMirrored)
+		assert.Equal(tt, res.TotalTransferBytes, int64(10000))
+		assert.Equal(tt, res.LastTransferSize, int64(5000))
+		assert.Equal(tt, res.LastTransferDuration, int64(171959))
+	})
+	t.Run("WhenNillableParseStringTimeTotimeTimeReturnsError", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		defer func() {
+			getOntapClientFunc = getOntapClient
+			nillableParseStringTimeTotimeTime = nillable.ParseStringTimeTotimeTime
+		}()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		nillableParseStringTimeTotimeTime = func(s string) (*time.Time, error) {
+			return nil, errors.New("error parsing time")
+		}
+		provider := &OntapRestProvider{}
+
+		volRep := &VolumeReplication{
+			DestinationVolumeName: "yavin",
+			DestinationSVMName:    "rebel-base",
+			ExternalUUID:          "gold-team",
+		}
+
+		data1 := &models2.Data{
+			State:                SnapmirrorStateMirrored,
+			TotalTransferBytes:   int64(10000),
+			LastTransferSize:     int64(5000),
+			LastTransferDuration: "PT1D23H45M59S",
+		}
+
+		expectedResp := snapmirror.SnapmirrorGetOK{
+			Payload: &models2.SnapmirrorResponse{
+				Records: []*models2.Data{data1},
+			},
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorGetPriv", context.TODO(), "rebel-base:yavin", "gold-team", (*string)(nil)).Return(&expectedResp, nil).Times(1)
+		res, err := provider.GetReplicationDetails(context.TODO(), volRep)
+		assert.EqualError(tt, err, "error parsing time")
+		assert.Nil(tt, res)
+	})
+	t.Run("WhenNillableParseStringTimeTotimeTimeReturnsErrorForProgressLastUpdated", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		callCount := 0
+		defer func() {
+			getOntapClientFunc = getOntapClient
+			nillableParseStringTimeTotimeTime = nillable.ParseStringTimeTotimeTime
+		}()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		nillableParseStringTimeTotimeTime = func(s string) (*time.Time, error) {
+			callCount++
+			if callCount == 2 { // Second call is for ProgressLastUpdated
+				return nil, errors.New("error parsing progress time")
+			}
+			return &time.Time{}, nil // First call succeeds
+		}
+		provider := &OntapRestProvider{}
+
+		volRep := &VolumeReplication{
+			DestinationVolumeName: "yavin",
+			DestinationSVMName:    "rebel-base",
+			ExternalUUID:          "gold-team",
+		}
+
+		data1 := &models2.Data{
+			State:                SnapmirrorStateMirrored,
+			TotalTransferBytes:   int64(10000),
+			LastTransferSize:     int64(5000),
+			LastTransferDuration: "PT1D23H45M59S",
+		}
+
+		expectedResp := snapmirror.SnapmirrorGetOK{
+			Payload: &models2.SnapmirrorResponse{
+				Records: []*models2.Data{data1},
+			},
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorGetPriv", context.TODO(), "rebel-base:yavin", "gold-team", (*string)(nil)).Return(&expectedResp, nil).Times(1)
+		res, err := provider.GetReplicationDetails(context.TODO(), volRep)
+		assert.EqualError(tt, err, "error parsing progress time")
+		assert.Nil(tt, res)
+	})
+	t.Run("WhenLastTransferDurationIsEmpty", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		defer func() {
+			getOntapClientFunc = getOntapClient
+		}()
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{}
+
+		volRep := &VolumeReplication{
+			DestinationVolumeName: "yavin",
+			DestinationSVMName:    "rebel-base",
+			ExternalUUID:          "gold-team",
+		}
+
+		data1 := &models2.Data{
+			State:                SnapmirrorStateMirrored,
+			TotalTransferBytes:   int64(10000),
+			LastTransferSize:     int64(5000),
+			LastTransferDuration: "",      // Empty string to test the condition
+			LagTime:              "PT30S", // Non-empty to ensure other parsing works
+		}
+
+		expectedResp := snapmirror.SnapmirrorGetOK{
+			Payload: &models2.SnapmirrorResponse{
+				Records: []*models2.Data{data1},
+			},
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorGetPriv", context.TODO(), "rebel-base:yavin", "gold-team", (*string)(nil)).Return(&expectedResp, nil).Times(1)
+		res, err := provider.GetReplicationDetails(context.TODO(), volRep)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, res.MirrorState, SnapmirrorStateMirrored)
+		assert.Equal(tt, res.TotalTransferBytes, int64(10000))
+		assert.Equal(tt, res.LastTransferSize, int64(5000))
+		assert.Equal(tt, res.LastTransferDuration, int64(0)) // Should remain 0 when empty
+		assert.Equal(tt, res.LagTime, int64(30))             // Should be parsed from "PT30S"
+	})
+}
+
+func TestGetVolumeReplication(t *testing.T) {
+	t.Run("ReturnsVolumeReplicationWhenSnapmirrorGetSucceeds", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{}
+		replication := &VolumeReplication{ExternalUUID: "valid-uuid"}
+
+		expectedSnapmirror := &ontaprest.SnapmirrorRelationship{
+			SnapmirrorRelationship: models.SnapmirrorRelationship{
+				Policy:  &models.SnapmirrorRelationshipInlinePolicy{Name: nillable.ToPointer("policy")},
+				UUID:    nillable.ToPointer(strfmt.UUID("uuid")),
+				Healthy: nillable.GetBoolPtr(true),
+			},
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", &ontaprest.SnapmirrorRelationshipGetParams{UUID: replication.ExternalUUID}).Return(expectedSnapmirror, nil).Times(1)
+
+		result, err := provider.GetVolumeReplication(replication)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		mockSnapmirrorClient.AssertExpectations(tt)
+	})
+	t.Run("ReturnsErrorWhenSnapmirrorGetFails", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{}
+		replication := &VolumeReplication{ExternalUUID: "invalid-uuid"}
+
+		expectedError := errors.New("snapmirror get failed")
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", &ontaprest.SnapmirrorRelationshipGetParams{UUID: replication.ExternalUUID}).Return(nil, expectedError).Times(1)
+
+		result, err := provider.GetVolumeReplication(replication)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, expectedError, err)
+		mockSnapmirrorClient.AssertExpectations(tt)
 	})
 }
 
@@ -2214,203 +2513,5 @@ func TestCleanupSvmPeering(t *testing.T) {
 		if err != nil {
 			tt.Error("Error not returned")
 		}
-	})
-}
-
-func TestGetReplicationDetails(t *testing.T) {
-	t.Run("WhenGetReplicationDetailsReturnsError", func(tt *testing.T) {
-		mockClient := new(ontaprest.MockRESTClient)
-		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
-		defer func() {
-			getOntapClientFunc = getOntapClient
-		}()
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-		provider := &OntapRestProvider{}
-
-		volRep := &VolumeReplication{
-			DestinationVolumeName: "yavin",
-			DestinationSVMName:    "rebel-base",
-			ExternalUUID:          "gold-team",
-		}
-
-		expectedError := errors.New("some error")
-
-		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
-		mockSnapmirrorClient.On("SnapmirrorGetPriv", context.TODO(), "rebel-base:yavin", "gold-team", (*string)(nil)).Return(nil, expectedError).Times(1)
-		res, err := provider.GetReplicationDetails(volRep)
-		assert.EqualError(tt, err, expectedError.Error())
-		assert.Nil(tt, res)
-	})
-	t.Run("WhenGetReplicationDetailsReturnsSuccessful", func(tt *testing.T) {
-		mockClient := new(ontaprest.MockRESTClient)
-		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
-		defer func() {
-			getOntapClientFunc = getOntapClient
-		}()
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-		provider := &OntapRestProvider{}
-
-		volRep := &VolumeReplication{
-			DestinationVolumeName: "yavin",
-			DestinationSVMName:    "rebel-base",
-			ExternalUUID:          "gold-team",
-		}
-
-		data1 := &models2.Data{
-			State:                SnapmirrorStateMirrored,
-			TotalTransferBytes:   int64(10000),
-			LastTransferSize:     int64(5000),
-			LastTransferDuration: "PT1D23H45M59S",
-		}
-
-		expectedResp := snapmirror.SnapmirrorGetOK{
-			Payload: &models2.SnapmirrorResponse{
-				Records: []*models2.Data{data1},
-			},
-		}
-
-		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
-		mockSnapmirrorClient.On("SnapmirrorGetPriv", context.TODO(), "rebel-base:yavin", "gold-team", (*string)(nil)).Return(&expectedResp, nil).Times(1)
-		res, err := provider.GetReplicationDetails(volRep)
-		assert.NoError(tt, err)
-		assert.NotNil(tt, res)
-		assert.Equal(tt, res.MirrorState, SnapmirrorStateMirrored)
-		assert.Equal(tt, res.TotalTransferBytes, int64(10000))
-		assert.Equal(tt, res.LastTransferSize, int64(5000))
-		assert.Equal(tt, res.LastTransferDuration, int64(171959))
-	})
-	t.Run("WhenNillableParseStringTimeTotimeTimeReturnsError", func(tt *testing.T) {
-		mockClient := new(ontaprest.MockRESTClient)
-		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
-		defer func() {
-			getOntapClientFunc = getOntapClient
-			nillableParseStringTimeTotimeTime = nillable.ParseStringTimeTotimeTime
-		}()
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-		nillableParseStringTimeTotimeTime = func(s string) (*time.Time, error) {
-			return nil, errors.New("error parsing time")
-		}
-		provider := &OntapRestProvider{}
-
-		volRep := &VolumeReplication{
-			DestinationVolumeName: "yavin",
-			DestinationSVMName:    "rebel-base",
-			ExternalUUID:          "gold-team",
-		}
-
-		data1 := &models2.Data{
-			State:                SnapmirrorStateMirrored,
-			TotalTransferBytes:   int64(10000),
-			LastTransferSize:     int64(5000),
-			LastTransferDuration: "PT1D23H45M59S",
-		}
-
-		expectedResp := snapmirror.SnapmirrorGetOK{
-			Payload: &models2.SnapmirrorResponse{
-				Records: []*models2.Data{data1},
-			},
-		}
-
-		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
-		mockSnapmirrorClient.On("SnapmirrorGetPriv", context.TODO(), "rebel-base:yavin", "gold-team", (*string)(nil)).Return(&expectedResp, nil).Times(1)
-		res, err := provider.GetReplicationDetails(volRep)
-		assert.EqualError(tt, err, "error parsing time")
-		assert.Nil(tt, res)
-	})
-	t.Run("WhenGetReplicationDetailsReturnsSuccessfulWithNoData", func(tt *testing.T) {
-		mockClient := new(ontaprest.MockRESTClient)
-		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
-		defer func() {
-			getOntapClientFunc = getOntapClient
-		}()
-
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-		provider := &OntapRestProvider{}
-		volRep := &VolumeReplication{
-			DestinationVolumeName: "yavin",
-			DestinationSVMName:    "rebel-base",
-			ExternalUUID:          "gold-team",
-		}
-		expectedResp := snapmirror.SnapmirrorGetOK{
-			Payload: &models2.SnapmirrorResponse{
-				Records: []*models2.Data{},
-			},
-		}
-		expectedError := errors.NewNotFoundErr("snapmirror", &volRep.ExternalUUID)
-
-		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
-		mockSnapmirrorClient.On("SnapmirrorGetPriv", context.TODO(), "rebel-base:yavin", "gold-team", (*string)(nil)).Return(&expectedResp, nil).Times(1)
-		res, err := provider.GetReplicationDetails(volRep)
-		assert.EqualError(tt, err, expectedError.Error())
-		assert.Nil(tt, res)
-	})
-}
-
-func TestGetVolumeReplication(t *testing.T) {
-	t.Run("ReturnsVolumeReplicationWhenSnapmirrorGetSucceeds", func(tt *testing.T) {
-		mockClient := new(ontaprest.MockRESTClient)
-		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
-		originalgetOntapClientFunc := getOntapClientFunc
-		defer func() {
-			getOntapClientFunc = originalgetOntapClientFunc
-		}()
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-		provider := &OntapRestProvider{}
-		replication := &VolumeReplication{ExternalUUID: "valid-uuid"}
-
-		expectedSnapmirror := &ontaprest.SnapmirrorRelationship{
-			SnapmirrorRelationship: models.SnapmirrorRelationship{
-				Policy:  &models.SnapmirrorRelationshipInlinePolicy{Name: nillable.ToPointer("policy")},
-				UUID:    nillable.ToPointer(strfmt.UUID("uuid")),
-				Healthy: nillable.GetBoolPtr(true),
-			},
-		}
-
-		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", &ontaprest.SnapmirrorRelationshipGetParams{UUID: replication.ExternalUUID}).Return(expectedSnapmirror, nil).Times(1)
-
-		result, err := provider.GetVolumeReplication(replication)
-
-		assert.NoError(tt, err)
-		assert.NotNil(tt, result)
-		mockSnapmirrorClient.AssertExpectations(tt)
-	})
-	t.Run("ReturnsErrorWhenSnapmirrorGetFails", func(tt *testing.T) {
-		mockClient := new(ontaprest.MockRESTClient)
-		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
-		originalgetOntapClientFunc := getOntapClientFunc
-		defer func() {
-			getOntapClientFunc = originalgetOntapClientFunc
-		}()
-		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
-			return mockClient, nil
-		}
-		provider := &OntapRestProvider{}
-		replication := &VolumeReplication{ExternalUUID: "invalid-uuid"}
-
-		expectedError := errors.New("snapmirror get failed")
-
-		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", &ontaprest.SnapmirrorRelationshipGetParams{UUID: replication.ExternalUUID}).Return(nil, expectedError).Times(1)
-
-		result, err := provider.GetVolumeReplication(replication)
-
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.Equal(tt, expectedError, err)
-		mockSnapmirrorClient.AssertExpectations(tt)
 	})
 }

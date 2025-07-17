@@ -502,7 +502,7 @@ func TestGetSnapMirrorFromOntap(t *testing.T) {
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		mockProvider.On("GetReplicationDetails", mock.Anything).Return(expectedOntapRep, nil)
+		mockProvider.On("GetReplicationDetails", mock.Anything, mock.Anything).Return(expectedOntapRep, nil)
 
 		ontapRep, err := activity.GetSnapMirrorFromOntap(ctx, dbReplication, node)
 		assert.NoError(t, err)
@@ -565,7 +565,7 @@ func TestGetSnapMirrorFromOntap(t *testing.T) {
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		mockProvider.On("GetReplicationDetails", mock.Anything).Return(nil, errors.New("failed to get replication details"))
+		mockProvider.On("GetReplicationDetails", mock.Anything, mock.Anything).Return(nil, errors.New("failed to get replication details"))
 
 		ontapRep, err := activity.GetSnapMirrorFromOntap(ctx, dbReplication, node)
 		assert.Error(tt, err)

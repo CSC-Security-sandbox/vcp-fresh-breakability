@@ -55,7 +55,7 @@ func (j *MountJobActivity) GetReplicationFromOntap(ctx context.Context, dbReplic
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	replicationParams := convertToSnapmirrorGetParams(dbReplication, accountName)
-	ontapRep, err := provider.GetReplicationDetails(replicationParams)
+	ontapRep, err := provider.GetReplicationDetails(ctx, replicationParams)
 	if err != nil {
 		logger.Errorf("Failed to get replication details from Ontap for replication %s: %v", dbReplication.UUID, err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGetSnapmirrorDetailsFromOntap, err)

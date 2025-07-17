@@ -117,7 +117,7 @@ func (r *ReplicationInternalGetMultipleActivity) GetReplicationsFromOntap(ctx co
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		for _, replication := range replications {
-			replFromOntap, err := prov.GetReplicationDetails(convertToSnapmirrorGetParams(replication, params.AccountName))
+			replFromOntap, err := prov.GetReplicationDetails(ctx, convertToSnapmirrorGetParams(replication, params.AccountName))
 			if err != nil {
 				if errors.IsNotFoundErr(err) {
 					logger.Warnf("Replication %s not found in Ontap for pool %d, skipping", replication.UUID, poolID)

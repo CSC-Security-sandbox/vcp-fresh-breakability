@@ -1708,9 +1708,9 @@ func (_c *MockProvider_GetONTAPVersion_Call) RunAndReturn(run func() (*string, e
 	return _c
 }
 
-// GetReplicationDetails provides a mock function with given fields: volRep
-func (_m *MockProvider) GetReplicationDetails(volRep *VolumeReplication) (*VolumeReplication, error) {
-	ret := _m.Called(volRep)
+// GetReplicationDetails provides a mock function with given fields: ctx, volRep
+func (_m *MockProvider) GetReplicationDetails(ctx context.Context, volRep *VolumeReplication) (*VolumeReplication, error) {
+	ret := _m.Called(ctx, volRep)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetReplicationDetails")
@@ -1718,19 +1718,19 @@ func (_m *MockProvider) GetReplicationDetails(volRep *VolumeReplication) (*Volum
 
 	var r0 *VolumeReplication
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*VolumeReplication) (*VolumeReplication, error)); ok {
-		return rf(volRep)
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeReplication) (*VolumeReplication, error)); ok {
+		return rf(ctx, volRep)
 	}
-	if rf, ok := ret.Get(0).(func(*VolumeReplication) *VolumeReplication); ok {
-		r0 = rf(volRep)
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeReplication) *VolumeReplication); ok {
+		r0 = rf(ctx, volRep)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*VolumeReplication)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*VolumeReplication) error); ok {
-		r1 = rf(volRep)
+	if rf, ok := ret.Get(1).(func(context.Context, *VolumeReplication) error); ok {
+		r1 = rf(ctx, volRep)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1744,14 +1744,15 @@ type MockProvider_GetReplicationDetails_Call struct {
 }
 
 // GetReplicationDetails is a helper method to define mock.On call
+//   - ctx context.Context
 //   - volRep *VolumeReplication
-func (_e *MockProvider_Expecter) GetReplicationDetails(volRep interface{}) *MockProvider_GetReplicationDetails_Call {
-	return &MockProvider_GetReplicationDetails_Call{Call: _e.mock.On("GetReplicationDetails", volRep)}
+func (_e *MockProvider_Expecter) GetReplicationDetails(ctx interface{}, volRep interface{}) *MockProvider_GetReplicationDetails_Call {
+	return &MockProvider_GetReplicationDetails_Call{Call: _e.mock.On("GetReplicationDetails", ctx, volRep)}
 }
 
-func (_c *MockProvider_GetReplicationDetails_Call) Run(run func(volRep *VolumeReplication)) *MockProvider_GetReplicationDetails_Call {
+func (_c *MockProvider_GetReplicationDetails_Call) Run(run func(ctx context.Context, volRep *VolumeReplication)) *MockProvider_GetReplicationDetails_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*VolumeReplication))
+		run(args[0].(context.Context), args[1].(*VolumeReplication))
 	})
 	return _c
 }
@@ -1761,7 +1762,7 @@ func (_c *MockProvider_GetReplicationDetails_Call) Return(_a0 *VolumeReplication
 	return _c
 }
 
-func (_c *MockProvider_GetReplicationDetails_Call) RunAndReturn(run func(*VolumeReplication) (*VolumeReplication, error)) *MockProvider_GetReplicationDetails_Call {
+func (_c *MockProvider_GetReplicationDetails_Call) RunAndReturn(run func(context.Context, *VolumeReplication) (*VolumeReplication, error)) *MockProvider_GetReplicationDetails_Call {
 	_c.Call.Return(run)
 	return _c
 }

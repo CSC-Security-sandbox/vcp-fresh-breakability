@@ -64,7 +64,7 @@ type Provider interface {
 	ResyncVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error)
 	BreakVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error)
 	AbortVolumeReplication(volRep *VolumeReplication) (*VolumeReplication, error)
-	GetReplicationDetails(volRep *VolumeReplication) (*VolumeReplication, error)
+	GetReplicationDetails(ctx context.Context, volRep *VolumeReplication) (*VolumeReplication, error)
 	GetVolumeReplication(replication *VolumeReplication) (*VolumeReplication, error)
 	CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error)
 	DeleteSnapshot(snapshotUUID string, volumeUUID string) error

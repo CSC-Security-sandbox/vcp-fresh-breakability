@@ -31,6 +31,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/workflow"
 )
 
 var (
@@ -801,25 +802,53 @@ func GetArrayDiff(existingList []string, newList []string) ([]string, []string) 
 	return toCreate, toDelete
 }
 
+var (
+	workflowSideEffectGet = func(ctx workflow.Context, fn func(workflow.Context) interface{}, valuePtr interface{}) error {
+		return workflow.SideEffect(ctx, fn).Get(valuePtr)
+	}
+)
+
 // GenerateDeterministicID returns a deterministic, fixed-length ID for the given input.
 // The same input will always produce the same output.
-func GenerateDeterministicID(input string, length int) string {
+func GenerateDeterministicID(ctx workflow.Context, input string, length int) (string, error) {
+	return _generateDeterministicID(ctx, input, length, workflowSideEffectGet)
+}
+
+// _generateDeterministicID is the internal implementation that accepts a sideEffect function for testability
+func _generateDeterministicID(ctx workflow.Context, input string, length int, sideEffectGet func(workflow.Context, func(workflow.Context) interface{}, interface{}) error) (string, error) {
 	hash := sha256.Sum256([]byte(input))
 	id := hex.EncodeToString(hash[:])
-	// Ensure the first character is a lowercase letter
-	if id[0] < 'a' || id[0] > 'z' {
-		id = "a" + id
-	}
 	if length > len(id) {
 		length = len(id)
 	}
-	// Ensure the last character is a letter or digit
 	result := id[:length]
-	last := result[len(result)-1]
-	if (last < 'a' || last > 'z') && (last < '0' || last > '9') {
-		result = result[:len(result)-1] + "a"
+
+	// Deterministically select a lowercase letter for the first character
+	var firstCharIdx int
+	err := sideEffectGet(ctx, func(ctx workflow.Context) interface{} {
+		return int(hash[0]) % 26 // Use hash for deterministic "randomness"
+	}, &firstCharIdx)
+	if err != nil {
+		return "", err
 	}
-	return result
+	firstChar := 'a' + rune(firstCharIdx)
+
+	// Deterministically select a lowercase letter for the last character
+	var lastCharIdx int
+	err = sideEffectGet(ctx, func(ctx workflow.Context) interface{} {
+		return int(hash[len(hash)-1]) % 26
+	}, &lastCharIdx)
+	if err != nil {
+		return "", err
+	}
+	lastChar := 'a' + rune(lastCharIdx)
+
+	// Replace first and last characters
+	runes := []rune(result)
+	runes[0] = firstChar
+	runes[len(runes)-1] = lastChar
+
+	return string(runes), nil
 }
 
 // _parsePEMCertificate takes a PEM-encoded certificate string and returns a CertPool containing the certificate.

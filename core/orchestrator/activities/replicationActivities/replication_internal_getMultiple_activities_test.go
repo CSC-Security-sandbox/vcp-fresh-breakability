@@ -506,7 +506,7 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 		}
 
 		expectedError := vsaerrors.NewVCPError(vsaerrors.ErrFailedToGetSnapmirrorDetailsFromOntap, errors.New("code cylinder malfunction"))
-		mockProvider.On("GetReplicationDetails", mock.Anything).Return(nil, errors.New("code cylinder malfunction"))
+		mockProvider.On("GetReplicationDetails", mock.Anything, mock.Anything).Return(nil, errors.New("code cylinder malfunction"))
 		_, err := activity.GetReplicationsFromOntap(ctx, params)
 
 		assert.Error(t, err)
@@ -573,7 +573,7 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 		}
 		extUUID := "external-uuid-1"
 
-		mockProvider.On("GetReplicationDetails", mock.Anything).Return(nil, errors.NewNotFoundErr("snapmirror", &extUUID))
+		mockProvider.On("GetReplicationDetails", mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("snapmirror", &extUUID))
 		res, err := activity.GetReplicationsFromOntap(ctx, params)
 
 		assert.NoError(tt, err)
@@ -658,7 +658,7 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 			LastTransferDuration:  30,
 		}
 
-		mockProvider.On("GetReplicationDetails", mock.Anything).Return(&expectedResp, nil)
+		mockProvider.On("GetReplicationDetails", mock.Anything, mock.Anything).Return(&expectedResp, nil)
 		res, err := activity.GetReplicationsFromOntap(ctx, params)
 
 		assert.NoError(tt, err)

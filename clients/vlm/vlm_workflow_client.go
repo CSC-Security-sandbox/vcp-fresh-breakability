@@ -18,7 +18,8 @@ import (
 var NewVSAClientWorkflowManager = _newVSAClientWorkflowManager
 
 var (
-	VSALifecycleManagerQueue = fmt.Sprintf("%s-%s", env.GetString("VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX", "vsa-lifecycle-manager"), env.GetString("ONTAP_VERSION", "9.18.1"))
+	VSALifecycleManagerQueuePrefix = env.GetString("VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX", "vsa-lifecycle-manager")
+	VSALifecycleManagerQueue       = fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, env.GetString("ONTAP_VERSION", "9.18.1"))
 
 	VlmWorkflowStartToCloseTimeout = env.GetString("VLMWORKFLOW_START_TO_CLOSE_WORKFLOW_TIMEOUT", "20m")
 	VlmWorkflowRetryInterval       = env.GetString("VLMWORKFLOW_RETRY_INTERVAL", "1m")
@@ -38,7 +39,8 @@ type WorkflowRetryPolicy struct {
 type VlmWorkflowClient interface {
 	CreateVSAClusterDeployment(ctx workflow.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error)
 	CreateVSASVM(ctx workflow.Context, createSVMRequest *CreateSVMRequest) (*CreateSVMResponse, error)
-	DeleteVSAClusterDeployment(ctx workflow.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest) error
+	DeleteVSAClusterDeployment(ctx workflow.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest, ontapVersion string) error
+	UpdateVSAClusterDeployment(ctx workflow.Context, updateVSAClusterDeploymentRequest *UpdateVSAClusterDeploymentRequest, ontapVersion string) (*UpdateVSAClusterDeploymentResponse, error)
 }
 
 type VSAClientWorkflowManager struct {
@@ -117,7 +119,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 	return createSVMResponse, nil
 }
 
-func (vlmManager *VSAClientWorkflowManager) DeleteVSAClusterDeployment(ctx workflow.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest) error {
+func (vlmManager *VSAClientWorkflowManager) DeleteVSAClusterDeployment(ctx workflow.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest, ontapVersion string) error {
 	logger := util.GetLogger(ctx)
 
 	if deleteVSAClusterDeploymentRequest.DeploymentID == "" {
@@ -130,7 +132,7 @@ func (vlmManager *VSAClientWorkflowManager) DeleteVSAClusterDeployment(ctx workf
 	}
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-		TaskQueue:             VSALifecycleManagerQueue,
+		TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + ontapVersion,
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 		ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL,
@@ -149,6 +151,39 @@ func (vlmManager *VSAClientWorkflowManager) DeleteVSAClusterDeployment(ctx workf
 	}
 
 	return nil
+}
+
+func (vlmManager *VSAClientWorkflowManager) UpdateVSAClusterDeployment(ctx workflow.Context, updateVSAClusterDeploymentRequest *UpdateVSAClusterDeploymentRequest, ontapVersion string) (*UpdateVSAClusterDeploymentResponse, error) {
+	logger := util.GetLogger(ctx)
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+
+	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+		TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + ontapVersion,
+		WaitForCancellation:   true,
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
+		ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+	})
+
+	updateVSAClusterDeploymentResponse := &UpdateVSAClusterDeploymentResponse{}
+
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, UpdateVSAClusterDeploymentWorkflowName, updateVSAClusterDeploymentRequest).Get(ctx, &updateVSAClusterDeploymentResponse)
+
+	if err != nil {
+		logger.Error("Failed to update VSA cluster", "error", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return updateVSAClusterDeploymentResponse, nil
 }
 
 func PopulateRetryPolicyParams() (*WorkflowRetryPolicy, error) {

@@ -12,7 +12,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
-	"netapp.com/vsa/lifecycle-manager/pkg/log"
 )
 
 var (
@@ -30,6 +29,7 @@ var _ WorkflowInterface = &startProjectEventOffStateWorkflow{}
 
 // StartProjectEventOffStateWorkflow is a workflow that handles the OFF state for StartProjectEvent.
 func StartProjectEventOffStateWorkflow(ctx workflow.Context, params *common.StartProjectEventParams) (interface{}, error) {
+	log := util.GetLogger(ctx)
 	startProjectEventWorkflow := new(startProjectEventOffStateWorkflow)
 	err := startProjectEventWorkflow.Setup(ctx, params)
 	if err != nil {
@@ -133,6 +133,7 @@ type startProjectEventOnStateWorkflow struct {
 
 // StartProjectEventOnStateWorkflow is a workflow that handles the OFF state for StartProjectEvent.
 func StartProjectEventOnStateWorkflow(ctx workflow.Context, params *common.StartProjectEventParams) (interface{}, error) {
+	log := util.GetLogger(ctx)
 	startProjectEventWorkflow := new(startProjectEventOnStateWorkflow)
 	err := startProjectEventWorkflow.Setup(ctx, params)
 	if err != nil {

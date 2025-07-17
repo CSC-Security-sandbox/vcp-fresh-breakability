@@ -58,15 +58,7 @@ minikube start
 
 ##### 2. Run Skaffold
 Run the following command to start Skaffold:
-
-**For VLM changes:**  
-You need the VLM Docker image available locally. Run the following commands:
-
 ```bash
-gcloud auth configure-docker us-docker.pkg.dev
-docker pull us-docker.pkg.dev/gcnv-artifact-registry-nonprod/vlm/temporal-vlm:devN
-
-```
 export GHVSA_PAT=$(gh auth token)
 export VSA_NODE_PASSWORD=<passwrod-to-be-set-on-ontap>
 export VSA_NODE_USERNAME=<username-to-be-set-on-ontap>

@@ -164,7 +164,7 @@ func TestGetSnapmirrorDetails(t *testing.T) {
 				DestinationSvmName:    "destination-svm-name",
 			},
 		}
-		mockProvider.On("GetReplicationDetails", mock.Anything).Return(nil, errors.New("provider error"))
+		mockProvider.On("GetReplicationDetails", mock.Anything, mock.Anything).Return(nil, errors.New("provider error"))
 		_, err := activity.GetSnapmirrorDetails(ctx, params, node)
 		assert.Error(t, err)
 		assert.Equal(t, "provider error", err.Error())
@@ -192,7 +192,7 @@ func TestGetSnapmirrorDetails(t *testing.T) {
 			},
 		}
 		expectedResponse := &vsa.VolumeReplication{}
-		mockProvider.On("GetReplicationDetails", mock.Anything).Return(expectedResponse, nil)
+		mockProvider.On("GetReplicationDetails", mock.Anything, mock.Anything).Return(expectedResponse, nil)
 		res, err := activity.GetSnapmirrorDetails(ctx, params, node)
 
 		assert.NoError(t, err)

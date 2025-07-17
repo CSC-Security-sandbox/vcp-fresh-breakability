@@ -50,7 +50,6 @@ require (
 	k8s.io/apimachinery v0.33.2
 	k8s.io/client-go v0.33.2
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
-	netapp.com/vsa/lifecycle-manager v0.0.0-00010101000000-000000000000
 )
 
 require (
@@ -192,5 +191,3 @@ require (
 	google.golang.org/grpc v1.73.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace netapp.com/vsa/lifecycle-manager => github.com/VCP-VSA-control-Plane/temp-vsa-pkg v1.0.10

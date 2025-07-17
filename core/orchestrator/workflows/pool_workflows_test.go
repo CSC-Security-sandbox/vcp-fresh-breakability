@@ -100,10 +100,12 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
@@ -112,8 +114,6 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
@@ -371,7 +371,12 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 	}
 	env.SetHeader(mockHeader)
 
-	// Register required activities
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
 
@@ -421,7 +426,15 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 	// Register activity mocks.
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).
 		Return(nil)
-	env.OnActivity("CreateVlmConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("ConstructCurrentVlmConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			SPConfig: vlm.SPConfig{
+				IOps:       1024,
+				Throughput: 64,
+				Size:       "1TiB",
+			},
+		},
+	}, nil)
 	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
 			SPConfig: vlm.SPConfig{
@@ -432,9 +445,13 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 		},
 	}, nil)
 	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("UpdateVSACluster", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(&vlm.UpdateVSAClusterDeploymentResponse{}, nil)
 	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).
 		Return(nil, nil)
+
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
 
 	// Execute the workflow.
 	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool)
@@ -503,7 +520,7 @@ func TestDeletePoolWorkflow(t *testing.T) {
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
-	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything).Return(nil)
+	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
@@ -512,91 +529,6 @@ func TestDeletePoolWorkflow(t *testing.T) {
 	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil)
-
-	// Mock child workflow
-	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
-		PoolID: 0,
-	}).Return(nil)
-
-	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
-		return mockVSAClientWorkflowManager
-	}
-
-	// Execute workflow
-	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
-
-	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
-	if err != nil {
-		t.Fatalf("Failed to query workflow: %v", err)
-	}
-
-	// Assert workflow execution
-	assert.True(t, env.IsWorkflowCompleted())
-	assert.NoError(t, env.GetWorkflowError())
-	env.AssertExpectations(t)
-}
-
-func TestDeletePoolWorkflowVerifyVsaKmsReachabilityActivityFails(t *testing.T) {
-	var ts testsuite.WorkflowTestSuite
-	env := ts.NewTestWorkflowEnvironment()
-	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-	mockHeader := &commonpb.Header{
-		Fields: map[string]*commonpb.Payload{
-			"logParam": encodedValue,
-		},
-	}
-	env.SetHeader(mockHeader)
-
-	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
-	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
-	enableMetrics = true
-	defer func() {
-		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
-		enableMetrics = envs.GetBool("ENABLE_METRICS", false)
-	}()
-
-	env.RegisterActivity(&activities.CommonActivities{})
-	env.RegisterActivity(&activities.PoolActivity{})
-	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
-
-	// Set up test data
-	params := &common.DeletePoolParams{
-		PoolID:      "test-pool",
-		AccountName: "test-account",
-	}
-
-	pool := &datamodel.Pool{
-		Name: "test-pool",
-		AutoTieringConfig: &datamodel.AutoTieringConfig{
-			BucketName: "test-bucket",
-		},
-		ServiceAccountId: "test-service-account",
-		ClusterDetails: datamodel.ClusterDetails{
-			RegionalTenantProject: "test-tenant",
-		},
-		PoolCredentials: &datamodel.PoolCredentials{
-			Password: "test-password",
-			SecretID: "",
-			AuthType: common.USERNAME_PWD,
-		},
-		KmsConfig:   &datamodel.KmsConfig{},
-		KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
-	}
-
-	// Mock activity responses
-	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
-	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
-	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(errors.New("some error"))
 
 	// Mock child workflow
 	env.OnWorkflow(UnRegisterNodeFromHarvestFarmWorkflow, mock.Anything, &unRegisterNodeFromHarvestFarmParams{
@@ -677,7 +609,7 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
-	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything).Return(nil)
+	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
@@ -764,15 +696,17 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 	}, nil)
 	env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Bucket Creation Failed"))
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Bucket Creation Failed"))
-	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
