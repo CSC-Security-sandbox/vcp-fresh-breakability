@@ -473,6 +473,10 @@ func (s *PersistenceStore) UpdateKmsConfig(ctx context.Context, kmsUUID string, 
 	return s.dataStore.UpdateKmsConfig(ctx, kmsUUID, updates)
 }
 
+func (s *PersistenceStore) IsKmsConfigInUse(ctx context.Context, kmsConfigUUID string) (bool, error) {
+	return s.dataStore.IsKmsConfigInUse(ctx, kmsConfigUUID)
+}
+
 func (s *PersistenceStore) DeleteVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
 	return s.dataStore.DeleteVolume(ctx, id)
 }
@@ -697,8 +701,8 @@ func (s *PersistenceStore) CreateKmsConfig(ctx context.Context, kmsConfigParams 
 	return s.dataStore.CreateKmsConfig(ctx, kmsConfigParams)
 }
 
-func (s *PersistenceStore) DeleteKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error) {
-	return s.dataStore.DeleteKmsConfig(ctx, kmsConfigUUID)
+func (s *PersistenceStore) DeleteKmsConfig(ctx context.Context, kmsConfigUUID, state, stateDetails string) (*datamodel.KmsConfig, error) {
+	return s.dataStore.DeleteKmsConfig(ctx, kmsConfigUUID, state, stateDetails)
 }
 
 func (s *PersistenceStore) GetKmsConfigByUUID(ctx context.Context, uuid string) (*datamodel.KmsConfig, error) {

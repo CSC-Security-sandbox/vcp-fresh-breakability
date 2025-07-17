@@ -674,7 +674,16 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			return nil, err
 		}
 	}
-	return nil, nil
+
+	if dbPool.KmsConfig != nil {
+		// Check if the KMS config is reachable and update the kms appropriately i.e. form in-use to created when last pool/svm is deleted
+		kmsConfigActivity := &kms_activities.KmsConfigActivity{}
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, dbPool.KmsConfig.UUID).Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nil, err
 }
 
 func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {

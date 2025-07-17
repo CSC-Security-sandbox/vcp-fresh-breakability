@@ -1713,11 +1713,11 @@ func (re *retryEngine) UpdateKmsConfigState(ctx context.Context, kmsConfigUUID s
 	return var0, err
 }
 
-func (re *retryEngine) DeleteKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error) {
+func (re *retryEngine) DeleteKmsConfig(ctx context.Context, kmsConfigUUID, state, stateDetails string) (*datamodel.KmsConfig, error) {
 	var var0 *datamodel.KmsConfig
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.DeleteKmsConfig(ctx, kmsConfigUUID)
+		var0, err = re.dataStore.DeleteKmsConfig(ctx, kmsConfigUUID, state, stateDetails)
 		if err != nil {
 			re.logError("DeleteKmsConfig", err)
 			if !isTransientErr(err) {
@@ -1910,6 +1910,26 @@ func (re *retryEngine) UpdateKmsConfig(ctx context.Context, kmsUUID string, upda
 	}
 
 	return err
+}
+
+func (re *retryEngine) IsKmsConfigInUse(ctx context.Context, kmsConfigUUID string) (bool, error) {
+	var var0 bool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.IsKmsConfigInUse(ctx, kmsConfigUUID)
+		if err != nil {
+			re.logError("IsKmsConfigInUse", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
 }
 
 func (re *retryEngine) CreateKmsServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) (*datamodel.ServiceAccount, error) {

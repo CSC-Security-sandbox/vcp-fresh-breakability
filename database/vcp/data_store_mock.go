@@ -1499,9 +1499,9 @@ func (_c *MockDataStore_DeleteHostGroup_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
-// DeleteKmsConfig provides a mock function with given fields: ctx, kmsConfigUUID
-func (_m *MockDataStore) DeleteKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error) {
-	ret := _m.Called(ctx, kmsConfigUUID)
+// DeleteKmsConfig provides a mock function with given fields: ctx, kmsConfigUUID, state, stateDetails
+func (_m *MockDataStore) DeleteKmsConfig(ctx context.Context, kmsConfigUUID string, state string, stateDetails string) (*datamodel.KmsConfig, error) {
+	ret := _m.Called(ctx, kmsConfigUUID, state, stateDetails)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteKmsConfig")
@@ -1509,19 +1509,19 @@ func (_m *MockDataStore) DeleteKmsConfig(ctx context.Context, kmsConfigUUID stri
 
 	var r0 *datamodel.KmsConfig
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.KmsConfig, error)); ok {
-		return rf(ctx, kmsConfigUUID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (*datamodel.KmsConfig, error)); ok {
+		return rf(ctx, kmsConfigUUID, state, stateDetails)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.KmsConfig); ok {
-		r0 = rf(ctx, kmsConfigUUID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *datamodel.KmsConfig); ok {
+		r0 = rf(ctx, kmsConfigUUID, state, stateDetails)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.KmsConfig)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, kmsConfigUUID)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, kmsConfigUUID, state, stateDetails)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1537,13 +1537,15 @@ type MockDataStore_DeleteKmsConfig_Call struct {
 // DeleteKmsConfig is a helper method to define mock.On call
 //   - ctx context.Context
 //   - kmsConfigUUID string
-func (_e *MockDataStore_Expecter) DeleteKmsConfig(ctx interface{}, kmsConfigUUID interface{}) *MockDataStore_DeleteKmsConfig_Call {
-	return &MockDataStore_DeleteKmsConfig_Call{Call: _e.mock.On("DeleteKmsConfig", ctx, kmsConfigUUID)}
+//   - state string
+//   - stateDetails string
+func (_e *MockDataStore_Expecter) DeleteKmsConfig(ctx interface{}, kmsConfigUUID interface{}, state interface{}, stateDetails interface{}) *MockDataStore_DeleteKmsConfig_Call {
+	return &MockDataStore_DeleteKmsConfig_Call{Call: _e.mock.On("DeleteKmsConfig", ctx, kmsConfigUUID, state, stateDetails)}
 }
 
-func (_c *MockDataStore_DeleteKmsConfig_Call) Run(run func(ctx context.Context, kmsConfigUUID string)) *MockDataStore_DeleteKmsConfig_Call {
+func (_c *MockDataStore_DeleteKmsConfig_Call) Run(run func(ctx context.Context, kmsConfigUUID string, state string, stateDetails string)) *MockDataStore_DeleteKmsConfig_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
 	})
 	return _c
 }
@@ -1553,7 +1555,7 @@ func (_c *MockDataStore_DeleteKmsConfig_Call) Return(_a0 *datamodel.KmsConfig, _
 	return _c
 }
 
-func (_c *MockDataStore_DeleteKmsConfig_Call) RunAndReturn(run func(context.Context, string) (*datamodel.KmsConfig, error)) *MockDataStore_DeleteKmsConfig_Call {
+func (_c *MockDataStore_DeleteKmsConfig_Call) RunAndReturn(run func(context.Context, string, string, string) (*datamodel.KmsConfig, error)) *MockDataStore_DeleteKmsConfig_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -5899,6 +5901,63 @@ func (_c *MockDataStore_IsBackupInCreatingorDeletingStateByVolume_Call) Return(_
 }
 
 func (_c *MockDataStore_IsBackupInCreatingorDeletingStateByVolume_Call) RunAndReturn(run func(context.Context, string) (bool, error)) *MockDataStore_IsBackupInCreatingorDeletingStateByVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IsKmsConfigInUse provides a mock function with given fields: ctx, kmsConfigUUID
+func (_m *MockDataStore) IsKmsConfigInUse(ctx context.Context, kmsConfigUUID string) (bool, error) {
+	ret := _m.Called(ctx, kmsConfigUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsKmsConfigInUse")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (bool, error)); ok {
+		return rf(ctx, kmsConfigUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) bool); ok {
+		r0 = rf(ctx, kmsConfigUUID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, kmsConfigUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_IsKmsConfigInUse_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsKmsConfigInUse'
+type MockDataStore_IsKmsConfigInUse_Call struct {
+	*mock.Call
+}
+
+// IsKmsConfigInUse is a helper method to define mock.On call
+//   - ctx context.Context
+//   - kmsConfigUUID string
+func (_e *MockDataStore_Expecter) IsKmsConfigInUse(ctx interface{}, kmsConfigUUID interface{}) *MockDataStore_IsKmsConfigInUse_Call {
+	return &MockDataStore_IsKmsConfigInUse_Call{Call: _e.mock.On("IsKmsConfigInUse", ctx, kmsConfigUUID)}
+}
+
+func (_c *MockDataStore_IsKmsConfigInUse_Call) Run(run func(ctx context.Context, kmsConfigUUID string)) *MockDataStore_IsKmsConfigInUse_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_IsKmsConfigInUse_Call) Return(_a0 bool, _a1 error) *MockDataStore_IsKmsConfigInUse_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_IsKmsConfigInUse_Call) RunAndReturn(run func(context.Context, string) (bool, error)) *MockDataStore_IsKmsConfigInUse_Call {
 	_c.Call.Return(run)
 	return _c
 }

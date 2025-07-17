@@ -26,13 +26,8 @@ var (
 	parseKeyFullPathResource      = utils.ParseKeyFullPathResource
 	UpdateKmsConfig               = _updateKmsConfig
 	validateUpdateKmsConfigParams = _validateUpdateKmsConfigParams
-	isKmsConfigInUse              = _isKmsConfigInUse
 	getKmsConfigByKeyFullPath     = _getKmsConfigByKeyFullPath
 	validateDeleteKmsConfigParams = _validateDeleteKmsConfigParams
-)
-
-const (
-	GcpKmsConfigHealthError = "specified key <key_name> in <key_ring> does not exist or service permissions are incorrect"
 )
 
 type KmsConfigInterface interface {
@@ -76,6 +71,7 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	dbKmsConfig.ResourceID = params.ResourceID
 	dbKmsConfig.KeyProjectID = parsedKeyFullPath.ProjectID
 	dbKmsConfig.KmsAttributes = &datamodel.KmsAttributes{SdeKmsConfigUUID: params.UUID}
+	dbKmsConfig.Description = params.Description
 	dbKmsConfig, err = se.CreateKmsConfig(ctx, dbKmsConfig)
 	if err != nil {
 		return nil, "", err
@@ -398,7 +394,7 @@ func _validateUpdateKmsConfigParams(ctx context.Context, se database.Storage, km
 		return errors.NewConflictErr("can not update a gcpKmsConfig which is in creating or error state.")
 	}
 
-	isConfigInUse, err := isKmsConfigInUse(ctx, se, kmsConfig)
+	isConfigInUse, err := se.IsKmsConfigInUse(ctx, kmsConfig.UUID)
 	if err != nil {
 		return err
 	}
@@ -414,7 +410,7 @@ func _validateDeleteKmsConfigParams(ctx context.Context, se database.Storage, km
 		return errors.NewConflictErr("can not delete a gcpKmsConfig which is in creating state.")
 	}
 
-	isConfigInUse, err := isKmsConfigInUse(ctx, se, kmsConfig)
+	isConfigInUse, err := se.IsKmsConfigInUse(ctx, kmsConfig.UUID)
 	if err != nil {
 		return err
 	}
@@ -434,37 +430,13 @@ func _validateDeleteKmsConfigParams(ctx context.Context, se database.Storage, km
 	return nil
 }
 
-func _isKmsConfigInUse(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig) (bool, error) {
-	if kmsConfig.State == models.LifeCycleStateInUse {
-		return true, nil
-	}
-	svms, err := se.GetSvmsByKmsConfigID(ctx, kmsConfig.ID)
-	if err != nil && !errors.IsNotFoundErr(err) {
-		return false, err
-	}
-	if len(svms) > 0 {
-		return true, nil
-	}
-	return false, nil
-}
-
 // CheckAndUpdateKmsConfigHealth UpdateKmsConfigHealth checks the health of a KMS configuration and updates its status accordingly.
 func (o *Orchestrator) CheckAndUpdateKmsConfigHealth(ctx context.Context, configCheck *models.KmsConfigCheck) (*models.KmsConfig, error) {
 	se := o.storage
-	kmsConfig, err := se.GetKmsConfig(ctx, configCheck.KmsConfig.UUID)
+	kmsConfig, err := kms_activities.UpdateKmsConfigHealth(ctx, se, configCheck)
 	if err != nil {
 		return nil, err
 	}
-	kmsConfigInUse, err := isKmsConfigInUse(ctx, se, kmsConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	errUpdateHealth := kms_activities.UpdateKmsConfigHealth(ctx, se, kmsConfig, configCheck.IsHealthy, configCheck.HealthError, kmsConfigInUse)
-	if errUpdateHealth != nil {
-		return nil, errUpdateHealth
-	}
-
 	return convertDataStoreKmsConfigToModel(kmsConfig), nil
 }
 
@@ -475,7 +447,7 @@ func (o *Orchestrator) AccessCryptoKeyWithImpersonation(ctx context.Context, kms
 	if err != nil {
 		return err
 	}
-	return kms_activities.AccessCryptoKey(ctx, se, dbKmsConfig)
+	return kms_activities.AccessCryptoKey(ctx, dbKmsConfig)
 }
 
 func (o *Orchestrator) GetKmsConfigByKeyFullPath(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {

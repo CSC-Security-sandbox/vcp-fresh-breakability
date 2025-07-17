@@ -179,36 +179,3 @@ func (j *KmsConfigActivity) MigrateVsaPoolActivity(ctx context.Context, volumes 
 	}
 	return nil
 }
-
-// CompleteKmsMigrationActivity updates KmsConfig State of VCP KmsConfig (if it exists) using the results from the Verify operation
-func (j *KmsConfigActivity) CompleteKmsMigrationActivity(ctx context.Context, kmsConfigUUID string) error {
-	se := j.SE
-
-	kmsConfig, err := se.GetKmsConfig(ctx, kmsConfigUUID)
-	if err != nil {
-		if errors.IsNotFoundErr(err) {
-			return nil
-		}
-		return err
-	}
-
-	isHealthy := true
-	healthError := ""
-	err = AccessCryptoKey(ctx, se, kmsConfig)
-	if err != nil {
-		isHealthy = false
-		healthError = err.Error()
-	}
-
-	kmsConfigInUse, err := isKmsConfigInUse(ctx, se, kmsConfig)
-	if err != nil {
-		return err
-	}
-
-	errUpdateHealth := UpdateKmsConfigHealth(ctx, se, kmsConfig, isHealthy, healthError, kmsConfigInUse)
-	if errUpdateHealth != nil {
-		return errUpdateHealth
-	}
-
-	return nil
-}

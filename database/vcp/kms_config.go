@@ -14,10 +14,9 @@ import (
 )
 
 const (
-	KmsSaStateDisabled           = "disable"
-	KmsSaStateEnable             = "enable"
-	RetryTimeOutForGetCryptoKey  = 1 * time.Minute
-	RetryIntervalForGetCryptoKey = 5 * time.Second
+	KmsSaStateDisabled      = "disable"
+	KmsSaStateEnable        = "enable"
+	GcpKmsConfigHealthError = "specified key <key_name> in <key_ring> does not exist or service permissions are incorrect"
 )
 
 var (
@@ -27,6 +26,7 @@ var (
 	updateKmsConfigAttributes = _updateKmsConfigAttributes
 	updateKmsConfigDetails    = _updateKmsConfigDetails
 	getKmsConfigByUUID        = _getKmsConfigByUUID
+	isKmsConfigInUse          = _isKmsConfigInUse
 )
 
 func (d *DataStoreRepository) GetKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error) {
@@ -262,7 +262,7 @@ func (d *DataStoreRepository) GetKmsConfigByKeyFullPath(ctx context.Context, key
 }
 
 // DeleteKmsConfig deletes kms config based on UUID
-func (d *DataStoreRepository) DeleteKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error) {
+func (d *DataStoreRepository) DeleteKmsConfig(ctx context.Context, kmsConfigUUID, state, stateDetails string) (*datamodel.KmsConfig, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
@@ -275,9 +275,8 @@ func (d *DataStoreRepository) DeleteKmsConfig(ctx context.Context, kmsConfigUUID
 		return nil, err
 	}
 	kmsConfig.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
-	kmsConfig.State = models.LifeCycleStateDeleted
-	kmsConfig.StateDetails = models.LifeCycleStateDeletingDetails
-	kmsConfig.StateDetails = ""
+	kmsConfig.State = state
+	kmsConfig.StateDetails = stateDetails
 	err = tx.Save(kmsConfig).Error
 	if err != nil {
 		return nil, err
@@ -305,4 +304,28 @@ func (d *DataStoreRepository) UpdateKmsConfig(ctx context.Context, kmsUUID strin
 		return err
 	}
 	return nil
+}
+
+func (d *DataStoreRepository) IsKmsConfigInUse(ctx context.Context, kmsConfigUUID string) (bool, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return false, err
+	}
+	kmsConfig, err := getKmsConfigByUUID(tx, kmsConfigUUID)
+	if err != nil {
+		return false, err
+	}
+	return isKmsConfigInUse(tx, kmsConfig)
+}
+
+func _isKmsConfigInUse(db *gorm.DB, kmsConfig *datamodel.KmsConfig) (bool, error) {
+	svms, err := getSvmsByKmsConfigID(db, kmsConfig.ID)
+	if err != nil && !errors.IsNotFoundErr(err) {
+		return false, err
+	}
+	if len(svms) > 0 {
+		return true, nil
+	}
+	return false, nil
 }

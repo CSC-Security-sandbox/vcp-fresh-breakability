@@ -275,7 +275,7 @@ func (d *DataStoreRepository) GetPoolByVendorID(ctx context.Context, vendorID st
 
 func _getPoolWithDetails(db *gorm.DB, query *datamodel.Pool) (*datamodel.PoolView, error) {
 	pool := &datamodel.PoolView{}
-	err := db.Preload("Account").Preload("KmsConfig").First(&pool, query).Error
+	err := db.Preload("Account").Preload("KmsConfig").Preload("KmsConfig.ServiceAccount").Preload("KmsConfig.Account").First(&pool, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.NewNotFoundErr("pool", nil))
@@ -368,6 +368,8 @@ func ConvertPoolViewToPool(view *datamodel.PoolView) *datamodel.Pool {
 		ServiceAccountId:        view.ServiceAccountId,
 		DeploymentName:          view.DeploymentName,
 		PoolCredentials:         view.PoolCredentials,
+		KmsConfigID:             view.KmsConfigID,
+		KmsConfig:               view.KmsConfig,
 	}
 }
 

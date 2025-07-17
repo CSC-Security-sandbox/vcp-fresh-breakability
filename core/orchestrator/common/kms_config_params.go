@@ -60,3 +60,12 @@ type MigrateKmsConfigParams struct {
 	XCorrelationID string
 	ResourceID     string
 }
+
+type PollKmsConfigParams struct {
+	ResourceID     string
+	LocationID     string
+	ProjectNumber  string
+	XCorrelationID string
+	OperationUri   string
+	OperationDone  bool
+}

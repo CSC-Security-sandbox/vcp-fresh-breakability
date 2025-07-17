@@ -25,12 +25,15 @@ import (
 )
 
 var (
-	roleName               = "cmekNetAppVolumesRole"
-	parseKmsConfigResponse = _parseKmsConfigResponse
+	roleName                  = "cmekNetAppVolumesRole"
+	parseKmsConfigResponse    = _parseKmsConfigResponse
 	encodeEncryptVolumeV1beta = _encodeEncryptVolumeV1beta
 )
 
-const uriFormat = "^projects\\/[^\\/]+\\/locations\\/[^\\/]+\\/keyRings\\/[^\\/]+\\/cryptoKeys.+$"
+const (
+	uriFormat    = "^projects\\/[^\\/]+\\/locations\\/[^\\/]+\\/keyRings\\/[^\\/]+\\/cryptoKeys.+$"
+	regionGlobal = "global"
+)
 
 func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V1betaCheckKmsConfigParams) (gcpgenserver.V1betaCheckKmsConfigRes, error) {
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
@@ -92,6 +95,7 @@ func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V
 			Email:       kmsConfig.ServiceAccount.ServiceAccountEmail,
 			IsHealthy:   checkKmsConfigResponse.KmsConfigHealthCheck.Value.IsHealthy,
 			HealthError: checkKmsConfigResponse.KmsConfigHealthCheck.Value.HealthError.Value,
+			ProxyType:   coremodel.ProxyTypeCvp,
 		}
 
 		// Access the KMS crypto key to ensure it is accessible using impersonation
@@ -224,11 +228,17 @@ func categorizeCvpClientErrorsForCreateKmsConfigs(cvpErr error) (gcpgenserver.V1
 
 func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgenserver.KmsConfigV1beta, params gcpgenserver.V1betaCreateKmsConfigurationParams) (gcpgenserver.V1betaCreateKmsConfigurationRes, error) {
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	region, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
 			Code:    parsingErr.Code,
 			Message: parsingErr.Message,
+		}, nil
+	}
+	if region == regionGlobal {
+		return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
+			Code:    400,
+			Message: "KMS configuration not supported for global region",
 		}, nil
 	}
 	_, err := utils.ParseKeyFullPathResource(req.KeyFullPath)
@@ -254,6 +264,7 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 			var body = &models.KmsConfigV1beta{
 				ResourceID:  &req.ResourceId.Value,
 				KeyFullPath: &req.KeyFullPath,
+				Description: &req.Description.Value,
 			}
 
 			cvpCreateKmsConfigParams := &kms_configurations.V1betaCreateKmsConfigurationParams{
@@ -286,6 +297,7 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 				OperationDone:  *cvpResponse.Payload.Done,
 				UUID:           parsedCvpResponse.UUID, // UUID of the SDE kms config
 				XCorrelationID: params.XCorrelationID.Value,
+				Description:    req.Description.Value,
 			}
 
 			// create kms config in vsa DB and start the workflow to poll the SDE operation
@@ -325,13 +337,15 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 			}, nil
 		}
 	}
-
+	done := true
 	switch kmsConfig.State {
 	case coremodel.LifeCycleStateError:
 		return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
 			Message: "Kms config is in error state, please delete the config and try again",
 			Code:    http.StatusConflict,
 		}, nil
+	case coremodel.LifeCycleStateCreating:
+		done = false
 	}
 
 	resp, err := encodeKmsConfigV1(convertModelToKmsConfigV1Beta(kmsConfig))
@@ -340,7 +354,7 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 	}
 	return &gcpgenserver.OperationV1beta{
 		Response: resp,
-		Done:     gcpgenserver.NewOptBool(true),
+		Done:     gcpgenserver.NewOptBool(done),
 	}, nil
 }
 
@@ -1025,7 +1039,7 @@ func convertModelToKmsConfigV1Beta(kmsConfig *coremodel.KmsConfig) *gcpgenserver
 		UUID:            gcpgenserver.NewOptString(kmsConfig.UUID),
 		KmsState:        gcpgenserver.NewOptKmsConfigV1betaKmsState(gcpgenserver.KmsConfigV1betaKmsState(kmsConfig.State)),
 		KmsStateDetails: gcpgenserver.NewOptString(kmsConfig.StateDetails),
-		KeyFullPath: utils.ParsedKeyFullPathResource{ProjectID: kmsConfig.CustomerProjectID,
+		KeyFullPath: utils.ParsedKeyFullPathResource{ProjectID: kmsConfig.KeyProjectID,
 			KeyRing: kmsConfig.KeyRing, Location: kmsConfig.KeyRingLocation, CryptoKey: kmsConfig.KeyName}.String(),
 		ResourceId:  gcpgenserver.NewOptString(kmsConfig.ResourceID),
 		CreatedTime: gcpgenserver.NewOptDateTime(kmsConfig.CreatedAt),

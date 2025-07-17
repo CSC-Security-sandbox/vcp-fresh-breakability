@@ -76,7 +76,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, temporal.NewNonRetryableApplicationError("Migrate SDE KMS Config Error", "error", nil))
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("error"))
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
@@ -109,7 +109,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(temporal.NewNonRetryableApplicationError("Polling error", "error", nil))
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -141,7 +141,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(temporal.NewNonRetryableApplicationError("operation failed:", "error", nil))
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -175,7 +175,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Get Pools by account name failed", "error", nil))
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -214,7 +214,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Describe VSA Kms Config failed", "error", nil))
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -253,7 +253,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Describe VSA Kms Config failed", "error", nil))
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -294,7 +294,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError(errors.NewNotFoundErr("Record not found", nil).Error(), "KmsConfigNotFound", nil))
 		env.OnActivity("CreateAndSyncKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError(errors.NewNotFoundErr("CreateAndSyncKmsConfigActivity", nil).Error(), "KmsConfigNotFound", nil))
 		env.OnActivity("DeleteKmsConfig", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -336,7 +336,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("CreateAndSyncKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError(errors.NewNotFoundErr("Create VSA Kms Config error", nil).Error(), "KmsConfigNotFound", nil))
 		env.OnActivity("DeleteKmsConfig", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -379,7 +379,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(temporal.NewNonRetryableApplicationError(errors.NewNotFoundErr("GrantRoleActivity", nil).Error(), "KmsConfigNotFound", nil))
 		env.OnActivity("DeleteKmsConfig", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -423,7 +423,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AccessCryptoKeyWithImpersonationActivity", mock.Anything, mock.Anything).Return(temporal.NewNonRetryableApplicationError(errors.NewNotFoundErr("AccessCryptoKeyWithImpersonationActivity", nil).Error(), "KmsConfigNotFound", nil))
 		env.OnActivity("DeleteKmsConfig", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -465,7 +465,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(&vsaKmsConfig, nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -508,7 +508,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(&vsaKmsConfig, nil)
 		env.OnActivity("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(temporal.NewNonRetryableApplicationError(errors.NewNotFoundErr("Update Kms Config failure", nil).Error(), "KmsConfigNotFound", nil))
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -553,7 +553,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Get volumes by PoolId failed", "error", nil))
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe().Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe().Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -600,7 +600,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Get Node failed", "error", nil))
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -657,7 +657,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(dbNodes, nil)
 		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Get SVM for Pool ID failed", "error", nil))
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -715,7 +715,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(dbNodes, nil)
 		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -776,7 +776,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(dbNodes, nil)
 		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
 		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Updating Pool state failed", "error", nil))
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -837,7 +837,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(temporal.NewNonRetryableApplicationError("Create DNS failed", "error", nil))
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -898,7 +898,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Update Kms Config state failed", "error", nil))
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -960,7 +960,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(temporal.NewNonRetryableApplicationError("Update Kms Config state failed", "error", nil)).Once()
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -1023,7 +1023,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Update Pool with Kms Config failed", "error", nil))
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -1087,7 +1087,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -1151,7 +1151,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Updating Pool to Ready state failed", "error", nil))
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -1218,7 +1218,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("MigrateVsaPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdatePoolState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 
@@ -1285,7 +1285,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("MigrateVsaPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(temporal.NewNonRetryableApplicationError("Updating Pool to Ready state failed", "error", nil))
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CompleteKmsMigrationActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
 

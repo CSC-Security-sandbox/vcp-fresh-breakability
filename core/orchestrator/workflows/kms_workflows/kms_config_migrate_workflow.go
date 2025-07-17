@@ -127,10 +127,10 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	//     -----		Migrate SDE resources     	-----
 
 	defer func() {
-		// KmsConfig State is not dependent on outcome of migration;
+		// KmsConfig State is not dependent on an outcome of migration;
 		// KmsConfig state is determined by Verify operation (same as SDE workflow)
 		disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
-		workflow.ExecuteActivity(disconnectedCtx, kmsConfigActivity.CompleteKmsMigrationActivity, kmsConfigUUID)
+		workflow.ExecuteActivity(disconnectedCtx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, kmsConfigUUID)
 		kmsWorkflow.Logger.Info(vsaCmekMigrationSkippedPoolReason)
 	}()
 

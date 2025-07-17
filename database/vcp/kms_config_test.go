@@ -2,6 +2,8 @@ package database
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -538,7 +540,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 			tt.Fatalf("Failed to create kms config: %v", err)
 		}
 
-		deletedKmsConfig, err := store.DeleteKmsConfig(context.Background(), kmsConfig.UUID)
+		deletedKmsConfig, err := store.DeleteKmsConfig(context.Background(), kmsConfig.UUID, models.LifeCycleStateDeleted, "")
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.NotNil(tt, deletedKmsConfig.DeletedAt, "Expected kms config to be deleted, got %v", deletedKmsConfig.DeletedAt)
 		assert.Equal(tt, models.LifeCycleStateDeleted, deletedKmsConfig.State, "Expected kms config state %v, got %v", models.LifeCycleStateDeleted, deletedKmsConfig.State)
@@ -556,7 +558,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		err = ClearInMemoryDB(store.db.GORM())
 		assert.NoError(tt, err, "Failed to clean up test database")
 
-		deletedKmsConfig, err := store.DeleteKmsConfig(context.Background(), "dummy")
+		deletedKmsConfig, err := store.DeleteKmsConfig(context.Background(), "dummy", models.LifeCycleStateDeleted, "")
 		assert.Nil(tt, deletedKmsConfig, "Expected nil volume replication, got %v", deletedKmsConfig)
 		assert.EqualError(tt, err, "KMS Configuration not found", "Expected no error, got %v", err)
 	})
@@ -624,5 +626,196 @@ func TestGetKmsConfigByKeyFullPath(t *testing.T) {
 		result, err := store.GetKmsConfigByKeyFullPath(context.Background(), keyFullPath)
 		assert.Error(t, err)
 		assert.Nil(t, result)
+	})
+}
+
+func TestIsKmsConfigInUse(t *testing.T) {
+	t.Run("ReturnsTrueWhenKmsConfigIsInUseByAtLeastOneVM", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-uuid"},
+			Name:      "test-kms",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err)
+
+		originalIsKmsConfigInUse := isKmsConfigInUse
+		defer func() { isKmsConfigInUse = originalIsKmsConfigInUse }()
+
+		isKmsConfigInUse = func(db *gorm.DB, kmsConfig *datamodel.KmsConfig) (bool, error) {
+			return true, nil
+		}
+
+		inUse, err := store.IsKmsConfigInUse(context.Background(), "test-kms-uuid")
+		assert.NoError(tt, err)
+		assert.True(tt, inUse)
+	})
+
+	t.Run("ReturnsFalseWhenKmsConfigIsNotInUseByAnyVM", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-uuid"},
+			Name:      "test-kms",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err)
+
+		originalIsKmsConfigInUse := isKmsConfigInUse
+		defer func() { isKmsConfigInUse = originalIsKmsConfigInUse }()
+
+		isKmsConfigInUse = func(db *gorm.DB, kmsConfig *datamodel.KmsConfig) (bool, error) {
+			return false, nil
+		}
+
+		inUse, err := store.IsKmsConfigInUse(context.Background(), "test-kms-uuid")
+		assert.NoError(tt, err)
+		assert.False(tt, inUse)
+	})
+
+	t.Run("ReturnsErrorWhenKmsConfigDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		inUse, err := store.IsKmsConfigInUse(context.Background(), "non-existent-uuid")
+		assert.Error(tt, err)
+		assert.False(tt, inUse)
+		assert.True(tt, customerrors.IsNotFoundErr(err))
+	})
+
+	t.Run("ReturnsErrorWhenDatabaseOperationFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-uuid"},
+			Name:      "test-kms",
+		}
+		err = store.db.Create(kmsConfig).Error()
+		assert.NoError(tt, err)
+
+		originalIsKmsConfigInUse := isKmsConfigInUse
+		defer func() { isKmsConfigInUse = originalIsKmsConfigInUse }()
+
+		isKmsConfigInUse = func(db *gorm.DB, kmsConfig *datamodel.KmsConfig) (bool, error) {
+			return false, fmt.Errorf("database error")
+		}
+
+		inUse, err := store.IsKmsConfigInUse(context.Background(), "test-kms-uuid")
+		assert.Error(tt, err)
+		assert.False(tt, inUse)
+		assert.Contains(tt, err.Error(), "database error")
+	})
+}
+
+func Test_isKmsConfigInUse(t *testing.T) {
+	t.Run("ReturnsTrueWhenSVMsAreUsingKmsConfig", func(t *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err)
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "kms-uuid"},
+			Name:      "test-kms",
+		}
+
+		originalGetSvmsByKmsConfigID := getSvmsByKmsConfigID
+		defer func() { getSvmsByKmsConfigID = originalGetSvmsByKmsConfigID }()
+
+		getSvmsByKmsConfigID = func(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Svm, error) {
+			return []*datamodel.Svm{
+				{BaseModel: datamodel.BaseModel{UUID: "svm-uuid"}, Name: "test-svm"},
+			}, nil
+		}
+
+		inUse, err := _isKmsConfigInUse(db, kmsConfig)
+		assert.NoError(t, err)
+		assert.True(t, inUse)
+	})
+
+	t.Run("ReturnsFalseWhenNoSVMsAreUsingKmsConfig", func(t *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err)
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "kms-uuid"},
+			Name:      "test-kms",
+		}
+
+		originalGetSvmsByKmsConfigID := getSvmsByKmsConfigID
+		defer func() { getSvmsByKmsConfigID = originalGetSvmsByKmsConfigID }()
+
+		getSvmsByKmsConfigID = func(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Svm, error) {
+			return []*datamodel.Svm{}, nil
+		}
+
+		inUse, err := _isKmsConfigInUse(db, kmsConfig)
+		assert.NoError(t, err)
+		assert.False(t, inUse)
+	})
+
+	t.Run("ReturnsFalseWhenNotFoundErrorOccurs", func(t *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err)
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "kms-uuid"},
+			Name:      "test-kms",
+		}
+
+		originalGetSvmsByKmsConfigID := getSvmsByKmsConfigID
+		defer func() { getSvmsByKmsConfigID = originalGetSvmsByKmsConfigID }()
+
+		getSvmsByKmsConfigID = func(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Svm, error) {
+			return nil, errors.New("some error")
+		}
+
+		inUse, err := _isKmsConfigInUse(db, kmsConfig)
+		assert.Error(t, err)
+		assert.False(t, inUse)
+	})
+
+	t.Run("ReturnsErrorWhenDatabaseErrorOccurs", func(t *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(t, err)
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "kms-uuid"},
+			Name:      "test-kms",
+		}
+
+		originalGetSvmsByKmsConfigID := getSvmsByKmsConfigID
+		defer func() { getSvmsByKmsConfigID = originalGetSvmsByKmsConfigID }()
+
+		getSvmsByKmsConfigID = func(db *gorm.DB, kmsConfigID int64) ([]*datamodel.Svm, error) {
+			return nil, fmt.Errorf("database connection error")
+		}
+
+		inUse, err := _isKmsConfigInUse(db, kmsConfig)
+		assert.Error(t, err)
+		assert.False(t, inUse)
+		assert.Contains(t, err.Error(), "database connection error")
 	})
 }

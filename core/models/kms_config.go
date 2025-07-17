@@ -1,5 +1,10 @@
 package models
 
+const (
+	ProxyTypeVcp = "vcp"
+	ProxyTypeCvp = "cvp"
+)
+
 // KmsConfig describes a KMS configuration in the VCP cloud model
 type KmsConfig struct {
 	BaseModel
@@ -30,6 +35,7 @@ type KmsAttributes struct {
 
 // KmsConfigCheck describes an gcp kms configuration check object in the cloud volumes model
 type KmsConfigCheck struct {
+	ProxyType   string
 	Email       string
 	IsHealthy   bool
 	HealthError string

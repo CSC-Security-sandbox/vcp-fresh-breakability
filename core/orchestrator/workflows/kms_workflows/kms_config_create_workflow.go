@@ -121,7 +121,17 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	pollingCtx := workflow.WithActivityOptions(ctx, pollingOptions)
 
 	// Poll the KMS configuration operation until it is done
-	err = workflow.ExecuteActivity(pollingCtx, kmsConfigActivity.PollKmsConfigOperationActivity, params).Get(ctx, nil)
+
+	// Prepare Poll Kms Config Params
+	pollKmsConfigParams := &common.PollKmsConfigParams{
+		OperationUri:   params.OperationUri,
+		OperationDone:  params.OperationDone,
+		ProjectNumber:  params.ProjectNumber,
+		LocationID:     params.LocationID,
+		XCorrelationID: params.XCorrelationID,
+	}
+
+	err = workflow.ExecuteActivity(pollingCtx, kmsConfigActivity.PollKmsConfigOperationActivity, pollKmsConfigParams).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}

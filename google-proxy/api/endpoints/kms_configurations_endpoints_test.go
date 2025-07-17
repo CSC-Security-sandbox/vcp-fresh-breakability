@@ -330,6 +330,56 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.Equal(t, float64(409), result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Code)
 	})
+	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInCreatingState", func(t *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "invalid-location",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		kmsConfig := &vsaCoreModels.KmsConfig{State: vsaCoreModels.LifeCycleStateCreating,
+			KmsAttributes: &vsaCoreModels.KmsAttributes{}}
+		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+	t.Run("WhenCheckKmsConfigurationParseAndValidateRegionAndZoneReturnsGlobalRegion", func(t *testing.T) {
+		// Define input parameters
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "invalid-location",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return regionGlobal, "", nil
+		}
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"}
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		// Call the method under test
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		// Check if the code is as expected
+		assert.Equal(t, float64(http.StatusBadRequest), result.(*gcpgenserver.V1betaCreateKmsConfigurationBadRequest).Code)
+	})
 }
 
 // V1betaEncryptVolumes' unit-tests
