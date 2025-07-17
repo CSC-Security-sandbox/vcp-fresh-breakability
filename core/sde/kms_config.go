@@ -43,7 +43,7 @@ func UpdateSDEKmsConfiguration(ctx context.Context, kmsConfig *datamodel.KmsConf
 	}
 	res, err := cvpClient.KmsConfigurations.V1betaUpdateKmsConfiguration(updateKmsConfigParams)
 	if err != nil {
-		return convertCvpClientUpdateKmsConfigErrorToVcpError(err), nil
+		return convertCvpClientUpdateKmsConfigErrorToVcpError(err), err
 	}
 	if res == nil || res.Payload == nil {
 		return &gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError{
@@ -67,7 +67,7 @@ func DeleteSDEKmsConfiguration(ctx context.Context, kmsConfig *datamodel.KmsConf
 	}
 	res, _, err := cvpClient.KmsConfigurations.V1betaDeleteKmsConfiguration(deleteKmsConfigParams)
 	if err != nil {
-		return convertCvpClientDeleteKmsConfigErrorToVcpError(err), nil
+		return convertCvpClientDeleteKmsConfigErrorToVcpError(err), err
 	}
 	if res == nil || res.Payload == nil {
 		return &gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError{

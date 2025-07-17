@@ -2,6 +2,7 @@ package kms_workflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	errorcore "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -37,10 +38,8 @@ func UpdateKmsConfigWorkflow(ctx workflow.Context, kmsConfig *datamodel.KmsConfi
 	_, err = kmsConfigWf.Run(ctx, kmsConfig, params)
 	if err != nil {
 		kmsConfigWf.Status = workflows.WorkflowStatusFailed
-		err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
-		if err != nil {
-			return nil, err
-		}
+		err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), errorcore.WrapAsTemporalApplicationError(errorcore.NewVCPError(errorcore.ErrKMSUpdate, err)))
+		return nil, err
 	}
 	kmsConfigWf.Status = workflows.WorkflowStatusCompleted
 	err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)

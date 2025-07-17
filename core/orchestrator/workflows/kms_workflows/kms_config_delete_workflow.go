@@ -2,12 +2,12 @@ package kms_workflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	errorcore "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -42,10 +42,8 @@ func DeleteKmsConfigWorkflow(ctx workflow.Context, kmsConfig *datamodel.KmsConfi
 	_, err = kmsConfigWf.Run(ctx, kmsConfig, params)
 	if err != nil {
 		kmsConfigWf.Status = workflows.WorkflowStatusFailed
-		err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
-		if err != nil {
-			return nil, err
-		}
+		err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), errorcore.WrapAsTemporalApplicationError(errorcore.NewVCPError(errorcore.ErrKMSDelete, err)))
+		return nil, err
 	}
 	kmsConfigWf.Status = workflows.WorkflowStatusCompleted
 	err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
@@ -91,7 +89,7 @@ func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, defaultActivityOpts)
-	jwtToken, err := auth.GetSignedJwtToken(params.AccountName)
+	jwtToken, err := getSignedJwtToken(params.AccountName)
 	if err != nil {
 		return nil, err
 	}

@@ -114,7 +114,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 		// Call the method under test
 		result, err := UpdateSDEKmsConfiguration(context.Background(), req, params)
 		// Assertions
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationBadRequest).Code)
@@ -158,7 +158,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 		// Call the method under test
 		result, err := UpdateSDEKmsConfiguration(context.Background(), req, params)
 		// Assertions
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationUnprocessableEntity).Code)
@@ -202,7 +202,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 		// Call the method under test
 		result, err := UpdateSDEKmsConfiguration(context.Background(), req, params)
 		// Assertions
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationConflict).Code)
@@ -246,7 +246,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 		// Call the method under test
 		result, err := UpdateSDEKmsConfiguration(context.Background(), req, params)
 		// Assertions
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationUnauthorized).Code)
@@ -290,7 +290,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 		// Call the method under test
 		result, err := UpdateSDEKmsConfiguration(context.Background(), req, params)
 		// Assertions
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationForbidden).Code)
@@ -334,7 +334,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 		// Call the method under test
 		result, err := UpdateSDEKmsConfiguration(context.Background(), req, params)
 		// Assertions
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationTooManyRequests).Code)
@@ -378,7 +378,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 		// Call the method under test
 		result, err := UpdateSDEKmsConfiguration(context.Background(), req, params)
 		// Assertions
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError).Code)
@@ -422,7 +422,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 		// Call the method under test
 		result, err := UpdateSDEKmsConfiguration(context.Background(), req, params)
 		// Assertions
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError).Code)
@@ -490,7 +490,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 			return *cvpClient
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationBadRequest).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationBadRequest).Message)
@@ -524,7 +524,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 			return *cvpClient
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationUnprocessableEntity).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationUnprocessableEntity).Message)
@@ -558,7 +558,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 			return *cvpClient
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationConflict).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationConflict).Message)
@@ -592,7 +592,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 			return *cvpClient
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationUnauthorized).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationUnauthorized).Message)
@@ -626,7 +626,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 			return *cvpClient
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationForbidden).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationForbidden).Message)
@@ -660,7 +660,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 			return *cvpClient
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationTooManyRequests).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationTooManyRequests).Message)
@@ -694,7 +694,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 			return *cvpClient
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError).Message)
@@ -728,7 +728,7 @@ func TestDeleteSDEKmsConfiguration(t *testing.T) {
 			return *cvpClient
 		}
 		result, err := DeleteSDEKmsConfiguration(context.Background(), req, params)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteKmsConfigurationInternalServerError).Message)

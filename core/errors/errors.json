@@ -271,7 +271,25 @@
   },
   "6063": {
     "description": "Cmek Migration failure",
-    "message": "Cmek Migration failure",
+    "message": "Error while migrating KMS configuration",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6066": {
+    "description": "Cmek Deletion failure",
+    "message": "Error while deleting KMS configuration",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6067": {
+    "description": "Cmek Update failure",
+    "message": "Error while updating KMS configuration",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6068": {
+    "description": "Cmek Creation failure",
+    "message": "Error while creating KMS configuration",
     "retriable": false,
     "http_code": 500
   }

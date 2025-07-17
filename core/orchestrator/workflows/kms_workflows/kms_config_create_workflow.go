@@ -5,6 +5,7 @@ import (
 
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	errorcore "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -46,10 +47,8 @@ func CreateKmsConfigWorkflow(ctx workflow.Context, params *common.CreateKmsConfi
 
 	if err != nil {
 		kmsConfigWorkflow.Status = workflows.WorkflowStatusFailed
-		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
-		if err != nil {
-			return nil, err
-		}
+		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), errorcore.WrapAsTemporalApplicationError(errorcore.NewVCPError(errorcore.ErrKMSCreate, err)))
+		return nil, err
 	}
 
 	kmsConfigWorkflow.Status = workflows.WorkflowStatusCompleted

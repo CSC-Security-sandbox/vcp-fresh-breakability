@@ -162,4 +162,48 @@ func TestUpdateKmsConfigWorkflow(t *testing.T) {
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
+	t.Run("WhenActivityFails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		// Set up test data
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-config-id",
+			AccountName: "test-account",
+		}
+		getSignedJwtToken = func(projectNumber string) (string, error) {
+			return "test-jwt-token", nil
+		}
+		defer func() {
+			getSignedJwtToken = auth.GetSignedJwtToken
+		}()
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateSDEKmsConfig", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New(400, "error returned"))
+		// Execute workflow
+		env.ExecuteWorkflow(UpdateKmsConfigWorkflow, kmsConfig, params)
+
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+
+		// Assert workflow execution
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
 }

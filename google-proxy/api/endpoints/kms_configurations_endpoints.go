@@ -824,14 +824,18 @@ func (h Handler) V1betaDeleteKmsConfiguration(ctx context.Context, params gcpgen
 	}
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if kmsConfig != nil {
+	if kmsConfig != nil && kmsConfig.State == coremodel.LifeCycleStateUpdating {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
 			Done:     gcpgenserver.NewOptBool(false),
 		}, nil
 	}
-	return &gcpgenserver.V1betaDeleteKmsConfigurationNoContent{}, nil
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
 }
 
 func convertToKmsConfigCheckV1beta(res *kms_configurations.V1betaCheckKmsConfigOK) *gcpgenserver.KmsConfigCheckV1beta {
