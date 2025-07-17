@@ -137,12 +137,12 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 }
 
 func _validateCreateBackupParams(ctx context.Context, se database.Storage, params *common.CreateBackupParams) error {
-	backupAlreadyCreating, err := se.IsBackupInCreatingorDeletingStateByVolume(ctx, params.VolumeUUID)
+	backupInTransition, err := se.IsBackupInCreatingorDeletingStateByVolume(ctx, params.VolumeUUID)
 	if err != nil {
 		return err
 	}
-	if backupAlreadyCreating {
-		return customerrors.NewUserInputValidationErr("Already a backup is in creating state for selected volume")
+	if backupInTransition {
+		return customerrors.NewUserInputValidationErr("A backup operation from the same volume is currently in progress. Please wait for it to complete before starting a new backup")
 	}
 	vol, err := se.GetVolume(ctx, params.VolumeUUID)
 	if err != nil {
@@ -260,6 +260,14 @@ func _validateBackupDeleteParams(ctx context.Context, se database.Storage, param
 			return customerrors.NewUserInputValidationErr("Backup not found")
 		}
 		return err
+	}
+	// Check if any backup for the same volume is in transition state (CREATING or DELETING)
+	backupInTransition, err := se.IsBackupInCreatingorDeletingStateByVolume(ctx, backup.VolumeUUID)
+	if err != nil {
+		return err
+	}
+	if backupInTransition {
+		return customerrors.NewUserInputValidationErr("A backup operation from the same volume is currently in progress. Please wait for it to complete before starting a new backup")
 	}
 
 	// check if backup is latest

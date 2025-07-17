@@ -196,7 +196,7 @@ func Test_validateCreateBackupParams(t *testing.T) {
 		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(true, nil)
 
 		err := _validateCreateBackupParams(ctx, store, params)
-		assert.EqualError(tt, err, "Already a backup is in creating state for selected volume")
+		assert.EqualError(tt, err, "A backup operation from the same volume is currently in progress. Please wait for it to complete before starting a new backup")
 	})
 
 	t.Run("FailsVolumeState", func(tt *testing.T) {
@@ -548,6 +548,7 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 			VolumeUUID: "volumeUUID1",
 		}
 		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
 		store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(false, nil)
 		store.On("BackupCountByVolumeID", ctx, backup.VolumeUUID).Return(int64(2), nil)
 		err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
@@ -565,6 +566,7 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 			VolumeUUID: "volumeUUID1",
 		}
 		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
 		store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(true, nil)
 		store.On("BackupCountByVolumeID", ctx, backup.VolumeUUID).Return(int64(2), nil)
 		err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
@@ -607,6 +609,7 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 			VolumeUUID: "volumeUUID1",
 		}
 		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
 		store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(false, errors.New("error checking latest backup"))
 		err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
 			BackupUUID:      "testBackupUUID",
@@ -624,6 +627,7 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 			VolumeUUID: "volumeUUID1",
 		}
 		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, nil)
 		store.On("IsLatestBackup", ctx, backup.UUID, backup.VolumeUUID).Return(false, nil)
 		store.On("BackupCountByVolumeID", ctx, backup.VolumeUUID).Return(int64(0), errors.New("error counting backups"))
 		err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
@@ -633,6 +637,40 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 		})
 		assert.NotNil(t, err)
 		assert.EqualError(t, err, "error counting backups")
+	})
+	t.Run("OnBackupInTransitionState", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		backup := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
+			VolumeUUID: "volumeUUID1",
+		}
+		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(true, nil)
+		err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
+			BackupUUID:      "testBackupUUID",
+			BackupVaultUUID: "testVaultID",
+			AccountName:     "testAccount",
+		})
+		assert.NotNil(t, err)
+		assert.EqualError(t, err, "A backup operation from the same volume is currently in progress. Please wait for it to complete before starting a new backup")
+	})
+	t.Run("OnBackupInTransitionStateCheckError", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		backup := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "testBackupUUID"},
+			VolumeUUID: "volumeUUID1",
+		}
+		store.On("GetBackup", ctx, "testVaultID", "testBackupUUID", "testAccount").Return(backup, nil)
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, backup.VolumeUUID).Return(false, errors.New("transition state check error"))
+		err := validateBackupDeleteParams(ctx, store, &common.DeleteBackupParams{
+			BackupUUID:      "testBackupUUID",
+			BackupVaultUUID: "testVaultID",
+			AccountName:     "testAccount",
+		})
+		assert.NotNil(t, err)
+		assert.EqualError(t, err, "transition state check error")
 	})
 }
 
