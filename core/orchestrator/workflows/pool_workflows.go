@@ -446,6 +446,20 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	dbPool := pool
 	wf.Logger.Info("Updating pool with new parameters", "params", updatePoolParams) // Update the pool with the new parameters
 
+	// if there is no need of vlm workflow, just perform update pool in db
+	if dbPool.SizeInBytes == int64(updatePoolParams.SizeInBytes) && dbPool.PoolAttributes.ThroughputMibps == int64(updatePoolParams.TotalThroughputMibps) &&
+		dbPool.PoolAttributes.Iops == int64(updatePoolParams.TotalIops) {
+		if dbPool.Description != updatePoolParams.Description {
+			dbPool.Description = updatePoolParams.Description
+		}
+		if updatePoolParams.Labels != nil {
+			dbPool.PoolAttributes.Labels = updatePoolParams.Labels
+		}
+		rollbackManager.AddActivity(poolActivity.UpdatedPool, pool)
+		err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPool, dbPool).Get(ctx, nil) // replace with the actual activity to update the pool
+		return nil, err
+	}
+
 	// Reconstruct the existing VLM config.
 	dsc := &vmrs.Decision{
 		ChosenVMs: []string{""}, // Doesn't matter for retrieving existing VLM config
@@ -497,21 +511,19 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
-	poolObj := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{
-			UUID: dbPool.UUID,
-		},
-		SizeInBytes: int64(updatePoolParams.SizeInBytes),
-		Description: updatePoolParams.Description,
-		PoolAttributes: &datamodel.PoolAttributes{
-			ThroughputMibps: int64(updatePoolParams.TotalThroughputMibps),
-			Iops:            int64(updatePoolParams.TotalIops),
-			Labels:          updatePoolParams.Labels,
-		},
+	// modifying only the required fields
+	dbPool.SizeInBytes = int64(updatePoolParams.SizeInBytes)
+	dbPool.Description = updatePoolParams.Description
+	if dbPool.PoolAttributes != nil {
+		dbPool.PoolAttributes.ThroughputMibps = int64(updatePoolParams.TotalThroughputMibps)
+		dbPool.PoolAttributes.Iops = int64(updatePoolParams.TotalIops)
+		if updatePoolParams.Labels != nil {
+			dbPool.PoolAttributes.Labels = updatePoolParams.Labels
+		}
 	}
 
 	rollbackManager.AddActivity(poolActivity.UpdatedPool, pool)
-	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPool, poolObj).Get(ctx, nil) // replace with the actual activity to update the pool
+	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPool, dbPool).Get(ctx, nil) // replace with the actual activity to update the pool
 	return nil, err
 }
 

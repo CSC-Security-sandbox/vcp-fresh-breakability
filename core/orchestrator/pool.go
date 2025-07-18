@@ -245,6 +245,10 @@ func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
 		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size not supported. Pool size must be greater than %s and a multiple of 1GiB", utils.FmtUint64Bytes(minQuotaInBytesPool)))
 	}
 
+	if params.SizeInBytes > maxQuotaInBytesPool {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size not supported. Pool size must be less than %s", utils.FmtUint64Bytes(maxQuotaInBytesPool)))
+	}
+
 	if params.SizeInBytes%minSizeGranularity != 0 {
 		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Given pool size must be a multiple of %s", utils.FmtUint64Bytes(minSizeGranularity)))
 	}
@@ -253,16 +257,13 @@ func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
 		return customerrors.NewUserInputValidationErr("Given QoS type not supported for Unified Flex Storage Pool. Supported QoS type is " + QosTypeAuto)
 	}
 
-	if !params.CustomPerformanceParams.Enabled {
-		return customerrors.NewUserInputValidationErr("CustomPerformanceEnabled must be true for Unified Flex Storage Pool")
-	} else {
-		if minCustomThroughput > uint64(params.CustomPerformanceParams.ThroughputMibps) {
-			return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalThroughputMibps must be set and must be greater than %d MiBps for Unified Flex Storage Pool", minCustomThroughput))
-		}
+	// CustomPerformanceParams is always set in endpoints layer
+	if minCustomThroughput > uint64(params.CustomPerformanceParams.ThroughputMibps) {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalThroughputMibps must be set and must be greater than %d MiBps for Unified Flex Storage Pool", minCustomThroughput))
+	}
 
-		if minCustomIops > uint64(params.CustomPerformanceParams.Iops) {
-			return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalIops must be greater than %d for Unified Flex Storage Pool", minCustomIops))
-		}
+	if minCustomIops > uint64(params.CustomPerformanceParams.Iops) {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalIops must be greater than %d for Unified Flex Storage Pool", minCustomIops))
 	}
 
 	if !autoTieringEnabled && (params.AllowAutoTiering || params.HotTierSizeInBytes > 0) {
@@ -273,7 +274,7 @@ func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
 
 func _validateUpdatePoolParams(params *commonparams.UpdatePoolParams, pool *datamodel.Pool) error {
 	if pool.QosType == QosTypeAuto && params.QosType != QosTypeAuto {
-		return customerrors.NewUserInputValidationErr("Cannot change qos type from manual to auto")
+		return customerrors.NewUserInputValidationErr("Cannot change qos type from auto to manual")
 	}
 
 	if minQuotaInBytesPool > params.SizeInBytes {
@@ -302,16 +303,12 @@ func _validateUpdatePoolParams(params *commonparams.UpdatePoolParams, pool *data
 		return customerrors.NewUserInputValidationErr("Auto tiering disable operation is not supported")
 	}
 
-	if !params.CustomPerformanceEnabled {
-		return customerrors.NewUserInputValidationErr("CustomPerformanceEnabled must be true for Unified Flex Storage Pool")
-	} else {
-		if minCustomThroughput > uint64(params.TotalThroughputMibps) {
-			return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalThroughputMibps must be set and must be greater than %d MiBps for Unified Flex Storage Pool", minCustomThroughput))
-		}
+	if minCustomThroughput > uint64(params.TotalThroughputMibps) {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalThroughputMibps must be set and must be greater than %d MiBps for Unified Flex Storage Pool", minCustomThroughput))
+	}
 
-		if minCustomIops > uint64(params.TotalIops) {
-			return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalIops must be greater than %d for Unified Flex Storage Pool", minCustomIops))
-		}
+	if minCustomIops > uint64(params.TotalIops) {
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalIops must be greater than %d for Unified Flex Storage Pool", minCustomIops))
 	}
 
 	return nil

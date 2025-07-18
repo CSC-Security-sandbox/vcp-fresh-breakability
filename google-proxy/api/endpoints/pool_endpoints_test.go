@@ -670,20 +670,6 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 			message: "Updating HotTier auto resize is currently not supported",
 		},
 		{
-			name: "QosType is set",
-			req: &gcpgenserver.PoolUpdateV1beta{
-				QosType: gcpgenserver.NewOptNilString("auto"),
-			},
-			message: "Updating QosType is currently not supported",
-		},
-		{
-			name: "CustomPerformanceEnabled is set to false",
-			req: &gcpgenserver.PoolUpdateV1beta{
-				CustomPerformanceEnabled: gcpgenserver.NewOptNilBool(false),
-			},
-			message: "CustomerPerformance must be enabled for Unified Flex Storage Pool",
-		},
-		{
 			name: "Shrink pool size",
 			req: &gcpgenserver.PoolUpdateV1beta{
 				SizeInBytes: gcpgenserver.NewOptNilFloat64(1073741824), // 1 GiB

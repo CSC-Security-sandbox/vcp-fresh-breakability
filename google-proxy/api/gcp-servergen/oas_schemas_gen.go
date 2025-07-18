@@ -5018,42 +5018,42 @@ func (s *OperationV1beta) SetResponse(val jx.Raw) {
 	s.Response = val
 }
 
-func (*OperationV1beta) v1betaCreateActiveDirectoryRes()        {}
-func (*OperationV1beta) v1betaCreateBackupPolicyRes()           {}
-func (*OperationV1beta) v1betaCreateBackupRes()                 {}
-func (*OperationV1beta) v1betaCreateBackupVaultRes()            {}
-func (*OperationV1beta) v1betaCreateKmsConfigurationRes()       {}
-func (*OperationV1beta) v1betaCreatePoolRes()                   {}
-func (*OperationV1beta) v1betaCreateReplicationRes()            {}
-func (*OperationV1beta) v1betaCreateSnapshotRes()               {}
-func (*OperationV1beta) v1betaCreateVolumeRes()                 {}
-func (*OperationV1beta) v1betaDeleteActiveDirectoryRes()        {}
-func (*OperationV1beta) v1betaDeleteBackupPolicyRes()           {}
-func (*OperationV1beta) v1betaDeleteBackupUnderBackupVaultRes() {}
-func (*OperationV1beta) v1betaDeleteBackupVaultRes()            {}
-func (*OperationV1beta) v1betaDeleteHostGroupRes()              {}
-func (*OperationV1beta) v1betaDeleteKmsConfigurationRes()       {}
-func (*OperationV1beta) v1betaDeletePoolRes()                   {}
-func (*OperationV1beta) v1betaDeleteReplicationRes()            {}
-func (*OperationV1beta) v1betaDeleteSnapshotRes()               {}
-func (*OperationV1beta) v1betaDeleteVolumeRes()                 {}
-func (*OperationV1beta) v1betaDescribeOperationRes()            {}
-func (*OperationV1beta) v1betaEncryptVolumesRes()               {}
+func (*OperationV1beta) v1betaCreateActiveDirectoryRes()                  {}
+func (*OperationV1beta) v1betaCreateBackupPolicyRes()                     {}
+func (*OperationV1beta) v1betaCreateBackupRes()                           {}
+func (*OperationV1beta) v1betaCreateBackupVaultRes()                      {}
+func (*OperationV1beta) v1betaCreateKmsConfigurationRes()                 {}
+func (*OperationV1beta) v1betaCreatePoolRes()                             {}
+func (*OperationV1beta) v1betaCreateReplicationRes()                      {}
+func (*OperationV1beta) v1betaCreateSnapshotRes()                         {}
+func (*OperationV1beta) v1betaCreateVolumeRes()                           {}
+func (*OperationV1beta) v1betaDeleteActiveDirectoryRes()                  {}
+func (*OperationV1beta) v1betaDeleteBackupPolicyRes()                     {}
+func (*OperationV1beta) v1betaDeleteBackupUnderBackupVaultRes()           {}
+func (*OperationV1beta) v1betaDeleteBackupVaultRes()                      {}
+func (*OperationV1beta) v1betaDeleteHostGroupRes()                        {}
+func (*OperationV1beta) v1betaDeleteKmsConfigurationRes()                 {}
+func (*OperationV1beta) v1betaDeletePoolRes()                             {}
+func (*OperationV1beta) v1betaDeleteReplicationRes()                      {}
+func (*OperationV1beta) v1betaDeleteSnapshotRes()                         {}
+func (*OperationV1beta) v1betaDeleteVolumeRes()                           {}
+func (*OperationV1beta) v1betaDescribeOperationRes()                      {}
+func (*OperationV1beta) v1betaEncryptVolumesRes()                         {}
 func (*OperationV1beta) v1betaInternalDeleteVolumeSnapmirrorSnapshotRes() {}
-func (*OperationV1beta) v1betaResumeReplicationRes()            {}
-func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()  {}
-func (*OperationV1beta) v1betaStopReplicationRes()              {}
-func (*OperationV1beta) v1betaSyncReplicationRes()              {}
-func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()        {}
-func (*OperationV1beta) v1betaUpdateBackupPolicyRes()           {}
-func (*OperationV1beta) v1betaUpdateBackupRes()                 {}
-func (*OperationV1beta) v1betaUpdateBackupVaultRes()            {}
-func (*OperationV1beta) v1betaUpdateHostGroupRes()              {}
-func (*OperationV1beta) v1betaUpdateKmsConfigurationRes()       {}
-func (*OperationV1beta) v1betaUpdatePoolRes()                   {}
-func (*OperationV1beta) v1betaUpdateReplicationRes()            {}
-func (*OperationV1beta) v1betaUpdateSnapshotRes()               {}
-func (*OperationV1beta) v1betaUpdateVolumeRes()                 {}
+func (*OperationV1beta) v1betaResumeReplicationRes()                      {}
+func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()            {}
+func (*OperationV1beta) v1betaStopReplicationRes()                        {}
+func (*OperationV1beta) v1betaSyncReplicationRes()                        {}
+func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()                  {}
+func (*OperationV1beta) v1betaUpdateBackupPolicyRes()                     {}
+func (*OperationV1beta) v1betaUpdateBackupRes()                           {}
+func (*OperationV1beta) v1betaUpdateBackupVaultRes()                      {}
+func (*OperationV1beta) v1betaUpdateHostGroupRes()                        {}
+func (*OperationV1beta) v1betaUpdateKmsConfigurationRes()                 {}
+func (*OperationV1beta) v1betaUpdatePoolRes()                             {}
+func (*OperationV1beta) v1betaUpdateReplicationRes()                      {}
+func (*OperationV1beta) v1betaUpdateSnapshotRes()                         {}
+func (*OperationV1beta) v1betaUpdateVolumeRes()                           {}
 
 // NewOptActiveDirectoryV1betaActiveDirectoryState returns new OptActiveDirectoryV1betaActiveDirectoryState with value set to v.
 func NewOptActiveDirectoryV1betaActiveDirectoryState(v ActiveDirectoryV1betaActiveDirectoryState) OptActiveDirectoryV1betaActiveDirectoryState {

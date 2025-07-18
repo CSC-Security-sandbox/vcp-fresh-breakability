@@ -687,16 +687,6 @@ func TestValidateCreatePoolParams(t *testing.T) {
 		err := _validateCreatePoolParams(params)
 		assert.EqualError(t, err, "Given QoS type not supported for Unified Flex Storage Pool. Supported QoS type is "+QosTypeAuto)
 	})
-	t.Run("ValidateCreatePoolParams_WithNoCustomPerformanceSet", func(tt *testing.T) {
-		params := &common.CreatePoolParams{
-			SizeInBytes:             2 * 1099511627776,
-			ServiceLevel:            ServiceLevelNameFLEX,
-			QosType:                 QosTypeAuto,
-			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: false, ThroughputMibps: 0, Iops: 0},
-		}
-		err := _validateCreatePoolParams(params)
-		assert.EqualError(t, err, "CustomPerformanceEnabled must be true for Unified Flex Storage Pool")
-	})
 	t.Run("ValidateCreatePoolParams_WithInvalidThroughputSetWithCustomPerformance", func(tt *testing.T) {
 		params := &common.CreatePoolParams{
 			SizeInBytes:             2 * 1099511627776,
@@ -720,7 +710,7 @@ func TestValidateCreatePoolParams(t *testing.T) {
 }
 
 func TestValidateUpdatePoolParams(t *testing.T) {
-	t.Run("Rejects changing qos type from manual to auto", func(tt *testing.T) {
+	t.Run("Rejects changing qos type from auto to manual", func(tt *testing.T) {
 		pool := &datamodel.Pool{QosType: QosTypeAuto}
 		params := &common.UpdatePoolParams{
 			QosType:                  "Manual",
@@ -730,7 +720,7 @@ func TestValidateUpdatePoolParams(t *testing.T) {
 			TotalIops:                float64(minCustomIops + 100),
 		}
 		err := _validateUpdatePoolParams(params, pool)
-		assert.EqualError(tt, err, "Cannot change qos type from manual to auto")
+		assert.EqualError(tt, err, "Cannot change qos type from auto to manual")
 	})
 	t.Run("Returns error for pool size below minimum", func(tt *testing.T) {
 		pool := &datamodel.Pool{QosType: "Manual"}
@@ -771,16 +761,6 @@ func TestValidateUpdatePoolParams(t *testing.T) {
 		expectedErr := fmt.Sprintf("Given pool size must be a multiple of %s", utils.FmtUint64Bytes(minSizeGranularity))
 		err := _validateUpdatePoolParams(params, pool)
 		assert.EqualError(tt, err, expectedErr)
-	})
-	t.Run("Returns error when custom performance is disabled", func(tt *testing.T) {
-		pool := &datamodel.Pool{QosType: "Manual"}
-		params := &common.UpdatePoolParams{
-			QosType:                  "Manual",
-			SizeInBytes:              minQuotaInBytesPool * 2,
-			CustomPerformanceEnabled: false,
-		}
-		err := _validateUpdatePoolParams(params, pool)
-		assert.EqualError(tt, err, "CustomPerformanceEnabled must be true for Unified Flex Storage Pool")
 	})
 	t.Run("Returns error when throughput is below minimum", func(tt *testing.T) {
 		pool := &datamodel.Pool{QosType: "Manual"}

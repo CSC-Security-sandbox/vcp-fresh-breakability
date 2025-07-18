@@ -431,13 +431,16 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 		PoolId:      params.PoolId,
 	}
 
-	// -------------------------------------------------------------------------
-	// Update params only if needed.
-	// -------------------------------------------------------------------------
 	if req.Description.IsSet() {
 		param.Description = req.Description.Value
 	} else {
 		param.Description = existingPool.Description
+	}
+
+	if req.QosType.IsSet() {
+		param.QosType = req.QosType.Value
+	} else {
+		param.QosType = existingPool.QosType
 	}
 
 	if req.SizeInBytes.IsSet() {
@@ -467,8 +470,6 @@ func (h Handler) V1betaUpdatePool(ctx context.Context, req *gcpgenserver.PoolUpd
 	} else {
 		param.TotalIops = float64(existingPool.CustomPerformanceParams.Iops)
 	}
-	// -------------------------------------------------------------------------
-	// -------------------------------------------------------------------------
 
 	updatedPool, operationID, err := h.Orchestrator.UpdatePool(ctx, param)
 	if err != nil {
@@ -755,20 +756,6 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 		return &gcpgenserver.Error{
 			Code:    http.StatusBadRequest,
 			Message: "Updating HotTier auto resize is currently not supported",
-		}
-	}
-
-	if req.QosType.IsSet() {
-		return &gcpgenserver.Error{
-			Code:    http.StatusBadRequest,
-			Message: "Updating QosType is currently not supported",
-		}
-	}
-
-	if req.CustomPerformanceEnabled.IsSet() && !req.CustomPerformanceEnabled.Value {
-		return &gcpgenserver.Error{
-			Code:    http.StatusBadRequest,
-			Message: "CustomerPerformance must be enabled for Unified Flex Storage Pool",
 		}
 	}
 

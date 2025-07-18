@@ -240,9 +240,13 @@ func (s *PoolInternalV1beta) setDefaults() {
 		val := bool(false)
 		s.LdapEnabled.SetTo(val)
 	}
+}
+
+// setDefaults set default value of fields.
+func (s *PoolUpdateV1beta) setDefaults() {
 	{
-		val := bool(false)
-		s.CustomPerformanceEnabled.SetTo(val)
+		val := string("auto")
+		s.QosType.SetTo(val)
 	}
 }
 
@@ -263,10 +267,6 @@ func (s *PoolV1beta) setDefaults() {
 	{
 		val := bool(false)
 		s.LdapEnabled.SetTo(val)
-	}
-	{
-		val := bool(false)
-		s.CustomPerformanceEnabled.SetTo(val)
 	}
 }
 

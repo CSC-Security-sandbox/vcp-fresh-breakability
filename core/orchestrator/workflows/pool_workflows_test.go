@@ -468,6 +468,87 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+func TestUpdatePoolWorkflowNoVLM(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	// Setup context propagation and header values
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Setup test input data for update workflow.
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "test-pool-id",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024, // For example: 2 TB
+		TotalThroughputMibps: 128,
+		TotalIops:            2048,
+		QosType:              "Manual",
+		Description:          "Updated pool description",
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-pool-id",
+		},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: common.USERNAME_PWD,
+		},
+		// Set additional fields if required.
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		SizeInBytes: 2 * 1024 * 1024 * 1024 * 1024,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:     "test-primary-zone",
+			SecondaryZone:   "test-secondary-zone",
+			Iops:            2048,
+			ThroughputMibps: 128,
+		},
+		KmsConfig: &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountEmail: "test-sa-email",
+			},
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: "test-auto-tier-bucket",
+		},
+	}
+
+	// Register activity mocks.
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).
+		Return(nil)
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).
+		Return(nil, nil)
+
+	// Execute the workflow.
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool)
+
+	// Optionally query workflow status.
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert the workflow has completed successfully.
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
 func TestDeletePoolWorkflow(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
