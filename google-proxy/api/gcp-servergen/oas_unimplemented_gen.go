@@ -512,7 +512,7 @@ func (UnimplementedHandler) V1betaInternalDescribeVolumeReplication(ctx context.
 //
 // Returns the list of Replication Jobs for the given pool.
 //
-// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ReplicationJobs
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/ReplicationJobs
 func (UnimplementedHandler) V1betaInternalGetReplicationJobs(ctx context.Context, params V1betaInternalGetReplicationJobsParams) (r V1betaInternalGetReplicationJobsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

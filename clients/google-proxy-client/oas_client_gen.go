@@ -358,7 +358,7 @@ type Invoker interface {
 	//
 	// Returns the list of Replication Jobs for the given pool.
 	//
-	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ReplicationJobs
+	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/ReplicationJobs
 	V1betaInternalGetReplicationJobs(ctx context.Context, params V1betaInternalGetReplicationJobsParams) (V1betaInternalGetReplicationJobsRes, error)
 	// V1betaInternalMountVolumeReplication invokes v1beta_internalMountVolumeReplication operation.
 	//
@@ -6625,7 +6625,7 @@ func (c *Client) sendV1betaInternalDescribeVolumeReplication(ctx context.Context
 //
 // Returns the list of Replication Jobs for the given pool.
 //
-// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ReplicationJobs
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/ReplicationJobs
 func (c *Client) V1betaInternalGetReplicationJobs(ctx context.Context, params V1betaInternalGetReplicationJobsParams) (V1betaInternalGetReplicationJobsRes, error) {
 	res, err := c.sendV1betaInternalGetReplicationJobs(ctx, params)
 	return res, err
@@ -6634,7 +6634,7 @@ func (c *Client) V1betaInternalGetReplicationJobs(ctx context.Context, params V1
 func (c *Client) sendV1betaInternalGetReplicationJobs(ctx context.Context, params V1betaInternalGetReplicationJobsParams) (res V1betaInternalGetReplicationJobsRes, err error) {
 
 	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [7]string
+	var pathParts [5]string
 	pathParts[0] = "/v1beta/internal/projects/"
 	{
 		// Encode "projectNumber" parameter.
@@ -6673,27 +6673,28 @@ func (c *Client) sendV1betaInternalGetReplicationJobs(ctx context.Context, param
 		}
 		pathParts[3] = encoded
 	}
-	pathParts[4] = "/pools/"
-	{
-		// Encode "poolId" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "poolId",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.StringToString(params.PoolId))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[5] = encoded
-	}
-	pathParts[6] = "/ReplicationJobs"
+	pathParts[4] = "/ReplicationJobs"
 	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "poolUUID" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "poolUUID",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.PoolUUID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
 
 	r, err := ht.NewRequest(ctx, "GET", u)
 	if err != nil {

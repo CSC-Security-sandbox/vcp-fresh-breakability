@@ -4935,7 +4935,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
-  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ReplicationJobs:
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/ReplicationJobs:
     get:
       operationId: v1beta_internalGetReplicationJobs
       summary: Get all the Replication Jobs for the Pool
@@ -4945,8 +4945,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/projectNumberPathParameter'
         - $ref: '#/components/parameters/locationIdPathParameter'
-        - $ref: '#/components/parameters/poolIdPathParameter'
         - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/poolUUIDQueryParameter'
       responses:
         "200":
           description: OK
@@ -10373,3 +10373,13 @@ components:
         enum:
           - hardware
           - software
+    poolUUIDQueryParameter:
+      name: poolUUID
+      in: query
+      description: Uuid v4 used to identify the pool
+      required: false
+      schema:
+        maxLength: 36
+        minLength: 36
+        pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+        type: string

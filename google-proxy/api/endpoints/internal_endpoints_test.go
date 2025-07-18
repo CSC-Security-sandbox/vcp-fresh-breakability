@@ -249,7 +249,7 @@ func TestV1betaInternalGetReplicationJobs(t *testing.T) {
 		}
 		params := gcpgenserver.V1betaInternalGetReplicationJobsParams{
 			ProjectNumber: "test-project",
-			PoolId:        "test-pool",
+			PoolUUID:      gcpgenserver.NewOptString("test-pool"),
 			LocationId:    "test-location",
 		}
 		resp, err := handler.V1betaInternalGetReplicationJobs(context.Background(), params)
@@ -266,7 +266,7 @@ func TestV1betaInternalGetReplicationJobs(t *testing.T) {
 		}
 		params := gcpgenserver.V1betaInternalGetReplicationJobsParams{
 			ProjectNumber: "test-project",
-			PoolId:        "test-pool",
+			PoolUUID:      gcpgenserver.NewOptString("test-pool"),
 			LocationId:    "test-location",
 		}
 		resp, err := handler.V1betaInternalGetReplicationJobs(context.Background(), params)
@@ -308,7 +308,7 @@ func TestV1betaInternalGetReplicationJobs(t *testing.T) {
 		}
 		params := gcpgenserver.V1betaInternalGetReplicationJobsParams{
 			ProjectNumber: "test-project",
-			PoolId:        "test-pool",
+			PoolUUID:      gcpgenserver.NewOptString("test-pool"),
 			LocationId:    "test-location",
 		}
 		resp, err := handler.V1betaInternalGetReplicationJobs(context.Background(), params)

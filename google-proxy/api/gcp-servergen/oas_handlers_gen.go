@@ -9091,14 +9091,14 @@ func (s *Server) handleV1betaInternalDescribeVolumeReplicationRequest(args [3]st
 //
 // Returns the list of Replication Jobs for the given pool.
 //
-// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ReplicationJobs
-func (s *Server) handleV1betaInternalGetReplicationJobsRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/ReplicationJobs
+func (s *Server) handleV1betaInternalGetReplicationJobsRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1beta_internalGetReplicationJobs"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/v1beta/internal/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ReplicationJobs"),
+		semconv.HTTPRouteKey.String("/v1beta/internal/projects/{projectNumber}/locations/{locationId}/ReplicationJobs"),
 	}
 
 	// Start a span for this request.
@@ -9190,13 +9190,13 @@ func (s *Server) handleV1betaInternalGetReplicationJobsRequest(args [3]string, a
 					In:   "path",
 				}: params.LocationId,
 				{
-					Name: "poolId",
-					In:   "path",
-				}: params.PoolId,
-				{
 					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
+				{
+					Name: "poolUUID",
+					In:   "query",
+				}: params.PoolUUID,
 			},
 			Raw: r,
 		}

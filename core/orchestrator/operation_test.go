@@ -71,4 +71,44 @@ func TestGetReplicationJobs(t *testing.T) {
 		assert.Equal(tt, "job-1", jobs[0].UUID)
 		assert.Equal(tt, "job-2", jobs[1].UUID)
 	})
+	t.Run("ReturnsAllJobsWhenPoolUUIDIsEmpty", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockAccount := &datamodel.Account{BaseModel: datamodel.BaseModel{
+			ID: 1,
+		}}
+		mockJobs := []*datamodel.Job{
+			{BaseModel: datamodel.BaseModel{UUID: "job-1"}, JobAttributes: &datamodel.JobAttributes{PoolUUID: "pool-1"}},
+			{BaseModel: datamodel.BaseModel{UUID: "job-2"}, JobAttributes: &datamodel.JobAttributes{PoolUUID: "pool-2"}},
+			{BaseModel: datamodel.BaseModel{UUID: "job-3"}, JobAttributes: &datamodel.JobAttributes{PoolUUID: "pool-1"}},
+		}
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-project").Return(mockAccount, nil)
+		mockStorage.EXPECT().GetJobsWithCondition(mock.Anything, mock.Anything).Return(mockJobs, nil)
+
+		orchestrator := &Orchestrator{storage: mockStorage}
+		jobs, err := orchestrator.GetReplicationJobs(context.Background(), "test-project", "")
+		assert.NoError(tt, err)
+		assert.Len(tt, jobs, 3)
+		assert.Equal(tt, "job-1", jobs[0].UUID)
+		assert.Equal(tt, "job-2", jobs[1].UUID)
+		assert.Equal(tt, "job-3", jobs[2].UUID)
+	})
+	t.Run("ReturnsPoolJobsWhenPoolUUIDIsNotEmpty", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockAccount := &datamodel.Account{BaseModel: datamodel.BaseModel{
+			ID: 1,
+		}}
+		mockJobs := []*datamodel.Job{
+			{BaseModel: datamodel.BaseModel{UUID: "job-1"}, JobAttributes: &datamodel.JobAttributes{PoolUUID: "pool-1"}},
+			{BaseModel: datamodel.BaseModel{UUID: "job-2"}, JobAttributes: &datamodel.JobAttributes{PoolUUID: "pool-2"}},
+			{BaseModel: datamodel.BaseModel{UUID: "job-3"}, JobAttributes: &datamodel.JobAttributes{PoolUUID: "pool-1"}},
+		}
+		mockStorage.EXPECT().GetAccount(mock.Anything, "test-project").Return(mockAccount, nil)
+		mockStorage.EXPECT().GetJobsWithCondition(mock.Anything, mock.Anything).Return(mockJobs, nil)
+
+		orchestrator := &Orchestrator{storage: mockStorage}
+		jobs, err := orchestrator.GetReplicationJobs(context.Background(), "test-project", "pool-2")
+		assert.NoError(tt, err)
+		assert.Len(tt, jobs, 1)
+		assert.Equal(tt, "job-2", jobs[0].UUID)
+	})
 }

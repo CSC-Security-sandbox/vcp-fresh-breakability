@@ -384,7 +384,7 @@ func _getReplicationJobs(ctx context.Context, basePath string, token string, loc
 	params := googleproxyclient.V1betaInternalGetReplicationJobsParams{}
 	params.ProjectNumber = projectNumber
 	params.LocationId = locationID
-	params.PoolId = poolId
+	params.PoolUUID = googleproxyclient.NewOptString(poolId)
 	params.XCorrelationID = googleproxyclient.OptString{Value: *xCorrelationID, Set: true}
 
 	getReplicationJobsResponse, err := googleProxyClient.Invoker.V1betaInternalGetReplicationJobs(ctx, params)

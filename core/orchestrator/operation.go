@@ -54,7 +54,9 @@ func (o *Orchestrator) GetReplicationJobs(ctx context.Context, projectName, pool
 	}
 	var jobs []*models.Job
 	for _, job := range dbJobs {
-		if job.JobAttributes != nil && job.JobAttributes.PoolUUID == poolUUID {
+		// If poolUUID is empty, return all replication jobs
+		// Otherwise, filter by the specified poolUUID
+		if poolUUID == "" || (job.JobAttributes != nil && job.JobAttributes.PoolUUID == poolUUID) {
 			jobs = append(jobs, convertDatastoreOperationToModel(job))
 		}
 	}

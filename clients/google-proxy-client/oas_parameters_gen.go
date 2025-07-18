@@ -631,10 +631,10 @@ type V1betaInternalGetReplicationJobsParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// Uuid v4 used to identify the pool.
-	PoolId string
 	// Correlation identifier.
 	XCorrelationID OptString
+	// Uuid v4 used to identify the pool.
+	PoolUUID OptString
 }
 
 // V1betaInternalMountVolumeReplicationParams is parameters of v1beta_internalMountVolumeReplication operation.

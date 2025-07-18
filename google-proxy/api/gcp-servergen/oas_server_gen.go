@@ -345,7 +345,7 @@ type Handler interface {
 	//
 	// Returns the list of Replication Jobs for the given pool.
 	//
-	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ReplicationJobs
+	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/ReplicationJobs
 	V1betaInternalGetReplicationJobs(ctx context.Context, params V1betaInternalGetReplicationJobsParams) (V1betaInternalGetReplicationJobsRes, error)
 	// V1betaInternalMountVolumeReplication implements v1beta_internalMountVolumeReplication operation.
 	//

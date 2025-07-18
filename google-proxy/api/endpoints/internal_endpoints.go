@@ -280,7 +280,12 @@ func prepareCreateVolumeReplicationInternalParams(req *gcpgenserver.VolumeReplic
 func (h Handler) V1betaInternalGetReplicationJobs(ctx context.Context, params gcpgenserver.V1betaInternalGetReplicationJobsParams) (gcpgenserver.V1betaInternalGetReplicationJobsRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	jobs, err := h.Orchestrator.GetReplicationJobs(ctx, params.ProjectNumber, params.PoolId)
+	poolUUID := ""
+	if params.PoolUUID.Set {
+		poolUUID = params.PoolUUID.Value
+	}
+
+	jobs, err := h.Orchestrator.GetReplicationJobs(ctx, params.ProjectNumber, poolUUID)
 	if err != nil {
 		logger.Error("Failed to get replication jobs", "error", err.Error())
 		return &gcpgenserver.V1betaInternalGetReplicationJobsInternalServerError{

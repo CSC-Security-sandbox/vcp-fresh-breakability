@@ -14028,10 +14028,10 @@ type V1betaInternalGetReplicationJobsParams struct {
 	ProjectNumber string
 	// The location/region to perform the operation in.
 	LocationId string
-	// Uuid v4 used to identify the pool.
-	PoolId string
 	// Correlation identifier.
 	XCorrelationID OptString
+	// Uuid v4 used to identify the pool.
+	PoolUUID OptString
 }
 
 func unpackV1betaInternalGetReplicationJobsParams(packed middleware.Parameters) (params V1betaInternalGetReplicationJobsParams) {
@@ -14051,13 +14051,6 @@ func unpackV1betaInternalGetReplicationJobsParams(packed middleware.Parameters) 
 	}
 	{
 		key := middleware.ParameterKey{
-			Name: "poolId",
-			In:   "path",
-		}
-		params.PoolId = packed[key].(string)
-	}
-	{
-		key := middleware.ParameterKey{
 			Name: "X-Correlation-ID",
 			In:   "header",
 		}
@@ -14065,10 +14058,20 @@ func unpackV1betaInternalGetReplicationJobsParams(packed middleware.Parameters) 
 			params.XCorrelationID = v.(OptString)
 		}
 	}
+	{
+		key := middleware.ParameterKey{
+			Name: "poolUUID",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.PoolUUID = v.(OptString)
+		}
+	}
 	return params
 }
 
-func decodeV1betaInternalGetReplicationJobsParams(args [3]string, argsEscaped bool, r *http.Request) (params V1betaInternalGetReplicationJobsParams, _ error) {
+func decodeV1betaInternalGetReplicationJobsParams(args [2]string, argsEscaped bool, r *http.Request) (params V1betaInternalGetReplicationJobsParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
 	h := uri.NewHeaderDecoder(r.Header)
 	// Decode path: projectNumber.
 	if err := func() error {
@@ -14192,67 +14195,6 @@ func decodeV1betaInternalGetReplicationJobsParams(args [3]string, argsEscaped bo
 			Err:  err,
 		}
 	}
-	// Decode path: poolId.
-	if err := func() error {
-		param := args[2]
-		if argsEscaped {
-			unescaped, err := url.PathUnescape(args[2])
-			if err != nil {
-				return errors.Wrap(err, "unescape path")
-			}
-			param = unescaped
-		}
-		if len(param) > 0 {
-			d := uri.NewPathDecoder(uri.PathDecoderConfig{
-				Param:   "poolId",
-				Value:   param,
-				Style:   uri.PathStyleSimple,
-				Explode: false,
-			})
-
-			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
-					return err
-				}
-
-				c, err := conv.ToString(val)
-				if err != nil {
-					return err
-				}
-
-				params.PoolId = c
-				return nil
-			}(); err != nil {
-				return err
-			}
-			if err := func() error {
-				if err := (validate.String{
-					MinLength:    36,
-					MinLengthSet: true,
-					MaxLength:    36,
-					MaxLengthSet: true,
-					Email:        false,
-					Hostname:     false,
-					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
-				}).Validate(string(params.PoolId)); err != nil {
-					return errors.Wrap(err, "string")
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-		} else {
-			return validate.ErrFieldRequired
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "poolId",
-			In:   "path",
-			Err:  err,
-		}
-	}
 	// Decode header: X-Correlation-ID.
 	if err := func() error {
 		cfg := uri.HeaderParameterDecodingConfig{
@@ -14289,6 +14231,70 @@ func decodeV1betaInternalGetReplicationJobsParams(args [3]string, argsEscaped bo
 		return params, &ogenerrors.DecodeParamError{
 			Name: "X-Correlation-ID",
 			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode query: poolUUID.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "poolUUID",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotPoolUUIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotPoolUUIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.PoolUUID.SetTo(paramsDotPoolUUIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.PoolUUID.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:    36,
+							MinLengthSet: true,
+							MaxLength:    36,
+							MaxLengthSet: true,
+							Email:        false,
+							Hostname:     false,
+							Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "poolUUID",
+			In:   "query",
 			Err:  err,
 		}
 	}
