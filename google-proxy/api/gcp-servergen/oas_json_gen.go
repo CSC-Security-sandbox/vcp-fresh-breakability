@@ -25016,6 +25016,44 @@ func (s *V1betaDeleteSnapshotInternalServerError) UnmarshalJSON(data []byte) err
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaDeleteSnapshotNotFound as json.
+func (s *V1betaDeleteSnapshotNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteSnapshotNotFound from json.
+func (s *V1betaDeleteSnapshotNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteSnapshotNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteSnapshotNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteSnapshotNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteSnapshotNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaDeleteSnapshotServiceUnavailable as json.
 func (s *V1betaDeleteSnapshotServiceUnavailable) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)

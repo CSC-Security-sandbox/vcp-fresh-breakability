@@ -2,6 +2,7 @@ package backgroundworkflows
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,6 +27,27 @@ func (s *SyncSnapshotsTestSuite) SetupTest() {
 	s.env = s.NewTestWorkflowEnvironment()
 	s.env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 	s.env.RegisterWorkflow(SyncVSASnapshotsWorkflow)
+}
+
+func (s *SyncSnapshotsTestSuite) TestSyncSnapshotsWorkflow_SynchronizeSnapshotsWithErrors() {
+	mockStorage := database.NewMockStorage(s.T())
+	syncSnapshotsActivity := &backgroundactivities.SyncSnapshotActivity{SE: mockStorage}
+
+	s.env.RegisterActivity(syncSnapshotsActivity.ListPools)
+	s.env.RegisterActivity(syncSnapshotsActivity.SynchronizeSnapshots)
+
+	// Mock ListPools to return no error and an empty pool list
+	s.env.OnActivity(syncSnapshotsActivity.ListPools, mock.Anything).Return([]*datamodel.Pool{}, nil)
+
+	// Mock SynchronizeSnapshots to return an error
+	s.env.OnActivity(syncSnapshotsActivity.SynchronizeSnapshots, mock.Anything, mock.Anything).Return(fmt.Errorf("snapshot Synchronization completed with errors: [error1, error2]"))
+
+	s.env.ExecuteWorkflow(SyncVSASnapshotsWorkflow)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "snapshot Synchronization completed with errors")
 }
 
 func (s *SyncSnapshotsTestSuite) AfterTest() {

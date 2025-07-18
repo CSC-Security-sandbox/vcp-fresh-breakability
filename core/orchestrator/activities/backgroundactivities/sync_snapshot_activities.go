@@ -2,6 +2,7 @@ package backgroundactivities
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -69,26 +70,33 @@ func (a *SyncSnapshotActivity) ListPools(ctx context.Context) ([]*datamodel.Pool
 func (a *SyncSnapshotActivity) SynchronizeSnapshots(ctx context.Context, pools []*datamodel.Pool) error {
 	logger := util.GetLogger(ctx)
 	se := a.SE
+	var errors []string
 
 	for _, pool := range pools {
 		provider, err := GetOntapRestProviderForPool(ctx, se, pool)
 		if err != nil {
-			logger.Errorf("Failed to get ONTAP rest provider: %v", err)
-			return err
+			errMsg := fmt.Sprintf("Failed to get ONTAP rest provider for pool %v: %v", pool.UUID, err)
+			logger.Errorf(errMsg)
+			errors = append(errors, errMsg)
+			continue
 		}
 
 		ontapVolumes, err := provider.GetVolumes()
 		if err != nil {
-			logger.Errorf("Failed to get ONTAP volumes for the pool: %s, %v", pool.UUID, err)
-			return err
+			errMsg := fmt.Sprintf("Failed to get ONTAP volumes for the pool: %s, %v", pool.UUID, err)
+			logger.Errorf(errMsg)
+			errors = append(errors, errMsg)
+			continue
 		}
 
 		var ontapSnapshots []*vsa.Snapshot
 		for _, volume := range ontapVolumes {
 			volumeSnapshots, err := provider.GetSnapshots(*volume.UUID)
 			if err != nil {
-				logger.Errorf("Failed to get snapshots from ONTAP for volume %s: %v", *volume.UUID, err)
-				return err
+				errMsg := fmt.Sprintf("Failed to get snapshots from ONTAP for volume %s: %v", *volume.UUID, err)
+				logger.Errorf(errMsg)
+				errors = append(errors, errMsg)
+				continue
 			}
 			ontapSnapshots = append(ontapSnapshots, volumeSnapshots...)
 		}
@@ -97,8 +105,10 @@ func (a *SyncSnapshotActivity) SynchronizeSnapshots(ctx context.Context, pools [
 
 		dbVolumes, err := se.GetVolumesByPoolID(ctx, pool.ID)
 		if err != nil {
-			logger.Errorf("Failed to get volumes from database for pool %s: %v", pool.UUID, err)
-			return err
+			errMsg := fmt.Sprintf("Failed to get volumes from database for pool %s: %v", pool.UUID, err)
+			logger.Errorf(errMsg)
+			errors = append(errors, errMsg)
+			continue
 		}
 
 		var (
@@ -112,8 +122,10 @@ func (a *SyncSnapshotActivity) SynchronizeSnapshots(ctx context.Context, pools [
 
 		dbSnapshots, err := se.GetSnapshotsByVolumeIDs(ctx, dbVolumeIDs)
 		if err != nil {
-			logger.Errorf("Failed to get snapshots from database for pool %s: %v", pool.UUID, err)
-			return err
+			errMsg := fmt.Sprintf("Failed to get snapshots from database for pool %s: %v", pool.UUID, err)
+			logger.Errorf(errMsg)
+			errors = append(errors, errMsg)
+			continue
 		}
 
 		var dbSnapshotMap = make(map[string]*datamodel.Snapshot, len(dbSnapshots))
@@ -126,34 +138,49 @@ func (a *SyncSnapshotActivity) SynchronizeSnapshots(ctx context.Context, pools [
 
 		deletedSnapshots, err := syncDeletedSnapshotsToDatabase(ctx, deleteIDs, se)
 		if err != nil {
-			logger.Errorf("Failed to sync deleted snapshots to database: %v", err)
-			return err
+			errMsg := fmt.Sprintf("Failed to sync deleted snapshots to database: %v", err)
+			logger.Errorf(errMsg)
+			errors = append(errors, errMsg)
+			continue
 		}
 
 		createdSnapshots, err := syncNewSnapshotsToDatabase(ctx, newIds, newSSMap, se, dbVolumeMap, pool)
 		if err != nil {
-			logger.Errorf("Failed to sync new snapshots to database: %v", err)
-			return err
+			errMsg := fmt.Sprintf("Failed to sync new snapshots to database: %v", err)
+			logger.Errorf(errMsg)
+			errors = append(errors, errMsg)
+			continue
 		}
 
 		_, err = syncUpdatedSnapshotsToDatabase(ctx, updatedIDs, updatedSSMap, se, dbSnapshotMap)
 		if err != nil {
-			logger.Errorf("Failed to sync updated snapshots to database: %v", err)
-			return err
+			errMsg := fmt.Sprintf("Failed to sync updated snapshots to database: %v", err)
+			logger.Errorf(errMsg)
+			errors = append(errors, errMsg)
+			continue
 		}
 
 		_, err = syncWronglyDeletedSnapshotsToDatabase(ctx, wronglyDeletedIds, wronglyDeletedSnapshotsMap, se, dbSnapshotMap)
 		if err != nil {
-			logger.Errorf("Failed to sync wrongly deleted snapshots to database: %v", err)
-			return err
+			errMsg := fmt.Sprintf("Failed to sync wrongly deleted snapshots to database: %v", err)
+			logger.Errorf(errMsg)
+			errors = append(errors, errMsg)
+			continue
 		}
 
 		if hydrationEnabled {
 			err = hydrateBatchSnapshotsToCCFE(ctx, createdSnapshots, deletedSnapshots)
 			if err != nil {
-				return err
+				errMsg := fmt.Sprintf("Failed to hydrate snapshots to CCFE: %v", err)
+				logger.Errorf(errMsg)
+				errors = append(errors, errMsg)
+				continue
 			}
 		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("snapshot Synchronization completed with errors: %v", errors)
 	}
 
 	return nil
@@ -162,7 +189,10 @@ func (a *SyncSnapshotActivity) SynchronizeSnapshots(ctx context.Context, pools [
 func _filterOntapVolumesAndSnapshots(volumes []*vsa.Volume, snapshots []*vsa.Snapshot) (map[string]*vsa.Volume, []*vsa.Snapshot) {
 	volumeMap := make(map[string]*vsa.Volume, len(volumes))
 	for _, volume := range volumes {
-		if *volume.IsSvmRoot {
+		if volume == nil || volume.IsSvmRoot == nil || *volume.IsSvmRoot {
+			continue
+		}
+		if volume.UUID == nil || volume.Svm == nil || volume.Svm.Name == nil || volume.Name == nil {
 			continue
 		}
 		volumeMap[*volume.UUID] = volume
@@ -171,17 +201,21 @@ func _filterOntapVolumesAndSnapshots(volumes []*vsa.Volume, snapshots []*vsa.Sna
 
 	var filteredSnapshots []*vsa.Snapshot
 	for _, snapshot := range snapshots {
+		if snapshot == nil || snapshot.Name == nil || snapshot.ProvenanceVolume == nil || snapshot.ProvenanceVolume.UUID == nil || snapshot.Volume == nil || snapshot.Volume.Name == nil {
+			continue
+		}
+
 		name := *snapshot.Name
 
 		vol, ok := volumeMap[*snapshot.ProvenanceVolume.UUID]
-		if !ok || *vol.Name != *snapshot.Volume.Name {
+		if !ok || vol.Name == nil || *vol.Name != *snapshot.Volume.Name {
 			vol, ok = volumeMap[*snapshot.Svm.Name+*snapshot.Volume.Name]
 			if !ok {
 				continue
 			}
 		}
 
-		if *vol.Style == FlexGroupConstituent {
+		if vol.Style == nil || *vol.Style == FlexGroupConstituent {
 			continue
 		}
 
@@ -190,6 +224,10 @@ func _filterOntapVolumesAndSnapshots(volumes []*vsa.Volume, snapshots []*vsa.Sna
 			snapshotType = SnapshotTypeScheduled
 		} else {
 			snapshotType = SnapshotTypeAdHoc
+		}
+
+		if vol.ExternalUUID == "" {
+			continue
 		}
 
 		snapshot.ExternalVolumeUUID = vol.ExternalUUID
@@ -380,7 +418,7 @@ func _processSnapshotSync(ctx context.Context, ontapVolumeMap map[string]*vsa.Vo
 				continue
 			}
 
-			shouldDelete := dbSnapshot.SnapshotAttributes.Type != SnapshotTypeAdHoc
+			shouldDelete := dbSnapshot.Type != SnapshotTypeAdHoc
 
 			if shouldDelete {
 				deleteIDs = append(deleteIDs, dbSnapshot.ID)

@@ -141,6 +141,41 @@ func TestUpdateJob(t *testing.T) {
 	})
 }
 
+func TestDeleteJob(t *testing.T) {
+	t.Run("WhenJobIsMarkedAsDeletedSuccessfully", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		if err != nil {
+			tt.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-job-uuid",
+			},
+			State: models.LifeCycleStateCreating,
+		}
+
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err, "Failed to create job: %v", err)
+
+		// Delete the job
+		err = store.DeleteJob(context.Background(), job.UUID, "")
+		assert.NoError(tt, err, "Failed to delete job: %v", err)
+
+		// Attempt to retrieve the deleted job
+		deletedJob, err := store.GetJob(context.Background(), job.UUID)
+		assert.Error(tt, err, "Expected an error when retrieving a deleted job")
+		assert.Nil(tt, deletedJob, "Expected no job to be retrieved after deletion")
+	})
+}
+
 func TestGetJobsWithCondition(t *testing.T) {
 	t.Run("WhenNoJobsExist", func(tt *testing.T) {
 		db, err := SetupTestDB()

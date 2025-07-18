@@ -101,7 +101,7 @@ func TestSynchronizeSnapshots(t *testing.T) {
 		}
 
 		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
-		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{}, nil)
+		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{{ExternalUUID: "snapshot-uuid-1"}}, nil)
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
 			[]*datamodel.Volume{{BaseModel: datamodel.BaseModel{ID: 1}, VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "test-volume-uuid"}}}, nil)
 		mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.Anything).Return(
@@ -164,6 +164,8 @@ func TestSynchronizeSnapshots(t *testing.T) {
 
 		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
 		mockProvider.On("GetSnapshots", mock.Anything).Return(nil, errors.New("failed to get snapshots from ONTAP REST API"))
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
+			nil, errors.New("failed to get volumes from the database"))
 
 		syncSnapshotActivity := SyncSnapshotActivity{SE: mockStorage}
 		err := syncSnapshotActivity.SynchronizeSnapshots(ctx, []*datamodel.Pool{{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"}}})
@@ -189,7 +191,7 @@ func TestSynchronizeSnapshots(t *testing.T) {
 		}
 
 		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
-		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{}, nil)
+		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{{ExternalUUID: "snapshot-uuid-1"}}, nil)
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
 			nil, errors.New("failed to get volumes from the database"))
 
@@ -217,7 +219,7 @@ func TestSynchronizeSnapshots(t *testing.T) {
 		}
 
 		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
-		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{}, nil)
+		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{{ExternalUUID: "snapshot-uuid-1"}}, nil)
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
 			[]*datamodel.Volume{{BaseModel: datamodel.BaseModel{ID: 1}, VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "test-volume-uuid"}}}, nil)
 		mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.Anything).Return(
@@ -259,7 +261,7 @@ func TestSynchronizeSnapshots(t *testing.T) {
 		}
 
 		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
-		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{}, nil)
+		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{{ExternalUUID: "snapshot-uuid-1"}}, nil)
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
 			[]*datamodel.Volume{{BaseModel: datamodel.BaseModel{ID: 1}, VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "test-volume-uuid"}}}, nil)
 		mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.Anything).Return(
@@ -306,7 +308,7 @@ func TestSynchronizeSnapshots(t *testing.T) {
 		}
 
 		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
-		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{}, nil)
+		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{{ExternalUUID: "snapshot-uuid-1"}}, nil)
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
 			[]*datamodel.Volume{{BaseModel: datamodel.BaseModel{ID: 1}, VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "test-volume-uuid"}}}, nil)
 		mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.Anything).Return(
@@ -358,7 +360,7 @@ func TestSynchronizeSnapshots(t *testing.T) {
 		}
 
 		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
-		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{}, nil)
+		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{{ExternalUUID: "snapshot-uuid-1"}}, nil)
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
 			[]*datamodel.Volume{{BaseModel: datamodel.BaseModel{ID: 1}, VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "test-volume-uuid"}}}, nil)
 		mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.Anything).Return(
@@ -415,7 +417,7 @@ func TestSynchronizeSnapshots(t *testing.T) {
 		}
 
 		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
-		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{}, nil)
+		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{{ExternalUUID: "snapshot-uuid-1"}}, nil)
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
 			[]*datamodel.Volume{{BaseModel: datamodel.BaseModel{ID: 1}, VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "test-volume-uuid"}}}, nil)
 		mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.Anything).Return(
@@ -483,7 +485,7 @@ func TestSynchronizeSnapshots(t *testing.T) {
 		}
 
 		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
-		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{}, nil)
+		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{{ExternalUUID: "snapshot-uuid-1"}}, nil)
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
 			[]*datamodel.Volume{{BaseModel: datamodel.BaseModel{ID: 1}, VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "test-volume-uuid"}}}, nil)
 		mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.Anything).Return(
@@ -543,7 +545,7 @@ func TestSynchronizeSnapshots(t *testing.T) {
 		}
 
 		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
-		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{}, nil)
+		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{{ExternalUUID: "snapshot-uuid-1"}}, nil)
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
 			[]*datamodel.Volume{{BaseModel: datamodel.BaseModel{ID: 1}, VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "test-volume-uuid"}}}, nil)
 		mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.Anything).Return(
@@ -604,7 +606,7 @@ func TestSynchronizeSnapshots(t *testing.T) {
 		}
 
 		mockProvider.On("GetVolumes").Return([]*vsa.Volume{{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid")}}}, nil)
-		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{}, nil)
+		mockProvider.On("GetSnapshots", mock.Anything).Return([]*vsa.Snapshot{{ExternalUUID: "snapshot-uuid-1"}}, nil)
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
 			[]*datamodel.Volume{{BaseModel: datamodel.BaseModel{ID: 1}, VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "test-volume-uuid"}}}, nil)
 		mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.Anything).Return(
@@ -614,6 +616,78 @@ func TestSynchronizeSnapshots(t *testing.T) {
 		err := syncSnapshotActivity.SynchronizeSnapshots(ctx, []*datamodel.Pool{{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"}}})
 		assert.NoError(tt, err)
 	})
+
+	t.Run("TestSynchronizeSnapshots_ProceedAfterError", func(tt *testing.T) {
+		ctx := context.TODO()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		originalFilterOntapVolumesAndSnapshots := filterOntapVolumesAndSnapshots
+		originalProcessSnapshotSync := processSnapshotSync
+		originalSyncDeletedSnapshotsToDatabase := syncDeletedSnapshotsToDatabase
+		originalSyncNewSnapshotsToDatabase := syncNewSnapshotsToDatabase
+		originalSyncUpdatedSnapshotsToDatabase := syncUpdatedSnapshotsToDatabase
+		originalSyncUndeletedSnapshotsToDatabase := syncWronglyDeletedSnapshotsToDatabase
+		defer func() {
+			GetOntapRestProviderForPool = originalGetOntapRestProviderForPool
+			filterOntapVolumesAndSnapshots = originalFilterOntapVolumesAndSnapshots
+			processSnapshotSync = originalProcessSnapshotSync
+			syncDeletedSnapshotsToDatabase = originalSyncDeletedSnapshotsToDatabase
+			syncNewSnapshotsToDatabase = originalSyncNewSnapshotsToDatabase
+			syncUpdatedSnapshotsToDatabase = originalSyncUpdatedSnapshotsToDatabase
+			syncWronglyDeletedSnapshotsToDatabase = originalSyncUndeletedSnapshotsToDatabase
+		}()
+
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		filterOntapVolumesAndSnapshots = func(volumes []*vsa.Volume, snapshots []*vsa.Snapshot) (map[string]*vsa.Volume, []*vsa.Snapshot) {
+			return make(map[string]*vsa.Volume), []*vsa.Snapshot{}
+		}
+		processSnapshotSync = func(ctx context.Context, ontapVolumeMap map[string]*vsa.Volume, ontapSnapshots []*vsa.Snapshot, dbVolumeMap map[string]*datamodel.Volume, dbSnapshots []*datamodel.Snapshot) (
+			newSSMap map[string]*vsa.Snapshot, updatedSSMap map[string]*vsa.Snapshot, wronglyDeletedSnapshotsMap map[string]*vsa.Snapshot,
+			newIDs []string, updatedIDs []string, deleteIDs []int64, wronglyDeletedIDs []string) {
+			return
+		}
+		syncDeletedSnapshotsToDatabase = func(ctx context.Context, deleteIDs []int64, se database.Storage) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+		syncNewSnapshotsToDatabase = func(ctx context.Context, newIds []string, newSSMap map[string]*vsa.Snapshot, se database.Storage, dbVolumeMap map[string]*datamodel.Volume, pool *datamodel.Pool) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+		syncUpdatedSnapshotsToDatabase = func(ctx context.Context, updatedIDs []string, updatedSSMap map[string]*vsa.Snapshot, se database.Storage, dbSnapshotsMap map[string]*datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+		syncWronglyDeletedSnapshotsToDatabase = func(ctx context.Context, wronglyDeletedIds []string, wronglyDeletedSnapshotsMap map[string]*vsa.Snapshot, se database.Storage, dbSnapshotsMap map[string]*datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
+			return nil, nil
+		}
+
+		mockProvider.On("GetVolumes").Return([]*vsa.Volume{
+			{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid-1")}},
+			{Volume: ontaprestmodel.Volume{UUID: nillable.ToPointer("test-volume-uuid-2")}},
+		}, nil)
+
+		mockProvider.On("GetSnapshots", "test-volume-uuid-1").Return(nil, errors.New("failed to get snapshots from ONTAP REST API for volume 1"))
+		mockProvider.On("GetSnapshots", "test-volume-uuid-2").Return([]*vsa.Snapshot{{ExternalUUID: "snapshot-uuid-2"}}, nil)
+
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(
+			[]*datamodel.Volume{
+				{BaseModel: datamodel.BaseModel{ID: 1}, VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "test-volume-uuid-1"}},
+				{BaseModel: datamodel.BaseModel{ID: 2}, VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "test-volume-uuid-2"}},
+			}, nil)
+		mockStorage.On("GetSnapshotsByVolumeIDs", mock.Anything, mock.Anything).Return(
+			[]*datamodel.Snapshot{
+				{SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "test-snapshot-uuid-1"}},
+				{SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "test-snapshot-uuid-2"}},
+			}, nil)
+
+		syncSnapshotActivity := SyncSnapshotActivity{SE: mockStorage}
+		err := syncSnapshotActivity.SynchronizeSnapshots(ctx, []*datamodel.Pool{{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"}}})
+		assert.Error(t, err)
+		// Ensure that the error is logged, but the process continues for the second volume
+		mockProvider.AssertCalled(t, "GetSnapshots", "test-volume-uuid-2")
+	})
 }
 
 func TestFilterOntapVolumesAndSnapshots(t *testing.T) {
@@ -622,6 +696,7 @@ func TestFilterOntapVolumesAndSnapshots(t *testing.T) {
 			Volume: ontaprestmodel.Volume{
 				IsSvmRoot: nillable.ToPointer(true),
 			},
+			ExternalUUID: "some-external-uuid",
 		},
 		{
 			Volume: ontaprestmodel.Volume{
@@ -633,6 +708,7 @@ func TestFilterOntapVolumesAndSnapshots(t *testing.T) {
 					Name: nillable.ToPointer("test-volume-svm"),
 				},
 			},
+			ExternalUUID: "some-external-uuid",
 		},
 		{
 			Volume: ontaprestmodel.Volume{
@@ -644,6 +720,7 @@ func TestFilterOntapVolumesAndSnapshots(t *testing.T) {
 					Name: nillable.ToPointer("test-flexgroup-constituent-volume-svm"),
 				},
 			},
+			ExternalUUID: "some-external-uuid",
 		},
 	}
 
@@ -1143,9 +1220,9 @@ func TestProcessSnapshotSync(t *testing.T) {
 		// Adds an entry into deletedIDs
 		{
 			BaseModel: datamodel.BaseModel{ID: 3},
+			Type:      SnapshotTypeBackupScheduled,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				ExternalUUID: "test-snapshot-uuid-3",
-				Type:         SnapshotTypeBackupScheduled,
 			},
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 1},
@@ -1157,9 +1234,9 @@ func TestProcessSnapshotSync(t *testing.T) {
 		// Does not add entry into deletedIDs (volume doesn't exist on ONTAP)
 		{
 			BaseModel: datamodel.BaseModel{ID: 6, UUID: "test-snapshot-uuid-6"},
+			Type:      SnapshotTypeBackupScheduled,
 			SnapshotAttributes: &datamodel.SnapshotAttributes{
 				ExternalUUID: "test-snapshot-uuid-6",
-				Type:         SnapshotTypeBackupScheduled,
 			},
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{ID: 6},

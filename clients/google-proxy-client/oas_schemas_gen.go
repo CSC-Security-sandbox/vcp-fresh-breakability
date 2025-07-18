@@ -14892,6 +14892,10 @@ type V1betaDeleteSnapshotNoContent struct{}
 
 func (*V1betaDeleteSnapshotNoContent) v1betaDeleteSnapshotRes() {}
 
+type V1betaDeleteSnapshotNotFound Error
+
+func (*V1betaDeleteSnapshotNotFound) v1betaDeleteSnapshotRes() {}
+
 type V1betaDeleteSnapshotServiceUnavailable Error
 
 func (*V1betaDeleteSnapshotServiceUnavailable) v1betaDeleteSnapshotRes() {}

@@ -3871,6 +3871,27 @@ func encodeV1betaDeleteSnapshotResponse(response V1betaDeleteSnapshotRes, w http
 
 		return nil
 
+	case *V1betaDeleteSnapshotNotFound:
+		if err := func() error {
+			if err := response.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrap(err, "validate")
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(404)
+		span.SetStatus(codes.Error, http.StatusText(404))
+
+		e := new(jx.Encoder)
+		response.Encode(e)
+		if _, err := e.WriteTo(w); err != nil {
+			return errors.Wrap(err, "write")
+		}
+
+		return nil
+
 	case *V1betaDeleteSnapshotConflict:
 		if err := func() error {
 			if err := response.Validate(); err != nil {

@@ -334,7 +334,7 @@ func (h Handler) V1betaDeleteSnapshot(ctx context.Context, params gcpgenserver.V
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			logger.Info("Snapshot not found", "uuid", params.SnapshotId)
-			return &gcpgenserver.V1betaDeleteSnapshotBadRequest{
+			return &gcpgenserver.V1betaDeleteSnapshotNotFound{
 				Code:    404,
 				Message: "Snapshot not found",
 			}, nil

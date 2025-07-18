@@ -864,6 +864,25 @@ func (re *retryEngine) CreateJob(ctx context.Context, job *datamodel.Job) (*data
 	return var0, err
 }
 
+func (re *retryEngine) DeleteJob(ctx context.Context, id, errorDetails string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.DeleteJob(ctx, id, errorDetails)
+		if err != nil {
+			re.logError("DeleteJob", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
 func (re *retryEngine) UpdateJob(ctx context.Context, jobID string, status string, trackingID int, errorDetails string) error {
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error

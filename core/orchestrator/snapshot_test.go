@@ -534,6 +534,96 @@ func TestVolumeOwnershipCheck(t *testing.T) {
 	})
 }
 
+func TestValidateSnapshotName(t *testing.T) {
+	t.Run("WhenFailsWithEmptyString", func(tt *testing.T) {
+		err := ValidateSnapshotName("")
+		if err == nil {
+			tt.Error("No error returned")
+		} else if !errors.IsUserInputValidationErr(err) {
+			tt.Error("Wrong error type returned")
+		} else if err.Error() != "Snapshot name must not be empty." {
+			tt.Errorf("Wrong error message returned, got: %s", err.Error())
+		}
+	})
+	t.Run("WhenFailsWithInvalidCharacters", func(tt *testing.T) {
+		invalid := []string{`'`, `""`, "?", "!", "#", "$", "%", "&", "/"}
+		for _, c := range invalid {
+			err := ValidateSnapshotName("invalid" + c)
+			if err == nil {
+				tt.Error("No error returned")
+			} else if !errors.IsUserInputValidationErr(err) {
+				tt.Error("Wrong error type returned")
+			} else if err.Error() != "Snapshot name can only include alphanumeric characters and the following special characters: ()-_+." {
+				tt.Errorf("Wrong error message returned, got: %s", err.Error())
+			}
+		}
+	})
+	t.Run("WhenFailsWithInvalidNames", func(tt *testing.T) {
+		invalid := []string{`ref_ss_volmove`, `snapmirror`}
+		for _, c := range invalid {
+			err := ValidateSnapshotName(c)
+			if err == nil {
+				tt.Error("No error returned")
+			}
+			if !errors.IsUserInputValidationErr(err) {
+				tt.Error("Wrong error type returned")
+			}
+		}
+	})
+	t.Run("WhenFailsWithExactInvalidNames", func(tt *testing.T) {
+		invalid := []string{`ref_ss_volmove`, `snapmirror`, `hourly.`, `daily.`, `weekly.`, `monthly.`}
+		for _, c := range invalid {
+			err := ValidateSnapshotName(c)
+			if err == nil {
+				tt.Error("No error returned")
+			}
+			if !errors.IsUserInputValidationErr(err) {
+				tt.Error("Wrong error type returned")
+			}
+			assert.EqualError(tt, err, `Snapshot name cannot start with the following: "ref_ss_volmove", "snapmirror", "hourly.", "daily.", "weekly." or "monthly.".`)
+		}
+	})
+	t.Run("WhenFailsWithExtraInvalidNames", func(tt *testing.T) {
+		invalid := []string{`ref_ss_volmove.something_more`, `snapmirror.snapshot`, `hourly.2024-05-01-1400`, `daily.2024-05-01-1400`, `weekly.2024-05-01-1400`, `monthly.2024-05-01-1400`}
+		for _, c := range invalid {
+			err := ValidateSnapshotName(c)
+			if err == nil {
+				tt.Error("No error returned")
+			}
+			if !errors.IsUserInputValidationErr(err) {
+				tt.Error("Wrong error type returned")
+			}
+			assert.EqualError(tt, err, `Snapshot name cannot start with the following: "ref_ss_volmove", "snapmirror", "hourly.", "daily.", "weekly." or "monthly.".`)
+		}
+	})
+	t.Run("WhenFailsWithConsecutiveDots", func(tt *testing.T) {
+		err := ValidateSnapshotName("..")
+		if err == nil {
+			tt.Error("No error returned")
+		} else if !errors.IsUserInputValidationErr(err) {
+			tt.Error("Wrong error type returned")
+		} else if err.Error() != "Snapshot name cannot include consecutive dots: .." {
+			tt.Errorf("Wrong error message returned, got: %s", err.Error())
+		}
+	})
+	t.Run("WhenFailsWithSingleDot", func(tt *testing.T) {
+		err := ValidateSnapshotName(".")
+		if err == nil {
+			tt.Error("No error returned")
+		} else if !errors.IsUserInputValidationErr(err) {
+			tt.Error("Wrong error type returned")
+		} else if err.Error() != "Snapshot name cannot be a single dot." {
+			tt.Errorf("Wrong error message returned, got: %s", err.Error())
+		}
+	})
+	t.Run("WhenSuccessfulWithAllValidCharacters", func(tt *testing.T) {
+		err := ValidateSnapshotName("valid123_-+.()")
+		if err != nil {
+			tt.Error("Unexpected error returned")
+		}
+	})
+}
+
 func TestValidateCreateSnapshotOperation(t *testing.T) {
 	t.Run("WhenParamsNameIsNil", func(tt *testing.T) {
 		volume := &datamodel.Volume{

@@ -78,7 +78,7 @@ func TestSnapshotAttributes_Value(t *testing.T) {
 	sa := SnapshotAttributes{SizeInBytes: 1024}
 	val, err := sa.Value()
 	assert.NoError(t, err)
-	assert.Equal(t, `{"size_in_bytes":1024,"type":"","external_uuid":"","logical_size_used_in_bytes":0}`, string(val.([]byte)))
+	assert.Equal(t, `{"size_in_bytes":1024,"external_uuid":"","logical_size_used_in_bytes":0}`, string(val.([]byte)))
 }
 
 func TestBucketDetailsArray_Value(t *testing.T) {

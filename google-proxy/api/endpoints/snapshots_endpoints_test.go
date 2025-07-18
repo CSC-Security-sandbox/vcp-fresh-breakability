@@ -810,7 +810,7 @@ func TestV1betaDeleteSnapshot(t *testing.T) {
 		result, err := handler.V1betaDeleteSnapshot(context.Background(), params)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, "Snapshot not found", result.(*gcpserver.V1betaDeleteSnapshotBadRequest).Message)
+		assert.Equal(tt, "Snapshot not found", result.(*gcpserver.V1betaDeleteSnapshotNotFound).Message)
 	})
 
 	t.Run("WhenDeleteSnapshotReturnsConflictError", func(tt *testing.T) {

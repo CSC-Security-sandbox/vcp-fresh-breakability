@@ -410,6 +410,18 @@ func TestUpdateJob_Persistence_Store(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestDeleteJob_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	job := &datamodel.Job{ResourceName: "job3"}
+	created, err := store.CreateJob(ctx, job)
+	assert.NoError(t, err)
+	err = store.DeleteJob(ctx, created.UUID, "")
+	assert.NoError(t, err)
+}
+
 // SVM
 func TestCreateSVM_Persistence_Store(t *testing.T) {
 	logger := log.NewLogger()

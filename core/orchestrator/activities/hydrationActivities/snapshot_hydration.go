@@ -24,7 +24,14 @@ var (
 func batchHydrateSnapshots(ctx context.Context, snapshots []*datamodel.Snapshot, batchHydrateFunc func(context.Context, log.Logger, []models.Request, string, string, string, string) error, callbackToken string) error {
 	logger := util.GetLogger(ctx)
 
+	// Sort snapshots by Volume.Name with nil checks
 	sort.Slice(snapshots, func(i, j int) bool {
+		if snapshots[i] == nil || snapshots[i].Volume == nil || snapshots[i].Volume.Name == "" {
+			return false
+		}
+		if snapshots[j] == nil || snapshots[j].Volume == nil || snapshots[j].Volume.Name == "" {
+			return true
+		}
 		return snapshots[i].Volume.Name < snapshots[j].Volume.Name
 	})
 

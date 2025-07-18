@@ -38,7 +38,7 @@ func SyncVSASnapshotsWorkflow(ctx workflow.Context) error {
 
 	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.SynchronizeSnapshots, pools).Get(ctx, nil)
 	if err != nil {
-		logger.Error("SynchronizeSnapshots activity failed.", "Error", err)
+		logger.Error("SynchronizeSnapshots activity execution failed.", "Error", err)
 		return err
 	}
 

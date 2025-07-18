@@ -14,6 +14,7 @@ type Snapshot struct {
 	StateDetails       string              `gorm:"column:state_details"`
 	AccountID          int64               `gorm:"column:account_id"`
 	VolumeID           int64               `gorm:"column:volume_id"`
+	Type               string              `gorm:"column:type"`
 	IsAppConsistent    bool                `gorm:"column:is_app_consistent"`
 	SnapshotAttributes *SnapshotAttributes `gorm:"column:snapshot_attributes;type:jsonb"`
 	Account            *Account            `gorm:"ForeignKey:AccountID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
@@ -22,7 +23,6 @@ type Snapshot struct {
 
 type SnapshotAttributes struct {
 	SizeInBytes            int64  `json:"size_in_bytes"`
-	Type                   string `json:"type"`
 	ExternalUUID           string `json:"external_uuid"`
 	LogicalSizeUsedInBytes int64  `json:"logical_size_used_in_bytes"`
 }

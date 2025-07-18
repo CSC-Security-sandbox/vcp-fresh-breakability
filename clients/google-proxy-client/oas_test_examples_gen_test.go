@@ -4975,6 +4975,18 @@ func TestV1betaDeleteSnapshotInternalServerError_EncodeDecode(t *testing.T) {
 	var typ2 V1betaDeleteSnapshotInternalServerError
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaDeleteSnapshotNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteSnapshotNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteSnapshotNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaDeleteSnapshotServiceUnavailable_EncodeDecode(t *testing.T) {
 	var typ V1betaDeleteSnapshotServiceUnavailable
 	typ.SetFake()

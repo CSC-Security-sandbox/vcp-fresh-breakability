@@ -5452,6 +5452,15 @@ func (s *V1betaDeleteSnapshotInternalServerError) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaDeleteSnapshotNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteSnapshotNotFound(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaDeleteSnapshotServiceUnavailable) SetFake() {
 	var unwrapped Error
 	{

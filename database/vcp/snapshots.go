@@ -173,7 +173,7 @@ func (d *DataStoreRepository) UnDeleteSnapshot(ctx context.Context, snapshot *da
 	snapshot.StateDetails = models.LifeCycleStateReadyDetails
 	snapshot.DeletedAt = &gorm.DeletedAt{}
 
-	err = tx.Model(&snapshot).Updates(snapshot).Error
+	err = tx.Model(&snapshot).Where("uuid = ?", snapshot.UUID).Updates(snapshot).Error
 
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)

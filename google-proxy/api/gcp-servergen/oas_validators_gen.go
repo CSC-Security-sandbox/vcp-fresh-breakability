@@ -8168,6 +8168,14 @@ func (s *V1betaDeleteSnapshotInternalServerError) Validate() error {
 	return nil
 }
 
+func (s *V1betaDeleteSnapshotNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *V1betaDeleteSnapshotServiceUnavailable) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {

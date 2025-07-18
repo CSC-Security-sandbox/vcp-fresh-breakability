@@ -525,6 +525,10 @@ func (s *PersistenceStore) UpdateJob(ctx context.Context, id string, status stri
 	return s.dataStore.UpdateJob(ctx, id, status, trackingID, errorDetails)
 }
 
+func (s *PersistenceStore) DeleteJob(ctx context.Context, id string, errorDetails string) error {
+	return s.dataStore.DeleteJob(ctx, id, errorDetails)
+}
+
 func (s *PersistenceStore) GetJob(ctx context.Context, id string) (*datamodel.Job, error) {
 	return s.dataStore.GetJob(ctx, id)
 }

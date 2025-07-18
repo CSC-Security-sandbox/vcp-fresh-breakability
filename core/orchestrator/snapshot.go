@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -15,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -31,10 +34,28 @@ var (
 	updateSnapshot                  = _updateSnapshot
 	getSnapshot                     = _getSnapshot
 	VolumeOwnershipCheck            = _volumeOwnershipCheck
+	ValidateSnapshotName            = _validateSnapshotName
 	deleteSnapshot                  = _deleteSnapshot
 	listSnapshots                   = _listSnapshots
 	deleteSnapshots                 = _deleteSnapshots
 	ConvertDatastoreSnapshotToModel = _convertDatastoreSnapshotToModel
+)
+
+const (
+	snapshotNamePattern           = `^[\w()+.-]+$`
+	snapshotNameErrorEmpty        = "Snapshot name must not be empty."
+	snapshotNameError             = "Snapshot name can only include alphanumeric characters and the following special characters: ()-_+."
+	snapshotNameErrorDots         = "Snapshot name cannot include consecutive dots: .."
+	snapshotNameErrorSingleDot    = "Snapshot name cannot be a single dot."
+	snapshotNameErrorIllegalNames = `Snapshot name cannot start with the following: "ref_ss_volmove", "snapmirror", "hourly.", "daily.", "weekly." or "monthly.".`
+)
+
+var (
+	illegalNamesRegexp = []*regexp.Regexp{
+		regexp.MustCompile(`^ref_ss_volmove.*$`),
+		regexp.MustCompile(`^snapmirror.*$`),
+		regexp.MustCompile(`^(hourly|daily|weekly|monthly)\..*$`),
+	}
 )
 
 // CreateSnapshot creates the snapshot and adds to the specified volume belonging to the specified owner
@@ -44,6 +65,11 @@ func (o *Orchestrator) CreateSnapshot(ctx context.Context, params *common.Create
 
 func _createSnapshot(ctx context.Context, se database.Storage, temporal client.Client, params *common.CreateSnapshotParams) (*models.Snapshot, string, error) {
 	logger := util.GetLogger(ctx)
+
+	if err := ValidateSnapshotName(nillable.GetString(&params.Name, "")); err != nil {
+		logger.Errorf("Error creating snapshot: %v", err)
+		return nil, "", err
+	}
 
 	account, err := se.GetAccount(ctx, params.AccountName)
 	if err != nil {
@@ -122,6 +148,25 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
+	var dbSnapshot *datamodel.Snapshot
+	// Cleanup in case of error
+	defer func() {
+		if err != nil {
+			if job != nil && job.UUID != "" {
+				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
+				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
+					logger.Errorf("Failed to delete job: %v", delErr)
+				}
+			}
+			if dbSnapshot != nil && dbSnapshot.UUID != "" {
+				logger.Warnf("Error occurred, marking snapshot in DB as deleted. Snapshot UUID: %s", dbSnapshot.UUID)
+				if _, delErr := se.DeleteSnapshot(ctx, dbSnapshot.UUID); delErr != nil {
+					logger.Errorf("Failed to delete snapshot: %v", delErr)
+				}
+			}
+		}
+	}()
+
 	job, err = se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Errorf("Failed to create job in database. Error: %v", err)
@@ -129,19 +174,18 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	}
 
 	snapshot := &datamodel.Snapshot{
-		Name:            params.Name,
-		Description:     params.Description,
-		VolumeID:        volume.ID,
-		AccountID:       account.ID,
-		Volume:          volume,
-		Account:         account,
-		IsAppConsistent: params.IsAppConsistent,
-		SnapshotAttributes: &datamodel.SnapshotAttributes{
-			Type: SNAPSHOT_TYPE_ADHOC,
-		},
+		Name:               params.Name,
+		Description:        params.Description,
+		VolumeID:           volume.ID,
+		AccountID:          account.ID,
+		Volume:             volume,
+		Account:            account,
+		IsAppConsistent:    params.IsAppConsistent,
+		Type:               SNAPSHOT_TYPE_ADHOC,
+		SnapshotAttributes: &datamodel.SnapshotAttributes{},
 	}
 
-	dbSnapshot, err := se.CreatingSnapshot(ctx, snapshot)
+	dbSnapshot, err = se.CreatingSnapshot(ctx, snapshot)
 	if err != nil {
 		logger.Errorf("Failed to create snapshot in database. Error: %v", err)
 		return nil, "", err
@@ -293,6 +337,18 @@ func _updateSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
+	// Cleanup in case of error
+	defer func() {
+		if err != nil {
+			if job != nil && job.UUID != "" {
+				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
+				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
+					logger.Errorf("Failed to delete job: %v", delErr)
+				}
+			}
+		}
+	}()
+
 	job, err = se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Errorf("Failed to create job in database. Error: %v", err)
@@ -393,6 +449,19 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
+
+	// Cleanup in case of error
+	defer func() {
+		if err != nil {
+			if job != nil && job.UUID != "" {
+				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
+				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
+					logger.Errorf("Failed to delete job: %v", delErr)
+				}
+			}
+		}
+	}()
+
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Errorf("Failed to create snapshot delete job in database %v", err)
@@ -451,6 +520,27 @@ func _volumeOwnershipCheck(ctx context.Context, se database.Storage, volumeUUID 
 	return volume, nil
 }
 
+func _validateSnapshotName(name string) error {
+	if name == "" {
+		return customerrors.NewUserInputValidationErr(snapshotNameErrorEmpty)
+	}
+	if match, _ := regexp.MatchString(snapshotNamePattern, name); !match {
+		return customerrors.NewUserInputValidationErr(snapshotNameError)
+	}
+	if strings.Contains(name, "..") {
+		return customerrors.NewUserInputValidationErr(snapshotNameErrorDots)
+	}
+	if name == "." {
+		return customerrors.NewUserInputValidationErr(snapshotNameErrorSingleDot)
+	}
+	for _, reg := range illegalNamesRegexp {
+		if reg.MatchString(name) {
+			return customerrors.NewUserInputValidationErr(snapshotNameErrorIllegalNames)
+		}
+	}
+	return nil
+}
+
 // DeleteSnapmirrorSnapshots deletes the snapmirror snapshots for the specified volume belonging to the specified owner
 func (o *Orchestrator) DeleteSnapmirrorSnapshots(ctx context.Context, params *common.SnapshotsInternalDeleteParams) (string, error) {
 	return deleteSnapshots(ctx, o.storage, o.temporal, params)
@@ -486,6 +576,19 @@ func _deleteSnapshots(ctx context.Context, se database.Storage, temporal client.
 			PoolUUID:     dbVolume.Pool.UUID,
 		},
 	}
+
+	// Cleanup in case of error
+	defer func() {
+		if err != nil {
+			if job != nil && job.UUID != "" {
+				logger.Warnf("Error occurred, marking job entry in DB as deleted. Job UUID: %s", job.UUID)
+				if delErr := se.DeleteJob(ctx, job.UUID, err.Error()); delErr != nil {
+					logger.Errorf("Failed to delete job: %v", delErr)
+				}
+			}
+		}
+	}()
+
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Errorf("Failed to create snapshot delete job in database %v", err)

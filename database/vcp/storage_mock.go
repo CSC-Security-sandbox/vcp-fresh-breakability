@@ -1698,6 +1698,54 @@ func (_c *MockStorage_DeleteHostGroup_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
+// DeleteJob provides a mock function with given fields: ctx, id, errorDetails
+func (_m *MockStorage) DeleteJob(ctx context.Context, id string, errorDetails string) error {
+	ret := _m.Called(ctx, id, errorDetails)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteJob")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, id, errorDetails)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_DeleteJob_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteJob'
+type MockStorage_DeleteJob_Call struct {
+	*mock.Call
+}
+
+// DeleteJob is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id string
+//   - errorDetails string
+func (_e *MockStorage_Expecter) DeleteJob(ctx interface{}, id interface{}, errorDetails interface{}) *MockStorage_DeleteJob_Call {
+	return &MockStorage_DeleteJob_Call{Call: _e.mock.On("DeleteJob", ctx, id, errorDetails)}
+}
+
+func (_c *MockStorage_DeleteJob_Call) Run(run func(ctx context.Context, id string, errorDetails string)) *MockStorage_DeleteJob_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_DeleteJob_Call) Return(_a0 error) *MockStorage_DeleteJob_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_DeleteJob_Call) RunAndReturn(run func(context.Context, string, string) error) *MockStorage_DeleteJob_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteKmsConfig provides a mock function with given fields: ctx, kmsConfigUUID, state, stateDetails
 func (_m *MockStorage) DeleteKmsConfig(ctx context.Context, kmsConfigUUID string, state string, stateDetails string) (*datamodel.KmsConfig, error) {
 	ret := _m.Called(ctx, kmsConfigUUID, state, stateDetails)
