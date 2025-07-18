@@ -241,7 +241,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			osType := reqBlockProperties.GetOsType()
 			param.BlockProperties = &common.BlockPropertiesRequest{
 				OSType:         string(osType.Value),
-				HostGroupUUIDs: reqBlockProperties.GetHostGroupIds(),
+				HostGroupUUIDs: DeduplicateSlice(reqBlockProperties.GetHostGroupIds()),
 			}
 		}
 	}
@@ -387,7 +387,7 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 	if req.BlockProperties.IsSet() {
 		reqBlockProperties, _ := req.BlockProperties.Get()
 		param.BlockProperties = &common.BlockPropertiesRequest{
-			HostGroupUUIDs: reqBlockProperties.HostGroupIds,
+			HostGroupUUIDs: DeduplicateSlice(reqBlockProperties.HostGroupIds),
 		}
 		if reqBlockProperties.OsType.IsSet() {
 			osType := reqBlockProperties.GetOsType().Value

@@ -2246,7 +2246,51 @@ func TestPrepareCreateVolumeParams_SnapReserveMustBePositiveNumber(t *testing.T)
 	assert.Contains(t, err.Error(), "SnapReserve cannot be negative")
 }
 
+func TestPrepareCreateVolumeParams_DeDuplicateHGUUID(t *testing.T) {
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "test-volume",
+			CreationToken: gcpgenserver.NewOptString("test-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+			Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+			BlockProperties: gcpgenserver.NewOptBlockPropertiesV1beta(
+				gcpgenserver.BlockPropertiesV1beta{
+					OsType:       gcpgenserver.NewOptBlockPropertiesV1betaOsType("LINUX"),
+					HostGroupIds: []string{"a", "a", "b"},
+				},
+			),
+		},
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+	result, err := _prepareCreateVolumeParams(req, params, region)
+	assert.Nil(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result.BlockProperties.HostGroupUUIDs, 2)
+}
+
 func TestPrepareUpdateVolumeParams_SnapReserveCannotBeGreaterThan100(t *testing.T) {
+	params := gcpgenserver.V1betaUpdateVolumeParams{
+		ProjectNumber: "proj",
+		LocationId:    "loc",
+		VolumeId:      "vol",
+	}
+	region := "region"
+
+	req := &gcpgenserver.VolumeUpdateV1beta{
+		SnapReserve: gcpgenserver.NewOptNilFloat64(101),
+	}
+	result, err := _prepareUpdateVolumeParams(req, params, region)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "SnapReserve cannot be greater than 100")
+}
+
+func TestPrepareUpdateVolumeParams_HG(t *testing.T) {
 	params := gcpgenserver.V1betaUpdateVolumeParams{
 		ProjectNumber: "proj",
 		LocationId:    "loc",

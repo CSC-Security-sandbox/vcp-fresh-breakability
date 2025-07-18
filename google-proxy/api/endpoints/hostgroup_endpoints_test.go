@@ -2,7 +2,7 @@ package api
 
 import (
 	"context"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"fmt"
 	"testing"
 	"time"
 
@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -335,7 +336,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaCreateHostGroupInternalServerError).Code)
 		assert.Equal(tt, "Internal server error", result.(*gcpgenserver.V1betaCreateHostGroupInternalServerError).Message)
 	})
-	t.Run("WhenCreateHostGroupWithSuccess", func(tt *testing.T) {
+	t.Run("WhenCreateHostGroupWithHosts>64", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreateHostGroupParams{
 			LocationId:    "invalid-location-id",
@@ -347,6 +348,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 			Description: gcpgenserver.NewOptString("test description"),
 			OsType:      gcpgenserver.HostGroupV1betaOsTypeLINUX,
 			Type:        gcpgenserver.NewOptHostGroupV1betaType(gcpgenserver.HostGroupV1betaTypeISCSIINITIATOR),
+			Hosts:       []string{"host1", "host2", "host3", "host4", "host5", "host6", "host7", "host8", "host9", "host10", "host11", "host12", "host13", "host14", "host15", "host16", "host17", "host18", "host19", "host20", "host21", "host22", "host23", "host24", "host25", "host26", "host27", "host28", "host29", "host30", "host31", "host32", "host33", "host34", "host35", "host36", "host37", "host38", "host39", "host40", "host41", "host42", "host43", "host44", "host45", "host46", "host47", "host48", "host49", "host50", "host51", "host52", "host53", "host54", "host55", "host56", "host57", "host58", "host59", "host60", "host61", "host62", "host63", "host64", "host65"},
 		}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -359,7 +361,39 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 			Orchestrator: mockOrchestrator,
 		}
 
-		createHGParams := &common.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: "ISCSI_INITIATOR", Hosts: []string(nil), OSType: "LINUX", AccountName: "project-number"}
+		result, err := handler.V1betaCreateHostGroup(context.Background(), req, params)
+
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreateHostGroupBadRequest).Code)
+		assert.Equal(tt, fmt.Sprintf("Host group cannot have more than %d hosts", maxHostsPerHG), result.(*gcpgenserver.V1betaCreateHostGroupBadRequest).Message)
+	})
+	t.Run("WhenCreateHostGroupWithSuccess", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreateHostGroupParams{
+			LocationId:    "invalid-location-id",
+			ProjectNumber: "project-number",
+		}
+
+		req := &gcpgenserver.HostGroupV1beta{
+			ResourceId:  "test-host-group",
+			Description: gcpgenserver.NewOptString("test description"),
+			OsType:      gcpgenserver.HostGroupV1betaOsTypeLINUX,
+			Type:        gcpgenserver.NewOptHostGroupV1betaType(gcpgenserver.HostGroupV1betaTypeISCSIINITIATOR),
+			Hosts:       []string{"host1", "host2", "host1"},
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		createHGParams := &common.CreateHostGroupParams{Name: "test-host-group", Description: "test description", HostGroupType: "ISCSI_INITIATOR", Hosts: []string{"host1", "host2"}, OSType: "LINUX", AccountName: "project-number"}
 		mockOrchestrator.EXPECT().CreateHostGroup(mock.Anything, createHGParams).Return(&models.HostGroup{
 			BaseModel:     models.BaseModel{},
 			Name:          "abcd",
@@ -367,7 +401,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 			State:         "READY",
 			StateDetails:  "READY",
 			OSType:        "linux",
-			Hosts:         []string{"a", "b"},
+			Hosts:         []string{"host1", "host2"},
 			HostGroupType: "",
 			AccountName:   "abcd",
 		}, nil)
@@ -584,6 +618,38 @@ func TestV1betaUpdateHostGroup(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaUpdateHostGroupInternalServerError).Code)
 		assert.Equal(tt, "Internal server error", result.(*gcpgenserver.V1betaUpdateHostGroupInternalServerError).Message)
+	})
+	t.Run("WhenUpdateHostGroupHosts>64Fails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdateHostGroupParams{
+			LocationId:    "valid-location-id",
+			ProjectNumber: "project-number",
+			HostGroupId:   "host-group-id",
+		}
+
+		req := &gcpgenserver.HostGroupUpdateV1beta{
+			Description: gcpgenserver.NewOptString("updated description"),
+			Hosts:       []string{"host1", "host2", "host3", "host4", "host5", "host6", "host7", "host8", "host9", "host10", "host11", "host12", "host13", "host14", "host15", "host16", "host17", "host18", "host19", "host20", "host21", "host22", "host23", "host24", "host25", "host26", "host27", "host28", "host29", "host30", "host31", "host32", "host33", "host34", "host35", "host36", "host37", "host38", "host39", "host40", "host41", "host42", "host43", "host44", "host45", "host46", "host47", "host48", "host49", "host50", "host51", "host52", "host53", "host54", "host55", "host56", "host57", "host58", "host59", "host60", "host61", "host62", "host63", "host64", "host65"},
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", nil
+		}
+
+		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().GetHostGroup(mock.Anything, params.HostGroupId, params.ProjectNumber).Return(&models.HostGroup{}, nil)
+
+		result, err := handler.V1betaUpdateHostGroup(context.Background(), req, params)
+
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaUpdateHostGroupBadRequest).Code)
+		assert.Equal(tt, fmt.Sprintf("Host group cannot have more than %d hosts", maxHostsPerHG), result.(*gcpgenserver.V1betaUpdateHostGroupBadRequest).Message)
 	})
 	t.Run("WhenUpdateHostGroupSucceeds", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)

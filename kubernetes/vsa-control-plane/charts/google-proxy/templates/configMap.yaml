@@ -48,6 +48,7 @@ data:
   MIN_QUOTA_IN_BYTES_VOLUME: "{{ index .Values "minQuotaInBytesVolume" }}"
   MAX_QUOTA_IN_BYTES_VOLUME: "{{ index .Values "maxQuotaInBytesVolume" }}"
   JWK_KIDS_URL: "{{ index .Values "jwkKidsUrl" }}"
+  MAX_HOSTS_PER_HOSTGROUP: "{{ index .Values "maxHostsPerHostgroup" }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_NAME: {{ index .Values "database" "name"  }}

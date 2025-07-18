@@ -11,11 +11,15 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-var operationPathFormat = "/v1beta/projects/%s/locations/%s/operations/%s"
+var (
+	operationPathFormat = "/v1beta/projects/%s/locations/%s/operations/%s"
+	maxHostsPerHG       = env.GetInt("MAX_HOSTS_PER_HOSTGROUP", 64)
+)
 
 func (h Handler) V1betaDescribeHostGroup(ctx context.Context, params gcpgenserver.V1betaDescribeHostGroupParams) (gcpgenserver.V1betaDescribeHostGroupRes, error) {
 	logger := util.GetLogger(ctx)
@@ -49,8 +53,15 @@ func (h Handler) V1betaCreateHostGroup(ctx context.Context, req *gcpgenserver.Ho
 
 	createParams := &common.CreateHostGroupParams{
 		Name:        req.ResourceId,
-		Hosts:       req.Hosts,
+		Hosts:       DeduplicateSlice(req.Hosts),
 		AccountName: params.ProjectNumber,
+	}
+
+	if len(createParams.Hosts) > maxHostsPerHG {
+		return &gcpgenserver.V1betaCreateHostGroupBadRequest{
+			Code:    400,
+			Message: fmt.Sprintf("Host group cannot have more than %d hosts", maxHostsPerHG),
+		}, nil
 	}
 
 	if req.Type.IsSet() {
@@ -221,10 +232,18 @@ func (h Handler) V1betaUpdateHostGroup(ctx context.Context, req *gcpgenserver.Ho
 	}
 
 	updateParams := &common.UpdateHostGroupParams{
-		Hosts:         req.Hosts,
+		Hosts:         DeduplicateSlice(req.Hosts),
 		AccountName:   params.ProjectNumber,
 		HostGroupUUID: params.HostGroupId,
 	}
+
+	if len(updateParams.Hosts) > maxHostsPerHG {
+		return &gcpgenserver.V1betaUpdateHostGroupBadRequest{
+			Code:    400,
+			Message: fmt.Sprintf("Host group cannot have more than %d hosts", maxHostsPerHG),
+		}, nil
+	}
+
 	if req.Description.IsSet() {
 		updateParams.Description = &req.Description.Value
 	}
