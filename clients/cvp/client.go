@@ -21,6 +21,11 @@ var (
 	httpTransport    http.RoundTripper
 )
 
+// SetCVPHost updates the CVP_HOST value at runtime (mainly for testing)
+func SetCVPHost(host string) {
+	CVP_HOST = host
+}
+
 type cvpRoundTripper struct {
 	jwt    string
 	logger log.Logger

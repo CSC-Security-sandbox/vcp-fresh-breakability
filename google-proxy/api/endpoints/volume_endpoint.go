@@ -724,19 +724,74 @@ complete the setup.`
 
 func (h Handler) V1betaGetMultipleVolumes(ctx context.Context, req *gcpgenserver.VolumeIdListV1beta, params gcpgenserver.V1betaGetMultipleVolumesParams) (gcpgenserver.V1betaGetMultipleVolumesRes, error) {
 	logger := util.GetLogger(ctx)
+
+	// Validate the location first
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaGetMultipleVolumesBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	if req.VolumeUuids == nil {
+		return &gcpgenserver.V1betaGetMultipleVolumesBadRequest{
+			Code:    400,
+			Message: "VolumeUuids are required",
+		}, nil
+	}
+
+	if len(req.VolumeUuids) > 1000 {
+		return &gcpgenserver.V1betaGetMultipleVolumesBadRequest{
+			Code:    400,
+			Message: "VolumeUuids in body should have at most 1000 items",
+		}, nil
+	}
+
 	volumesModelVCP, err := h.Orchestrator.GetMultipleVolumes(ctx, req.VolumeUuids, params.ProjectNumber)
 	if err != nil {
 		logger.Error("Failed to fetch volume", "error", err.Error())
 		return &gcpgenserver.V1betaGetMultipleVolumesInternalServerError{Code: 500, Message: "Internal server error"}, err
 	}
 
-	volumesVCP := make([]gcpgenserver.VolumeV1beta, 0)
+	volumesVCP := make([]gcpgenserver.VolumeV1beta, 0, len(req.VolumeUuids))
+	foundVolumeUUIDs := make(map[string]struct{}, len(volumesModelVCP))
 	for _, vol := range volumesModelVCP {
 		response := convertModelToVCPVolume(vol)
 		volumesVCP = append(volumesVCP, *response)
+		foundVolumeUUIDs[vol.UUID] = struct{}{}
 	}
 
-	return getMultipleVolumesFromCVP(ctx, req, params, volumesVCP)
+	// If all volumes are found in VCP, just return them.
+	if len(req.VolumeUuids) == len(volumesVCP) {
+		return &gcpgenserver.V1betaGetMultipleVolumesOK{
+			Volumes: volumesVCP,
+		}, nil
+	}
+
+	if cvp.CVP_HOST == "" {
+		logger.Info("CVP_HOST environment variable is not set, skipping CVP call", "foundVolumes", len(volumesVCP), "requestedVolumes", len(req.VolumeUuids))
+		return &gcpgenserver.V1betaGetMultipleVolumesOK{
+			Volumes: volumesVCP,
+		}, nil
+	}
+
+	// Figure out which volumes are missing and need to be fetched from CVP
+	missingVolumeUUIDs := helper.FindMissingUUIDs(req.VolumeUuids, foundVolumeUUIDs)
+
+	// If no volumes are missing (e.g. due to duplicates in request), we don't need to call CVP
+	if len(missingVolumeUUIDs) == 0 {
+		return &gcpgenserver.V1betaGetMultipleVolumesOK{
+			Volumes: volumesVCP,
+		}, nil
+	}
+
+	// The original request object `req` contains all UUIDs. We need a new one with only the missing UUIDs.
+	cvpReq := &gcpgenserver.VolumeIdListV1beta{
+		VolumeUuids: missingVolumeUUIDs,
+	}
+
+	return getMultipleVolumesFromCVP(ctx, cvpReq, params, volumesVCP)
 }
 
 func _getMultipleVolumesFromCVP(ctx context.Context, req *gcpgenserver.VolumeIdListV1beta, params gcpgenserver.V1betaGetMultipleVolumesParams, vcpVolumes []gcpgenserver.VolumeV1beta) (gcpgenserver.V1betaGetMultipleVolumesRes, error) {

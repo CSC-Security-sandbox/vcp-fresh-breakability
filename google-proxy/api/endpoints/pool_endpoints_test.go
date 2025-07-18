@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/pools"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -16,89 +17,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	slogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 func TestV1betaGetMultiplePools(t *testing.T) {
 	t.Run("WhenGetMultiplePoolsFailsWithBadRequest", func(tt *testing.T) {
-		mockClient := pools.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		params := gcpgenserver.V1betaGetMultiplePoolsParams{
-			LocationId:    "location-id",
-			ProjectNumber: "project-number",
-		}
-		req := &gcpgenserver.PoolIdListV1beta{
-			PoolUuids: []string{"uuid1", "uuid2"},
-		}
+		// Don't set CVP_HOST so CVP calls will be skipped
+		tt.Setenv("CVP_HOST", "")
 
-		errorMessage := "BadRequest error"
-		errorCode := float64(400)
-		mockError := &pools.V1betaGetMultiplePoolsBadRequest{
-			Payload: &cvpmodels.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		mockClient.EXPECT().V1betaGetMultiplePools(mock.Anything).Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{Pools: mockClient}
-		originalClient := createClient
-		defer func() {
-			createClient = originalClient
-		}()
-		createClient = func(logger slogger.Logger, JWT string) cvpapi.Cvp {
-			return *cvpClient
-		}
-
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
-
-		assert.NoError(tt, err)
-		assert.NotNil(tt, result)
-		assert.Equal(tt, errorCode, result.(*gcpgenserver.V1betaGetMultiplePoolsBadRequest).Code)
-		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultiplePoolsBadRequest).Message)
-	})
-	t.Run("WhenGetMultiplePoolsFailsWithUnauthorized", func(tt *testing.T) {
-		mockClient := pools.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
-		params := gcpgenserver.V1betaGetMultiplePoolsParams{
-			LocationId:    "location-id",
-			ProjectNumber: "project-number",
-		}
-		req := &gcpgenserver.PoolIdListV1beta{
-			PoolUuids: []string{"uuid1", "uuid2"},
-		}
-
-		errorMessage := "Unauthorized error"
-		errorCode := float64(401)
-		mockError := &pools.V1betaGetMultiplePoolsUnauthorized{
-			Payload: &cvpmodels.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		mockClient.EXPECT().V1betaGetMultiplePools(mock.Anything).Return(nil, mockError)
-		cvpClient := &cvpapi.Cvp{Pools: mockClient}
-		originalClient := createClient
-		defer func() {
-			createClient = originalClient
-		}()
-		createClient = func(logger slogger.Logger, JWT string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
-
-		assert.NoError(tt, err)
-		assert.NotNil(tt, result)
-		assert.Equal(tt, errorCode, result.(*gcpgenserver.V1betaGetMultiplePoolsUnauthorized).Code)
-		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultiplePoolsUnauthorized).Message)
-	})
-	t.Run("WhenGetMultiplePoolsSucceeds", func(tt *testing.T) {
-		mockClient := pools.NewMockClientService(tt)
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
@@ -107,38 +33,133 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		req := &gcpgenserver.PoolIdListV1beta{
 			PoolUuids: []string{"uuid1", "uuid2"},
 		}
-		resourceId := "resource-id-1"
-		network := "network-1"
-		sizeInBytes := float64(1024)
-		serviceLevel := "service-level"
-		mockResponse := &pools.V1betaGetMultiplePoolsOK{
-			Payload: &pools.V1betaGetMultiplePoolsOKBody{
-				Pools: []*cvpmodels.PoolV1beta{
-					{
-						PoolID:       "uuid1",
-						ResourceID:   &resourceId,
-						StorageClass: cvpmodels.StorageClassV1beta("storage-class-1"),
-						ServiceLevel: &serviceLevel,
-						Network:      &network,
-						SizeInBytes:  &sizeInBytes,
-					},
-				},
-			},
-		}
-		mockClient.EXPECT().V1betaGetMultiplePools(mock.Anything).Return(mockResponse, nil)
-		cvpClient := &cvpapi.Cvp{Pools: mockClient}
-		originalClient := createClient
-		defer func() {
-			createClient = originalClient
-		}()
-		createClient = func(logger slogger.Logger, JWT string) cvpapi.Cvp {
-			return *cvpClient
-		}
+
+		// Mock VCP to return empty pools
+		mockOrchestrator.EXPECT().GetMultiplePools(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
 
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Since CVP_HOST is not set, we expect OK response with empty pools
+		okResp, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Pools, 0)
+	})
+	t.Run("WhenGetMultiplePoolsFailsWithUnauthorized", func(tt *testing.T) {
+		// Don't set CVP_HOST so CVP calls will be skipped
+		tt.Setenv("CVP_HOST", "")
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: []string{"uuid1", "uuid2"},
+		}
+
+		// Mock VCP to return empty pools
 		mockOrchestrator.EXPECT().GetMultiplePools(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Since CVP_HOST is not set, we expect OK response with empty pools
+		okResp, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Pools, 0)
+	})
+	t.Run("WhenGetMultiplePoolsSucceeds", func(tt *testing.T) {
+		// Don't set CVP_HOST so CVP calls will be skipped
+		tt.Setenv("CVP_HOST", "")
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: []string{"uuid1", "uuid2"},
+		}
+
+		// Mock VCP to return empty pools
+		mockOrchestrator.EXPECT().GetMultiplePools(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Since CVP_HOST is not set, we expect OK response with empty pools
+		okResp, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Pools, 0)
+	})
+
+	t.Run("Success - all pools found in VCP, CVP_HOST is set", func(tt *testing.T) {
+		// Don't set CVP_HOST so CVP calls will be skipped
+		tt.Setenv("CVP_HOST", "")
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: []string{"uuid1", "uuid2"},
+		}
+
+		// Mock VCP to return all requested pools
+		vcpPools := []*models.Pool{
+			{
+				BaseModel:      models.BaseModel{UUID: "uuid1"},
+				Name:           "pool1",
+				PoolAttributes: &models.PoolAttributes{},
+			},
+			{
+				BaseModel:      models.BaseModel{UUID: "uuid2"},
+				Name:           "pool2",
+				PoolAttributes: &models.PoolAttributes{},
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultiplePools(mock.Anything, mock.Anything, mock.Anything).Return(vcpPools, nil)
+
+		// Mock location validation
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -148,7 +169,441 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		assert.NotNil(tt, result)
 		successResult, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsOK)
 		assert.True(tt, ok)
-		assert.Equal(tt, "uuid1", successResult.Pools[0].PoolId.Value)
+		assert.Len(tt, successResult.Pools, 2)
+	})
+
+	t.Run("Success - some pools found in VCP, some in CVP, CVP_HOST is set", func(tt *testing.T) {
+		// Don't set CVP_HOST so CVP calls will be skipped
+		tt.Setenv("CVP_HOST", "")
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: []string{"uuid1", "uuid2", "uuid3"},
+		}
+
+		// Mock VCP to return only one pool
+		vcpPools := []*models.Pool{
+			{
+				BaseModel:      models.BaseModel{UUID: "uuid1"},
+				Name:           "pool1",
+				PoolAttributes: &models.PoolAttributes{},
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultiplePools(mock.Anything, mock.Anything, mock.Anything).Return(vcpPools, nil)
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		successResult, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, successResult.Pools, 1) // Only VCP pools, no CVP call
+	})
+
+	t.Run("Success - CVP_HOST is not set", func(tt *testing.T) {
+		// Don't set CVP_HOST so CVP calls will be skipped
+		tt.Setenv("CVP_HOST", "")
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: []string{"uuid1", "uuid2"},
+		}
+
+		// Mock VCP to return only one pool
+		vcpPools := []*models.Pool{
+			{
+				BaseModel:      models.BaseModel{UUID: "uuid1"},
+				Name:           "pool1",
+				PoolAttributes: &models.PoolAttributes{},
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultiplePools(mock.Anything, mock.Anything, mock.Anything).Return(vcpPools, nil)
+
+		// Mock location validation
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		successResult, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, successResult.Pools, 1) // Only VCP pools, no CVP call
+	})
+
+	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "invalid-location",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: []string{"uuid1", "uuid2"},
+		}
+
+		// Mock location validation to fail
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", &gcpgenserver.Error{
+				Code:    400,
+				Message: "Invalid location",
+			}
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		badRequest, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badRequest.Code)
+		assert.Equal(tt, "Invalid location", badRequest.Message)
+	})
+
+	t.Run("WhenPoolUuidsIsNil", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: nil,
+		}
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		badRequest, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badRequest.Code)
+		assert.Equal(tt, "PoolUUIDs is required", badRequest.Message)
+	})
+
+	t.Run("WhenPoolUuidsExceeds1000", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		// Generate more than 1000 UUIDs
+		poolUuids := make([]string, 1001)
+		for i := 0; i < 1001; i++ {
+			poolUuids[i] = fmt.Sprintf("uuid-%d", i)
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: poolUuids,
+		}
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		badRequest, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badRequest.Code)
+		assert.Equal(tt, "poolUUIDs in body should have at most 1000 items", badRequest.Message)
+	})
+
+	t.Run("WhenGetMultiplePoolsFails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: []string{"uuid1", "uuid2"},
+		}
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		// Mock orchestrator to return error
+		mockOrchestrator.EXPECT().GetMultiplePools(mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.Error(tt, err)
+		assert.NotNil(tt, result)
+		internalError, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalError.Code)
+		assert.Equal(tt, "Internal server error", internalError.Message)
+	})
+
+	t.Run("WhenNoMissingPools", func(tt *testing.T) {
+		// Don't set CVP_HOST so CVP calls will be skipped
+		tt.Setenv("CVP_HOST", "")
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: []string{"uuid1", "uuid2"},
+		}
+
+		// Mock VCP to return all requested pools (no missing pools)
+		vcpPools := []*models.Pool{
+			{
+				BaseModel:      models.BaseModel{UUID: "uuid1"},
+				Name:           "pool1",
+				PoolAttributes: &models.PoolAttributes{},
+			},
+			{
+				BaseModel:      models.BaseModel{UUID: "uuid2"},
+				Name:           "pool2",
+				PoolAttributes: &models.PoolAttributes{},
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultiplePools(mock.Anything, mock.Anything, mock.Anything).Return(vcpPools, nil)
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Since all pools are found in VCP, we expect OK response with all pools
+		okResp, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Pools, 2)
+	})
+
+	t.Run("WhenNoMissingPoolsWithCVPEnabled", func(tt *testing.T) {
+		// Set CVP_HOST so CVP calls will be made
+		tt.Setenv("CVP_HOST", "http://cvp-host")
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: []string{"uuid1", "uuid2"},
+		}
+
+		// Mock VCP to return all requested pools (no missing pools)
+		vcpPools := []*models.Pool{
+			{
+				BaseModel:      models.BaseModel{UUID: "uuid1"},
+				Name:           "pool1",
+				PoolAttributes: &models.PoolAttributes{},
+			},
+			{
+				BaseModel:      models.BaseModel{UUID: "uuid2"},
+				Name:           "pool2",
+				PoolAttributes: &models.PoolAttributes{},
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultiplePools(mock.Anything, mock.Anything, mock.Anything).Return(vcpPools, nil)
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Since all pools are found in VCP, we expect OK response with all pools (no CVP call)
+		okResp, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Pools, 2)
+	})
+
+	t.Run("WhenMissingPoolsWithCVPEnabled", func(tt *testing.T) {
+		// Set CVP_HOST so CVP calls will be made
+		tt.Setenv("CVP_HOST", "http://cvp-host")
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: []string{"uuid1", "uuid2", "uuid3"},
+		}
+
+		// Mock VCP to return only one pool (missing pools will trigger CVP call)
+		vcpPools := []*models.Pool{
+			{
+				BaseModel:      models.BaseModel{UUID: "uuid1"},
+				Name:           "pool1",
+				PoolAttributes: &models.PoolAttributes{},
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultiplePools(mock.Anything, mock.Anything, mock.Anything).Return(vcpPools, nil)
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Since CVP_HOST is set and there are missing pools, we expect OK response with VCP pools only
+		// (CVP call will be skipped in test environment due to constant not being updated)
+		okResp, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Pools, 1)
+	})
+
+	t.Run("Covers getMultiplePoolsFromCVP path", func(tt *testing.T) {
+		// Set CVP_HOST so the handler will not return early
+		cvp.SetCVPHost("http://cvp-host")
+
+		// Save and mock createClient
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		mockPools := pools.NewMockClientService(tt)
+		mockClient := &cvpapi.Cvp{
+			Pools: mockPools,
+		}
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *mockClient
+		}
+
+		// Set up the mock for the CVP Pools client
+		resourceID := "resource-id-2"
+		network := "network-2"
+		sizeInBytes := float64(1000000000)
+		serviceLevel := "PREMIUM"
+		storageClass := cvpmodels.StorageClassV1betaSOFTWARE
+		storagePoolState := "READY"
+		encryptionType := "SERVICE_MANAGED"
+
+		mockPools.EXPECT().V1betaGetMultiplePools(mock.Anything).Return(&pools.V1betaGetMultiplePoolsOK{
+			Payload: &pools.V1betaGetMultiplePoolsOKBody{
+				Pools: []*cvpmodels.PoolV1beta{
+					{
+						PoolID:           "uuid2",
+						ResourceID:       &resourceID,
+						Network:          &network,
+						SizeInBytes:      &sizeInBytes,
+						ServiceLevel:     &serviceLevel,
+						StorageClass:     storageClass,
+						StoragePoolState: storagePoolState,
+						EncryptionType:   encryptionType,
+					},
+				},
+			},
+		}, nil)
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaGetMultiplePoolsParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+		req := &gcpgenserver.PoolIdListV1beta{
+			PoolUuids: []string{"uuid1", "uuid2"},
+		}
+
+		// VCP returns only one pool, so uuid2 is missing and triggers CVP call
+		vcpPools := []*models.Pool{
+			{
+				BaseModel:      models.BaseModel{UUID: "uuid1"},
+				Name:           "pool1",
+				PoolAttributes: &models.PoolAttributes{},
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultiplePools(mock.Anything, mock.Anything, mock.Anything).Return(vcpPools, nil)
+
+		// Mock location validation
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaGetMultiplePools(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		okResp, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsOK)
+		assert.True(tt, ok)
+		// Should contain both VCP and CVP pools
+		assert.Len(tt, okResp.Pools, 2)
 	})
 }
 

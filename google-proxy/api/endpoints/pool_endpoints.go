@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-faster/jx"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/pools"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -264,63 +265,8 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 func (h Handler) V1betaGetMultiplePools(ctx context.Context, req *gcpgenserver.PoolIdListV1beta, params gcpgenserver.V1betaGetMultiplePoolsParams) (gcpgenserver.V1betaGetMultiplePoolsRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := createClient(logger, jwtToken)
 
-	getMultiplePoolsParams := &pools.V1betaGetMultiplePoolsParams{
-		LocationID:    params.LocationId,
-		ProjectNumber: params.ProjectNumber,
-		Body: &cvpmodels.PoolIDListV1beta{
-			PoolUUIDs: req.PoolUuids,
-		},
-	}
-	resp, err := cvpClient.Pools.V1betaGetMultiplePools(getMultiplePoolsParams)
-	if err != nil {
-		switch e := err.(type) {
-		case *pools.V1betaGetMultiplePoolsBadRequest:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultiplePoolsBadRequest{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *pools.V1betaGetMultiplePoolsUnauthorized:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultiplePoolsUnauthorized{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *pools.V1betaGetMultiplePoolsForbidden:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultiplePoolsForbidden{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *pools.V1betaGetMultiplePoolsNotFound:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultiplePoolsNotFound{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *pools.V1betaGetMultiplePoolsInternalServerError:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultiplePoolsInternalServerError{
-				Code:    code,
-				Message: msg,
-			}, nil
-		}
-	}
-
-	var cvpPools []gcpgenserver.PoolV1beta
-	if resp != nil && resp.Payload != nil && resp.Payload.Pools != nil {
-		cvpPools = append(cvpPools, convertToPoolsV1beta(resp.Payload.Pools)...)
-	}
-
-	// Validate the location
+	// Validate the location first
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaGetMultiplePoolsBadRequest{
@@ -343,16 +289,103 @@ func (h Handler) V1betaGetMultiplePools(ctx context.Context, req *gcpgenserver.P
 		}, nil
 	}
 
-	poolList, err := h.Orchestrator.GetMultiplePools(ctx, params.ProjectNumber, req.PoolUuids)
+	// Query VCP first
+	poolsModelVCP, err := h.Orchestrator.GetMultiplePools(ctx, params.ProjectNumber, req.PoolUuids)
 	if err != nil {
-		return &gcpgenserver.V1betaGetMultiplePoolsInternalServerError{}, err
+		logger.Error("Failed to fetch pools", "error", err.Error())
+		return &gcpgenserver.V1betaGetMultiplePoolsInternalServerError{Code: 500, Message: "Internal server error"}, err
 	}
 
-	vsaPools := convertToPoolsV1Beta(poolList)
-	vsaPools = append(vsaPools, cvpPools...)
-	logger.Info("Pools found", "pools", poolList)
+	poolsVCP := make([]gcpgenserver.PoolV1beta, 0, len(req.PoolUuids))
+	foundPoolUUIDs := make(map[string]struct{}, len(poolsModelVCP))
+	for _, pool := range poolsModelVCP {
+		response := convertToPoolV1Beta(pool)
+		poolsVCP = append(poolsVCP, *response)
+		foundPoolUUIDs[pool.UUID] = struct{}{}
+	}
+
+	// If all pools are found in VCP, just return them.
+	if len(req.PoolUuids) == len(poolsVCP) {
+		logger.Info("All pools found in VCP", "pools", poolsVCP)
+		return &gcpgenserver.V1betaGetMultiplePoolsOK{
+			Pools: poolsVCP,
+		}, nil
+	}
+
+	// Only call CVP if CVP_HOST is set.
+	// logger.Info("DEBUG: CVP_HOST value in handler", "cvpHost", cvpHost, "os.Getenv", os.Getenv("CVP_HOST"))
+	if cvp.CVP_HOST == "" {
+		logger.Info("CVP_HOST environment variable is not set, skipping CVP call", "foundPools", len(poolsVCP), "requestedPools", len(req.PoolUuids))
+		return &gcpgenserver.V1betaGetMultiplePoolsOK{
+			Pools: poolsVCP,
+		}, nil
+	}
+
+	// Figure out which pools are missing and need to be fetched from CVP
+	missingPoolUUIDs := helper.FindMissingUUIDs(req.PoolUuids, foundPoolUUIDs)
+
+	// If no pools are missing (e.g. due to duplicates in request), we don't need to call CVP
+	if len(missingPoolUUIDs) == 0 {
+		return &gcpgenserver.V1betaGetMultiplePoolsOK{
+			Pools: poolsVCP,
+		}, nil
+	}
+
+	return getMultiplePoolsFromCVP(ctx, missingPoolUUIDs, params, poolsVCP)
+}
+
+func getMultiplePoolsFromCVP(ctx context.Context, missingPoolUUIDs []string, params gcpgenserver.V1betaGetMultiplePoolsParams, vcpPools []gcpgenserver.PoolV1beta) (gcpgenserver.V1betaGetMultiplePoolsRes, error) {
+	logger := util.GetLogger(ctx)
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := createClient(logger, jwtToken)
+
+	getMultiplePoolsParams := &pools.V1betaGetMultiplePoolsParams{
+		LocationID:    params.LocationId,
+		ProjectNumber: params.ProjectNumber,
+		Body: &cvpmodels.PoolIDListV1beta{
+			PoolUUIDs: missingPoolUUIDs,
+		},
+	}
+	resp, err := cvpClient.Pools.V1betaGetMultiplePools(getMultiplePoolsParams)
+	if err != nil {
+		switch e := err.(type) {
+		case *pools.V1betaGetMultiplePoolsBadRequest:
+			return &gcpgenserver.V1betaGetMultiplePoolsBadRequest{
+				Code:    e.Payload.Code,
+				Message: e.Payload.Message,
+			}, nil
+		case *pools.V1betaGetMultiplePoolsUnauthorized:
+			return &gcpgenserver.V1betaGetMultiplePoolsUnauthorized{
+				Code:    e.Payload.Code,
+				Message: e.Payload.Message,
+			}, nil
+		case *pools.V1betaGetMultiplePoolsForbidden:
+			return &gcpgenserver.V1betaGetMultiplePoolsForbidden{
+				Code:    e.Payload.Code,
+				Message: e.Payload.Message,
+			}, nil
+		case *pools.V1betaGetMultiplePoolsNotFound:
+			return &gcpgenserver.V1betaGetMultiplePoolsNotFound{
+				Code:    e.Payload.Code,
+				Message: e.Payload.Message,
+			}, nil
+		case *pools.V1betaGetMultiplePoolsInternalServerError:
+			return &gcpgenserver.V1betaGetMultiplePoolsInternalServerError{
+				Code:    e.Payload.Code,
+				Message: e.Payload.Message,
+			}, nil
+		}
+	}
+
+	var cvpPools []gcpgenserver.PoolV1beta
+	if resp != nil && resp.Payload != nil && resp.Payload.Pools != nil {
+		cvpPools = append(cvpPools, convertToPoolsV1beta(resp.Payload.Pools)...)
+	}
+
+	// Combine VCP and CVP pools
+	allPools := append(vcpPools, cvpPools...)
 	return &gcpgenserver.V1betaGetMultiplePoolsOK{
-		Pools: vsaPools,
+		Pools: allPools,
 	}, nil
 }
 

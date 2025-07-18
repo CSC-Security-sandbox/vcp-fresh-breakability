@@ -60,3 +60,19 @@ func TestAddLabelerAttributesWithMockedLabeler(t *testing.T) {
 		assert.EqualValues(t, 0, jobTrackingID.AsInt64())
 	})
 }
+
+func TestFindMissingUUIDs(t *testing.T) {
+	t.Run("TestFindMissingUUIDs", func(tt *testing.T) {
+		// Test the findMissingUUIDs utility function
+		requested := []string{"uuid1", "uuid2", "uuid3", "uuid4"}
+		found := map[string]struct{}{
+			"uuid1": {},
+			"uuid3": {},
+		}
+
+		missing := FindMissingUUIDs(requested, found)
+		assert.Len(tt, missing, 2)
+		assert.Contains(tt, missing, "uuid2")
+		assert.Contains(tt, missing, "uuid4")
+	})
+}

@@ -30,3 +30,14 @@ func AddLabelerAttributes(ctx context.Context, projectNumber, locationId string,
 	labeler.Add(attribute.String("Job_State", jobState))
 	labeler.Add(attribute.Int("Job_TrackingID", jobTrackingID))
 }
+
+// FindMissingUUIDs Find missing UUIDs from a list
+func FindMissingUUIDs(requested []string, found map[string]struct{}) []string {
+	missing := make([]string, 0, len(requested)-len(found))
+	for _, uuid := range requested {
+		if _, ok := found[uuid]; !ok {
+			missing = append(missing, uuid)
+		}
+	}
+	return missing
+}
