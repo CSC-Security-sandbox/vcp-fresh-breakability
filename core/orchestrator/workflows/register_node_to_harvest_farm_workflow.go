@@ -90,14 +90,15 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 	}
 
 	// 2. Validate and create kubernetes lease if required.
-	err = workflow.ExecuteActivity(ctx, registerActivity.ValidateAndCreateKubernetesLease, nodeMappings).Get(ctx, nil)
+	var updatedNodeMappings []*datamodel.NodeNodeGroupMap
+	err = workflow.ExecuteActivity(ctx, registerActivity.ValidateAndCreateKubernetesLease, nodeMappings).Get(ctx, &updatedNodeMappings)
 	if err != nil {
 		return nil, err
 	}
 
 	// Render and upload a Harvest template for each node mapping (sequentially)
 	uploadInput := activities.UploadHarvestTemplateInput{
-		NodeMappings: nodeMappings,
+		NodeMappings: updatedNodeMappings,
 		UploadURL:    uploadURL,
 	}
 	uploadActivity := &activities.UploadHarvestTemplateActivity{}
@@ -106,5 +107,5 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 		return nil, err
 	}
 
-	return nodeMappings, nil
+	return updatedNodeMappings, nil
 }

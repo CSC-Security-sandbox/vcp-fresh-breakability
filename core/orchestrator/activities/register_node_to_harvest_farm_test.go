@@ -53,6 +53,7 @@ func TestRegisterNodeToHarvestFarm_NoNodes(t *testing.T) {
 	ctx := context.Background()
 	_, err := activity.RegisterNodeToHarvestFarm(ctx, RegisterNodeToHarvestFarmInput{PoolID: 1, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"})
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not enough nodes found for pool")
 }
 
 func TestRegisterNodeToHarvestFarm_DBError(t *testing.T) {
@@ -154,11 +155,36 @@ func TestValidateAndCreateKubernetesLease_Success(t *testing.T) {
 	ctx := context.Background()
 	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
 
-	nodeGroupsMap := getNodeGroupMap(false, false)
-	// nodeGroups := getNodeGroups(false)
+	// Create test node maps with proper initialization
+	nodeGroup1 := &datamodel.NodeGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-uuid-1"},
+		Name:      "test-group-1",
+	}
+	nodeGroup2 := &datamodel.NodeGroup{
+		BaseModel: datamodel.BaseModel{ID: 2, UUID: "test-uuid-2"},
+		Name:      "test-group-2",
+	}
+
+	nodeGroupsMap := []*datamodel.NodeNodeGroupMap{
+		{
+			BaseModel:     datamodel.BaseModel{ID: 1},
+			NodeID:        1,
+			NodeGroup:     nodeGroup1,
+			NodeGroupID:   nodeGroup1.ID,
+			HarvestConfig: &datamodel.HarvestConfig{},
+		},
+		{
+			BaseModel:     datamodel.BaseModel{ID: 2},
+			NodeID:        2,
+			NodeGroup:     nodeGroup2,
+			NodeGroupID:   nodeGroup2.ID,
+			HarvestConfig: &datamodel.HarvestConfig{},
+		},
+	}
 
 	for _, nodeGroupMap := range nodeGroupsMap {
 		mockSE.On("UpdateNodeGroup", ctx, nodeGroupMap.NodeGroup).Return(nodeGroupMap.NodeGroup, nil)
+		mockSE.On("UpdateNodeNodeGroupMap", ctx, nodeGroupMap).Return(nodeGroupMap, nil)
 	}
 
 	oldCreateKubernetesLease := createKubernetesLease
@@ -168,8 +194,15 @@ func TestValidateAndCreateKubernetesLease_Success(t *testing.T) {
 	}
 	defer func() { createKubernetesLease = oldCreateKubernetesLease }()
 
-	err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
+	updatedMappings, err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
 	assert.NoError(t, err)
+	assert.NotNil(t, updatedMappings)
+	assert.Len(t, updatedMappings, len(nodeGroupsMap))
+	for _, mapping := range updatedMappings {
+		assert.NotNil(t, mapping.NodeGroup)
+		assert.NotEmpty(t, mapping.NodeGroup.LeaseName)
+		assert.Equal(t, mapping.NodeGroup.LeaseName, mapping.HarvestConfig.LEASE_NAME)
+	}
 	mockSE.AssertExpectations(t)
 }
 
@@ -179,17 +212,37 @@ func TestValidateAndCreateKubernetesLease_Failure(t *testing.T) {
 	ctx := context.Background()
 	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
 
-	nodeGroupsMap := getNodeGroupMap(false, false)
+	// Create test node map with proper initialization
+	nodeGroup := &datamodel.NodeGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-uuid-1"},
+		Name:      "test-group-1",
+	}
 
+	nodeGroupsMap := []*datamodel.NodeNodeGroupMap{
+		{
+			BaseModel:     datamodel.BaseModel{ID: 1},
+			NodeID:        1,
+			NodeGroup:     nodeGroup,
+			NodeGroupID:   nodeGroup.ID,
+			HarvestConfig: &datamodel.HarvestConfig{},
+		},
+	}
+
+	// Mock lease creation to fail first
 	oldCreateKubernetesLease := createKubernetesLease
-	// Mock create lease which is in utils
 	createKubernetesLease = func(ctx context.Context, leaseNameSpace, leaseName string) error {
+		// Verify that the lease name matches what we expect
+		expectedLeaseName := leasePrefix + nodeGroup.UUID
+		if leaseName != expectedLeaseName {
+			t.Errorf("Expected lease name %s, got %s", expectedLeaseName, leaseName)
+		}
 		return errors.New("lease-client-error")
 	}
-	defer func() { createKubernetesLease = oldCreateKubernetesLease }()
+	t.Cleanup(func() { createKubernetesLease = oldCreateKubernetesLease })
 
-	err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
+	updatedMappings, err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
 	assert.Error(t, err)
+	assert.Nil(t, updatedMappings)
 	assert.Contains(t, err.Error(), "lease-client-error")
 	mockSE.AssertExpectations(t)
 }
@@ -200,10 +253,42 @@ func TestValidateAndCreateKubernetesLease(t *testing.T) {
 	ctx := context.Background()
 	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
 
-	nodeGroupsMap := getNodeGroupMap(false, true)
+	// Create test node map with lease name already set
+	nodeGroup := &datamodel.NodeGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-uuid-1"},
+		Name:      "test-group-1",
+		LeaseName: "harvest-test-lease-1",
+	}
 
-	err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
+	// Create mapping with lease name already set in both NodeGroup and HarvestConfig
+	nodeGroupsMap := []*datamodel.NodeNodeGroupMap{
+		{
+			BaseModel:     datamodel.BaseModel{ID: 1},
+			NodeID:        1,
+			NodeGroup:     nodeGroup,
+			NodeGroupID:   nodeGroup.ID,
+			HarvestConfig: &datamodel.HarvestConfig{LEASE_NAME: "harvest-test-lease-1"},
+		},
+	}
+
+	// No need to mock updates since lease already exists and no changes should be made
+	oldCreateKubernetesLease := createKubernetesLease
+	createKubernetesLease = func(ctx context.Context, leaseNameSpace, leaseName string) error {
+		t.Fatal("createKubernetesLease should not be called when lease already exists")
+		return nil
+	}
+	defer func() {
+		createKubernetesLease = oldCreateKubernetesLease
+	}()
+
+	updatedMappings, err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
 	assert.NoError(t, err)
+	assert.NotNil(t, updatedMappings)
+	assert.Len(t, updatedMappings, len(nodeGroupsMap))
+	for _, mapping := range updatedMappings {
+		assert.NotNil(t, mapping.NodeGroup)
+		assert.Equal(t, mapping.NodeGroup.LeaseName, mapping.HarvestConfig.LEASE_NAME)
+	}
 	mockSE.AssertExpectations(t)
 }
 
@@ -213,20 +298,80 @@ func TestValidateAndCreateKubernetesLease_DBError(t *testing.T) {
 	ctx := context.Background()
 	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
 
-	nodeGroupsMap := getNodeGroupMap(false, false)
+	// Create test node map with proper initialization
+	nodeGroup := &datamodel.NodeGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-uuid-1"},
+		Name:      "test-group-1",
+	}
 
-	mockSE.On("UpdateNodeGroup", ctx, nodeGroupsMap[0].NodeGroup).Return(nil, gorm.ErrRecordNotFound)
+	nodeGroupsMap := []*datamodel.NodeNodeGroupMap{
+		{
+			BaseModel:     datamodel.BaseModel{ID: 1},
+			NodeID:        1,
+			NodeGroup:     nodeGroup,
+			NodeGroupID:   nodeGroup.ID,
+			HarvestConfig: &datamodel.HarvestConfig{},
+		},
+	}
 
+	// Mock DB error for UpdateNodeGroup - this should be called after lease creation
+	mockSE.On("UpdateNodeGroup", ctx, mock.AnythingOfType("*datamodel.NodeGroup")).Return(nil, gorm.ErrRecordNotFound)
+
+	// Override createKubernetesLease to return success since DB error is our test case
 	oldCreateKubernetesLease := createKubernetesLease
-	// Mock create lease which is in utils
 	createKubernetesLease = func(ctx context.Context, leaseNameSpace, leaseName string) error {
 		return nil
 	}
-	defer func() { createKubernetesLease = oldCreateKubernetesLease }()
+	t.Cleanup(func() { createKubernetesLease = oldCreateKubernetesLease })
 
-	err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
+	updatedMappings, err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
 	assert.Error(t, err)
+	assert.Nil(t, updatedMappings)
 	assert.Equal(t, "record not found", err.Error())
+	mockSE.AssertExpectations(t)
+}
+
+// Tests the case where UpdateNodeNodeGroupMap fails after UpdateNodeGroup success
+func TestValidateAndCreateKubernetesLease_UpdateNodeNodeGroupMapError(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	ctx := context.Background()
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+
+	nodeGroup := &datamodel.NodeGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-uuid-1"},
+		Name:      "test-group-1",
+	}
+
+	nodeGroupsMap := []*datamodel.NodeNodeGroupMap{
+		{
+			BaseModel:     datamodel.BaseModel{ID: 1},
+			NodeID:        1,
+			NodeGroup:     nodeGroup,
+			NodeGroupID:   nodeGroup.ID,
+			HarvestConfig: &datamodel.HarvestConfig{},
+		},
+	}
+
+	// Mock UpdateNodeGroup to succeed
+	mockSE.On("UpdateNodeGroup", ctx, mock.AnythingOfType("*datamodel.NodeGroup")).Return(nodeGroup, nil)
+
+	// Mock UpdateNodeNodeGroupMap to fail
+	mockSE.On("UpdateNodeNodeGroupMap", ctx, mock.AnythingOfType("*datamodel.NodeNodeGroupMap")).Return(nil, errors.New("failed to update node group map"))
+
+	// Override createKubernetesLease to return success
+	oldCreateKubernetesLease := createKubernetesLease
+	createKubernetesLease = func(ctx context.Context, leaseNameSpace, leaseName string) error {
+		return nil
+	}
+	t.Cleanup(func() { createKubernetesLease = oldCreateKubernetesLease })
+
+	updatedMappings, err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
+	assert.Error(t, err)
+	assert.Nil(t, updatedMappings)
+	assert.Contains(t, err.Error(), "failed to update node group map")
+
+	// Verify lease name was correctly generated
+	assert.Equal(t, "harvest-test-uuid-1", nodeGroup.LeaseName)
 	mockSE.AssertExpectations(t)
 }
 
