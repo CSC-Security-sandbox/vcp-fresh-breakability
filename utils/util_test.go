@@ -1973,3 +1973,29 @@ func TestGenerateDeterministicID_InternalFunction(t *testing.T) {
 		assert.Equal(t, 10, len(result))
 	})
 }
+
+func TestConstructServiceAccountEmail(t *testing.T) {
+	tests := []struct {
+		name      string
+		accountID string
+		projectID string
+		expected  string
+	}{
+		{
+			name:      "Valid account and project IDs",
+			accountID: "my-service-account",
+			projectID: "my-gcp-project",
+			expected:  "my-service-account@my-gcp-project.iam.gserviceaccount.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ConstructServiceAccountEmail(tt.accountID, tt.projectID)
+			if result != tt.expected {
+				t.Errorf("ConstructServiceAccountEmail(%q, %q) = %q, want %q",
+					tt.accountID, tt.projectID, result, tt.expected)
+			}
+		})
+	}
+}

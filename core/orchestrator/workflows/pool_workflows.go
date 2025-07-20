@@ -4,12 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"go.temporal.io/api/enums/v1"
-	"go.temporal.io/sdk/activity"
-	"go.temporal.io/sdk/client"
-	"go.temporal.io/sdk/temporal"
-	"go.temporal.io/sdk/workflow"
-	"google.golang.org/api/iam/v1"
 	"regexp"
 	"time"
 
@@ -32,6 +26,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/workflow"
+	"google.golang.org/api/iam/v1"
 )
 
 var (
@@ -475,8 +475,9 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		bucketName = pool.AutoTieringConfig.BucketName
 	}
 
+	saEmail := utils.ConstructServiceAccountEmail(pool.ServiceAccountId, pool.ClusterDetails.RegionalTenantProject)
 	currentVlmConfig := &vlm.VLMConfig{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.ConstructCurrentVlmConfig, pool.ID, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, dsc, pool.ServiceAccountId, bucketName).Get(ctx, currentVlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.ConstructCurrentVlmConfig, pool.ID, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, dsc, saEmail, bucketName).Get(ctx, currentVlmConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -489,7 +490,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	newVlmConfig := &vlm.VLMConfig{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, pool.ServiceAccountId, bucketName).Get(ctx, newVlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, saEmail, bucketName).Get(ctx, newVlmConfig)
 	if err != nil {
 		return nil, err
 	}

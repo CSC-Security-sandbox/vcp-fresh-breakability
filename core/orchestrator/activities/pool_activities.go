@@ -27,7 +27,7 @@ import (
 	vmrs_config "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/config"
 	vmrs_decision "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/decision"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -1189,7 +1189,7 @@ func (j *PoolActivity) DeleteServiceAccount(ctx context.Context, projectID strin
 func _deleteServiceAccount(ctx context.Context, projectID string, saAccountID string, gcpService hyperscaler.GoogleServices) error {
 	logger := gcpService.GetLogger()
 
-	saEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", saAccountID, projectID)
+	saEmail := utils.ConstructServiceAccountEmail(saAccountID, projectID)
 	logger.Infof("Deleting service account %s", saEmail)
 	err := gcpService.DeleteServiceAccount(saEmail)
 	if err != nil {
@@ -1206,7 +1206,7 @@ func _createServiceAccountAndAttachRole(ctx context.Context, projectID string, s
 			DisplayName: saDisplayName,
 		},
 	}
-	saEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", saAccountID, projectID)
+	saEmail := utils.ConstructServiceAccountEmail(saAccountID, projectID)
 
 	logger.Infof("Creating service account with object user role %s", saEmail)
 	sa, err := gcpService.CreateServiceAccount(createReq, projectID, saEmail)

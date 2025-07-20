@@ -560,7 +560,7 @@ func GetResourcesNameForBackup(gcpRegion, tenantProjectRegion, tenantProjectNumb
 	serviceAccountId = baseServiceAccountId + randCode
 
 	// Generate email
-	email = fmt.Sprintf("%s@%s.iam.gserviceaccount.com", serviceAccountId, tenantProjectNumber)
+	email = ConstructServiceAccountEmail(serviceAccountId, tenantProjectNumber)
 
 	// Generate bucket name
 	baseBucketName := fmt.Sprintf("vsa-backup-%s", backupVaultUUID)
@@ -889,4 +889,9 @@ func _parsePEMCertificate(pemCert, typeOfCertificate string) (*x509.CertPool, er
 func GetVPCNameFromSubnetID(vendorSubNetID string) string {
 	parts := strings.Split(vendorSubNetID, "/")
 	return parts[len(parts)-1]
+}
+
+// Given an accountID and projectID, return the serviceAccountEmail to use.
+func ConstructServiceAccountEmail(accountID string, projectID string) string {
+	return fmt.Sprintf("%s@%s.iam.gserviceaccount.com", accountID, projectID)
 }
