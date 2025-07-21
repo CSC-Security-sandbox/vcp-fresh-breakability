@@ -11,6 +11,8 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"google.golang.org/api/servicenetworking/v1"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -34,7 +36,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/activity"
 	"google.golang.org/api/iam/v1"
-	"google.golang.org/api/servicenetworking/v1"
 	"gorm.io/gorm"
 )
 
@@ -55,10 +56,11 @@ var (
 	InsertFirewall                    = _insertFirewall
 	SetupNetworkWithFirewall          = setupNetworkWithFirewall
 	GetTenantProject                  = _getTenantProject
-	GetOrCreateSubnetwork             = _getOrCreateSubnetwork
+	GetCreateDataSubnetworkOp         = _getCreateDataSubnetworkOp
 	GetSubnetToBeUsed                 = getSubnetToBeUsed
 	SetupNetworkFirewallsForIscsi     = setupNetworkFirewallsForIscsi
 	CreateGCPBucket                   = _createGCPBucket
+	CheckReusableSubnet               = _checkReusableSubnet
 	CreateServiceAccountAndAttachRole = _createServiceAccountAndAttachRole
 	DeleteSrvcAccount                 = _deleteServiceAccount
 	DeleteGCPBucket                   = _deleteGCPBucket
@@ -66,10 +68,13 @@ var (
 	CreateDecisionMaker               = vmrs_decision.NewDecisionMaker
 	VlmConfigFilePath                 = env.GetString("VLM_CONFIG_FILE_PATH", "common/vsa_config/vlm-config.json")
 	ValidateVlmConfigInputs           = _validateVlmConfigInputs
-	CreateSubnetwork                  = _createSubnetwork
+	GetCreateSubnetworkOperation      = _getCreateSubnetworkOperation
 	ReleaseSubnet                     = _releaseSubnet
 	CheckAndUpdateFirewall            = _checkAndUpdateFirewall
 	LoadVlmConfigFromFile             = loadVlmConfigFromFile
+	GetServiceNetOpStatus             = _getServiceNetOpStatus
+	GetSubnetFromOperation            = _getSubnetFromOperation
+	GetGatewayFromIpCidrRange         = _getGatewayFromIpCidrRange
 
 	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
 	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
@@ -247,16 +252,16 @@ func _getTenantProject(service hyperscaler.GoogleServices, params commonparams.C
 	return tenantProjectNumber, nil
 }
 
-// CreateOrGetSubnetwork re-uses subnet if IP CIDR range is available; else creates a subnetwork for the tenant project
-func (j *PoolActivity) CreateOrGetSubnetwork(ctx context.Context, params commonparams.CreatePoolParams, tenantProjectNumber string) (*commonparams.TenancyInfo, error) {
+// GetAvailableSubnet identifies current available subnets and re-uses subnet if IP CIDR range is available
+func (j *PoolActivity) GetAvailableSubnet(ctx context.Context, params commonparams.CreatePoolParams, tenantProjectNumber string) (*hyperscaler_models.Subnet, error) {
 	service, err := GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return GetOrCreateSubnetwork(j.SE, service, params, tenantProjectNumber)
+	return CheckReusableSubnet(j.SE, service, params, tenantProjectNumber)
 }
 
-func _getOrCreateSubnetwork(se database.Storage, service hyperscaler.GoogleServices, params commonparams.CreatePoolParams, tenantProjectNumber string) (*commonparams.TenancyInfo, error) {
+func _checkReusableSubnet(se database.Storage, service hyperscaler.GoogleServices, params commonparams.CreatePoolParams, tenantProjectNumber string) (*hyperscaler_models.Subnet, error) {
 	var subnet *hyperscaler_models.Subnet
 	logger := service.GetLogger()
 	snHostProject, err := service.GetSnHost(tenantProjectNumber)
@@ -268,29 +273,47 @@ func _getOrCreateSubnetwork(se database.Storage, service hyperscaler.GoogleServi
 	}
 	customerProjectNumber := params.AccountName
 	tenantProjectRegion := params.Region
-	consumerVPC := params.VendorSubNetID
 	if snHostProject != "" {
 		// if snHost is found, check if the subnetwork already exists in the SN host project and reuse it if applicable
 		subnet, err = GetSubnetToBeUsed(service, se, customerProjectNumber, tenantProjectNumber, snHostProject, tenantProjectRegion)
 		if err != nil {
-			logger.Errorf("Error getting subnet for tenant project: %s, SN host : %s, region %s. Error : %s", tenantProjectNumber, snHostProject, tenantProjectRegion, err.Error())
+			logger.Errorf("Error getting data subnet for tenant project: %s, SN host : %s, region %s. Error : %s", tenantProjectNumber, snHostProject, tenantProjectRegion, err.Error())
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 		}
 	}
-	if subnet == nil {
-		// if snHost is not found or subnet found cannot be used, create a new subnetwork for the tenant project
-		subnet, err = CreateSubnetwork(service, tenantProjectNumber, consumerVPC, &tenantProjectRegion)
-		if err != nil {
-			logger.Errorf("Error creating subnetwork for tenant project: %s, SN host : %s, region %s. Error : %s", tenantProjectNumber, snHostProject, tenantProjectRegion, err.Error())
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
-		}
-	}
-	logger.Infof("Subnet used for tenant project: tenantProjectNumber: %s SN host project : %s subnet: %s IpCidrRange: %s, consumerPeeringNetwork: %s", tenantProjectNumber, snHostProject, subnet.IpCidrRange, consumerVPC, subnet.Name)
+	return subnet, nil
+}
 
+// GetCreateDataSubnetOp creates a subnetwork for the tenant project
+func (j *PoolActivity) GetCreateDataSubnetOp(ctx context.Context, params commonparams.CreatePoolParams, tenantProjectNumber string) (*string, error) {
+	service, err := GetGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return GetCreateDataSubnetworkOp(service, params, tenantProjectNumber)
+}
+
+func _getCreateDataSubnetworkOp(service hyperscaler.GoogleServices, params commonparams.CreatePoolParams, tenantProjectNumber string) (*string, error) {
+	tenantProjectRegion := params.Region
+	consumerVPC := params.VendorSubNetID
+	logger := service.GetLogger()
+	// if snHost is not found or subnet found cannot be used, create a new subnetwork for the tenant project
+	operationName, err := GetCreateSubnetworkOperation(service, tenantProjectNumber, consumerVPC, &tenantProjectRegion)
+	if err != nil {
+		logger.Errorf("Error creating subnetwork for tenant project: %s, region %s. Error : %s", tenantProjectNumber, tenantProjectRegion, err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+	}
+	return operationName, err
+}
+
+// GetTenancyInfo creates a subnetwork for the tenant project
+func (j *PoolActivity) GetTenancyInfo(ctx context.Context, tenantProjectNumber string, subnet *hyperscaler_models.Subnet) (*commonparams.TenancyInfo, error) {
 	snHostProject, network, err := utils.ParseProjectId(subnet.Network)
 	if err != nil {
 		return nil, err
 	}
+	logger := util.GetLogger(ctx)
+	logger.Infof("Subnet used for tenant project: tenantProjectNumber: %s SN host project : %s IpCidrRange: %s, consumerPeeringNetwork: %s", tenantProjectNumber, snHostProject, subnet.IpCidrRange, subnet.Name)
 	return &commonparams.TenancyInfo{
 		RegionalTenantProject: tenantProjectNumber,
 		Network:               network,
@@ -309,33 +332,15 @@ func (j *PoolActivity) UpdatePoolSubnet(ctx context.Context, poolUUID string, te
 	return nil
 }
 
-// createSubnetwork generates a subnetwork name based on the tenant project number and region and triggers creation the subnet in SN host project
-func _createSubnetwork(service hyperscaler.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string) (*hyperscaler_models.Subnet, error) {
+// createSubnetwork generates a subnetwork name based on the tenant project number and region and triggers creation the subnet in SN host project. returns operation name
+func _getCreateSubnetworkOperation(service hyperscaler.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string) (*string, error) {
 	subnetName := MakeSubnetName(tenantProjectNumber)
-	subnetInBytes, err := service.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerVPC, *tenantProjectRegion, subnetName)
+	operationName, err := service.CreateTPSubnetOp(tenantProjectNumber, consumerVPC, *tenantProjectRegion, subnetName)
 	if err != nil {
 		service.GetLogger().Errorf("Error adding subnetwork: %v", err)
 		return nil, err
 	}
-	subnetCreated := &servicenetworking.Subnetwork{}
-	var subnet *hyperscaler_models.Subnet
-	service.GetLogger().Debug(fmt.Sprintf("subnetInBytes %s", string(subnetInBytes)))
-
-	if err := json.Unmarshal(subnetInBytes, subnetCreated); err != nil {
-		service.GetLogger().Debug(fmt.Sprintf("subnetInBytes json unmarshal error %s", err.Error()))
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrJSONParsingError, err)
-	}
-
-	snHostProject, _, err := utils.ParseProjectId(subnetCreated.Network)
-	if err != nil {
-		return nil, err
-	}
-	subnet, err = service.GetSubnetwork(snHostProject, *tenantProjectRegion, subnetCreated.Name)
-	if err != nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
-	}
-	service.GetLogger().Infof("created subnetwork for tenant project: %s, SN host : %s, region %s. Subnet name : %s", tenantProjectNumber, snHostProject, tenantProjectRegion, subnetCreated.Name)
-	return subnet, nil
+	return operationName, err
 }
 
 // SetupNetwork TODO : need to add all network setup as part of network activity
@@ -1862,4 +1867,56 @@ func _deleteCloudDNSRecord(gcpService hyperscaler.GoogleServices, recordName str
 		}
 	}
 	return nil
+}
+
+// GetServiceNetOpStatus returns the status (and result) of a Google's service networking operation
+func (j *PoolActivity) GetServiceNetOpStatus(ctx context.Context, operation string) (*hyperscaler_models.ComputeOperation, error) {
+	gcpService, err := GetGCPService(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return GetServiceNetOpStatus(gcpService, operation)
+}
+
+func _getServiceNetOpStatus(gcpService hyperscaler.GoogleServices, operation string) (*hyperscaler_models.ComputeOperation, error) {
+	return gcpService.GetServiceNetOpStatus(operation)
+}
+
+// GetSubnetFromOperation returns the status (and result) of a Google's service networking operation
+func (j *PoolActivity) GetSubnetFromOperation(ctx context.Context, subnetInBytes []byte) (*hyperscaler_models.Subnet, error) {
+	return GetSubnetFromOperation(ctx, subnetInBytes)
+}
+
+func _getSubnetFromOperation(ctx context.Context, subnetInBytes []byte) (*hyperscaler_models.Subnet, error) {
+	logger := util.GetLogger(ctx)
+	if subnetInBytes == nil {
+		logger.Error("Operation response is nil, cannot extract subnet")
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, vsaerrors.New("operation response is nil"))
+	}
+	logger.Debugf("subnetInBytes %s", string(subnetInBytes))
+
+	subnetCreated := &servicenetworking.Subnetwork{}
+	if err := json.Unmarshal(subnetInBytes, subnetCreated); err != nil {
+		logger.Debugf("subnetInBytes json unmarshal error %s", err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrJSONParsingError, err)
+	}
+	gateway, err := GetGatewayFromIpCidrRange(subnetCreated.IpCidrRange)
+	if err != nil {
+		logger.Errorf("Failed to get gateway from IP CIDR range %s: %v", subnetCreated.IpCidrRange, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+	}
+	return &hyperscaler_models.Subnet{Name: subnetCreated.Name, Network: subnetCreated.Network, GatewayAddress: gateway}, nil
+}
+
+func _getGatewayFromIpCidrRange(ipCidrRange string) (string, error) {
+	ip, _, err := net.ParseCIDR(ipCidrRange)
+	if err != nil {
+		return "", err
+	}
+	ip4 := ip.To4()
+	if ip4 == nil {
+		return "", fmt.Errorf("IP CIDR range is not an IPv4 address")
+	}
+	ip4[3] += 1
+	return ip4.String(), nil
 }

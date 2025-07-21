@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -97,7 +99,6 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
-	env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -775,28 +776,14 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
-	env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Bucket Creation Failed"))
-	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
-	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
-	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
-	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Rollback activities that will be called when CreateAutoTierBucket fails
 	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -806,6 +793,12 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 
 	// Execute workflow
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	// Assert workflow execution - should complete but with error due to bucket creation failure
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "Bucket Creation Failed")
+	env.AssertExpectations(t)
 }
 
 func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
@@ -869,7 +862,6 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -979,7 +971,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1093,7 +1084,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1216,7 +1206,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1335,7 +1324,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1459,7 +1447,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1574,7 +1561,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1687,7 +1673,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1799,7 +1784,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1913,7 +1897,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2030,7 +2013,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2147,7 +2129,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2263,7 +2244,6 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2480,7 +2460,6 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
-	env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2527,78 +2506,6 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
-func TestCreatePoolWorkflow_FailureUpdatePoolSubnet(t *testing.T) {
-	var ts testsuite.WorkflowTestSuite
-	env := ts.NewTestWorkflowEnvironment()
-	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-	mockHeader := &commonpb.Header{
-		Fields: map[string]*commonpb.Payload{
-			"logParam": encodedValue,
-		},
-	}
-	env.SetHeader(mockHeader)
-	mockStorage := database.NewMockStorage(t)
-	env.RegisterActivity(&SubnetActivity{})
-	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-	env.RegisterActivity(&activities.PoolActivity{})
-
-	// Set up test data
-	params := &common.CreatePoolParams{
-		Name:                    "test-pool",
-		AccountName:             "test-account",
-		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
-		Region:                  "test-region",
-		PrimaryZone:             "test-zone",
-		SecondaryZone:           "test-secondary-zone",
-		AllowAutoTiering:        true,
-		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
-	}
-	pool := &datamodel.Pool{
-		PoolCredentials: &datamodel.PoolCredentials{Password: "password", SecretID: "secret-id"},
-	}
-	defer func() {
-		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
-	}()
-	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
-		return nil
-	}
-
-	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Once()
-	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("failed to update job status")).Times(10)
-
-	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything, mock.Anything).Return("tenant-project", nil)
-	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
-	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
-		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
-		State:     string(models.JobsStateDONE),
-	}, nil)
-	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
-		Network:               "test-network",
-		SubnetworkNames:       []string{"test-subnet"},
-		RegionalTenantProject: "test-project",
-		SnHostProject:         "test-host-project",
-		Gateway:               "192.168.1.254",
-	}, nil)
-	env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update pool subnet"))
-	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
-	// Execute workflow
-	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
-
-	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
-	if err != nil {
-		t.Fatalf("Failed to query workflow: %v", err)
-	}
-
-	// Assert workflow execution
-	assert.True(t, env.IsWorkflowCompleted())
-	assert.Error(t, env.GetWorkflowError())
-	assert.Contains(t, env.GetWorkflowError().Error(), "failed to update job status")
-	env.AssertExpectations(t)
-}
-
 func TestPoolDataSubnetWorkFlow(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
@@ -2610,6 +2517,7 @@ func TestPoolDataSubnetWorkFlow(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
+	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
 
@@ -2624,17 +2532,36 @@ func TestPoolDataSubnetWorkFlow(t *testing.T) {
 		AllowAutoTiering:        true,
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
 	}
-	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	originalWaitForServiceNetworkOperationStatus := WaitForServiceNetworkOperationStatus
+	WaitForServiceNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operationName string, timeout time.Duration) ([]byte, error) {
+		return []byte("test-operation-data"), nil
+	}
+	defer func() {
+		WaitForServiceNetworkOperationStatus = originalWaitForServiceNetworkOperationStatus
+	}()
 
-	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Once()
+	env.OnActivity("GetAvailableSubnet", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
+		Name: "",
+	}, nil)
+	operationName := "test-operation-123"
+	env.OnActivity("GetCreateDataSubnetOp", mock.Anything, mock.Anything, mock.Anything).Return(&operationName, nil)
+	env.OnActivity("GetSubnetFromOperation", mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{Name: "subnet-name"}, nil)
+	env.OnActivity("GetTenancyInfo", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 		Network:               "test-network",
 		SubnetworkNames:       []string{"test-subnet"},
 		RegionalTenantProject: "test-project",
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
-
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "tenant-project")
+	env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "DONE",
+	}).Return(nil).Once()
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", "tenant-project")
 
 	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 	if err != nil {
@@ -2678,16 +2605,19 @@ func TestPoolDataSubnetWorkFlow_RunError(t *testing.T) {
 		},
 		State: "PROCESSING",
 	}).Return(nil).Once()
-	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to fetch subnet"))
+	env.OnActivity("GetAvailableSubnet", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
+		Name: "",
+	}, nil)
+	env.OnActivity("GetCreateDataSubnetOp", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to fetch subnet"))
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
 			UUID: "default-test-workflow-id",
 		},
 		State:        "DONE",
-		ErrorDetails: "activity error (type: CreateOrGetSubnetwork, scheduledEventID: 0, startedEventID: 0, identity: ): failed to fetch subnet",
+		ErrorDetails: "activity error (type: GetCreateDataSubnetOp, scheduledEventID: 0, startedEventID: 0, identity: ): failed to fetch subnet",
 	}).Return(nil).Once()
 
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "tenant-project")
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", "tenant-project")
 
 	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 	if err != nil {
@@ -2731,16 +2661,17 @@ func TestPoolDataSubnetWorkFlow_UpdateJobError(t *testing.T) {
 		},
 		State: "PROCESSING",
 	}).Return(nil).Once()
-	env.OnActivity("CreateOrGetSubnetwork", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to fetch subnet"))
+	env.OnActivity("GetAvailableSubnet", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{Name: ""}, nil)
+	env.OnActivity("GetCreateDataSubnetOp", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to fetch subnet"))
 	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
 		BaseModel: datamodel.BaseModel{
 			UUID: "default-test-workflow-id",
 		},
 		State:        "DONE",
-		ErrorDetails: "activity error (type: CreateOrGetSubnetwork, scheduledEventID: 0, startedEventID: 0, identity: ): failed to fetch subnet",
-	}).Return(errors.New("failed to update job status")).Once()
+		ErrorDetails: "activity error (type: GetCreateDataSubnetOp, scheduledEventID: 0, startedEventID: 0, identity: ): failed to fetch subnet",
+	}).Return(errors.New("failed to update job status"))
 
-	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "tenant-project")
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", "tenant-project")
 
 	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 	if err != nil {
@@ -3039,4 +2970,698 @@ func TestSubnetActivity_GetTenancyDetails_ResultNilError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "returned tenancy details as nil")
+}
+
+// Test cases for poolDataSubnetWorkFlow.Run method to improve coverage
+func TestPoolDataSubnetWorkFlow_ExistingSubnet1(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	tenantProjectNumber := "test-tenant-123"
+
+	// Mock the UpdateJobStatus activity that gets called during workflow execution
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Mock existing subnet (name is not empty) - tests the path where GetCreateDataSubnetOp is NOT called
+	env.OnActivity("GetAvailableSubnet", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
+		Name:           "existing-subnet",
+		Network:        "projects/test-project/global/networks/test-network",
+		GatewayAddress: "10.0.0.1",
+	}, nil)
+	env.OnActivity("GetTenancyInfo", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		RegionalTenantProject: "test-tenant-123",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"existing-subnet"},
+	}, nil)
+	env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "DONE",
+	}).Return(nil).Once()
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow_GetAvailableSubnetError1(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	tenantProjectNumber := "test-tenant-123"
+
+	// Mock the first UpdateJobStatus call (PROCESSING)
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "PROCESSING",
+	}).Return(nil).Once()
+
+	// Mock GetAvailableSubnet to return an error
+	env.OnActivity("GetAvailableSubnet", mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("subnet lookup failed"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State:        "DONE",
+		ErrorDetails: "activity error (type: GetAvailableSubnet, scheduledEventID: 0, startedEventID: 0, identity: ): subnet lookup failed",
+	}).Return(nil).Once()
+
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow_GetCreateDataSubnetOpError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	tenantProjectNumber := "test-tenant-123"
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "PROCESSING",
+	}).Return(nil).Once()
+	// Mock empty subnet response to trigger GetCreateDataSubnetOp path
+	env.OnActivity("GetAvailableSubnet", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
+		Name: "",
+	}, nil)
+	env.OnActivity("GetCreateDataSubnetOp", mock.Anything, mock.Anything, mock.Anything).Return(nil, fmt.Errorf("create subnet failed"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State:        "DONE",
+		ErrorDetails: "activity error (type: GetCreateDataSubnetOp, scheduledEventID: 0, startedEventID: 0, identity: ): create subnet failed"}).Return(nil).Once()
+
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "create subnet failed")
+	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow_SuccessfulNewSubnetCreation1(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	tenantProjectNumber := "test-tenant-123"
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "PROCESSING",
+	}).Return(nil).Once()
+	env.OnActivity("GetAvailableSubnet", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
+		Name: "",
+	}, nil)
+	operationName := ""
+	env.OnActivity("GetCreateDataSubnetOp", mock.Anything, mock.Anything, mock.Anything).Return(&operationName, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State:        "DONE",
+		ErrorDetails: "failed to create subnet for tenant project: test-tenant-123, operation name is empty",
+	}).Return(nil).Once()
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to create subnet for tenant project: test-tenant-123, operation name is empty")
+	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow_WaitFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	// Mock successful subnet creation flow
+	originalWaitForServiceNetworkOperationStatus := WaitForServiceNetworkOperationStatus
+	WaitForServiceNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operationName string, timeout time.Duration) ([]byte, error) {
+		return nil, errors.New("wait for operation failed")
+	}
+	defer func() {
+		WaitForServiceNetworkOperationStatus = originalWaitForServiceNetworkOperationStatus
+	}()
+
+	params := &common.CreatePoolParams{
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	tenantProjectNumber := "test-tenant-123"
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "PROCESSING",
+	}).Return(nil).Once()
+	env.OnActivity("GetAvailableSubnet", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
+		Name: "", // Empty name triggers subnet creation path
+	}, nil)
+	operationName := "test-operation-123"
+	env.OnActivity("GetCreateDataSubnetOp", mock.Anything, mock.Anything, mock.Anything).Return(&operationName, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State:        "DONE",
+		ErrorDetails: "failed to create subnet for tenant project while waiting to get operation status: test-tenant-123: wait for operation failed"}).Return(nil).Once()
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "wait for operation failed")
+	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow_GetSubnet(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	// Mock successful subnet creation flow
+	originalWaitForServiceNetworkOperationStatus := WaitForServiceNetworkOperationStatus
+	WaitForServiceNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operationName string, timeout time.Duration) ([]byte, error) {
+		return []byte("test-operation-data"), nil
+	}
+	defer func() {
+		WaitForServiceNetworkOperationStatus = originalWaitForServiceNetworkOperationStatus
+	}()
+
+	params := &common.CreatePoolParams{
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	tenantProjectNumber := "test-tenant-123"
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "PROCESSING",
+	}).Return(nil).Once()
+	env.OnActivity("GetAvailableSubnet", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
+		Name: "", // Empty name triggers subnet creation path
+	}, nil)
+	operationName := "test-operation-123"
+	env.OnActivity("GetCreateDataSubnetOp", mock.Anything, mock.Anything, mock.Anything).Return(&operationName, nil)
+	env.OnActivity("GetSubnetFromOperation", mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
+		Name: "test-subnet",
+	}, errors.New("failed to get subnet from operation"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State:        "DONE",
+		ErrorDetails: "failed to get subnet from operation for tenant project: test-tenant-123: activity error (type: GetSubnetFromOperation, scheduledEventID: 0, startedEventID: 0, identity: ): failed to get subnet from operation"}).Return(nil).Once()
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to get subnet from operation")
+	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow_GetTenancyInfo(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	// Mock successful subnet creation flow
+	originalWaitForServiceNetworkOperationStatus := WaitForServiceNetworkOperationStatus
+	WaitForServiceNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operationName string, timeout time.Duration) ([]byte, error) {
+		return []byte("test-operation-data"), nil
+	}
+	defer func() {
+		WaitForServiceNetworkOperationStatus = originalWaitForServiceNetworkOperationStatus
+	}()
+
+	params := &common.CreatePoolParams{
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	tenantProjectNumber := "test-tenant-123"
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "PROCESSING",
+	}).Return(nil).Once()
+	env.OnActivity("GetAvailableSubnet", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
+		Name: "", // Empty name triggers subnet creation path
+	}, nil)
+	operationName := "test-operation-123"
+	env.OnActivity("GetCreateDataSubnetOp", mock.Anything, mock.Anything, mock.Anything).Return(&operationName, nil)
+	env.OnActivity("GetSubnetFromOperation", mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
+		Name: "test-subnet",
+	}, nil)
+	env.OnActivity("GetTenancyInfo", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{}, errors.New("failed to get tenancy info"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State:        "DONE",
+		ErrorDetails: "activity error (type: GetTenancyInfo, scheduledEventID: 0, startedEventID: 0, identity: ): failed to get tenancy info"}).Return(nil).Once()
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to get tenancy info")
+	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow_UpdatePoolSubnet(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	// Mock successful subnet creation flow
+	originalWaitForServiceNetworkOperationStatus := WaitForServiceNetworkOperationStatus
+	WaitForServiceNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operationName string, timeout time.Duration) ([]byte, error) {
+		return []byte("test-operation-data"), nil
+	}
+	defer func() {
+		WaitForServiceNetworkOperationStatus = originalWaitForServiceNetworkOperationStatus
+	}()
+
+	params := &common.CreatePoolParams{
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	tenantProjectNumber := "test-tenant-123"
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "PROCESSING",
+	}).Return(nil).Once()
+	env.OnActivity("GetAvailableSubnet", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
+		Name: "", // Empty name triggers subnet creation path
+	}, nil)
+	operationName := "test-operation-123"
+	env.OnActivity("GetCreateDataSubnetOp", mock.Anything, mock.Anything, mock.Anything).Return(&operationName, nil)
+	env.OnActivity("GetSubnetFromOperation", mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
+		Name: "test-subnet",
+	}, nil)
+	env.OnActivity("GetTenancyInfo", mock.Anything, mock.Anything, mock.Anything).Return(&common.TenancyInfo{}, nil)
+	env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update pool subnet"))
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State:        "DONE",
+		ErrorDetails: "activity error (type: UpdatePoolSubnet, scheduledEventID: 0, startedEventID: 0, identity: ): failed to update pool subnet"}).Return(nil).Once()
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to update pool subnet")
+	env.AssertExpectations(t)
+}
+
+func TestPoolDataSubnetWorkFlow_SuccessfulNewSubnetCreation(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	// Mock successful subnet creation flow
+	originalWaitForServiceNetworkOperationStatus := WaitForServiceNetworkOperationStatus
+	WaitForServiceNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operationName string, timeout time.Duration) ([]byte, error) {
+		return []byte("test-operation-data"), nil
+	}
+	defer func() {
+		WaitForServiceNetworkOperationStatus = originalWaitForServiceNetworkOperationStatus
+	}()
+
+	params := &common.CreatePoolParams{
+		AccountName: "test-account",
+		Region:      "us-central1",
+	}
+	tenantProjectNumber := "test-tenant-123"
+
+	expectedTenancyInfo := &common.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "PROCESSING",
+	}).Return(nil).Once()
+	env.OnActivity("GetAvailableSubnet", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
+		Name: "", // Empty name triggers subnet creation path
+	}, nil)
+	operationName := "test-operation-123"
+	env.OnActivity("GetCreateDataSubnetOp", mock.Anything, mock.Anything, mock.Anything).Return(&operationName, nil)
+	env.OnActivity("GetSubnetFromOperation", mock.Anything, mock.Anything).Return(&hyperscalermodels.Subnet{
+		Name: "test-subnet",
+	}, nil)
+	env.OnActivity("GetTenancyInfo", mock.Anything, mock.Anything, mock.Anything).Return(expectedTenancyInfo, nil)
+	env.OnActivity("UpdatePoolSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, &datamodel.Job{
+		BaseModel: datamodel.BaseModel{
+			UUID: "default-test-workflow-id",
+		},
+		State: "DONE",
+	}).Return(nil).Once()
+	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func WfTestWaitForServiceNetworkOperationStatus(ctx workflow.Context, operationName string, timeout time.Duration) ([]byte, error) {
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: timeout,
+	})
+	poolActivity := &activities.PoolActivity{}
+	result, err := _waitForServiceNetworkOperationStatus(ctx, poolActivity, operationName, timeout)
+	if err != nil {
+		return nil, fmt.Errorf("wait for service network operation status test failed: %w", err)
+	}
+	return result, nil
+}
+
+func Test_waitForServiceNetworkOperationStatus_Success_CompletedOperation(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	poolActivity := &activities.PoolActivity{}
+	operationName := "test-operation"
+
+	// Mock successful operation completion
+	operation := &hyperscalermodels.ComputeOperation{
+		Done:     true,
+		Response: []byte(`{"result": "success"}`),
+	}
+
+	env.OnActivity(poolActivity.GetServiceNetOpStatus, mock.Anything, operationName).Return(operation, nil)
+	env.RegisterActivity(poolActivity.GetServiceNetOpStatus)
+	env.ExecuteWorkflow(WfTestWaitForServiceNetworkOperationStatus, operationName, 1*time.Minute)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	var result []byte
+	err := env.GetWorkflowResult(&result)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte(`{"result": "success"}`), result)
+}
+
+func Test_waitForServiceNetworkOperationStatus_OperationWithEmptyResponse(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	poolActivity := &activities.PoolActivity{}
+	operationName := "test-operation"
+
+	// Mock operation done but with empty response, then successful completion
+	emptyResponseOp := &hyperscalermodels.ComputeOperation{
+		Done:     true,
+		Response: []byte(""),
+	}
+	successOperation := &hyperscalermodels.ComputeOperation{
+		Done:     true,
+		Response: []byte(`{"result": "success"}`),
+	}
+
+	env.OnActivity(poolActivity.GetServiceNetOpStatus, mock.Anything, operationName).Return(emptyResponseOp, nil).Once()
+	env.OnActivity(poolActivity.GetServiceNetOpStatus, mock.Anything, operationName).Return(successOperation, nil).Once()
+
+	env.RegisterActivity(poolActivity.GetServiceNetOpStatus)
+	env.ExecuteWorkflow(WfTestWaitForServiceNetworkOperationStatus, operationName, 1*time.Minute)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	var result []byte
+	err := env.GetWorkflowResult(&result)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte(`{"result": "success"}`), result)
+}
+
+func Test_waitForServiceNetworkOperationStatus_Timeout_ComprehensiveTest(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	poolActivity := &activities.PoolActivity{}
+	operationName := "test-operation"
+
+	// Mock operation that is never done
+	operation := &hyperscalermodels.ComputeOperation{
+		Done:     false,
+		Response: []byte(`{"status": "pending"}`),
+	}
+
+	env.OnActivity(poolActivity.GetServiceNetOpStatus, mock.Anything, operationName).Return(operation, nil)
+	env.RegisterActivity(poolActivity.GetServiceNetOpStatus)
+	env.ExecuteWorkflow(WfTestWaitForServiceNetworkOperationStatus, operationName, 1*time.Millisecond)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "timeout while confirming compute network google components")
+}
+
+func Test_waitForServiceNetworkOperationStatus_GetOperationFails_ComprehensiveTest(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	poolActivity := &activities.PoolActivity{}
+	operationName := "test-operation"
+
+	env.OnActivity(poolActivity.GetServiceNetOpStatus, mock.Anything, operationName).Return(nil, assert.AnError)
+	env.RegisterActivity(poolActivity.GetServiceNetOpStatus)
+	env.ExecuteWorkflow(WfTestWaitForServiceNetworkOperationStatus, operationName, 1*time.Minute)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get GCP Operation")
+}
+
+func Test_waitForServiceNetworkOperationStatus_NotReadyErrorThenSuccess_ComprehensiveTest(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	poolActivity := &activities.PoolActivity{}
+	operationName := "test-operation"
+
+	// Mock NotReadyErr first, then successful completion
+	notReadyErr := errors.NewNotReadyErr("operation not ready")
+	successOperation := &hyperscalermodels.ComputeOperation{
+		Done:     true,
+		Response: []byte(`{"result": "success"}`),
+	}
+
+	env.OnActivity(poolActivity.GetServiceNetOpStatus, mock.Anything, operationName).Return(nil, notReadyErr).Once()
+	env.OnActivity(poolActivity.GetServiceNetOpStatus, mock.Anything, operationName).Return(successOperation, nil).Once()
+
+	env.RegisterActivity(poolActivity.GetServiceNetOpStatus)
+	env.ExecuteWorkflow(WfTestWaitForServiceNetworkOperationStatus, operationName, 1*time.Minute)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	var result []byte
+	err := env.GetWorkflowResult(&result)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte(`{"result": "success"}`), result)
+}
+
+func Test_waitForServiceNetworkOperationStatus_NotFoundErrorThenSuccess_ComprehensiveTest(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	poolActivity := &activities.PoolActivity{}
+	operationName := "test-operation"
+
+	// Mock NotFoundErr first, then successful completion
+	testOperation := "test-operation"
+	notFoundErr := errors.NewNotFoundErr("operation not found", &testOperation)
+	successOperation := &hyperscalermodels.ComputeOperation{
+		Done:     true,
+		Response: []byte(`{"result": "success"}`),
+	}
+
+	env.OnActivity(poolActivity.GetServiceNetOpStatus, mock.Anything, operationName).Return(nil, notFoundErr).Once()
+	env.OnActivity(poolActivity.GetServiceNetOpStatus, mock.Anything, operationName).Return(successOperation, nil).Once()
+
+	env.RegisterActivity(poolActivity.GetServiceNetOpStatus)
+	env.ExecuteWorkflow(WfTestWaitForServiceNetworkOperationStatus, operationName, 1*time.Minute)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	var result []byte
+	err := env.GetWorkflowResult(&result)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte(`{"result": "success"}`), result)
+}
+
+func Test_waitForServiceNetworkOperationStatus_OperationNotDoneThenSuccess_ComprehensiveTest(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	poolActivity := &activities.PoolActivity{}
+	operationName := "test-operation"
+
+	// Mock operation not done first, then successful completion
+	notDoneOp := &hyperscalermodels.ComputeOperation{
+		Done:     false,
+		Response: []byte(`{"status": "in-progress"}`),
+	}
+	successOperation := &hyperscalermodels.ComputeOperation{
+		Done:     true,
+		Response: []byte(`{"result": "success"}`),
+	}
+
+	env.OnActivity(poolActivity.GetServiceNetOpStatus, mock.Anything, operationName).Return(notDoneOp, nil).Once()
+	env.OnActivity(poolActivity.GetServiceNetOpStatus, mock.Anything, operationName).Return(successOperation, nil).Once()
+
+	env.RegisterActivity(poolActivity.GetServiceNetOpStatus)
+	env.ExecuteWorkflow(WfTestWaitForServiceNetworkOperationStatus, operationName, 1*time.Minute)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	var result []byte
+	err := env.GetWorkflowResult(&result)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte(`{"result": "success"}`), result)
 }

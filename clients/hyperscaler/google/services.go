@@ -15,64 +15,15 @@ var (
 	statusDone        = "DONE"
 	operationProgress = int64(100)
 
-	waitForServiceNetworkOperationStatus = _waitForServiceNetworkOperationStatus
-	waitForComputeNetGlobalOpStatus      = _waitForComputeNetGlobalOpStatus
-	waitForComputeRegionalOperation      = _waitForComputeRegionalOperation
-	operationStatus                      = _operationStatus
-	waitForComputeOperation              = _waitForComputeOperation
+	waitForComputeNetGlobalOpStatus = _waitForComputeNetGlobalOpStatus
+	waitForComputeRegionalOperation = _waitForComputeRegionalOperation
+	operationStatus                 = _operationStatus
+	waitForComputeOperation         = _waitForComputeOperation
 
-	getServiceNetOpStatus      = _getServiceNetOpStatus
 	getComputeGlobalOpStatus   = _getComputeGlobalOpStatus
 	getComputeRegionalOpStatus = _getComputeRegionalOpStatus
 	timeSleep                  = time.Sleep
 )
-
-// _waitForServiceNetworkOperationStatus waits for a service network operation to complete
-func _waitForServiceNetworkOperationStatus(gcpService *GcpServices, operationName string) (*models.ComputeOperation, error) {
-	retryCount := 1
-	t2 := time.Now().Add(waitTimeoutMinutes)
-	for time.Now().Before(t2) {
-		gcpService.Logger.Debug(fmt.Sprintf("retry count : %d", retryCount))
-		retryCount += 1
-		timeSleep(defaultSleepTime)
-		op, err := getServiceNetOpStatus(gcpService, operationName)
-		if err != nil {
-			if !errors.IsNotReadyErr(err) {
-				gcpService.Logger.Error(fmt.Sprintf("Operation %s failed with error %s", operationName, err.Error()))
-				return op, err
-			}
-			gcpService.Logger.Error(fmt.Sprintf("Retrying operation %s failed with error %s", operationName, err.Error()))
-			continue
-		}
-		if op.Done {
-			if op.ErrorResponse != "" {
-				gcpService.Logger.Error(fmt.Sprintf("Operation %s completed successfully with error %s", operationName, op.ErrorResponse))
-				return op, errors.New(op.ErrorResponse)
-			}
-			gcpService.Logger.Debug(fmt.Sprintf("Operation %s completed successfully", operationName))
-			return op, nil
-		}
-	}
-	gcpService.Logger.Debug("Timeout while confirming service network google components")
-	return nil, errors.New("Timeout while confirming service network google components")
-}
-
-// _getServiceNetOpStatus returns the status (and result) of a Google's service networking operation
-func _getServiceNetOpStatus(gcpService *GcpServices, operation string) (*models.ComputeOperation, error) {
-	op, err := gcpService.AdminGCPService.networkingService.Operations.Get(operation).Do()
-	if err != nil || (op != nil && op.Error != nil) {
-		if err == nil {
-			gcpService.Logger.Debug(fmt.Sprintf("getServiceNetOpStatus's operation failed with error : %s", op.Error.Message))
-			err = &googleapi.Error{Message: op.Error.Message}
-		}
-		if err != nil {
-			gcpService.Logger.Errorf(fmt.Sprintf("getServiceNetOpStatus failed with error : %s", err.Error()))
-			return nil, err
-		}
-	}
-	gcpService.Logger.Debug(fmt.Sprintf("getServiceNetOpStatus successful : %s", op.Name))
-	return convertServiceNetOpToComputeOp(op), nil
-}
 
 // _waitForComputeNetGlobalOpStatus waits for the Google's compute global operation to complete
 func _waitForComputeNetGlobalOpStatus(gcpService *GcpServices, tenantProject, operationName string) (*models.ComputeOperation, error) {

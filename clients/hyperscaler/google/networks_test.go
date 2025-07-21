@@ -26,7 +26,7 @@ func testReset(t *testing.T) {
 	serviceNetworkingEndpoint = env.GetString("GCP_SERVICE_NETWORKING_ENDPOINT_URL", "mock-endpoint.com")
 	newClient = _newClient
 
-	createSubnetworkForTenantProject = _createSubnetworkForTenantProject
+	CreateTPSubnetOp = _createTPSubnetOp
 	createSubnetwork = _createSubnetwork
 	createVPC = _createVPC
 	insertFirewall = _insertFirewall
@@ -174,10 +174,10 @@ func Test_GetTenantProject(t *testing.T) {
 	})
 }
 
-func Test_createSubnetworkForTenantProjectInternal(t *testing.T) {
+func Test_CreateTPSubnetOpInternal(t *testing.T) {
 	tenantProjectNumber := "1234"
 	url := fmt.Sprintf("/v1/services/endpoint.goog/projects/%s:addSubnetwork", tenantProjectNumber)
-	t.Run("When_createSubnetworkForTenantProjectFails", func(tt *testing.T) {
+	t.Run("When_CreateTPSubnetOpFails", func(tt *testing.T) {
 		defer testReset(tt)
 		ctx := context.Background()
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
@@ -202,7 +202,7 @@ func Test_createSubnetworkForTenantProjectInternal(t *testing.T) {
 			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
 			serviceNetworkingEndpoint:         serviceNetworkingEndpoint,
 		}
-		out, err := createSubnetworkForTenantProject(gService, &servicenetworking.AddSubnetworkRequest{}, tenantProjectNumber)
+		out, err := CreateTPSubnetOp(gService, &servicenetworking.AddSubnetworkRequest{}, tenantProjectNumber)
 		if err == nil {
 			tt.Error("Expected an error but got nothing")
 		} else {
@@ -213,9 +213,9 @@ func Test_createSubnetworkForTenantProjectInternal(t *testing.T) {
 				tt.Errorf("Unexpected error: %s", err.Error())
 			}
 		}
-		createSubnetworkForTenantProject = _createSubnetworkForTenantProject
+		CreateTPSubnetOp = _createTPSubnetOp
 	})
-	t.Run("When_createSubnetworkForTenantProjectGoogleFails", func(tt *testing.T) {
+	t.Run("When_CreateTPSubnetOpGoogleFails", func(tt *testing.T) {
 		defer testReset(tt)
 		ctx := context.Background()
 		errMsg := "Please create Service Networking connection with service 'netapp-sqa-autopush-endpoint.appspot.com' from consumer project '452619736732' network 'vpc-ap-tst' again.\\nHelp Token: AVzH8v1Y08A4HRQKRMzS6bVbeOO44HRY9Tg4k12uNjlwNXqwat_lZukbsxoB2TBH2FKBctDZDLYtD6CdaLke-XzSkgYvkeTwsnzwgRId7S25scxj"
@@ -254,7 +254,7 @@ func Test_createSubnetworkForTenantProjectInternal(t *testing.T) {
 			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
 			serviceNetworkingEndpoint:         serviceNetworkingEndpoint,
 		}
-		out, err := createSubnetworkForTenantProject(gService, &servicenetworking.AddSubnetworkRequest{}, tenantProjectNumber)
+		out, err := CreateTPSubnetOp(gService, &servicenetworking.AddSubnetworkRequest{}, tenantProjectNumber)
 		if err == nil {
 			tt.Error("Expected an error but got nothing")
 		} else {
@@ -265,7 +265,7 @@ func Test_createSubnetworkForTenantProjectInternal(t *testing.T) {
 				tt.Errorf("Unexpected error: %s", err.Error())
 			}
 		}
-		createSubnetworkForTenantProject = _createSubnetworkForTenantProject
+		CreateTPSubnetOp = _createTPSubnetOp
 	})
 	t.Run("WhenOKWithError", func(tt *testing.T) {
 		defer testReset(tt)
@@ -294,7 +294,7 @@ func Test_createSubnetworkForTenantProjectInternal(t *testing.T) {
 			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
 			serviceNetworkingEndpoint:         serviceNetworkingEndpoint,
 		}
-		out, err := createSubnetworkForTenantProject(gService, &servicenetworking.AddSubnetworkRequest{}, tenantProjectNumber)
+		out, err := CreateTPSubnetOp(gService, &servicenetworking.AddSubnetworkRequest{}, tenantProjectNumber)
 		if err == nil {
 			tt.Errorf("Error expected: %s", err.Error())
 		} else {
@@ -302,7 +302,7 @@ func Test_createSubnetworkForTenantProjectInternal(t *testing.T) {
 				tt.Errorf("Expected nil")
 			}
 		}
-		createSubnetworkForTenantProject = _createSubnetworkForTenantProject
+		CreateTPSubnetOp = _createTPSubnetOp
 	})
 	t.Run("WhenOK", func(tt *testing.T) {
 		defer testReset(tt)
@@ -349,7 +349,7 @@ func Test_createSubnetworkForTenantProjectInternal(t *testing.T) {
 			ConsumerNetwork: consumerNetwork,
 			Subnetwork:      "vsa-" + "us-east-4",
 		}
-		out, err := createSubnetworkForTenantProject(gService, req, tenantProjectNumber)
+		out, err := CreateTPSubnetOp(gService, req, tenantProjectNumber)
 		if err != nil {
 			tt.Errorf("Unexpected error: %s", err.Error())
 		} else {
@@ -361,7 +361,7 @@ func Test_createSubnetworkForTenantProjectInternal(t *testing.T) {
 				}
 			}
 		}
-		createSubnetworkForTenantProject = _createSubnetworkForTenantProject
+		CreateTPSubnetOp = _createTPSubnetOp
 	})
 }
 
@@ -922,8 +922,8 @@ func Test_InsertFirewall(t *testing.T) {
 	})
 }
 
-// Unit tests for CreateSubnetworkForTenantProject
-func Test_CreateSubnetworkForTenantProject(t *testing.T) {
+// Unit tests for CreateTPSubnetOp
+func Test_CreateTPSubnetOp(t *testing.T) {
 	tenantProjectNumber := "123456789"
 	consumerNetwork := "projects/123456789/global/networks/test-network"
 	region := "us-central1"
@@ -934,78 +934,38 @@ func Test_CreateSubnetworkForTenantProject(t *testing.T) {
 		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
 		consumerNetworkIncorrect := "projects/123456789/global/networks"
 
-		_, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetworkIncorrect, region, subnetName)
+		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetworkIncorrect, region, subnetName)
 		if err == nil || !strings.Contains(err.Error(), "parseProjectId failed for network : "+consumerNetworkIncorrect) {
 			tt.Errorf("Expected parse error, got: %v", err)
 		}
 	})
 
-	t.Run("WhenCreateSubnetworkForTenantProjectFails", func(tt *testing.T) {
+	t.Run("WhenCreateTPSubnetOpFails", func(tt *testing.T) {
 		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
-		origCreate := createSubnetworkForTenantProject
-		createSubnetworkForTenantProject = func(*GcpServices, *servicenetworking.AddSubnetworkRequest, string) (*models.ComputeOperation, error) {
+		origCreate := CreateTPSubnetOp
+		CreateTPSubnetOp = func(*GcpServices, *servicenetworking.AddSubnetworkRequest, string) (*models.ComputeOperation, error) {
 			return nil, fmt.Errorf("create error")
 		}
-		defer func() { createSubnetworkForTenantProject = origCreate }()
-		_, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region, subnetName)
+		defer func() { CreateTPSubnetOp = origCreate }()
+		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName)
 		if err == nil || !strings.Contains(err.Error(), "create error") {
 			tt.Errorf("Expected create error, got: %v", err)
 		}
 	})
 
-	t.Run("WhenWaitForServiceNetworkOperationStatusFails", func(tt *testing.T) {
-		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
-		origCreate := createSubnetworkForTenantProject
-		createSubnetworkForTenantProject = func(*GcpServices, *servicenetworking.AddSubnetworkRequest, string) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Name: "op-1"}, nil
-		}
-		defer func() { createSubnetworkForTenantProject = origCreate }()
-		origWait := waitForServiceNetworkOperationStatus
-		waitForServiceNetworkOperationStatus = func(*GcpServices, string) (*models.ComputeOperation, error) {
-			return nil, fmt.Errorf("wait error")
-		}
-		defer func() { waitForServiceNetworkOperationStatus = origWait }()
-		_, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region, subnetName)
-		if err == nil || !strings.Contains(err.Error(), "wait error") {
-			tt.Errorf("Expected wait error, got: %v", err)
-		}
-	})
-	t.Run("WhenGoogleTimeout", func(tt *testing.T) {
-		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
-		origCreate := createSubnetworkForTenantProject
-		createSubnetworkForTenantProject = func(*GcpServices, *servicenetworking.AddSubnetworkRequest, string) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Name: "op-1"}, nil
-		}
-		defer func() { createSubnetworkForTenantProject = origCreate }()
-		origWait := waitForServiceNetworkOperationStatus
-		waitForServiceNetworkOperationStatus = func(*GcpServices, string) (*models.ComputeOperation, error) {
-			return nil, fmt.Errorf("Timeout while confirming service network google components")
-		}
-		defer func() { waitForServiceNetworkOperationStatus = origWait }()
-		_, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region, subnetName)
-		if err == nil || !strings.Contains(err.Error(), "Timeout while confirming service network google components") {
-			tt.Errorf("Expected wait error, got: %v", err)
-		}
-	})
-
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
-		origCreate := createSubnetworkForTenantProject
-		createSubnetworkForTenantProject = func(*GcpServices, *servicenetworking.AddSubnetworkRequest, string) (*models.ComputeOperation, error) {
+		origCreate := CreateTPSubnetOp
+		CreateTPSubnetOp = func(*GcpServices, *servicenetworking.AddSubnetworkRequest, string) (*models.ComputeOperation, error) {
 			return &models.ComputeOperation{Name: "op-1", Response: []byte("success")}, nil
 		}
-		defer func() { createSubnetworkForTenantProject = origCreate }()
-		origWait := waitForServiceNetworkOperationStatus
-		waitForServiceNetworkOperationStatus = func(*GcpServices, string) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Response: []byte("success")}, nil
-		}
-		defer func() { waitForServiceNetworkOperationStatus = origWait }()
-		resp, err := gService.CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region, subnetName)
+		defer func() { CreateTPSubnetOp = origCreate }()
+		resp, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName)
 		if err != nil {
 			tt.Errorf("Unexpected error: %v", err)
 		}
-		if string(resp) != "success" {
-			tt.Errorf("Expected response 'success', got: %s", string(resp))
+		if string(*resp) != "op-1" {
+			tt.Errorf("Expected response 'success', got: %s", string(*resp))
 		}
 	})
 }
@@ -1440,7 +1400,7 @@ func TestReleaseSubnetwork(t *testing.T) {
 			tt.Fatalf("Error getting service up: '%s'", err.Error())
 		}
 		gService := &GcpServices{AdminGCPService: &AdminGCPService{networkingService: svc}, Ctx: ctx, Logger: util.GetLogger(ctx)}
-		_, err = _createSubnetworkForTenantProject(gService, &servicenetworking.AddSubnetworkRequest{}, "test-project")
+		_, err = _createTPSubnetOp(gService, &servicenetworking.AddSubnetworkRequest{}, "test-project")
 		if err == nil || !strings.Contains(err.Error(), "are not successfully connected yet") {
 			tt.Errorf("Expected are not successfully connected yet error, got: %v", err)
 		}
@@ -1460,7 +1420,6 @@ func Test_ListSubnetworks(t *testing.T) {
 				rw.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			rw.WriteHeader(http.StatusBadRequest)
 		}))
 		defer server.Close()
 
@@ -1476,7 +1435,6 @@ func Test_ListSubnetworks(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 
 		_, err = gService.ListSubnetworks(projectName, region)
@@ -1495,7 +1453,6 @@ func Test_ListSubnetworks(t *testing.T) {
 				_, _ = rw.Write(response)
 				return
 			}
-			rw.WriteHeader(http.StatusBadRequest)
 		}))
 		defer server.Close()
 
@@ -1511,7 +1468,6 @@ func Test_ListSubnetworks(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 
 		out, err := gService.ListSubnetworks(projectName, region)
@@ -1530,13 +1486,7 @@ func Test_GetSnHost(t *testing.T) {
 		ctx := context.Background()
 		projectName := "1079058383248"
 		url := fmt.Sprintf("/projects/%s/getXpnHost", projectName)
-		counter := 0
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-				rw.WriteHeader(http.StatusInternalServerError)
-				return
-			}
 			if req.URL.Path == url {
 				rw.WriteHeader(http.StatusBadRequest)
 				return
@@ -1569,13 +1519,7 @@ func Test_GetSnHost(t *testing.T) {
 		ctx := context.Background()
 		projectName := "1079058383248"
 		url := fmt.Sprintf("/projects/%s/getXpnHost", projectName)
-		counter := 0
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-				rw.WriteHeader(http.StatusInternalServerError)
-				return
-			}
 			if req.URL.Path == url {
 				rw.WriteHeader(http.StatusNotFound)
 				_, _ = rw.Write([]byte(`{"error": {"message": "notFound"}}`))
@@ -1593,13 +1537,12 @@ func Test_GetSnHost(t *testing.T) {
 				computeService: computeSvc,
 			},
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 		_, err = gService.GetSnHost(projectName)
 		if err == nil {
 			tt.Error("Expected an error but got nothing")
 		} else {
-			if !strings.Contains(err.Error(), "not found") {
+			if !strings.Contains(strings.ToLower(err.Error()), "notfound") {
 				tt.Errorf("Unexpected error: %s", err.Error())
 			}
 		}
@@ -1610,14 +1553,8 @@ func Test_GetSnHost(t *testing.T) {
 		ctx := context.Background()
 		projectName := "1079058383248"
 		url := fmt.Sprintf("/projects/%s/getXpnHost", projectName)
-		counter := 0
 		resp := &compute.Project{Name: ""}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-				rw.WriteHeader(http.StatusInternalServerError)
-				return
-			}
 			if req.URL.Path == url {
 				response, err := json.Marshal(resp)
 				if err != nil {
@@ -1641,7 +1578,6 @@ func Test_GetSnHost(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 		_, err = gService.GetSnHost(projectName)
 		if err == nil {
@@ -1657,14 +1593,8 @@ func Test_GetSnHost(t *testing.T) {
 		ctx := context.Background()
 		projectName := "1079058383248"
 		url := fmt.Sprintf("/projects/%s/getXpnHost", projectName)
-		counter := 0
 		resp := &compute.Project{Name: "sn-host-project"}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-				rw.WriteHeader(http.StatusInternalServerError)
-				return
-			}
 			if req.URL.Path == url {
 				response, err := json.Marshal(resp)
 				if err != nil {
@@ -1688,7 +1618,6 @@ func Test_GetSnHost(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 		out, err := gService.GetSnHost(projectName)
 		if err != nil {
@@ -1696,9 +1625,6 @@ func Test_GetSnHost(t *testing.T) {
 		} else {
 			if out == "" {
 				tt.Errorf("Output unexpectedly nil")
-			}
-			if gService.Retry.GetRetryCount() != 0 {
-				tt.Errorf("RetryStrategy was not reset %d", gService.Retry.GetRetryCount())
 			}
 		}
 	})
@@ -1919,5 +1845,125 @@ func Test_updateFirewall(t *testing.T) {
 			}
 		}
 		updateFirewall = _updateFirewall
+	})
+}
+
+func Test_GetServiceNetOpStatus(t *testing.T) {
+	defer testReset(t)
+
+	t.Run("Success", func(tt *testing.T) {
+		operationName := "operations/operation-1234567890123456789"
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if strings.Contains(req.URL.Path, "operations/operation-1234567890123456789") {
+				response := &servicenetworking.Operation{
+					Name: operationName,
+					Done: true,
+				}
+				responseJson, _ := json.Marshal(response)
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(responseJson)
+				return
+			}
+			rw.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		serviceNetworkingEndpoint = server.URL
+		ctx := context.Background()
+
+		networkingService, err := servicenetworking.NewService(ctx, option.WithEndpoint(server.URL), option.WithoutAuthentication())
+		if err != nil {
+			tt.Fatalf("Failed to create networking service: %v", err)
+		}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				networkingService: networkingService,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		result, err := gcpService.GetServiceNetOpStatus(operationName)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, operationName, result.Name)
+		assert.True(tt, result.Done)
+	})
+
+	t.Run("Error_OperationError", func(tt *testing.T) {
+		operationName := "operations/operation-error"
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if strings.Contains(req.URL.Path, "operations/operation-error") {
+				response := &servicenetworking.Operation{
+					Name: operationName,
+					Done: true,
+					Error: &servicenetworking.Status{
+						Message: "Operation failed",
+					},
+				}
+				responseJson, _ := json.Marshal(response)
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(responseJson)
+				return
+			}
+			rw.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		serviceNetworkingEndpoint = server.URL
+		ctx := context.Background()
+
+		networkingService, err := servicenetworking.NewService(ctx, option.WithEndpoint(server.URL), option.WithoutAuthentication())
+		if err != nil {
+			tt.Fatalf("Failed to create networking service: %v", err)
+		}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				networkingService: networkingService,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		result, err := gcpService.GetServiceNetOpStatus(operationName)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Operation failed")
+	})
+
+	t.Run("Error_HTTPError", func(tt *testing.T) {
+		operationName := "operations/operation-notfound"
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			rw.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		serviceNetworkingEndpoint = server.URL
+		ctx := context.Background()
+
+		networkingService, err := servicenetworking.NewService(ctx, option.WithEndpoint(server.URL), option.WithoutAuthentication())
+		if err != nil {
+			tt.Fatalf("Failed to create networking service: %v", err)
+		}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				networkingService: networkingService,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		result, err := gcpService.GetServiceNetOpStatus(operationName)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
 	})
 }

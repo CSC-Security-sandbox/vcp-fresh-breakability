@@ -233,7 +233,7 @@ func getSubnetToBeUsed(service hyperscaler.GoogleServices, se database.Storage, 
 			}
 			if reuseSubnet {
 				logger.Debug(fmt.Sprintf("Subnetwork %s already exists in tenant project %s and region %s. Reusing the subnet", subnet.Name, tenantProjectNumber, tenantProjectRegion))
-				return &subnet, err
+				return &subnet, nil
 			}
 		}
 	}

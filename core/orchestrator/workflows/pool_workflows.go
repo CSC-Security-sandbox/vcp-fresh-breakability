@@ -4,11 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/workflow"
+	"google.golang.org/api/iam/v1"
 	"regexp"
 	"time"
 
 	"github.com/google/uuid"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -26,24 +33,19 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"go.temporal.io/api/enums/v1"
-	"go.temporal.io/sdk/activity"
-	"go.temporal.io/sdk/client"
-	"go.temporal.io/sdk/temporal"
-	"go.temporal.io/sdk/workflow"
-	"google.golang.org/api/iam/v1"
 )
 
 var (
-	_                                WorkflowInterface = &createPoolWorkflow{} // Enforcing the WorkflowInterface on createPoolWorkflow
-	setupNwHeartbeatTimeout                            = env.GetUint64("SETUP_NW_HEARTBEAT_TIMEOUT_SEC", 300)
-	vmrsConfigPath                                     = env.GetString("VMRS_CONFIG_PATH", "config/vmrs_gcp.yaml")
-	maxNodesPerGroup                                   = env.GetInt("MAX_NODES_PER_GROUP", 200)
-	enableMetrics                                      = env.GetBool("ENABLE_METRICS", false)
-	configureKmsConfigForSvmActivity                   = _configureKmsConfigForSvmActivity
-	getSignedJwtToken                                  = auth.GetSignedJwtToken
-	GetNewVSAClientWorkflowManager                     = _getNewVSAClientWorkflowManager
-	ExtractOntapVersion                                = _extractOntapVersion
+	_                                    WorkflowInterface = &createPoolWorkflow{} // Enforcing the WorkflowInterface on createPoolWorkflow
+	setupNwHeartbeatTimeout                                = env.GetUint64("SETUP_NW_HEARTBEAT_TIMEOUT_SEC", 300)
+	vmrsConfigPath                                         = env.GetString("VMRS_CONFIG_PATH", "config/vmrs_gcp.yaml")
+	maxNodesPerGroup                                       = env.GetInt("MAX_NODES_PER_GROUP", 200)
+	enableMetrics                                          = env.GetBool("ENABLE_METRICS", false)
+	configureKmsConfigForSvmActivity                       = _configureKmsConfigForSvmActivity
+	getSignedJwtToken                                      = auth.GetSignedJwtToken
+	GetNewVSAClientWorkflowManager                         = _getNewVSAClientWorkflowManager
+	ExtractOntapVersion                                    = _extractOntapVersion
+	WaitForServiceNetworkOperationStatus                   = _waitForServiceNetworkOperationStatus
 )
 
 const (
@@ -68,8 +70,6 @@ type poolDataSubnetWorkFlow struct {
 }
 
 var _ WorkflowInterface = &poolDataSubnetWorkFlow{}
-
-// const customerActionTimeout = 30 * time.Minute
 
 // CreatePoolWorkflow processes pool related requests from a customer.
 func CreatePoolWorkflow(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool) error {
@@ -180,11 +180,6 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	err = workflow.ExecuteActivity(ctx, subnetActivity.GetTenancyDetails, createSubnetJobUUID).Get(ctx, &tenancyDetails)
 	if err != nil {
 		wf.Logger.Errorf("Failed to get tenancy details for job %s, error: %v", *createSubnetJobUUID, err)
-		return nil, err
-	}
-
-	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolSubnet, dbPool.UUID, tenancyDetails).Get(ctx, nil)
-	if err != nil {
 		return nil, err
 	}
 	dbPool.ClusterDetails.SubnetNames = tenancyDetails.SubnetworkNames
@@ -827,7 +822,7 @@ type subnetWorkflowResult struct {
 }
 
 // PoolDataSubnetWorkFlow processes get pr create subnet for the pool related requests from a customer.
-func PoolDataSubnetWorkFlow(ctx workflow.Context, params *common.CreatePoolParams, tenantProjectNumber string) (gcpgenserver.V1betaDescribePoolRes, error) {
+func PoolDataSubnetWorkFlow(ctx workflow.Context, params *common.CreatePoolParams, poolUUID, tenantProjectNumber string) (gcpgenserver.V1betaDescribePoolRes, error) {
 	CreateOrGetSubnetworkWF := new(poolDataSubnetWorkFlow)
 	err := CreateOrGetSubnetworkWF.Setup(ctx, params)
 	if err != nil {
@@ -838,7 +833,7 @@ func PoolDataSubnetWorkFlow(ctx workflow.Context, params *common.CreatePoolParam
 	if err != nil {
 		return nil, err
 	}
-	_, err = CreateOrGetSubnetworkWF.Run(ctx, params, tenantProjectNumber)
+	_, err = CreateOrGetSubnetworkWF.Run(ctx, params, poolUUID, tenantProjectNumber)
 	if err != nil {
 		CreateOrGetSubnetworkWF.Status = WorkflowStatusFailed
 		upErr := CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
@@ -879,7 +874,9 @@ func (wf *poolDataSubnetWorkFlow) Setup(ctx workflow.Context, input interface{})
 
 func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
 	params := args[0].(*common.CreatePoolParams)
-	tenantProjectNumber := args[1].(string)
+	poolUUID := args[1].(string)
+	tenantProjectNumber := args[2].(string)
+
 	poolActivity := &activities.PoolActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -892,6 +889,8 @@ func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{})
 			BackoffCoefficient: retryPolicy.BackoffCoefficient,
 			MaximumInterval:    retryPolicy.MaximumInterval,
 			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+			// TODO: Add non-retryable errors.ErrPSAPeeringNotFoundError
+			NonRetryableErrorTypes: []string{},
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
@@ -905,12 +904,41 @@ func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{})
 		}
 	}()
 
-	tenancyDetails := &common.TenancyInfo{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateOrGetSubnetwork, params, tenantProjectNumber).Get(ctx, &tenancyDetails)
+	subnet := new(hyperscalermodels.Subnet)
+	err = workflow.ExecuteActivity(ctx, poolActivity.GetAvailableSubnet, params, tenantProjectNumber).Get(ctx, subnet)
 	if err != nil {
 		return nil, err
 	}
 
+	if subnet.Name == "" {
+		var operationName string
+		err = workflow.ExecuteActivity(ctx, poolActivity.GetCreateDataSubnetOp, params, tenantProjectNumber).Get(ctx, &operationName)
+		if err != nil {
+			return nil, err
+		}
+		if operationName == "" {
+			return nil, fmt.Errorf("failed to create subnet for tenant project: %s, operation name is empty", tenantProjectNumber)
+		}
+		// add retry only for Google timeout : strings.Contains(err.Error(), "Timeout while confirming service network google components")
+		opSubnetInBytes, err := WaitForServiceNetworkOperationStatus(ctx, poolActivity, operationName, retryPolicy.StartToCloseTimeout)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create subnet for tenant project while waiting to get operation status: %s: %w", tenantProjectNumber, err)
+		}
+		err = workflow.ExecuteActivity(ctx, poolActivity.GetSubnetFromOperation, opSubnetInBytes).Get(ctx, &subnet)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get subnet from operation for tenant project: %s: %w", tenantProjectNumber, err)
+		}
+	}
+	tenancyDetails := &common.TenancyInfo{}
+	err = workflow.ExecuteActivity(ctx, poolActivity.GetTenancyInfo, tenantProjectNumber, subnet).Get(ctx, &tenancyDetails)
+	if err != nil {
+		return nil, err
+	}
+
+	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolSubnet, poolUUID, tenancyDetails).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
 	// Adding the result to the workflow, which will be returned to the caller as Query after workflow completion
 	wf.TenancyDetails = tenancyDetails
 
@@ -969,10 +997,11 @@ func (sa *SubnetActivity) CreateSubnetJob(ctx context.Context, params *common.Cr
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 		},
 		params,
+		pool.UUID,
 		tenantProjectNumber,
 	)
 	if err != nil {
-		logger.Errorf("Failed to start create subnet workflow for account: %s & vpc: %s, job: %s, error: %v", params.AccountName, vpcName, createdJob.UUID)
+		logger.Errorf("Failed to start create subnet workflow for account: %s & vpc: %s, job: %s, error: %v", params.AccountName, vpcName, createdJob.UUID, err.Error())
 		return "", err
 	}
 
@@ -1035,4 +1064,32 @@ func _extractOntapVersion(input string) string {
 	re := regexp.MustCompile(`\d+\.\d+\.\d+`)
 	match := re.FindString(input)
 	return match
+}
+
+func _waitForServiceNetworkOperationStatus(ctx workflow.Context, poolActivity *activities.PoolActivity, op string, timeout time.Duration) ([]byte, error) {
+	startTime := workflow.Now(ctx)
+	for {
+		// Check if the timeout has been reached.
+		if workflow.Now(ctx).Sub(startTime) > timeout {
+			return nil, fmt.Errorf("timeout while confirming compute network google components: %v", timeout)
+		}
+
+		// Get the status of the GCP Operation.
+		operation := &hyperscalermodels.ComputeOperation{}
+		err := workflow.ExecuteActivity(ctx, poolActivity.GetServiceNetOpStatus, op).Get(ctx, &operation)
+		if err != nil && !vsaerror.IsNotReadyErr(err) && !vsaerror.IsNotFoundErr(err) {
+			return nil, fmt.Errorf("failed to get GCP Operation %s: %w", op, err)
+		}
+
+		// check the state of the operation
+		if operation.Done && string(operation.Response) != "" {
+			return operation.Response, nil
+		}
+
+		// Sleep for a some duration before checking again.
+		err = workflow.Sleep(ctx, pollDBJobWaitTimeSecond*time.Second)
+		if err != nil {
+			return nil, fmt.Errorf("failed to sleep while waiting for GCP Operation %s: %w", op, err)
+		}
+	}
 }

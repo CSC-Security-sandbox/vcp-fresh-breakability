@@ -62,5 +62,6 @@ type GoogleServices interface {
 	GetTenantProject(consumerNetwork, customerProjectNumber, tenantProjectRegion string) (string, error)
 	GetSnHost(project string) (string, error)
 
-	CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region, subnetName string) ([]byte, error)
+	CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName string) (*string, error)
+	GetServiceNetOpStatus(operationName string) (*models.ComputeOperation, error)
 }

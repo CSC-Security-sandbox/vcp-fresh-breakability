@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"google.golang.org/api/servicenetworking/v1"
 	"strconv"
 	"strings"
 	"testing"
@@ -17,7 +18,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
-	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
+	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -27,7 +28,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
 	vmrs_decision "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/decision"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -35,7 +36,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/testsuite"
 	"google.golang.org/api/iam/v1"
-	"google.golang.org/api/servicenetworking/v1"
 	"gorm.io/gorm"
 )
 
@@ -226,15 +226,13 @@ func TestPoolActivity_GetSubnetwork(t *testing.T) {
 		activity := &activities.PoolActivity{SE: mockStorage}
 
 		origGetGCPService := activities.GetGCPService
-		origGetSubnetwork := activities.GetOrCreateSubnetwork
 		defer func() {
 			activities.GetGCPService = origGetGCPService
-			activities.GetOrCreateSubnetwork = origGetSubnetwork
 		}()
 		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return nil, errors.New("gcp service error")
 		}
-		_, err := activity.CreateOrGetSubnetwork(ctx, params, tenantProjectNumber)
+		_, err := activity.GetAvailableSubnet(ctx, params, tenantProjectNumber)
 		if err == nil || !strings.Contains(err.Error(), "gcp service error") {
 			t.Errorf("expected error from GetGCPService, got %v", err)
 		}
@@ -245,26 +243,19 @@ func TestPoolActivity_GetSubnetwork(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		activity := &activities.PoolActivity{SE: mockStorage}
 
-		mockSvc := &google.GcpServices{}
 		origGetGCPService := activities.GetGCPService
-		origGetSubnetwork := activities.GetOrCreateSubnetwork
+		origGetSubnetToBeUsed := activities.GetSubnetToBeUsed
 		defer func() {
 			activities.GetGCPService = origGetGCPService
-			activities.GetOrCreateSubnetwork = origGetSubnetwork
+			activities.GetSubnetToBeUsed = origGetSubnetToBeUsed
 		}()
 		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockSvc, nil
+			return nil, errors.New("mocked GCP service error")
 		}
-		expected := &commonparams.TenancyInfo{}
-		activities.GetOrCreateSubnetwork = func(se database.Storage, service hyperscaler.GoogleServices, params commonparams.CreatePoolParams, tenantProjectNumber string) (*commonparams.TenancyInfo, error) {
-			return expected, nil
-		}
-		result, err := activity.CreateOrGetSubnetwork(ctx, params, tenantProjectNumber)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
-		if result != expected {
-			t.Errorf("expected %v, got %v", expected, result)
+
+		_, err := activity.GetAvailableSubnet(ctx, params, tenantProjectNumber)
+		if err == nil {
+			t.Error("expected error, got nil")
 		}
 		mockStorage.AssertExpectations(t)
 	})
@@ -273,22 +264,19 @@ func TestPoolActivity_GetSubnetwork(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		activity := &activities.PoolActivity{SE: mockStorage}
 
-		mockSvc := &google.GcpServices{}
 		origGetGCPService := activities.GetGCPService
-		origGetSubnetwork := activities.GetOrCreateSubnetwork
+		origGetSubnetToBeUsed := activities.GetSubnetToBeUsed
 		defer func() {
 			activities.GetGCPService = origGetGCPService
-			activities.GetOrCreateSubnetwork = origGetSubnetwork
+			activities.GetSubnetToBeUsed = origGetSubnetToBeUsed
 		}()
 		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockSvc, nil
+			return nil, errors.New("mocked GCP service error")
 		}
-		activities.GetOrCreateSubnetwork = func(se database.Storage, service hyperscaler.GoogleServices, params commonparams.CreatePoolParams, tenantProjectNumber string) (*commonparams.TenancyInfo, error) {
-			return nil, errors.New("subnetwork error")
-		}
-		_, err := activity.CreateOrGetSubnetwork(ctx, params, tenantProjectNumber)
-		if err == nil || !strings.Contains(err.Error(), "subnetwork error") {
-			t.Errorf("expected error from GetSubnetwork, got %v", err)
+
+		_, err := activity.GetAvailableSubnet(ctx, params, tenantProjectNumber)
+		if err == nil {
+			t.Error("expected error, got nil")
 		}
 		mockStorage.AssertExpectations(t)
 	})
@@ -2098,7 +2086,7 @@ func Test_InsertFirewall(t *testing.T) {
 		defer func() {
 			activities.InsertFirewall = InsertFirewall
 		}()
-		existingFirewall := &models.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: []string{"10.0.0.0/8", "192.168.0.0/16"}, // Same source ranges as expected
 		}
 		mgs.On("GetLogger").Return(logger)
@@ -2143,7 +2131,7 @@ func Test_InsertFirewall(t *testing.T) {
 		errString := "failed to insert firewall"
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetFirewall", projectName, firewallName).Return(nil, nil)
-		mgs.On("InsertFirewall", &models.Firewall{
+		mgs.On("InsertFirewall", &hyperscaler_models.Firewall{
 			ProjectName:      projectName,
 			Name:             firewallName,
 			VPCNetworkName:   vpcName,
@@ -2190,7 +2178,7 @@ func Test_CreateVPC(t *testing.T) {
 			activities.CreateVPC = CreateVPC
 		}()
 		mgs.On("GetLogger").Return(logger)
-		mgs.On("GetVPCNetwork", projectName, vpcName).Return(&models.VPCNetwork{}, nil)
+		mgs.On("GetVPCNetwork", projectName, vpcName).Return(&hyperscaler_models.VPCNetwork{}, nil)
 
 		err := activities.CreateVPC(mgs, projectName, vpcName)
 		assert.NoError(tt, err)
@@ -2229,7 +2217,7 @@ func Test_CreateVPC(t *testing.T) {
 		errString := "not found"
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, errors.New(errString))
-		mgs.On("CreateVPC", &models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(nil)
+		mgs.On("CreateVPC", &hyperscaler_models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(nil)
 
 		err := activities.CreateVPC(mgs, projectName, vpcName)
 		assert.Nil(tt, err)
@@ -2245,7 +2233,7 @@ func Test_CreateVPC(t *testing.T) {
 		errString := "failed to create VPC"
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, nil)
-		mgs.On("CreateVPC", &models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(errors.New(errString))
+		mgs.On("CreateVPC", &hyperscaler_models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(errors.New(errString))
 
 		err := activities.CreateVPC(mgs, projectName, vpcName)
 
@@ -2289,7 +2277,7 @@ func Test_CreateVPC(t *testing.T) {
 		}()
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, nil).Once()
-		mgs.On("CreateVPC", &models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(nil)
+		mgs.On("CreateVPC", &hyperscaler_models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(nil)
 
 		err := activities.CreateVPC(mgs, projectName, vpcName)
 		assert.NoError(tt, err)
@@ -2314,7 +2302,7 @@ func Test_InsertSubnet(t *testing.T) {
 			activities.InsertSubnet = InsertSubnet
 		}()
 		mgs.On("GetLogger").Return(logger)
-		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(&models.Subnet{}, nil)
+		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(&hyperscaler_models.Subnet{}, nil)
 
 		err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
 		assert.NoError(tt, err)
@@ -2379,134 +2367,26 @@ func Test_InsertSubnet(t *testing.T) {
 
 // Unit tests for _getSubnetwork
 func Test_getSubnetwork(t *testing.T) {
-	params := commonparams.CreatePoolParams{
-		AccountName:    "customer-project",
-		Region:         "us-central1",
-		VendorSubNetID: "vpc-123",
-	}
 	tenantProjectNumber := "tenant-456"
-	logger := log.NewLogger()
 
-	t.Run("snHostProject found and getSubnetToBeUsed succeeds", func(t *testing.T) {
-		mockService := hyperscaler.NewMockGoogleServices(t)
+	t.Run("GetTenancyInfo succeeds", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockStorage}
+		ctx := context.Background()
 
-		mockService.On("GetLogger").Return(logger)
-		mockService.On("GetSnHost", tenantProjectNumber).Return("sn-host", nil)
-		expectedSubnet := &models.Subnet{
+		expectedSubnet := &hyperscaler_models.Subnet{
 			Name:           "subnet-1",
 			IpCidrRange:    "10.0.0.0/24",
 			Network:        "projects/sn-host/global/networks/test-network",
 			GatewayAddress: "10.0.0.1",
 		}
-		originalGetSubnetToBeUsed := activities.GetSubnetToBeUsed
-		activities.GetSubnetToBeUsed = func(service hyperscaler.GoogleServices, se database.Storage, customerProjectNumber, tenantProjectNumber, snHostProject, tenantProjectRegion string) (*models.Subnet, error) {
-			return expectedSubnet, nil
-		}
-		defer func() {
-			activities.GetSubnetToBeUsed = originalGetSubnetToBeUsed
-		}()
-		info, err := activities.GetOrCreateSubnetwork(mockStorage, mockService, params, tenantProjectNumber)
+
+		info, err := activity.GetTenancyInfo(ctx, tenantProjectNumber, expectedSubnet)
 		assert.NoError(t, err)
 		assert.Equal(t, tenantProjectNumber, info.RegionalTenantProject)
 		assert.Equal(t, "test-network", info.Network)
 		assert.Equal(t, []string{"subnet-1"}, info.SubnetworkNames)
-		assert.Equal(t, "sn-host", info.SnHostProject)
 		assert.Equal(t, "10.0.0.1", info.Gateway)
-		mockService.AssertExpectations(t)
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("snHostProject not found, CreateSubnetwork succeeds", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		mockService := hyperscaler.NewMockGoogleServices(t)
-		mockService.On("GetLogger").Return(logger)
-		mockService.On("GetSnHost", tenantProjectNumber).Return("", nil)
-		expectedSubnet := &models.Subnet{
-			Name:           "subnet-2",
-			IpCidrRange:    "10.0.1.0/24",
-			Network:        "projects/sn-host/global/networks/test-network2",
-			GatewayAddress: "10.0.1.1",
-		}
-		originalCreateSubnetwork := activities.CreateSubnetwork
-		activities.CreateSubnetwork = func(service hyperscaler.GoogleServices, tenantProjectNumber, consumerVPC string, region *string) (*models.Subnet, error) {
-			return expectedSubnet, nil
-		}
-		defer func() {
-			activities.CreateSubnetwork = originalCreateSubnetwork
-		}()
-		info, err := activities.GetOrCreateSubnetwork(mockStorage, mockService, params, tenantProjectNumber)
-		assert.NoError(t, err)
-		assert.Equal(t, "test-network2", info.Network)
-		assert.Equal(t, []string{"subnet-2"}, info.SubnetworkNames)
-		mockService.AssertExpectations(t)
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("GetSnHost returns error not containing 'not found'", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		mockService := hyperscaler.NewMockGoogleServices(t)
-		mockService.On("GetLogger").Return(logger)
-		mockService.On("GetSnHost", tenantProjectNumber).Return("", errors.New("some error"))
-		_, err := activities.GetOrCreateSubnetwork(mockStorage, mockService, params, tenantProjectNumber)
-		assert.Error(t, err)
-		mockService.AssertExpectations(t)
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("getSubnetToBeUsed returns error", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		mockService := hyperscaler.NewMockGoogleServices(t)
-		mockService.On("GetLogger").Return(logger)
-		mockService.On("GetSnHost", tenantProjectNumber).Return("sn-host", nil)
-		activities.GetSubnetToBeUsed = func(service hyperscaler.GoogleServices, se database.Storage, customerProjectNumber, tenantProjectNumber, snHostProject, tenantProjectRegion string) (*models.Subnet, error) {
-			return nil, errors.New("subnet error")
-		}
-		_, err := activities.GetOrCreateSubnetwork(mockStorage, mockService, params, tenantProjectNumber)
-		assert.Error(t, err)
-		mockService.AssertExpectations(t)
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("CreateSubnetwork returns error", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		mockService := hyperscaler.NewMockGoogleServices(t)
-		mockService.On("GetSnHost", tenantProjectNumber).Return("", nil)
-		mockService.On("GetLogger").Return(logger)
-
-		originalCreateSubnetwork := activities.CreateSubnetwork
-		activities.CreateSubnetwork = func(service hyperscaler.GoogleServices, tenantProjectNumber, consumerVPC string, region *string) (*models.Subnet, error) {
-			return nil, errors.New("create subnet error")
-		}
-		defer func() {
-			activities.CreateSubnetwork = originalCreateSubnetwork
-		}()
-		_, err := activities.GetOrCreateSubnetwork(mockStorage, mockService, params, tenantProjectNumber)
-		assert.Error(t, err)
-		mockService.AssertExpectations(t)
-	})
-
-	t.Run("ParseProjectId returns error", func(t *testing.T) {
-		mockStorage := database.NewMockStorage(t)
-		mockService := hyperscaler.NewMockGoogleServices(t)
-		mockService.On("GetLogger").Return(logger)
-		mockService.On("GetSnHost", tenantProjectNumber).Return("", nil)
-		expectedSubnet := &models.Subnet{
-			Name:           "subnet-3",
-			IpCidrRange:    "10.0.2.0/24",
-			Network:        "invalid-network",
-			GatewayAddress: "10.0.2.1",
-		}
-		originalCreateSubnetwork := activities.CreateSubnetwork
-		activities.CreateSubnetwork = func(service hyperscaler.GoogleServices, tenantProjectNumber, consumerVPC string, region *string) (*models.Subnet, error) {
-			return expectedSubnet, nil
-		}
-		defer func() {
-			activities.CreateSubnetwork = originalCreateSubnetwork
-		}()
-		_, err := activities.GetOrCreateSubnetwork(mockStorage, mockService, params, tenantProjectNumber)
-		assert.Error(t, err)
-		mockService.AssertExpectations(t)
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -2818,7 +2698,7 @@ func Test_GeneratePasswordForVSACluster(t *testing.T) {
 	t.Run("GetSecretWithLatestVersion success", func(tt *testing.T) {
 		mockGCPService := new(hyperscaler.MockGoogleServices)
 		mockGCPService.On("GetLogger").Return(log.NewLogger())
-		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&models.CustomSecret{}, nil)
+		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&hyperscaler_models.CustomSecret{}, nil)
 
 		secret, err := activities.GeneratePasswordForVSACluster(mockGCPService, projectId, region, userName)
 		assert.NoError(tt, err)
@@ -2830,7 +2710,7 @@ func Test_GeneratePasswordForVSACluster(t *testing.T) {
 		mockGCPService := new(hyperscaler.MockGoogleServices)
 		mockGCPService.On("GetLogger").Return(log.NewLogger())
 		mockGCPService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("secret get error"))
-		mockGCPService.On("CreateSecret", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "secretID"}}, nil)
+		mockGCPService.On("CreateSecret", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "secretID"}}, nil)
 		defer func() {
 			commonparams.RemoveFromUserAuthCache("secretID")
 		}()
@@ -3186,8 +3066,8 @@ func Test_getPasswordFromCacheOrSecretManager(t *testing.T) {
 			activities.GetPasswordForVSACluster = getPasswordForVSACluster
 			commonparams.RemoveFromUserAuthCache(secretID)
 		}()
-		activities.GetPasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, secretID string) (*models.CustomSecret, error) {
-			return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "cached-password"}}, nil
+		activities.GetPasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+			return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "cached-password"}}, nil
 		}
 		password, err := activities.GetPasswordFromCacheOrSecretManager(ctx, secretID)
 		assert.Equal(tt, "cached-password", password)
@@ -3207,8 +3087,8 @@ func Test_getPasswordFromCacheOrSecretManager(t *testing.T) {
 		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{Logger: log.NewLogger()}, nil
 		}
-		activities.GetPasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, secretID string) (*models.CustomSecret, error) {
-			return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "secret-manager-password"}}, nil
+		activities.GetPasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+			return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "secret-manager-password"}}, nil
 		}
 		password, err := activities.GetPasswordFromCacheOrSecretManager(ctx, secretID)
 		assert.Equal(tt, "secret-manager-password", password)
@@ -3227,7 +3107,7 @@ func Test_getPasswordFromCacheOrSecretManager(t *testing.T) {
 		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{Logger: log.NewLogger()}, nil
 		}
-		activities.GetPasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, secretID string) (*models.CustomSecret, error) {
+		activities.GetPasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return nil, assert.AnError
 		}
 		password, err := activities.GetPasswordFromCacheOrSecretManager(ctx, secretID)
@@ -3245,8 +3125,8 @@ func Test_IdentifyVMs_SuccessfullyPreparesConfig(t *testing.T) {
 		activities.PrepareVlmConfig = prepareVLMConfig
 		activities.GetPasswordForVSACluster = originalGetPasswordForVSACluster
 	}()
-	activities.GetPasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, secretID string) (*models.CustomSecret, error) {
-		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
+	activities.GetPasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
 	}
 
 	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string) error {
@@ -3268,8 +3148,8 @@ func Test_IdentifyVMs_FailsToPrepareConfig(t *testing.T) {
 		activities.PrepareVlmConfig = prepareVLMConfig
 		activities.GetPasswordForVSACluster = originalGetPasswordForVSACluster
 	}()
-	activities.GetPasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, userName string) (*models.CustomSecret, error) {
-		return &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "password"}}, nil
+	activities.GetPasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, userName string) (*hyperscaler_models.CustomSecret, error) {
+		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
 	}
 
 	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string) error {
@@ -3449,7 +3329,7 @@ func Test_deleteVSAClusterPassword(t *testing.T) {
 	t.Run("Delete Secret fails if GetSecretWithLatestVersion fails", func(t *testing.T) {
 		mockGCP := new(hyperscaler.MockGoogleServices)
 		mockGCP.On("GetLogger").Return(log.NewLogger())
-		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&models.CustomSecret{}, fmt.Errorf("get secret error"))
+		mockGCP.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&hyperscaler_models.CustomSecret{}, fmt.Errorf("get secret error"))
 
 		err := activities.DeletePasswordFromCacheAndSecretManager(mockGCP, secretID)
 		assert.NoError(t, err)
@@ -3465,8 +3345,8 @@ func Test_getCertificateAndPrivateKeyByID(t *testing.T) {
 	caPoolName := "pool"
 	certificateID := "cert-id"
 
-	cert := &models.CustomCertificate{}
-	secret := &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{}}
+	cert := &hyperscaler_models.CustomCertificate{}
+	secret := &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{}}
 
 	t.Run("success", func(t *testing.T) {
 		mockService := new(hyperscaler.MockGoogleServices)
@@ -3501,7 +3381,7 @@ func Test_getCertificateAndPrivateKeyByID(t *testing.T) {
 
 	t.Run("secret version nil", func(t *testing.T) {
 		mockService := new(hyperscaler.MockGoogleServices)
-		secretNoVersion := &models.CustomSecret{}
+		secretNoVersion := &hyperscaler_models.CustomSecret{}
 		mockService.On("GetCertificate", caDeployedProjectID, region, caPoolName, certificateID).Return(cert, nil)
 		mockService.On("GetSecretWithLatestVersion", secretManagerProjectID, certificateID).Return(secretNoVersion, nil)
 		resp, err := activities.GetCertificateAndPrivateKeyByID(mockService, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID)
@@ -3515,7 +3395,7 @@ func Test_GetAndCreateCloudDNSRecord(t *testing.T) {
 	ipAddress := "1.2.3.4"
 	t.Run("CreateResourceRecordSet success", func(t *testing.T) {
 		mockService := hyperscaler.NewMockGoogleServices(t)
-		expectedRecord := &models.CustomCloudDNSRecord{RecordName: recordName, Data: ipAddress}
+		expectedRecord := &hyperscaler_models.CustomCloudDNSRecord{RecordName: recordName, Data: ipAddress}
 
 		mockService.On("GetLogger").Return(log.NewLogger())
 		mockService.On("GetResourceRecordSet", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("resource not found"))
@@ -3679,8 +3559,8 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 		activities.GetOrCreateCloudDNSRecord = originalCreateCloudDNSRecord
 		activities.GetGCPService = originalGCPService
 	}()
-	activities.GetOrCreateCloudDNSRecord = func(gcpService hyperscaler.GoogleServices, ip, recordName string) (*models.CustomCloudDNSRecord, error) {
-		return &models.CustomCloudDNSRecord{RecordName: recordName}, nil
+	activities.GetOrCreateCloudDNSRecord = func(gcpService hyperscaler.GoogleServices, ip, recordName string) (*hyperscaler_models.CustomCloudDNSRecord, error) {
+		return &hyperscaler_models.CustomCloudDNSRecord{RecordName: recordName}, nil
 	}
 
 	activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
@@ -3747,7 +3627,7 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 
 	// CreateCloudDNSRecord returns error
 	t.Run("GetOrCreateCloudDNSRecord error", func(t *testing.T) {
-		activities.GetOrCreateCloudDNSRecord = func(gcpService hyperscaler.GoogleServices, ip, recordName string) (*models.CustomCloudDNSRecord, error) {
+		activities.GetOrCreateCloudDNSRecord = func(gcpService hyperscaler.GoogleServices, ip, recordName string) (*hyperscaler_models.CustomCloudDNSRecord, error) {
 			return nil, fmt.Errorf("dns error")
 		}
 		vlmConfig := &vlm.VLMConfig{
@@ -3955,22 +3835,22 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				AuthType:      commonparams.USER_CERTIFICATE,
 			},
 		}
-		activities.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler.GoogleServices, region, certificateID, clusterName string) (*models.CustomCertificateResponse, error) {
-			return &models.CustomCertificateResponse{
-				Certificate: &models.CustomCertificate{
+		activities.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler.GoogleServices, region, certificateID, clusterName string) (*hyperscaler_models.CustomCertificateResponse, error) {
+			return &hyperscaler_models.CustomCertificateResponse{
+				Certificate: &hyperscaler_models.CustomCertificate{
 					SubjectCommonName:   "CN",
 					PemCertificate:      "cert",
 					PemCertificateChain: []string{"chain"},
 					RootCACertificate:   "root",
 				},
-				Secret: &models.CustomSecret{
-					SecretVersion: &models.CustomSecretVersion{Value: "key"},
+				Secret: &hyperscaler_models.CustomSecret{
+					SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "key"},
 				},
 			}, nil
 		}
-		activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectID, region, secretID string) (*models.CustomSecret, error) {
-			return &models.CustomSecret{
-				SecretVersion: &models.CustomSecretVersion{Value: "pwd"},
+		activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectID, region, secretID string) (*hyperscaler_models.CustomSecret, error) {
+			return &hyperscaler_models.CustomSecret{
+				SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "pwd"},
 			}, nil
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool, region, clusterName)
@@ -3992,19 +3872,19 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				AuthType:      commonparams.USER_CERTIFICATE,
 			},
 		}
-		activities.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler.GoogleServices, region, certificateID, clusterName string) (*models.CustomCertificateResponse, error) {
-			return &models.CustomCertificateResponse{
-				Certificate: &models.CustomCertificate{
+		activities.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler.GoogleServices, region, certificateID, clusterName string) (*hyperscaler_models.CustomCertificateResponse, error) {
+			return &hyperscaler_models.CustomCertificateResponse{
+				Certificate: &hyperscaler_models.CustomCertificate{
 					SubjectCommonName:   "CN",
 					PemCertificate:      "cert",
 					PemCertificateChain: []string{"chain"},
 				},
-				Secret: &models.CustomSecret{
-					SecretVersion: &models.CustomSecretVersion{Value: "key"},
+				Secret: &hyperscaler_models.CustomSecret{
+					SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "key"},
 				},
 			}, nil
 		}
-		activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectID, region, secretID string) (*models.CustomSecret, error) {
+		activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectID, region, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return nil, fmt.Errorf("pwd error")
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool, region, clusterName)
@@ -4021,7 +3901,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				AuthType:      commonparams.USER_CERTIFICATE,
 			},
 		}
-		activities.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler.GoogleServices, region, certificateID, clusterName string) (*models.CustomCertificateResponse, error) {
+		activities.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler.GoogleServices, region, certificateID, clusterName string) (*hyperscaler_models.CustomCertificateResponse, error) {
 			return nil, fmt.Errorf("cert error")
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool, region, clusterName)
@@ -4038,9 +3918,9 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				AuthType:      commonparams.USERNAME_PWD_SEC_MGR,
 			},
 		}
-		activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectID, region, secretID string) (*models.CustomSecret, error) {
-			return &models.CustomSecret{
-				SecretVersion: &models.CustomSecretVersion{Value: "pwd"},
+		activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectID, region, secretID string) (*hyperscaler_models.CustomSecret, error) {
+			return &hyperscaler_models.CustomSecret{
+				SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "pwd"},
 			}, nil
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool, region, clusterName)
@@ -4057,7 +3937,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 				AuthType:      commonparams.USERNAME_PWD_SEC_MGR,
 			},
 		}
-		activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectID, region, secretID string) (*models.CustomSecret, error) {
+		activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectID, region, secretID string) (*hyperscaler_models.CustomSecret, error) {
 			return nil, fmt.Errorf("pwd error")
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool, region, clusterName)
@@ -4107,9 +3987,9 @@ func Test_RevokeCertificateAndDeleteFromCacheAndSecretManager(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mockGcpService := new(hyperscaler.MockGoogleServices)
 		mockGcpService.On("GetLogger").Return(log.NewLogger())
-		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models.CustomCertificate{}, nil)
+		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler_models.CustomCertificate{}, nil)
 		mockGcpService.On("RevokeCertificate", mock.Anything).Return("", nil)
-		mockGcpService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&models.CustomSecret{}, nil)
+		mockGcpService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&hyperscaler_models.CustomSecret{}, nil)
 		mockGcpService.On("DeleteSecret", mock.Anything, mock.Anything).Return(nil)
 		commonparams.RemoveFromCertAuthCache = func(certID string) bool { return true }
 
@@ -4130,7 +4010,7 @@ func Test_RevokeCertificateAndDeleteFromCacheAndSecretManager(t *testing.T) {
 	t.Run("RevokeCertificate fails", func(t *testing.T) {
 		mockGcpService := new(hyperscaler.MockGoogleServices)
 		mockGcpService.On("GetLogger").Return(log.NewLogger())
-		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models.CustomCertificate{}, nil)
+		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler_models.CustomCertificate{}, nil)
 		mockGcpService.On("RevokeCertificate", mock.Anything).Return("", fmt.Errorf("revoke error"))
 
 		err := activities.RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGcpService, certificateID)
@@ -4139,7 +4019,7 @@ func Test_RevokeCertificateAndDeleteFromCacheAndSecretManager(t *testing.T) {
 	t.Run("GetSecretWithLatestVersion fails", func(t *testing.T) {
 		mockGcpService := new(hyperscaler.MockGoogleServices)
 		mockGcpService.On("GetLogger").Return(log.NewLogger())
-		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models.CustomCertificate{}, nil)
+		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler_models.CustomCertificate{}, nil)
 		mockGcpService.On("RevokeCertificate", mock.Anything).Return("", nil)
 		mockGcpService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(nil, errors.New("get secret error"))
 
@@ -4150,9 +4030,9 @@ func Test_RevokeCertificateAndDeleteFromCacheAndSecretManager(t *testing.T) {
 	t.Run("DeleteSecret fails", func(t *testing.T) {
 		mockGcpService := new(hyperscaler.MockGoogleServices)
 		mockGcpService.On("GetLogger").Return(log.NewLogger())
-		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models.CustomCertificate{}, nil)
+		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler_models.CustomCertificate{}, nil)
 		mockGcpService.On("RevokeCertificate", mock.Anything).Return("", nil)
-		mockGcpService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&models.CustomSecret{}, nil)
+		mockGcpService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&hyperscaler_models.CustomSecret{}, nil)
 		mockGcpService.On("DeleteSecret", mock.Anything, mock.Anything).Return(fmt.Errorf("delete secret error"))
 
 		err := activities.RevokeCertificateAndDeleteFromCacheAndSecretManager(mockGcpService, certificateID)
@@ -4162,9 +4042,9 @@ func Test_RevokeCertificateAndDeleteFromCacheAndSecretManager(t *testing.T) {
 	t.Run("RemoveFromCertAuthCache fails", func(t *testing.T) {
 		mockGcpService := new(hyperscaler.MockGoogleServices)
 		mockGcpService.On("GetLogger").Return(log.NewLogger())
-		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models.CustomCertificate{}, nil)
+		mockGcpService.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler_models.CustomCertificate{}, nil)
 		mockGcpService.On("RevokeCertificate", mock.Anything).Return("", nil)
-		mockGcpService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&models.CustomSecret{}, nil)
+		mockGcpService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(&hyperscaler_models.CustomSecret{}, nil)
 		mockGcpService.On("DeleteSecret", mock.Anything, mock.Anything).Return(nil)
 		commonparams.RemoveFromCertAuthCache = func(certID string) bool { return false }
 
@@ -4181,13 +4061,13 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 	key, _ := rsa.GenerateKey(rand.Reader, 2048)
 	t.Run("Success", func(t *testing.T) {
 		mockGcpService := hyperscaler.NewMockGoogleServices(t)
-		cert := &models.CustomCertificate{
+		cert := &hyperscaler_models.CustomCertificate{
 			SubjectCommonName:   "test-cn",
 			PemCertificate:      "pem-cert",
 			PemCertificateChain: []string{"chain1", "chain2"},
 		}
-		secret := &models.CustomSecret{
-			SecretVersion: &models.CustomSecretVersion{Value: "private-key"},
+		secret := &hyperscaler_models.CustomSecret{
+			SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "private-key"},
 		}
 
 		origGenerateCSR := activities.GenerateCSR
@@ -4203,10 +4083,10 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 		activities.GenerateCSR = func(commonName string, domains []string) ([]byte, *rsa.PrivateKey, error) {
 			return csr, key, nil
 		}
-		commonparams.ValidateAndConvertCertificateParamsToCustomCertificate = func(param *models.CustomCertificateParam, pemBlock pem.Block) (*models.CustomCertificate, error) {
+		commonparams.ValidateAndConvertCertificateParamsToCustomCertificate = func(param *hyperscaler_models.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler_models.CustomCertificate, error) {
 			return cert, nil
 		}
-		activities.GetOrCreateCertificateInCASAndPrivateKeyInSM = func(gcpService hyperscaler.GoogleServices, certificate *models.CustomCertificate, key *rsa.PrivateKey) (*models.CustomCertificate, *models.CustomSecret, error) {
+		activities.GetOrCreateCertificateInCASAndPrivateKeyInSM = func(gcpService hyperscaler.GoogleServices, certificate *hyperscaler_models.CustomCertificate, key *rsa.PrivateKey) (*hyperscaler_models.CustomCertificate, *hyperscaler_models.CustomSecret, error) {
 			return cert, secret, nil
 		}
 		mockGcpService.On("GetLogger").Return(log.NewLogger())
@@ -4245,7 +4125,7 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 
 		// Patch ValidateAndConvertCertificateParamsToCustomCertificate to fail
 		origValidate := commonparams.ValidateAndConvertCertificateParamsToCustomCertificate
-		commonparams.ValidateAndConvertCertificateParamsToCustomCertificate = func(param *models.CustomCertificateParam, pemBlock pem.Block) (*models.CustomCertificate, error) {
+		commonparams.ValidateAndConvertCertificateParamsToCustomCertificate = func(param *hyperscaler_models.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler_models.CustomCertificate, error) {
 			return nil, fmt.Errorf("validation failed")
 		}
 		defer func() {
@@ -4268,14 +4148,14 @@ func Test_GenerateAndCreateCertificateForVSACluster(t *testing.T) {
 		}
 		// Patch GetOrCreateCertificateInCASAndPrivateKeyInSM to return error
 		origGetAndCreate := activities.GetOrCreateCertificateInCASAndPrivateKeyInSM
-		activities.GetOrCreateCertificateInCASAndPrivateKeyInSM = func(gcpService hyperscaler.GoogleServices, certificate *models.CustomCertificate, key *rsa.PrivateKey) (*models.CustomCertificate, *models.CustomSecret, error) {
+		activities.GetOrCreateCertificateInCASAndPrivateKeyInSM = func(gcpService hyperscaler.GoogleServices, certificate *hyperscaler_models.CustomCertificate, key *rsa.PrivateKey) (*hyperscaler_models.CustomCertificate, *hyperscaler_models.CustomSecret, error) {
 			return nil, nil, expectedErr
 		}
 
 		// Patch ValidateAndConvertCertificateParamsToCustomCertificate to return dummy cert
 		origValidate := commonparams.ValidateAndConvertCertificateParamsToCustomCertificate
-		commonparams.ValidateAndConvertCertificateParamsToCustomCertificate = func(param *models.CustomCertificateParam, pemBlock pem.Block) (*models.CustomCertificate, error) {
-			return &models.CustomCertificate{}, nil
+		commonparams.ValidateAndConvertCertificateParamsToCustomCertificate = func(param *hyperscaler_models.CustomCertificateParam, pemBlock pem.Block) (*hyperscaler_models.CustomCertificate, error) {
+			return &hyperscaler_models.CustomCertificate{}, nil
 		}
 		mockGcpService.On("GetLogger").Return(log.NewLogger())
 		defer func() {
@@ -4293,8 +4173,8 @@ func Test_GetPasswordForVSACluster_Success(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		gcpService := hyperscaler.NewMockGoogleServices(t)
 		secretID := "test-secret-id"
-		expectedSecret := &models.CustomSecret{
-			SecretVersion: &models.CustomSecretVersion{Value: "super-secret"},
+		expectedSecret := &hyperscaler_models.CustomSecret{
+			SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "super-secret"},
 		}
 		gcpService.On("GetSecretWithLatestVersion", mock.Anything, mock.Anything).Return(expectedSecret, nil)
 
@@ -4346,17 +4226,17 @@ func Test_GetCertificateFromCacheOrSecretManager(t *testing.T) {
 		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		mockCertResp := &models.CustomCertificateResponse{
-			Certificate: &models.CustomCertificate{
+		mockCertResp := &hyperscaler_models.CustomCertificateResponse{
+			Certificate: &hyperscaler_models.CustomCertificate{
 				CertificateID:       "signed-cert",
 				SubjectCommonName:   "common-name",
 				PemCertificateChain: []string{"intermediate"},
 			},
-			Secret: &models.CustomSecret{
-				SecretVersion: &models.CustomSecretVersion{Value: "private-key"},
+			Secret: &hyperscaler_models.CustomSecret{
+				SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "private-key"},
 			},
 		}
-		activities.GetCertificateAndPrivateKeyByID = func(gcpService hyperscaler.GoogleServices, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*models.CustomCertificateResponse, error) {
+		activities.GetCertificateAndPrivateKeyByID = func(gcpService hyperscaler.GoogleServices, caDeployedProjectID, secretManagerProjectID, region, caPoolName, certificateID string) (*hyperscaler_models.CustomCertificateResponse, error) {
 			return mockCertResp, nil
 		}
 		cert, err := activities.GetCertificateFromCacheOrSecretManager(ctx, certificateID)
@@ -4377,13 +4257,13 @@ func Test_GetCertificateFromCacheOrSecretManager(t *testing.T) {
 }
 
 func Test_getAndCreatePrivateKeyInSecretManagerAndCache(t *testing.T) {
-	cert := &models.CustomCertificate{
+	cert := &hyperscaler_models.CustomCertificate{
 		CertificateID:     "test-cert",
 		Region:            "us-central1",
 		SubjectCommonName: "test-cn",
 	}
 	key, _ := rsa.GenerateKey(rand.Reader, 2048)
-	expectedSecret := &models.CustomSecret{SecretVersion: &models.CustomSecretVersion{Value: "private-key"}}
+	expectedSecret := &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "private-key"}}
 
 	t.Run("returns existing secret", func(t *testing.T) {
 		mockGCP := new(hyperscaler.MockGoogleServices)
@@ -4433,7 +4313,7 @@ func Test_getAndCreatePrivateKeyInSecretManagerAndCache(t *testing.T) {
 
 func Test_GetAndCreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 	key, _ := rsa.GenerateKey(rand.Reader, 2048)
-	certificate := &models.CustomCertificate{
+	certificate := &hyperscaler_models.CustomCertificate{
 		CertificateID:     "certid",
 		Region:            "us-central1",
 		SubjectCommonName: "test-cn",
@@ -4457,8 +4337,8 @@ func Test_GetAndCreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			activities.GetOrCreatePrivateKeyInSecretManagerAndCache = originalGetAndCreatePrivateKeyInSecretManagerAndCache
 		}()
 
-		activities.GetOrCreatePrivateKeyInSecretManagerAndCache = func(gcpService hyperscaler.GoogleServices, cert *models.CustomCertificate, key *rsa.PrivateKey) (*models.CustomSecret, error) {
-			return &models.CustomSecret{}, nil
+		activities.GetOrCreatePrivateKeyInSecretManagerAndCache = func(gcpService hyperscaler.GoogleServices, cert *hyperscaler_models.CustomCertificate, key *rsa.PrivateKey) (*hyperscaler_models.CustomSecret, error) {
+			return &hyperscaler_models.CustomSecret{}, nil
 		}
 		cert, _, err := activities.GetOrCreateCertificateInCASAndPrivateKeyInSM(mockSvc, certificate, key)
 		assert.NoError(t, err)
@@ -4482,13 +4362,13 @@ func Test_GetAndCreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 		mockSvc := hyperscaler.NewMockGoogleServices(t)
 		mockSvc.On("GetLogger").Return(log.NewLogger())
 		mockSvc.On("GetCertificate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(certificate, nil)
-		mockSecret := &models.CustomSecret{Name: "secret"}
+		mockSecret := &hyperscaler_models.CustomSecret{Name: "secret"}
 		originalGetAndCreatePrivateKeyInSecretManagerAndCache := activities.GetOrCreatePrivateKeyInSecretManagerAndCache
 		defer func() {
 			activities.GetOrCreatePrivateKeyInSecretManagerAndCache = originalGetAndCreatePrivateKeyInSecretManagerAndCache
 		}()
 
-		activities.GetOrCreatePrivateKeyInSecretManagerAndCache = func(gcpService hyperscaler.GoogleServices, cert *models.CustomCertificate, key *rsa.PrivateKey) (*models.CustomSecret, error) {
+		activities.GetOrCreatePrivateKeyInSecretManagerAndCache = func(gcpService hyperscaler.GoogleServices, cert *hyperscaler_models.CustomCertificate, key *rsa.PrivateKey) (*hyperscaler_models.CustomSecret, error) {
 			return mockSecret, nil
 		}
 		cert, secret, err := activities.GetOrCreateCertificateInCASAndPrivateKeyInSM(mockSvc, certificate, key)
@@ -4507,7 +4387,7 @@ func Test_GetAndCreateCertificateInCASAndPrivateKeyInSM(t *testing.T) {
 			activities.GetOrCreatePrivateKeyInSecretManagerAndCache = originalGetAndCreatePrivateKeyInSecretManagerAndCache
 		}()
 
-		activities.GetOrCreatePrivateKeyInSecretManagerAndCache = func(gcpService hyperscaler.GoogleServices, cert *models.CustomCertificate, key *rsa.PrivateKey) (*models.CustomSecret, error) {
+		activities.GetOrCreatePrivateKeyInSecretManagerAndCache = func(gcpService hyperscaler.GoogleServices, cert *hyperscaler_models.CustomCertificate, key *rsa.PrivateKey) (*hyperscaler_models.CustomSecret, error) {
 			return nil, errors.New("can not create cert")
 		}
 		cert, secret, err := activities.GetOrCreateCertificateInCASAndPrivateKeyInSM(mockSvc, certificate, key)
@@ -4552,36 +4432,23 @@ func Test_createSubnetwork(t *testing.T) {
 	tenantProjectNumber := "tenant-123"
 	consumerVPC := "vpc-456"
 	region := "us-central1"
-	subnetCreated := &servicenetworking.Subnetwork{
-		Name:    "subnet-foo",
-		Network: "projects/sn-host-project/global/networks/test-network",
-	}
-	subnetBytes, _ := json.Marshal(subnetCreated)
-	expectedSubnet := &models.Subnet{
-		Name:           "subnet-foo",
-		Network:        "projects/sn-host-project/global/networks/test-network",
-		IpCidrRange:    "10.0.0.0/24",
-		GatewayAddress: "10.0.0.1",
-	}
 
 	t.Run("success", func(t *testing.T) {
 		mockSvc := hyperscaler.NewMockGoogleServices(t)
 
-		subnetName := "vsa-654321-" + strconv.Itoa(int(time.Now().Unix()))
+		subnetName := "vsa-" + tenantProjectNumber + "-" + strconv.Itoa(int(time.Now().Unix()))
 		makeSubnetName := activities.MakeSubnetName
 		defer func() { activities.MakeSubnetName = makeSubnetName }()
 		activities.MakeSubnetName = func(projectNumber string) string {
 			return subnetName
 		}
-		mockSvc.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, region, subnetName).
-			Return(subnetBytes, nil)
-		mockSvc.On("GetLogger").Return(util.GetLogger(context.Background()))
-		mockSvc.On("GetSubnetwork", "sn-host-project", region, "subnet-foo").
-			Return(expectedSubnet, nil)
+		operation := "operation-12345"
+		mockSvc.On("CreateTPSubnetOp", tenantProjectNumber, consumerVPC, region, subnetName).
+			Return(&operation, nil)
 
-		subnet, err := activities.CreateSubnetwork(mockSvc, tenantProjectNumber, consumerVPC, &region)
+		operationName, err := activities.GetCreateSubnetworkOperation(mockSvc, tenantProjectNumber, consumerVPC, &region)
 		assert.NoError(t, err)
-		assert.Equal(t, expectedSubnet, subnet)
+		assert.Equal(t, "operation-12345", *operationName)
 		mockSvc.AssertExpectations(t)
 	})
 
@@ -4594,77 +4461,12 @@ func Test_createSubnetwork(t *testing.T) {
 		activities.MakeSubnetName = func(projectNumber string) string {
 			return subnetName
 		}
-		mockSvc.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, region, subnetName).
+		mockSvc.On("CreateTPSubnetOp", tenantProjectNumber, consumerVPC, region, subnetName).
 			Return(nil, errors.New("create failed"))
 		mockSvc.On("GetLogger").Return(util.GetLogger(context.Background()))
 
-		subnet, err := activities.CreateSubnetwork(mockSvc, tenantProjectNumber, consumerVPC, &region)
+		_, err := activities.GetCreateSubnetworkOperation(mockSvc, tenantProjectNumber, consumerVPC, &region)
 		assert.Error(t, err)
-		assert.Nil(t, subnet)
-		mockSvc.AssertExpectations(t)
-	})
-
-	t.Run("jsonUnmarshalFails", func(t *testing.T) {
-		mockSvc := hyperscaler.NewMockGoogleServices(t)
-
-		subnetName := "vsa-654321-" + strconv.Itoa(int(time.Now().Unix()))
-		makeSubnetName := activities.MakeSubnetName
-		defer func() { activities.MakeSubnetName = makeSubnetName }()
-		activities.MakeSubnetName = func(projectNumber string) string {
-			return subnetName
-		}
-		mockSvc.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, region, subnetName).
-			Return([]byte("invalid-json"), nil)
-		mockSvc.On("GetLogger").Return(util.GetLogger(context.Background()))
-
-		subnet, err := activities.CreateSubnetwork(mockSvc, tenantProjectNumber, consumerVPC, &region)
-		assert.Error(t, err)
-		assert.Nil(t, subnet)
-		mockSvc.AssertExpectations(t)
-	})
-
-	t.Run("ParseProjectId fails", func(t *testing.T) {
-		mockSvc := hyperscaler.NewMockGoogleServices(t)
-
-		badNetwork := &servicenetworking.Subnetwork{
-			Name:    "subnet-foo",
-			Network: "bad-format",
-		}
-		badBytes, _ := json.Marshal(badNetwork)
-		subnetName := "vsa-654321-" + strconv.Itoa(int(time.Now().Unix()))
-		makeSubnetName := activities.MakeSubnetName
-		defer func() { activities.MakeSubnetName = makeSubnetName }()
-		activities.MakeSubnetName = func(projectNumber string) string {
-			return subnetName
-		}
-		mockSvc.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, region, subnetName).
-			Return(badBytes, nil)
-		mockSvc.On("GetLogger").Return(util.GetLogger(context.Background()))
-
-		subnet, err := activities.CreateSubnetwork(mockSvc, tenantProjectNumber, consumerVPC, &region)
-		assert.Error(t, err)
-		assert.Nil(t, subnet)
-		mockSvc.AssertExpectations(t)
-	})
-
-	t.Run("GetSubnetworkFails", func(t *testing.T) {
-		mockSvc := hyperscaler.NewMockGoogleServices(t)
-
-		subnetName := "vsa-654321-" + strconv.Itoa(int(time.Now().Unix()))
-		makeSubnetName := activities.MakeSubnetName
-		defer func() { activities.MakeSubnetName = makeSubnetName }()
-		activities.MakeSubnetName = func(projectNumber string) string {
-			return subnetName
-		}
-		mockSvc.On("CreateSubnetworkForTenantProject", tenantProjectNumber, consumerVPC, region, subnetName).
-			Return(subnetBytes, nil)
-		mockSvc.On("GetLogger").Return(util.GetLogger(context.Background()))
-		mockSvc.On("GetSubnetwork", "sn-host-project", region, "subnet-foo").
-			Return(nil, errors.New("get subnet failed"))
-
-		subnet, err := activities.CreateSubnetwork(mockSvc, tenantProjectNumber, consumerVPC, &region)
-		assert.Error(t, err)
-		assert.Nil(t, subnet)
 		mockSvc.AssertExpectations(t)
 	})
 }
@@ -4835,16 +4637,16 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 	}
 
 	// Mock certificate generation
-	activities.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler.GoogleServices, region, certificateID, clusterName string) (*models.CustomCertificateResponse, error) {
-		return &models.CustomCertificateResponse{
-			Certificate: &models.CustomCertificate{
+	activities.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler.GoogleServices, region, certificateID, clusterName string) (*hyperscaler_models.CustomCertificateResponse, error) {
+		return &hyperscaler_models.CustomCertificateResponse{
+			Certificate: &hyperscaler_models.CustomCertificate{
 				SubjectCommonName:   "test-cn",
 				PemCertificate:      "test-cert",
 				PemCertificateChain: []string{"test-chain"},
 				RootCACertificate:   "test-ca",
 			},
-			Secret: &models.CustomSecret{
-				SecretVersion: &models.CustomSecretVersion{
+			Secret: &hyperscaler_models.CustomSecret{
+				SecretVersion: &hyperscaler_models.CustomSecretVersion{
 					Value: "test-private-key",
 				},
 			},
@@ -4852,9 +4654,9 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 	}
 
 	// Mock password generation
-	activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectID, region, secretID string) (*models.CustomSecret, error) {
-		return &models.CustomSecret{
-			SecretVersion: &models.CustomSecretVersion{
+	activities.GeneratePasswordForVSACluster = func(gcpService hyperscaler.GoogleServices, projectID, region, secretID string) (*hyperscaler_models.CustomSecret, error) {
+		return &hyperscaler_models.CustomSecret{
+			SecretVersion: &hyperscaler_models.CustomSecretVersion{
 				Value: "test-password",
 			},
 		}, nil
@@ -5502,10 +5304,10 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	sourceRanges6 := []string{"192.168.1.0/24", "10.0.0.0/24"}
 	t.Run("whenNoChangeInSourceRange", func(t *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(t)
-		existingFirewall := &models.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
-		firewallRequest := &models.Firewall{
+		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
 		mgs.On("GetLogger").Return(log.NewLogger())
@@ -5515,10 +5317,10 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	})
 	t.Run("whenFirewallEdited", func(t *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(t)
-		existingFirewall := &models.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
-		firewallRequest := &models.Firewall{
+		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges2,
 		}
 		mgs.On("GetLogger").Return(log.NewLogger())
@@ -5529,10 +5331,10 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	})
 	t.Run("whenNewFirewallRemovedSuccess", func(t *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(t)
-		existingFirewall := &models.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
-		firewallRequest := &models.Firewall{
+		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges4,
 		}
 		mgs.On("UpdateFirewall", firewallRequest).Return(nil)
@@ -5543,10 +5345,10 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	})
 	t.Run("whenNewFirewallAddedSuccess", func(t *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(t)
-		existingFirewall := &models.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
-		firewallRequest := &models.Firewall{
+		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges3,
 		}
 		mgs.On("UpdateFirewall", firewallRequest).Return(nil)
@@ -5557,10 +5359,10 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	})
 	t.Run("whenNewFirewallIsDifferentSuccess", func(t *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(t)
-		existingFirewall := &models.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
-		firewallRequest := &models.Firewall{
+		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges4,
 		}
 		mgs.On("UpdateFirewall", firewallRequest).Return(nil)
@@ -5571,10 +5373,10 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	})
 	t.Run("whenNewFirewallIsDifferentFails", func(t *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(t)
-		existingFirewall := &models.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
-		firewallRequest := &models.Firewall{
+		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges5,
 		}
 		mgs.On("UpdateFirewall", firewallRequest).Return(errors.New("update error"))
@@ -5585,10 +5387,10 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 	})
 	t.Run("whenFirewallOrderChanged", func(t *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(t)
-		existingFirewall := &models.Firewall{
+		existingFirewall := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges1,
 		}
-		firewallRequest := &models.Firewall{
+		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges6,
 		}
 		mgs.On("GetLogger").Return(log.NewLogger())
@@ -5680,5 +5482,620 @@ func TestFailedPoolActivity(t *testing.T) {
 		err := activity.FailedPoolActivity(ctx, pool, "error message")
 
 		assert.Nil(t, err)
+	})
+}
+
+func TestPoolActivity_GetAvailableSubnet(t *testing.T) {
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	params := commonparams.CreatePoolParams{}
+	tenantProjectNumber := "123456789"
+	expectedSubnet := &hyperscaler_models.Subnet{}
+
+	origGetGCPService := activities.GetGCPService
+	origCheckReusableSubnet := activities.CheckReusableSubnet
+	defer func() {
+		activities.GetGCPService = origGetGCPService
+		activities.CheckReusableSubnet = origCheckReusableSubnet
+	}()
+
+	t.Run("Success", func(t *testing.T) {
+		mockSvc := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockSvc, nil
+		}
+		activities.CheckReusableSubnet = func(se database.Storage, service hyperscaler.GoogleServices, params commonparams.CreatePoolParams, tenantProjectNumber string) (*hyperscaler_models.Subnet, error) {
+			return expectedSubnet, nil
+		}
+		result, err := activity.GetAvailableSubnet(ctx, params, tenantProjectNumber)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSubnet, result)
+	})
+
+	t.Run("GetGCPServiceError", func(t *testing.T) {
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("gcp service error")
+		}
+		result, err := activity.GetAvailableSubnet(ctx, params, tenantProjectNumber)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "gcp service error")
+	})
+
+	t.Run("CheckReusableSubnetError", func(t *testing.T) {
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+		activities.CheckReusableSubnet = func(se database.Storage, service hyperscaler.GoogleServices, params commonparams.CreatePoolParams, tenantProjectNumber string) (*hyperscaler_models.Subnet, error) {
+			return nil, errors.New("subnet error")
+		}
+		result, err := activity.GetAvailableSubnet(ctx, params, tenantProjectNumber)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "subnet error")
+	})
+}
+
+func TestPoolActivity_GetTenancyInfo(t *testing.T) {
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.Background()
+
+	tenantProjectNumber := "123456789"
+	subnet := &hyperscaler_models.Subnet{
+		Name:           "subnet-1",
+		IpCidrRange:    "10.0.0.0/24",
+		Network:        "projects/sn-host/global/networks/test-network",
+		GatewayAddress: "10.0.0.1",
+	}
+
+	t.Run("Success", func(t *testing.T) {
+		expectedTenancyInfo := &commonparams.TenancyInfo{
+			RegionalTenantProject: tenantProjectNumber,
+			Network:               "test-network",
+			SnHostProject:         "sn-host",
+			SubnetworkNames:       []string{"subnet-1"},
+			Gateway:               "10.0.0.1",
+		}
+		result, err := activity.GetTenancyInfo(ctx, tenantProjectNumber, subnet)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, expectedTenancyInfo, result)
+		mockSE.AssertExpectations(t)
+	})
+
+	t.Run("Failure", func(t *testing.T) {
+		subnet.Network = "" // Simulate missing network
+		expectedError := errors.New("parseProjectId failed for network")
+		result, err := activity.GetTenancyInfo(ctx, tenantProjectNumber, subnet)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), expectedError.Error())
+		mockSE.AssertExpectations(t)
+	})
+}
+
+func TestPoolActivity_CreateDataSubnet(t *testing.T) {
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	params := commonparams.CreatePoolParams{}
+	tenantProjectNumber := "123456789"
+	expectedSubnetName := "test-subnet"
+
+	t.Run("Success", func(t *testing.T) {
+		originalGetGCPService := activities.GetGCPService
+		originalGetCreateDataSubnetOp := activities.GetCreateDataSubnetworkOp
+		defer func() {
+			activities.GetGCPService = originalGetGCPService
+			activities.GetCreateDataSubnetworkOp = originalGetCreateDataSubnetOp
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		activities.GetCreateDataSubnetworkOp = func(service hyperscaler.GoogleServices, params commonparams.CreatePoolParams, tenantProjectNumber string) (*string, error) {
+			return &expectedSubnetName, nil
+		}
+
+		result, err := activity.GetCreateDataSubnetOp(ctx, params, tenantProjectNumber)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedSubnetName, *result)
+	})
+
+	t.Run("GetGCPServiceError", func(t *testing.T) {
+		originalGetGCPService := activities.GetGCPService
+		defer func() { activities.GetGCPService = originalGetGCPService }()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("gcp service error")
+		}
+
+		result, err := activity.GetCreateDataSubnetOp(ctx, params, tenantProjectNumber)
+		assert.Error(t, err)
+		assert.Empty(t, result)
+		assert.Contains(t, err.Error(), "gcp service error")
+	})
+
+	t.Run("GetCreateDataSubnetOpError", func(t *testing.T) {
+		originalGetGCPService := activities.GetGCPService
+		originalGetCreateDataSubnetOp := activities.GetCreateDataSubnetworkOp
+		defer func() {
+			activities.GetGCPService = originalGetGCPService
+			activities.GetCreateDataSubnetworkOp = originalGetCreateDataSubnetOp
+		}()
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		activities.GetCreateDataSubnetworkOp = func(service hyperscaler.GoogleServices, params commonparams.CreatePoolParams, tenantProjectNumber string) (*string, error) {
+			return nil, errors.New("create subnet error")
+		}
+
+		result, err := activity.GetCreateDataSubnetOp(ctx, params, tenantProjectNumber)
+		assert.Error(t, err)
+		assert.Empty(t, result)
+		assert.Contains(t, err.Error(), "create subnet error")
+	})
+}
+
+func TestUpdatedPool_Success(t *testing.T) {
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-pool",
+	}
+
+	expectedPool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-pool",
+		State:     coremodel.LifeCycleStateInUse,
+	}
+
+	mockSE.On("UpdatedPool", ctx, pool).Return(expectedPool, nil)
+
+	result, err := activity.UpdatedPool(ctx, pool)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, expectedPool, result)
+	mockSE.AssertExpectations(t)
+}
+
+func TestUpdatedPool_Failure(t *testing.T) {
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-pool",
+	}
+
+	expectedError := errors.New("failed to update pool")
+	mockSE.On("UpdatedPool", ctx, pool).Return(nil, expectedError)
+
+	result, err := activity.UpdatedPool(ctx, pool)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "failed to update pool")
+	mockSE.AssertExpectations(t)
+}
+
+func TestPoolActivity_GetServiceNetOpStatus(t *testing.T) {
+	activity := &activities.PoolActivity{}
+
+	t.Run("Success", func(t *testing.T) {
+		expectedOp := &hyperscaler_models.ComputeOperation{
+			Name: "op-123",
+		}
+		original := activities.GetGCPService
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		originalGetServiceNetOpStatus := activities.GetServiceNetOpStatus
+		activities.GetServiceNetOpStatus = func(gcpService hyperscaler.GoogleServices, operation string) (*hyperscaler_models.ComputeOperation, error) {
+			return expectedOp, nil
+		}
+		defer func() {
+			activities.GetGCPService = original
+			activities.GetServiceNetOpStatus = originalGetServiceNetOpStatus
+		}()
+		ctx := context.Background()
+		op, err := activity.GetServiceNetOpStatus(ctx, "op-123")
+		assert.NoError(t, err)
+		assert.Equal(t, expectedOp.Name, op.Name)
+	})
+
+	t.Run("GetGCPServiceFails", func(t *testing.T) {
+		original := activities.GetGCPService
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, fmt.Errorf("service error")
+		}
+		defer func() { activities.GetGCPService = original }()
+
+		ctx := context.Background()
+		op, err := activity.GetServiceNetOpStatus(ctx, "op-123")
+		assert.Error(t, err)
+		assert.Nil(t, op)
+	})
+}
+
+func Test_getServiceNetOpStatus(t *testing.T) {
+	mockService := new(hyperscaler.MockGoogleServices)
+	expectedOp := &hyperscaler_models.ComputeOperation{Status: "DONE"}
+	mockService.On("GetServiceNetOpStatus", "op-123").Return(expectedOp, nil)
+
+	op, err := activities.GetServiceNetOpStatus(mockService, "op-123")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedOp, op)
+	mockService.AssertExpectations(t)
+}
+
+func Test_getSubnetFromOperation_Success(t *testing.T) {
+	ctx := context.Background()
+
+	// Mock subnet data
+	mockSubnet := &servicenetworking.Subnetwork{
+		Name:        "test-subnet",
+		Network:     "projects/test-project/global/networks/test-vpc",
+		IpCidrRange: "10.0.0.0/24",
+	}
+
+	subnetBytes, err := json.Marshal(mockSubnet)
+	assert.NoError(t, err)
+
+	result, err := activities.GetSubnetFromOperation(ctx, subnetBytes)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "test-subnet", result.Name)
+	assert.Equal(t, "projects/test-project/global/networks/test-vpc", result.Network)
+	assert.Equal(t, "10.0.0.1", result.GatewayAddress)
+}
+
+func Test_getSubnetFromOperation(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("NilBytes", func(t *testing.T) {
+		result, err := activities.GetSubnetFromOperation(ctx, nil)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "operation response is nil")
+	})
+	t.Run("InvalidJSON", func(t *testing.T) {
+		invalidJSON := []byte("invalid json data")
+
+		result, err := activities.GetSubnetFromOperation(ctx, invalidJSON)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+	t.Run("EmptyJSON", func(t *testing.T) {
+		emptyJSON := []byte("{}")
+
+		result, err := activities.GetSubnetFromOperation(ctx, emptyJSON)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+	t.Run("InvalidCIDR", func(t *testing.T) {
+		mockSubnet := &servicenetworking.Subnetwork{
+			Name:        "test-subnet",
+			Network:     "projects/test-project/global/networks/test-vpc",
+			IpCidrRange: "invalid-cidr",
+		}
+
+		subnetBytes, err := json.Marshal(mockSubnet)
+		assert.NoError(t, err)
+
+		result, err := activities.GetSubnetFromOperation(ctx, subnetBytes)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+	t.Run("EmptySubnetFields", func(t *testing.T) {
+		mockSubnet := &servicenetworking.Subnetwork{
+			Name:        "",
+			Network:     "",
+			IpCidrRange: "10.0.0.0/24",
+		}
+
+		subnetBytes, err := json.Marshal(mockSubnet)
+		assert.NoError(t, err)
+
+		result, err := activities.GetSubnetFromOperation(ctx, subnetBytes)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "", result.Name)
+		assert.Equal(t, "", result.Network)
+		assert.Equal(t, "10.0.0.1", result.GatewayAddress)
+	})
+	t.Run("InvalidCIDR", func(t *testing.T) {
+		mockSubnet := &servicenetworking.Subnetwork{
+			Name:        "test-subnet",
+			Network:     "projects/test-project/global/networks/test-vpc",
+			IpCidrRange: "invalid-cidr",
+		}
+
+		subnetBytes, err := json.Marshal(mockSubnet)
+		assert.NoError(t, err)
+
+		result, err := activities.GetSubnetFromOperation(ctx, subnetBytes)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
+func Test_getSubnetFromOperation_MalformedJSON(t *testing.T) {
+	ctx := context.Background()
+
+	testCases := []struct {
+		name     string
+		jsonData string
+	}{
+		{
+			name:     "Incomplete JSON",
+			jsonData: `{"name": "test-subnet", "network":`,
+		},
+		{
+			name:     "Invalid JSON structure",
+			jsonData: `{"name": "test-subnet", "network": "test", "ipCidrRange": 123}`,
+		},
+		{
+			name:     "Non-object JSON",
+			jsonData: `["not", "an", "object"]`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := activities.GetSubnetFromOperation(ctx, []byte(tc.jsonData))
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+		})
+	}
+}
+
+// Test_getGatewayFromIpCidrRange tests the getGatewayFromIpCidrRange function
+func Test_getGatewayFromIpCidrRange(t *testing.T) {
+	tests := []struct {
+		name          string
+		ipCidrRange   string
+		expectedGW    string
+		expectedError bool
+		errorMsg      string
+	}{
+		{
+			name:          "Valid IPv4 CIDR - 192.168.1.0/24",
+			ipCidrRange:   "192.168.1.0/24",
+			expectedGW:    "192.168.1.1",
+			expectedError: false,
+		},
+		{
+			name:          "Valid IPv4 CIDR - 10.0.0.0/16",
+			ipCidrRange:   "10.0.0.0/16",
+			expectedGW:    "10.0.0.1",
+			expectedError: false,
+		},
+		{
+			name:          "Valid IPv4 CIDR - 172.16.0.0/12",
+			ipCidrRange:   "172.16.0.0/12",
+			expectedGW:    "172.16.0.1",
+			expectedError: false,
+		},
+		{
+			name:          "Valid IPv4 CIDR with host bits set - 192.168.1.5/24",
+			ipCidrRange:   "192.168.1.5/24",
+			expectedGW:    "192.168.1.6",
+			expectedError: false,
+		},
+		{
+			name:          "IPv4 CIDR with /32 subnet",
+			ipCidrRange:   "192.168.1.100/32",
+			expectedGW:    "192.168.1.101",
+			expectedError: false,
+		},
+		{
+			name:          "IPv4 CIDR with /8 subnet",
+			ipCidrRange:   "10.0.0.0/8",
+			expectedGW:    "10.0.0.1",
+			expectedError: false,
+		},
+		{
+			name:          "Invalid CIDR format - missing subnet mask",
+			ipCidrRange:   "192.168.1.0",
+			expectedGW:    "",
+			expectedError: true,
+			errorMsg:      "invalid CIDR address",
+		},
+		{
+			name:          "Invalid CIDR format - invalid IP",
+			ipCidrRange:   "256.256.256.256/24",
+			expectedGW:    "",
+			expectedError: true,
+			errorMsg:      "invalid CIDR address",
+		},
+		{
+			name:          "Invalid CIDR format - invalid subnet mask",
+			ipCidrRange:   "192.168.1.0/33",
+			expectedGW:    "",
+			expectedError: true,
+			errorMsg:      "invalid CIDR address",
+		},
+		{
+			name:          "IPv6 CIDR range",
+			ipCidrRange:   "2001:db8::/32",
+			expectedGW:    "",
+			expectedError: true,
+			errorMsg:      "IP CIDR range is not an IPv4 address",
+		},
+		{
+			name:          "Empty string",
+			ipCidrRange:   "",
+			expectedGW:    "",
+			expectedError: true,
+			errorMsg:      "invalid CIDR address",
+		},
+		{
+			name:          "Just slash",
+			ipCidrRange:   "/24",
+			expectedGW:    "",
+			expectedError: true,
+			errorMsg:      "invalid CIDR address",
+		},
+		{
+			name:          "Invalid format - no slash",
+			ipCidrRange:   "192.168.1.0 24",
+			expectedGW:    "",
+			expectedError: true,
+			errorMsg:      "invalid CIDR address",
+		},
+		{
+			name:          "Edge case - last possible IPv4 address",
+			ipCidrRange:   "255.255.255.254/32",
+			expectedGW:    "255.255.255.255",
+			expectedError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gateway, err := activities.GetGatewayFromIpCidrRange(tt.ipCidrRange)
+
+			if tt.expectedError {
+				assert.Error(t, err)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg)
+				}
+				assert.Empty(t, gateway)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedGW, gateway)
+			}
+		})
+	}
+}
+
+func Test_getCreateDataSubnetworkOp(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		// Arrange
+		mockService := new(hyperscaler.MockGoogleServices)
+		mockLogger := util.GetLogger(context.Background())
+
+		params := commonparams.CreatePoolParams{
+			Region:         "us-central1",
+			VendorSubNetID: "test-vpc",
+		}
+		tenantProjectNumber := "123456789"
+		expectedOperationName := "operation-123"
+
+		mockService.On("GetLogger").Return(mockLogger)
+
+		originalGetCreateSubnetworkOperation := activities.GetCreateSubnetworkOperation
+		defer func() { activities.GetCreateSubnetworkOperation = originalGetCreateSubnetworkOperation }()
+
+		activities.GetCreateSubnetworkOperation = func(service hyperscaler.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string) (*string, error) {
+			assert.Equal(t, "123456789", tenantProjectNumber)
+			assert.Equal(t, "test-vpc", consumerVPC)
+			assert.Equal(t, "us-central1", *tenantProjectRegion)
+			return &expectedOperationName, nil
+		}
+
+		// Act
+		result, err := activities.GetCreateDataSubnetworkOp(mockService, params, tenantProjectNumber)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, expectedOperationName, *result)
+		mockService.AssertExpectations(t)
+	})
+
+	t.Run("GetCreateSubnetworkOperationFails", func(t *testing.T) {
+		// Arrange
+		mockService := new(hyperscaler.MockGoogleServices)
+		mockLogger := util.GetLogger(context.Background())
+
+		params := commonparams.CreatePoolParams{
+			Region:         "us-central1",
+			VendorSubNetID: "test-vpc",
+		}
+		tenantProjectNumber := "123456789"
+		expectedError := errors.New("failed to create subnetwork operation")
+
+		mockService.On("GetLogger").Return(mockLogger)
+
+		originalGetCreateSubnetworkOperation := activities.GetCreateSubnetworkOperation
+		defer func() { activities.GetCreateSubnetworkOperation = originalGetCreateSubnetworkOperation }()
+
+		activities.GetCreateSubnetworkOperation = func(service hyperscaler.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string) (*string, error) {
+			return nil, expectedError
+		}
+
+		// Act
+		result, err := activities.GetCreateDataSubnetworkOp(mockService, params, tenantProjectNumber)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockService.AssertExpectations(t)
+	})
+
+	t.Run("ParametersPassedCorrectly", func(t *testing.T) {
+		// Arrange
+		testCases := []struct {
+			name                string
+			region              string
+			vendorSubNetID      string
+			tenantProjectNumber string
+		}{
+			{"ValidParameters", "us-west1", "vpc-001", "987654321"},
+			{"DifferentRegion", "europe-west1", "vpc-002", "111111111"},
+			{"EmptyParameters", "", "", ""},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				mockService := new(hyperscaler.MockGoogleServices)
+				mockLogger := util.GetLogger(context.Background())
+
+				params := commonparams.CreatePoolParams{
+					Region:         tc.region,
+					VendorSubNetID: tc.vendorSubNetID,
+				}
+				operationName := "test-operation"
+
+				mockService.On("GetLogger").Return(mockLogger)
+
+				originalGetCreateSubnetworkOperation := activities.GetCreateSubnetworkOperation
+				defer func() { activities.GetCreateSubnetworkOperation = originalGetCreateSubnetworkOperation }()
+
+				activities.GetCreateSubnetworkOperation = func(service hyperscaler.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string) (*string, error) {
+					assert.Equal(t, tc.tenantProjectNumber, tenantProjectNumber)
+					assert.Equal(t, tc.vendorSubNetID, consumerVPC)
+					assert.Equal(t, tc.region, *tenantProjectRegion)
+					return &operationName, nil
+				}
+
+				// Act
+				result, err := activities.GetCreateDataSubnetworkOp(mockService, params, tc.tenantProjectNumber)
+
+				// Assert
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, operationName, *result)
+				mockService.AssertExpectations(t)
+			})
+		}
 	})
 }

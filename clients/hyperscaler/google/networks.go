@@ -19,11 +19,11 @@ var (
 	minimumTenantNetworkSize = env.GetInt64("DATA_SUBNET_CIDR_BLOCK", int64(28))
 	defaultSleepTime         = time.Duration(env.GetInt64("GCP_NETWORK_SLEEP_SECONDS", int64(28))) * time.Second
 
-	createSubnetworkForTenantProject = _createSubnetworkForTenantProject
-	createSubnetwork                 = _createSubnetwork
-	createVPC                        = _createVPC
-	insertFirewall                   = _insertFirewall
-	updateFirewall                   = _updateFirewall
+	CreateTPSubnetOp = _createTPSubnetOp
+	createSubnetwork = _createSubnetwork
+	createVPC        = _createVPC
+	insertFirewall   = _insertFirewall
+	updateFirewall   = _updateFirewall
 )
 
 // GetTenantProject lists registered tenancy units for the customer project
@@ -50,13 +50,13 @@ func (gcpService *GcpServices) GetTenantProject(consumerNetwork, customerProject
 	return "", vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, errors.New(fmt.Sprintf("VPC peering network for TenancyUnit '%s' not found. Use the correct vpc name and ensure VPC network peering with tenant project has already been established.", consumerNetwork)))
 }
 
-// CreateSubnetworkForTenantProject creates GCP subnetwork
-func (gcpService *GcpServices) CreateSubnetworkForTenantProject(tenantProjectNumber, consumerNetwork, region, subnetName string) ([]byte, error) {
+// CreateTPSubnetOp returns GCP operation for creating subnetwork for a tenant project
+func (gcpService *GcpServices) CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName string) (*string, error) {
 	consumerProjectNumber, consumerPeeringNetwork, err := utils.ParseProjectId(consumerNetwork)
 	if err != nil {
 		return nil, err
 	}
-	gcpService.Logger.Debugf("Calling CreateSubnetworkForTenantProject consumerProjectNumber : %s consumerPeeringNetwork : %s Consumer : %s region: %s", consumerProjectNumber, consumerPeeringNetwork, consumerProjectNumber, region)
+	gcpService.Logger.Infof("Calling CreateTPSubnetOp consumerProjectNumber : %s consumerPeeringNetwork : %s tenantProjectNumber : %s region: %s subnet name : %s", consumerProjectNumber, consumerPeeringNetwork, tenantProjectNumber, region, subnetName)
 
 	request := servicenetworking.AddSubnetworkRequest{
 		Consumer:        "projects/" + consumerProjectNumber,
@@ -66,26 +66,11 @@ func (gcpService *GcpServices) CreateSubnetworkForTenantProject(tenantProjectNum
 		Region:          region,
 		Subnetwork:      subnetName,
 	}
-	snProducerOperation, err := createSubnetworkForTenantProject(gcpService, &request, tenantProjectNumber)
+	snProducerOperation, err := CreateTPSubnetOp(gcpService, &request, tenantProjectNumber)
 	if err != nil {
 		return nil, err
 	}
-	snProducerOperationName := snProducerOperation.Name
-	gcpService.Logger.Infof("Waiting for service network operation status for tenant project : %s consumer peering network : %s", tenantProjectNumber, consumerPeeringNetwork)
-	snProducerOperation, err = waitForServiceNetworkOperationStatus(gcpService, snProducerOperationName)
-	if err != nil {
-		if strings.Contains(err.Error(), "Timeout while confirming service network google components") {
-			snProducerOperation, err = waitForServiceNetworkOperationStatus(gcpService, snProducerOperationName)
-			if err != nil {
-				gcpService.Logger.Errorf(fmt.Sprintf("Failed to get service networking operation status for tenant project : %s consumer peering network : %s with error : %v", tenantProjectNumber, consumerPeeringNetwork, err.Error()))
-				return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
-			}
-			return snProducerOperation.Response, nil
-		}
-		gcpService.Logger.Errorf(fmt.Sprintf("Failed to get service networking operation status for tenant project : %s consumer peering network : %s with error : %v", tenantProjectNumber, consumerPeeringNetwork, err.Error()))
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
-	}
-	return snProducerOperation.Response, nil
+	return &snProducerOperation.Name, nil
 }
 
 // ReleaseSubnetwork calls GCP releaseSubnetwork API and return a long-running operation.
@@ -118,17 +103,9 @@ func (gcpService *GcpServices) ReleaseSubnetwork(region, projectName, subnetwork
 func (gcpService *GcpServices) GetSnHost(project string) (string, error) {
 	snProject, err := gcpService.AdminGCPService.computeService.Projects.GetXpnHost(project).Do()
 	if err != nil {
-		err = gcpService.Retry.Sleep(err)
-		if err != nil {
-			if strings.Contains(err.Error(), "notFound") {
-				return "", errors.NewNotFoundErr("SN Producer Host Project", &project)
-			}
-			return "", err
-		}
-		gcpService.Logger.Info(fmt.Sprintf("Retrying GetSnHost for project %s", project))
-		return gcpService.GetSnHost(project)
+		gcpService.Logger.Errorf(fmt.Sprintf("error getting SN host for project %s", project))
+		return "", err
 	}
-	gcpService.Retry.Reset()
 	// for a new VPC, snhost project will be empty. we need to return empty in this case to establish datalink
 	if snProject != nil && snProject.Name == "" {
 		return "", errors.NewNotFoundErr("SN Producer Host Project", &project)
@@ -136,8 +113,8 @@ func (gcpService *GcpServices) GetSnHost(project string) (string, error) {
 	return snProject.Name, nil
 }
 
-// _createSubnetworkForTenantProject creates GCP subnetwork in a producer tenant project. This method will make producer's tenant project to be a shared VPC service project as needed. Reference : https://cloud.google.com/service-infrastructure/docs/service-networking/reference/rest/v1/services/addSubnetwork
-func _createSubnetworkForTenantProject(gcpService *GcpServices, request *servicenetworking.AddSubnetworkRequest, tenantProjectNumber string) (*models.ComputeOperation, error) {
+// _createTPSubnetOp returns GCP operation for subnetwork in a producer tenant project. This method will make producer's tenant project to be a shared VPC service project as needed. Reference : https://cloud.google.com/service-infrastructure/docs/service-networking/reference/rest/v1/services/addSubnetwork
+func _createTPSubnetOp(gcpService *GcpServices, request *servicenetworking.AddSubnetworkRequest, tenantProjectNumber string) (*models.ComputeOperation, error) {
 	parent := fmt.Sprintf("services/%s/projects/%s", gcpService.GetServiceNetworkingEndpoint(), tenantProjectNumber)
 	tu, err := gcpService.AdminGCPService.networkingService.Services.AddSubnetwork(parent, request).Context(gcpService.Ctx).Do()
 	if err != nil || (tu != nil && tu.Error != nil) {
@@ -149,7 +126,7 @@ func _createSubnetworkForTenantProject(gcpService *GcpServices, request *service
 				gcpService.Logger.Errorf("AddSubnetwork failed : with error : %v", err.Error())
 				return nil, vsaerrors.NewVCPError(vsaerrors.ErrPSAPeeringNotFoundError, err)
 			}
-			gcpService.Logger.Errorf("createSubnetworkForTenantProject failed with error: %s", err.Error())
+			gcpService.Logger.Errorf("CreateTPSubnetOp failed with error: %s", err.Error())
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 		}
 	}
@@ -179,20 +156,11 @@ func (gcpService *GcpServices) GetSubnetwork(projectName, region, subnetName str
 
 // ListSubnetworks retrieves a subnetwork for a given project name, region and subnetwork name using compute API. Reference : https://cloud.google.com/compute/docs/reference/rest/v1/subnetworks/get
 func (gcpService *GcpServices) ListSubnetworks(projectName, region string) (*[]models.Subnet, error) {
-	defer gcpService.Retry.Reset()
-	gcpService.Logger.Debugf("Calling ListSubnetworks for project name : %s, region : %s", projectName, region)
-
 	subnetworks, err := gcpService.AdminGCPService.computeService.Subnetworks.List(projectName, region).Context(gcpService.Ctx).Do()
 	if err != nil {
-		err = gcpService.Retry.Sleep(err)
-		if err != nil {
-			gcpService.Logger.Errorf("ListSubnetworks failed for project name : %s, region : %s with error : %v", projectName, region, err.Error())
-			return nil, err
-		}
-		gcpService.Logger.Debugf("Retrying : ListSubnetworks for project name : %s, region : %s", projectName, region)
-		return gcpService.ListSubnetworks(projectName, region)
+		gcpService.Logger.Debugf("ListSubnetworks failed for project name : %s, region : %s", projectName, region)
+		return nil, err
 	}
-
 	gcpService.Logger.Debugf("ListSubnetworks success with number of subnets = %d", len(subnetworks.Items))
 	return convertGoogleSubnetsToSubnets(subnetworks), nil
 }
@@ -401,4 +369,20 @@ func _updateFirewall(gcpService *GcpServices, request *models.Firewall) (*models
 	}
 	gcpService.Logger.Debugf("Operation to update firewall created successfully for project name : %s, firewall name : %s", projectName, firewallName)
 	return convertComputeOpToComputeOp(op), nil
+}
+
+// GetServiceNetOpStatus get the status of the operation on basis of the operation name
+func (gcpService *GcpServices) GetServiceNetOpStatus(operationName string) (*models.ComputeOperation, error) {
+	op, err := gcpService.AdminGCPService.networkingService.Operations.Get(operationName).Do()
+	if err != nil {
+		gcpService.Logger.Errorf(fmt.Sprintf("GetServiceNetOpStatus failed with error : %s", err.Error()))
+		return nil, err
+	}
+	if op != nil && op.Error != nil {
+		gcpService.Logger.Debug(fmt.Sprintf("GetServiceNetOpStatus's operation failed with error : %s", op.Error.Message))
+		err = &googleapi.Error{Message: op.Error.Message}
+		return nil, err
+	}
+	gcpService.Logger.Debug(fmt.Sprintf("GetServiceNetOpStatus successful : %s", op.Name))
+	return convertServiceNetOpToComputeOp(op), nil
 }
