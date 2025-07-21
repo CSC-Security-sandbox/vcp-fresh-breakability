@@ -1400,3 +1400,48 @@ func TestDeleteSnapshotForBackup(t *testing.T) {
 		assert.EqualError(t, err, "failed to get provider")
 	})
 }
+
+func TestIsBackupShared(t *testing.T) {
+	t.Run("OnSuccess", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-uuid1",
+			},
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotID: "test-snapshot-id-1",
+			},
+			Name:       "Daily-backup1",
+			VolumeUUID: "volume-uuid-1",
+		}
+		mockStorage.On("IsBackupShared", ctx, backup).Return(true, nil)
+		shared, err := activity.IsBackupShared(ctx, backup)
+		assert.Nil(t, err)
+		assert.True(t, shared)
+	})
+	t.Run("OnFailure", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-backup-uuid1",
+			},
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotID: "test-snapshot-id-1",
+			},
+			Name:       "Daily-backup1",
+			VolumeUUID: "volume-uuid-1",
+		}
+
+		mockStorage.On("IsBackupShared", ctx, backup).Return(false, errors.New("failed"))
+		shared, err := activity.IsBackupShared(ctx, backup)
+		assert.NotNil(t, err)
+		assert.EqualError(t, err, "failed")
+		assert.False(t, shared)
+	})
+}

@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -26,6 +27,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/mocks"
 	"google.golang.org/api/iam/v1"
 )
 
@@ -2157,9 +2159,9 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-			   activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-				   return mockProvider, nil
-			   }
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
 
 		// Test data - Volume with file properties
 		volume := &datamodel.Volume{
@@ -2245,9 +2247,9 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-			   activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-				   return mockProvider, nil
-			   }
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
 
 		// Test data
 		volume := &datamodel.Volume{
@@ -2294,9 +2296,9 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-			   activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-				   return mockProvider, nil
-			   }
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
 
 		// Test data
 		volume := &datamodel.Volume{
@@ -2344,9 +2346,9 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		originalGetProviderByNode := activities.GetProviderByNode
 		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
 
-			   activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-				   return mockProvider, nil
-			   }
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
 
 		// Test data with multiple export rules
 		volume := &datamodel.Volume{
@@ -2417,6 +2419,51 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 
 		// Assertions
 		assert.NoError(t, err)
+	})
+}
+
+func TestCreateBackupPolicySchedule(t *testing.T) {
+	t.Run("CreateBackupPolicyScheduleSucceeds", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockClient := &mocks.ScheduleClient{}
+		temporalScheduler := scheduler.NewTemporalScheduler(mockClient)
+		activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: temporalScheduler}
+
+		ctx := context.Background()
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				UUID: "policy-uuid",
+			},
+			Name: "test-policy",
+		}
+
+		schedulerHandle := &mocks.ScheduleHandle{}
+		schedulerHandle.On("GetID").Return("schedule-id")
+		mockClient.On("Create", ctx, mock.Anything).Return(schedulerHandle, nil).Once()
+
+		err := activity.CreateBackupPolicySchedule(ctx, backupPolicy)
+		assert.NoError(t, err)
+	})
+	t.Run("CreateBackupPolicyScheduleFails", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockClient := &mocks.ScheduleClient{}
+		temporalScheduler := scheduler.NewTemporalScheduler(mockClient)
+		activity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: temporalScheduler}
+
+		ctx := context.Background()
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				UUID: "policy-uuid",
+			},
+			Name: "test-policy",
+		}
+
+		schedulerHandle := &mocks.ScheduleHandle{}
+		schedulerHandle.On("GetID").Return("schedule-id")
+		mockClient.On("Create", ctx, mock.Anything).Return(nil, errors.New("failed to create schedule")).Times(scheduler.DefaultMaxRetries)
+
+		err := activity.CreateBackupPolicySchedule(ctx, backupPolicy)
+		assert.Error(t, err, "failed to create schedule")
 	})
 }
 

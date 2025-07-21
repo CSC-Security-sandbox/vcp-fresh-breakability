@@ -577,6 +577,7 @@ type Backup struct {
 	StateDetails            string            `gorm:"column:state_details;type:text"`
 	Attributes              *BackupAttributes `gorm:"column:attributes;type:jsonb"`
 	Type                    string            `gorm:"column:type;type:text"`
+	ScheduleTag             string            `gorm:"column:schedule_tag;type:text"`
 	VolumeUUID              string            `gorm:"column:volume_uuid;type:text"`
 	SizeInBytes             int64             `gorm:"column:size_in_bytes;type:bigint"`
 	BackupVaultID           int64             `gorm:"column:backup_vault_id;type:bigint"`

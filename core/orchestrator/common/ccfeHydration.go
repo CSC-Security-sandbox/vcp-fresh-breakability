@@ -25,6 +25,8 @@ var (
 	VolumeDelete                   = _hydrateVolumeDelete
 	BatchHydrateCreatedSnapshots   = _batchHydrateCreatedSnapshots
 	BatchHydrateDeletedSnapshots   = _batchHydrateDeletedSnapshots
+	HydrateCreatedScheduledBackups = _hydrateCreatedScheduledBackups
+	HydrateDeletedScheduledBackups = _hydrateDeletedScheduledBackups
 	MapStateToGcpState             = _mapStateToGcpState
 	HydrateReplicationState        = _hydrateReplicationState
 	HydrateReplicationStateAndType = _hydrateReplicationStateAndType
@@ -190,6 +192,22 @@ func _batchHydrateDeletedSnapshots(ctx context.Context, logger log.Logger, hydra
 		}
 	}
 	logger.Infof("Successfully Hydrated snapshot delete to callbackApi with the volume name %s", currVolumeName)
+	return err
+}
+
+// _hydrateCreatedScheduledBackups hydrates created scheduled backups to CCFE.
+func _hydrateCreatedScheduledBackups(ctx context.Context, logger log.Logger, resources []models.Request, backupVaultName string, location string, projectId string, token string) error {
+	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/backupVaults/%s/resources:%s", baseUri, projectId, location, backupVaultName, Create)
+	err := hydrateToCffe(ctx, logger, models.GcpHydrateCreate{Requests: resources}, url, http.MethodPost, token)
+	logger.Infof("Successfully hydrated created backups to CCFE for the backupVault %s", backupVaultName)
+	return err
+}
+
+// _hydrateDeletedScheduledBackups hydrates deleted scheduled backups to CCFE.
+func _hydrateDeletedScheduledBackups(ctx context.Context, logger log.Logger, names []string, backupVaultName string, location string, projectId string, token string) error {
+	url := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/backupVaults/%s/resources:%s", baseUri, projectId, location, backupVaultName, Delete)
+	err := hydrateToCffe(ctx, logger, models.GcpHydrateDelete{Names: names}, url, http.MethodPost, token)
+	logger.Infof("Successfully hydrated deleted backups to CCFE for the backupVault %s", backupVaultName)
 	return err
 }
 

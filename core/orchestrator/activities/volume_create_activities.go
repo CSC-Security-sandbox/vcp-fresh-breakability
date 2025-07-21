@@ -2,6 +2,7 @@ package activities
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
@@ -12,12 +13,14 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/client"
 	"google.golang.org/api/iam/v1"
 )
 
@@ -31,7 +34,8 @@ const (
 )
 
 type VolumeCreateActivity struct {
-	SE database.Storage
+	SE        database.Storage
+	Scheduler *scheduler.TemporalScheduler
 }
 
 var (
@@ -752,4 +756,36 @@ func (a VolumeCreateActivity) CreateBackupPolicyFetchedFromSDE(ctx context.Conte
 		return nil, err
 	}
 	return dbBackupPolicy, nil
+}
+
+func (a VolumeCreateActivity) CreateBackupPolicySchedule(ctx context.Context, vcpBackupPolicy *datamodel.BackupPolicy) error {
+	logger := util.GetLogger(ctx)
+	logger.Infof("Creating backup policy schedule for policy: %s", vcpBackupPolicy.Name)
+
+	backupPolicyCreatedTime := vcpBackupPolicy.CreatedAt
+	// Cron expression based on the created time of the backup policy to create schedules
+	cronExpr := fmt.Sprintf("%d %d * * *", backupPolicyCreatedTime.Minute(), backupPolicyCreatedTime.Hour())
+
+	createParams := scheduler.CreateScheduleParams{
+		ScheduleParams: scheduler.ScheduleParams{
+			ScheduleID: vcpBackupPolicy.UUID,
+			Args: []interface{}{
+				vcpBackupPolicy,
+			},
+		},
+		TemporalScheduleOptions: scheduler.TemporalCreateScheduleParams{
+			WorkflowID: utils.RandomUUID(),
+			Workflow:   "CreateScheduledBackupInitWorkflow",
+			Spec: client.ScheduleSpec{
+				CronExpressions: []string{cronExpr},
+			},
+		},
+	}
+
+	_, err := a.Scheduler.Create(ctx, createParams)
+	if err != nil {
+		logger.Errorf("Failed to create backup policy schedule: %v", err)
+		return err
+	}
+	return nil
 }

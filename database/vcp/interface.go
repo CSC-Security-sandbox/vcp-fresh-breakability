@@ -172,6 +172,8 @@ type (
 		IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error)
 		IsLatestBackup(ctx context.Context, backupUUID, volumeUUID string) (bool, error)
 		BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error)
+		FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) ([]*datamodel.Backup, error)
+		IsBackupShared(ctx context.Context, backup *datamodel.Backup) (bool, error)
 
 		CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)
 		GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error)

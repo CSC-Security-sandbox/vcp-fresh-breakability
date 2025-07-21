@@ -12,7 +12,6 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -31,13 +30,13 @@ type BackupDeleteWorkflow struct {
 var (
 	_    WorkflowInterface = &BackupCreateWorkflow{}
 	_    WorkflowInterface = &BackupDeleteWorkflow{}
-	wait                   = time.Duration(env.GetUint("ONTAP_REST_ASYNC_POLL_WAIT_SECONDS", 3)) * time.Second
+	Wait                   = time.Duration(env.GetUint("ONTAP_REST_ASYNC_POLL_WAIT_SECONDS", 3)) * time.Second
 )
 
 const (
 	ObjStoreProviderType = "GoogleCloud"
 	ObjStoreServer       = "storage.googleapis.com"
-	backupComment        = "VCP-Backup"
+	BackupComment        = "VCP-Backup"
 	adcPort              = 443
 )
 
@@ -120,11 +119,11 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType})
 	objStore := &commonparams.CloudTarget{}
-	objStoreName, err := getObjStoreName(backupVault, volume)
+	objStoreName, err := GetObjStoreName(backupVault, volume)
 	if err != nil {
 		return nil, err
 	}
-	bucketDetails, err := getBucketDetails(backupVault, volume)
+	bucketDetails, err := GetBucketDetails(backupVault, volume)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +138,7 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	if err != nil {
 		return nil, err
 	}
-	smSourcePath := getSmSourcePath(volume)
+	smSourcePath := GetSmSourcePath(volume)
 	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{}
 	SnapmirrorRelationshipParams := &commonparams.SnapmirrorRelationshipParams{
 		SourcePath:      smSourcePath,
@@ -156,7 +155,7 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	snapshotName := getSnapshotName(dbBackup)
 	snapshotResponse := &vsa.SnapshotProviderResponse{}
-	err = workflow.ExecuteActivity(ctx, backupActivity.SnapshotCreate, node, volume.VolumeAttributes.ExternalUUID, snapshotName, backupComment).Get(ctx, &snapshotResponse)
+	err = workflow.ExecuteActivity(ctx, backupActivity.SnapshotCreate, node, volume.VolumeAttributes.ExternalUUID, snapshotName, BackupComment).Get(ctx, &snapshotResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +176,7 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 		switch status {
 		case activities.SmStatusTransferring:
-			err := workflow.Sleep(ctx, wait) // Wait before polling again
+			err := workflow.Sleep(ctx, Wait) // Wait before polling again
 			if err != nil {
 				return nil, fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err)
 			}
@@ -267,14 +266,14 @@ func getSnapshotName(backup *datamodel.Backup) string {
 	return fmt.Sprintf("vcp-ad-%s", backup.Name)
 }
 
-func getObjStoreName(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (string, error) {
-	bucketDetails, err := getBucketDetails(backupVault, vol)
+func GetObjStoreName(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (string, error) {
+	bucketDetails, err := GetBucketDetails(backupVault, vol)
 	if err != nil {
 		return "", err
 	}
 	return bucketDetails.BucketName, nil
 }
-func getBucketDetails(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (*datamodel.BucketDetails, error) {
+func GetBucketDetails(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (*datamodel.BucketDetails, error) {
 	for _, bucketDetail := range backupVault.BucketDetails {
 		if bucketDetail.VendorSubnetID == vol.VolumeAttributes.VendorSubnetID && bucketDetail.BucketName != "" {
 			return bucketDetail, nil
@@ -283,12 +282,12 @@ func getBucketDetails(backupVault *datamodel.BackupVault, vol *datamodel.Volume)
 	return nil, fmt.Errorf("no matching bucket details found for volume %s in backup vault %s", vol.Name, backupVault.Name)
 }
 
-func getSmSourcePath(volume *datamodel.Volume) string {
+func GetSmSourcePath(volume *datamodel.Volume) string {
 	return fmt.Sprintf("%s:%s", volume.Svm.Name, volume.Name)
 }
 
 func getSmDestinationPath(backupVault *datamodel.BackupVault, volume *datamodel.Volume) (string, error) {
-	objStoreName, err := getObjStoreName(backupVault, volume)
+	objStoreName, err := GetObjStoreName(backupVault, volume)
 	if err != nil {
 		return "", fmt.Errorf("failed to get object store name: %w", err)
 	}
@@ -458,7 +457,7 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, err
 			}
 			var snapmirrorRelationship *commonparams.SnapmirrorRelationship
-			err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirror, node, getSmSourcePath(volume), smDestinationPath).Get(ctx, &snapmirrorRelationship)
+			err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirror, node, GetSmSourcePath(volume), smDestinationPath).Get(ctx, &snapmirrorRelationship)
 			if err != nil {
 				return nil, err
 			}
@@ -486,9 +485,20 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, err
 			}
 		} else {
-			err = workflow.ExecuteActivity(ctx, backupActivity.DeleteSnapshotFromObjectStore, node, objStore.UUID, dbBackup.Attributes.EndpointUUID, dbBackup.Attributes.SnapshotID).Get(ctx, &ontapAsyncResponse)
+			var isBackupShared bool
+			err = workflow.ExecuteActivity(ctx, backupActivity.IsBackupShared, dbBackup).Get(ctx, &isBackupShared)
 			if err != nil {
 				return nil, err
+			}
+			if !isBackupShared {
+				err = workflow.ExecuteActivity(ctx, backupActivity.DeleteSnapshotFromObjectStore, node, objStore.UUID, dbBackup.Attributes.EndpointUUID, dbBackup.Attributes.SnapshotID).Get(ctx, &ontapAsyncResponse)
+				if err != nil {
+					return nil, err
+				}
+				err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
+				if err != nil {
+					return nil, fmt.Errorf("failed to delete cloud endpoint: %w", err)
+				}
 			}
 		}
 	}
@@ -530,43 +540,4 @@ func (wf *BackupDeleteWorkflow) HandleError(ctx workflow.Context, params *common
 		return fmt.Errorf("failed to update backup error: %w", err)
 	}
 	return nil
-}
-
-// WaitForONTAPJob waits for an ONTAP job to complete, taking a workflow context, job UUID, node, and timeout as input.
-func WaitForONTAPJob(ctx workflow.Context, jobResponse *vsa.OntapAsyncResponse, node *models.Node, timeout time.Duration) error {
-	if jobResponse == nil || jobResponse.JobUUID == "" {
-		return nil
-	}
-	var job *vsa.OntapJob
-	startTime := time.Now()
-
-	for {
-		// Check if the timeout has been reached
-		if time.Since(startTime) > timeout {
-			return fmt.Errorf("ontap job %s timed out after %v", jobResponse.JobUUID, timeout)
-		}
-
-		// Execute the activity to get the ONTAP job status
-		err := workflow.ExecuteActivity(ctx, activities.CommonActivities.GetOntapJob, jobResponse.JobUUID, node).Get(ctx, &job)
-		if err != nil {
-			return err
-		}
-
-		// Check the job state
-		switch job.State {
-		case "failure":
-			if job.Error != nil {
-				return errors.New(job.Error.Message)
-			}
-			return fmt.Errorf("ontap job %s failed with no error message", job.UUID)
-		case "success":
-			return nil
-		}
-
-		// Sleep for a short duration before checking again
-		err = workflow.Sleep(ctx, 5*time.Second)
-		if err != nil {
-			return fmt.Errorf("failed to sleep while waiting for ONTAP job %s: %w", jobResponse.JobUUID, err)
-		}
-	}
 }

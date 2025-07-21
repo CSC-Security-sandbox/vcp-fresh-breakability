@@ -908,6 +908,14 @@ func (s *PersistenceStore) CreateBackupPolicyEntryInVCP(ctx context.Context, bac
 	return s.dataStore.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
 }
 
+func (s *PersistenceStore) FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) ([]*datamodel.Backup, error) {
+	return s.dataStore.FetchScheduledBackupsForDeletion(ctx, volume, backupPolicy)
+}
+
+func (s *PersistenceStore) IsBackupShared(ctx context.Context, backup *datamodel.Backup) (bool, error) {
+	return s.dataStore.IsBackupShared(ctx, backup)
+}
+
 func (s *PersistenceStore) GetBackupByNameAndBackupVaultID(ctx context.Context, backupName string, backupVaultID int64) (*datamodel.Backup, error) {
 	return s.dataStore.GetBackupByNameAndBackupVaultID(ctx, backupName, backupVaultID)
 }

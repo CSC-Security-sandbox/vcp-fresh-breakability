@@ -215,9 +215,9 @@ func TestGetObjStoreName(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: "subnet-12345"},
 	}
 	expected := "test-bucket"
-	result, err := getObjStoreName(backupVault, volume)
-	assert.NoError(t, err, "getObjStoreName should not return an error")
-	assert.Equal(t, expected, result, "getObjStoreName should return the correct object store name")
+	result, err := GetObjStoreName(backupVault, volume)
+	assert.NoError(t, err, "GetObjStoreName should not return an error")
+	assert.Equal(t, expected, result, "GetObjStoreName should return the correct object store name")
 }
 
 func TestGetBucketDetails(t *testing.T) {
@@ -230,9 +230,9 @@ func TestGetBucketDetails(t *testing.T) {
 		VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: "subnet-12345"},
 	}
 	expected := &datamodel.BucketDetails{BucketName: "test-bucket", VendorSubnetID: "subnet-12345"}
-	result, err := getBucketDetails(backupVault, volume)
-	assert.NoError(t, err, "getBucketDetails should not return an error")
-	assert.Equal(t, expected, result, "getBucketDetails should return the correct bucket details")
+	result, err := GetBucketDetails(backupVault, volume)
+	assert.NoError(t, err, "GetBucketDetails should not return an error")
+	assert.Equal(t, expected, result, "GetBucketDetails should return the correct bucket details")
 }
 
 func TestGetBucketDetails_NoMatch(t *testing.T) {
@@ -244,8 +244,8 @@ func TestGetBucketDetails_NoMatch(t *testing.T) {
 	volume := &datamodel.Volume{
 		VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: "subnet-67890"},
 	}
-	_, err := getBucketDetails(backupVault, volume)
-	assert.Error(t, err, "getBucketDetails should return an error if no matching bucket details are found")
+	_, err := GetBucketDetails(backupVault, volume)
+	assert.Error(t, err, "GetBucketDetails should return an error if no matching bucket details are found")
 }
 
 func TestGetSmSourcePath(t *testing.T) {
@@ -254,8 +254,8 @@ func TestGetSmSourcePath(t *testing.T) {
 		Name: "volume_test",
 	}
 	expected := "svm_test:volume_test"
-	result := getSmSourcePath(volume)
-	assert.Equal(t, expected, result, "getSmSourcePath should return the correct source path")
+	result := GetSmSourcePath(volume)
+	assert.Equal(t, expected, result, "GetSmSourcePath should return the correct source path")
 }
 
 func TestGetSmDestinationPath(t *testing.T) {

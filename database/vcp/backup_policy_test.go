@@ -276,6 +276,7 @@ func TestCreateBackupPolicyEntryInVCP(t *testing.T) {
 		assert.NotNil(tt, result, "Expected result to not be nil")
 		assert.Equal(tt, backupPolicy.UUID, result.UUID, "Expected backup policy UUID to match")
 		assert.Equal(tt, account.Name, result.Account.Name, "Expected account name to match")
+		assert.Equal(tt, result.CreatedAt, result.UpdatedAt, "Expected CreatedAt and UpdatedAt to be equal on creation")
 	})
 
 	t.Run("ReturnsExistingBackupPolicyIfAlreadyExists", func(tt *testing.T) {

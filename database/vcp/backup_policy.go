@@ -75,7 +75,8 @@ func (d *DataStoreRepository) CreateBackupPolicyEntryInVCP(ctx context.Context, 
 	var dbBackupPolicy datamodel.BackupPolicy
 	err = tx.Where("name = ? AND account_id = ?", backupPolicy.Name, backupPolicy.AccountID).First(&dbBackupPolicy).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		backupPolicy.UpdatedAt = time.Now()
+		backupPolicy.CreatedAt = time.Now()
+		backupPolicy.UpdatedAt = backupPolicy.CreatedAt
 
 		err = tx.Create(backupPolicy).Error
 		if err != nil {

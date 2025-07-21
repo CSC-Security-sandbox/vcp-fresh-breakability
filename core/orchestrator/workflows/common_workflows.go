@@ -9,8 +9,9 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	dbmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"go.temporal.io/sdk/client"
@@ -178,6 +179,45 @@ func getSnapshotPolicyName(volume *datamodel.Volume) string {
 	return ""
 }
 
+// WaitForONTAPJob waits for an ONTAP job to complete, taking a workflow context, job UUID, node, and timeout as input.
+func WaitForONTAPJob(ctx workflow.Context, jobResponse *vsa.OntapAsyncResponse, node *models.Node, timeout time.Duration) error {
+	if jobResponse == nil || jobResponse.JobUUID == "" {
+		return nil
+	}
+	var job *vsa.OntapJob
+	startTime := time.Now()
+
+	for {
+		// Check if the timeout has been reached
+		if time.Since(startTime) > timeout {
+			return fmt.Errorf("ontap job %s timed out after %v", jobResponse.JobUUID, timeout)
+		}
+
+		// Execute the activity to get the ONTAP job status
+		err := workflow.ExecuteActivity(ctx, activities.CommonActivities.GetOntapJob, jobResponse.JobUUID, node).Get(ctx, &job)
+		if err != nil {
+			return err
+		}
+
+		// Check the job state
+		switch job.State {
+		case "failure":
+			if job.Error != nil {
+				return errors.New(job.Error.Message)
+			}
+			return fmt.Errorf("ontap job %s failed with no error message", job.UUID)
+		case "success":
+			return nil
+		}
+
+		// Sleep for a short duration before checking again
+		err = workflow.Sleep(ctx, 5*time.Second)
+		if err != nil {
+			return fmt.Errorf("failed to sleep while waiting for ONTAP job %s: %w", jobResponse.JobUUID, err)
+		}
+	}
+}
+
 // PollOnDBJob waits for a db job to complete, taking a workflow context, job UUID, and timeout as input.
 func PollOnDBJob(ctx workflow.Context, jobUUID string, timeout time.Duration) error {
 	startTime := workflow.Now(ctx)
@@ -197,7 +237,7 @@ func PollOnDBJob(ctx workflow.Context, jobUUID string, timeout time.Duration) er
 		}
 
 		// Check the job state.
-		if job.State == string(dbmodels.JobsStateDONE) {
+		if job.State == string(models.JobsStateDONE) {
 			if job.ErrorDetails != "" {
 				return errors.New("job completed with error: " + job.ErrorDetails)
 			}

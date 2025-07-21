@@ -287,6 +287,11 @@ func (a BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *model
 	return provider.DeleteSnapshot(snapshotUUID, volumeUUID)
 }
 
+func (j *BackupActivity) IsBackupShared(ctx context.Context, backup *datamodel.Backup) (bool, error) {
+	se := j.SE
+	return se.IsBackupShared(ctx, backup)
+}
+
 // func (a BackupActivity) CreateHmacKeys(ctx context.Context, params *commonparams.HmacKeyCreateParams, gcpService hyperscaler.GoogleServices) (hmacKeys *commonparams.HmacKeys, err error) {
 //	err = gcpService.InitializeClients()
 //	if err != nil || !gcpService.IsAdminClientInitialized() {

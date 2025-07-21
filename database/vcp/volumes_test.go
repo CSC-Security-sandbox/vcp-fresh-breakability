@@ -714,4 +714,62 @@ func TestListVolumes(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, 0, len(volumes), "Expected %v volumes, got %v", 0, len(volumes))
 	})
+	t.Run("ListVolumesWhenBackupPolicyAttached", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		accountID := int64(1)
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   accountID,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+
+		policyEnabled := true
+		policyDisabled := false
+		backupPolicyUUID := "test-backup-policy-uuid"
+
+		volume1 := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "test-volume-uuid-1"},
+			Name:           "test_volume_1",
+			AccountID:      account.ID,
+			Account:        account,
+			DataProtection: &datamodel.DataProtection{BackupPolicyID: backupPolicyUUID, ScheduledBackupEnabled: &policyEnabled},
+		}
+		err = store.db.Create(volume1).Error()
+		assert.NoError(tt, err, "Failed to create volume 1")
+
+		volume2 := volume1
+		volume2.ID = 2
+		volume2.UUID = "test-volume-uuid-2"
+		volume2.DataProtection.ScheduledBackupEnabled = &policyDisabled
+		err = store.db.Create(volume2).Error()
+		assert.NoError(tt, err, "Failed to create volume 2")
+
+		volume3 := volume1
+		volume3.ID = 3
+		volume3.UUID = "test-volume-uuid-3"
+		volume3.DataProtection = nil
+		err = store.db.Create(volume3).Error()
+		assert.NoError(tt, err, "Failed to create volume 3")
+
+		conditions := [][]interface{}{
+			{"account_id = ?", accountID},
+			{"data_protection->>'backup_policy_id' = ?", backupPolicyUUID},
+			{"data_protection->>'scheduled_backup_enabled' = true"},
+		}
+
+		volumes, err := store.ListVolumes(context.Background(), conditions)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, 1, len(volumes), "Expected %v volumes, got %v", 0, len(volumes))
+	})
 }

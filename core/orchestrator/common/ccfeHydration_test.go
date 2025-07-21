@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -241,6 +242,81 @@ func TestBatchHydrateDeletedSnapshots(t *testing.T) {
 		}
 		err := _batchHydrateDeletedSnapshots(ctx, mockLogger, hydrateSnapshot, currVolumeName, region, projectId, token)
 		assert.NoError(tt, err)
+	})
+}
+
+func TestHydrateCreatedScheduledBackups(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewMockLogger(t)
+	projectId := "mocked-project"
+	location := "mocked-location"
+	backupVaultName := "mocked-backup-vault"
+	token := "mocked-token"
+
+	resources := []models.Request{
+		{
+			Backup: &models.HydrateBackup{
+				ResourceId:       "mock-backup",
+				BackupId:         "mock-uuid",
+				VolumeUsageBytes: nil,
+			},
+		},
+	}
+
+	originalHydrateToCcfe := hydrateToCffe
+	defer func() { hydrateToCffe = originalHydrateToCcfe }()
+	t.Run("WhenHydrateToCcfeSucceeds", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
+
+		err := HydrateCreatedScheduledBackups(ctx, mockLogger, resources, backupVaultName, location, projectId, token)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenHydrateToCcfeErrors", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return errors.New("could not hydrate backups to ccfe")
+		}
+		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
+
+		err := HydrateCreatedScheduledBackups(ctx, mockLogger, resources, backupVaultName, location, projectId, token)
+		assert.Error(tt, err)
+		assert.Equal(tt, "could not hydrate backups to ccfe", err.Error())
+	})
+}
+
+func TestHydrateDeletedScheduledBackups(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewMockLogger(t)
+	projectId := "mocked-project"
+	location := "mocked-location"
+	backupVaultName := "mocked-backup-vault"
+	token := "mocked-token"
+	names := []string{"mock-backup-1", "mock-backup-2"}
+
+	originalHydrateToCcfe := hydrateToCffe
+	defer func() { hydrateToCffe = originalHydrateToCcfe }()
+	t.Run("WhenHydrateToCcfeSucceeds", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
+		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
+
+		err := HydrateDeletedScheduledBackups(ctx, mockLogger, names, backupVaultName, location, projectId, token)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenHydrateToCcfeErrors", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return errors.New("could not hydrate backups to ccfe")
+		}
+		mockLogger.On("Infof", mock.Anything, mock.Anything).Return(nil)
+
+		err := HydrateDeletedScheduledBackups(ctx, mockLogger, names, backupVaultName, location, projectId, token)
+		assert.Error(tt, err)
+		assert.Equal(tt, "could not hydrate backups to ccfe", err.Error())
 	})
 }
 

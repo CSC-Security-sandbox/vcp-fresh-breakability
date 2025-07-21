@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -812,6 +813,191 @@ func TestBackupCountByVolumeID(t *testing.T) {
 		count, err := store.BackupCountByVolumeID(context.Background(), "volume1")
 		assert.Error(tt, err)
 		assert.Equal(tt, int64(0), count)
+	})
+}
+
+func TestFetchScheduledBackupsForDeletion(t *testing.T) {
+	t.Run("onSuccess", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		DailyBackup1 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid1",
+				CreatedAt: getTimeNow().Add(-2 * time.Second), // 2 days ago
+			},
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotID: "test-snapshot-id-1",
+			},
+			Name:        "Daily-backup1",
+			ScheduleTag: Daily,
+			Type:        BackupTypeScheduled,
+			VolumeUUID:  "volume-uuid-1",
+		}
+		DailyBackup2 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid2",
+				CreatedAt: getTimeNow(),
+			},
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotID: "test-snapshot-id-2",
+			},
+			Name:        "Daily-backup2",
+			ScheduleTag: Daily,
+			Type:        BackupTypeScheduled,
+			VolumeUUID:  "volume-uuid-1",
+		}
+		err = store.db.Create(DailyBackup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(DailyBackup2).Error()
+		assert.NoError(tt, err)
+		WeeklyBackup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-uuid3"},
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotID: "test-snapshot-id-2",
+			},
+			Name:        "Weekly-backup1",
+			ScheduleTag: Weekly,
+			Type:        BackupTypeScheduled,
+			VolumeUUID:  "volume-uuid-1",
+		}
+		err = store.db.Create(WeeklyBackup).Error()
+		assert.NoError(tt, err)
+		MonthlyBackup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-uuid4"},
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotID: "test-snapshot-id-3",
+			},
+			Name:        "Monthly-backup1",
+			ScheduleTag: Monthly,
+			Type:        BackupTypeScheduled,
+			VolumeUUID:  "volume-uuid-1",
+		}
+		err = store.db.Create(MonthlyBackup).Error()
+		assert.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid-1",
+			},
+			Name: "test-volume-1",
+			Svm: &datamodel.Svm{
+				Name: "test-svm-1",
+			},
+			Pool: &datamodel.Pool{
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password: "pool-password",
+					SecretID: "pool-credential-secret-id",
+				},
+				DeploymentName: "test-pool-deployment",
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:  "backup-vault-uuid-1",
+				BackupPolicyID: "backup-policy-uuid-1",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID:   "external-uuid-1",
+				VendorSubnetID: "test-vendor-subnet-id",
+			},
+		}
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				UUID: "backup-policy-uuid-1",
+			},
+			DailyBackupsToKeep:   1,
+			WeeklyBackupsToKeep:  1,
+			MonthlyBackupsToKeep: 1,
+		}
+
+		resultBackups, err := store.FetchScheduledBackupsForDeletion(context.Background(), volume, backupPolicy)
+		assert.NoError(tt, err)
+		assert.Len(tt, resultBackups, 1)
+		assert.Equal(tt, DailyBackup1.UUID, resultBackups[0].UUID)
+	})
+	t.Run("whenBackupPolicyIDIsEmpty", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		DailyBackup1 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid1",
+				CreatedAt: getTimeNow().Add(-2 * time.Second),
+			},
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotID: "test-snapshot-id-1",
+			},
+			Name:        "Daily-backup1",
+			ScheduleTag: Daily,
+			Type:        BackupTypeScheduled,
+			VolumeUUID:  "volume-uuid-1",
+		}
+		err = store.db.Create(DailyBackup1).Error()
+		assert.NoError(tt, err)
+
+		resultBackups, err := store.FetchScheduledBackupsForDeletion(context.Background(), &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"}}, nil)
+		assert.Nil(tt, resultBackups)
+		assert.NotNil(tt, err)
+		assert.EqualError(tt, err, "volume does not have a backup policy associated with it")
+	})
+}
+
+func TestIsBackupShared(t *testing.T) {
+	t.Run("onSuccess", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		DailyBackup1 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid1",
+				CreatedAt: getTimeNow().Add(-2 * time.Second), // 2 days ago
+			},
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotID: "test-snapshot-id-1",
+			},
+			Name:        "Daily-backup1",
+			ScheduleTag: Daily,
+			Type:        BackupTypeScheduled,
+			VolumeUUID:  "volume-uuid-1",
+		}
+		DailyBackup2 := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-backup-uuid2",
+				CreatedAt: getTimeNow(),
+			},
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotID: "test-snapshot-id-1",
+			},
+			Name:        "Daily-backup2",
+			ScheduleTag: Daily,
+			Type:        BackupTypeScheduled,
+			VolumeUUID:  "volume-uuid-1",
+		}
+		err = store.db.Create(DailyBackup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(DailyBackup2).Error()
+		assert.NoError(tt, err)
+
+		shared, err := store.IsBackupShared(context.Background(), DailyBackup1)
+		assert.Nil(tt, err)
+		assert.True(tt, shared)
 	})
 }
 

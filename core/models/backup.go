@@ -48,3 +48,9 @@ type Backup struct {
 	SourceRegion                     *string
 	BackupRegion                     *string
 }
+
+type HydrateBackup struct {
+	ResourceId       string  `json:"resourceId"`
+	BackupId         string  `json:"backupId"`
+	VolumeUsageBytes *uint64 `json:"volumeUsageBytes"`
+}

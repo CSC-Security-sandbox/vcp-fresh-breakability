@@ -26,6 +26,7 @@ require (
 	github.com/prometheus/client_golang v1.22.0
 	github.com/sosodev/duration v1.3.1
 	github.com/stretchr/testify v1.10.0
+	github.com/xyproto/randomstring v1.2.0
 	go.opentelemetry.io/otel v1.36.0
 	go.opentelemetry.io/otel/exporters/prometheus v0.58.0
 	go.opentelemetry.io/otel/metric v1.36.0
@@ -62,6 +63,9 @@ require (
 	cel.dev/expr v0.23.0 // indirect
 	cloud.google.com/go v0.121.0 // indirect
 	cloud.google.com/go/auth v0.16.2 // indirect
+)
+
+require (
 	github.com/chigopher/pathlib v0.19.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect

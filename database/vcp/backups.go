@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -16,6 +17,13 @@ var (
 	deleteBackup                         = _deleteBackup
 	getBackupWithDetails                 = _getBackupWithDetails
 	getBackupVaultByNameAndBackupVaultID = _getBackupVaultByNameAndBackupVaultID
+)
+
+const (
+	BackupTypeScheduled = "SCHEDULED"
+	Daily               = "daily"
+	Weekly              = "weekly"
+	Monthly             = "monthly"
 )
 
 func (d *DataStoreRepository) GetBackupByNameAndBackupVaultID(ctx context.Context, backupName string, backupVaultID int64) (*datamodel.Backup, error) {
@@ -280,4 +288,77 @@ func (d *DataStoreRepository) BackupCountByVolumeID(ctx context.Context, volumeU
 		return 0, err
 	}
 	return count, nil
+}
+
+func (d *DataStoreRepository) FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) ([]*datamodel.Backup, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
+
+	if volume.DataProtection == nil || volume.DataProtection.BackupPolicyID == "" {
+		return nil, errors.New("volume does not have a backup policy associated with it")
+	}
+
+	var allBackups []*datamodel.Backup
+
+	var dailyBackups []*datamodel.Backup
+	err = tx.Where("volume_uuid = ?", volume.UUID).
+		Where("type = ?", BackupTypeScheduled).
+		Where("schedule_tag = ?", Daily).
+		Order("id desc").
+		Offset(int(backupPolicy.DailyBackupsToKeep)).
+		Find(&dailyBackups).Error
+	if err != nil {
+		return nil, err
+	}
+	allBackups = append(allBackups, dailyBackups...)
+
+	var weeklyBackups []*datamodel.Backup
+	err = tx.Where("volume_uuid = ?", volume.UUID).
+		Where("type = ?", BackupTypeScheduled).
+		Where("schedule_tag = ?", Weekly).
+		Order("id desc").
+		Offset(int(backupPolicy.WeeklyBackupsToKeep)).
+		Find(&weeklyBackups).Error
+	if err != nil {
+		return nil, err
+	}
+	allBackups = append(allBackups, weeklyBackups...)
+
+	var monthlyBackups []*datamodel.Backup
+	err = tx.Where("volume_uuid = ?", volume.UUID).
+		Where("type = ?", BackupTypeScheduled).
+		Where("schedule_tag = ?", Monthly).
+		Order("id desc").
+		Offset(int(backupPolicy.MonthlyBackupsToKeep)).
+		Find(&monthlyBackups).Error
+	if err != nil {
+		return nil, err
+	}
+	allBackups = append(allBackups, monthlyBackups...)
+
+	return allBackups, nil
+}
+
+func (d *DataStoreRepository) IsBackupShared(ctx context.Context, backup *datamodel.Backup) (bool, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return false, err
+	}
+	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
+
+	// Check if the backup is shared by looking for any other backup with the same snapshot ID
+	var count int64
+	err = tx.Model(&datamodel.Backup{}).
+		Where("attributes->>'snapshot_id' = ? AND uuid != ?", backup.Attributes.SnapshotID, backup.UUID).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }

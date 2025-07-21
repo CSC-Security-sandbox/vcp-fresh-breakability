@@ -178,7 +178,7 @@ func (d *DataStoreRepository) ListVolumes(ctx context.Context, conditions [][]in
 
 func _listVolumesWithDetails(db *gorm.DB) ([]*datamodel.Volume, error) {
 	var volumes []*datamodel.Volume
-	err := db.Preload("Account").Preload("Pool").Find(&volumes).Error
+	err := db.Preload("Account").Preload("Pool").Preload("Svm").Find(&volumes).Error
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
 	}

@@ -331,7 +331,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	// backup path example: "projects/123456789/locations/us-e4/backupVaults/bv1/backups/backupName"
 	if isRestoreFromBackup {
 		objStore := &common.CloudTarget{}
-		smDestinationPath := getSmSourcePath(dbVolume)
+		smDestinationPath := GetSmSourcePath(dbVolume)
 		smSourcePath, err := getSmSourcePathForRestore(backupVault, backup)
 		log.Debugf("\nsmDestinationPath: %v", smDestinationPath)
 		log.Debugf("\nsmSourcePath: %v", smSourcePath)
@@ -380,7 +380,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			}
 			switch status {
 			case activities.SmStatusTransferring:
-				err := workflow.Sleep(ctx, wait) // Wait before polling again
+				err := workflow.Sleep(ctx, Wait) // Wait before polling again
 				if err != nil {
 					return nil, fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err)
 				}
@@ -470,6 +470,10 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		if !backupPolicyExists {
 			var vcpBackupPolicy *datamodel.BackupPolicy
 			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBackupPolicyFetchedFromSDE, &dbVolume, region).Get(ctx, &vcpBackupPolicy)
+			if err != nil {
+				return nil, err
+			}
+			err = workflow.ExecuteActivity(ctx, volumeActivity.CreateBackupPolicySchedule, &vcpBackupPolicy).Get(ctx, nil)
 			if err != nil {
 				return nil, err
 			}

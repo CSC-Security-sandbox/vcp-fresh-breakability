@@ -89,6 +89,7 @@ type Request struct {
 	Volume      *VolumeHydrateObject      `json:"volume,omitempty"`
 	Replication *ReplicationHydrateObject `json:"replication,omitempty"`
 	Snapshot    *HydrateSnapshot          `json:"snapshot,omitempty"`
+	Backup      *HydrateBackup            `json:"backup,omitempty"`
 }
 
 type ReplicationHydrateObject struct {

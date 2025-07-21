@@ -2717,6 +2717,66 @@ func (_c *MockStorage_ErroredSVM_Call) RunAndReturn(run func(context.Context, *d
 	return _c
 }
 
+// FetchScheduledBackupsForDeletion provides a mock function with given fields: ctx, volume, backupPolicy
+func (_m *MockStorage) FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) ([]*datamodel.Backup, error) {
+	ret := _m.Called(ctx, volume, backupPolicy)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FetchScheduledBackupsForDeletion")
+	}
+
+	var r0 []*datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *datamodel.BackupPolicy) ([]*datamodel.Backup, error)); ok {
+		return rf(ctx, volume, backupPolicy)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *datamodel.BackupPolicy) []*datamodel.Backup); ok {
+		r0 = rf(ctx, volume, backupPolicy)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Volume, *datamodel.BackupPolicy) error); ok {
+		r1 = rf(ctx, volume, backupPolicy)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_FetchScheduledBackupsForDeletion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FetchScheduledBackupsForDeletion'
+type MockStorage_FetchScheduledBackupsForDeletion_Call struct {
+	*mock.Call
+}
+
+// FetchScheduledBackupsForDeletion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volume *datamodel.Volume
+//   - backupPolicy *datamodel.BackupPolicy
+func (_e *MockStorage_Expecter) FetchScheduledBackupsForDeletion(ctx interface{}, volume interface{}, backupPolicy interface{}) *MockStorage_FetchScheduledBackupsForDeletion_Call {
+	return &MockStorage_FetchScheduledBackupsForDeletion_Call{Call: _e.mock.On("FetchScheduledBackupsForDeletion", ctx, volume, backupPolicy)}
+}
+
+func (_c *MockStorage_FetchScheduledBackupsForDeletion_Call) Run(run func(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy)) *MockStorage_FetchScheduledBackupsForDeletion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Volume), args[2].(*datamodel.BackupPolicy))
+	})
+	return _c
+}
+
+func (_c *MockStorage_FetchScheduledBackupsForDeletion_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockStorage_FetchScheduledBackupsForDeletion_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_FetchScheduledBackupsForDeletion_Call) RunAndReturn(run func(context.Context, *datamodel.Volume, *datamodel.BackupPolicy) ([]*datamodel.Backup, error)) *MockStorage_FetchScheduledBackupsForDeletion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // FinishBackup provides a mock function with given fields: ctx, backup
 func (_m *MockStorage) FinishBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
 	ret := _m.Called(ctx, backup)
@@ -6429,6 +6489,63 @@ func (_c *MockStorage_IsBackupInCreatingorDeletingStateByVolume_Call) Return(_a0
 }
 
 func (_c *MockStorage_IsBackupInCreatingorDeletingStateByVolume_Call) RunAndReturn(run func(context.Context, string) (bool, error)) *MockStorage_IsBackupInCreatingorDeletingStateByVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IsBackupShared provides a mock function with given fields: ctx, backup
+func (_m *MockStorage) IsBackupShared(ctx context.Context, backup *datamodel.Backup) (bool, error) {
+	ret := _m.Called(ctx, backup)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsBackupShared")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Backup) (bool, error)); ok {
+		return rf(ctx, backup)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Backup) bool); ok {
+		r0 = rf(ctx, backup)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Backup) error); ok {
+		r1 = rf(ctx, backup)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_IsBackupShared_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsBackupShared'
+type MockStorage_IsBackupShared_Call struct {
+	*mock.Call
+}
+
+// IsBackupShared is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backup *datamodel.Backup
+func (_e *MockStorage_Expecter) IsBackupShared(ctx interface{}, backup interface{}) *MockStorage_IsBackupShared_Call {
+	return &MockStorage_IsBackupShared_Call{Call: _e.mock.On("IsBackupShared", ctx, backup)}
+}
+
+func (_c *MockStorage_IsBackupShared_Call) Run(run func(ctx context.Context, backup *datamodel.Backup)) *MockStorage_IsBackupShared_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Backup))
+	})
+	return _c
+}
+
+func (_c *MockStorage_IsBackupShared_Call) Return(_a0 bool, _a1 error) *MockStorage_IsBackupShared_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_IsBackupShared_Call) RunAndReturn(run func(context.Context, *datamodel.Backup) (bool, error)) *MockStorage_IsBackupShared_Call {
 	_c.Call.Return(run)
 	return _c
 }

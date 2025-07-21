@@ -1,0 +1,496 @@
+package backgroundworkflows
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/workflow"
+)
+
+const (
+	scheduledBackupTimestampFormat = "2006-01-02-150405"
+	scheduleTagDaily               = "daily"
+	scheduleTagWeekly              = "weekly"
+	scheduleTagMonthly             = "monthly"
+)
+
+var (
+	scheduledWeeklyBackupDay  = env.GetInt("SCHEDULED_WEEKLY_BACKUP_DAY", 1)  // Default to Monday (0=Sunday, 1=Monday, ..., 6=Saturday)
+	scheduledMonthlyBackupDay = env.GetInt("SCHEDULED_MONTHLY_BACKUP_DAY", 1) // Default to 1st day of the month
+)
+
+type createScheduledBackupInitWorkflow struct {
+	workflows.BaseWorkflow
+}
+
+// Enforcing workflows.WorkflowInterface interface on all the scheduled backup workflows
+var (
+	_ workflows.WorkflowInterface = &createScheduledBackupInitWorkflow{}
+	_ workflows.WorkflowInterface = &createScheduledBackupWorkflow{}
+	_ workflows.WorkflowInterface = &deleteScheduledBackupWorkflow{}
+)
+
+// CreateScheduledBackupInitWorkflow initializes the scheduled backup workflow for a given backup policy.
+func CreateScheduledBackupInitWorkflow(ctx workflow.Context, backupPolicy *datamodel.BackupPolicy) error {
+	createScheduledBackupInitWF := new(createScheduledBackupInitWorkflow)
+	err := createScheduledBackupInitWF.Setup(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	createScheduledBackupInitWF.Status = workflows.WorkflowStatusRunning
+	_, err = createScheduledBackupInitWF.Run(ctx, backupPolicy)
+	if err != nil {
+		createScheduledBackupInitWF.Status = workflows.WorkflowStatusFailed
+		return err
+	}
+	createScheduledBackupInitWF.Status = workflows.WorkflowStatusCompleted
+	return nil
+}
+
+// Setup initializes the workflow with necessary parameters and sets up a query handler for status.
+func (wf *createScheduledBackupInitWorkflow) Setup(ctx workflow.Context, _ interface{}) error {
+	// TODO: We can consider creating jobs to track the parent workflow and all the child workflows created by it.
+	info := workflow.GetInfo(ctx)
+	wf.ID = info.WorkflowExecution.ID
+	wf.Status = workflows.WorkflowStatusCreated
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID})
+	logger := util.GetLogger(ctx)
+	wf.Logger = logger
+
+	return workflow.SetQueryHandler(ctx, "status", func() (*workflows.WorkflowStatus, error) {
+		return &workflows.WorkflowStatus{
+			ID:     wf.ID,
+			Status: wf.Status,
+		}, nil
+	})
+}
+
+// Run executes the scheduled backup workflow for the given backup policy.
+func (wf *createScheduledBackupInitWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	backupPolicy := args[0].(*datamodel.BackupPolicy)
+	wf.Logger.Infof("scheduled backup workflow triggered for the backup policy: %s", backupPolicy.UUID)
+
+	retryPolicy, err := workflows.PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+	rollbackManager := common.NewRollbackManager()
+	scheduledBackupActivities := backgroundactivities.ScheduledBackupActivity{}
+
+	defer func() {
+		if err != nil {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
+
+	var volumes []*datamodel.Volume
+	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.GetVolumesByBackupPolicyUUID, backupPolicy.UUID, backupPolicy.AccountID).Get(ctx, &volumes)
+	if err != nil {
+		return nil, err
+	}
+
+	futures := make([]workflow.Future, len(volumes))
+	for i, volume := range volumes {
+		wf.Logger.Infof("Creating scheduled backup for volume: %s with backup policy: %s", volume.UUID, backupPolicy.UUID)
+		futures[i] = workflow.ExecuteChildWorkflow(
+			ctx,
+			CreateScheduledBackupWorkflow,
+			volume,
+			backupPolicy,
+		)
+	}
+
+	selector := workflow.NewSelector(ctx)
+	for _, future := range futures {
+		selector.AddFuture(future, func(f workflow.Future) {
+			var result string
+			err = f.Get(ctx, &result)
+			if err != nil {
+				wf.Logger.Errorf("Scheduled backup failed: %v", err)
+			}
+		})
+	}
+
+	for range futures {
+		selector.Select(ctx)
+	}
+	return nil, nil
+}
+
+type createScheduledBackupWorkflow struct {
+	workflows.BaseWorkflow
+}
+
+// CreateScheduledBackupWorkflow creates a scheduled backup for a given volume and backup policy.
+func CreateScheduledBackupWorkflow(ctx workflow.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) error {
+	createScheduledBackupWF := new(createScheduledBackupWorkflow)
+	err := createScheduledBackupWF.Setup(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	createScheduledBackupWF.Status = workflows.WorkflowStatusRunning
+	_, err = createScheduledBackupWF.Run(ctx, volume, backupPolicy)
+	if err != nil {
+		createScheduledBackupWF.Status = workflows.WorkflowStatusFailed
+		return err
+	}
+	createScheduledBackupWF.Status = workflows.WorkflowStatusCompleted
+	return nil
+}
+
+// Setup initializes the workflow with necessary parameters and sets up a query handler for status.
+func (wf *createScheduledBackupWorkflow) Setup(ctx workflow.Context, _ interface{}) error {
+	info := workflow.GetInfo(ctx)
+	wf.ID = info.WorkflowExecution.ID
+	wf.Status = workflows.WorkflowStatusCreated
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID})
+	logger := util.GetLogger(ctx)
+	wf.Logger = logger
+
+	return workflow.SetQueryHandler(ctx, "status", func() (*workflows.WorkflowStatus, error) {
+		return &workflows.WorkflowStatus{
+			ID:     wf.ID,
+			Status: wf.Status,
+		}, nil
+	})
+}
+
+// Run executes the scheduled backup workflow for the given volume and backup policy.
+func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	volume := args[0].(*datamodel.Volume)
+	backupPolicy := args[1].(*datamodel.BackupPolicy)
+	wf.Logger.Infof("create scheduled backup workflow triggered for the backup policy: %s, volume: %s", backupPolicy.UUID, volume.UUID)
+
+	retryPolicy, err := workflows.PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+	rollbackManager := common.NewRollbackManager()
+	backupActivities := &activities.BackupActivity{}
+	scheduledBackupActivities := backgroundactivities.ScheduledBackupActivity{}
+
+	// TODO: Add rollback activities for each of the activities in the workflow.
+	defer func() {
+		if err != nil {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
+
+	var backupVault *datamodel.BackupVault
+	err = workflow.ExecuteActivity(ctx, backupActivities.GetBackupVault, volume.DataProtection.BackupVaultID).Get(ctx, &backupVault)
+	if err != nil {
+		return nil, err
+	}
+
+	var backups []*datamodel.Backup
+	timestamp := workflow.Now(ctx).Format(scheduledBackupTimestampFormat)
+	if backupPolicy.DailyBackupsToKeep >= 2 {
+		var backup *datamodel.Backup
+		err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, scheduleTagDaily).Get(ctx, &backup)
+		if err != nil {
+			return nil, err
+		}
+		backups = append(backups, backup)
+	}
+
+	today := workflow.Now(ctx).Weekday()
+	if backupPolicy.WeeklyBackupsToKeep > 0 && today == time.Weekday(scheduledWeeklyBackupDay) {
+		var backup *datamodel.Backup
+		err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, scheduleTagWeekly).Get(ctx, &backup)
+		if err != nil {
+			return nil, err
+		}
+		backups = append(backups, backup)
+	}
+
+	_, _, day := workflow.Now(ctx).Date()
+	if backupPolicy.MonthlyBackupsToKeep > 0 && day == scheduledMonthlyBackupDay {
+		var backup *datamodel.Backup
+		err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, scheduleTagMonthly).Get(ctx, &backup)
+		if err != nil {
+			return nil, err
+		}
+		backups = append(backups, backup)
+	}
+
+	// Exit early if there are no backups to create (e.g., daily backup retention is 0 and no weekly or monthly backups are required)
+	if len(backups) == 0 {
+		return nil, nil
+	}
+
+	var dbNodes []*datamodel.Node
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.PoolID).Get(ctx, &dbNodes)
+	if err != nil {
+		return nil, err
+	}
+	node := common.CreateNodeForProvider(common.NodeProviderInput{
+		Nodes:          dbNodes,
+		Password:       volume.Pool.PoolCredentials.Password,
+		SecretID:       volume.Pool.PoolCredentials.SecretID,
+		DeploymentName: volume.Pool.DeploymentName},
+	)
+
+	var snapshotName string
+	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.GenerateScheduledSnapshotName, timestamp).Get(ctx, &snapshotName)
+	if err != nil {
+		return nil, err
+	}
+
+	objectStoreName, err := workflows.GetObjStoreName(backupVault, volume)
+	if err != nil {
+		return nil, err
+	}
+	bucketDetails, err := workflows.GetBucketDetails(backupVault, volume)
+	if err != nil {
+		return nil, err
+	}
+	bucketName := bucketDetails.BucketName
+
+	cloudTarget := &common.CloudTarget{}
+	err = workflow.ExecuteActivity(ctx, backupActivities.GetOrCreateObjectStore, node, objectStoreName, bucketName).Get(ctx, &cloudTarget)
+	if err != nil {
+		return nil, err
+	}
+
+	snapmirrorRelationship := &common.SnapmirrorRelationship{}
+	smSourcePath := workflows.GetSmSourcePath(volume)
+	smDestinationPath := fmt.Sprintf("%s:/objstore/%s", cloudTarget.Name, volume.UUID)
+	SnapmirrorRelationshipParams := &common.SnapmirrorRelationshipParams{
+		SourcePath:      smSourcePath,
+		DestinationPath: smDestinationPath,
+		SourceUUID:      nil,
+		IsRestore:       false,
+	}
+	err = workflow.ExecuteActivity(ctx, backupActivities.SnapmirrorGetorCreate, node, &SnapmirrorRelationshipParams).Get(ctx, &snapmirrorRelationship)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshotResponse := &vsa.SnapshotProviderResponse{}
+	err = workflow.ExecuteActivity(ctx, backupActivities.SnapshotCreate, node, volume.VolumeAttributes.ExternalUUID, snapshotName, workflows.BackupComment).Get(ctx, &snapshotResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	err = workflow.ExecuteActivity(ctx, backupActivities.SnapmirrorTransfer, node, snapmirrorRelationship.UUID, snapshotName).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	done := false
+	var status string
+	for !done {
+		err = workflow.ExecuteActivity(ctx, backupActivities.GetSnapmirrorTransferStatus, node, snapmirrorRelationship.UUID, snapshotName).Get(ctx, &status)
+		if err != nil {
+			return nil, err
+		}
+		switch status {
+		case activities.SmStatusTransferring:
+			err = workflow.Sleep(ctx, workflows.Wait) // Wait before polling again
+			if err != nil {
+				return nil, fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err)
+			}
+		case activities.SmStatusSuccess:
+			done = true
+		case activities.SmStatusFailed:
+			return nil, fmt.Errorf("snapmirror transfer failed for snapshot %s with status: %s", snapshotName, status)
+		}
+	}
+
+	for _, backup := range backups {
+		backup.Attributes.SnapshotName = snapshotName
+		backup.Attributes.SnapshotID = snapshotResponse.ExternalUUID
+		backup.Attributes.SnapshotCreationTime = workflow.Now(ctx).String()
+		backup.Attributes.BucketName = bucketName
+		backup.Attributes.ServiceAccountName = bucketDetails.ServiceAccountName
+		if snapmirrorRelationship != nil && snapmirrorRelationship.DestinationUUID != nil {
+			backup.Attributes.EndpointUUID = *snapmirrorRelationship.DestinationUUID
+		}
+
+		err = workflow.ExecuteActivity(ctx, backupActivities.FinishBackup, backup).Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.HydrateCreatedBackupsToCCFE, volume, backups, backupVault.Name).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	err = workflow.ExecuteChildWorkflow(ctx, DeleteScheduledBackupWorkflow, volume, backupPolicy).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+type deleteScheduledBackupWorkflow struct {
+	workflows.BaseWorkflow
+}
+
+// DeleteScheduledBackupWorkflow removes older scheduled backups for a volume and backup policy according to daily, weekly, and monthly retention limits.
+func DeleteScheduledBackupWorkflow(ctx workflow.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) error {
+	deleteScheduledBackupWF := new(deleteScheduledBackupWorkflow)
+	err := deleteScheduledBackupWF.Setup(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	deleteScheduledBackupWF.Status = workflows.WorkflowStatusRunning
+	_, err = deleteScheduledBackupWF.Run(ctx, volume, backupPolicy)
+	if err != nil {
+		deleteScheduledBackupWF.Status = workflows.WorkflowStatusFailed
+		return err
+	}
+	deleteScheduledBackupWF.Status = workflows.WorkflowStatusCompleted
+	return nil
+}
+
+// Setup initializes the workflow with necessary parameters and sets up a query handler for status.
+func (wf *deleteScheduledBackupWorkflow) Setup(ctx workflow.Context, _ interface{}) error {
+	info := workflow.GetInfo(ctx)
+	wf.ID = info.WorkflowExecution.ID
+	wf.Status = workflows.WorkflowStatusCreated
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID})
+	logger := util.GetLogger(ctx)
+	wf.Logger = logger
+
+	return workflow.SetQueryHandler(ctx, "status", func() (*workflows.WorkflowStatus, error) {
+		return &workflows.WorkflowStatus{
+			ID:     wf.ID,
+			Status: wf.Status,
+		}, nil
+	})
+}
+
+// Run executes the scheduled backup deletion workflow for the given volume and backup policy.
+func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	volume := args[0].(*datamodel.Volume)
+	backupPolicy := args[1].(*datamodel.BackupPolicy)
+	wf.Logger.Infof("delete scheduled backup workflow triggered for the backup policy: %s, volume: %s", backupPolicy.UUID, volume.UUID)
+
+	retryPolicy, err := workflows.PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	scheduledBackupActivities := backgroundactivities.ScheduledBackupActivity{}
+	backupActivities := &activities.BackupActivity{}
+
+	var backupVault *datamodel.BackupVault
+	err = workflow.ExecuteActivity(ctx, backupActivities.GetBackupVault, volume.DataProtection.BackupVaultID).Get(ctx, &backupVault)
+	if err != nil {
+		return nil, err
+	}
+
+	var backupToBeDeleted []*datamodel.Backup
+	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.FetchScheduledBackupForDeletion, volume, backupPolicy).Get(ctx, &backupToBeDeleted)
+	if err != nil {
+		return nil, err
+	}
+
+	// Exit early if there are no backups to delete
+	if len(backupToBeDeleted) == 0 {
+		return nil, nil
+	}
+
+	var dbNodes []*datamodel.Node
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.PoolID).Get(ctx, &dbNodes)
+	if err != nil {
+		return nil, err
+	}
+	node := common.CreateNodeForProvider(common.NodeProviderInput{
+		Nodes:          dbNodes,
+		Password:       volume.Pool.PoolCredentials.Password,
+		SecretID:       volume.Pool.PoolCredentials.SecretID,
+		DeploymentName: volume.Pool.DeploymentName},
+	)
+
+	objectStoreName, err := workflows.GetObjStoreName(backupVault, volume)
+	if err != nil {
+		return nil, err
+	}
+
+	var objStore *common.CloudTarget
+	err = workflow.ExecuteActivity(ctx, backupActivities.GetObjectStore, node, objectStoreName).Get(ctx, &objStore)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, backup := range backupToBeDeleted {
+		var isSharedBackup bool
+		err = workflow.ExecuteActivity(ctx, backupActivities.IsBackupShared, backup).Get(ctx, &isSharedBackup)
+		if err != nil {
+			wf.Logger.Errorf("Failed to check if backup %s is shared: %v", backup.Name, err)
+			return nil, err
+		}
+		if !isSharedBackup {
+			var ontapAsyncResponse *vsa.OntapAsyncResponse
+			err = workflow.ExecuteActivity(ctx, backupActivities.DeleteSnapshotFromObjectStore, node, objStore.UUID, backup.Attributes.EndpointUUID, backup.Attributes.SnapshotID).Get(ctx, &ontapAsyncResponse)
+			if err != nil {
+				return nil, err
+			}
+
+			err = workflows.WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
+			if err != nil {
+				return nil, fmt.Errorf("failed to delete cloud endpoint: %w", err)
+			}
+		}
+		err = workflow.ExecuteActivity(ctx, backupActivities.DeleteBackup, backup.UUID).Get(ctx, nil)
+		if err != nil {
+			wf.Logger.Errorf("Failed to delete backup %s: %v", backup.Name, err)
+			return nil, fmt.Errorf("failed to delete backup %s: %w", backup.Name, err)
+		}
+	}
+
+	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.HydrateDeletedBackupsToCCFE, volume, backupToBeDeleted, backupVault.Name).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
