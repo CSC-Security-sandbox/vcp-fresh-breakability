@@ -5342,21 +5342,21 @@ func TestGetVolumeTypeValidator(t *testing.T) {
 	t.Cleanup(func() { utils.FileProtocolSupported = oldFlag })
 
 	t.Run("ISCSI returns BlockVolumeProcessor", func(tt *testing.T) {
-		validator, err := GetVolumeTypeValidator([]string{"iscsi"})
+		validator, err := GetVolumeTypeValidator([]string{"ISCSI"})
 		assert.IsType(tt, &BlockVolumeProcessor{}, validator)
 		assert.NoError(tt, err)
 	})
 
 	t.Run("File-based protocol returns error if flag is false", func(tt *testing.T) {
 		utils.FileProtocolSupported = false
-		validator, err := GetVolumeTypeValidator([]string{"nfsv4"})
+		validator, err := GetVolumeTypeValidator([]string{"NFSV4"})
 		assert.Nil(tt, validator)
 		assert.ErrorContains(tt, err, "file protocols are not enabled")
 	})
 
 	t.Run("File-based protocol returns FileVolumeProcessor if flag is true", func(tt *testing.T) {
 		utils.FileProtocolSupported = true
-		validator, err := GetVolumeTypeValidator([]string{"nfsv4"})
+		validator, err := GetVolumeTypeValidator([]string{"NFSV4"})
 		assert.IsType(tt, &FileVolumeProcessor{}, validator)
 		assert.NoError(tt, err)
 	})
@@ -5372,4 +5372,676 @@ func TestGetVolumeTypeValidator(t *testing.T) {
 		assert.Nil(tt, validator)
 		assert.ErrorContains(tt, err, "unsupported or unspecified protocol")
 	})
+}
+
+func TestGetIPAddressForVolume(t *testing.T) {
+	t.Run("GetIPAddressForBlockProtocol", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		node := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid"},
+			Name:            "test_node",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+		}
+		err = store.DB().Create(node).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node: %v", err)
+		}
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid"},
+			Name:      "test_lif",
+			NodeID:    node.ID,
+			AccountID: account.ID,
+			IPAddress: "192.168.1.200",
+		}
+		err = store.DB().Create(lif).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolISCSI}, // Block protocol
+			},
+		}
+
+		// Test getting IP address for block protocol (this doesn't use GetLifForFilesNode)
+		ipAddress, err := _getIPAddressForVolume(ctx, store, volume)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "192.168.1.200", ipAddress)
+	})
+
+	t.Run("GetIPAddressForBlockProtocol", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		node := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid"},
+			Name:            "test_node",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+		}
+		err = store.DB().Create(node).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node: %v", err)
+		}
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid"},
+			Name:      "test_lif",
+			NodeID:    node.ID,
+			AccountID: account.ID,
+			IPAddress: "192.168.1.101",
+		}
+		err = store.DB().Create(lif).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID, // Set the pool ID
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolISCSI},
+				BlockProperties: &datamodel.BlockProperties{
+					OSType: "linux",
+				},
+			},
+		}
+
+		// Test getting IP address for block protocol
+		ipAddress, err := _getIPAddressForVolume(ctx, store, volume)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "192.168.1.101", ipAddress)
+	})
+}
+
+func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
+	utils.FileProtocolSupported = true
+	t.Run("FilePropertiesValidationEmptyAllowedClients", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+			Network:   "test-network",
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// Create 2 nodes as required by the validation
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid-1"},
+			Name:            "test_node_1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node1: %v", err)
+		}
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid-2"},
+			Name:            "test_node_2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.13",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node2: %v", err)
+		}
+
+		// Create LIFs for the nodes (required for validation)
+		lif1 := &datamodel.Lif{
+			BaseModel:  datamodel.BaseModel{UUID: "test-lif-uuid-1"},
+			Name:       "test_lif_1",
+			AccountID:  account.ID,
+			NodeID:     node1.ID,
+			IPAddress:  "192.168.1.10",
+			SubnetMask: "255.255.255.0",
+			Type:       "data",
+		}
+		err = store.DB().Create(lif1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif1: %v", err)
+		}
+
+		lif2 := &datamodel.Lif{
+			BaseModel:  datamodel.BaseModel{UUID: "test-lif-uuid-2"},
+			Name:       "test_lif_2",
+			AccountID:  account.ID,
+			NodeID:     node2.ID,
+			IPAddress:  "192.168.1.11",
+			SubnetMask: "255.255.255.0",
+			Type:       "data",
+		}
+		err = store.DB().Create(lif2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif2: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			Name:         "test-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: 107374182400, // 100GB
+			Protocols:    []string{utils.ProtocolNFSv3},
+			Network:      "test-network",
+			FileProperties: &models.FileProperties{
+				ExportPolicyName: "test-policy",
+				ExportRules: []*models.ExportRule{
+					{
+						AllowedClients: "", // Empty allowed clients
+						AccessType:     models.ReadWrite,
+						NFSv3:          true,
+						Index:          1,
+					},
+				},
+			},
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "allowed clients cannot be nil in export rules")
+	})
+	t.Run("ProtocolValidationNoProtocols", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+			Network:   "test-network",
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// Create 2 nodes as required by the validation
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid-1"},
+			Name:            "test_node_1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node1: %v", err)
+		}
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid-2"},
+			Name:            "test_node_2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.13",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node2: %v", err)
+		}
+
+		// Create LIFs for the nodes (required for validation)
+		lif1 := &datamodel.Lif{
+			BaseModel:  datamodel.BaseModel{UUID: "test-lif-uuid-1"},
+			Name:       "test_lif_1",
+			AccountID:  account.ID,
+			NodeID:     node1.ID,
+			IPAddress:  "192.168.1.10",
+			SubnetMask: "255.255.255.0",
+			Type:       "data",
+		}
+		err = store.DB().Create(lif1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif1: %v", err)
+		}
+
+		lif2 := &datamodel.Lif{
+			BaseModel:  datamodel.BaseModel{UUID: "test-lif-uuid-2"},
+			Name:       "test_lif_2",
+			AccountID:  account.ID,
+			NodeID:     node2.ID,
+			IPAddress:  "192.168.1.11",
+			SubnetMask: "255.255.255.0",
+			Type:       "data",
+		}
+		err = store.DB().Create(lif2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif2: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			Name:         "test-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: 107374182400, // 100GB
+			Protocols:    []string{},   // No protocols specified
+			Network:      "test-network",
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "at least one protocol must be specified")
+	})
+
+	t.Run("ProtocolValidationFileProtocolNotEnabled", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		// Set file protocol supported flag to false
+		oldFlag := utils.FileProtocolSupported
+		utils.FileProtocolSupported = false
+		defer func() { utils.FileProtocolSupported = oldFlag }()
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+			Network:   "test-network",
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		// Create 2 nodes as required by the validation
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid-1"},
+			Name:            "test_node_1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node1: %v", err)
+		}
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid-2"},
+			Name:            "test_node_2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.13",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node2: %v", err)
+		}
+
+		// Create LIFs for the nodes (required for validation)
+		lif1 := &datamodel.Lif{
+			BaseModel:  datamodel.BaseModel{UUID: "test-lif-uuid-1"},
+			Name:       "test_lif_1",
+			AccountID:  account.ID,
+			NodeID:     node1.ID,
+			IPAddress:  "192.168.1.10",
+			SubnetMask: "255.255.255.0",
+			Type:       "data",
+		}
+		err = store.DB().Create(lif1).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif1: %v", err)
+		}
+
+		lif2 := &datamodel.Lif{
+			BaseModel:  datamodel.BaseModel{UUID: "test-lif-uuid-2"},
+			Name:       "test_lif_2",
+			AccountID:  account.ID,
+			NodeID:     node2.ID,
+			IPAddress:  "192.168.1.11",
+			SubnetMask: "255.255.255.0",
+			Type:       "data",
+		}
+		err = store.DB().Create(lif2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif2: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			Name:         "test-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: 107374182400,                  // 100GB
+			Protocols:    []string{utils.ProtocolNFSv3}, // File protocol when not enabled
+			Network:      "test-network",
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool: *pool,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.ErrorContains(tt, err, "file protocols (NFSv3, NFSv4, SMB) are not enabled")
+	})
+}
+
+func TestConvertDatastoreVolumeToModelFileProperties(t *testing.T) {
+	t.Run("ConvertVolumeWithFileProperties", func(tt *testing.T) {
+		ipAddress := "192.168.1.100"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:        "test-volume",
+			Description: "test description",
+			SizeInBytes: 107374182400,
+			Account:     account,
+			Pool:        pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "test-token",
+				Protocols:     []string{utils.ProtocolNFSv3},
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicyName: "test-policy",
+					JunctionPath:     "/test-path",
+					ExportRules: []*datamodel.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							CIFS:           false,
+							NFSv3:          true,
+							NFSv4:          false,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		// Test conversion with file properties - should cover export rules conversion and FileProperties assignment
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.FileProperties)
+		assert.Equal(tt, "test-policy", result.FileProperties.ExportPolicyName)
+		assert.Equal(tt, "/test-path", result.FileProperties.JunctionPath)
+		assert.Len(tt, result.FileProperties.ExportRules, 1)
+		assert.Equal(tt, "192.168.1.0/24", result.FileProperties.ExportRules[0].AllowedClients)
+		assert.Equal(tt, models.ReadWrite, result.FileProperties.ExportRules[0].AccessType)
+		assert.False(tt, result.FileProperties.ExportRules[0].CIFS)
+		assert.True(tt, result.FileProperties.ExportRules[0].NFSv3)
+		assert.False(tt, result.FileProperties.ExportRules[0].NFSv4)
+	})
+
+	t.Run("ConvertVolumeWithoutFileProperties", func(tt *testing.T) {
+		ipAddress := "192.168.1.100"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:        "test-volume",
+			Description: "test description",
+			SizeInBytes: 107374182400,
+			Account:     account,
+			Pool:        pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "test-token",
+				Protocols:     []string{utils.ProtocolISCSI},
+				// No FileProperties
+			},
+		}
+
+		// Test conversion without file properties
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+
+		assert.NotNil(tt, result)
+		assert.Nil(tt, result.FileProperties)
+	})
+}
+
+func TestValidateAllowedClients(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{"Single valid IPv4", "192.168.1.1", false},
+		{"Multiple valid IPv4", "10.0.0.1,192.168.1.2", false},
+		{"Valid IPv4 CIDR", "10.0.0.0/24", false},
+		{"Mix of IPv4 and CIDR", "10.0.0.1,10.0.0.0/24", false},
+		{"Invalid IP", "999.999.999.999", true},
+		{"Invalid CIDR", "10.0.0.0/33", true},
+		{"IP not matching CIDR base", "10.0.0.5/24", true},
+		{"Duplicate IPs", "10.0.0.1,10.0.0.1", true},
+		{"Duplicate CIDRs", "10.0.0.0/24,10.0.0.0/24", true},
+		{"Empty string", "", true},
+		{"Zero address with nonzero mask", "0.0.0.0/8", true},
+		{"Allow all clients", models.AllowedAllClients, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAllowedClients(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err, "expected error for input: %q", tt.input)
+			} else {
+				assert.NoError(t, err, "expected no error for input: %q", tt.input)
+			}
+		})
+	}
 }

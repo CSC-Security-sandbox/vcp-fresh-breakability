@@ -28,6 +28,7 @@ type Volume struct {
 	SnapReserve           int64
 	AutoTieringPolicy     *AutoTieringPolicy
 	Labels                map[string]string
+	FileProperties        *FileProperties
 }
 
 // AutoTieringPolicy describes the auto tiering policy for a volume
@@ -42,6 +43,33 @@ type BlockProperties struct {
 	HostGroupDetail []HostGroupDetails
 	LunName         string
 	LunSerialNumber string
+}
+
+type FileProperties struct {
+	JunctionPath     string
+	ExportPolicyName string
+	ExportRules      []*ExportRule
+}
+
+type ExportRule struct {
+	AllowedClients      string
+	AnonymousUser       string
+	Index               int
+	ChownMode           string
+	AccessType          string
+	CIFS                bool
+	NFSv3               bool
+	NFSv4               bool
+	S3                  bool
+	UnixReadOnly        bool
+	UnixReadWrite       bool
+	Kerberos5ReadOnly   bool
+	Kerberos5ReadWrite  bool
+	Kerberos5iReadOnly  bool
+	Kerberos5iReadWrite bool
+	Kerberos5pReadOnly  bool
+	Kerberos5pReadWrite bool
+	Superuser           bool
 }
 
 type HostGroupDetails struct {

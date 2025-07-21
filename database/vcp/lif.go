@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -14,12 +15,22 @@ import (
 )
 
 var (
-	getLifWithDetails = _getLifWithDetails
+	getLifWithDetails         = _getLifWithDetails
+	getLifWithProtocolDetails = _getLifWithProtocolDetails
 )
 
 // GetLifByNodeID retrieves a LIF by its corresponding Node ID
 func (d *DataStoreRepository) GetLifByNodeID(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error) {
 	lif, err := getLifWithDetails(d.db.GORM().Unscoped().WithContext(ctx), &datamodel.Lif{NodeID: nodeID, AccountID: accountID})
+	if err != nil {
+		return nil, err
+	}
+	return lif, nil
+}
+
+// GetLifByNodeIDAndProtocol retrieves a LIF by its corresponding Node ID and protocol
+func (d *DataStoreRepository) GetLifByNodeIDAndProtocol(ctx context.Context, nodeID int64, accountID int64, protocol string) (*datamodel.Lif, error) {
+	lif, err := getLifWithProtocolDetails(d.db.GORM().Unscoped().WithContext(ctx), &datamodel.Lif{NodeID: nodeID, AccountID: accountID}, protocol)
 	if err != nil {
 		return nil, err
 	}
@@ -57,6 +68,14 @@ func (d *DataStoreRepository) CreateLif(ctx context.Context, lif *datamodel.Lif)
 	return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, customerrors.NewConflictErr("lif already exists"))
 }
 
+func (d *DataStoreRepository) GetLifForFilesNode(ctx context.Context, nodeID int64, accountID int64, protocol string) (*datamodel.Lif, error) {
+	lif, err := getLifWithProtocolDetails(d.db.GORM().WithContext(ctx), &datamodel.Lif{NodeID: nodeID, AccountID: accountID}, protocol)
+	if err != nil {
+		return nil, err
+	}
+	return lif, nil
+}
+
 // DeleteLif deletes a LIF from the database
 func (d *DataStoreRepository) DeleteLif(ctx context.Context, lif *datamodel.Lif) error {
 	db := d.db.GORM().WithContext(ctx)
@@ -85,6 +104,22 @@ func (d *DataStoreRepository) GetLifForNode(ctx context.Context, nodeID int64, a
 func _getLifWithDetails(db *gorm.DB, query *datamodel.Lif) (*datamodel.Lif, error) {
 	lif := &datamodel.Lif{}
 	err := db.First(&lif, query).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "lif", nil))
+	}
+	return lif, nil
+}
+
+// _getLifWithProtocolDetails retrieves a LIF with protocol details from the database
+func _getLifWithProtocolDetails(db *gorm.DB, query *datamodel.Lif, protocol string) (*datamodel.Lif, error) {
+	lif := &datamodel.Lif{}
+	dbQuery := db.Where(query)
+
+	if protocol != "" {
+		dbQuery = dbQuery.Where("lif_details @> ?", fmt.Sprintf(`{"protocol_type": "%s"}`, protocol))
+	}
+
+	err := dbQuery.First(&lif).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "lif", nil))
 	}

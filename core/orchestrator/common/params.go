@@ -75,6 +75,7 @@ type CreateVolumeParams struct {
 	DataProtection    *models.DataProtection
 	SnapshotID        string
 	SnapshotPolicy    *models.SnapshotPolicy
+	FileProperties    *models.FileProperties
 	Snapshot          *datamodel.Snapshot
 	AutoTieringPolicy *AutoTieringPolicy
 	BackupID          string
@@ -122,6 +123,7 @@ type UpdateVolumeParams struct {
 	DataProtection    *models.DataProtection
 	InitiateSplit     bool
 	AutoTieringPolicy *AutoTieringPolicy
+	FileProperties    *models.FileProperties
 }
 
 type CreateLunMapParams struct {

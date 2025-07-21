@@ -26,6 +26,7 @@ type RESTClient interface { // generate:mock
 	Cluster() ClusterClient
 	Cloud() CloudClient
 	SAN() SANClient
+	NAS() NASClient
 	Networking() NetworkingClient
 	Security() SecurityClient
 	Storage() StorageClient
@@ -40,6 +41,7 @@ type OntapRestClient struct {
 	httpRoundTripperTransport *http.Transport
 	cluster                   *clusterClient
 	san                       *sanClient
+	nas                       *nasClient
 	security                  *securityClient
 	networking                *networkingClient
 	storage                   *storageClient
@@ -143,6 +145,7 @@ func NewClient(params RESTClientParams) (RESTClient, error) {
 			networking:                &networkingClient{api: api.Networking, apiPriv: &apiPriv.Operations},
 			storage:                   &storageClient{api: api.Storage},
 			san:                       &sanClient{api: api.San},
+			nas:                       &nasClient{api: api.Nas, poller: p},
 			snapmirror:                &snapmirrorClient{api: api.Snapmirror, apiPriv: apiPriv.Snapmirror},
 			poller:                    p,
 			security:                  &securityClient{api: &api.Security},
@@ -219,6 +222,11 @@ func (rc *OntapRestClient) Security() SecurityClient {
 // SAN returns a SAN client
 func (rc *OntapRestClient) SAN() SANClient {
 	return rc.san
+}
+
+// NAS returns a NAS client
+func (rc *OntapRestClient) NAS() NASClient {
+	return rc.nas
 }
 
 // Snapmirror returns a Snapmirror client

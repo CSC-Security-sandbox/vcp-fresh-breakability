@@ -89,6 +89,11 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 		},
 	}
 
+	if utils.FileProtocolSupported && volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil {
+		params.ExportPolicy = &volume.VolumeAttributes.FileProperties.ExportPolicyName
+		params.JunctionPath = &volume.VolumeAttributes.FileProperties.JunctionPath
+	}
+
 	if volume.AutoTieringEnabled && volume.AutoTieringPolicy != nil {
 		params.TieringPolicy.CoolAccessTieringPolicy = nillable.GetString(&volume.AutoTieringPolicy.TieringPolicy, ontapModels.VolumeInlineTieringPolicyAuto)
 		params.TieringPolicy.CoolAccessRetrievalPolicy = nillable.GetString(&volume.AutoTieringPolicy.RetrievalPolicy, ontapModels.VolumeCloudRetrievalPolicyDefault)
@@ -141,6 +146,46 @@ func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamod
 		return nil, err
 	}
 	return lun, nil
+}
+
+func (a VolumeCreateActivity) CreateExportPolicyInOntap(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	if volume.VolumeAttributes.FileProperties == nil {
+		logger.Info("Skipping export policy creation for non-file volume")
+		return nil
+	}
+	provider, err := GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	vsaExportRules := make([]*vsa.ExportRule, 0)
+	for _, rule := range volume.VolumeAttributes.FileProperties.ExportRules {
+		vsaExportRule := &vsa.ExportRule{
+			AccessType:     rule.AccessType,
+			AllowedClients: rule.AllowedClients,
+			CIFS:           rule.CIFS,
+			NFSv3:          rule.NFSv3,
+			NFSv4:          rule.NFSv4,
+			Index:          rule.Index,
+			AnonymousUser:  rule.AnonymousUser,
+		}
+		vsaExportRules = append(vsaExportRules, vsaExportRule)
+	}
+	vsaExportPolicy := &vsa.ExportPolicy{
+		ExportPolicyName: volume.VolumeAttributes.FileProperties.ExportPolicyName,
+		SvmName:          volume.Svm.Name,
+		ExportRules:      vsaExportRules,
+	}
+	err = provider.CreateExportPolicy(vsaExportPolicy)
+	if err != nil {
+		if errors.IsConflictErr(err) {
+			// If export policy already exists, we can skip creation
+			logger.Debug("Export policy already exists, skipping creation", "name", vsaExportPolicy.ExportPolicyName)
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func HandleVolumeCreateConflict(volume *datamodel.Volume, provider vsa.Provider) (*vsa.VolumeResponse, error) {

@@ -212,7 +212,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if err != nil {
 			return nil, err
 		}
-		if protocol != gcpgenserver.ProtocolsV1betaISCSI {
+		if !utils.FileProtocolSupported && string(protocolStr) != string(gcpgenserver.ProtocolsV1betaISCSI) {
 			return nil, errors.NewUserInputValidationErr("only ISCSI protocol is supported")
 		}
 		param.Protocols = append(param.Protocols, string(protocolStr))
@@ -233,6 +233,27 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			param.AutoTieringPolicy.AutoTieringEnabled = false
 			param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyNone
 		}
+	}
+
+	param.FileProperties = &models.FileProperties{
+		ExportPolicyName: req.Volume.CreationToken.Value,
+	}
+	if req.Volume.ExportPolicy.IsSet() {
+		var exportRules []*models.ExportRule
+		for index, rule := range req.Volume.ExportPolicy.Value.GetRules() {
+			accessType, err := rule.AccessType.MarshalText()
+			if err != nil {
+				continue
+			}
+			exportRules = append(exportRules, &models.ExportRule{
+				AllowedClients: rule.GetAllowedClients(),
+				AccessType:     string(accessType),
+				NFSv3:          rule.Nfsv3.Value,
+				NFSv4:          rule.Nfsv4.Value,
+				Index:          index + 1, // adding 1 as 0 index is not supported by ontap
+			})
+		}
+		param.FileProperties.ExportRules = exportRules
 	}
 
 	if req.Volume.BlockProperties.IsSet() {
@@ -378,7 +399,7 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		if err != nil {
 			return nil, err
 		}
-		if protocol != gcpgenserver.ProtocolsV1betaISCSI {
+		if !utils.FileProtocolSupported && string(protocolStr) != string(gcpgenserver.ProtocolsV1betaISCSI) {
 			return nil, errors.NewUserInputValidationErr("only ISCSI protocol is supported")
 		}
 		param.Protocols = append(param.Protocols, string(protocolStr))
@@ -584,6 +605,30 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		res.Labels = gcpgenserver.OptVolumeV1betaLabels{Value: labels}
 	}
 
+	if volume.FileProperties != nil {
+		rules := make([]gcpgenserver.SimpleExportPolicyRuleV1beta, 0)
+		for _, rule := range volume.FileProperties.ExportRules {
+			rules = append(rules, gcpgenserver.SimpleExportPolicyRuleV1beta{
+				AllowedClients: rule.AllowedClients,
+				AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessType(rule.AccessType),
+				Nfsv3:          gcpgenserver.OptNilBool{Value: rule.NFSv3},
+				Nfsv4:          gcpgenserver.OptNilBool{Value: rule.NFSv4},
+			})
+		}
+		res.ExportPolicy = gcpgenserver.NewOptExportPolicyV1beta(
+			gcpgenserver.ExportPolicyV1beta{
+				Rules: rules,
+			})
+		if volume.LifeCycleState == string(gcpgenserver.VolumeV1betaVolumeStateREADY) {
+			res.MountPoints = make([]gcpgenserver.MountPointV1beta, 0)
+			res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
+				IpAddress:    gcpgenserver.NewOptString(volume.IPAddress),
+				Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1betaNFSV3),
+				Instructions: getFilesMountInstructions(volume.IPAddress, volume.FileProperties.JunctionPath, "/"+volume.DisplayName),
+			})
+		}
+	}
+
 	if volume.BlockProperties != nil {
 		blockPropertiesV1beta := gcpgenserver.BlockPropertiesV1beta{
 			OsType:          gcpgenserver.NewOptBlockPropertiesV1betaOsType(gcpgenserver.BlockPropertiesV1betaOsType(volume.BlockProperties.OSType)),
@@ -646,6 +691,25 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 	}
 
 	return res
+}
+
+func getFilesMountInstructions(ipAddress string, junctionPath string, fileDir string) gcpgenserver.OptString {
+	instructions := fmt.Sprintf(`Mount Instructions for NFSv3
+Setting up your instance
+1. Open an SSH client and connect to your instance.
+2. Install the nfs client on your instance.
+On Red Hat Enterprise Linux or SuSE Linux instance:
+$sudo yum install -y nfs-utils
+On an Ubuntu or Debian instance:
+$sudo apt-get install nfs-common
+Mounting your volume for NFSv3
+1. Create a new directory on your instance, such as %s:
+$sudo mkdir %s
+2. Mount your volume using the example command below:
+$sudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp %s:%s %s
+3. Repeat the above two steps for future mount targets.
+Note. Please use mount options appropriate for your specific workloads when known.`, fileDir, fileDir, ipAddress, junctionPath, fileDir)
+	return gcpgenserver.NewOptString(instructions)
 }
 
 func getMountInstructions(osType string, ipAddress string, lunName string) gcpgenserver.OptString {

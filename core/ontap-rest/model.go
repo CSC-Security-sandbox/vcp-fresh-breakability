@@ -9,6 +9,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cloud"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
+	nas "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/n_a_s"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/name_services"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/networking"
 	san "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/s_a_n"
@@ -1930,10 +1931,10 @@ type VolumeCreateParams struct {
 	Size                           int64
 	QosPolicy                      string
 	SnapshotPolicy                 string
-	ExportPolicy                   string
+	ExportPolicy                   *string
 	SecurityStyle                  string
 	SnapshotReservePercent         int64
-	JunctionPath                   string
+	JunctionPath                   *string
 	SnapshotDirectoryAccessEnabled bool
 	Encrypt                        bool
 	UnixPermissions                *string
@@ -2012,6 +2013,12 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 		Size:  &params.Size,
 		Svm: &models.VolumeInlineSvm{
 			Name: &params.Svm,
+		},
+		Nas: &models.VolumeInlineNas{
+			ExportPolicy: &models.VolumeInlineNasInlineExportPolicy{
+				Name: params.ExportPolicy,
+			},
+			Path: params.JunctionPath,
 		},
 		Guarantee: &models.VolumeInlineGuarantee{
 			Type: nillable.ToPointer(GuaranteeTypeNone),
@@ -3020,5 +3027,381 @@ func dnsCreateParamsToONTAP(params *DNSCreateParams) *name_services.DNSCreatePar
 			Domains: dnsDomains,
 			Servers: dnsServers,
 		})
+	return otParams
+}
+
+// =============================================================================
+// NAS Client Models and Parameters
+// =============================================================================
+
+// ExportPolicy is a simple wrapper of models.ExportPolicy
+type ExportPolicy struct {
+	models.ExportPolicy
+}
+
+// ExportPolicyCreateParams is the input param struct for nasClient.ExportPolicyCreate
+type ExportPolicyCreateParams struct {
+	BaseParams
+	Name    string
+	SvmName string
+	Rules   []*ExportRule
+}
+
+// ExportRule describes an export policy rule
+type ExportRule struct {
+	ChownMode        string
+	ClientMatch      string
+	ReadOnlyRule     string
+	ReadWriteRule    string
+	SuperUserRule    string
+	AnonymousUser    string
+	Index            int64
+	NtfsUnixSecurity string
+	Protocols        []string
+}
+
+// ExportPolicyGetParams is the input param struct for nasClient.ExportPolicyGet and ExportPoliciesGet
+type ExportPolicyGetParams struct {
+	BaseParams
+	Name    *string
+	SvmName *string
+}
+
+// ExportPolicyModifyParams is the input param struct for nasClient.ExportPolicyModify
+type ExportPolicyModifyParams struct {
+	BaseParams
+	ID      int64
+	Name    *string
+	SvmName string
+	Rules   []*ExportRule
+}
+
+// ExportPolicyDeleteParams is the input param struct for nasClient.ExportPolicyDelete
+type ExportPolicyDeleteParams struct {
+	BaseParams
+	Name    string
+	SvmName string
+}
+
+// NfsService is a simple wrapper of models.NfsService
+type NfsService struct {
+	models.NfsService
+}
+
+// NfsServiceGetParams is the input param struct for nasClient.NfsServiceGet
+type NfsServiceGetParams struct {
+	BaseParams
+	SvmUUID string
+}
+
+// NfsServiceCreateParams is the input param struct for nasClient.NfsServiceCreate
+type NfsServiceCreateParams struct {
+	BaseParams
+	SvmUUID string
+	Enabled *bool
+	V3      *bool
+	V4      *bool
+	V41     *bool
+}
+
+// NfsServiceModifyParams is the input param struct for nasClient.NfsServiceModify
+type NfsServiceModifyParams struct {
+	BaseParams
+	SvmUUID string
+	Enabled *bool
+	V3      *bool
+	V4      *bool
+	V41     *bool
+}
+
+// CifsService is a simple wrapper of models.CifsService
+type CifsService struct {
+	models.CifsService
+}
+
+// CifsServiceGetParams is the input param struct for nasClient.CifsServiceGet
+type CifsServiceGetParams struct {
+	BaseParams
+	SvmName *string
+	SvmUUID *string
+}
+
+// CifsServiceCreateParams is the input param struct for nasClient.CifsServiceCreate
+type CifsServiceCreateParams struct {
+	BaseParams
+	SvmUUID  string
+	Name     string
+	Enabled  *bool
+	AdDomain *string
+}
+
+// CifsServiceModifyParams is the input param struct for nasClient.CifsServiceModify
+type CifsServiceModifyParams struct {
+	BaseParams
+	SvmUUID string
+	Enabled *bool
+}
+
+// =============================================================================
+// NAS Client Parameter Conversion Functions
+// =============================================================================
+
+// exportPolicyCreateParamsToONTAP converts ExportPolicyCreateParams to ONTAP API parameters
+func exportPolicyCreateParamsToONTAP(params *ExportPolicyCreateParams) *nas.ExportPolicyCreateParams {
+	otParams := nas.NewExportPolicyCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	rules := make([]*models.ExportRules, len(params.Rules))
+	for i, rule := range params.Rules {
+		// Convert rule protocols to string pointers
+		protocols := make([]*string, len(rule.Protocols))
+		for j, protocol := range rule.Protocols {
+			protocols[j] = &protocol
+		}
+
+		// Convert authentication flavors
+		roRule := make([]*models.ExportAuthenticationFlavor, 1)
+		roRule[0] = (*models.ExportAuthenticationFlavor)(&rule.ReadOnlyRule)
+
+		rwRule := make([]*models.ExportAuthenticationFlavor, 1)
+		rwRule[0] = (*models.ExportAuthenticationFlavor)(&rule.ReadWriteRule)
+
+		superuser := make([]*models.ExportAuthenticationFlavor, 1)
+		superuser[0] = (*models.ExportAuthenticationFlavor)(&rule.SuperUserRule)
+
+		rules[i] = &models.ExportRules{
+			ExportRulesInlineClients:   []*models.ExportClients{{Match: &rule.ClientMatch}},
+			ExportRulesInlineRoRule:    roRule,
+			ExportRulesInlineRwRule:    rwRule,
+			ExportRulesInlineSuperuser: superuser,
+			AnonymousUser:              &rule.AnonymousUser,
+			Protocols:                  protocols,
+			Index:                      &rule.Index,
+		}
+	}
+
+	otParams.SetInfo(&models.ExportPolicy{
+		Name:                    &params.Name,
+		Svm:                     &models.ExportPolicyInlineSvm{Name: &params.SvmName},
+		ExportPolicyInlineRules: rules,
+	})
+
+	otParams.SetReturnRecords(nillable.ToPointer("true"))
+	return otParams
+}
+
+// exportPolicyGetParamsToONTAP converts ExportPolicyGetParams to ONTAP API parameters
+func exportPolicyGetParamsToONTAP(params *ExportPolicyGetParams) *nas.ExportPolicyCollectionGetParams {
+	otParams := nas.NewExportPolicyCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	if params.Name != nil {
+		otParams.SetName(params.Name)
+	}
+	if params.SvmName != nil {
+		otParams.SetSvmName(params.SvmName)
+	}
+	otParams.SetMaxRecords(getConstrainedMaxRecords(params.MaxRecords))
+	otParams.SetFields(params.Fields)
+	otParams.SetReturnTimeout(returnTimeoutNoJob)
+	return otParams
+}
+
+// exportPolicyModifyParamsToONTAP converts ExportPolicyModifyParams to ONTAP API parameters
+func exportPolicyModifyParamsToONTAP(params *ExportPolicyModifyParams) *nas.ExportPolicyModifyParams {
+	otParams := nas.NewExportPolicyModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	rules := make([]*models.ExportRules, len(params.Rules))
+	for i, rule := range params.Rules {
+		// Convert rule protocols to string pointers
+		protocols := make([]*string, len(rule.Protocols))
+		for j, protocol := range rule.Protocols {
+			protocols[j] = &protocol
+		}
+
+		// Convert authentication flavors
+		roRule := make([]*models.ExportAuthenticationFlavor, 1)
+		roRule[0] = (*models.ExportAuthenticationFlavor)(&rule.ReadOnlyRule)
+
+		rwRule := make([]*models.ExportAuthenticationFlavor, 1)
+		rwRule[0] = (*models.ExportAuthenticationFlavor)(&rule.ReadWriteRule)
+
+		superuser := make([]*models.ExportAuthenticationFlavor, 1)
+		superuser[0] = (*models.ExportAuthenticationFlavor)(&rule.SuperUserRule)
+
+		rules[i] = &models.ExportRules{
+			ExportRulesInlineClients:   []*models.ExportClients{{Match: &rule.ClientMatch}},
+			ExportRulesInlineRoRule:    roRule,
+			ExportRulesInlineRwRule:    rwRule,
+			ExportRulesInlineSuperuser: superuser,
+			AnonymousUser:              &rule.AnonymousUser,
+			Protocols:                  protocols,
+		}
+	}
+
+	otParams.SetID(params.ID)
+	otParams.SetInfo(&models.ExportPolicy{
+		Name:                    params.Name,
+		ExportPolicyInlineRules: rules,
+	})
+	return otParams
+}
+
+// exportPolicyDeleteParamsToONTAP converts ExportPolicyDeleteParams to ONTAP API parameters
+func exportPolicyDeleteParamsToONTAP(params *ExportPolicyDeleteParams) *nas.ExportPolicyDeleteCollectionParams {
+	otParams := nas.NewExportPolicyDeleteCollectionParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetName(&params.Name)
+	otParams.SetSvmName(&params.SvmName)
+	otParams.SetReturnTimeout(returnTimeoutNoJob)
+	return otParams
+}
+
+// nfsServiceGetParamsToONTAP converts NfsServiceGetParams to ONTAP API parameters
+func nfsServiceGetParamsToONTAP(params *NfsServiceGetParams) *nas.NfsGetParams {
+	otParams := nas.NewNfsGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetSvmUUID(params.SvmUUID)
+	otParams.SetFields(params.Fields)
+	return otParams
+}
+
+// nfsServiceCreateParamsToONTAP converts NfsServiceCreateParams to ONTAP API parameters
+func nfsServiceCreateParamsToONTAP(params *NfsServiceCreateParams) *nas.NfsCreateParams {
+	otParams := nas.NewNfsCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	nfsInfo := &models.NfsService{
+		Svm: &models.NfsServiceInlineSvm{UUID: &params.SvmUUID},
+	}
+
+	if params.Enabled != nil {
+		nfsInfo.Enabled = params.Enabled
+	}
+
+	if params.V3 != nil || params.V4 != nil || params.V41 != nil {
+		nfsInfo.Protocol = &models.NfsServiceInlineProtocol{}
+		if params.V3 != nil {
+			nfsInfo.Protocol.V3Enabled = params.V3
+		}
+		if params.V4 != nil {
+			nfsInfo.Protocol.V40Enabled = params.V4
+		}
+		if params.V41 != nil {
+			nfsInfo.Protocol.V41Enabled = params.V41
+		}
+	}
+
+	otParams.SetInfo(nfsInfo)
+	otParams.SetReturnRecords(nillable.ToPointer("true"))
+	return otParams
+}
+
+// nfsServiceModifyParamsToONTAP converts NfsServiceModifyParams to ONTAP API parameters
+func nfsServiceModifyParamsToONTAP(params *NfsServiceModifyParams) *nas.NfsModifyParams {
+	otParams := nas.NewNfsModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	nfsInfo := &models.NfsService{}
+
+	if params.Enabled != nil {
+		nfsInfo.Enabled = params.Enabled
+	}
+
+	if params.V3 != nil || params.V4 != nil || params.V41 != nil {
+		nfsInfo.Protocol = &models.NfsServiceInlineProtocol{}
+		if params.V3 != nil {
+			nfsInfo.Protocol.V3Enabled = params.V3
+		}
+		if params.V4 != nil {
+			nfsInfo.Protocol.V40Enabled = params.V4
+		}
+		if params.V41 != nil {
+			nfsInfo.Protocol.V41Enabled = params.V41
+		}
+	}
+
+	otParams.SetSvmUUID(params.SvmUUID)
+	otParams.SetInfo(nfsInfo)
+	return otParams
+}
+
+// cifsServiceGetParamsToONTAP converts CifsServiceGetParams to ONTAP API parameters
+func cifsServiceGetParamsToONTAP(params *CifsServiceGetParams) *nas.CifsServiceCollectionGetParams {
+	otParams := nas.NewCifsServiceCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	if params.SvmName != nil {
+		otParams.SetSvmName(params.SvmName)
+	}
+	if params.SvmUUID != nil {
+		otParams.SetSvmUUID(params.SvmUUID)
+	}
+	otParams.SetFields(params.Fields)
+	otParams.SetReturnTimeout(returnTimeoutNoJob)
+	return otParams
+}
+
+// cifsServiceCreateParamsToONTAP converts CifsServiceCreateParams to ONTAP API parameters
+func cifsServiceCreateParamsToONTAP(params *CifsServiceCreateParams) *nas.CifsServiceCreateParams {
+	otParams := nas.NewCifsServiceCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	cifsInfo := &models.CifsService{
+		Name: &params.Name,
+		Svm:  &models.CifsServiceInlineSvm{UUID: &params.SvmUUID},
+	}
+
+	if params.Enabled != nil {
+		cifsInfo.Enabled = params.Enabled
+	}
+
+	if params.AdDomain != nil {
+		cifsInfo.AdDomain = &models.AdDomain{
+			Fqdn: params.AdDomain,
+		}
+	}
+
+	otParams.SetInfo(cifsInfo)
+	otParams.SetReturnRecords(nillable.ToPointer("true"))
+	return otParams
+}
+
+// cifsServiceModifyParamsToONTAP converts CifsServiceModifyParams to ONTAP API parameters
+func cifsServiceModifyParamsToONTAP(params *CifsServiceModifyParams) *nas.CifsServiceModifyParams {
+	otParams := nas.NewCifsServiceModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	cifsInfo := &models.CifsService{}
+
+	if params.Enabled != nil {
+		cifsInfo.Enabled = params.Enabled
+	}
+
+	otParams.SetSvmUUID(params.SvmUUID)
+	otParams.SetInfo(cifsInfo)
 	return otParams
 }

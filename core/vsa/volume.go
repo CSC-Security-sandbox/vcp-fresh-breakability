@@ -24,6 +24,8 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		Aggregates:             []string{params.AggregateName},
 		SnapshotPolicy:         params.SnapshotPolicyName,
 		SnapshotReservePercent: params.SnapReserve,
+		ExportPolicy:           params.ExportPolicy,
+		JunctionPath:           params.JunctionPath,
 	}
 	if params.RestoreFromSnapshot != nil && params.RestoreFromSnapshot.SnapshotUUID != "" {
 		volumeCreateParams.RestoreFromSnapshot = &ontapRest.RestoreFromSnapshotParams{

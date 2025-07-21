@@ -3945,6 +3945,128 @@ func (_c *MockDataStore_GetLifByNodeID_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// GetLifByNodeIDAndProtocol provides a mock function with given fields: ctx, nodeID, accountID, protocol
+func (_m *MockDataStore) GetLifByNodeIDAndProtocol(ctx context.Context, nodeID int64, accountID int64, protocol string) (*datamodel.Lif, error) {
+	ret := _m.Called(ctx, nodeID, accountID, protocol)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLifByNodeIDAndProtocol")
+	}
+
+	var r0 *datamodel.Lif
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64, string) (*datamodel.Lif, error)); ok {
+		return rf(ctx, nodeID, accountID, protocol)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64, string) *datamodel.Lif); ok {
+		r0 = rf(ctx, nodeID, accountID, protocol)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Lif)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64, int64, string) error); ok {
+		r1 = rf(ctx, nodeID, accountID, protocol)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetLifByNodeIDAndProtocol_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLifByNodeIDAndProtocol'
+type MockDataStore_GetLifByNodeIDAndProtocol_Call struct {
+	*mock.Call
+}
+
+// GetLifByNodeIDAndProtocol is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nodeID int64
+//   - accountID int64
+//   - protocol string
+func (_e *MockDataStore_Expecter) GetLifByNodeIDAndProtocol(ctx interface{}, nodeID interface{}, accountID interface{}, protocol interface{}) *MockDataStore_GetLifByNodeIDAndProtocol_Call {
+	return &MockDataStore_GetLifByNodeIDAndProtocol_Call{Call: _e.mock.On("GetLifByNodeIDAndProtocol", ctx, nodeID, accountID, protocol)}
+}
+
+func (_c *MockDataStore_GetLifByNodeIDAndProtocol_Call) Run(run func(ctx context.Context, nodeID int64, accountID int64, protocol string)) *MockDataStore_GetLifByNodeIDAndProtocol_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64), args[2].(int64), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetLifByNodeIDAndProtocol_Call) Return(_a0 *datamodel.Lif, _a1 error) *MockDataStore_GetLifByNodeIDAndProtocol_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetLifByNodeIDAndProtocol_Call) RunAndReturn(run func(context.Context, int64, int64, string) (*datamodel.Lif, error)) *MockDataStore_GetLifByNodeIDAndProtocol_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetLifForFilesNode provides a mock function with given fields: ctx, nodeID, accountID, protocol
+func (_m *MockDataStore) GetLifForFilesNode(ctx context.Context, nodeID int64, accountID int64, protocol string) (*datamodel.Lif, error) {
+	ret := _m.Called(ctx, nodeID, accountID, protocol)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLifForFilesNode")
+	}
+
+	var r0 *datamodel.Lif
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64, string) (*datamodel.Lif, error)); ok {
+		return rf(ctx, nodeID, accountID, protocol)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64, int64, string) *datamodel.Lif); ok {
+		r0 = rf(ctx, nodeID, accountID, protocol)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Lif)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64, int64, string) error); ok {
+		r1 = rf(ctx, nodeID, accountID, protocol)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetLifForFilesNode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLifForFilesNode'
+type MockDataStore_GetLifForFilesNode_Call struct {
+	*mock.Call
+}
+
+// GetLifForFilesNode is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nodeID int64
+//   - accountID int64
+//   - protocol string
+func (_e *MockDataStore_Expecter) GetLifForFilesNode(ctx interface{}, nodeID interface{}, accountID interface{}, protocol interface{}) *MockDataStore_GetLifForFilesNode_Call {
+	return &MockDataStore_GetLifForFilesNode_Call{Call: _e.mock.On("GetLifForFilesNode", ctx, nodeID, accountID, protocol)}
+}
+
+func (_c *MockDataStore_GetLifForFilesNode_Call) Run(run func(ctx context.Context, nodeID int64, accountID int64, protocol string)) *MockDataStore_GetLifForFilesNode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64), args[2].(int64), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetLifForFilesNode_Call) Return(_a0 *datamodel.Lif, _a1 error) *MockDataStore_GetLifForFilesNode_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetLifForFilesNode_Call) RunAndReturn(run func(context.Context, int64, int64, string) (*datamodel.Lif, error)) *MockDataStore_GetLifForFilesNode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetLifForNode provides a mock function with given fields: ctx, nodeID, accountID
 func (_m *MockDataStore) GetLifForNode(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error) {
 	ret := _m.Called(ctx, nodeID, accountID)

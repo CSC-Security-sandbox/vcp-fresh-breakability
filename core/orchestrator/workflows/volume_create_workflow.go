@@ -59,7 +59,7 @@ type PostVolumeProvisioningParams struct {
 //   - protocols: Slice of protocol strings to determine workflow type
 //   - phase: Provisioning phase (use PhasePre or PhasePost constants)
 func selectVolumeChildWorkflow(protocols []string, phase string) (interface{}, error) {
-	if utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolISCSI) {
+	if utils.IsSanProtocols(protocols) {
 		switch phase {
 		case PhasePre:
 			return PreBlockVolumeWorkflow, nil
@@ -69,7 +69,7 @@ func selectVolumeChildWorkflow(protocols []string, phase string) (interface{}, e
 			return nil, fmt.Errorf("invalid phase: %s", phase)
 		}
 	}
-	if utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolNFSv3) || utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolNFSv4) || utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolSMB) {
+	if utils.IsNasProtocols(protocols) {
 		if !utils.FileProtocolSupported {
 			return nil, fmt.Errorf("file protocols are not enabled")
 		}
@@ -124,7 +124,7 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 	// Create igroup for block volume
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateIgroup, &dbVolume, &hostParams, node).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create igroup: %w", err)
 	}
 
 	// Create LUN for block volume
@@ -158,6 +158,7 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 // PreFileVolumeWorkflow handles pre-provisioning for file volumes
 func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node) (*datamodel.Volume, error) {
 	// Configure activity options for child workflow
+	volumeActivity := &activities.VolumeCreateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, err
@@ -173,6 +174,10 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
+	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateExportPolicyInOntap, &dbVolume, &node).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
 	log := util.GetLogger(ctx)
 	log.Info("File pre-provisioning: create export policy, etc. (placeholder)")
 	return dbVolume, nil

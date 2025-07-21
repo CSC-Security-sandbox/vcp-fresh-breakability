@@ -577,6 +577,14 @@ func (s *PersistenceStore) GetLifByNodeID(ctx context.Context, nodeID int64, acc
 	return s.dataStore.GetLifByNodeID(ctx, nodeID, 0)
 }
 
+func (s *PersistenceStore) GetLifByNodeIDAndProtocol(ctx context.Context, nodeID int64, accountID int64, protocol string) (*datamodel.Lif, error) {
+	return s.dataStore.GetLifByNodeIDAndProtocol(ctx, nodeID, accountID, protocol)
+}
+
+func (s *PersistenceStore) GetLifForFilesNode(ctx context.Context, nodeID int64, accountID int64, protocol string) (*datamodel.Lif, error) {
+	return s.dataStore.GetLifForFilesNode(ctx, nodeID, accountID, protocol)
+}
+
 func (s *PersistenceStore) DeleteSVM(ctx context.Context, svm *datamodel.Svm) error {
 	return s.dataStore.DeleteSVM(ctx, svm)
 }

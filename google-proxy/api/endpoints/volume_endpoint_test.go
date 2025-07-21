@@ -79,6 +79,9 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				BackupVaultID:          "backup-vault-id",
 				BackupPolicyId:         "backup-policy-id",
 			},
+			FileProperties: &models.FileProperties{
+				ExportPolicyName: req.Volume.CreationToken.Value,
+			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region)
 		assert.NoError(tt, err)
@@ -137,6 +140,9 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				BackupPolicyId:         "backup-policy-id",
 			},
 			SnapshotID: "test-snapshot-id",
+			FileProperties: &models.FileProperties{
+				ExportPolicyName: req.Volume.CreationToken.Value,
+			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region)
 		assert.NoError(tt, err)
@@ -277,6 +283,9 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				TieringPolicy:        "auto",
 				RetrievalPolicy:      "default",
 			},
+			FileProperties: &models.FileProperties{
+				ExportPolicyName: req.Volume.CreationToken.Value,
+			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region)
 		assert.NoError(tt, err)
@@ -346,6 +355,9 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			AutoTieringPolicy: &common.AutoTieringPolicy{
 				AutoTieringEnabled: false,
 				TieringPolicy:      "none",
+			},
+			FileProperties: &models.FileProperties{
+				ExportPolicyName: req.Volume.CreationToken.Value,
 			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region)

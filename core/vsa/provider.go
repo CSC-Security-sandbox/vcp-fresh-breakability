@@ -88,6 +88,7 @@ type Provider interface {
 	CreateDns(params CreateDnsParams) error
 	CreateQoSGroupPolicy(params CreateQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error)
 	ModifySVMWithQoSPolicy(params ModifySVMWithQoSPolicyParams) error
+	CreateExportPolicy(params *ExportPolicy) error
 }
 
 type OntapRestProvider struct {

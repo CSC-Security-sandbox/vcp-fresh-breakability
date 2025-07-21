@@ -2145,6 +2145,281 @@ func TestCreateBackupPolicyFetchedFromSDESucceeds(t *testing.T) {
 	})
 }
 
+func TestCreateExportPolicyInOntap(t *testing.T) {
+	t.Run("Success_FileVolume", func(t *testing.T) {
+		// Mock setup
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock provider setup
+		mockProvider := vsa.NewMockProvider(t)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+			   activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+				   return mockProvider, nil
+			   }
+
+		// Test data - Volume with file properties
+		volume := &datamodel.Volume{
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicyName: "test-export-policy",
+					ExportRules: []*datamodel.ExportRule{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "ReadWrite",
+							UnixReadOnly:   false,
+							UnixReadWrite:  true,
+						},
+					},
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		node := &models.Node{
+			Name:            "test-node",
+			EndpointAddress: "192.168.1.100",
+		}
+
+		// Mock expectations
+		expectedExportPolicy := &vsa.ExportPolicy{
+			ExportPolicyName: "test-export-policy",
+			SvmName:          "test-svm",
+			ExportRules: []*vsa.ExportRule{
+				{
+					AllowedClients: "10.0.0.0/8",
+					AccessType:     "ReadWrite",
+				},
+			},
+		}
+		mockProvider.EXPECT().CreateExportPolicy(expectedExportPolicy).Return(nil)
+
+		// Execute test
+		err := activity.CreateExportPolicyInOntap(ctx, volume, node)
+
+		// Assertions
+		assert.NoError(t, err)
+	})
+
+	t.Run("Skip_NonFileVolume", func(t *testing.T) {
+		// Mock setup
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Test data for block volume (no FileProperties)
+		volume := &datamodel.Volume{
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: nil, // Block volume has no file properties
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		node := &models.Node{
+			Name:            "test-node",
+			EndpointAddress: "192.168.1.100",
+		}
+
+		// Execute test
+		err := activity.CreateExportPolicyInOntap(ctx, volume, node)
+
+		// Assertions - should return nil for non-file volumes
+		assert.NoError(t, err)
+	})
+
+	t.Run("Success_ExportPolicyConflict", func(t *testing.T) {
+		// Mock setup
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock provider setup
+		mockProvider := vsa.NewMockProvider(t)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+			   activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+				   return mockProvider, nil
+			   }
+
+		// Test data
+		volume := &datamodel.Volume{
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicyName: "existing-export-policy",
+					ExportRules: []*datamodel.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "ReadOnly",
+						},
+					},
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		node := &models.Node{
+			Name:            "test-node",
+			EndpointAddress: "192.168.1.100",
+		}
+
+		// Mock expectations - simulate conflict error
+		conflictError := utilErrors.NewConflictErr("export policy already exists")
+		mockProvider.EXPECT().CreateExportPolicy(mock.Anything).Return(conflictError)
+
+		// Execute test
+		err := activity.CreateExportPolicyInOntap(ctx, volume, node)
+
+		// Assertions - should return nil on conflict (graceful handling)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Error_ProviderError", func(t *testing.T) {
+		// Mock setup
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock provider setup
+		mockProvider := vsa.NewMockProvider(t)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+			   activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+				   return mockProvider, nil
+			   }
+
+		// Test data
+		volume := &datamodel.Volume{
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicyName: "test-export-policy",
+					ExportRules: []*datamodel.ExportRule{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "ReadWrite",
+						},
+					},
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		node := &models.Node{
+			Name:            "test-node",
+			EndpointAddress: "192.168.1.100",
+		}
+
+		// Mock expectations - simulate general error (not conflict)
+		providerError := errors.New("provider connection failed")
+		mockProvider.EXPECT().CreateExportPolicy(mock.Anything).Return(providerError)
+
+		// Execute test
+		err := activity.CreateExportPolicyInOntap(ctx, volume, node)
+
+		// Assertions - should return the provider error
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "provider connection failed")
+	})
+
+	t.Run("Success_MultipleExportRules", func(t *testing.T) {
+		// Mock setup
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock provider setup
+		mockProvider := vsa.NewMockProvider(t)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+			   activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+				   return mockProvider, nil
+			   }
+
+		// Test data with multiple export rules
+		volume := &datamodel.Volume{
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicyName: "multi-rule-policy",
+					ExportRules: []*datamodel.ExportRule{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "ReadWrite",
+							CIFS:           false,
+							NFSv3:          true,
+							NFSv4:          true,
+							Index:          1,
+							AnonymousUser:  "nobody",
+						},
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "ReadOnly",
+							CIFS:           true,
+							NFSv3:          false,
+							NFSv4:          true,
+							Index:          2,
+							AnonymousUser:  "anonymous",
+						},
+					},
+				},
+			},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		node := &models.Node{
+			Name:            "test-node",
+			EndpointAddress: "192.168.1.100",
+		}
+
+		// Mock expectations
+		expectedExportPolicy := &vsa.ExportPolicy{
+			ExportPolicyName: "multi-rule-policy",
+			SvmName:          "test-svm",
+			ExportRules: []*vsa.ExportRule{
+				{
+					AllowedClients: "10.0.0.0/8",
+					AccessType:     "ReadWrite",
+					CIFS:           false,
+					NFSv3:          true,
+					NFSv4:          true,
+					Index:          1,
+					AnonymousUser:  "nobody",
+				},
+				{
+					AllowedClients: "192.168.1.0/24",
+					AccessType:     "ReadOnly",
+					CIFS:           true,
+					NFSv3:          false,
+					NFSv4:          true,
+					Index:          2,
+					AnonymousUser:  "anonymous",
+				},
+			},
+		}
+		mockProvider.EXPECT().CreateExportPolicy(expectedExportPolicy).Return(nil)
+
+		// Execute test
+		err := activity.CreateExportPolicyInOntap(ctx, volume, node)
+
+		// Assertions
+		assert.NoError(t, err)
+	})
+}
+
 func TestGetVolumesByPoolID(t *testing.T) {
 	t.Run("WhenGetVolumesByPoolIdReturnsVolumes", func(t *testing.T) {
 		mockSE := database.NewMockStorage(t)

@@ -1077,3 +1077,272 @@ func TestDnsCreateParamsToONTAP(t *testing.T) {
 		assert.NotNil(t, result)
 	})
 }
+
+func TestExportPolicyCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := exportPolicyCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &ExportPolicyCreateParams{
+			Name:    "test-policy",
+			SvmName: "test-svm",
+			Rules: []*ExportRule{
+				{
+					ClientMatch:   "10.0.0.8",
+					ReadOnlyRule:  "any",
+					ReadWriteRule: "any",
+					SuperUserRule: "any",
+					AnonymousUser: "65534",
+					Index:         1,
+					Protocols:     []string{"nfs3", "nfs4"},
+				},
+			},
+		}
+
+		otParams := exportPolicyCreateParamsToONTAP(params)
+		assert.Equal(tt, "test-policy", *otParams.Info.Name)
+		assert.Equal(tt, "test-svm", *otParams.Info.Svm.Name)
+		assert.Len(tt, otParams.Info.ExportPolicyInlineRules, 1)
+		assert.Equal(tt, "10.0.0.8", *otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineClients[0].Match)
+		assert.Equal(tt, "any", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRoRule[0]))
+		assert.Equal(tt, "any", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRwRule[0]))
+		assert.Equal(tt, "any", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineSuperuser[0]))
+		assert.Equal(tt, "65534", *otParams.Info.ExportPolicyInlineRules[0].AnonymousUser)
+		assert.Equal(tt, int64(1), *otParams.Info.ExportPolicyInlineRules[0].Index)
+		assert.Len(tt, otParams.Info.ExportPolicyInlineRules[0].Protocols, 2)
+		assert.Equal(tt, "nfs3", *otParams.Info.ExportPolicyInlineRules[0].Protocols[0])
+		assert.Equal(tt, "nfs4", *otParams.Info.ExportPolicyInlineRules[0].Protocols[1])
+	})
+}
+
+func TestExportPolicyGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := exportPolicyGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &ExportPolicyGetParams{
+			BaseParams: BaseParams{
+				Fields:     []string{"name", "svm"},
+				MaxRecords: nillable.ToPointer(int64(0)),
+			},
+			Name:    nillable.ToPointer("test-policy"),
+			SvmName: nillable.ToPointer("test-svm"),
+		}
+
+		otParams := exportPolicyGetParamsToONTAP(params)
+		assert.Equal(tt, "test-policy", *otParams.Name)
+		assert.Equal(tt, "test-svm", *otParams.SvmName)
+		assert.Equal(tt, []string{"name", "svm"}, otParams.Fields)
+		assert.Equal(tt, "0", *otParams.MaxRecords)
+	})
+}
+
+func TestExportPolicyModifyParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := exportPolicyModifyParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &ExportPolicyModifyParams{
+			BaseParams: BaseParams{},
+			ID:         123,
+			Name:       nillable.ToPointer("modified-policy"),
+			SvmName:    "test-svm",
+			Rules: []*ExportRule{
+				{
+					ClientMatch:   "192.168.0.16",
+					ReadOnlyRule:  "none",
+					ReadWriteRule: "none",
+					SuperUserRule: "none",
+					AnonymousUser: "65534",
+					Index:         1,
+					Protocols:     []string{"nfs3"},
+				},
+			},
+		}
+
+		otParams := exportPolicyModifyParamsToONTAP(params)
+		assert.Equal(tt, int64(123), params.ID)
+		assert.Equal(tt, "modified-policy", *otParams.Info.Name)
+		assert.Len(tt, otParams.Info.ExportPolicyInlineRules, 1)
+		assert.Equal(tt, "192.168.0.16", *otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineClients[0].Match)
+		assert.Equal(tt, "none", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRoRule[0]))
+		assert.Equal(tt, "none", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRwRule[0]))
+		assert.Equal(tt, "none", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineSuperuser[0]))
+		assert.Equal(tt, "65534", *otParams.Info.ExportPolicyInlineRules[0].AnonymousUser)
+		assert.Len(tt, otParams.Info.ExportPolicyInlineRules[0].Protocols, 1)
+		assert.Equal(tt, "nfs3", *otParams.Info.ExportPolicyInlineRules[0].Protocols[0])
+	})
+}
+
+func TestExportPolicyDeleteParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := exportPolicyDeleteParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &ExportPolicyDeleteParams{
+			BaseParams: BaseParams{},
+			Name:       "test-policy",
+			SvmName:    "test-svm",
+		}
+
+		otParams := exportPolicyDeleteParamsToONTAP(params)
+		assert.Equal(tt, "test-policy", *otParams.Name)
+		assert.Equal(tt, "test-svm", *otParams.SvmName)
+	})
+}
+
+func TestNfsServiceGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := nfsServiceGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &NfsServiceGetParams{
+			BaseParams: BaseParams{
+				Fields: []string{"enabled", "protocol"},
+			},
+			SvmUUID: "test-svm-uuid",
+		}
+
+		otParams := nfsServiceGetParamsToONTAP(params)
+		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
+		assert.Equal(tt, []string{"enabled", "protocol"}, otParams.Fields)
+	})
+}
+
+func TestNfsServiceCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := nfsServiceCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &NfsServiceCreateParams{
+			BaseParams: BaseParams{},
+			SvmUUID:    "test-svm-uuid",
+			Enabled:    nillable.ToPointer(true),
+			V3:         nillable.ToPointer(true),
+			V4:         nillable.ToPointer(false),
+			V41:        nillable.ToPointer(true),
+		}
+
+		otParams := nfsServiceCreateParamsToONTAP(params)
+		assert.Equal(tt, "test-svm-uuid", *otParams.Info.Svm.UUID)
+		assert.True(tt, *otParams.Info.Enabled)
+		assert.True(tt, *otParams.Info.Protocol.V3Enabled)
+		assert.False(tt, *otParams.Info.Protocol.V40Enabled)
+		assert.True(tt, *otParams.Info.Protocol.V41Enabled)
+	})
+	t.Run("WhenProtocolNotSet", func(tt *testing.T) {
+		params := &NfsServiceCreateParams{
+			BaseParams: BaseParams{},
+			SvmUUID:    "test-svm-uuid",
+			Enabled:    nillable.ToPointer(true),
+		}
+
+		otParams := nfsServiceCreateParamsToONTAP(params)
+		assert.Equal(tt, "test-svm-uuid", *otParams.Info.Svm.UUID)
+		assert.True(tt, *otParams.Info.Enabled)
+		assert.Nil(tt, otParams.Info.Protocol)
+	})
+}
+
+func TestNfsServiceModifyParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := nfsServiceModifyParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &NfsServiceModifyParams{
+			BaseParams: BaseParams{},
+			SvmUUID:    "test-svm-uuid",
+			Enabled:    nillable.ToPointer(false),
+			V3:         nillable.ToPointer(false),
+			V4:         nillable.ToPointer(true),
+			V41:        nillable.ToPointer(false),
+		}
+
+		otParams := nfsServiceModifyParamsToONTAP(params)
+		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
+		assert.False(tt, *otParams.Info.Enabled)
+		assert.False(tt, *otParams.Info.Protocol.V3Enabled)
+		assert.True(tt, *otParams.Info.Protocol.V40Enabled)
+		assert.False(tt, *otParams.Info.Protocol.V41Enabled)
+	})
+	t.Run("WhenProtocolNotSet", func(tt *testing.T) {
+		params := &NfsServiceModifyParams{
+			BaseParams: BaseParams{},
+			SvmUUID:    "test-svm-uuid",
+			Enabled:    nillable.ToPointer(true),
+		}
+
+		otParams := nfsServiceModifyParamsToONTAP(params)
+		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
+		assert.True(tt, *otParams.Info.Enabled)
+		assert.Nil(tt, otParams.Info.Protocol)
+	})
+}
+
+func TestCifsServiceGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := cifsServiceGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &CifsServiceGetParams{
+			BaseParams: BaseParams{
+				Fields: []string{"name", "enabled"},
+			},
+			SvmName: nillable.ToPointer("test-svm"),
+			SvmUUID: nillable.ToPointer("test-svm-uuid"),
+		}
+
+		otParams := cifsServiceGetParamsToONTAP(params)
+		assert.Equal(tt, "test-svm", *otParams.SvmName)
+		assert.Equal(tt, "test-svm-uuid", *otParams.SvmUUID)
+		assert.Equal(tt, []string{"name", "enabled"}, otParams.Fields)
+	})
+}
+
+func TestCifsServiceCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := cifsServiceCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &CifsServiceCreateParams{
+			BaseParams: BaseParams{},
+			SvmUUID:    "test-svm-uuid",
+			Name:       "test-cifs",
+			Enabled:    nillable.ToPointer(true),
+			AdDomain:   nillable.ToPointer("test.domain.com"),
+		}
+
+		otParams := cifsServiceCreateParamsToONTAP(params)
+		assert.Equal(tt, "test-svm-uuid", *otParams.Info.Svm.UUID)
+		assert.Equal(tt, "test-cifs", *otParams.Info.Name)
+		assert.True(tt, *otParams.Info.Enabled)
+		assert.Equal(tt, "test.domain.com", *otParams.Info.AdDomain.Fqdn)
+	})
+}
+
+func TestCifsServiceModifyParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := cifsServiceModifyParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &CifsServiceModifyParams{
+			BaseParams: BaseParams{},
+			SvmUUID:    "test-svm-uuid",
+			Enabled:    nillable.ToPointer(false),
+		}
+
+		otParams := cifsServiceModifyParamsToONTAP(params)
+		assert.Equal(tt, "test-svm-uuid", otParams.SvmUUID)
+		assert.False(tt, *otParams.Info.Enabled)
+	})
+}

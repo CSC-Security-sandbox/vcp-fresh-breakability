@@ -21,7 +21,7 @@ type NodeProviderInput struct {
 	SecretID       string
 	CertificateID  string
 	DeploymentName string
-	AuthType      int
+	AuthType       int
 }
 
 // CreateNodeForProvider creates a node for a given provider using the provided information.
@@ -55,4 +55,9 @@ func _createNodeForProvider(inp NodeProviderInput) *models.Node {
 		SecretID:                       inp.SecretID,
 		AuthType:                       inp.AuthType,
 	}
+}
+
+func CreateJunctionPath(token string) string {
+	junctionPath := "/" + token
+	return junctionPath
 }

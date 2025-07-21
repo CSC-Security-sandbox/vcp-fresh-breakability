@@ -132,6 +132,36 @@ type CreateVolumeParams struct {
 	RestoreFromSnapshot *RestoreFromSnapshotParams // Optional: parameters for restoring from a snapshot
 	SnapReserve         int64
 	TieringPolicy       *TieringPolicy
+	ExportPolicy        *string
+	Protocol            string
+	JunctionPath        *string
+}
+
+type ExportPolicy struct {
+	ExportPolicyName string
+	SvmName          string
+	ExportRules      []*ExportRule `json:"export_rules"`
+}
+
+type ExportRule struct {
+	AllowedClients      string
+	AnonymousUser       string
+	Index               int
+	ChownMode           string
+	AccessType          string
+	CIFS                bool
+	NFSv3               bool
+	NFSv4               bool
+	S3                  bool
+	UnixReadOnly        bool
+	UnixReadWrite       bool
+	Kerberos5ReadOnly   bool
+	Kerberos5ReadWrite  bool
+	Kerberos5iReadOnly  bool
+	Kerberos5iReadWrite bool
+	Kerberos5pReadOnly  bool
+	Kerberos5pReadWrite bool
+	Superuser           bool
 }
 
 // TieringPolicy describes the auto tiering policy for a volume
@@ -151,7 +181,7 @@ type UpdateVolumeParams struct {
 	InitiateSplit      bool // Indicates whether to initiate a split for volume restore or clone
 	TieringPolicy      *TieringPolicy
 	SnapReserve        *int64
-	EncryptionEnable bool
+	EncryptionEnable   bool
 }
 
 type GetVolumeParams struct {

@@ -118,6 +118,8 @@ const (
 	clusterICSubnet  = "cluster-ic-subnet"
 	rsmVpcName       = "rsm-vpc"
 	rsmSubnetName    = "rsm-subnet"
+
+	DefaultDataFiles = "default-data-files"
 )
 
 // Minimum allowed values for SPConfig throughput (in MiBs) and IOPS.
@@ -584,13 +586,37 @@ func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Po
 		dataLif := lif.IP
 		ip := strings.Split(dataLif, "/")[0]
 		lifRec := &datamodel.Lif{
-			Name:       lif.Name,
-			AccountID:  pool.AccountID,
-			NodeID:     nodes[i].ID, // FIXME : need to get the node name from the lif object - VLM changes
-			LifDetails: &datamodel.LifDetails{ExternalUUID: lif.Uuid},
+			Name:      lif.Name,
+			AccountID: pool.AccountID,
+			NodeID:    nodes[i].ID, // FIXME : need to get the node name from the lif object - VLM changes
+			LifDetails: &datamodel.LifDetails{
+				ExternalUUID: lif.Uuid,
+				ProtocolType: "SAN", // string(vlm.LIFTypeIscsi) assign from vlm.LIFTypeIscsi when vlm changes are done
+			},
 			IPAddress:  ip,
 			SubnetMask: vsa.DefaultNetmask,
 		}
+		if _, err = se.CreateLif(ctx, lifRec); err != nil && !utilErrors.IsConflictErr(err) {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	}
+
+	lifs = svm.SVMLIFs[DefaultDataFiles]
+	for i, lif := range lifs {
+		// Ensure we don't go out of bounds when assigning nodes
+		nodeIndex := i % len(nodes)
+		dataLif := lif.IP
+		ip := strings.Split(dataLif, "/")[0]
+		lifRec := &datamodel.Lif{
+			Name:      lif.Name,
+			AccountID: pool.AccountID,
+			NodeID:    nodes[nodeIndex].ID, // FIXME : need to get the node name
+			LifDetails: &datamodel.LifDetails{
+				ExternalUUID: lif.Uuid,
+				ProtocolType: "NAS", // string(vlm.LIFTypeNfs), // string(vlm.LIFTypeIscsi) assign from vlm.LIFTypeIscsi when vlm changes are done
+			}, // FIXME : need to get the external UUID from the lif object - VLM
+			IPAddress:  ip,
+			SubnetMask: vsa.DefaultNetmask}
 		if _, err = se.CreateLif(ctx, lifRec); err != nil && !utilErrors.IsConflictErr(err) {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}

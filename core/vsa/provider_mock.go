@@ -640,6 +640,52 @@ func (_c *MockProvider_CreateDns_Call) RunAndReturn(run func(CreateDnsParams) er
 	return _c
 }
 
+// CreateExportPolicy provides a mock function with given fields: ep
+func (_m *MockProvider) CreateExportPolicy(ep *ExportPolicy) error {
+	ret := _m.Called(ep)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateExportPolicy")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*ExportPolicy) error); ok {
+		r0 = rf(ep)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_CreateExportPolicy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateExportPolicy'
+type MockProvider_CreateExportPolicy_Call struct {
+	*mock.Call
+}
+
+// CreateExportPolicy is a helper method to define mock.On call
+//   - ep *ExportPolicy
+func (_e *MockProvider_Expecter) CreateExportPolicy(ep interface{}) *MockProvider_CreateExportPolicy_Call {
+	return &MockProvider_CreateExportPolicy_Call{Call: _e.mock.On("CreateExportPolicy", ep)}
+}
+
+func (_c *MockProvider_CreateExportPolicy_Call) Run(run func(ep *ExportPolicy)) *MockProvider_CreateExportPolicy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*ExportPolicy))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateExportPolicy_Call) Return(_a0 error) *MockProvider_CreateExportPolicy_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_CreateExportPolicy_Call) RunAndReturn(run func(*ExportPolicy) error) *MockProvider_CreateExportPolicy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateKmsConfig provides a mock function with given fields: params
 func (_m *MockProvider) CreateKmsConfig(params CreateKmsConfigParams) (*CreateKmsConfigResponse, error) {
 	ret := _m.Called(params)

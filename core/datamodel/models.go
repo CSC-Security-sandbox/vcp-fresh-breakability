@@ -174,6 +174,7 @@ type VolumeAttributes struct {
 	VendorSubnetID   string           `json:"vendor_subnet_id"`
 	ExternalUUID     string           `json:"external_uuid"`
 	BlockProperties  *BlockProperties `json:"block_properties"`
+	FileProperties   *FileProperties  `json:"file_properties"`
 	IsDataProtection bool             `json:"is_data_protection"`
 	SnapReserve      int64            `json:"snap_reserve"`
 	Labels           *JSONB           `json:"labels"`
@@ -185,6 +186,33 @@ type BlockProperties struct {
 	LunName          string            `json:"lun_name"`
 	LunSerialNumber  string            `json:"serial_number"`
 	LunUUID          string            `json:"lun_uuid"`
+}
+
+type FileProperties struct {
+	ExportPolicyName string        `json:"export_policy_name"`
+	ExportRules      []*ExportRule `json:"export_rules"`
+	JunctionPath     string        `json:"junction_path"`
+}
+
+type ExportRule struct {
+	AllowedClients      string `json:"allowed_clients"`
+	AnonymousUser       string `json:"anonymous_user"`
+	Index               int    `json:"index"`
+	ChownMode           string `json:"chown_mode"`
+	AccessType          string `json:"access_type"`
+	CIFS                bool   `json:"cifs"`
+	NFSv3               bool   `json:"nfsv3"`
+	NFSv4               bool   `json:"nfsv4"`
+	S3                  bool   `json:"s3"`
+	UnixReadOnly        bool   `json:"unix_read_only"`
+	UnixReadWrite       bool   `json:"unix_read_write"`
+	Kerberos5ReadOnly   bool   `json:"kerberos_5_read_only"`
+	Kerberos5ReadWrite  bool   `json:"kerberos_5_read_write"`
+	Kerberos5iReadOnly  bool   `json:"kerberos_5_i_read_only"`
+	Kerberos5iReadWrite bool   `json:"kerberos_5_i_read_write"`
+	Kerberos5pReadOnly  bool   `json:"kerberos_5_p_read_only"`
+	Kerberos5pReadWrite bool   `json:"kerberos_5_p_read_write"`
+	Superuser           bool   `json:"superuser"`
 }
 
 type HostGroupDetail struct {
@@ -321,6 +349,7 @@ func (sd SvmDetails) Value() (driver.Value, error) {
 
 type LifDetails struct {
 	ExternalUUID string `json:"external_uuid"`
+	ProtocolType string `json:"protocol_type"`
 }
 
 func (nd *LifDetails) Scan(value interface{}) error {

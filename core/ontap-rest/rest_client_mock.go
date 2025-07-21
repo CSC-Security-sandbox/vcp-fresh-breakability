@@ -156,6 +156,53 @@ func (_c *MockRESTClient_Host_Call) RunAndReturn(run func() string) *MockRESTCli
 	return _c
 }
 
+// NAS provides a mock function with no fields
+func (_m *MockRESTClient) NAS() NASClient {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for NAS")
+	}
+
+	var r0 NASClient
+	if rf, ok := ret.Get(0).(func() NASClient); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(NASClient)
+		}
+	}
+
+	return r0
+}
+
+// MockRESTClient_NAS_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NAS'
+type MockRESTClient_NAS_Call struct {
+	*mock.Call
+}
+
+// NAS is a helper method to define mock.On call
+func (_e *MockRESTClient_Expecter) NAS() *MockRESTClient_NAS_Call {
+	return &MockRESTClient_NAS_Call{Call: _e.mock.On("NAS")}
+}
+
+func (_c *MockRESTClient_NAS_Call) Run(run func()) *MockRESTClient_NAS_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockRESTClient_NAS_Call) Return(_a0 NASClient) *MockRESTClient_NAS_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockRESTClient_NAS_Call) RunAndReturn(run func() NASClient) *MockRESTClient_NAS_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NameServices provides a mock function with no fields
 func (_m *MockRESTClient) NameServices() NameServicesClient {
 	ret := _m.Called()

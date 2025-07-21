@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
@@ -129,6 +130,26 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 					HostGroupUUID: hg.UUID,
 					HostQNs:       hg.Hosts,
 				})
+		}
+	}
+
+	if params.FileProperties != nil {
+		exportRules := make([]*datamodel.ExportRule, 0, len(params.FileProperties.ExportRules))
+		for _, rule := range params.FileProperties.ExportRules {
+			exportRules = append(exportRules, &datamodel.ExportRule{
+				AllowedClients: rule.AllowedClients,
+				AccessType:     rule.AccessType,
+				CIFS:           rule.CIFS,
+				NFSv3:          rule.NFSv3,
+				NFSv4:          rule.NFSv4,
+				Index:          rule.Index,
+			})
+		}
+		junctionPath := common.CreateJunctionPath(params.CreationToken)
+		volumeObj.VolumeAttributes.FileProperties = &datamodel.FileProperties{
+			ExportPolicyName: params.FileProperties.ExportPolicyName,
+			ExportRules:      exportRules,
+			JunctionPath:     junctionPath,
 		}
 	}
 
@@ -282,12 +303,24 @@ func _getIPAddressForVolume(ctx context.Context, se database.Storage, volume *da
 		return "", err
 	}
 
-	lif, err := se.GetLifForNode(ctx, nodes[0].ID, volume.AccountID)
-	if err != nil {
-		return "", err
+	ipAddress := ""
+	if volume.VolumeAttributes.FileProperties != nil {
+		protocol := volume.VolumeAttributes.Protocols[0]
+		pType := utils.GetProtocolType(protocol)
+		lif, err := se.GetLifForFilesNode(ctx, nodes[0].ID, volume.AccountID, string(pType))
+		if err != nil {
+			return "", err
+		}
+		ipAddress = lif.IPAddress
+	} else {
+		lif, err := se.GetLifForNode(ctx, nodes[0].ID, volume.AccountID)
+		if err != nil {
+			return "", err
+		}
+		ipAddress = lif.IPAddress
 	}
 
-	return lif.IPAddress, nil
+	return ipAddress, nil
 }
 
 // VolumeTypeProcessor defines protocol-specific validation for volume creation
@@ -300,6 +333,7 @@ type FileVolumeProcessor struct{}
 
 func (v *BlockVolumeProcessor) Validate(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
 	// Block-specific validation: host group checks, block properties, etc.
+	params.FileProperties = nil // Ensure FileProperties is nil for block volumes
 	if params.BlockProperties != nil {
 		hostGroupUUIDs := params.BlockProperties.HostGroupUUIDs
 		err := validateBlockProperties(ctx, se, hostGroupUUIDs, accountID)
@@ -311,15 +345,28 @@ func (v *BlockVolumeProcessor) Validate(ctx context.Context, se database.Storage
 }
 
 func (v *FileVolumeProcessor) Validate(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
-	// TODO: Add file (NFS/SMB) specific validation here
+	for _, rule := range params.FileProperties.ExportRules {
+		if rule.AllowedClients == "" {
+			return customerrors.NewUserInputValidationErr("allowed clients cannot be nil in export rules")
+		} else {
+			// Validate allowed clients
+			if err := validateAllowedClients(rule.AllowedClients); err != nil {
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf("allowed clients validation failed: %v", err))
+			}
+		}
+	}
+
+	if params.CreationToken == "" {
+		return customerrors.NewUserInputValidationErr("Creation Token cannot be empty")
+	}
 	return nil
 }
 
 func GetVolumeTypeValidator(protocols []string) (VolumeTypeProcessor, error) {
-	if utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolISCSI) {
+	if utils.IsSanProtocols(protocols) {
 		return &BlockVolumeProcessor{}, nil
 	}
-	if utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolNFSv3) || utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolNFSv4) || utils.ContainsStringCaseInsensitive(protocols, utils.ProtocolSMB) {
+	if utils.IsNasProtocols(protocols) {
 		if !utils.FileProtocolSupported {
 			return nil, customerrors.NewUserInputValidationErr("file protocols are not enabled")
 		}
@@ -407,6 +454,15 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		}
 	}
 
+	// Protocol validation based on FileProtocolSupported flag
+	if len(params.Protocols) == 0 {
+		return customerrors.NewUserInputValidationErr("at least one protocol must be specified")
+	}
+
+	if !utils.FileProtocolSupported && utils.IsNasProtocols(params.Protocols) {
+		return customerrors.NewUserInputValidationErr("file protocols (NFSv3, NFSv4, SMB) are not enabled")
+	}
+
 	// Protocol-specific validation
 	validator, err := GetVolumeTypeValidator(params.Protocols)
 	if err != nil {
@@ -474,6 +530,36 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 			IsEnabled: volume.SnapshotPolicy.IsEnabled,
 			Comment:   volume.SnapshotPolicy.Comment,
 			Schedules: convertToModelSnapshotPolicySchedule(volume.SnapshotPolicy.Schedules),
+		}
+	}
+
+	if attributes.FileProperties != nil {
+		exportRules := make([]*models.ExportRule, 0, len(attributes.FileProperties.ExportRules))
+		for _, rule := range attributes.FileProperties.ExportRules {
+			exportRules = append(exportRules, &models.ExportRule{
+				AllowedClients:      rule.AllowedClients,
+				AccessType:          rule.AccessType,
+				CIFS:                rule.CIFS,
+				NFSv3:               rule.NFSv3,
+				NFSv4:               rule.NFSv4,
+				UnixReadOnly:        rule.UnixReadOnly,
+				UnixReadWrite:       rule.UnixReadWrite,
+				Index:               rule.Index,
+				ChownMode:           rule.ChownMode,
+				AnonymousUser:       rule.AnonymousUser,
+				Kerberos5iReadOnly:  rule.Kerberos5iReadOnly,
+				Kerberos5iReadWrite: rule.Kerberos5iReadWrite,
+				Kerberos5pReadOnly:  rule.Kerberos5pReadOnly,
+				Kerberos5pReadWrite: rule.Kerberos5pReadWrite,
+				Kerberos5ReadOnly:   rule.Kerberos5ReadOnly,
+				Kerberos5ReadWrite:  rule.Kerberos5ReadWrite,
+				S3:                  rule.S3,
+			})
+		}
+		res.FileProperties = &models.FileProperties{
+			ExportPolicyName: attributes.FileProperties.ExportPolicyName,
+			ExportRules:      exportRules,
+			JunctionPath:     attributes.FileProperties.JunctionPath,
 		}
 	}
 
@@ -813,4 +899,34 @@ func getLocationFromVendorID(vendorID string) (string, error) {
 	}
 
 	return parts[len(parts)-3], nil
+}
+
+func validateAllowedClients(allowedClients string) error {
+	clients := strings.Split(allowedClients, ",")
+	clientsMap := make(map[string]bool)
+	if allowedClients == models.AllowedAllClients {
+		return nil
+	}
+	for _, cidr := range clients {
+		// first check if it's a valid IP without CIDR
+		if ip := net.ParseIP(cidr); ip == nil {
+			// if nil, then check if it's a valid IP with CIDR
+			ip, ipnet, err := net.ParseCIDR(cidr)
+			if err != nil {
+				return customerrors.NewUserInputValidationErr("allowedClients must include unique IPv4 or IPv4 CIDR values.")
+			}
+			if !ip.Equal(ipnet.IP) {
+				return customerrors.NewUserInputValidationErr(fmt.Sprintf("Requested export policy CIDR (%s) is invalid. Please use a valid CIDR (e.g. %s)", cidr, ipnet.String()))
+			}
+			if ones, _ := ipnet.Mask.Size(); ip.IsUnspecified() && ones != 0 {
+				return customerrors.NewUserInputValidationErr("0.0.0.0 address can only be used with a 0 bit subnet mask")
+			}
+		}
+		clientsMap[cidr] = true
+	}
+
+	if len(clientsMap) != len(clients) {
+		return customerrors.NewUserInputValidationErr("allowedClients must include unique IPv4 or IPv4 CIDR values.")
+	}
+	return nil
 }

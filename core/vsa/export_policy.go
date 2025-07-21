@@ -1,0 +1,131 @@
+package vsa
+
+import (
+	"fmt"
+
+	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+)
+
+func convertStorageExportPolicyRuleToONTAP(rule ExportRule) *ontapRest.ExportRule {
+	var protocols []string
+	if rule.CIFS {
+		protocols = append(protocols, utils.GetOntapValue(utils.ProtocolSMB))
+	}
+	if rule.NFSv3 {
+		protocols = append(protocols, utils.GetOntapValue(utils.ProtocolNFSv3))
+	}
+	if rule.NFSv4 {
+		protocols = append(protocols, utils.GetOntapValue(utils.ProtocolNFSv4))
+	}
+	var roRules, rwRules string
+	roRules = models.ExportAuthenticationFlavorSys
+	rwRules = models.AnyAccessProtocol
+	if !rule.CIFS && !rule.NFSv3 && !rule.NFSv4 {
+		roRules = *nillable.ToPointer(models.ExportAuthenticationFlavorNever)
+		rwRules = *nillable.ToPointer(models.ExportAuthenticationFlavorNever)
+	}
+
+	superUserRule := models.NoneAccessProtocol
+	if rule.Superuser {
+		superUserRule = models.AnyAccessProtocol
+	}
+	anonUser := models.RootAnonymousUser
+	if rule.AnonymousUser != "" {
+		anonUser = rule.AnonymousUser
+	}
+	chownMode := models.ChownModeRestricted
+	if rule.ChownMode != "" {
+		chownMode = rule.ChownMode
+	}
+
+	return &ontapRest.ExportRule{
+		ClientMatch:      rule.AllowedClients,
+		ChownMode:        chownMode,
+		ReadOnlyRule:     roRules,
+		ReadWriteRule:    rwRules,
+		SuperUserRule:    superUserRule,
+		Index:            int64(rule.Index),
+		NtfsUnixSecurity: models.IgnoreNtfsUnixSecurity,
+		Protocols:        protocols,
+		AnonymousUser:    anonUser,
+	}
+}
+
+func isDefaultRule(rule *ontaprestmodels.ExportRules) bool {
+	return len(rule.ExportRulesInlineClients) == 1 && *rule.ExportRulesInlineClients[0].Match == models.AllowedAllClients && int64(*rule.Index) == models.DefaultIndexExportPolicyRule &&
+		*rule.ChownMode == models.ChownModeRestricted &&
+		len(rule.Protocols) == 1 && *rule.Protocols[0] == utils.GetOntapValue(utils.ProtocolNFS) &&
+		len(rule.ExportRulesInlineRoRule) == 1 && *rule.ExportRulesInlineRoRule[0] == ontaprestmodels.ExportAuthenticationFlavorNone &&
+		len(rule.ExportRulesInlineRwRule) == 1 && *rule.ExportRulesInlineRwRule[0] == ontaprestmodels.ExportAuthenticationFlavorNone &&
+		len(rule.ExportRulesInlineSuperuser) == 1 && *rule.ExportRulesInlineSuperuser[0] == ontaprestmodels.ExportAuthenticationFlavorNone
+}
+
+// ExportPolicyEnsureDefault ensures default export policy
+func (rc *OntapRestProvider) ExportPolicyEnsureDefault(svmName string) error {
+	client, _ := getOntapClientFunc(rc.ClientParams)
+	defaultExportPolicyRuleName := models.DefaultExportPolicyName
+	resp, err := client.NAS().ExportPolicyGet(&ontapRest.ExportPolicyGetParams{
+		Name:    &defaultExportPolicyRuleName,
+		SvmName: &svmName,
+	})
+	if err != nil {
+		return err
+	}
+	if resp == nil {
+		return errors.NewNotFoundErr("Export policy", &defaultExportPolicyRuleName)
+	}
+	if len(resp.ExportPolicyInlineRules) == 1 &&
+		isDefaultRule(resp.ExportPolicyInlineRules[0]) {
+		return nil
+	}
+
+	modifyrules := make([]*ontapRest.ExportRule, 0)
+	modifyrule := &ontapRest.ExportRule{
+		Index:         models.DefaultIndexExportPolicyRule,
+		ChownMode:     models.ChownModeRestricted,
+		Protocols:     []string{utils.GetOntapValue(utils.ProtocolNFS)},
+		ClientMatch:   models.AllowedAllClients,
+		ReadOnlyRule:  models.NoneAccessProtocol,
+		ReadWriteRule: models.NoneAccessProtocol,
+		SuperUserRule: models.NoneAccessProtocol,
+		AnonymousUser: models.RootAnonymousUser,
+	}
+	modifyrules = append(modifyrules, modifyrule)
+
+	err = client.NAS().ExportPolicyModify(&ontapRest.ExportPolicyModifyParams{
+		SvmName: svmName,
+		ID:      *resp.ID,
+		Rules:   modifyrules,
+	})
+	return err
+}
+
+func (rc *OntapRestProvider) CreateExportPolicy(params *ExportPolicy) error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return fmt.Errorf("failed to get ONTAP client: %w", err)
+	}
+	ontapExportRules := make([]*ontapRest.ExportRule, 0)
+	for _, rule := range params.ExportRules {
+		ontapExportRule := convertStorageExportPolicyRuleToONTAP(*rule)
+		ontapExportRules = append(ontapExportRules, ontapExportRule)
+	}
+	err = rc.ExportPolicyEnsureDefault(params.SvmName)
+	if err != nil {
+		return fmt.Errorf("failed to ensure default export policy: %w", err)
+	}
+	_, err = client.NAS().ExportPolicyCreate(&ontapRest.ExportPolicyCreateParams{
+		Name:    params.ExportPolicyName,
+		SvmName: params.SvmName,
+		Rules:   ontapExportRules,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -1241,6 +1241,46 @@ func (re *retryEngine) UpdateHostGroup(ctx context.Context, hostGroupUUID string
 	return var0, err
 }
 
+func (re *retryEngine) GetLifByNodeIDAndProtocol(ctx context.Context, nodeID int64, accountID int64, protocol string) (*datamodel.Lif, error) {
+	var var0 *datamodel.Lif
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetLifByNodeIDAndProtocol(ctx, nodeID, accountID, protocol)
+		if err != nil {
+			re.logError("GetLifByNodeIDAndProtocol", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetLifForFilesNode(ctx context.Context, nodeID int64, accountID int64, protocol string) (*datamodel.Lif, error) {
+	var var0 *datamodel.Lif
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetLifForFilesNode(ctx, nodeID, accountID, protocol)
+		if err != nil {
+			re.logError("GetLifForFilesNode", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetLifByNodeID(ctx context.Context, nodeID int64, accountID int64) (*datamodel.Lif, error) {
 	var var0 *datamodel.Lif
 	err := retry.Do(func(attempt int) (bool, error) {
