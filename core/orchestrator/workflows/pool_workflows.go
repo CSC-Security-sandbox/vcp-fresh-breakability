@@ -192,27 +192,29 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	serviceAccount := &iam.ServiceAccount{}
-	saTimestamp := time.Now().Format(TimestampLayout)
+	saTimestamp := workflow.Now(ctx).Format(TimestampLayout)
 	serviceAccountID := fmt.Sprintf("%s%s", SAIDPrefix, saTimestamp)
+	dbPool.ServiceAccountId = serviceAccountID
 
 	rollbackManager.AddActivity(poolActivity.DeleteServiceAccount, tenancyDetails.RegionalTenantProject, serviceAccountID)
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateServiceAccountWithStorageRole, tenancyDetails.RegionalTenantProject, serviceAccountID, pool.Name).Get(ctx, serviceAccount)
 	if err != nil {
 		return nil, err
 	}
-	dbPool.ServiceAccountId = serviceAccountID
 
 	AutoTierBucketName := fmt.Sprintf("%s-%s", params.Region, dbPool.UUID)
-	rollbackManager.AddActivity(poolActivity.DeleteAutoTierBucket, AutoTierBucketName)
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateAutoTierBucket, AutoTierBucketName, params.Region, tenancyDetails.RegionalTenantProject).Get(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
+
 	// Update AutoTieringConfig with bucket name
 	if dbPool.AutoTieringConfig == nil {
 		dbPool.AutoTieringConfig = &datamodel.AutoTieringConfig{}
 	}
 	dbPool.AutoTieringConfig.BucketName = AutoTierBucketName
+
+	rollbackManager.AddActivity(poolActivity.DeleteAutoTierBucket, AutoTierBucketName)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateAutoTierBucket, AutoTierBucketName, params.Region, tenancyDetails.RegionalTenantProject).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	credConfig := &vlm.OntapCredentials{}
 
