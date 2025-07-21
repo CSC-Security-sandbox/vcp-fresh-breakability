@@ -36,10 +36,10 @@ The logic for identifying the VMs for a single HA-pair, while optimizing for cos
 
 1. For each VM, derate the raw performance numbers provided by the perf team by the workload headroom factors.
     1. We don't need the ONTAP overheads in here because they are already accounted for by the raw performance numbers generated from the sizing workload (which was run against an ONTAP cluster).
-    1. If a VM was quantified to support ($V_i$, $V_t$), we need to scale them down (by multiplying it with $(1 - \sum_j W_j))$. That is, we compute $V^'_i = V_i * (1 - \sum_j W_j)$. Similarly for throughput ($V^'_t$).
+    1. If a VM was quantified to support ($V_i$, $V_t$), we need to scale them down (by multiplying it with $(1 - \sum_j W_j))$. That is, we compute $V^{'}_i = V_i * (1 - \sum_j W_j)$. Similarly for throughput ($V^{'}_t$).
     1. The largest instance's ONTAP overheads are setup to offset derating. That is, after $V_i$ and $V_t$ are identified, just for the largest instance, we populate the VMRS config file with the values $V_t = V_t / (1 - \sum_j W_j))$ and $V_i = V_i / (1 - \sum_j W_j))$.
 1. Use the derated numbers to decide if a customer's workload can be supported by that VM. We loop through the list of VM performance characteristics (sorted by cost), and finding the first (cheapest) VM that satisfies all 3 constraints for capacity, IOPs and throughput.
-    1. That is, desired $\leq V^'_x$
+    1. That is, desired $\leq V^{'}_x$
 1. We have now identified the instance type (or VM type) to use for the single HA-pair. When provisioning the disk, we need to over-provision that disk to account for all the overheads.
     1. This is needed because we don't want to provision with the max. capacity/IOPs/throughput that is allowed by the hyperscaler. We want to constrain the customer to only what they provision, while at the same time, allowing for them to achieve whatever performance they requested. For example, if the customer requested for 100 IOPs, and we identified that the `c4-standard-4-lssd` instance/VM type offered by GCP can be used, we don't want to provision the Hyperdisk with the max. IOPs possible. We only want to provision it with 100 IOPs (with additional IOPs to account for ONTAP overheads + workload headrooms) so that the customer will get 100 IOPs, and no more.
     1. At the same time, we don't want to overprovision by such a large factor that ONTAP cannot possibly utilize. So we also have a max overprovisioning factor ($M_i$, $M_t$). Which means that we never overprovision by more that this factor overall (after all other overheads are combined).
@@ -53,6 +53,7 @@ The logic for identifying the VMs for a single HA-pair, while optimizing for cos
 ### Current implementation.
 
 <div hidden>
+
 ```plantuml
 @startuml 0005-vmrs-for-preview-currentImplVMRS
 
@@ -83,6 +84,7 @@ temporal <-- vcp_worker: workflow complete
 We are currently planning to use a constraint solver (Google's or-tools) to identify the right combination of VMs when we want to support multiple HA-pairs. Constraint solvers can take more than 30 seconds in some cases. While or-tools allows us to set timeouts (max. time before an optimal solution is found), the threshold we choose (2-5 mins) may be higher than generally acceptable latencies for synchronous API calls (< 30s). Until we finalize on a strategy for supporting multiple HA-pairs (using constraint solvers, or going with sub-pools, or something else), we choose to punt performing the VMRS checks on the synchronous request path.
 
 <div hidden>
+
 ```plantuml
 @startuml 0005-vmrs-for-preview-idealImplVMRS
 actor ccfe
@@ -109,5 +111,5 @@ temporal <-- vcp_worker: workflow complete
 
 ## <a name="references"></a> References.
 
-1. https://netapp-my.sharepoint.com/:w:/p/jbhushan/EQ6NWK0z149Gp3rzoWUnh8gBVMxz54KF0gPw8gu9AVrJIg?e=Ech5UK&wdLOR=cEBF27638-219B-C24F-8AB9-143FDDB0578E
-1. GCNV Block and Unified Product Positioning and VMRS
+1. [SKU Based Provisioning (FSxN Model) versus VM Right Sizing Provisioning (Flex Model) White Paper](https://netapp-my.sharepoint.com/:w:/p/jbhushan/EQ6NWK0z149Gp3rzoWUnh8gBVMxz54KF0gPw8gu9AVrJIg?e=Ech5UK&wdLOR=cEBF27638-219B-C24F-8AB9-143FDDB0578E)
+1. [GCNV Block and Unified Product Positioning and VMRS](https://confluence.ngage.netapp.com/display/PALM/GCNV+Block+and+Unified+Product+Positioning+and+VMRS)
