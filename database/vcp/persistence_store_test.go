@@ -1337,3 +1337,66 @@ func TestDeleteBackupVaultInVCP_Error(t *testing.T) {
 	_, err := store.DeleteBackupVaultInVCP(ctx, "non-existent-uuid")
 	assert.Error(t, err)
 }
+
+func TestListBackupPolicyVolumeCount_Persistence_Store(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+
+	// Create backup policies
+	policy1 := &datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "uuid-1"}, Name: "policy1"}
+	policy2 := &datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "uuid-2"}, Name: "policy2"}
+	createdPolicy1, err := store.CreateBackupPolicyEntryInVCP(ctx, policy1)
+	assert.NoError(t, err)
+	createdPolicy2, err := store.CreateBackupPolicyEntryInVCP(ctx, policy2)
+	assert.NoError(t, err)
+
+	// Create volumes and associate with policies
+	vol1 := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "uuid-1"}, Name: "vol1", DataProtection: &datamodel.DataProtection{BackupPolicyID: "uuid-1"}}
+	vol2 := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "uuid-2"}, Name: "vol2", DataProtection: &datamodel.DataProtection{BackupPolicyID: "uuid-1"}}
+	vol3 := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "uuid-3"}, Name: "vol3", DataProtection: &datamodel.DataProtection{BackupPolicyID: "uuid-2"}}
+	_, err = store.CreateVolume(ctx, vol1, false)
+	assert.NoError(t, err)
+	_, err = store.CreateVolume(ctx, vol2, false)
+	assert.NoError(t, err)
+	_, err = store.CreateVolume(ctx, vol3, false)
+	assert.NoError(t, err)
+
+	// List backup policy volume counts
+	result, err := store.ListBackupPolicyVolumeCount(ctx, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), result[createdPolicy1.UUID])
+	assert.Equal(t, int64(1), result[createdPolicy2.UUID])
+
+	// List backup policy volume counts with conditions
+	conditions := [][]interface{}{{"name = ?", "nonexistent"}}
+	result, err = store.ListBackupPolicyVolumeCount(ctx, conditions)
+	assert.NoError(t, err)
+	assert.Empty(t, result)
+}
+
+func TestListBackupPolicies_Persistence_Store(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+
+	policy1 := &datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "uuid-1"}, Name: "policy1"}
+	policy2 := &datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "uuid-2"}, Name: "policy2"}
+	// Create backup policies in VCP
+	_, err := store.CreateBackupPolicyEntryInVCP(ctx, policy1)
+	assert.NoError(t, err)
+	_, err = store.CreateBackupPolicyEntryInVCP(ctx, policy2)
+	assert.NoError(t, err)
+
+	// List backup policies
+	policies, err := store.ListBackupPolicies(ctx, nil)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, len(policies), 2)
+
+	// List backup policies with filter
+	conditions := [][]interface{}{{"name = ?", "policy1"}}
+	policies, err = store.ListBackupPolicies(ctx, conditions)
+	assert.NoError(t, err)
+	assert.Len(t, policies, 1)
+	assert.Equal(t, "policy1", policies[0].Name)
+}

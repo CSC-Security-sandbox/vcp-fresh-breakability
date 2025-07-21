@@ -2410,6 +2410,26 @@ func (re *retryEngine) ListBackupPolicyVolumeCount(ctx context.Context, conditio
 	return var0, err
 }
 
+func (re *retryEngine) ListBackupPolicies(ctx context.Context, conditions [][]interface{}) ([]*datamodel.BackupPolicy, error) {
+	var var0 []*datamodel.BackupPolicy
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListBackupPolicies(ctx, conditions)
+		if err != nil {
+			re.logError("ListBackupPolicies", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
 	var var0 *datamodel.BackupPolicy
 	err := retry.Do(func(attempt int) (bool, error) {

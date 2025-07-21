@@ -247,6 +247,106 @@ func TestListBackupPolicyVolumeCount(t *testing.T) {
 	})
 }
 
+func TestListBackupPolicies(t *testing.T) {
+	t.Run("WhenListBackupPoliciesReturnsBackupPolicies", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 30, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Expected no error when creating account")
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid-3"},
+			Name:      "backup-policy-name-3",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		err = store.db.Create(backupPolicy).Error()
+		assert.NoError(tt, err, "Expected no error when creating backup policy")
+
+		result, err := store.ListBackupPolicies(context.Background(), [][]interface{}{{"account_id = ?", account.ID}})
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 1)
+		assert.Equal(tt, backupPolicy.UUID, result[0].UUID)
+	})
+	t.Run("WhenListBackupPoliciesWithUUIDsReturnsBackupPolicies", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 70, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Expected no error when creating account")
+
+		backupPolicyUUIDs := []string{"test-backup-policy-uuid-4", "test-backup-policy-uuid-5"}
+		for _, uuid := range backupPolicyUUIDs {
+			backupPolicy := &datamodel.BackupPolicy{
+				BaseModel: datamodel.BaseModel{UUID: uuid},
+				Name:      "backup-policy-name-" + uuid,
+				AccountID: account.ID,
+				Account:   account,
+			}
+			err = store.db.Create(backupPolicy).Error()
+			assert.NoError(tt, err, "Expected no error when creating backup policy")
+		}
+
+		result, err := store.ListBackupPolicies(context.Background(), [][]interface{}{{"account_id = ?", account.ID}, {"uuid IN ?", backupPolicyUUIDs}})
+		assert.NoError(tt, err)
+		assert.Len(tt, result, 2)
+		for _, backupPolicy := range result {
+			assert.Contains(tt, backupPolicyUUIDs, backupPolicy.UUID)
+		}
+	})
+	t.Run("WhenListBackupPoliciesReturnsEmptySlice", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 70, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Expected no error when creating account")
+
+		result, err := store.ListBackupPolicies(context.Background(), [][]interface{}{{"account_id = ?", 9999}})
+		assert.NoError(tt, err)
+		assert.Empty(tt, result)
+	})
+	t.Run("WhenListBackupPoliciesReturnsError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		_, err = store.ListBackupPolicies(context.Background(), [][]interface{}{{"invalid_column = ?", "value"}})
+		assert.Error(tt, err, "Expected error when listing backup policies with invalid conditions")
+	})
+}
+
 func TestCreateBackupPolicyEntryInVCP(t *testing.T) {
 	t.Run("WhenCreateBackupPolicyEntryInVCPSucceeds", func(tt *testing.T) {
 		db, err := SetupTestDB()

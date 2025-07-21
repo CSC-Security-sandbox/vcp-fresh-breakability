@@ -239,6 +239,12 @@ func (h Handler) V1betaDescribeBackupPolicy(ctx context.Context, params gcpgense
 }
 
 func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpgenserver.BackupPolicyIdListV1beta, params gcpgenserver.V1betaGetMultipleBackupPoliciesParams) (gcpgenserver.V1betaGetMultipleBackupPoliciesRes, error) {
+	if !backupEnabled {
+		return &gcpgenserver.V1betaGetMultipleBackupPoliciesBadRequest{
+			Code:    400,
+			Message: "Backup feature is currently not enabled.",
+		}, nil
+	}
 	logger := util.GetLogger(ctx)
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
@@ -309,12 +315,12 @@ func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpge
 		}, nil
 	}
 
-	vcpBackupPolicies, err := h.Orchestrator.ListBackupPolicyVolumeCount(ctx, params.ProjectNumber, req.BackupPolicyUuids)
+	vcpBackupPolicyVolumeCount, vcpBackupPolicies, err := h.Orchestrator.ListBackupPoliciesAndVolumeCount(ctx, params.ProjectNumber, req.BackupPolicyUuids)
 	if err != nil {
-		logger.Errorf("Failed to get multiple backup policy volume count: %v", err)
+		logger.Errorf("Failed to get backup policies and volume counts: %v", err)
 		return &gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError{
 			Code:    500,
-			Message: "Failed to get multiple backup policy volume count",
+			Message: "Failed to get backup policies",
 		}, nil
 	}
 
@@ -322,13 +328,17 @@ func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpge
 		BackupPolicies: []gcpgenserver.BackupPolicyV1beta{},
 	}
 	for _, bp := range res.Payload.BackupPolicies {
-		if vcpBackupPolicies[bp.BackupPolicyID] > 0 {
+		if vcpBackupPolicyVolumeCount[bp.BackupPolicyID] > 0 {
 			// Update the backup policy's volume count if volumes are assigned to this policy in VCP
-			totalVolumesAssigned := vcpBackupPolicies[bp.BackupPolicyID]
+			totalVolumesAssigned := vcpBackupPolicyVolumeCount[bp.BackupPolicyID]
 			if bp.VolumeCount != nil {
 				totalVolumesAssigned += *bp.VolumeCount
 			}
 			bp.VolumeCount = &totalVolumesAssigned
+		}
+		if vcpBackupPolicies[bp.BackupPolicyID] != nil {
+			// Update the backup policy state if it exists in VCP
+			bp.State = vcpBackupPolicies[bp.BackupPolicyID].State
 		}
 		operationResponse.BackupPolicies = append(operationResponse.BackupPolicies, convertToBackupPolicyV1beta(bp))
 	}
@@ -336,6 +346,12 @@ func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpge
 }
 
 func (h Handler) V1betaListBackupPolicies(ctx context.Context, params gcpgenserver.V1betaListBackupPoliciesParams) (gcpgenserver.V1betaListBackupPoliciesRes, error) {
+	if !backupEnabled {
+		return &gcpgenserver.V1betaListBackupPoliciesBadRequest{
+			Code:    400,
+			Message: "Backup feature is currently not enabled.",
+		}, nil
+	}
 	logger := util.GetLogger(ctx)
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
@@ -400,12 +416,12 @@ func (h Handler) V1betaListBackupPolicies(ctx context.Context, params gcpgenserv
 		}, nil
 	}
 
-	vcpBackupPolicies, err := h.Orchestrator.ListBackupPolicyVolumeCount(ctx, params.ProjectNumber, nil)
+	vcpBackupPolicyVolumeCount, vcpBackupPolicies, err := h.Orchestrator.ListBackupPoliciesAndVolumeCount(ctx, params.ProjectNumber, nil)
 	if err != nil {
-		logger.Errorf("Failed to list backup policy volume count: %v", err)
+		logger.Errorf("Failed to list backup policies and volume counts: %v", err)
 		return &gcpgenserver.V1betaListBackupPoliciesInternalServerError{
 			Code:    500,
-			Message: "Failed to list backup policy volume count",
+			Message: "Failed to list backup policies",
 		}, nil
 	}
 
@@ -413,13 +429,17 @@ func (h Handler) V1betaListBackupPolicies(ctx context.Context, params gcpgenserv
 		BackupPolicies: []gcpgenserver.BackupPolicyV1beta{},
 	}
 	for _, bp := range res.Payload.BackupPolicies {
-		if vcpBackupPolicies[bp.BackupPolicyID] > 0 {
+		if vcpBackupPolicyVolumeCount[bp.BackupPolicyID] > 0 {
 			// Update the backup policy's volume count if volumes are assigned to this policy in VCP
-			totalVolumesAssigned := vcpBackupPolicies[bp.BackupPolicyID]
+			totalVolumesAssigned := vcpBackupPolicyVolumeCount[bp.BackupPolicyID]
 			if bp.VolumeCount != nil {
 				totalVolumesAssigned += *bp.VolumeCount
 			}
 			bp.VolumeCount = &totalVolumesAssigned
+		}
+		if vcpBackupPolicies[bp.BackupPolicyID] != nil {
+			// Update the backup policy state if it exists in VCP
+			bp.State = vcpBackupPolicies[bp.BackupPolicyID].State
 		}
 		operationResponse.BackupPolicies = append(operationResponse.BackupPolicies, convertToBackupPolicyV1beta(bp))
 	}
@@ -582,19 +602,28 @@ func convertToBackupPolicyDetailsV1beta(res *backup_policy.V1betaDescribeBackupP
 }
 
 func convertToBackupPolicyV1beta(bp *models.BackupPolicyV1beta) gcpgenserver.BackupPolicyV1beta {
-	backupPolicy := gcpgenserver.BackupPolicyV1beta{
-		ResourceId:     *bp.ResourceID,
-		BackupPolicyId: gcpgenserver.NewOptString(bp.BackupPolicyID),
-		Enabled:        *bp.Enabled,
-		Description:    gcpgenserver.NewOptString(*bp.Description),
-		CreatedAt:      gcpgenserver.NewOptDateTime(time.Time(*bp.CreatedAt)),
+	backupPolicy := gcpgenserver.BackupPolicyV1beta{}
+
+	backupPolicy.BackupPolicyId = gcpgenserver.NewOptString(bp.BackupPolicyID)
+
+	if bp.ResourceID != nil {
+		backupPolicy.ResourceId = *bp.ResourceID
 	}
-	if bp.VolumeCount != nil {
-		backupPolicy.VolumeCount = gcpgenserver.NewOptInt(int(*bp.VolumeCount))
+	if bp.Enabled != nil {
+		backupPolicy.Enabled = *bp.Enabled
+	}
+	if bp.Description != nil {
+		backupPolicy.Description = gcpgenserver.NewOptString(*bp.Description)
+	}
+	if bp.CreatedAt != nil {
+		backupPolicy.CreatedAt = gcpgenserver.NewOptDateTime(time.Time(*bp.CreatedAt))
 	}
 	if bp.State != "" {
 		state := gcpgenserver.BackupPolicyV1betaState(bp.State)
 		backupPolicy.State = gcpgenserver.NewOptBackupPolicyV1betaState(state)
+	}
+	if bp.VolumeCount != nil {
+		backupPolicy.VolumeCount = gcpgenserver.NewOptInt(int(*bp.VolumeCount))
 	}
 	if bp.DailyBackupLimit != nil {
 		backupPolicy.DailyBackupLimit = gcpgenserver.NewOptInt(int(*bp.DailyBackupLimit))

@@ -3036,17 +3036,18 @@ func (_c *MockOrchestratorFactory_ListAllPools_Call) RunAndReturn(run func(conte
 	return _c
 }
 
-// ListBackupPolicyVolumeCount provides a mock function with given fields: ctx, ownerID, backupPolicyUUIDs
-func (_m *MockOrchestratorFactory) ListBackupPolicyVolumeCount(ctx context.Context, ownerID string, backupPolicyUUIDs []string) (map[string]int64, error) {
+// ListBackupPoliciesAndVolumeCount provides a mock function with given fields: ctx, ownerID, backupPolicyUUIDs
+func (_m *MockOrchestratorFactory) ListBackupPoliciesAndVolumeCount(ctx context.Context, ownerID string, backupPolicyUUIDs []string) (map[string]int64, map[string]*models.BackupPolicy, error) {
 	ret := _m.Called(ctx, ownerID, backupPolicyUUIDs)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ListBackupPolicyVolumeCount")
+		panic("no return value specified for ListBackupPoliciesAndVolumeCount")
 	}
 
 	var r0 map[string]int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string) (map[string]int64, error)); ok {
+	var r1 map[string]*models.BackupPolicy
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, []string) (map[string]int64, map[string]*models.BackupPolicy, error)); ok {
 		return rf(ctx, ownerID, backupPolicyUUIDs)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string, []string) map[string]int64); ok {
@@ -3057,41 +3058,49 @@ func (_m *MockOrchestratorFactory) ListBackupPolicyVolumeCount(ctx context.Conte
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, []string) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string, []string) map[string]*models.BackupPolicy); ok {
 		r1 = rf(ctx, ownerID, backupPolicyUUIDs)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(map[string]*models.BackupPolicy)
+		}
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, string, []string) error); ok {
+		r2 = rf(ctx, ownerID, backupPolicyUUIDs)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
-// MockOrchestratorFactory_ListBackupPolicyVolumeCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBackupPolicyVolumeCount'
-type MockOrchestratorFactory_ListBackupPolicyVolumeCount_Call struct {
+// MockOrchestratorFactory_ListBackupPoliciesAndVolumeCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBackupPoliciesAndVolumeCount'
+type MockOrchestratorFactory_ListBackupPoliciesAndVolumeCount_Call struct {
 	*mock.Call
 }
 
-// ListBackupPolicyVolumeCount is a helper method to define mock.On call
+// ListBackupPoliciesAndVolumeCount is a helper method to define mock.On call
 //   - ctx context.Context
 //   - ownerID string
 //   - backupPolicyUUIDs []string
-func (_e *MockOrchestratorFactory_Expecter) ListBackupPolicyVolumeCount(ctx interface{}, ownerID interface{}, backupPolicyUUIDs interface{}) *MockOrchestratorFactory_ListBackupPolicyVolumeCount_Call {
-	return &MockOrchestratorFactory_ListBackupPolicyVolumeCount_Call{Call: _e.mock.On("ListBackupPolicyVolumeCount", ctx, ownerID, backupPolicyUUIDs)}
+func (_e *MockOrchestratorFactory_Expecter) ListBackupPoliciesAndVolumeCount(ctx interface{}, ownerID interface{}, backupPolicyUUIDs interface{}) *MockOrchestratorFactory_ListBackupPoliciesAndVolumeCount_Call {
+	return &MockOrchestratorFactory_ListBackupPoliciesAndVolumeCount_Call{Call: _e.mock.On("ListBackupPoliciesAndVolumeCount", ctx, ownerID, backupPolicyUUIDs)}
 }
 
-func (_c *MockOrchestratorFactory_ListBackupPolicyVolumeCount_Call) Run(run func(ctx context.Context, ownerID string, backupPolicyUUIDs []string)) *MockOrchestratorFactory_ListBackupPolicyVolumeCount_Call {
+func (_c *MockOrchestratorFactory_ListBackupPoliciesAndVolumeCount_Call) Run(run func(ctx context.Context, ownerID string, backupPolicyUUIDs []string)) *MockOrchestratorFactory_ListBackupPoliciesAndVolumeCount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string), args[2].([]string))
 	})
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_ListBackupPolicyVolumeCount_Call) Return(_a0 map[string]int64, _a1 error) *MockOrchestratorFactory_ListBackupPolicyVolumeCount_Call {
-	_c.Call.Return(_a0, _a1)
+func (_c *MockOrchestratorFactory_ListBackupPoliciesAndVolumeCount_Call) Return(_a0 map[string]int64, _a1 map[string]*models.BackupPolicy, _a2 error) *MockOrchestratorFactory_ListBackupPoliciesAndVolumeCount_Call {
+	_c.Call.Return(_a0, _a1, _a2)
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_ListBackupPolicyVolumeCount_Call) RunAndReturn(run func(context.Context, string, []string) (map[string]int64, error)) *MockOrchestratorFactory_ListBackupPolicyVolumeCount_Call {
+func (_c *MockOrchestratorFactory_ListBackupPoliciesAndVolumeCount_Call) RunAndReturn(run func(context.Context, string, []string) (map[string]int64, map[string]*models.BackupPolicy, error)) *MockOrchestratorFactory_ListBackupPoliciesAndVolumeCount_Call {
 	_c.Call.Return(run)
 	return _c
 }

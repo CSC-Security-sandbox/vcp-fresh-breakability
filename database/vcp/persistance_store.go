@@ -904,6 +904,10 @@ func (s *PersistenceStore) ListBackupPolicyVolumeCount(ctx context.Context, cond
 	return s.dataStore.ListBackupPolicyVolumeCount(ctx, conditions)
 }
 
+func (s *PersistenceStore) ListBackupPolicies(ctx context.Context, conditions [][]interface{}) ([]*datamodel.BackupPolicy, error) {
+	return s.dataStore.ListBackupPolicies(ctx, conditions)
+}
+
 func (s *PersistenceStore) CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
 	return s.dataStore.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
 }

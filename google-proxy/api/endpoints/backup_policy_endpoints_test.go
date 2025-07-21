@@ -1427,6 +1427,28 @@ func TestV1betaUpdateBackupPolicy(t *testing.T) {
 
 // V1betaListBackupPolicies unittests
 func TestV1betaListBackupPolicies(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	backupEnabled = true
+	defer func() { backupEnabled = origBackupEnabled }()
+
+	t.Run("ReturnsBadRequestWhenBackupFeatureDisabled", func(t *testing.T) {
+		oldBackupEnabled := backupEnabled
+		backupEnabled = false
+		defer func() { backupEnabled = oldBackupEnabled }()
+
+		params := gcpgenserver.V1betaListBackupPoliciesParams{
+			ProjectNumber: "123",
+			LocationId:    "us-west1",
+		}
+		handler := Handler{}
+		result, err := handler.V1betaListBackupPolicies(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupPoliciesBadRequest{}, result)
+		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaListBackupPoliciesBadRequest).Code)
+		assert.Equal(t, "Backup feature is currently not enabled.", result.(*gcpgenserver.V1betaListBackupPoliciesBadRequest).Message)
+	})
+
 	t.Run("ReturnsBadRequestWhenRegionParsingFails", func(t *testing.T) {
 		params := gcpgenserver.V1betaListBackupPoliciesParams{
 			LocationId:     "local",
@@ -1506,11 +1528,20 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 
 		vcpBackupPolicyVolumeCount := make(map[string]int64)
 		vcpBackupPolicyVolumeCount["backup-policy-id-1"] = 2
+		vcpBackupPolicies := make(map[string]*mod.BackupPolicy)
+		vcpBackupPolicies["backup-policy-id-1"] = &mod.BackupPolicy{
+			BackupPolicyUUID: "backup-policy-id-1",
+			State:            "updating",
+		}
+		vcpBackupPolicies["backup-policy-id-2"] = &mod.BackupPolicy{
+			BackupPolicyUUID: "backup-policy-id-2",
+			State:            "active",
+		}
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 		var backupPolicyIds []string
 		mockOrchestrator.EXPECT().
-			ListBackupPolicyVolumeCount(mock.Anything, params.ProjectNumber, backupPolicyIds).
-			Return(vcpBackupPolicyVolumeCount, nil)
+			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, backupPolicyIds).
+			Return(vcpBackupPolicyVolumeCount, vcpBackupPolicies, nil)
 
 		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
@@ -1522,7 +1553,7 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 			Description:        gcpgenserver.NewOptString(description),
 			Enabled:            enabled,
 			ResourceId:         resourceId,
-			State:              gcpgenserver.NewOptBackupPolicyV1betaState("active"),
+			State:              gcpgenserver.NewOptBackupPolicyV1betaState("updating"),
 			VolumeCount:        gcpgenserver.NewOptInt(int(volumeCount + 2)),
 			DailyBackupLimit:   gcpgenserver.NewOptInt(int(volumeCount)),
 			WeeklyBackupLimit:  gcpgenserver.NewOptInt(int(volumeCount)),
@@ -1531,6 +1562,7 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 		expectedBackupPolicy2 := expectedBackupPolicy1
 		expectedBackupPolicy2.BackupPolicyId = gcpgenserver.NewOptString("backup-policy-id-2")
 		expectedBackupPolicy2.VolumeCount = gcpgenserver.NewOptInt(int(volumeCount))
+		expectedBackupPolicy2.State = gcpgenserver.NewOptBackupPolicyV1betaState("active")
 		expectedBackupPolicies := []gcpgenserver.BackupPolicyV1beta{
 			expectedBackupPolicy1,
 			expectedBackupPolicy2,
@@ -1544,7 +1576,7 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 		assert.Equal(t, expectedBackupPolicies, result.(*gcpgenserver.V1betaListBackupPoliciesOK).BackupPolicies)
 	})
 
-	t.Run("WhenVCPListBackupPolicyVolumeCountFails", func(t *testing.T) {
+	t.Run("WhenVCPListBackupPoliciesAndVolumeCountFails", func(t *testing.T) {
 		// Define request
 		// Create a mock client
 		mockClient := backup_policy.NewMockClientService(t)
@@ -1598,8 +1630,8 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 		var backupPolicyIds []string
 		mockOrchestrator.EXPECT().
-			ListBackupPolicyVolumeCount(mock.Anything, params.ProjectNumber, backupPolicyIds).
-			Return(nil, errors.New("failed to list backup policy volume count"))
+			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, backupPolicyIds).
+			Return(nil, nil, errors.New("failed to list backup policy volume count"))
 
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 		originalCreateClient := createClient
@@ -1611,7 +1643,7 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 		// Call the method under test
 		result, err := handler.V1betaListBackupPolicies(context.Background(), params)
 		errorCode := float64(500)
-		errorMessage := "Failed to list backup policy volume count"
+		errorMessage := "Failed to list backup policies"
 
 		// Assertions
 		assert.NoError(t, err)
@@ -1652,9 +1684,10 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 		vcpBackupPolicyVolumeCount := make(map[string]int64)
 		var backupPolicyIds []string
+		vcpBackupPolicies := make(map[string]*mod.BackupPolicy)
 		mockOrchestrator.EXPECT().
-			ListBackupPolicyVolumeCount(mock.Anything, params.ProjectNumber, backupPolicyIds).
-			Return(vcpBackupPolicyVolumeCount, nil)
+			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, backupPolicyIds).
+			Return(vcpBackupPolicyVolumeCount, vcpBackupPolicies, nil)
 
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 		originalCreateClient := createClient
@@ -1900,6 +1933,31 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 
 // V1betaGetMultipleBackupPolicies unittests
 func TestV1GetMultipleBackupPolicies(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	backupEnabled = true
+	defer func() { backupEnabled = origBackupEnabled }()
+
+	t.Run("ReturnsBadRequestWhenBackupFeatureDisabled", func(t *testing.T) {
+		oldBackupEnabled := backupEnabled
+		backupEnabled = false
+		defer func() { backupEnabled = oldBackupEnabled }()
+
+		params := gcpgenserver.V1betaGetMultipleBackupPoliciesParams{
+			LocationId:    "us-central1",
+			ProjectNumber: "123456789",
+		}
+		req := &gcpgenserver.BackupPolicyIdListV1beta{}
+
+		handler := Handler{}
+		result, err := handler.V1betaGetMultipleBackupPolicies(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaGetMultipleBackupPoliciesBadRequest{}, result)
+		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaGetMultipleBackupPoliciesBadRequest).Code)
+		assert.Equal(t, "Backup feature is currently not enabled.", result.(*gcpgenserver.V1betaGetMultipleBackupPoliciesBadRequest).Message)
+	})
+
 	t.Run("ReturnsBadRequestWhenRegionParsingFails", func(t *testing.T) {
 		params := gcpgenserver.V1betaGetMultipleBackupPoliciesParams{
 			LocationId:     "local",
@@ -1987,10 +2045,19 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 
 		vcpBackupPolicyVolumeCount := make(map[string]int64)
 		vcpBackupPolicyVolumeCount["backup-policy-id-1"] = 2
+		vcpBackupPolicies := make(map[string]*mod.BackupPolicy)
+		vcpBackupPolicies["backup-policy-id-1"] = &mod.BackupPolicy{
+			BackupPolicyUUID: "backup-policy-id-1",
+			State:            "updating",
+		}
+		vcpBackupPolicies["backup-policy-id-2"] = &mod.BackupPolicy{
+			BackupPolicyUUID: "backup-policy-id-2",
+			State:            "active",
+		}
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 		mockOrchestrator.EXPECT().
-			ListBackupPolicyVolumeCount(mock.Anything, params.ProjectNumber, req.BackupPolicyUuids).
-			Return(vcpBackupPolicyVolumeCount, nil)
+			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, req.BackupPolicyUuids).
+			Return(vcpBackupPolicyVolumeCount, vcpBackupPolicies, nil)
 
 		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
@@ -2002,7 +2069,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			Description:        gcpgenserver.NewOptString(description),
 			Enabled:            enabled,
 			ResourceId:         resourceId,
-			State:              gcpgenserver.NewOptBackupPolicyV1betaState("active"),
+			State:              gcpgenserver.NewOptBackupPolicyV1betaState("updating"),
 			VolumeCount:        gcpgenserver.NewOptInt(int(volumeCount + 2)),
 			DailyBackupLimit:   gcpgenserver.NewOptInt(int(volumeCount)),
 			WeeklyBackupLimit:  gcpgenserver.NewOptInt(int(volumeCount)),
@@ -2011,6 +2078,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		expectedBackupPolicy2 := expectedBackupPolicy1
 		expectedBackupPolicy2.BackupPolicyId = gcpgenserver.NewOptString("backup-policy-id-2")
 		expectedBackupPolicy2.VolumeCount = gcpgenserver.NewOptInt(int(volumeCount))
+		expectedBackupPolicy2.State = gcpgenserver.NewOptBackupPolicyV1betaState("active")
 		expectedBackupPolicies := []gcpgenserver.BackupPolicyV1beta{
 			expectedBackupPolicy1,
 			expectedBackupPolicy2,
@@ -2024,7 +2092,7 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		assert.Equal(t, expectedBackupPolicies, result.(*gcpgenserver.V1betaGetMultipleBackupPoliciesOK).BackupPolicies)
 	})
 
-	t.Run("WhenListBackupPolicyVolumeCountFails", func(t *testing.T) {
+	t.Run("WhenListBackupPoliciesAndVolumeCountFails", func(t *testing.T) {
 		// Define request
 		// Create a mock client
 		mockClient := backup_policy.NewMockClientService(t)
@@ -2087,14 +2155,14 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 		mockOrchestrator.EXPECT().
-			ListBackupPolicyVolumeCount(mock.Anything, params.ProjectNumber, req.BackupPolicyUuids).
-			Return(nil, errors.New("failed to get multiple backup policy volume count"))
+			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, req.BackupPolicyUuids).
+			Return(nil, nil, errors.New("failed to get multiple backup policy volume count"))
 
 		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaGetMultipleBackupPolicies(context.Background(), req, params)
 		errorCode := float64(500)
-		errorMessage := "Failed to get multiple backup policy volume count"
+		errorMessage := "Failed to get backup policies"
 
 		// Assertions
 		assert.NoError(t, err)
@@ -2140,9 +2208,10 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 			Return(mockResponse, nil)
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 		vcpBackupPolicyVolumeCount := make(map[string]int64)
+		vcpBackupPolicies := make(map[string]*mod.BackupPolicy)
 		mockOrchestrator.EXPECT().
-			ListBackupPolicyVolumeCount(mock.Anything, params.ProjectNumber, req.BackupPolicyUuids).
-			Return(vcpBackupPolicyVolumeCount, nil)
+			ListBackupPoliciesAndVolumeCount(mock.Anything, params.ProjectNumber, req.BackupPolicyUuids).
+			Return(vcpBackupPolicyVolumeCount, vcpBackupPolicies, nil)
 
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 		originalCreateClient := createClient
@@ -2408,5 +2477,61 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError).Code)
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError).Message)
+	})
+}
+
+func TestConvertToBackupPolicyV1beta(t *testing.T) {
+	t.Run("WhenAllValuesAreSet", func(t *testing.T) {
+		now := strfmt.DateTime(time.Now().UTC())
+		resourceID := "backup-policy-resource-id"
+		description := "test-description"
+		enabled := true
+		state := "READY"
+		volumeCount := int64(3)
+		daily := int64(1)
+		weekly := int64(2)
+		monthly := int64(3)
+		backupPolicyUUID := "backup-policy-uuid"
+
+		bp := &models.BackupPolicyV1beta{
+			BackupPolicyID: backupPolicyUUID,
+			ResourceID:     &resourceID,
+			Enabled:        &enabled,
+			Description:    &description,
+			CreatedAt:      &now,
+			State:          state,
+			VolumeCount:    &volumeCount,
+			BackupPolicyScheduleV1beta: models.BackupPolicyScheduleV1beta{
+				DailyBackupLimit:   &daily,
+				WeeklyBackupLimit:  &weekly,
+				MonthlyBackupLimit: &monthly,
+			},
+		}
+
+		result := convertToBackupPolicyV1beta(bp)
+		expected := gcpgenserver.BackupPolicyV1beta{
+			BackupPolicyId:     gcpgenserver.NewOptString(backupPolicyUUID),
+			ResourceId:         resourceID,
+			Enabled:            true,
+			Description:        gcpgenserver.NewOptString(description),
+			CreatedAt:          gcpgenserver.NewOptDateTime(time.Time(now)),
+			State:              gcpgenserver.NewOptBackupPolicyV1betaState(gcpgenserver.BackupPolicyV1betaState(state)),
+			VolumeCount:        gcpgenserver.NewOptInt(3),
+			DailyBackupLimit:   gcpgenserver.NewOptInt(1),
+			WeeklyBackupLimit:  gcpgenserver.NewOptInt(2),
+			MonthlyBackupLimit: gcpgenserver.NewOptInt(3),
+		}
+		assert.Equal(t, expected, result)
+	})
+	t.Run("WhenValuesAreNil", func(t *testing.T) {
+		bp := &models.BackupPolicyV1beta{}
+
+		result := convertToBackupPolicyV1beta(bp)
+		expected := gcpgenserver.BackupPolicyV1beta{
+			BackupPolicyId: gcpgenserver.NewOptString(""),
+			ResourceId:     "",
+			Enabled:        false,
+		}
+		assert.Equal(t, expected, result)
 	})
 }

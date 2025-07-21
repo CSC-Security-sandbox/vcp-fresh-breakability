@@ -68,7 +68,7 @@ type OrchestratorFactory interface {
 
 	GetBackupVaultByNameAndOwnerID(ctx context.Context, bvName, ownerID string) (*models.BackupVaultV1beta, error)
 	GetBackupPolicyByNameAndOwnerID(ctx context.Context, backupPolicyName, ownerID string) (*models.BackupPolicy, error)
-	ListBackupPolicyVolumeCount(ctx context.Context, ownerID string, backupPolicyUUIDs []string) (map[string]int64, error)
+	ListBackupPoliciesAndVolumeCount(ctx context.Context, ownerID string, backupPolicyUUIDs []string) (map[string]int64, map[string]*models.BackupPolicy, error)
 	ListBackupVaults(ctx context.Context, accountName string) ([]*models.BackupVaultV1beta, error)
 	GetBackupVaultByUUID(ctx context.Context, bvUUID string, ownerID string) (*models.BackupVaultV1beta, error)
 	UpdateBackupVault(ctx context.Context, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error)

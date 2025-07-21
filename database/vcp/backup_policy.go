@@ -63,6 +63,16 @@ func (d *DataStoreRepository) ListBackupPolicyVolumeCount(ctx context.Context, c
 	return backupPoliciesMap, nil
 }
 
+func (d *DataStoreRepository) ListBackupPolicies(ctx context.Context, conditions [][]interface{}) ([]*datamodel.BackupPolicy, error) {
+	db := d.db.ApplyFilter(conditions).GORM().WithContext(ctx)
+	var backupPolicies []*datamodel.BackupPolicy
+	err := db.Find(&backupPolicies).Error
+	if err != nil {
+		return nil, err
+	}
+	return backupPolicies, nil
+}
+
 func (d *DataStoreRepository) CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
