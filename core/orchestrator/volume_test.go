@@ -4732,6 +4732,56 @@ func TestUpdateVolume(t *testing.T) {
 		assert.NotNil(tt, volume)
 		assert.Equal(tt, "vol", volume.DisplayName)
 	})
+	t.Run("WhenDetachBackupVaultWithNoBackupsForVolume", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		param := &common.UpdateVolumeParams{
+			AccountName:  "acc",
+			VolumeId:     "vid",
+			QuotaInBytes: 200,
+			Name:         "vol",
+			DataProtection: &models.DataProtection{
+				BackupVaultID: "", // Detaching backup vault
+			},
+		}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: 100,
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"}},
+			Account: &datamodel.Account{
+				Name: "acc",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "vault-1", // Current backup vault
+			},
+			State: "READY",
+		}
+
+		job := &datamodel.Job{WorkflowID: "wid"}
+
+		// Mock expectations
+		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		// Expect GetBackupsByBackupVaultOwnerIDAndFilter to be called with volume-specific filter
+		// and return empty list (no backups for this volume)
+		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-1", mock.Anything, [][]interface{}{{"volume_uuid = ?", "vid"}}).Return([]*datamodel.Backup{}, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		// Act
+		volume, _, err := updateVolume(ctx, se, temporal, param)
+
+		// Assert
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.Equal(tt, "vol", volume.DisplayName)
+	})
 	t.Run("WhenUpdateVolumeGetBackupsByBackupVaultErrors", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}

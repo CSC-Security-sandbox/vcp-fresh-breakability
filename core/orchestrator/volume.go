@@ -694,7 +694,8 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 				BackupVaultID: params.DataProtection.BackupVaultID,
 			}
 		} else if dbVolume.DataProtection.BackupVaultID != "" && (params.DataProtection.BackupVaultID == "" || params.DataProtection.BackupVaultID != dbVolume.DataProtection.BackupVaultID) {
-			backups, err := se.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, dbVolume.DataProtection.BackupVaultID, dbVolume.Account.ID, nil)
+			filters := [][]interface{}{{"volume_uuid = ?", dbVolume.UUID}}
+			backups, err := se.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, dbVolume.DataProtection.BackupVaultID, dbVolume.Account.ID, filters)
 			if err != nil {
 				return nil, "", err
 			}
