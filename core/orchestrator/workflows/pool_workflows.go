@@ -4,12 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"go.temporal.io/api/enums/v1"
-	"go.temporal.io/sdk/activity"
-	"go.temporal.io/sdk/client"
-	"go.temporal.io/sdk/temporal"
-	"go.temporal.io/sdk/workflow"
-	"google.golang.org/api/iam/v1"
 	"regexp"
 	"time"
 
@@ -33,6 +27,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/workflow"
+	"google.golang.org/api/iam/v1"
 )
 
 var (
@@ -255,7 +255,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	hostMap := make(map[string]string)
 
 	createVSAClusterDeploymentRequest := &vlm.CreateVSAClusterDeploymentRequest{}
-	prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest, *vlmConfig, *credConfig)
+	prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest, *vlmConfig, *credConfig, dbPool)
 	createVSAClusterDeploymentResponse, err := vsaClientWorkflowManager.CreateVSAClusterDeployment(ctx, createVSAClusterDeploymentRequest)
 	if err != nil {
 		return nil, err
@@ -1031,7 +1031,14 @@ func (sa *SubnetActivity) GetTenancyDetails(ctx context.Context, workflowID stri
 	return subnetWfRes.TenancyDetails, nil
 }
 
-func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest *vlm.CreateVSAClusterDeploymentRequest, vlmConfig vlm.VLMConfig, ontapCredentials vlm.OntapCredentials) {
+func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest *vlm.CreateVSAClusterDeploymentRequest, vlmConfig vlm.VLMConfig, ontapCredentials vlm.OntapCredentials, pool *datamodel.Pool) {
+	// Initialize labels map if it doesn't exist
+	if vlmConfig.Deployment.Labels == nil {
+		vlmConfig.Deployment.Labels = make(map[string]string)
+	}
+	vlmConfig.Deployment.Labels["pool_name"] = pool.Name
+	vlmConfig.Deployment.Labels["pool_uuid"] = pool.UUID
+
 	createVSAClusterDeploymentRequest.VLMConfig = vlmConfig
 	createVSAClusterDeploymentRequest.OntapCredentials = ontapCredentials
 }

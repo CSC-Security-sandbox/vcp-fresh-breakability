@@ -108,6 +108,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		},
 	}
 	poolObj.DeploymentName = utils.GenerateDeterministicDeploymentName(poolObj.AccountID, poolObj.UUID, params.Region)
+	logger.Infof("generated deployment name: %s", poolObj.DeploymentName)
 	switch commonparams.AuthType {
 	case commonparams.USER_CERTIFICATE:
 		poolObj.PoolCredentials = &datamodel.PoolCredentials{

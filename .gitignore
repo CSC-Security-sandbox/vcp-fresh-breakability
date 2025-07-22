@@ -21,6 +21,7 @@ go.work
 
 # VS Code settings
 .vscode/
+.cursor/
 
 # macOS specific files
 .DS_Store
