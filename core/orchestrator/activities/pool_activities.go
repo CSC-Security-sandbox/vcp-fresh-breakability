@@ -553,7 +553,7 @@ func (j *PoolActivity) GetOntapVersion(ctx context.Context, node *models.Node) (
 func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlm.VLMConfig) (*datamodel.Svm, error) {
 	se := j.SE
 
-	name := vlmConfig.Deployment.DeploymentID + "-datasvm-" + DefaultSvmName
+	name := DefaultSvmName
 	svm := vlmConfig.Svm[name]
 
 	svmRec := &datamodel.Svm{
@@ -580,7 +580,7 @@ func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Po
 	}
 	// TODO: Remove this workaround once the VLM worker image is updated to use the correct LIF type ("iscsi").
 	// Currently, the received data uses "default-data-iscsi" instead of the expected "iscsi" as per the data model.
-	lifs := svm.SVMLIFs[vlm.DefaultLIFTypeIscsi]
+	lifs := svm.SVMLIFs[vlm.LIFTypeSan]
 
 	for i, lif := range lifs {
 		dataLif := lif.IP
@@ -601,7 +601,7 @@ func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Po
 		}
 	}
 
-	lifs = svm.SVMLIFs[DefaultDataFiles]
+	lifs = svm.SVMLIFs[vlm.LIFTypeNas]
 	for i, lif := range lifs {
 		// Ensure we don't go out of bounds when assigning nodes
 		nodeIndex := i % len(nodes)

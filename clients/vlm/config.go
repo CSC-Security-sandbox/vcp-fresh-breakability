@@ -16,6 +16,9 @@ const (
 	CreateVSASVMWorkflowName               = "vlm.CreateVSASVMWorkflow"
 	DeleteVSAClusterDeploymentWorkflowName = "vlm.DeleteVSAClusterDeploymentWorkflow"
 	UpdateVSAClusterDeploymentWorkflowName = "vlm.UpdateVSAClusterDeploymentWorkflow"
+
+	GCP_DISK_PD_SSD = "pd-ssd"
+	GCP_DISK_HDB    = "hyperdisk-balanced"
 )
 
 type VLMConfig struct {
@@ -38,17 +41,20 @@ type DeploymentConfig struct {
 	Zone               ZoneInfo    `json:"zone"`                 // Added
 	Images             ImageConfig `json:"images"`               // Added
 
-	Tags         string            `json:"tags"`           // Comma separated list of tags to be attached for the VMs created by the deployment
-	Labels       map[string]string `json:"labels"`         // List of labels to attach to resources
-	UserBootargs string            `json:"user_boot_args"` // The input is a list of key-value pairs with semicolons as delimiters.
+	Tags           string            `json:"tags"`             // Comma separated list of tags to be attached for the VMs created by the deployment
+	Labels         map[string]string `json:"labels"`           // List of labels to attach to resources
+	UserBootargs   string            `json:"user_boot_args"`   // The input is a list of key-value pairs with semicolons as delimiters.
+	UserCustomdata map[string]string `json:"user_custom_data"` // Additional Custom data to be passed to the VMs by user
 
-	DeploymentType       string `json:"deployment_type"`        // SingeNode or ShareHA or NonShareHA
-	NumHAPair            int    `json:"num_ha_pair"`            // Number of HA pairs to be created
-	VSAInstanceType      string `json:"vsa_instance_type"`      // rename to VSAInstanceType
-	MediatorInstanceType string `json:"mediator_instance_type"` // rename to MediatorInstanceType
-	DataDiskType         string `json:"data_disk_type"`         // Move to GCP config ?
-	SystemDiskType       string `json:"system_disk_type"`       // Move to GCP config ?
-	DataDiskCount        int    `json:"data_disk_count"`        // Number of data disks to be created
+	DeploymentType       string                       `json:"deployment_type"`        // SingeNode or ShareHA or NonShareHA
+	NumHAPair            int                          `json:"num_ha_pair"`            // Number of HA pairs to be created
+	VSAInstanceType      string                       `json:"vsa_instance_type"`      // rename to VSAInstanceType
+	MediatorInstanceType string                       `json:"mediator_instance_type"` // rename to MediatorInstanceType
+	DataDiskType         string                       `json:"data_disk_type"`         // Move to GCP config ?
+	SystemDiskType       string                       `json:"system_disk_type"`       // Move to GCP config ?
+	MediatorDiskType     string                       `json:"mediator_disk_type"`     // Move to GCP config ?
+	DataDiskCount        int                          `json:"data_disk_count"`        // Number of data disks to be created
+	VSASystemDiskConfig  map[OntapDiskType]DiskConfig `json:"vsa_system_disk_config"` // System disk configuration for VSA
 
 	// TODO: check if zone wise netconfig is required
 	NetConfig map[VSALIFType]NetworkConfig `json:"net_config"` // Network configuration for the deployment
@@ -94,16 +100,17 @@ type SPConfig struct {
 	Throughput int64  `json:"tput"` // Throughput for the storage pool
 }
 
+// If user wants to use certificate-based authentication, needs to provide following input. Certificate will be installed during deployment and can be used for authentication. Priority will be given to password, if both certificate and password is provided.
 type OntapCertificate struct {
-	Certificate             string   `json:"certificate"`              // Certificate for ONTAP
-	PrivateKey              string   `json:"private_key"`              // Private key for ONTAP
-	InterMediateCertificate []string `json:"intermediate_certificate"` // Intermediate certificate for ONTAP
-	CommonName              string   `json:"common_name"`              // Common name for ONTAP
-	CaCertificate           string   `json:"ca_certificate"`           // CA certificate for ONTAP
-	DNSName                 string   `json:"cert_dns"`                 // DNS name for the certificate
+	Certificate             string   `json:"certificate"`              // Certificate for ONTAP (Mandatory)
+	PrivateKey              string   `json:"private_key"`              // Private key for ONTAP (Mandatory)
+	InterMediateCertificate []string `json:"intermediate_certificate"` // Intermediate certificate for ONTAP (Optional)
+	CommonName              string   `json:"common_name"`              // Common name for ONTAP (Mandatory)
+	CaCertificate           string   `json:"ca_certificate"`           // CA certificate for ONTAP (Mandatory)
+	DNSName                 string   `json:"cert_dns"`                 // DNS name for the certificate (Optional)
 }
 
-// OntapCredentials holds the credentials for ONTAP, including the certificate and username/password.
+// OntapCredentials holds the credentials for ONTAP, including the certificate and password. Certificate is an optional field if user wants use certificate.
 type OntapCredentials struct {
 	Certificate   OntapCertificate `json:"certificate"`    // Certificate for ONTAP
 	AdminPassword string           `json:"admin_password"` // Password for ONTAP
@@ -148,12 +155,9 @@ const (
 	LIFTypeCluster      VSALIFType = "clus"
 	LIFTypeInterCluster VSALIFType = "intercluster"
 	LIFTypeRSM          VSALIFType = "rsm"
-	LIFTypeIscsi        VSALIFType = "iscsi"
-	LIFTypeNfs          VSALIFType = "nfs"
+	LIFTypeSan          VSALIFType = "san"
+	LIFTypeNas          VSALIFType = "nas"
 	LIFTypeMediator     VSALIFType = "mediator"
-	// TODO: Remove this workaround once the VLM worker image is updated to use the correct LIF type ("iscsi").
-	// Currently, the received data uses "default-data-iscsi" instead of the expected "iscsi" as per the data model.
-	DefaultLIFTypeIscsi VSALIFType = "default-data-iscsi"
 )
 
 type LIFConfig struct {
@@ -179,6 +183,7 @@ type VsaClusterConfig struct {
 	CustBroadcastDomain string `json:"cust_broadcast_domain"`
 	CustIPSpace         string `json:"cust_ip_space"`
 	ObjectStoreName     string `json:"object_store_name"`
+	ClusterName         string `json:"cluster_name"` // Name of the VSA cluster
 }
 
 type SvmLIFConfigs map[VSALIFType][]LIFConfig

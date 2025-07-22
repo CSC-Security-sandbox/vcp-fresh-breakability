@@ -261,7 +261,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateCloudDNSRecords, vlmConfig, pool.DeploymentName).Get(ctx, &hostMap)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreateCloudDNSRecords, vlmConfig, createVSAClusterDeploymentResponse.VLMConfig.VsaCluster.ClusterName).Get(ctx, &hostMap)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +286,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	clusterDetails := &datamodel.ClusterDetails{
-		ExternalName:          vlmConfig.Deployment.DeploymentID + "-cluster", // FIXME: Replace with cluster name from VLM config instead of deployment name,
+		ExternalName:          createVSAClusterDeploymentResponse.VLMConfig.VsaCluster.ClusterName,
 		OntapVersion:          ontapVersion,
 		RegionalTenantProject: tenancyDetails.RegionalTenantProject,
 		SnHostProject:         tenancyDetails.SnHostProject,
@@ -466,7 +466,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	saEmail := utils.ConstructServiceAccountEmail(pool.ServiceAccountId, pool.ClusterDetails.RegionalTenantProject)
 	currentVlmConfig := &vlm.VLMConfig{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.ConstructCurrentVlmConfig, pool.ID, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, dsc, saEmail, bucketName).Get(ctx, currentVlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.ConstructCurrentVlmConfig, pool.ID, dbPool.DeploymentName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, dsc, saEmail, bucketName).Get(ctx, currentVlmConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -479,7 +479,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	newVlmConfig := &vlm.VLMConfig{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, pool.ClusterDetails.ExternalName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, saEmail, bucketName).Get(ctx, newVlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, saEmail, bucketName).Get(ctx, newVlmConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -631,7 +631,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	ontapVersion := ExtractOntapVersion(dbPool.ClusterDetails.OntapVersion)
 
 	deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
-	prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.ClusterDetails.ExternalName, VLMCloudProvider, dbPool.ClusterDetails.RegionalTenantProject)
+	prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, VLMCloudProvider, dbPool.ClusterDetails.RegionalTenantProject)
 	err = vsaClientWorkflowManager.DeleteVSAClusterDeployment(ctx, deleteVSAClusterDeploymentRequest, ontapVersion)
 	if err != nil {
 		return nil, err

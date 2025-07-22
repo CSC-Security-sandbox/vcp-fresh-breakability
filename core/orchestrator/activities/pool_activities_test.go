@@ -634,12 +634,15 @@ func Test_SaveSVMAndLifData_Success(t *testing.T) {
 	vlmConfig := &vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{DeploymentID: "test-deployment"},
 		Svm: map[string]vlm.SvmConfig{
-			"test-deployment-datasvm-gcnv": {
+			"gcnv": {
 				Svmname: "test-svm",
 				Svmuuid: "test-uuid",
 				SVMLIFs: map[vlm.VSALIFType][]vlm.LIFConfig{
-					vlm.DefaultLIFTypeIscsi: {
+					vlm.LIFTypeSan: {
 						{IP: "192.168.1.1/24", Name: "lif1"},
+					},
+					vlm.LIFTypeNas: {
+						{IP: "192.168.1.1/24", Name: "lif2"},
 					},
 				},
 			},
@@ -667,12 +670,15 @@ func Test_SaveSVMAndLifDataDBCreationError(t *testing.T) {
 	vlmConfig := &vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{DeploymentID: "test-deployment"},
 		Svm: map[string]vlm.SvmConfig{
-			"test-deployment-datasvm-gcnv-default-svm": {
+			"gcnv": {
 				Svmname: "test-svm",
 				Svmuuid: "test-uuid",
 				SVMLIFs: map[vlm.VSALIFType][]vlm.LIFConfig{
-					vlm.LIFTypeIscsi: {
+					vlm.LIFTypeSan: {
 						{IP: "192.168.1.1/24", Name: "lif1"},
+					},
+					vlm.LIFTypeNas: {
+						{IP: "192.168.1.1/24", Name: "lif2"},
 					},
 				},
 			},
@@ -760,11 +766,11 @@ func Test_SaveSVMAndLifData_FailsToCreateLif(t *testing.T) {
 	vlmConfig := &vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{DeploymentID: "test-deployment"},
 		Svm: map[string]vlm.SvmConfig{
-			"test-deployment-datasvm-gcnv": {
+			"gcnv": {
 				Svmname: "test-svm",
 				Svmuuid: "test-uuid",
 				SVMLIFs: map[vlm.VSALIFType][]vlm.LIFConfig{
-					vlm.DefaultLIFTypeIscsi: {
+					vlm.LIFTypeSan: {
 						{IP: "192.168.1.1/24", Name: "lif1"},
 					},
 				},
