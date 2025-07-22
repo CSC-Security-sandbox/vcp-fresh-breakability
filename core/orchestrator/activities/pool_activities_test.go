@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"google.golang.org/api/servicenetworking/v1"
 	"strconv"
 	"strings"
 	"testing"
@@ -36,6 +35,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/testsuite"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/servicenetworking/v1"
 	"gorm.io/gorm"
 )
 
@@ -639,10 +639,10 @@ func Test_SaveSVMAndLifData_Success(t *testing.T) {
 				Svmuuid: "test-uuid",
 				SVMLIFs: map[vlm.VSALIFType][]vlm.LIFConfig{
 					vlm.LIFTypeSan: {
-						{IP: "192.168.1.1/24", Name: "lif1"},
+						{IP: "192.168.1.1/24", Name: "lif1", HomeNode: "01"},
 					},
 					vlm.LIFTypeNas: {
-						{IP: "192.168.1.1/24", Name: "lif2"},
+						{IP: "192.168.1.1/24", Name: "lif2", HomeNode: "02"},
 					},
 				},
 			},
@@ -651,7 +651,7 @@ func Test_SaveSVMAndLifData_Success(t *testing.T) {
 
 	mockStorage.On("CreateSVM", mock.Anything, mock.Anything).Return(&datamodel.Svm{}, nil)
 	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}}, {BaseModel: datamodel.BaseModel{ID: 1}},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "01"}, {BaseModel: datamodel.BaseModel{ID: 1}, Name: "02"},
 	}, nil)
 	mockStorage.On("CreateLif", mock.Anything, mock.Anything).Return(&datamodel.Lif{}, nil)
 
@@ -771,7 +771,7 @@ func Test_SaveSVMAndLifData_FailsToCreateLif(t *testing.T) {
 				Svmuuid: "test-uuid",
 				SVMLIFs: map[vlm.VSALIFType][]vlm.LIFConfig{
 					vlm.LIFTypeSan: {
-						{IP: "192.168.1.1/24", Name: "lif1"},
+						{IP: "192.168.1.1/24", Name: "lif1", HomeNode: "01"},
 					},
 				},
 			},
@@ -780,7 +780,7 @@ func Test_SaveSVMAndLifData_FailsToCreateLif(t *testing.T) {
 
 	mockStorage.On("CreateSVM", mock.Anything, mock.Anything).Return(&datamodel.Svm{}, nil)
 	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{
-		{BaseModel: datamodel.BaseModel{ID: 1}}, {BaseModel: datamodel.BaseModel{ID: 1}},
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "01"}, {BaseModel: datamodel.BaseModel{ID: 1}, Name: "02"},
 	}, nil)
 	mockStorage.On("CreateLif", mock.Anything, mock.Anything).Return(nil, errors.New("failed to create LIF"))
 
@@ -788,6 +788,42 @@ func Test_SaveSVMAndLifData_FailsToCreateLif(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create LIF")
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_SaveSVMAndLifData_NonExistentHomeNode(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, AccountID: 1}
+	vlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{DeploymentID: "test-deployment"},
+		Svm: map[string]vlm.SvmConfig{
+			"gcnv": {
+				Svmname: "test-svm",
+				Svmuuid: "test-uuid",
+				SVMLIFs: map[vlm.VSALIFType][]vlm.LIFConfig{
+					vlm.LIFTypeSan: {
+						{IP: "192.168.1.1/24", Name: "lif1", HomeNode: "non-existent-node"},
+					},
+				},
+			},
+		},
+	}
+
+	// Mock nodes that exist in the database
+	mockStorage.On("CreateSVM", ctx, mock.Anything).Return(&datamodel.Svm{}, nil)
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "existing-node"},
+		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "another-node"},
+	}, nil)
+
+	svm, err := activity.SaveSVMAndLifData(ctx, pool, vlmConfig)
+
+	assert.Nil(t, svm)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "LIF lif1 references non-existent home node non-existent-node")
 	mockStorage.AssertExpectations(t)
 }
 

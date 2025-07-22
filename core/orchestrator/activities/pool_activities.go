@@ -11,7 +11,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"google.golang.org/api/servicenetworking/v1"
 	"net"
 	"os"
 	"strconv"
@@ -36,6 +35,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/activity"
 	"google.golang.org/api/iam/v1"
+	"google.golang.org/api/servicenetworking/v1"
 	"gorm.io/gorm"
 )
 
@@ -578,15 +578,31 @@ func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Po
 	if len(nodes) < 2 {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("not enough nodes in the cluster to create LIFs for SVM "+svm.Svmname))
 	}
+	// create map of nodes with node name as key and node ID as value
+	nodeMap := make(map[string]int64)
+	for _, node := range nodes {
+		if node.Name == "" {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("node name is empty for node ID "+strconv.FormatInt(node.ID, 10)))
+		}
+		nodeMap[node.Name] = node.ID
+	}
+
 	lifs := svm.SVMLIFs[vlm.LIFTypeSan]
 
-	for i, lif := range lifs {
+	for _, lif := range lifs {
 		dataLif := lif.IP
 		ip := strings.Split(dataLif, "/")[0]
+
+		// Validate that the HomeNode exists in the nodeMap
+		nodeID, exists := nodeMap[lif.HomeNode]
+		if !exists {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, fmt.Errorf("LIF %s references non-existent home node %s", lif.Name, lif.HomeNode))
+		}
+
 		lifRec := &datamodel.Lif{
 			Name:      lif.Name,
 			AccountID: pool.AccountID,
-			NodeID:    nodes[i].ID, // FIXME : need to get the node name from the lif object - VLM changes
+			NodeID:    nodeID,
 			LifDetails: &datamodel.LifDetails{
 				ExternalUUID: lif.Uuid,
 				ProtocolType: string(vlm.LIFTypeSan),
@@ -600,19 +616,24 @@ func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Po
 	}
 
 	lifs = svm.SVMLIFs[vlm.LIFTypeNas]
-	for i, lif := range lifs {
-		// Ensure we don't go out of bounds when assigning nodes
-		nodeIndex := i % len(nodes)
+	for _, lif := range lifs {
 		dataLif := lif.IP
 		ip := strings.Split(dataLif, "/")[0]
+
+		// Validate that the HomeNode exists in the nodeMap
+		nodeID, exists := nodeMap[lif.HomeNode]
+		if !exists {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, fmt.Errorf("LIF %s references non-existent home node %s", lif.Name, lif.HomeNode))
+		}
+
 		lifRec := &datamodel.Lif{
 			Name:      lif.Name,
 			AccountID: pool.AccountID,
-			NodeID:    nodes[nodeIndex].ID, // FIXME : need to get the node name
+			NodeID:    nodeID,
 			LifDetails: &datamodel.LifDetails{
 				ExternalUUID: lif.Uuid,
-				ProtocolType: "NAS", // string(vlm.LIFTypeNfs), // string(vlm.LIFTypeIscsi) assign from vlm.LIFTypeIscsi when vlm changes are done
-			}, // FIXME : need to get the external UUID from the lif object - VLM
+				ProtocolType: string(vlm.LIFTypeNas),
+			},
 			IPAddress:  ip,
 			SubnetMask: vsa.DefaultNetmask}
 		if _, err = se.CreateLif(ctx, lifRec); err != nil && !utilErrors.IsConflictErr(err) {

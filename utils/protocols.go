@@ -22,8 +22,8 @@ const (
 type ProtocolType string
 
 const (
-	ProtocolTypeNAS ProtocolType = "NAS"
-	ProtocolTypeSAN ProtocolType = "SAN"
+	ProtocolTypeNAS ProtocolType = "nas"
+	ProtocolTypeSAN ProtocolType = "san"
 )
 
 // ProtocolInfo contains information about a protocol

@@ -238,8 +238,8 @@ func TestProtocolConstants(t *testing.T) {
 	})
 
 	t.Run("ProtocolTypesAreCorrect", func(tt *testing.T) {
-		assert.Equal(tt, ProtocolType("NAS"), ProtocolTypeNAS)
-		assert.Equal(tt, ProtocolType("SAN"), ProtocolTypeSAN)
+		assert.Equal(tt, ProtocolType("nas"), ProtocolTypeNAS)
+		assert.Equal(tt, ProtocolType("san"), ProtocolTypeSAN)
 	})
 }
 
