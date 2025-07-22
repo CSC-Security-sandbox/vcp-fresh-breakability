@@ -2802,4 +2802,386 @@ func TestConvertModelToVCPVolume_MountPoints(t *testing.T) {
 		// Verify mount points are not added and no panic occurs
 		assert.Empty(tt, result.MountPoints)
 	})
+
+	t.Run("WhenLabelsArePresent_ShouldReturn", func(tt *testing.T) {
+		vol := &models.Volume{
+			BaseModel:     models.BaseModel{UUID: "vol-1"},
+			ProtocolTypes: []string{"ISCSI"},
+			Labels: map[string]string{
+				"key1": "value1",
+			},
+		}
+		// Convert the model to VCP volume
+		result := convertModelToVCPVolume(vol)
+
+		// Verify mount points are not added and no panic occurs
+		assert.NotEmpty(tt, result.Labels)
+		assert.Equal(tt, "value1", result.Labels.Value["key1"])
+	})
+}
+
+func TestV1betaDescribeVolume(t *testing.T) {
+	t.Run("Success", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDescribeVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "READY",
+			DisplayName:    "test-volume",
+			QuotaInBytes:   1024 * 1024 * 1024, // 1GB
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", true).Return(volume, nil)
+
+		result, err := handler.V1betaDescribeVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		volumeResponse := result.(*gcpgenserver.VolumeV1beta)
+		assert.Equal(tt, "test-volume", volumeResponse.ResourceId)
+		assert.Equal(tt, "vol-1", volumeResponse.VolumeId.Value)
+	})
+
+	t.Run("VolumeNotFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDescribeVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "nonexistent-vol",
+		}
+		notFoundErr := errors.NewNotFoundErr("Volume", &params.VolumeId)
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "nonexistent-vol", true).Return(nil, notFoundErr)
+
+		result, err := handler.V1betaDescribeVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		notFound, isNotFound := result.(*gcpgenserver.V1betaDescribeVolumeNotFound)
+		assert.True(tt, isNotFound)
+		assert.Equal(tt, float64(404), notFound.Code)
+		assert.Equal(tt, "Volume not found", notFound.Message)
+	})
+
+	t.Run("InternalServerError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDescribeVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		internalErr := errors.New("database connection failed")
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", true).Return(nil, internalErr)
+
+		result, err := handler.V1betaDescribeVolume(context.Background(), params)
+		assert.Error(tt, err)
+		assert.Equal(tt, internalErr, err)
+		internalServerErr, isInternal := result.(*gcpgenserver.V1betaDescribeVolumeInternalServerError)
+		assert.True(tt, isInternal)
+		assert.Equal(tt, float64(500), internalServerErr.Code)
+		assert.Equal(tt, "Internal server error", internalServerErr.Message)
+	})
+}
+
+func TestV1betaDeleteVolume(t *testing.T) {
+	t.Run("Success", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDeleteVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+
+		// First GetVolume call to check current state
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: models.LifeCycleStateREADY,
+			CreationToken:  "token",
+			DisplayName:    "test-volume",
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+
+		// DeleteVolume call
+		deletedVolume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: models.LifeCycleStateDeleted,
+			CreationToken:  "token",
+			DisplayName:    "test-volume",
+		}
+		mockOrchestrator.EXPECT().DeleteVolume(mock.Anything, "vol-1").Return(deletedVolume, "job-123", nil)
+
+		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		operation, isOperation := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, isOperation)
+		assert.Contains(tt, operation.Name.Value, "job-123")
+		assert.Equal(tt, true, operation.Done.Value)
+		assert.NotNil(tt, operation.Response)
+		assert.Greater(tt, len(operation.Response), 0) // Response should contain data
+	})
+
+	t.Run("GetVolumeNotFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDeleteVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "nonexistent-vol",
+		}
+		req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+
+		notFoundErr := errors.NewNotFoundErr("Volume", &params.VolumeId)
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "nonexistent-vol", false).Return(nil, notFoundErr)
+
+		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+		assert.Error(tt, err)
+		assert.Equal(tt, notFoundErr, err)
+		internalErr, isInternal := result.(*gcpgenserver.V1betaDeleteVolumeInternalServerError)
+		assert.True(tt, isInternal)
+		assert.Equal(tt, float64(404), internalErr.Code)
+		assert.Equal(tt, "Volume not found", internalErr.Message)
+	})
+
+	t.Run("GetVolumeInternalServerError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDeleteVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+
+		internalErr := errors.New("database connection failed")
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(nil, internalErr)
+
+		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+		assert.Error(tt, err)
+		assert.Equal(tt, internalErr, err)
+		serverErr, isInternal := result.(*gcpgenserver.V1betaDeleteVolumeInternalServerError)
+		assert.True(tt, isInternal)
+		assert.Equal(tt, float64(500), serverErr.Code)
+		assert.Equal(tt, "Internal server error", serverErr.Message)
+	})
+
+	t.Run("VolumeAlreadyDeleting", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDeleteVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: models.LifeCycleStateDeleting,
+			CreationToken:  "token",
+			DisplayName:    "test-volume",
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+
+		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+		assert.NoError(tt, err) // err is nil since GetVolume succeeded
+		conflict, isConflict := result.(*gcpgenserver.V1betaDeleteVolumeConflict)
+		assert.True(tt, isConflict)
+		assert.Equal(tt, float64(409), conflict.Code)
+		assert.Equal(tt, "Error deleting volume - Volume is already transitioning between states", conflict.Message)
+	})
+
+	t.Run("VolumeAlreadyDeleted", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDeleteVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: models.LifeCycleStateDeleted,
+			CreationToken:  "token",
+			DisplayName:    "test-volume",
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+
+		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		operation, isOperation := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, isOperation)
+		assert.Contains(tt, operation.Name.Value, "/v1beta/projects/test-project/locations/test-location/operations/")
+		assert.Equal(tt, true, operation.Done.Value)
+		assert.Equal(tt, 0, len(operation.Response)) // No response for already deleted volume
+	})
+
+	t.Run("DeleteVolumeNotFound", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDeleteVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+
+		// GetVolume succeeds
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: models.LifeCycleStateREADY,
+			CreationToken:  "token",
+			DisplayName:    "test-volume",
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+
+		// DeleteVolume returns not found (volume disappeared between calls)
+		notFoundErr := errors.NewNotFoundErr("Volume", &params.VolumeId)
+		mockOrchestrator.EXPECT().DeleteVolume(mock.Anything, "vol-1").Return(nil, "", notFoundErr)
+
+		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		operation, isOperation := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, isOperation)
+		assert.Contains(tt, operation.Name.Value, "/v1beta/projects/test-project/locations/test-location/operations/")
+		assert.Equal(tt, true, operation.Done.Value)
+		assert.Equal(tt, 0, len(operation.Response)) // No response for not found during delete
+	})
+
+	t.Run("DeleteVolumeInternalServerError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDeleteVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+
+		// GetVolume succeeds
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: models.LifeCycleStateREADY,
+			CreationToken:  "token",
+			DisplayName:    "test-volume",
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+
+		// DeleteVolume fails with internal error
+		internalErr := errors.New("database connection failed")
+		mockOrchestrator.EXPECT().DeleteVolume(mock.Anything, "vol-1").Return(nil, "", internalErr)
+
+		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+		assert.Error(tt, err)
+		assert.Equal(tt, internalErr, err)
+		serverErr, isInternal := result.(*gcpgenserver.V1betaDeleteVolumeInternalServerError)
+		assert.True(tt, isInternal)
+		assert.Equal(tt, float64(500), serverErr.Code)
+		assert.Equal(tt, "Internal server error", serverErr.Message)
+	})
+
+	t.Run("SuccessWithDeletingState", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaDeleteVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+
+		// GetVolume succeeds
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: models.LifeCycleStateREADY,
+			CreationToken:  "token",
+			DisplayName:    "test-volume",
+		}
+		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+
+		// DeleteVolume returns volume in deleting state
+		deletingVolume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: models.LifeCycleStateDeleting,
+			CreationToken:  "token",
+			DisplayName:    "test-volume",
+		}
+		mockOrchestrator.EXPECT().DeleteVolume(mock.Anything, "vol-1").Return(deletingVolume, "job-123", nil)
+
+		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		operation, isOperation := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, isOperation)
+		assert.Contains(tt, operation.Name.Value, "job-123")
+		assert.Equal(tt, false, operation.Done.Value) // Not done yet since still deleting
+		assert.NotNil(tt, operation.Response)
+		assert.Greater(tt, len(operation.Response), 0) // Response should contain data
+	})
+
+	t.Run("SuccessWithDifferentVolumeStates", func(tt *testing.T) {
+		testCases := []struct {
+			name         string
+			initialState string
+			expectError  bool
+		}{
+			{
+				name:         "FromReadyState",
+				initialState: models.LifeCycleStateREADY,
+				expectError:  false,
+			},
+			{
+				name:         "FromErrorState",
+				initialState: models.LifeCycleStateError,
+				expectError:  false,
+			},
+		}
+
+		for _, tc := range testCases {
+			tt.Run(tc.name, func(t *testing.T) {
+				mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+				handler := Handler{Orchestrator: mockOrchestrator}
+				params := gcpgenserver.V1betaDeleteVolumeParams{
+					ProjectNumber: "test-project",
+					LocationId:    "test-location",
+					VolumeId:      "vol-1",
+				}
+				req := gcpgenserver.OptV1betaDeleteVolumeReq{}
+
+				// GetVolume succeeds
+				volume := &models.Volume{
+					BaseModel:      models.BaseModel{UUID: "vol-1"},
+					LifeCycleState: tc.initialState,
+					CreationToken:  "token",
+					DisplayName:    "test-volume",
+				}
+				mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
+
+				// DeleteVolume returns volume in deleted state
+				deletedVolume := &models.Volume{
+					BaseModel:      models.BaseModel{UUID: "vol-1"},
+					LifeCycleState: models.LifeCycleStateDeleted,
+					CreationToken:  "token",
+					DisplayName:    "test-volume",
+				}
+				mockOrchestrator.EXPECT().DeleteVolume(mock.Anything, "vol-1").Return(deletedVolume, "job-123", nil)
+
+				result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
+				if tc.expectError {
+					assert.Error(t, err)
+				} else {
+					assert.NoError(t, err)
+					operation, isOperation := result.(*gcpgenserver.OperationV1beta)
+					assert.True(t, isOperation)
+					assert.Contains(t, operation.Name.Value, "job-123")
+					assert.Equal(t, true, operation.Done.Value)
+					assert.NotNil(t, operation.Response)
+					assert.Greater(t, len(operation.Response), 0) // Response should contain data
+				}
+			})
+		}
+	})
 }

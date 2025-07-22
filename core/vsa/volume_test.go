@@ -395,6 +395,9 @@ func TestGetVolume_WhenVolumeIsFound_ThenReturnVolumeResponse(t *testing.T) {
 			Space: &models.VolumeInlineSpace{
 				Available: nillable.GetInt64Ptr(100000), // Example available space
 				Size:      nillable.GetInt64Ptr(200000), // Example total size
+				LogicalSpace: &models.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.GetInt64Ptr(100000),
+				},
 			},
 			State: nillable.ToPointer(models.VolumeStateOnline),
 			SnapshotPolicy: &models.VolumeInlineSnapshotPolicy{

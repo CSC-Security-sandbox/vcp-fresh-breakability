@@ -2862,9 +2862,9 @@ func (_c *MockOrchestratorFactory_GetSnapshot_Call) RunAndReturn(run func(contex
 	return _c
 }
 
-// GetVolume provides a mock function with given fields: ctx, volumeId
-func (_m *MockOrchestratorFactory) GetVolume(ctx context.Context, volumeId string) (*models.Volume, error) {
-	ret := _m.Called(ctx, volumeId)
+// GetVolume provides a mock function with given fields: ctx, volumeId, updateVolumeMetrics
+func (_m *MockOrchestratorFactory) GetVolume(ctx context.Context, volumeId string, updateVolumeMetrics bool) (*models.Volume, error) {
+	ret := _m.Called(ctx, volumeId, updateVolumeMetrics)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetVolume")
@@ -2872,19 +2872,19 @@ func (_m *MockOrchestratorFactory) GetVolume(ctx context.Context, volumeId strin
 
 	var r0 *models.Volume
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*models.Volume, error)); ok {
-		return rf(ctx, volumeId)
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) (*models.Volume, error)); ok {
+		return rf(ctx, volumeId, updateVolumeMetrics)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *models.Volume); ok {
-		r0 = rf(ctx, volumeId)
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) *models.Volume); ok {
+		r0 = rf(ctx, volumeId, updateVolumeMetrics)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*models.Volume)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, volumeId)
+	if rf, ok := ret.Get(1).(func(context.Context, string, bool) error); ok {
+		r1 = rf(ctx, volumeId, updateVolumeMetrics)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2900,13 +2900,14 @@ type MockOrchestratorFactory_GetVolume_Call struct {
 // GetVolume is a helper method to define mock.On call
 //   - ctx context.Context
 //   - volumeId string
-func (_e *MockOrchestratorFactory_Expecter) GetVolume(ctx interface{}, volumeId interface{}) *MockOrchestratorFactory_GetVolume_Call {
-	return &MockOrchestratorFactory_GetVolume_Call{Call: _e.mock.On("GetVolume", ctx, volumeId)}
+//   - updateVolumeMetrics bool
+func (_e *MockOrchestratorFactory_Expecter) GetVolume(ctx interface{}, volumeId interface{}, updateVolumeMetrics interface{}) *MockOrchestratorFactory_GetVolume_Call {
+	return &MockOrchestratorFactory_GetVolume_Call{Call: _e.mock.On("GetVolume", ctx, volumeId, updateVolumeMetrics)}
 }
 
-func (_c *MockOrchestratorFactory_GetVolume_Call) Run(run func(ctx context.Context, volumeId string)) *MockOrchestratorFactory_GetVolume_Call {
+func (_c *MockOrchestratorFactory_GetVolume_Call) Run(run func(ctx context.Context, volumeId string, updateVolumeMetrics bool)) *MockOrchestratorFactory_GetVolume_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(bool))
 	})
 	return _c
 }
@@ -2916,7 +2917,7 @@ func (_c *MockOrchestratorFactory_GetVolume_Call) Return(_a0 *models.Volume, _a1
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_GetVolume_Call) RunAndReturn(run func(context.Context, string) (*models.Volume, error)) *MockOrchestratorFactory_GetVolume_Call {
+func (_c *MockOrchestratorFactory_GetVolume_Call) RunAndReturn(run func(context.Context, string, bool) (*models.Volume, error)) *MockOrchestratorFactory_GetVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -55,6 +55,7 @@ const (
 	JobTypeDeleteSnapmirrorSnapshotsInternal JobType = "DELETE_SM_SNAPSHOTS_INTERNAL"
 	JobTypeCreateSubnet                      JobType = "CREATE_SUBNET"
 	JobTypeDeleteBackupVault                 JobType = "DELETE_BACKUP_VAULT"
+	JobTypeRefreshVolumeFields               JobType = "REFRESH_VOLUME_FIELDS"
 )
 
 // Job describes a job DB model

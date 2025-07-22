@@ -369,6 +369,26 @@ func (re *retryEngine) GetVolume(ctx context.Context, id string) (*datamodel.Vol
 	return var0, err
 }
 
+func (re *retryEngine) DescribeVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
+	var var0 *datamodel.Volume
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.DescribeVolume(ctx, id)
+		if err != nil {
+			re.logError("DescribeVolume", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetVolumeWithAccountID(ctx context.Context, id string, accountID int64) (*datamodel.Volume, error) {
 	var var0 *datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {

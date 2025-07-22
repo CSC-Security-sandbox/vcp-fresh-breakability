@@ -42,7 +42,7 @@ func TestGetVolume(t *testing.T) {
 			storage: store,
 		}
 
-		volume, err := orch.GetVolume(ctx, "non-existent-uuid")
+		volume, err := orch.GetVolume(ctx, "non-existent-uuid", false)
 		assert.EqualError(tt, err, "volume not found")
 		assert.Nil(tt, volume, "Expected nil volume")
 	})
@@ -118,7 +118,7 @@ func TestGetVolume(t *testing.T) {
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
 
-		result, err := orch.GetVolume(ctx, "test-volume-uuid")
+		result, err := orch.GetVolume(ctx, "test-volume-uuid", false)
 		assert.NoError(tt, err, "Failed to get volume")
 		assert.Equal(tt, volume.Name, result.DisplayName)
 		assert.Equal(tt, account.Name, result.AccountName)
@@ -182,7 +182,7 @@ func TestGetVolume(t *testing.T) {
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
 
-		result, err := orch.GetVolume(ctx, "test-volume-uuid")
+		result, err := orch.GetVolume(ctx, "test-volume-uuid", false)
 
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
@@ -191,6 +191,407 @@ func TestGetVolume(t *testing.T) {
 		} else {
 			t.Fatalf("Expected CustomError, got %v", err)
 		}
+	})
+
+	t.Run("WhenRefreshVolumeFieldsIsTrue", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		volumeId := "test-volume-uuid"
+		accountId := int64(1)
+
+		// Create test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: accountId},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		node := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid"},
+			Name:            "test_node",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+		}
+		err = store.DB().Create(node).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node: %v", err)
+		}
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid"},
+			Name:      "test_lif",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node.ID,
+		}
+		err = store.DB().Create(lif).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: volumeId},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "volume-token",
+				Protocols:     []string{"iscsi"},
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		// Mock ExecuteWorkflow to succeed
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		orch := &Orchestrator{
+			storage:  store,
+			temporal: mockTemporal,
+		}
+
+		// Call GetVolume with refreshVolumeFields = true
+		result, err := orch.GetVolume(ctx, volumeId, true)
+
+		// Verify expectations
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, volumeId, result.UUID)
+		assert.Equal(tt, "test_volume", result.DisplayName)
+		assert.Equal(tt, "test_account", result.AccountName)
+
+		job, err := store.GetJobByResourceUUID(ctx, volumeId)
+		if err != nil {
+			tt.Fatalf("Failed to get job: %v", err)
+			return
+		}
+		assert.NotNil(tt, job, "Expected job to be created")
+		assert.Equal(tt, "NEW", job.State)
+	})
+
+	t.Run("WhenRefreshVolumeFieldsIsTrueButCreateJobFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := &database.MockStorage{}
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		volumeId := "test-volume-uuid"
+
+		// Create mock volume with proper account data
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			Name:      "test_account",
+		}
+
+		mockPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		mockVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: volumeId},
+			Name:      "test_volume",
+			Account:   mockAccount,
+			AccountID: mockAccount.ID,
+			Pool:      mockPool,
+			PoolID:    mockPool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "volume-token",
+				Protocols:     []string{"iscsi"},
+			},
+		}
+
+		mockNode := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{UUID: "node-uuid", ID: 1},
+		}
+
+		mockLif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "lif-uuid"},
+			IPAddress: "1.1.1.1",
+		}
+
+		// Mock storage calls
+		mockStorage.On("DescribeVolume", ctx, volumeId).Return(mockVolume, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, mockPool.ID).Return([]*datamodel.Node{mockNode}, nil)
+		mockStorage.On("GetLifForNode", ctx, mockNode.ID, mockAccount.ID).Return(mockLif, nil)
+
+		// Mock GetJobsWithCondition to return empty slice (no existing jobs)
+		mockStorage.On("GetJobsWithCondition", ctx, mock.AnythingOfType("utils.Filter")).Return([]*datamodel.Job{}, nil)
+
+		createJobErr := errors.New("failed to create job")
+		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(nil, createJobErr)
+
+		orch := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		// Call GetVolume with refreshVolumeFields = true
+		result, err := orch.GetVolume(ctx, volumeId, true)
+
+		// Verify expectations
+		assert.Error(tt, err)
+		assert.Equal(tt, createJobErr, err)
+		assert.Nil(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRefreshVolumeFieldsIsTrueButWorkflowExecutionFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := &database.MockStorage{}
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		volumeId := "test-volume-uuid"
+
+		// Create mock volume with proper account data
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			Name:      "test_account",
+		}
+
+		mockPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		mockVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: volumeId},
+			Name:      "test_volume",
+			Account:   mockAccount,
+			AccountID: mockAccount.ID,
+			Pool:      mockPool,
+			PoolID:    mockPool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "volume-token",
+				Protocols:     []string{"iscsi"},
+			},
+		}
+
+		mockNode := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{UUID: "node-uuid", ID: 1},
+		}
+
+		mockLif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "lif-uuid"},
+			IPAddress: "1.1.1.1",
+		}
+
+		mockJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "test-workflow-id",
+		}
+
+		// Mock storage calls
+		mockStorage.On("DescribeVolume", ctx, volumeId).Return(mockVolume, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, mockPool.ID).Return([]*datamodel.Node{mockNode}, nil)
+		mockStorage.On("GetLifForNode", ctx, mockNode.ID, mockAccount.ID).Return(mockLif, nil)
+
+		// Mock GetJobsWithCondition to return empty slice (no existing jobs)
+		mockStorage.On("GetJobsWithCondition", ctx, mock.AnythingOfType("utils.Filter")).Return([]*datamodel.Job{}, nil)
+
+		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(mockJob, nil)
+
+		workflowErr := errors.New("workflow execution failed")
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mockVolume).Return(nil, workflowErr)
+
+		orch := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		// Call GetVolume with refreshVolumeFields = true
+		result, err := orch.GetVolume(ctx, volumeId, true)
+
+		// Verify expectations
+		assert.Error(tt, err)
+		assert.Equal(tt, workflowErr, err)
+		assert.Nil(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRefreshVolumeFieldsIsTrueButGetJobsWithConditionFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := &database.MockStorage{}
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		volumeId := "test-volume-uuid"
+
+		// Create mock volume with proper account data
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			Name:      "test_account",
+		}
+
+		mockPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		mockVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: volumeId},
+			Name:      "test_volume",
+			Account:   mockAccount,
+			AccountID: mockAccount.ID,
+			Pool:      mockPool,
+			PoolID:    mockPool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "volume-token",
+				Protocols:     []string{"iscsi"},
+			},
+		}
+
+		mockNode := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{UUID: "node-uuid", ID: 1},
+		}
+
+		mockLif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "lif-uuid"},
+			IPAddress: "1.1.1.1",
+		}
+
+		// Mock storage calls
+		mockStorage.On("DescribeVolume", ctx, volumeId).Return(mockVolume, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, mockPool.ID).Return([]*datamodel.Node{mockNode}, nil)
+		mockStorage.On("GetLifForNode", ctx, mockNode.ID, mockAccount.ID).Return(mockLif, nil)
+
+		// Mock GetJobsWithCondition to return error
+		getJobsErr := errors.New("failed to get jobs")
+		mockStorage.On("GetJobsWithCondition", ctx, mock.AnythingOfType("utils.Filter")).Return(nil, getJobsErr)
+
+		orch := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		// Call GetVolume with refreshVolumeFields = true
+		result, err := orch.GetVolume(ctx, volumeId, true)
+
+		// Verify expectations
+		assert.Error(tt, err)
+		assert.Equal(tt, getJobsErr, err)
+		assert.Nil(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRefreshVolumeFieldsIsTrueAndJobAlreadyExists", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := &database.MockStorage{}
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		volumeId := "test-volume-uuid"
+
+		// Create mock volume with proper account data
+		mockAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			Name:      "test_account",
+		}
+
+		mockPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+		}
+
+		mockVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: volumeId},
+			Name:      "test_volume",
+			Account:   mockAccount,
+			AccountID: mockAccount.ID,
+			Pool:      mockPool,
+			PoolID:    mockPool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "volume-token",
+				Protocols:     []string{"iscsi"},
+			},
+		}
+
+		mockNode := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{UUID: "node-uuid", ID: 1},
+		}
+
+		mockLif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "lif-uuid"},
+			IPAddress: "1.1.1.1",
+		}
+
+		// Create existing job
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "existing-job-uuid"},
+			Type:      string(models.JobTypeRefreshVolumeFields),
+			State:     string(models.JobsStateNEW),
+		}
+
+		// Mock storage calls
+		mockStorage.On("DescribeVolume", ctx, volumeId).Return(mockVolume, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, mockPool.ID).Return([]*datamodel.Node{mockNode}, nil)
+		mockStorage.On("GetLifForNode", ctx, mockNode.ID, mockAccount.ID).Return(mockLif, nil)
+
+		// Mock GetJobsWithCondition to return existing job
+		mockStorage.On("GetJobsWithCondition", ctx, mock.AnythingOfType("utils.Filter")).Return([]*datamodel.Job{existingJob}, nil)
+
+		orch := &Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		// Call GetVolume with refreshVolumeFields = true
+		result, err := orch.GetVolume(ctx, volumeId, true)
+
+		// Verify expectations - should return successfully without creating new job
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, volumeId, result.UUID)
+		assert.Equal(tt, "1.1.1.1", result.IPAddress)
+		mockStorage.AssertExpectations(tt)
 	})
 }
 
@@ -2322,12 +2723,13 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
-			Network:   "somevpc",
-			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}},
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "somevpc",
+			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}},
+			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 		}
 
 		err = store.DB().Create(pool).Error
@@ -2610,10 +3012,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateAvailable,
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateAvailable,
+			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB
 		}
 
 		err = store.DB().Create(pool).Error
@@ -2624,11 +3027,12 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		params := &common.CreateVolumeParams{
 			Name:         "dummy-name",
 			PoolID:       pool.UUID,
-			QuotaInBytes: minQuotaInBytesPool + 1,
+			QuotaInBytes: uint64(100 * 1024 * 1024 * 1024), // 100 GiB
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024), // 500 GiB already used
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -2683,6 +3087,131 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "volume size must be between 100 GiB and 102,400 GiB.")
 	})
+	t.Run("WhenVolumeSizeExceedsPoolSize", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		// Create a pool with limited size
+		poolSizeInBytes := int64(1000 * 1024 * 1024 * 1024) // 1000 GiB
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: poolSizeInBytes,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		// Create pool view with existing quota usage
+		existingQuotaInBytes := uint64(500 * 1024 * 1024 * 1024) // 500 GiB already used
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: existingQuotaInBytes,
+		}
+
+		// Try to create a volume that would exceed the pool size
+		// Pool has 1000 GiB total, 500 GiB used, trying to add 600 GiB (exceeds remaining 500 GiB)
+		requestedVolumeSize := uint64(600 * 1024 * 1024 * 1024) // 600 GiB
+
+		params := &common.CreateVolumeParams{
+			Name:         "test-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: requestedVolumeSize,
+		}
+
+		// This should fail because 500 GiB (existing) + 600 GiB (requested) = 1100 GiB > 1000 GiB (pool size)
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.EqualError(tt, err, "volume size cannot be greater than pool size")
+	})
+	t.Run("WhenVolumeSizeExactlyFitsInPool", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		// Create a pool with some size
+		poolSizeInBytes := int64(1000 * 1024 * 1024 * 1024) // 1000 GiB
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: poolSizeInBytes,
+			Network:     "test-network", // Set pool network to match volume network
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		// Create pool view with existing quota usage
+		existingQuotaInBytes := uint64(400 * 1024 * 1024 * 1024) // 400 GiB already used
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: existingQuotaInBytes,
+		}
+
+		// Try to create a volume that exactly fits the remaining pool space
+		// Pool has 1000 GiB total, 400 GiB used, requesting exactly 600 GiB (fits perfectly)
+		requestedVolumeSize := uint64(600 * 1024 * 1024 * 1024) // 600 GiB
+
+		params := &common.CreateVolumeParams{
+			Name:         "test-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: requestedVolumeSize,
+			Network:      "different-network", // Set different network to trigger network validation error
+		}
+
+		// This should pass pool size validation (400 GiB + 600 GiB = 1000 GiB exactly)
+		// but fail on network validation (proving pool size validation passed)
+		err = validateCreateVolumeParams(ctx, store, params, poolView)
+		assert.EqualError(tt, err, "pool network and volume network should be same")
+	})
 	t.Run("WhenPoolNetworkIsNotSameAsVolume", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -2708,10 +3237,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB
 		}
 
 		err = store.DB().Create(pool).Error
@@ -2722,12 +3252,13 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		params := &common.CreateVolumeParams{
 			Name:         "dummy-name",
 			PoolID:       pool.UUID,
-			QuotaInBytes: minQuotaInBytesVolume + 1,
+			QuotaInBytes: uint64(250 * 1024 * 1024 * 1024), // 250 GiB
 			Network:      "dummy-network",
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024), // 500 GiB already used
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -2758,10 +3289,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB
 		}
 
 		err = store.DB().Create(pool).Error
@@ -2772,11 +3304,12 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		params := &common.CreateVolumeParams{
 			Name:         "dummy-name",
 			PoolID:       pool.UUID,
-			QuotaInBytes: minQuotaInBytesVolume + 1,
+			QuotaInBytes: uint64(250 * 1024 * 1024 * 1024), // 250 GiB
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024), // 500 GiB already used
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -2807,10 +3340,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
 		err = store.DB().Create(pool).Error
@@ -2838,7 +3372,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024), // 500 GiB already used
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -2869,10 +3404,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
 		err = store.DB().Create(pool).Error
@@ -2901,6 +3437,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			PoolID:       pool.ID,
 			State:        models.LifeCycleStateREADY,
 			StateDetails: models.LifeCycleStateAvailableDetails,
+			SizeInBytes:  int64(minQuotaInBytesVolume),
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -2912,7 +3449,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024), // 500 GiB already used
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -2943,10 +3481,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
 		err = store.DB().Create(pool).Error
@@ -2996,7 +3535,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024), // 500 GiB already used
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -3027,10 +3567,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
 		err = store.DB().Create(pool).Error
@@ -3080,7 +3621,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024), // 500 GiB already used
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -3116,10 +3658,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
 		err = store.DB().Create(pool).Error
@@ -3189,7 +3732,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024), // 500 GiB already used
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -3220,10 +3764,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
 		err = store.DB().Create(pool).Error
@@ -3327,11 +3872,12 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
-			Account:   account,
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Account:     account,
+			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
 		err = store.DB().Create(pool).Error
@@ -3406,7 +3952,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024), // 500 GiB already used
 		}
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.EqualError(tt, err, "could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
@@ -3436,11 +3983,12 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
-			Account:   account,
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Account:     account,
+			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
 		err = store.DB().Create(pool).Error
@@ -3524,7 +4072,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024), // 500 GiB already used
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -3555,11 +4104,12 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
-			Account:   account,
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Account:     account,
+			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
 		err = store.DB().Create(pool).Error
@@ -3643,7 +4193,8 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024), // 500 GiB already used
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -3681,6 +4232,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			State:            models.LifeCycleStateREADY,
 			Account:          account,
 			AllowAutoTiering: false,
+			SizeInBytes:      int64(maxQuotaInBytesPool),
 		}
 
 		err = store.DB().Create(pool).Error
@@ -3804,6 +4356,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			State:            models.LifeCycleStateREADY,
 			Account:          account,
 			AllowAutoTiering: true,
+			SizeInBytes:      int64(maxQuotaInBytesPool),
 		}
 
 		err = store.DB().Create(pool).Error
@@ -3930,6 +4483,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			State:            models.LifeCycleStateREADY,
 			Account:          account,
 			AllowAutoTiering: true,
+			SizeInBytes:      int64(maxQuotaInBytesPool),
 		}
 
 		err = store.DB().Create(pool).Error
@@ -4056,6 +4610,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			State:            models.LifeCycleStateREADY,
 			Account:          account,
 			AllowAutoTiering: true,
+			SizeInBytes:      int64(maxQuotaInBytesPool),
 		}
 
 		err = store.DB().Create(pool).Error
@@ -4181,7 +4736,8 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		Account: &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: account.ID},
 		},
-		State: models.LifeCycleStateREADY,
+		State:       models.LifeCycleStateREADY,
+		SizeInBytes: int64(maxQuotaInBytesPool),
 	}
 
 	err = store.DB().Create(pool).Error
@@ -4264,7 +4820,8 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: minQuotaInBytesVolume,
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -4289,7 +4846,8 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		assert.NoError(tt, err, "Failed to create backupvault")
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: minQuotaInBytesVolume,
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -4310,7 +4868,8 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024),
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -4328,7 +4887,8 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: minQuotaInBytesVolume,
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -4349,7 +4909,8 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: minQuotaInBytesVolume,
 		}
 
 		err = validateCreateVolumeParams(ctx, store, params, poolView)
@@ -5606,11 +6167,12 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
-			Network:   "test-network",
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 		}
 
 		err = store.DB().Create(pool).Error
@@ -5707,7 +6269,8 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024), // 500GB
 		}
 
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
@@ -5738,11 +6301,12 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
-			Network:   "test-network",
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(maxQuotaInBytesPool),
 		}
 
 		err = store.DB().Create(pool).Error
@@ -5828,7 +6392,8 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: minQuotaInBytesPool,
 		}
 
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
@@ -5865,11 +6430,12 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
-			Network:   "test-network",
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10TB
 		}
 
 		err = store.DB().Create(pool).Error
@@ -5955,7 +6521,8 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 		}
 
 		poolView := &datamodel.PoolView{
-			Pool: *pool,
+			Pool:         *pool,
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024), // 500GB
 		}
 
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)

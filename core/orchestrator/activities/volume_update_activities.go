@@ -391,3 +391,19 @@ func (a *VolumeUpdateActivity) CheckBucketResourceName(ctx context.Context, volu
 func (a *VolumeUpdateActivity) UpdateBucketDetailsOfBackupVault(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails) error {
 	return UpdateBackupVaultWithBucketDetails(a.SE, ctx, volume, bucketDetails)
 }
+
+// RefreshVolumeFieldsInDB updates the used bytes of a volume in the database
+func (a *VolumeUpdateActivity) RefreshVolumeFieldsInDB(ctx context.Context, volumeUUID string, volResponse *vsa.VolumeResponse) error {
+	se := a.SE
+
+	// add more fields to update if needed
+	err := se.UpdateVolumeFields(ctx, volumeUUID, map[string]interface{}{
+		"used_bytes": uint64(volResponse.UsedBytes),
+	})
+	if err != nil {
+		util.GetLogger(ctx).Errorf("Failed to update volume fields in DB: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return nil
+}

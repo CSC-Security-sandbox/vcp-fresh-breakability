@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -245,10 +246,11 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 }
 
 // GetVolume gets the specified volume
-func (o *Orchestrator) GetVolume(ctx context.Context, volumeId string) (*models.Volume, error) {
+func (o *Orchestrator) GetVolume(ctx context.Context, volumeId string, refreshVolumeFields bool) (*models.Volume, error) {
+	log := util.GetLogger(ctx)
 	se := o.storage
 
-	volume, err := se.GetVolume(ctx, volumeId)
+	volume, err := se.DescribeVolume(ctx, volumeId)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +260,71 @@ func (o *Orchestrator) GetVolume(ctx context.Context, volumeId string) (*models.
 		return nil, err
 	}
 
+	// return early if we don't need to update volume metrics
+	if !refreshVolumeFields {
+		return convertDatastoreVolumeToModel(volume, &ipAddress), nil
+	}
+
+	dbJobs, err := getExistingRefreshVolumeFieldsJob(ctx, volume, se)
+	if err != nil {
+		log.Error("Failed to get existing JobTypeRefreshVolumeFields for this volume", "error", err)
+		return nil, err
+	}
+
+	if len(dbJobs) > 0 {
+		log.Info("JobTypeRefreshVolumeFields already exists for this volume, skipping creation")
+		return convertDatastoreVolumeToModel(volume, &ipAddress), nil
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeRefreshVolumeFields),
+		State:        string(models.JobsStateNEW),
+		ResourceName: volume.Name,
+		AccountID:    sql.NullInt64{Int64: volume.Account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: volume.UUID,
+			PoolUUID:     volume.Pool.UUID,
+		},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		log.Error("Failed to create JobTypeRefreshVolumeFields in database", "error", err)
+		return nil, err
+	}
+
+	_, err = o.temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.BackgroundTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		workflows.VolumeRefreshWorkflow,
+		volume,
+	)
+
+	if err != nil {
+		log.Error("Failed to execute VolumeRefreshWorkflow", "error", err)
+		return nil, err
+	}
+
 	return convertDatastoreVolumeToModel(volume, &ipAddress), nil
+}
+
+func getExistingRefreshVolumeFieldsJob(ctx context.Context, volume *datamodel.Volume, se database.Storage) ([]*datamodel.Job, error) {
+	filter := dbutils.CreateFilterWithConditions(
+		dbutils.NewFilterCondition("account_id", "=", volume.Account.ID),
+		dbutils.NewFilterCondition("type", "=", models.JobTypeRefreshVolumeFields),
+		dbutils.NewFilterCondition("state", "!=", string(models.JobsStateDONE)),
+		dbutils.NewFilterCondition("job_attributes->>'resource_uuid'", "=", volume.UUID),
+		dbutils.NewFilterCondition("job_attributes->>'pool_uuid'", "=", volume.Pool.UUID),
+	)
+
+	dbJobs, err := se.GetJobsWithCondition(ctx, *filter)
+	if err != nil {
+		return nil, err
+	}
+	return dbJobs, nil
 }
 
 func (o *Orchestrator) GetVolumeCount(ctx context.Context, projectNumber string) (int64, error) {
@@ -378,6 +444,10 @@ func GetVolumeTypeValidator(protocols []string) (VolumeTypeProcessor, error) {
 func _validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 	if params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytesVolume {
 		return customerrors.NewUserInputValidationErr("volume size must be between 100 GiB and 102,400 GiB.")
+	}
+
+	if pool.QuotaInBytes+params.QuotaInBytes > uint64(pool.SizeInBytes) {
+		return customerrors.NewUserInputValidationErr("volume size cannot be greater than pool size")
 	}
 
 	if pool.State != models.LifeCycleStateREADY {

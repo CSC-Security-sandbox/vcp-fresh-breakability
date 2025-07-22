@@ -105,11 +105,14 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 		UUID:    params.UUID,
 		Name:    params.VolumeName,
 		SvmName: &params.SvmName,
+		BaseParams: ontapRest.BaseParams{
+			Fields: []string{"uuid", "name", "space.*", "state", "snapshot_policy.name"},
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
-	if vol == nil || vol.Name == nil || vol.UUID == nil {
+	if vol == nil || vol.Name == nil || vol.UUID == nil || vol.Space == nil || vol.Space.LogicalSpace == nil {
 		return nil, errors.NewNotFoundErr("volume", nil)
 	}
 
@@ -121,6 +124,7 @@ func (rc *OntapRestProvider) GetVolume(params GetVolumeParams) (*VolumeResponse,
 		AvailableSpace: *vol.Space.Available,
 		Size:           *vol.Space.Size,
 		State:          *vol.State,
+		UsedBytes:      nillable.FromPointer(vol.Space.LogicalSpace.Used),
 		// by default, volume will always have none as the snapshot policy
 		SnapshotPolicyName: *vol.SnapshotPolicy.Name,
 	}

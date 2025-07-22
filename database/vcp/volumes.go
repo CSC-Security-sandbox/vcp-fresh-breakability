@@ -59,8 +59,14 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 	return nil, customerrors.NewUserInputValidationErr("volume already exists")
 }
 
+// GetVolume retrieves a volume by its UUID and if the deletedAt field is not set, it returns the volume details.
 func (d *DataStoreRepository) GetVolume(ctx context.Context, volUUID string) (*datamodel.Volume, error) {
 	return getVolumeWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volUUID}})
+}
+
+// DescribeVolume retrieves a volume by its UUID and returns the volume details, including deleted volumes.
+func (d *DataStoreRepository) DescribeVolume(ctx context.Context, volUUID string) (*datamodel.Volume, error) {
+	return getVolumeWithDetails(d.db.Unscoped().GORM().WithContext(ctx), &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volUUID}})
 }
 
 func (d *DataStoreRepository) GetVolumeWithAccountID(ctx context.Context, volUUID string, accountID int64) (*datamodel.Volume, error) {
@@ -109,6 +115,8 @@ func (d *DataStoreRepository) UpdateVolumeFields(ctx context.Context, volumeUUID
 	if err != nil {
 		return err
 	}
+
+	updates["updated_at"] = time.Now()
 
 	err = tx.Model(&dbVolume).Updates(updates).Error
 	if err != nil {

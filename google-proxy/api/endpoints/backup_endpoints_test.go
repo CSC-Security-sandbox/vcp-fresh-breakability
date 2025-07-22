@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"testing"
 	"time"
 
@@ -21,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 // V1betaGetMultipleBackups unittests
@@ -577,7 +577,7 @@ func TestV1betaCreateBackup(t *testing.T) {
 			LifeCycleState:        "READY",
 			LifeCycleStateDetails: "All systems go",
 		}
-		mockOrch.EXPECT().GetVolume(ctx, "vol-id").Return(volume, nil)
+		mockOrch.EXPECT().GetVolume(ctx, "vol-id", false).Return(volume, nil)
 
 		// Mock successful backup creation with LifeCycleStateCreating
 
@@ -640,7 +640,7 @@ func TestV1betaCreateBackup(t *testing.T) {
 			LifeCycleState:        "READY",
 			LifeCycleStateDetails: "All systems go",
 		}
-		mockOrch.EXPECT().GetVolume(ctx, "vol-id").Return(volume, nil)
+		mockOrch.EXPECT().GetVolume(ctx, "vol-id", false).Return(volume, nil)
 
 		// Mock successful backup creation with LifeCycleStateAvailable
 		backup := &coremodels.Backup{
@@ -979,7 +979,7 @@ func TestV1betaCreateBackup_CVPErrorCases(t *testing.T) {
 			}
 
 			mockOrch.EXPECT().
-				GetVolume(ctx, "vol-id").
+				GetVolume(ctx, "vol-id", false).
 				Return(nil, fmt.Errorf("not found"))
 
 			mockClient.EXPECT().V1betaCreateBackup(mock.Anything).Return(nil, nil, c.err)
@@ -1020,7 +1020,7 @@ func TestV1betaCreateBackup_CVPCreateBackupCreatedAndAccepted(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 		mockOrch.EXPECT().
-			GetVolume(ctx, "vol-id").
+			GetVolume(ctx, "vol-id", false).
 			Return(nil, nil)
 
 		cvpBackupCreated := &backups.V1betaCreateBackupCreated{
@@ -1058,7 +1058,7 @@ func TestV1betaCreateBackup_CVPCreateBackupCreatedAndAccepted(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 		mockOrch.EXPECT().
-			GetVolume(ctx, "vol-id").
+			GetVolume(ctx, "vol-id", false).
 			Return(nil, nil)
 
 		cvpBackupAccepted := &backups.V1betaCreateBackupAccepted{
@@ -1096,7 +1096,7 @@ func TestV1betaCreateBackup_CVPCreateBackupCreatedAndAccepted(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 		mockOrch.EXPECT().
-			GetVolume(ctx, "vol-id").
+			GetVolume(ctx, "vol-id", false).
 			Return(nil, nil)
 
 		mockClient.EXPECT().
@@ -1150,7 +1150,7 @@ func TestV1betaCreateBackup_CVPCreateBackupCreatedAndAccepted(t *testing.T) {
 			IsDataProtection:      false,
 		}
 		mockOrch.EXPECT().
-			GetVolume(ctx, "vol-id").
+			GetVolume(ctx, "vol-id", false).
 			Return(vol, errors.NewUserInputValidationErr("Invalid input parameters"))
 
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {

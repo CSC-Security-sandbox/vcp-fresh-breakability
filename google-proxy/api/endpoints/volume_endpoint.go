@@ -50,7 +50,7 @@ const (
 func (h Handler) V1betaDescribeVolume(ctx context.Context, params gcpgenserver.V1betaDescribeVolumeParams) (gcpgenserver.V1betaDescribeVolumeRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	volume, err := h.Orchestrator.GetVolume(ctx, params.VolumeId)
+	volume, err := h.Orchestrator.GetVolume(ctx, params.VolumeId, true)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			return &gcpgenserver.V1betaDescribeVolumeNotFound{
@@ -61,6 +61,7 @@ func (h Handler) V1betaDescribeVolume(ctx context.Context, params gcpgenserver.V
 		logger.Error("Failed to describe volume", "error", err.Error())
 		return &gcpgenserver.V1betaDescribeVolumeInternalServerError{Code: 500, Message: "Internal server error"}, err
 	}
+
 	return convertModelToVCPVolume(volume), nil
 }
 
@@ -492,14 +493,13 @@ func validateVolumeQuotaSize(quota float64) error {
 func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1betaDeleteVolumeReq, params gcpgenserver.V1betaDeleteVolumeParams) (gcpgenserver.V1betaDeleteVolumeRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	volume, err := h.Orchestrator.GetVolume(ctx, params.VolumeId)
+	volume, err := h.Orchestrator.GetVolume(ctx, params.VolumeId, false)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
-			operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + uuid.UUID{}.String()
-			return &gcpgenserver.OperationV1beta{
-				Name: gcpgenserver.NewOptString(operationID),
-				Done: gcpgenserver.NewOptBool(true),
-			}, nil
+			return &gcpgenserver.V1betaDeleteVolumeInternalServerError{
+				Code:    404,
+				Message: "Volume not found",
+			}, err
 		}
 		logger.Error("Failed to delete volume", "error", err.Error())
 		return &gcpgenserver.V1betaDeleteVolumeInternalServerError{
@@ -514,6 +514,14 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 			Code:    409,
 			Message: msg,
 		}, err
+	}
+
+	if volume != nil && volume.LifeCycleState == models.LifeCycleStateDeleted {
+		operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + uuid.UUID{}.String()
+		return &gcpgenserver.OperationV1beta{
+			Name: gcpgenserver.NewOptString(operationID),
+			Done: gcpgenserver.NewOptBool(true),
+		}, nil
 	}
 
 	volume, jobUUID, err := h.Orchestrator.DeleteVolume(ctx, params.VolumeId)
@@ -584,7 +592,7 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		UsedBytes:          gcpgenserver.NewOptNilFloat64(float64(volume.UsedBytes)), // default value for now
 	}
 	if volume.DeletedAt != nil {
-		res.Deleted = gcpgenserver.OptNilDateTime{Value: *volume.DeletedAt}
+		res.Deleted = gcpgenserver.NewOptNilDateTime(*volume.DeletedAt)
 	}
 
 	res.Protocols = make([]gcpgenserver.ProtocolsV1beta, 0)
@@ -602,7 +610,7 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		for key, value := range volume.Labels {
 			labels[key] = value
 		}
-		res.Labels = gcpgenserver.OptVolumeV1betaLabels{Value: labels}
+		res.Labels = gcpgenserver.NewOptVolumeV1betaLabels(labels)
 	}
 
 	if volume.FileProperties != nil {

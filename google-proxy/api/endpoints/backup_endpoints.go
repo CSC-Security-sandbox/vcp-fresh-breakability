@@ -158,7 +158,7 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 			Message: parsingErr.Message,
 		}, nil
 	}
-	vol, err := h.Orchestrator.GetVolume(ctx, req.VolumeId)
+	vol, err := h.Orchestrator.GetVolume(ctx, req.VolumeId, false)
 
 	// Check if volume exist in the VSA if not call CVP API to create the backup
 	if (err != nil && errors.IsNotFoundErr(err)) || vol == nil {

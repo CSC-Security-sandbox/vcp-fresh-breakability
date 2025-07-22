@@ -1131,3 +1131,85 @@ func TestGetUpdatedFieldsFromParams_SnapReserve(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, snapReserve, va.SnapReserve)
 }
+
+func TestGetVolumeFromONTAP_NilVolumeAttributes(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider)
+	mockStorage := database.NewMockStorage(t)
+	originalGetProviderByNode := GetProviderByNode
+	defer func() { GetProviderByNode = originalGetProviderByNode }()
+
+	// Mock GetProviderByNode to return the mock provider
+	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		Name:             "test-volume",
+		Svm:              &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: nil, // This will cause ExternalUUID to be empty
+	}
+	node := &models.Node{}
+
+	// This should panic when trying to access volume.VolumeAttributes.ExternalUUID
+	// We need to handle this case gracefully or ensure it doesn't happen
+	assert.Panics(t, func() {
+		_, _ = activity.GetVolumeFromONTAP(ctx, volume, node)
+	})
+}
+
+func TestUpdateVolumeUsedBytes_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeUpdateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volumeUUID := "test-volume-uuid"
+	volResponse := &vsa.VolumeResponse{
+		UsedBytes: int64(1024),
+	}
+
+	expectedFields := map[string]interface{}{
+		"used_bytes": uint64(volResponse.UsedBytes),
+	}
+
+	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, expectedFields).Return(nil)
+
+	// Act
+	err := activity.RefreshVolumeFieldsInDB(ctx, volumeUUID, volResponse)
+
+	// Assert
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVolumeUsedBytes_UpdateError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeUpdateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volumeUUID := "test-volume-uuid"
+	volResponse := &vsa.VolumeResponse{
+		UsedBytes: int64(1024),
+	}
+
+	expectedFields := map[string]interface{}{
+		"used_bytes": uint64(volResponse.UsedBytes),
+	}
+
+	expectedError := errors.New("database update error")
+
+	mockStorage.On("UpdateVolumeFields", ctx, volumeUUID, expectedFields).Return(expectedError)
+
+	// Act
+	err := activity.RefreshVolumeFieldsInDB(ctx, volumeUUID, volResponse)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), expectedError.Error())
+	mockStorage.AssertExpectations(t)
+}

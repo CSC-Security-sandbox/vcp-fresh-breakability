@@ -453,6 +453,10 @@ func (s *PersistenceStore) GetVolume(ctx context.Context, id string) (*datamodel
 	return s.dataStore.GetVolume(ctx, id)
 }
 
+func (s *PersistenceStore) DescribeVolume(ctx context.Context, id string) (*datamodel.Volume, error) {
+	return s.dataStore.DescribeVolume(ctx, id)
+}
+
 func (s *PersistenceStore) GetVolumeWithAccountID(ctx context.Context, id string, accountID int64) (*datamodel.Volume, error) {
 	return s.dataStore.GetVolumeWithAccountID(ctx, id, accountID)
 }

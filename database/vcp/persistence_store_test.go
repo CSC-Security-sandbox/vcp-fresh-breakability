@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
@@ -911,6 +912,43 @@ func TestUpdateVolumeFields_Persistence_Store(t *testing.T) {
 	_ = store.Close()
 	err = store.UpdateVolumeFields(ctx, created.UUID, map[string]interface{}{"Name": "fail"})
 	assert.Error(t, err)
+}
+
+func TestUpdateVolumeFields_UpdatesUpdatedAt(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	assert.NoError(t, ClearInMemoryDB(store.db.GORM()))
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	assert.NoError(t, store.db.Create(account).Error())
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test_volume",
+		AccountID: account.ID,
+		Account:   account,
+	}
+	assert.NoError(t, store.db.Create(volume).Error())
+
+	created, err := store.GetVolume(context.Background(), volume.UUID)
+	assert.NoError(t, err)
+	firstUpdateAT := created.UpdatedAt
+
+	updates := map[string]interface{}{
+		"State": "UPDATING",
+	}
+	assert.NoError(t, store.UpdateVolumeFields(context.Background(), volume.UUID, updates))
+
+	updated, err := store.GetVolume(context.Background(), volume.UUID)
+	assert.NoError(t, err)
+	assert.Equal(t, "UPDATING", updated.State)
+	newUpdateAT := updated.UpdatedAt
+	assert.NotEqual(t, firstUpdateAT, newUpdateAT, "UpdatedAt should change after update")
 }
 
 func TestCreateAdminJobSpec_Persistence_Store(t *testing.T) {

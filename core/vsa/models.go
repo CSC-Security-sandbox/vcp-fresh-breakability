@@ -66,6 +66,7 @@ type VolumeResponse struct {
 	State              string
 	SnapshotPolicyName string
 	SnapReserve        int64
+	UsedBytes          int64
 	Encryption
 }
 
