@@ -1620,9 +1620,11 @@ func TestV1betaDescribePool(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "existing-pool-id",
 			},
-			PoolAttributes: &models.PoolAttributes{},
-			Name:           "test-pool",
-			Description:    "This is a test pool",
+			PoolAttributes: &models.PoolAttributes{
+				Labels: map[string]string{"test": "label"},
+			},
+			Name:        "test-pool",
+			Description: "This is a test pool",
 		}
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
@@ -1638,6 +1640,7 @@ func TestV1betaDescribePool(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "existing-pool-id", result.(*gcpgenserver.PoolV1beta).PoolId.Value)
 		assert.Equal(tt, "This is a test pool", result.(*gcpgenserver.PoolV1beta).Description.Value)
+		assert.Equal(tt, existingPool.PoolAttributes.Labels["test"], result.(*gcpgenserver.PoolV1beta).Labels.Value["test"])
 	})
 }
 

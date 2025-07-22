@@ -586,7 +586,7 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		EncryptionType:          gcpgenserver.NewOptPoolV1betaEncryptionType(gcpgenserver.PoolV1betaEncryptionType(utils.GetEncryptionType(nil))), // pass pool.KmsConfigID
 		Zone:                    gcpgenserver.NewOptString(pool.PoolAttributes.PrimaryZone),
 		SecondaryZone:           gcpgenserver.NewOptString(pool.PoolAttributes.SecondaryZone),
-		Labels:                  gcpgenserver.OptPoolV1betaLabels{Value: labels},
+		Labels:                  gcpgenserver.NewOptPoolV1betaLabels(labels),
 	}
 }
 
