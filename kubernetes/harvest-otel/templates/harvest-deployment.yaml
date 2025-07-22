@@ -37,7 +37,7 @@ spec:
           - name: http
             containerPort: {{ $.Values.service.port }}
           volumeMounts:
-          - mountPath:  "/configs/harvest"
+          - mountPath: /configs/harvest
             name: harvest-data
 
         - name: {{ $.Values.containers.otel }}

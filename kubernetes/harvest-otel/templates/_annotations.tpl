@@ -11,7 +11,6 @@ prometheus.io/path: '/metrics'
 {{- end -}}
 
 {{- define "harvest.serviceaccount.annotations" -}}
-iam.gke.io/gcp-service-account: svc-external-secrets-identity@netapp-us-c1-autopush-sde-tst.iam.gserviceaccount.com
 {{- end -}}
 
 {{- define "harvest.helmchart.annotations" -}}

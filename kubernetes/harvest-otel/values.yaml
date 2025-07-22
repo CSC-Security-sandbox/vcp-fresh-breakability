@@ -15,7 +15,7 @@ configMap:
 images:
   pm2:
     name: ghcr.io/vcp-vsa-control-plane/harvest-multi
-    tag: 25.06.18-1
+    tag: 25.07.21-1
     digest: ""
     secondary: true
     pullPolicy: IfNotPresent
@@ -81,12 +81,12 @@ serviceAccount:
   create: true
   automount: true
   annotations:
-    iam.gke.io/gcp-service-account: otel-collector-sa@netapp-us-c1-autopush-sde-tst.iam.gserviceaccount.com
+    iam.gke.io/gcp-service-account: otel-collector-sa@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com
   name: "gcnv-harvest-sa"
 
 stackdriverAdapter:
   gcp:
-    serviceAccount: custom-metrics-reader@netapp-us-e4-autopush-sde-tst.iam.gserviceaccount.com
+    serviceAccount: custom-metrics-reader@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com
 
 ports:
   otlp:
