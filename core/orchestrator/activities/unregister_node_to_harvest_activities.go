@@ -17,7 +17,6 @@ import (
 )
 
 var (
-	vcpLeaseNameSpace   = env.GetString("LEASE_NAMESPACE", "vcp")
 	harvestEndPoint     = env.GetString("HARVEST_HOST", "localhost:8080")
 	harvestRestProtocol = env.GetString("HARVEST_REST_PROTOCOL", "http")
 

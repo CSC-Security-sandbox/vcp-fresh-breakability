@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"gorm.io/gorm"
 )
 
@@ -271,6 +271,13 @@ func TestValidateAndCreateKubernetesLease(t *testing.T) {
 		},
 	}
 
+	// Mock the leaseExists function to return true (lease exists in Kubernetes)
+	oldLeaseExists := leaseExists
+	leaseExists = func(ctx context.Context, leaseNameSpace, leaseName string) (bool, error) {
+		return true, nil // Lease exists in Kubernetes
+	}
+	defer func() { leaseExists = oldLeaseExists }()
+
 	// No need to mock updates since lease already exists and no changes should be made
 	oldCreateKubernetesLease := createKubernetesLease
 	createKubernetesLease = func(ctx context.Context, leaseNameSpace, leaseName string) error {
@@ -394,4 +401,135 @@ func TestUploadHarvestTemplate_HTTPNon2xx(t *testing.T) {
 	err := activity.UploadHarvestTemplate(ctx, input)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "upload failed for node mapping")
+}
+
+// Test case for when lease exists in database but not in Kubernetes
+func TestValidateAndCreateKubernetesLease_LeaseExistsInDBButNotInK8s(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	ctx := context.Background()
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+
+	// Create test node group with existing lease name
+	existingLeaseName := "harvest-existing-uuid"
+	nodeGroup1 := &datamodel.NodeGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "existing-uuid"},
+		Name:      "test-group-1",
+		LeaseName: existingLeaseName, // Lease name already exists in DB
+	}
+
+	nodeGroupsMap := []*datamodel.NodeNodeGroupMap{
+		{
+			BaseModel:     datamodel.BaseModel{ID: 1},
+			NodeID:        1,
+			NodeGroup:     nodeGroup1,
+			NodeGroupID:   nodeGroup1.ID,
+			HarvestConfig: &datamodel.HarvestConfig{},
+		},
+	}
+
+	// Mock the leaseExists function to return false (lease doesn't exist in Kubernetes)
+	oldLeaseExists := leaseExists
+	leaseExists = func(ctx context.Context, leaseNameSpace, leaseName string) (bool, error) {
+		assert.Equal(t, existingLeaseName, leaseName)
+		return false, nil // Lease doesn't exist in Kubernetes
+	}
+	defer func() { leaseExists = oldLeaseExists }()
+
+	// Mock createKubernetesLease to succeed
+	oldCreateKubernetesLease := createKubernetesLease
+	createKubernetesLease = func(ctx context.Context, leaseNameSpace, leaseName string) error {
+		assert.Equal(t, existingLeaseName, leaseName)
+		return nil
+	}
+	defer func() { createKubernetesLease = oldCreateKubernetesLease }()
+
+	updatedMappings, err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
+	assert.NoError(t, err)
+	assert.NotNil(t, updatedMappings)
+	assert.Len(t, updatedMappings, 1)
+	assert.Equal(t, existingLeaseName, updatedMappings[0].HarvestConfig.LEASE_NAME)
+}
+
+// Test case for when lease exists in both database and Kubernetes
+func TestValidateAndCreateKubernetesLease_LeaseExistsInBothDBAndK8s(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	ctx := context.Background()
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+
+	// Create test node group with existing lease name
+	existingLeaseName := "harvest-existing-uuid"
+	nodeGroup1 := &datamodel.NodeGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "existing-uuid"},
+		Name:      "test-group-1",
+		LeaseName: existingLeaseName, // Lease name already exists in DB
+	}
+
+	nodeGroupsMap := []*datamodel.NodeNodeGroupMap{
+		{
+			BaseModel:     datamodel.BaseModel{ID: 1},
+			NodeID:        1,
+			NodeGroup:     nodeGroup1,
+			NodeGroupID:   nodeGroup1.ID,
+			HarvestConfig: &datamodel.HarvestConfig{},
+		},
+	}
+
+	// Mock the leaseExists function to return true (lease exists in Kubernetes)
+	oldLeaseExists := leaseExists
+	leaseExists = func(ctx context.Context, leaseNameSpace, leaseName string) (bool, error) {
+		assert.Equal(t, existingLeaseName, leaseName)
+		return true, nil // Lease exists in Kubernetes
+	}
+	defer func() { leaseExists = oldLeaseExists }()
+
+	// createKubernetesLease should not be called in this case
+	oldCreateKubernetesLease := createKubernetesLease
+	createKubernetesLease = func(ctx context.Context, leaseNameSpace, leaseName string) error {
+		t.Error("createKubernetesLease should not be called when lease already exists")
+		return nil
+	}
+	defer func() { createKubernetesLease = oldCreateKubernetesLease }()
+
+	updatedMappings, err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
+	assert.NoError(t, err)
+	assert.NotNil(t, updatedMappings)
+	assert.Len(t, updatedMappings, 1)
+	assert.Equal(t, existingLeaseName, updatedMappings[0].HarvestConfig.LEASE_NAME)
+}
+
+// Test case for when lease check fails
+func TestValidateAndCreateKubernetesLease_LeaseCheckError(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	ctx := context.Background()
+	activity := &RegisterNodeToHarvestFarmActivity{SE: mockSE}
+
+	// Create test node group with existing lease name
+	existingLeaseName := "harvest-existing-uuid"
+	nodeGroup1 := &datamodel.NodeGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "existing-uuid"},
+		Name:      "test-group-1",
+		LeaseName: existingLeaseName, // Lease name already exists in DB
+	}
+
+	nodeGroupsMap := []*datamodel.NodeNodeGroupMap{
+		{
+			BaseModel:     datamodel.BaseModel{ID: 1},
+			NodeID:        1,
+			NodeGroup:     nodeGroup1,
+			NodeGroupID:   nodeGroup1.ID,
+			HarvestConfig: &datamodel.HarvestConfig{},
+		},
+	}
+
+	// Mock the leaseExists function to return an error
+	oldLeaseExists := leaseExists
+	leaseExists = func(ctx context.Context, leaseNameSpace, leaseName string) (bool, error) {
+		return false, errors.New("kubernetes connection error")
+	}
+	defer func() { leaseExists = oldLeaseExists }()
+
+	updatedMappings, err := activity.ValidateAndCreateKubernetesLease(ctx, nodeGroupsMap)
+	assert.Error(t, err)
+	assert.Nil(t, updatedMappings)
+	assert.Contains(t, err.Error(), "kubernetes connection error")
 }

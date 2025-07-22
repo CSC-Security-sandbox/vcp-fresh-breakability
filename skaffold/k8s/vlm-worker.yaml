@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: default
+  name: vlm
   labels:
     name: vlm
   annotations:
@@ -12,7 +12,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: vlm-worker
-  namespace: default
+  namespace: vlm
   labels:
     app: vlm-worker
 spec:

@@ -3,9 +3,9 @@ package utils
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/assert"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes/fake"
 	v1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 )
@@ -81,4 +81,143 @@ func TestDeleteKubernetesLease_Error(t *testing.T) {
 	err := DeleteKubernetesLease(ctx, testNameSpace, "testLeaseName")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestGetKubernetesLease_Success(t *testing.T) {
+	testNameSpace := "TestNameSpace"
+	testLeaseName := "testLeaseName"
+	ctx := context.Background()
+	oldLeaseClient := getLeaseClient
+	defer func() { getLeaseClient = oldLeaseClient }()
+	fakeCS := fake.NewClientset()
+	getLeaseClient = func(leaseNameSpace string) (v1.LeaseInterface, error) {
+		leaseClient := fakeCS.CoordinationV1().Leases(leaseNameSpace)
+		return leaseClient, nil
+	}
+
+	// First create a lease
+	err := CreateKubernetesLease(ctx, testNameSpace, testLeaseName)
+	assert.Nil(t, err)
+
+	// Then get the lease
+	lease, err := GetKubernetesLease(ctx, testNameSpace, testLeaseName)
+	assert.Nil(t, err)
+	assert.NotNil(t, lease)
+	assert.Equal(t, testLeaseName, lease.Name)
+	assert.Equal(t, testNameSpace, lease.Namespace)
+}
+
+func TestGetKubernetesLease_ClientError(t *testing.T) {
+	testNameSpace := "TestNameSpace"
+	testLeaseName := "testLeaseName"
+	ctx := context.Background()
+	oldLeaseClient := getLeaseClient
+	defer func() { getLeaseClient = oldLeaseClient }()
+	getLeaseClient = func(leaseNameSpace string) (v1.LeaseInterface, error) {
+		return nil, errors.New("lease-client-error")
+	}
+
+	lease, err := GetKubernetesLease(ctx, testNameSpace, testLeaseName)
+	assert.Error(t, err)
+	assert.Nil(t, lease)
+	assert.Equal(t, "lease-client-error", err.Error())
+}
+
+func TestGetKubernetesLease_NotFound(t *testing.T) {
+	testNameSpace := "TestNameSpace"
+	testLeaseName := "nonExistentLease"
+	ctx := context.Background()
+	oldLeaseClient := getLeaseClient
+	defer func() { getLeaseClient = oldLeaseClient }()
+	fakeCS := fake.NewClientset()
+	getLeaseClient = func(leaseNameSpace string) (v1.LeaseInterface, error) {
+		leaseClient := fakeCS.CoordinationV1().Leases(leaseNameSpace)
+		return leaseClient, nil
+	}
+
+	// Try to get a lease that doesn't exist
+	lease, err := GetKubernetesLease(ctx, testNameSpace, testLeaseName)
+	assert.Error(t, err)
+	assert.Nil(t, lease)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestLeaseExists_True(t *testing.T) {
+	testNameSpace := "TestNameSpace"
+	testLeaseName := "testLeaseName"
+	ctx := context.Background()
+	oldLeaseClient := getLeaseClient
+	defer func() { getLeaseClient = oldLeaseClient }()
+	fakeCS := fake.NewClientset()
+	getLeaseClient = func(leaseNameSpace string) (v1.LeaseInterface, error) {
+		leaseClient := fakeCS.CoordinationV1().Leases(leaseNameSpace)
+		return leaseClient, nil
+	}
+
+	// First create a lease
+	err := CreateKubernetesLease(ctx, testNameSpace, testLeaseName)
+	assert.Nil(t, err)
+
+	// Then check if it exists
+	exists, err := LeaseExists(ctx, testNameSpace, testLeaseName)
+	assert.Nil(t, err)
+	assert.True(t, exists)
+}
+
+func TestLeaseExists_False(t *testing.T) {
+	testNameSpace := "TestNameSpace"
+	testLeaseName := "nonExistentLease"
+	ctx := context.Background()
+	oldLeaseClient := getLeaseClient
+	defer func() { getLeaseClient = oldLeaseClient }()
+	fakeCS := fake.NewClientset()
+	getLeaseClient = func(leaseNameSpace string) (v1.LeaseInterface, error) {
+		leaseClient := fakeCS.CoordinationV1().Leases(leaseNameSpace)
+		return leaseClient, nil
+	}
+
+	// Check if a non-existent lease exists
+	exists, err := LeaseExists(ctx, testNameSpace, testLeaseName)
+	assert.Nil(t, err)
+	assert.False(t, exists)
+}
+
+func TestLeaseExists_ClientError(t *testing.T) {
+	testNameSpace := "TestNameSpace"
+	testLeaseName := "testLeaseName"
+	ctx := context.Background()
+	oldLeaseClient := getLeaseClient
+	defer func() { getLeaseClient = oldLeaseClient }()
+	getLeaseClient = func(leaseNameSpace string) (v1.LeaseInterface, error) {
+		return nil, errors.New("lease-client-error")
+	}
+
+	// Check lease existence when client creation fails
+	exists, err := LeaseExists(ctx, testNameSpace, testLeaseName)
+	assert.Error(t, err)
+	assert.False(t, exists)
+	assert.Equal(t, "lease-client-error", err.Error())
+}
+
+func TestContainsNotFound(t *testing.T) {
+	// Test the helper function
+	testCases := []struct {
+		input    string
+		expected bool
+	}{
+		{"not found", true},
+		{"leases.coordination.k8s.io \"testLease\" not found", true},
+		{"some error: not found", true},
+		{"leases.coordination.k8s.io", true},
+		{"leases.coordination.k8", true},
+		{"network error", false},
+		{"", false},
+		{"connection timeout", false},
+		{"forbidden", false},
+	}
+
+	for _, tc := range testCases {
+		result := containsNotFound(tc.input)
+		assert.Equal(t, tc.expected, result, "Failed for input: %s", tc.input)
+	}
 }

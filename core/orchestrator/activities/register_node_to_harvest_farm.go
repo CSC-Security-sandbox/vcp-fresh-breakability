@@ -5,13 +5,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"io"
 	"mime/multipart"
 	"net/http"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 const (
@@ -20,6 +23,8 @@ const (
 
 var (
 	createKubernetesLease = utils.CreateKubernetesLease
+	leaseExists           = utils.LeaseExists
+	vcpLeaseNameSpace     = env.GetString("LEASE_NAMESPACE", "vcp")
 )
 
 // RegisterNodeToHarvestFarmInput holds input parameters for the activity
@@ -87,34 +92,99 @@ func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(ctx contex
 
 func (a *RegisterNodeToHarvestFarmActivity) ValidateAndCreateKubernetesLease(ctx context.Context, nodeGroupsMap []*datamodel.NodeNodeGroupMap) ([]*datamodel.NodeNodeGroupMap, error) {
 	logger := util.GetLogger(ctx)
-	se := a.SE
+
 	for _, nodeGroupMap := range nodeGroupsMap {
-		nodeGroup := nodeGroupMap.NodeGroup
-		if nodeGroup == nil {
-			logger.Errorf("Failed to fetch node group details of node groupID:%s", nodeGroupMap.NodeGroupID)
-			return nil, errors.New("failed to fetch node group details from nodeGroup Map table")
+		if err := a.validateNodeGroupMap(nodeGroupMap, logger); err != nil {
+			return nil, err
 		}
-		if nodeGroup.LeaseName == "" {
-			logger.Infof("Creating new k8's lease for node group: %d", nodeGroup.ID)
-			leaseName := leasePrefix + nodeGroup.UUID
-			err := createKubernetesLease(ctx, vcpLeaseNameSpace, leaseName)
-			if err != nil {
-				logger.Errorf("Failed to create k8s lease for node group %d: %v", nodeGroup.ID, err)
-				return nil, err
-			}
-			nodeGroup.LeaseName = leaseName
-			nodeGroupMap.HarvestConfig.LEASE_NAME = leaseName
-			if _, err := se.UpdateNodeGroup(ctx, nodeGroup); err != nil {
-				logger.Errorf("Failed to update k8s lease info in DB for node group %d: %v", nodeGroup.ID, err)
-				return nil, err
-			}
-			if _, err := se.UpdateNodeNodeGroupMap(ctx, nodeGroupMap); err != nil {
-				logger.Errorf("Failed to update k8s lease info in DB for node id %d: %v", nodeGroupMap.NodeID, err)
+
+		nodeGroup := nodeGroupMap.NodeGroup
+		wasNewLease := nodeGroup.LeaseName == ""
+
+		if err := a.ensureLeaseExists(ctx, nodeGroup, vcpLeaseNameSpace, logger); err != nil {
+			return nil, err
+		}
+
+		// Ensure HarvestConfig has the lease name set
+		nodeGroupMap.HarvestConfig.LEASE_NAME = nodeGroup.LeaseName
+
+		// Update database records only if lease was newly created
+		if wasNewLease {
+			if err := a.updateDatabaseRecords(ctx, nodeGroup, nodeGroupMap, logger); err != nil {
 				return nil, err
 			}
 		}
 	}
 	return nodeGroupsMap, nil
+}
+
+// validateNodeGroupMap validates the node group mapping structure
+func (a *RegisterNodeToHarvestFarmActivity) validateNodeGroupMap(nodeGroupMap *datamodel.NodeNodeGroupMap, logger log.Logger) error {
+	if nodeGroupMap.NodeGroup == nil {
+		logger.Errorf("Failed to fetch node group details of node groupID:%s", nodeGroupMap.NodeGroupID)
+		return errors.New("failed to fetch node group details from nodeGroup Map table")
+	}
+	return nil
+}
+
+// ensureLeaseExists ensures the Kubernetes lease exists, creating it if necessary
+func (a *RegisterNodeToHarvestFarmActivity) ensureLeaseExists(ctx context.Context, nodeGroup *datamodel.NodeGroup, vcpLeaseNameSpace string, logger log.Logger) error {
+	if nodeGroup.LeaseName == "" {
+		return a.createNewLease(ctx, nodeGroup, vcpLeaseNameSpace, logger)
+	}
+	return a.validateExistingLease(ctx, nodeGroup, vcpLeaseNameSpace, logger)
+}
+
+// createNewLease creates a new lease for a node group that doesn't have one
+func (a *RegisterNodeToHarvestFarmActivity) createNewLease(ctx context.Context, nodeGroup *datamodel.NodeGroup, vcpLeaseNameSpace string, logger log.Logger) error {
+	logger.Infof("Creating new k8's lease for node group: %d", nodeGroup.ID)
+
+	leaseName := leasePrefix + nodeGroup.UUID
+	if err := createKubernetesLease(ctx, vcpLeaseNameSpace, leaseName); err != nil {
+		logger.Errorf("Failed to create k8s lease for node group %d: %v", nodeGroup.ID, err)
+		return err
+	}
+
+	nodeGroup.LeaseName = leaseName
+	return nil
+}
+
+// validateExistingLease validates that an existing lease exists in Kubernetes, creating it if missing
+func (a *RegisterNodeToHarvestFarmActivity) validateExistingLease(ctx context.Context, nodeGroup *datamodel.NodeGroup, vcpLeaseNameSpace string, logger log.Logger) error {
+	logger.Infof("Checking if k8's lease %s exists for node group: %d", nodeGroup.LeaseName, nodeGroup.ID)
+
+	exists, err := leaseExists(ctx, vcpLeaseNameSpace, nodeGroup.LeaseName)
+	if err != nil {
+		logger.Errorf("Failed to check k8s lease existence for node group %d: %v", nodeGroup.ID, err)
+		return err
+	}
+
+	if !exists {
+		logger.Infof("k8's lease %s doesn't exist in Kubernetes, creating it for node group: %d", nodeGroup.LeaseName, nodeGroup.ID)
+		if err := createKubernetesLease(ctx, vcpLeaseNameSpace, nodeGroup.LeaseName); err != nil {
+			logger.Errorf("Failed to create k8s lease %s for node group %d: %v", nodeGroup.LeaseName, nodeGroup.ID, err)
+			return err
+		}
+		logger.Infof("Successfully created k8's lease %s for node group: %d", nodeGroup.LeaseName, nodeGroup.ID)
+	} else {
+		logger.Infof("k8's lease %s already exists for node group: %d", nodeGroup.LeaseName, nodeGroup.ID)
+	}
+
+	return nil
+}
+
+// updateDatabaseRecords updates the database records for node group and mapping
+func (a *RegisterNodeToHarvestFarmActivity) updateDatabaseRecords(ctx context.Context, nodeGroup *datamodel.NodeGroup, nodeGroupMap *datamodel.NodeNodeGroupMap, logger log.Logger) error {
+	if _, err := a.SE.UpdateNodeGroup(ctx, nodeGroup); err != nil {
+		logger.Errorf("Failed to update k8s lease info in DB for node group %d: %v", nodeGroup.ID, err)
+		return err
+	}
+
+	if _, err := a.SE.UpdateNodeNodeGroupMap(ctx, nodeGroupMap); err != nil {
+		logger.Errorf("Failed to update k8s lease info in DB for node id %d: %v", nodeGroupMap.NodeID, err)
+		return err
+	}
+	return nil
 }
 
 // UploadHarvestTemplateActivity handles uploading the rendered template as YAML via REST

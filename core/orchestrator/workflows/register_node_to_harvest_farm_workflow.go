@@ -1,6 +1,8 @@
 package workflows
 
 import (
+	"fmt"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -23,7 +25,11 @@ type registerNodeToHarvestFarmWorkflow struct {
 	SE database.Storage
 }
 
-var uploadURL = env.GetString("UPLOAD_URL", "http://harvest-farm-service:3000/config/upload")
+var (
+	harvestHost         = env.GetString("HARVEST_HOST", "harvest-farm-service.vcp.svc.cluster.local:3000")
+	harvestRestProtocol = env.GetString("HARVEST_REST_PROTOCOL", "http")
+	uploadURL           = fmt.Sprintf("%s://%s/config/upload", harvestRestProtocol, harvestHost)
+)
 
 // Enforcing the WorkflowInterface on registerNodeToHarvestFarmWorkflow
 var _ WorkflowInterface = &registerNodeToHarvestFarmWorkflow{}
@@ -66,7 +72,10 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
-			MaximumAttempts: 1,
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
 			NonRetryableErrorTypes: []string{"not enough nodes found for pool",
 				"node group assignment returned insufficient mappings for pool",
 				"node1 and node2 must be different nodes",
