@@ -578,8 +578,6 @@ func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Po
 	if len(nodes) < 2 {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("not enough nodes in the cluster to create LIFs for SVM "+svm.Svmname))
 	}
-	// TODO: Remove this workaround once the VLM worker image is updated to use the correct LIF type ("iscsi").
-	// Currently, the received data uses "default-data-iscsi" instead of the expected "iscsi" as per the data model.
 	lifs := svm.SVMLIFs[vlm.LIFTypeSan]
 
 	for i, lif := range lifs {
@@ -591,7 +589,7 @@ func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Po
 			NodeID:    nodes[i].ID, // FIXME : need to get the node name from the lif object - VLM changes
 			LifDetails: &datamodel.LifDetails{
 				ExternalUUID: lif.Uuid,
-				ProtocolType: "SAN", // string(vlm.LIFTypeIscsi) assign from vlm.LIFTypeIscsi when vlm changes are done
+				ProtocolType: string(vlm.LIFTypeSan),
 			},
 			IPAddress:  ip,
 			SubnetMask: vsa.DefaultNetmask,

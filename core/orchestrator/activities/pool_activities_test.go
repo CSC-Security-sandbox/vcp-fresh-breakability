@@ -704,7 +704,7 @@ func Test_SaveSVMAndLifData_CouldNotFetchNodes(t *testing.T) {
 	vlmConfig := &vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{DeploymentID: "test-deployment"},
 		Svm: map[string]vlm.SvmConfig{
-			"test-deployment-datasvm-gcnv-default-svm": {
+			"gcnv": {
 				Svmname: "test-svm",
 				Svmuuid: "test-uuid",
 			},
@@ -734,7 +734,7 @@ func Test_SaveSVMAndLifData_NotEnoughNodes(t *testing.T) {
 	vlmConfig := &vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{DeploymentID: "test-deployment"},
 		Svm: map[string]vlm.SvmConfig{
-			"test-deployment-datasvm-gcnv-default-svm": {
+			"gcnv": {
 				Svmname: "test-svm",
 				Svmuuid: "test-uuid",
 			},

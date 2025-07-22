@@ -294,7 +294,6 @@ type CreateAggregatesForHAPairsWorkflowRequest struct {
 	VsaCluster       VsaClusterConfig
 	OntapCredentials OntapCredentials
 }
-
 type CreateAggregatesForHAPairsWorkflowResponse struct {
 	Cloud      CloudConfig
 	Deployment DeploymentConfig
