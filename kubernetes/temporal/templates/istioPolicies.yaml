@@ -17,7 +17,7 @@ spec:
   rules:
     - from:
         - source:
-            notNamespaces: [ {{ .Release.Namespace | quote }}, "otel", "vcp"]
+            notNamespaces: [ {{ .Release.Namespace | quote }}, "otel", "vcp", "vlm-ontap-*" ]
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
