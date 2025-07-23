@@ -162,6 +162,7 @@ func (o *Orchestrator) UpdateHostGroup(ctx context.Context, params *common.Updat
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			ID:                    createdJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
 		workflows.UpdateHostGroupWorkflow,
 		hg,

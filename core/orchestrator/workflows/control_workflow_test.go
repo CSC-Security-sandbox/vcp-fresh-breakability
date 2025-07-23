@@ -38,6 +38,7 @@ func TestExecuteWorkflowSequentially_Success(t *testing.T) {
 				TaskQueue:             workflowengine.CustomerTaskQueue,
 				WorkflowID:            "test-workflow-id",
 				WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+				WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 			},
 		},
 		client.StartWorkflowOptions{
@@ -57,6 +58,7 @@ func TestExecuteWorkflowSequentially_Success(t *testing.T) {
 		workflow.ChildWorkflowOptions{
 			WorkflowID:            "test-workflow-id",
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
 	)
 
@@ -83,6 +85,7 @@ func TestExecuteWorkflowSequentially_SignalError(t *testing.T) {
 				TaskQueue:             workflowengine.CustomerTaskQueue,
 				WorkflowID:            "test-workflow-id",
 				WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+				WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 			},
 		},
 		client.StartWorkflowOptions{
@@ -103,6 +106,7 @@ func TestExecuteWorkflowSequentially_SignalError(t *testing.T) {
 		workflow.ChildWorkflowOptions{
 			WorkflowID:            "test-workflow-id",
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
 	)
 
@@ -129,6 +133,7 @@ func TestExecuteWorkflowSequentially_ValidationError_sequenceWorkflowIDNil(t *te
 		workflow.ChildWorkflowOptions{
 			WorkflowID:            "test-workflow-id",
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
 	)
 
@@ -159,6 +164,7 @@ func TestExecuteWorkflowSequentially_ValidationError_ExecutionWorkflowIDNil(t *t
 		workflow.ChildWorkflowOptions{
 			WorkflowID:            "",
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
 	)
 

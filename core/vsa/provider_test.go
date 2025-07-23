@@ -59,5 +59,6 @@ func TestNewProviderWithCert(t *testing.T) {
 		assert.NotNil(tt, result.ClientParams.Trace)
 		assert.NotNil(tt, result.Logger)
 		assert.IsType(tt, &log.Slogger{}, result.Logger)
+		assert.NotNil(tt, result.ClientParams.Ctx)
 	})
 }

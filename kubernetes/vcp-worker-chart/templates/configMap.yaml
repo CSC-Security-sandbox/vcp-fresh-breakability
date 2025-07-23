@@ -69,3 +69,4 @@ data:
   HARVEST_REST_PROTOCOL: {{.Values.workerConfig.harvestRestProtocol | quote}}
   FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.firewallSourceRanges | quote }}
   CVP_HOST: {{ .Values.workerConfig.cvpHost | quote }}
+  WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{ .Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}

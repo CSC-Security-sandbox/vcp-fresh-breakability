@@ -95,7 +95,7 @@ type OntapRestProvider struct {
 	Provider           ProviderDetails            `json:"Provider"`
 	ClientParams       ontapRest.RESTClientParams `json:"ClientParams"`
 	InsecureSkipVerify bool                       `json:"insecureSkipVerify"`
-	Logger             *log.Slogger               `json:"-"`
+	Logger             log.Logger                 `json:"-"`
 }
 
 func NewProvider(ctx context.Context, provider ProviderDetails) *OntapRestProvider {
@@ -106,9 +106,10 @@ func NewProvider(ctx context.Context, provider ProviderDetails) *OntapRestProvid
 			Hosts:              provider.Hosts,
 			Host:               provider.IPAddress,
 			InsecureSkipVerify: provider.InsecureSkipVerify,
-			Trace:              logger.(*log.Slogger),
+			Trace:              logger,
+			Ctx:                ctx,
 		},
-		Logger: logger.(*log.Slogger),
+		Logger: logger,
 	}
 	if provider.Certificate != nil {
 		ontapRestProvider.ClientParams.Certificate = &models.Certificate{

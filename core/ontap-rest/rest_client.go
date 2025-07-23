@@ -1,6 +1,7 @@
 package ontap_rest
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -59,8 +60,12 @@ type RESTClientParams struct {
 	Password                    log.Secret
 	Certificate                 *models.Certificate
 	InsecureSkipVerify          bool
-	Trace                       *log.Slogger
 	CertificateBasedAuthEnabled bool
+	// Trace & Ctx fields are not serializable to JSON because of being an interface.
+	// Hence, explicitly including JSON tags to nullify the fields. This is to avoid
+	// JSON serialization error during temporal activity execution.
+	Trace log.Logger      `json:"-"`
+	Ctx   context.Context `json:"-"`
 }
 
 var (
@@ -131,20 +136,20 @@ func NewClient(params RESTClientParams) (RESTClient, error) {
 		rt.Transport = ottransport.NewAuthenticationRoundTripper(rt.Transport, common.Admin, tryParams.Password, params.CertificateBasedAuthEnabled)
 		retryTransport := ottransport.NewRetryTransport(tryParams.Trace, rt)
 		idempotentTransport := ottransport.NewIdempotentTransport(retryTransport, func(operation *runtime.ClientOperation) (interface{}, error) {
-			return resolveRESTClientRouterConflict(*tryParams.Trace, rc, operation)
+			return resolveRESTClientRouterConflict(tryParams.Trace, rc, operation)
 		})
 		api := client.New(idempotentTransport, nil)
 		apiPriv := clientPriv.New(idempotentTransport, nil)
-		p := &poller{api: api.Cluster, logger: tryParams.Trace}
+		p := &poller{api: api.Cluster, logger: tryParams.Trace, clientParams: tryParams}
 		rc = &OntapRestClient{
 			httpRoundTripperTransport: httpRoundTripperTransport,
 			params:                    tryParams,
 			cluster:                   &clusterClient{api: api.Cluster, apiPriv: &apiPriv.Operations},
 			cloud:                     &cloudClient{api: api.Cloud},
-			svm:                       &svmClient{api: api.Svm, apiPriv: &apiPriv.Operations},
+			svm:                       &svmClient{api: api.Svm, apiPriv: &apiPriv.Operations, poller: p},
 			networking:                &networkingClient{api: api.Networking, apiPriv: &apiPriv.Operations},
 			storage:                   &storageClient{api: api.Storage},
-			san:                       &sanClient{api: api.San},
+			san:                       &sanClient{api: api.San, poller: p},
 			nas:                       &nasClient{api: api.Nas, poller: p},
 			snapmirror:                &snapmirrorClient{api: api.Snapmirror, apiPriv: apiPriv.Snapmirror},
 			poller:                    p,

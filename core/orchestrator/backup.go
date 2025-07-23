@@ -240,6 +240,7 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			ID:                    createdJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
 		workflows.DeleteBackupWorkflow,
 		params,

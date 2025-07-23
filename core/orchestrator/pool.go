@@ -144,6 +144,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			ID:                    createdJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
 		workflows.CreatePoolWorkflow,
 		params,
@@ -207,6 +208,7 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			ID:                    createdJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
 		workflows.UpdatePoolWorkflow,
 		params, // this contains the parameters for the update operation
@@ -365,6 +367,7 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			ID:                    createdJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
 		workflows.DeletePoolWorkflow,
 		params,

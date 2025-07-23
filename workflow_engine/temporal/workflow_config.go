@@ -3,9 +3,12 @@ package temporal
 import (
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/temporal"
 )
+
+var WorkflowGlobalTimeoutMinutes = env.GetString("WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "60")
 
 // Struct for RetryPolicy configuration
 type RetryPolicyConfig struct {
@@ -60,4 +63,13 @@ func GetRetryPolicy(config *RetryPolicyConfig) *temporal.RetryPolicy {
 		MaximumAttempts:        retryConfig.MaximumAttempts,
 		NonRetryableErrorTypes: retryConfig.NonRetryableErrors,
 	}
+}
+
+func GetWorkflowGlobalTimeout() time.Duration {
+	timeout, err := time.ParseDuration(WorkflowGlobalTimeoutMinutes + "m")
+	if err != nil {
+		// If parsing fails, default to 60 minutes
+		return 60 * time.Minute
+	}
+	return timeout
 }

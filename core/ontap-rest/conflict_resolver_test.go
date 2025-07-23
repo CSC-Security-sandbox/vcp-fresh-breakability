@@ -20,7 +20,7 @@ func TestResolveRESTClientRouterConflict(t *testing.T) {
 		rc := NewMockRESTClient(tt)
 		operation := &runtime.ClientOperation{Params: nil}
 
-		_, err := resolveRESTClientRouterConflict(*logger, rc, operation)
+		_, err := resolveRESTClientRouterConflict(logger, rc, operation)
 		assert.EqualError(tt, err, "Not implemented yet")
 	})
 
@@ -32,13 +32,13 @@ func TestResolveRESTClientRouterConflict(t *testing.T) {
 
 		rc.Mock.On("SVM").Return(NewMockSVMClient(tt))
 
-		mockResolve := func(log.Slogger, SVMClient, *svm.SvmCreateParams) (*svm.SvmCreateCreated, error) {
+		mockResolve := func(log.Logger, SVMClient, *svm.SvmCreateParams) (*svm.SvmCreateCreated, error) {
 			return &svm.SvmCreateCreated{}, nil
 		}
 		resolveSvmCreateConflict = mockResolve
 		defer func() { resolveSvmCreateConflict = _resolveSvmCreateConflict }()
 
-		result, err := resolveRESTClientRouterConflict(*logger, rc, operation)
+		result, err := resolveRESTClientRouterConflict(logger, rc, operation)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 	})
@@ -52,7 +52,7 @@ func TestResolveSvmCreateConflict(t *testing.T) {
 
 		svms.Mock.On("SvmGet", mock.Anything).Return(nil, errors.NewNotFoundErr("svm", nil))
 
-		_, err := resolveSvmCreateConflict(*logger, svms, params)
+		_, err := resolveSvmCreateConflict(logger, svms, params)
 		assert.EqualError(tt, err, "storage server unexpectedly missing while creating")
 	})
 
@@ -63,7 +63,7 @@ func TestResolveSvmCreateConflict(t *testing.T) {
 
 		svms.Mock.On("SvmGet", mock.Anything).Return(&Svm{Svm: models.Svm{Ipspace: &models.SvmInlineIpspace{Name: nillable.ToPointer("ipspace2")}}}, nil)
 
-		_, err := resolveSvmCreateConflict(*logger, svms, params)
+		_, err := resolveSvmCreateConflict(logger, svms, params)
 		assert.EqualError(tt, err, "conflict in storage server - please contact support")
 	})
 
@@ -80,7 +80,7 @@ func TestResolveSvmCreateConflict(t *testing.T) {
 		}
 		svms.Mock.On("SvmGet", mock.Anything).Return(svmResponse, nil)
 
-		result, err := resolveSvmCreateConflict(*logger, svms, params)
+		result, err := resolveSvmCreateConflict(logger, svms, params)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, &svmResponse.Svm, result.Payload.Records[0])
@@ -109,7 +109,7 @@ func TestResolveSvmCreateConflict(t *testing.T) {
 		timeSleep = mockSleep
 		defer func() { timeSleep = time.Sleep }()
 
-		result, err := resolveSvmCreateConflict(*logger, svms, params)
+		result, err := resolveSvmCreateConflict(logger, svms, params)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 	})
@@ -127,7 +127,7 @@ func TestResolveSvmCreateConflict(t *testing.T) {
 		}
 		svms.Mock.On("SvmGet", mock.Anything).Return(svmResponse, nil)
 
-		_, err := resolveSvmCreateConflict(*logger, svms, params)
+		_, err := resolveSvmCreateConflict(logger, svms, params)
 		assert.EqualError(tt, err, "storage server in an unexpected state while creating")
 	})
 }

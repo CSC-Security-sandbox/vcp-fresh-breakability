@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/jobmanageractivities"
@@ -192,6 +193,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(workflows.RegisterNodeToHarvestFarmWorkflow)
 	worker.RegisterWorkflow(workflows.UnRegisterNodeFromHarvestFarmWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.ReplicationDeleteWorkflow)
+	worker.RegisterWorkflow(ontaprest.PollOntapJob)
 	worker.RegisterWorkflow(workflows.DeleteBackupVaultWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())

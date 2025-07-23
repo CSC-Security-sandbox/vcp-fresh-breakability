@@ -989,6 +989,7 @@ func (sa *SubnetActivity) CreateSubnetJob(ctx context.Context, params *common.Cr
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			WorkflowID:            createdJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
 		params,
 		pool.UUID,

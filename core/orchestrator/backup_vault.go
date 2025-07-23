@@ -185,6 +185,7 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			ID:                    createdJob.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
 		workflows.UpdateBackupVaultWorkflow,
 		params,
