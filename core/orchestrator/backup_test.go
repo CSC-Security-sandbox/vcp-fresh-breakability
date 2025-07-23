@@ -738,3 +738,126 @@ func TestOrchestrator_GetBackupsUnderBackupVault(t *testing.T) {
 		assert.Equal(tt, expectedBackups, backups)
 	})
 }
+
+func TestUpdateBackup(t *testing.T) {
+	t.Run("onGetAccountError", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		temporal := new(workflow_engine_mock.MockTemporalTestClient)
+		params := &common.UpdateBackupParams{
+			BackupUUID:      "testBackupUUID",
+			AccountName:     "acc",
+			BackupVaultUUID: "testVaultID",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+
+		_, _, err := updateBackup(ctx, store, temporal, params)
+		assert.EqualError(t, err, "account not found")
+	})
+
+	t.Run("onGetBackupError", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		temporal := new(workflow_engine_mock.MockTemporalTestClient)
+		params := &common.UpdateBackupParams{
+			BackupUUID:      "testBackupUUID",
+			AccountName:     "acc",
+			BackupVaultUUID: "testVaultID",
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(nil, errors.New("backup not found"))
+
+		_, _, err := updateBackup(ctx, store, temporal, params)
+		assert.EqualError(t, err, "backup not found")
+	})
+
+	t.Run("onWorkflowExecutionError", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		temporal := new(workflow_engine_mock.MockTemporalTestClient)
+		params := &common.UpdateBackupParams{
+			BackupUUID:      "testBackupUUID",
+			AccountName:     "acc",
+			BackupVaultUUID: "testVaultID",
+			Description:     "Updated description",
+		}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: params.BackupUUID},
+			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: params.BackupVaultUUID}},
+			State:       models.LifeCycleStateAvailable,
+		}
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
+		store.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
+		store.On("UpdateBackupState", ctx, mock.Anything).Return(backup, nil)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow execution failed")).Once()
+
+		_, _, err := updateBackup(ctx, store, temporal, params)
+		assert.EqualError(t, err, "workflow execution failed")
+	})
+
+	t.Run("onInvalidBackupState", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		temporal := new(workflow_engine_mock.MockTemporalTestClient)
+		params := &common.UpdateBackupParams{
+			BackupUUID:      "testBackupUUID",
+			AccountName:     "acc",
+			BackupVaultUUID: "testVaultID",
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: params.BackupUUID},
+			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: params.BackupVaultUUID}},
+			State:       models.LifeCycleStateCreating,
+		}
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
+
+		_, _, err := updateBackup(ctx, store, temporal, params)
+		assert.EqualError(t, err, "Backup can only be updated when in AVAILABLE state, current state: CREATING")
+	})
+
+	t.Run("onJobCreationError", func(t *testing.T) {
+		ctx := context.Background()
+		store := database.NewMockStorage(t)
+		temporal := new(workflow_engine_mock.MockTemporalTestClient)
+		params := &common.UpdateBackupParams{
+			BackupUUID:      "testBackupUUID",
+			AccountName:     "acc",
+			BackupVaultUUID: "testVaultID",
+			Description:     "Updated description",
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: params.BackupUUID},
+			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: params.BackupVaultUUID}},
+			State:       models.LifeCycleStateAvailable,
+		}
+		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
+		store.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("job creation failed"))
+
+		_, _, err := updateBackup(ctx, store, temporal, params)
+		assert.EqualError(t, err, "job creation failed")
+	})
+}

@@ -393,6 +393,83 @@ func TestBackupWorkflowSuccess(t *testing.T) {
 	})
 }
 
+func TestUpdateBackupWorkflowSuccess(t *testing.T) {
+	t.Run("UpdateBackupWorkflowSuccess", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		backup := &datamodel.Backup{
+			Name:        "test-backup",
+			VolumeUUID:  "test-vol",
+			Attributes:  &datamodel.BackupAttributes{BucketName: "test-bucket"},
+			Description: "Updated description",
+		}
+
+		// Mock activity responses
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateBackup", mock.Anything, backup).Return(nil)
+
+		// Execute workflow
+		env.ExecuteWorkflow(UpdateBackupWorkflow, backup)
+
+		// Assert workflow execution
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+}
+
+func TestUpdateBackupWorkflowFailure(t *testing.T) {
+	t.Run("UpdateBackupWorkflowFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		// Set up test data
+		backup := &datamodel.Backup{
+			Name:        "test-backup",
+			VolumeUUID:  "test-vol",
+			Attributes:  &datamodel.BackupAttributes{BucketName: "test-bucket"},
+			Description: "Updated description",
+		}
+
+		// Mock activity responses - use simple mocks that just check workflow completion
+		// First UpdateJobStatus call (PROCESSING) should succeed
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Once()
+		// UpdateBackup should fail
+		env.OnActivity("UpdateBackup", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update failed"))
+		// Second UpdateJobStatus call (ERROR) - let it succeed so we can test the flow
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		// Execute workflow
+		env.ExecuteWorkflow(UpdateBackupWorkflow, backup)
+
+		// Assert workflow execution - the workflow handles errors internally and completes successfully
+		// even when UpdateBackup fails, because it updates the job status to handle the error
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+}
+
 func TestObjStoreNameFromBackup_ReturnsValidName(t *testing.T) {
 	backupVault := &datamodel.BackupVault{
 		BucketDetails: datamodel.BucketDetailsArray{

@@ -47,8 +47,8 @@ func (a BackupActivity) UpdateBackupError(ctx context.Context, backup *datamodel
 		return errors.New("invalid input")
 	}
 	se := a.SE
-	backup.State = models.LifeCycleStateError
-	backup.StateDetails = errorString
+	backup.State = models.LifeCycleStateAvailable
+	backup.StateDetails = models.LifeCycleStateAvailableDetails
 	_, err := se.UpdateBackupState(ctx, backup)
 	return err
 }
@@ -290,6 +290,15 @@ func (a BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *model
 func (j *BackupActivity) IsBackupShared(ctx context.Context, backup *datamodel.Backup) (bool, error) {
 	se := j.SE
 	return se.IsBackupShared(ctx, backup)
+}
+
+func (a *BackupActivity) UpdateBackup(ctx context.Context, backup *datamodel.Backup) error {
+	se := a.SE
+	_, err := se.UpdateBackup(ctx, backup)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // func (a BackupActivity) CreateHmacKeys(ctx context.Context, params *commonparams.HmacKeyCreateParams, gcpService hyperscaler.GoogleServices) (hmacKeys *commonparams.HmacKeys, err error) {

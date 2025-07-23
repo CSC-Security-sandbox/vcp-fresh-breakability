@@ -1194,12 +1194,15 @@ func TestUpdateBackup_Persistence_Store(t *testing.T) {
 	created, err := store.CreateBackup(ctx, backup)
 	assert.NoError(t, err)
 
+	// params := &common.Up
+
+	backup.Description = "Updated backup description"
 	// Case 1: Successful update
 	created.State = "CREATING"
 	updated, err := store.UpdateBackup(ctx, created)
 	assert.NoError(t, err)
 	assert.NotNil(t, updated)
-	assert.Equal(t, "CREATING", updated.State)
+	assert.Equal(t, "AVAILABLE", updated.State)
 }
 
 func TestListVolumeReplications_Persistence_Store(t *testing.T) {

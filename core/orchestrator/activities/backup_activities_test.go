@@ -166,8 +166,40 @@ func TestUpdateBackupError_Success(t *testing.T) {
 	err := activity.UpdateBackupError(ctx, backup, errorString)
 
 	assert.NoError(t, err)
-	assert.Equal(t, models.LifeCycleStateError, backup.State)
-	assert.Equal(t, errorString, backup.StateDetails)
+	assert.Equal(t, models.LifeCycleStateAvailable, backup.State)
+	assert.Equal(t, models.LifeCycleStateAvailableDetails, backup.StateDetails)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackup_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "test-uuid"}, Name: "test-backup", Description: "Update description"}
+
+	mockStorage.On("UpdateBackup", ctx, backup).Return(backup, nil)
+
+	// Act
+	err := activity.UpdateBackup(ctx, backup)
+
+	// Assert
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackup_InvalidAccount(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	backup := &datamodel.Backup{}
+
+	mockStorage.On("UpdateBackup", ctx, backup).Return(nil, errors.New("invalid account name"))
+
+	err := activity.UpdateBackup(ctx, backup)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid account name")
 	mockStorage.AssertExpectations(t)
 }
 

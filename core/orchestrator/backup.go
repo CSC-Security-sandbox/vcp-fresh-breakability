@@ -21,12 +21,17 @@ var (
 	validateCreateBackupParams = _validateCreateBackupParams
 	getBackups                 = _getBackups
 	deleteBackup               = _deleteBackup
+	updateBackup               = _updateBackup
 	validateBackupDeleteParams = _validateBackupDeleteParams
 )
 
 // CreateBackup creates the specified backup and adds it to the list of backup belonging to the specified BackupVault
 func (o *Orchestrator) CreateBackup(ctx context.Context, params *common.CreateBackupParams) (*models.Backup, string, error) {
 	return createBackup(ctx, o.storage, o.temporal, params)
+}
+
+func (o *Orchestrator) UpdateBackup(ctx context.Context, params *common.UpdateBackupParams) (*models.Backup, string, error) {
+	return updateBackup(ctx, o.storage, o.temporal, params)
 }
 
 func (o *Orchestrator) ListBackups(ctx context.Context, backupVaultID, ownerID string, filters [][]interface{}) ([]*datamodel.Backup, error) {
@@ -134,6 +139,71 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	return convertDatastoreBackupToModel(dbBackup), createdJob.UUID, nil
+}
+
+func _updateBackup(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateBackupParams) (*models.Backup, string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+	// Fetch the backup
+	backup, err := se.GetBackup(ctx, params.BackupVaultUUID, params.BackupUUID, account.Name)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			return nil, "", customerrors.NewUserInputValidationErr("Backup not found")
+		}
+		return nil, "", err
+	}
+	// Check if the backup is in a state that allows updates
+	if backup.State != models.LifeCycleStateAvailable {
+		logger.Errorf("Backup %s cannot be updated, current state: %s. Only backups in AVAILABLE state can be updated", params.BackupUUID, backup.State)
+		return nil, "", customerrors.NewUserInputValidationErr("Backup can only be updated when in AVAILABLE state, current state: " + backup.State)
+	}
+
+	// Update backup state
+	backup.State = models.LifeCycleStateUpdating
+	backup.StateDetails = models.LifeCycleStateUpdatingDetails
+
+	// Create a job for the update operation
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeUpdateBackup),
+		State:        string(models.JobsStateNEW),
+		ResourceName: params.BackupUUID,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+	}
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+
+	backup, err = se.UpdateBackupState(ctx, backup)
+	if err != nil {
+		logger.Error("Failed to update backup state in database", "error", err)
+		return nil, "", err
+	}
+
+	backup.Description = params.Description
+
+	// Execute the workflow for updating the backup
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		workflows.UpdateBackupWorkflow,
+		backup,
+	)
+
+	if err != nil {
+		logger.Error("Failed to start update backup workflow: ", "error", err)
+		return nil, "", err
+	}
+
+	return convertDatastoreBackupToModel(backup), createdJob.UUID, nil
 }
 
 func _validateCreateBackupParams(ctx context.Context, se database.Storage, params *common.CreateBackupParams) error {

@@ -56,6 +56,7 @@ const (
 	JobTypeCreateSubnet                      JobType = "CREATE_SUBNET"
 	JobTypeDeleteBackupVault                 JobType = "DELETE_BACKUP_VAULT"
 	JobTypeRefreshVolumeFields               JobType = "REFRESH_VOLUME_FIELDS"
+	JobTypeUpdateBackup                      JobType = "UPDATE_BACKUP"
 )
 
 // Job describes a job DB model

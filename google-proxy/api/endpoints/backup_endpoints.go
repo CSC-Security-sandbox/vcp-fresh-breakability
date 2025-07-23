@@ -417,11 +417,150 @@ func (h Handler) V1betaDescribeBackup(ctx context.Context, params gcpgenserver.V
 	}, nil
 }
 
-func (h Handler) V1betaUpdateBackupUnderBackupVault(ctx context.Context, req *models.BackupUpdateV1beta, params gcpgenserver.V1betaUpdateBackupParams) (gcpgenserver.V1betaUpdateBackupRes, error) {
-	msg := "Unimplemented function flow"
-	return &gcpgenserver.V1betaUpdateBackupInternalServerError{
-		Code:    float64(500),
-		Message: msg,
+func (h Handler) V1betaUpdateBackup(ctx context.Context, req *gcpgenserver.BackupUpdateV1beta, params gcpgenserver.V1betaUpdateBackupParams) (gcpgenserver.V1betaUpdateBackupRes, error) {
+	logger := util.GetLogger(ctx)
+	if !backupEnabled {
+		return &gcpgenserver.V1betaUpdateBackupBadRequest{
+			Code:    400,
+			Message: "Backup feature is currently not enabled.",
+		}, nil
+	}
+	// Validate region and zone
+	_, _, parsingErr := utilParseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaUpdateBackupBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	// Fetch the backup from VSA
+	_, err := h.Orchestrator.GetBackup(ctx, &common.GetBackupParams{
+		BackupVaultID: params.BackupVaultId,
+		BackupUUID:    params.BackupId,
+		AccountName:   params.ProjectNumber,
+	})
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return updateBackupToCVP(ctx, req, params)
+		}
+
+		logger.Error("Failed to get backup", "error", err.Error())
+		return &gcpgenserver.V1betaUpdateBackupBadRequest{Code: 400, Message: err.Error()}, err
+	}
+
+	// If the request belongs to VSA, update the backup using the orchestrator
+	vsaParams := &common.UpdateBackupParams{
+		AccountName:     params.ProjectNumber,
+		BackupVaultUUID: params.BackupVaultId,
+		BackupUUID:      params.BackupId,
+		Description:     req.Description,
+	}
+	backupResp, jobId, err := h.Orchestrator.UpdateBackup(ctx, vsaParams)
+
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaUpdateBackupBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to update backup", "error", err.Error())
+		return &gcpgenserver.V1betaUpdateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+	bResp := convertBackupModelToBackupsV1beta(backupResp)
+	backupResponse, err := json.Marshal(bResp)
+
+	if err != nil {
+		logger.Error("Failed to marshal backup", err.Error())
+		return &gcpgenserver.V1betaUpdateBackupInternalServerError{
+			Code:    500,
+			Message: "Failed to marshal backup response",
+		}, nil
+	}
+
+	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, jobId)
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Done:     gcpgenserver.NewOptBool(false),
+		Response: backupResponse,
+	}, nil
+}
+
+func updateBackupToCVP(ctx context.Context, req *gcpgenserver.BackupUpdateV1beta, params gcpgenserver.V1betaUpdateBackupParams) (gcpgenserver.V1betaUpdateBackupRes, error) {
+	logger := util.GetLogger(ctx)
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := createClient(logger, jwtToken)
+
+	var description string
+	if req.Description != "" {
+		description = req.Description
+	} else {
+		description = ""
+	}
+	cvpParams := &backups.V1betaUpdateBackupParams{
+		BackupVaultID:  params.BackupVaultId,
+		BackupID:       params.BackupId,
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: &params.XCorrelationID.Value,
+		Body: &models.BackupUpdateV1beta{
+			Description: &description,
+		},
+	}
+
+	resp, _, _, err := cvpClient.Backups.V1betaUpdateBackup(cvpParams)
+	if err != nil {
+		switch e := err.(type) {
+		case *backups.V1betaUpdateBackupBadRequest:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaUpdateBackupBadRequest{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaUpdateBackupUnauthorized:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaUpdateBackupUnauthorized{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaUpdateBackupForbidden:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaUpdateBackupForbidden{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaUpdateBackupNotFound:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaUpdateBackupNotFound{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaUpdateBackupInternalServerError:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaUpdateBackupInternalServerError{
+				Code:    code,
+				Message: msg,
+			}, nil
+		default:
+			code := float64(500)
+			msg := err.Error()
+			return &gcpgenserver.V1betaUpdateBackupInternalServerError{
+				Code:    code,
+				Message: msg,
+			}, nil
+		}
+	}
+
+	operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, resp.Payload.ResourceID)
+	return &gcpgenserver.OperationV1beta{
+		Name: gcpgenserver.NewOptString(operationID),
+		Done: gcpgenserver.NewOptBool(false),
 	}, nil
 }
 
@@ -522,9 +661,12 @@ func convertBackupModelToBackupsV1beta(backup *coremodels.Backup) *gcpgenserver.
 func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserver.BackupV1beta {
 	var state gcpgenserver.BackupV1betaState
 	// Need to convert states as DB models and API models have different states
-	if backup.State == coremodels.LifeCycleStateAvailable {
+	switch backup.State {
+	case coremodels.LifeCycleStateAvailable:
 		state = gcpgenserver.BackupV1betaStateREADY
-	} else {
+	case coremodels.LifeCycleStateUpdating:
+		state = gcpgenserver.BackupV1betaStateUPDATING
+	default:
 		state = gcpgenserver.BackupV1betaState(backup.State)
 	}
 	return gcpgenserver.BackupV1beta{

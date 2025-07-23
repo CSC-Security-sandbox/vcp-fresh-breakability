@@ -1806,6 +1806,7 @@ const (
 	BackupV1betaStateDELETING  BackupV1betaState = "DELETING"
 	BackupV1betaStateDELETED   BackupV1betaState = "DELETED"
 	BackupV1betaStateERROR     BackupV1betaState = "ERROR"
+	BackupV1betaStateUPDATING  BackupV1betaState = "UPDATING"
 )
 
 // AllValues returns all BackupV1betaState values.
@@ -14669,6 +14670,15 @@ type V1betaDeleteBackupUnderBackupVaultBadRequest Error
 
 func (*V1betaDeleteBackupUnderBackupVaultBadRequest) v1betaDeleteBackupUnderBackupVaultRes() {}
 
+type V1betaUpdateBackupUnderBackupVaultBadRequest Error
+
+func (*V1betaUpdateBackupUnderBackupVaultBadRequest) V1betaUpdateBackupUnderBackupVaultBadRequest() {}
+
+type V1betaUpdateBackupUnderBackupVaultInternalServerError Error
+
+func (*V1betaUpdateBackupUnderBackupVaultInternalServerError) V1betaUpdateBackupUnderBackupVaultInternalServerError() {
+}
+
 type V1betaDeleteBackupUnderBackupVaultConflict Error
 
 func (*V1betaDeleteBackupUnderBackupVaultConflict) v1betaDeleteBackupUnderBackupVaultRes() {}
@@ -14697,6 +14707,10 @@ func (*V1betaDeleteBackupUnderBackupVaultTooManyRequests) v1betaDeleteBackupUnde
 type V1betaDeleteBackupUnderBackupVaultUnauthorized Error
 
 func (*V1betaDeleteBackupUnderBackupVaultUnauthorized) v1betaDeleteBackupUnderBackupVaultRes() {}
+
+type V1betaUpdateBackupUnderBackupVaultUnauthorized Error
+
+func (*V1betaUpdateBackupUnderBackupVaultUnauthorized) v1betaUpdateBackupUnderBackupVaultRes() {}
 
 type V1betaDeleteBackupUnderBackupVaultUnprocessableEntity Error
 

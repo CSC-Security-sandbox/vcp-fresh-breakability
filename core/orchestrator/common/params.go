@@ -394,6 +394,15 @@ type DeleteBackupParams struct {
 	BackupUUID      string
 }
 
+type UpdateBackupParams struct {
+	AccountName     string
+	BackupVaultUUID string
+	BackupUUID      string
+	Description     string
+	State           *string
+	StateDetails    *string
+}
+
 type HmacKeyCreateParams struct {
 	ServiceAccount string
 	ProjectNumber  string

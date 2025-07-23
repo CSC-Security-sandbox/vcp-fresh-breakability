@@ -408,7 +408,6 @@ func TestUpdateBackup_EdgeCases(t *testing.T) {
 		backup := &datamodel.Backup{
 			BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid"},
 		}
-
 		_, err = store.UpdateBackup(context.Background(), backup)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "not found")
@@ -436,6 +435,67 @@ func TestUpdateBackupState_EdgeCases(t *testing.T) {
 		assert.Contains(tt, err.Error(), "not found")
 	})
 }
+
+func TestUpdateBackupDescriptionSetsStateToAvailable(t *testing.T) {
+	t.Run("UpdatesDescriptionAndSetsStateToAvailable", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create account and backup vault first
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-account",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-vault-uuid", ID: 1},
+			AccountID: 1,
+			Name:      "test-vault",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup with UPLOADING state (simulating an update in progress)
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "test-backup-uuid"},
+			Name:          "test-backup",
+			Description:   "Original description",
+			BackupVaultID: 1,
+			State:         models.LifeCycleStateUpdating, // Using the correct internal updating state
+			StateDetails:  "Updating backup",
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		// Update the backup description
+		backup.Description = "Updated backup description"
+		updatedBackup, err := store.UpdateBackup(context.Background(), backup)
+
+		// Assert successful update
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedBackup)
+		assert.Equal(tt, "Updated backup description", updatedBackup.Description)
+		assert.Equal(tt, models.LifeCycleStateAvailable, updatedBackup.State)
+		assert.Equal(tt, models.LifeCycleStateAvailableDetails, updatedBackup.StateDetails)
+
+		// Verify the backup state is persisted in database
+		var dbBackup datamodel.Backup
+		err = store.db.GORM().Where("uuid = ?", "test-backup-uuid").First(&dbBackup).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, "Updated backup description", dbBackup.Description)
+		assert.Equal(tt, models.LifeCycleStateAvailable, dbBackup.State)
+		assert.Equal(tt, models.LifeCycleStateAvailableDetails, dbBackup.StateDetails)
+	})
+}
+
 func TestUpdateBackup(t *testing.T) {
 	t.Run("ReturnsErrorWhenDBFailsInIsBackupInCreatingStateByVolume", func(tt *testing.T) {
 		db, err := SetupTestDB()

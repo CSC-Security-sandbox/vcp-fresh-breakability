@@ -27,7 +27,13 @@ type BackupDeleteWorkflow struct {
 	SE *database.Storage
 }
 
+type backupUpdateWorkflow struct {
+	BaseWorkflow
+	SE database.Storage
+}
+
 var (
+	_    WorkflowInterface = &backupUpdateWorkflow{}
 	_    WorkflowInterface = &BackupCreateWorkflow{}
 	_    WorkflowInterface = &BackupDeleteWorkflow{}
 	Wait                   = time.Duration(env.GetUint("ONTAP_REST_ASYNC_POLL_WAIT_SECONDS", 3)) * time.Second
@@ -540,4 +546,87 @@ func (wf *BackupDeleteWorkflow) HandleError(ctx workflow.Context, params *common
 		return fmt.Errorf("failed to update backup error: %w", err)
 	}
 	return nil
+}
+
+// UpdateBackupWorkflow Backup Workflow process backup related requests from a customer.
+func UpdateBackupWorkflow(ctx workflow.Context, backup *datamodel.Backup) (gcpgenserver.V1betaUpdateBackupRes, error) {
+	logger := util.GetLogger(ctx)
+	backupWf := new(backupUpdateWorkflow)
+	err := backupWf.Setup(ctx, backup)
+
+	if err != nil {
+		logger.Infof("Backup update workflow setup executed with error: %v", err)
+		return nil, err
+	}
+	backupWf.Status = WorkflowStatusRunning
+	err = backupWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
+	if err != nil {
+		logger.Infof("Update job status for backup executed with error: %v", err)
+		return nil, err
+	}
+	_, err = backupWf.Run(ctx, backup)
+	if err != nil {
+		backupWf.Status = WorkflowStatusFailed
+		err = backupWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err != nil {
+			return nil, err
+		}
+	}
+	backupWf.Status = WorkflowStatusCompleted
+	err = backupWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	logger.Debug("Backup update workflow completed successfully")
+	return nil, err
+}
+
+// Setup initializes the workflow with the necessary parameters and sets up a query handler for status updates.
+func (wf *backupUpdateWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+	backupParams := input.(*datamodel.Backup)
+	info := workflow.GetInfo(ctx)
+	wf.ID = info.WorkflowExecution.ID
+	wf.CustomerID = backupParams.Name
+	wf.Status = WorkflowStatusCreated
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
+	logger := util.GetLogger(ctx)
+	wf.Logger = logger
+
+	return workflow.SetQueryHandler(ctx, "status", func() (*WorkflowStatus, error) {
+		return &WorkflowStatus{
+			ID:         wf.ID,
+			Status:     wf.Status,
+			CustomerID: wf.CustomerID,
+		}, nil
+	})
+}
+
+// Run executes the backup creation workflow, including creating the backup and updating its details.
+func (wf *backupUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	backup := args[0].(*datamodel.Backup)
+	backupUpdateActivity := &activities.BackupActivity{}
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			MaximumAttempts: int32(retryPolicy.MaximumAttempts),
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+	defer func() {
+		if err != nil {
+			// If an error occurs, update the backup state to ERROR
+			errorActivity := workflow.ExecuteActivity(ctx, backupUpdateActivity.UpdateBackupError, backup, err.Error())
+			if errorActivity.Get(ctx, nil) != nil {
+				util.GetLogger(ctx).Errorf("Failed to update backup state to ERROR: %v", err)
+			}
+			return
+		}
+	}()
+	err = workflow.ExecuteActivity(ctx, backupUpdateActivity.UpdateBackup, backup).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
 }

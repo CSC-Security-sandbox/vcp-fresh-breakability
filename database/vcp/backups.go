@@ -234,9 +234,15 @@ func (d *DataStoreRepository) UpdateBackup(ctx context.Context, backup *datamode
 		return nil, err
 	}
 
-	err = tx.Model(&dbBackup).Updates(datamodel.Backup{
+	// Prepare update fields
+	updateFields := datamodel.Backup{
 		Description: backup.Description,
-	}).Error
+	}
+
+	updateFields.State = models.LifeCycleStateAvailable
+	updateFields.StateDetails = models.LifeCycleStateAvailableDetails
+
+	err = tx.Model(&dbBackup).Updates(updateFields).Error
 	if err != nil {
 		return nil, err
 	}

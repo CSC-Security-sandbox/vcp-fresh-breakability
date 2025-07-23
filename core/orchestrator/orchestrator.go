@@ -79,6 +79,7 @@ type OrchestratorFactory interface {
 	GetBackup(ctx context.Context, params *commonparams.GetBackupParams) (*datamodel.Backup, error)
 	DeleteBackup(ctx context.Context, params *commonparams.DeleteBackupParams) (*models.BaseModel, string, error)
 	ListBackups(ctx context.Context, backupVaultID, ownerID string, filters [][]interface{}) ([]*datamodel.Backup, error)
+	UpdateBackup(ctx context.Context, params *commonparams.UpdateBackupParams) (*models.Backup, string, error)
 	GetBackupsUnderBackupVault(ctx context.Context, backupVaultID, ownerID string, backupUUIDs []string) ([]*datamodel.Backup, error)
 	CreateOrGetStartProjectEventJob(ctx context.Context, params *commonparams.StartProjectEventParams) (string, error)
 }
