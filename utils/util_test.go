@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +16,7 @@ import (
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -1569,6 +1571,435 @@ func TestConstructServiceAccountEmail(t *testing.T) {
 			if result != tt.expected {
 				t.Errorf("ConstructServiceAccountEmail(%q, %q) = %q, want %q",
 					tt.accountID, tt.projectID, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsFileProtocolSupported(t *testing.T) {
+	tests := []struct {
+		name                string
+		fileProtocolSupport string
+		whitelistedAccounts string
+		accountID           string
+		expectedResult      bool
+	}{
+		{
+			name:                "Flag disabled, should return false regardless of account",
+			fileProtocolSupport: "false",
+			whitelistedAccounts: "account1,account2",
+			accountID:           "account1",
+			expectedResult:      false,
+		},
+		{
+			name:                "Flag enabled, no whitelisted accounts, should return false",
+			fileProtocolSupport: "true",
+			whitelistedAccounts: "",
+			accountID:           "account1",
+			expectedResult:      false,
+		},
+		{
+			name:                "Flag enabled, account in whitelist, should return true",
+			fileProtocolSupport: "true",
+			whitelistedAccounts: "account1,account2,account3",
+			accountID:           "account2",
+			expectedResult:      true,
+		},
+		{
+			name:                "Flag enabled, account not in whitelist, should return false",
+			fileProtocolSupport: "true",
+			whitelistedAccounts: "account1,account2,account3",
+			accountID:           "account4",
+			expectedResult:      false,
+		},
+		{
+			name:                "Flag enabled, exact case match, should return true",
+			fileProtocolSupport: "true",
+			whitelistedAccounts: "Account1,ACCOUNT2,account3",
+			accountID:           "ACCOUNT2",
+			expectedResult:      true,
+		},
+		{
+			name:                "Flag enabled, whitespace in whitelist, should return true",
+			fileProtocolSupport: "true",
+			whitelistedAccounts: "account1, account2 , account3",
+			accountID:           "account2",
+			expectedResult:      true,
+		},
+		{
+			name:                "Flag enabled, single account in whitelist, should return true",
+			fileProtocolSupport: "true",
+			whitelistedAccounts: "account1",
+			accountID:           "account1",
+			expectedResult:      true,
+		},
+		{
+			name:                "Flag enabled, case sensitive mismatch, should return false",
+			fileProtocolSupport: "true",
+			whitelistedAccounts: "account1,Account2,ACCOUNT3",
+			accountID:           "account2",
+			expectedResult:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variables for the test
+			err := os.Setenv("FILES_PROTOCOL_SUPPORT", tt.fileProtocolSupport)
+			if err != nil {
+				return
+			}
+			err = os.Setenv("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", tt.whitelistedAccounts)
+			if err != nil {
+				return
+			}
+
+			// Reset the global variables to pick up new environment values
+			fileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
+			fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
+
+			result := IsFileProtocolSupported(tt.accountID)
+			if result != tt.expectedResult {
+				t.Errorf("IsFileProtocolSupported() = %v, want %v", result, tt.expectedResult)
+			}
+		})
+	}
+}
+
+func TestSetFileProtocolSupportedForTesting(t *testing.T) {
+	tests := []struct {
+		name     string
+		enabled  bool
+		expected bool
+	}{
+		{
+			name:     "Enable file protocol support",
+			enabled:  true,
+			expected: true,
+		},
+		{
+			name:     "Disable file protocol support",
+			enabled:  false,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Call the test helper function
+			SetFileProtocolSupportedForTesting(tt.enabled)
+
+			// Verify the environment variable was set correctly
+			envValue := os.Getenv("FILES_PROTOCOL_SUPPORT")
+			expectedEnvValue := strconv.FormatBool(tt.enabled)
+			if envValue != expectedEnvValue {
+				t.Errorf("Environment variable FILES_PROTOCOL_SUPPORT = %q, want %q", envValue, expectedEnvValue)
+			}
+
+			// Verify the cached value was updated correctly
+			if fileProtocolSupported != tt.expected {
+				t.Errorf("fileProtocolSupported = %v, want %v", fileProtocolSupported, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSetFileProtocolAllowlistedAccountsForTesting(t *testing.T) {
+	tests := []struct {
+		name     string
+		accounts string
+		expected map[string]struct{}
+	}{
+		{
+			name:     "Empty accounts list",
+			accounts: "",
+			expected: map[string]struct{}{},
+		},
+		{
+			name:     "Single account",
+			accounts: "account1",
+			expected: map[string]struct{}{
+				"account1": {},
+			},
+		},
+		{
+			name:     "Multiple accounts with whitespace",
+			accounts: "account1, account2 , account3",
+			expected: map[string]struct{}{
+				"account1": {},
+				"account2": {},
+				"account3": {},
+			},
+		},
+		{
+			name:     "Multiple accounts without whitespace",
+			accounts: "account1,account2,account3",
+			expected: map[string]struct{}{
+				"account1": {},
+				"account2": {},
+				"account3": {},
+			},
+		},
+		{
+			name:     "Accounts with empty entries",
+			accounts: "account1,,account2, ,account3",
+			expected: map[string]struct{}{
+				"account1": {},
+				"account2": {},
+				"account3": {},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Call the test helper function
+			SetFileProtocolAllowlistedAccountsForTesting(tt.accounts)
+
+			// Verify the environment variable was set correctly
+			envValue := os.Getenv("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS")
+			if envValue != tt.accounts {
+				t.Errorf("Environment variable FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS = %q, want %q", envValue, tt.accounts)
+			}
+
+			// Verify the cached value was updated correctly
+			if len(fileProtocolAllowlistedAccounts) != len(tt.expected) {
+				t.Errorf("fileProtocolAllowlistedAccounts length = %d, want %d", len(fileProtocolAllowlistedAccounts), len(tt.expected))
+			}
+
+			// Check each expected account is present
+			for account := range tt.expected {
+				if _, exists := fileProtocolAllowlistedAccounts[account]; !exists {
+					t.Errorf("Expected account %q not found in fileProtocolAllowlistedAccounts", account)
+				}
+			}
+
+			// Check no unexpected accounts are present
+			for account := range fileProtocolAllowlistedAccounts {
+				if _, exists := tt.expected[account]; !exists {
+					t.Errorf("Unexpected account %q found in fileProtocolAllowlistedAccounts", account)
+				}
+			}
+		})
+	}
+}
+
+func TestSetFileProtocolSupportedForTesting_ErrorHandling(t *testing.T) {
+	// Test that the function handles errors gracefully
+	// This is difficult to test directly since os.Setenv rarely fails,
+	// but we can verify the function doesn't panic and handles the flow correctly
+
+	// Test with valid input
+	SetFileProtocolSupportedForTesting(true)
+
+	// Verify the function completed without issues
+	envValue := os.Getenv("FILES_PROTOCOL_SUPPORT")
+	if envValue != "true" {
+		t.Errorf("Environment variable not set correctly: %q", envValue)
+	}
+}
+
+func TestSetFileProtocolAllowlistedAccountsForTesting_ErrorHandling(t *testing.T) {
+	// Test that the function handles errors gracefully
+	// This is difficult to test directly since os.Setenv rarely fails,
+	// but we can verify the function doesn't panic and handles the flow correctly
+
+	// Test with valid input
+	SetFileProtocolAllowlistedAccountsForTesting("account1,account2")
+
+	// Verify the function completed without issues
+	envValue := os.Getenv("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS")
+	if envValue != "account1,account2" {
+		t.Errorf("Environment variable not set correctly: %q", envValue)
+	}
+}
+
+func TestParseCommaSeparatedStringToMap(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected map[string]struct{}
+	}{
+		{
+			name:     "Empty string",
+			input:    "",
+			expected: map[string]struct{}{},
+		},
+		{
+			name:  "Single item",
+			input: "item1",
+			expected: map[string]struct{}{
+				"item1": {},
+			},
+		},
+		{
+			name:  "Multiple items without whitespace",
+			input: "item1,item2,item3",
+			expected: map[string]struct{}{
+				"item1": {},
+				"item2": {},
+				"item3": {},
+			},
+		},
+		{
+			name:  "Multiple items with whitespace",
+			input: "item1, item2 , item3",
+			expected: map[string]struct{}{
+				"item1": {},
+				"item2": {},
+				"item3": {},
+			},
+		},
+		{
+			name:  "Items with empty entries",
+			input: "item1,,item2, ,item3",
+			expected: map[string]struct{}{
+				"item1": {},
+				"item2": {},
+				"item3": {},
+			},
+		},
+		{
+			name:  "Items with only whitespace entries",
+			input: "item1,   ,item2,  ,item3",
+			expected: map[string]struct{}{
+				"item1": {},
+				"item2": {},
+				"item3": {},
+			},
+		},
+		{
+			name:  "Case sensitive items",
+			input: "Item1,ITEM2,item3",
+			expected: map[string]struct{}{
+				"Item1": {},
+				"ITEM2": {},
+				"item3": {},
+			},
+		},
+		{
+			name:  "Special characters in items",
+			input: "item-1,item_2,item.3",
+			expected: map[string]struct{}{
+				"item-1": {},
+				"item_2": {},
+				"item.3": {},
+			},
+		},
+		{
+			name:  "Numbers as items",
+			input: "123,456,789",
+			expected: map[string]struct{}{
+				"123": {},
+				"456": {},
+				"789": {},
+			},
+		},
+		{
+			name:  "Mixed content",
+			input: "account1, 123 ,user-name,",
+			expected: map[string]struct{}{
+				"account1":  {},
+				"123":       {},
+				"user-name": {},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseCommaSeparatedStringToMap(tt.input)
+
+			// Check length
+			if len(result) != len(tt.expected) {
+				t.Errorf("ParseCommaSeparatedStringToMap() length = %d, want %d", len(result), len(tt.expected))
+			}
+
+			// Check each expected item is present
+			for item := range tt.expected {
+				if _, exists := result[item]; !exists {
+					t.Errorf("Expected item %q not found in result", item)
+				}
+			}
+
+			// Check no unexpected items are present
+			for item := range result {
+				if _, exists := tt.expected[item]; !exists {
+					t.Errorf("Unexpected item %q found in result", item)
+				}
+			}
+		})
+	}
+}
+
+func TestParseCommaSeparatedStringToMap_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected map[string]struct{}
+	}{
+		{
+			name:     "Only commas",
+			input:    ",,,",
+			expected: map[string]struct{}{},
+		},
+		{
+			name:     "Only whitespace",
+			input:    "   ,  , ",
+			expected: map[string]struct{}{},
+		},
+		{
+			name:     "Single comma",
+			input:    ",",
+			expected: map[string]struct{}{},
+		},
+		{
+			name:  "Leading and trailing commas",
+			input: ",item1,item2,",
+			expected: map[string]struct{}{
+				"item1": {},
+				"item2": {},
+			},
+		},
+		{
+			name:  "Multiple consecutive commas",
+			input: "item1,,,item2",
+			expected: map[string]struct{}{
+				"item1": {},
+				"item2": {},
+			},
+		},
+		{
+			name:  "Very long item names",
+			input: "very-long-item-name-with-many-characters,another-long-item",
+			expected: map[string]struct{}{
+				"very-long-item-name-with-many-characters": {},
+				"another-long-item":                        {},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseCommaSeparatedStringToMap(tt.input)
+
+			// Check length
+			if len(result) != len(tt.expected) {
+				t.Errorf("ParseCommaSeparatedStringToMap() length = %d, want %d", len(result), len(tt.expected))
+			}
+
+			// Check each expected item is present
+			for item := range tt.expected {
+				if _, exists := result[item]; !exists {
+					t.Errorf("Expected item %q not found in result", item)
+				}
+			}
+
+			// Check no unexpected items are present
+			for item := range result {
+				if _, exists := tt.expected[item]; !exists {
+					t.Errorf("Unexpected item %q found in result", item)
+				}
 			}
 		})
 	}

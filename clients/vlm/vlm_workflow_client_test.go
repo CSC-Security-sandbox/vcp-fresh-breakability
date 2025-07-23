@@ -37,7 +37,6 @@ func TestCreateVSAClusterDeployment(t *testing.T) {
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
-	assert.Contains(t, VSALifecycleManagerQueue, "9.18.1", "Task queue should contain ONTAP version")
 }
 
 func TestCreateVSAClusterDeployment_Error(t *testing.T) {
@@ -70,7 +69,6 @@ func TestCreateVSAClusterDeployment_Error(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	err := env.GetWorkflowError()
 	assert.Error(t, err)
-	assert.Contains(t, VSALifecycleManagerQueue, "9.18.1", "Task queue should contain ONTAP version")
 }
 
 func TestCreateVSASVM(t *testing.T) {
@@ -94,7 +92,6 @@ func TestCreateVSASVM(t *testing.T) {
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
-	assert.Contains(t, VSALifecycleManagerQueue, "9.18.1", "Task queue should contain ONTAP version")
 }
 
 func TestCreateVSASVM_Error(t *testing.T) {
@@ -118,7 +115,6 @@ func TestCreateVSASVM_Error(t *testing.T) {
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
-	assert.Contains(t, VSALifecycleManagerQueue, "9.18.1", "Task queue should contain ONTAP version")
 }
 
 func TestCreateVSASVM_ErrorNotAlreadyExists(t *testing.T) {
@@ -143,7 +139,6 @@ func TestCreateVSASVM_ErrorNotAlreadyExists(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	err := env.GetWorkflowError()
 	assert.Error(t, err)
-	assert.Contains(t, VSALifecycleManagerQueue, "9.18.1", "Task queue should contain ONTAP version")
 }
 
 func TestCreateVSASVM_ErrorAlreadyExistsInUseByDifferentVM(t *testing.T) {

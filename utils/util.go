@@ -55,8 +55,10 @@ var (
 	MinQuotaInBytesVolumeForVolume = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 107374182400)    // 100 GiB
 	MaxQuotaInBytesVolumeForVolume = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 109951162777605) // 102,400 GiB
 	ParsePEMCertificate            = _parsePEMCertificate
-	// FileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
-	FileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
+	// fileProtocolSupported controls whether file-based protocols (NFS/CIFS) are allowed
+	fileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
+	// fileProtocolAllowlistedAccounts contains the parsed set of account IDs that are allowlisted for file protocol support
+	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
 )
 
 const (
@@ -847,4 +849,67 @@ func ConstructServiceAccountEmail(accountID string, projectID string) string {
 // GenerateOperationURL generates the formatted URL
 func GenerateOperationURL(projectNumber, locationId, operationID string) string {
 	return fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", projectNumber, locationId, operationID)
+}
+
+// ParseCommaSeparatedStringToMap parses a comma-separated string into a map[string]struct{}
+func ParseCommaSeparatedStringToMap(input string) map[string]struct{} {
+	if input == "" {
+		return make(map[string]struct{})
+	}
+
+	items := strings.Split(input, ",")
+	parsedItems := make(map[string]struct{}, len(items))
+
+	for _, item := range items {
+		trimmedItem := strings.TrimSpace(item)
+		if trimmedItem != "" {
+			parsedItems[trimmedItem] = struct{}{}
+		}
+	}
+
+	return parsedItems
+}
+
+// IsFileProtocolSupported returns true only if the file protocol support flag is enabled
+// and the provided accountID is in the allowlisted accounts config map array.
+// If no allowlisted accounts are configured, it returns false even if the flag is enabled.
+func IsFileProtocolSupported(accountID string) bool {
+	// First check if the flag is enabled
+	if !fileProtocolSupported {
+		return false
+	}
+
+	// If no allowlisted accounts are configured, return false
+	if len(fileProtocolAllowlistedAccounts) == 0 {
+		return false
+	}
+
+	// Check if the accountID is in the allowlisted accounts
+	// Exact matching (account IDs are typically numbered strings)
+	_, exists := fileProtocolAllowlistedAccounts[accountID]
+	return exists
+}
+
+// SetFileProtocolSupportedForTesting is a test helper function that allows tests to set
+// the file protocol support flag by setting the environment variable.
+// This should only be used in tests.
+func SetFileProtocolSupportedForTesting(enabled bool) {
+	err := os.Setenv("FILES_PROTOCOL_SUPPORT", strconv.FormatBool(enabled))
+	if err != nil {
+		return
+	}
+	// Re-read the environment variable to update the cached value
+	fileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
+}
+
+// SetFileProtocolAllowlistedAccountsForTesting is a test helper function that allows tests to set
+// the allowlisted accounts by setting the environment variable.
+// This should only be used in tests.
+func SetFileProtocolAllowlistedAccountsForTesting(accounts string) {
+	err := os.Setenv("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", accounts)
+	if err != nil {
+		return
+	}
+	// Re-parse the accounts to update the cached value
+	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
 }

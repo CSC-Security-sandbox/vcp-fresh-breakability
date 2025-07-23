@@ -58,7 +58,7 @@ type PostVolumeProvisioningParams struct {
 // Parameters:
 //   - protocols: Slice of protocol strings to determine workflow type
 //   - phase: Provisioning phase (use PhasePre or PhasePost constants)
-func selectVolumeChildWorkflow(protocols []string, phase string) (interface{}, error) {
+func selectVolumeChildWorkflow(protocols []string, phase, accountName string) (interface{}, error) {
 	if utils.IsSanProtocols(protocols) {
 		switch phase {
 		case PhasePre:
@@ -70,7 +70,7 @@ func selectVolumeChildWorkflow(protocols []string, phase string) (interface{}, e
 		}
 	}
 	if utils.IsNasProtocols(protocols) {
-		if !utils.FileProtocolSupported {
+		if !utils.IsFileProtocolSupported(accountName) {
 			return nil, fmt.Errorf("file protocols are not enabled")
 		}
 		switch phase {
@@ -300,7 +300,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: dbVolume.Pool.PoolCredentials.Password, SecretID: dbVolume.Pool.PoolCredentials.SecretID, DeploymentName: dbVolume.Pool.DeploymentName, CertificateID: dbVolume.Pool.PoolCredentials.CertificateID, AuthType: dbVolume.Pool.PoolCredentials.AuthType})
 
 	// Pre-provisioning child workflow
-	preWorkflowFunc, err := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePre)
+	preWorkflowFunc, err := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePre, dbVolume.Account.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -393,7 +393,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	// Post-provisioning child workflow
-	postWorkflowFunc, err := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePost)
+	postWorkflowFunc, err := selectVolumeChildWorkflow(dbVolume.VolumeAttributes.Protocols, PhasePost, dbVolume.Account.Name)
 	if err != nil {
 		return nil, err
 	}

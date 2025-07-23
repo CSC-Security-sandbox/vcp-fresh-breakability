@@ -70,3 +70,7 @@ data:
   FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.firewallSourceRanges | quote }}
   CVP_HOST: {{ .Values.workerConfig.cvpHost | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{ .Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}
+  FILES_PROTOCOL_SUPPORT: {{ .Values.workerConfig.filesProtocolSupport | quote }}
+  FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: {{ .Values.workerConfig.fileProtocolAllowlistedAccounts | quote }}
+  VSA_IMAGE_NAME: {{ .Values.workerConfig.vsaImageName | quote }}
+  VSA_FILES_IMAGE_NAME: {{ .Values.workerConfig.vsaFilesImageName | quote }}

@@ -29,6 +29,7 @@ refreshAdminJobSpecs: false
 autoTieringEnabled: false
 regionalSupportEnabled: true
 filesProtocolSupport: false
+fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that are allowlisted for file protocol support
 backupEnabled: false
 minQuotaInBytesPool: "1099511627776" # 1TB in bytes
 minQuotaInBytesVolume: "1073741824" # 1GB in bytes

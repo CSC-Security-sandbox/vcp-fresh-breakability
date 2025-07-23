@@ -74,6 +74,11 @@ workerConfig:
   ontapVersion: "9.18.1"
   enforceMinSpConfig: "true"
   maxNodesPerGroup: 200
+  filesProtocolSupport: "false"
+  fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that are allowlisted for file protocol support
+  vsaImageName: "r9-17-1xn-250710-0000-gcnv"
+  # this will be removed after AGA
+  vsaFilesImageName: ""
 
   # Harvest Configuration
   serviceControlUrl: "https://servicecontrol.googleapis.com"

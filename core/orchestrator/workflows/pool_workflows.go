@@ -46,6 +46,9 @@ var (
 	GetNewVSAClientWorkflowManager                         = _getNewVSAClientWorkflowManager
 	ExtractOntapVersion                                    = _extractOntapVersion
 	WaitForServiceNetworkOperationStatus                   = _waitForServiceNetworkOperationStatus
+
+	vsaImageName      = env.GetString("VSA_IMAGE_NAME", "r9-17-1xn-250710-0000-gcnv")
+	vsaFilesImageName = env.GetString("VSA_FILES_IMAGE_NAME", "devn-250721-0200")
 )
 
 const (
@@ -1034,12 +1037,20 @@ func (sa *SubnetActivity) GetTenancyDetails(ctx context.Context, workflowID stri
 
 func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest *vlm.CreateVSAClusterDeploymentRequest, vlmConfig vlm.VLMConfig, ontapCredentials vlm.OntapCredentials, pool *datamodel.Pool) {
 	// Initialize labels map if it doesn't exist
+	vlmConfig.Deployment.Images.VSAImageName = vsaImageName
 	if vlmConfig.Deployment.Labels == nil {
 		vlmConfig.Deployment.Labels = make(map[string]string)
 	}
 	vlmConfig.Deployment.Labels["pool_name"] = pool.Name
 	vlmConfig.Deployment.Labels["pool_uuid"] = pool.UUID
-
+	if pool.Account != nil {
+		vlmConfig.Deployment.Labels["account_id"] = pool.Account.Name
+		if utils.IsFileProtocolSupported(pool.Account.Name) {
+			// Set the NFS V3 support flag based on the file protocol support
+			vlmConfig.Deployment.DevFlags.EnableNfsV3Support = true
+			vlmConfig.Deployment.Images.VSAImageName = vsaFilesImageName
+		}
+	}
 	createVSAClusterDeploymentRequest.VLMConfig = vlmConfig
 	createVSAClusterDeploymentRequest.OntapCredentials = ontapCredentials
 }

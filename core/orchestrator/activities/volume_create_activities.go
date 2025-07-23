@@ -93,7 +93,7 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 		},
 	}
 
-	if utils.FileProtocolSupported && volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil {
+	if utils.IsFileProtocolSupported(volume.Account.Name) && volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil {
 		params.ExportPolicy = &volume.VolumeAttributes.FileProperties.ExportPolicyName
 		params.JunctionPath = &volume.VolumeAttributes.FileProperties.JunctionPath
 	}

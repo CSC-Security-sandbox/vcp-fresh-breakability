@@ -5949,37 +5949,36 @@ func TestBlockVolumeValidator_Validate(t *testing.T) {
 }
 
 func TestGetVolumeTypeValidator(t *testing.T) {
-	oldFlag := utils.FileProtocolSupported
-	t.Cleanup(func() { utils.FileProtocolSupported = oldFlag })
-
 	t.Run("ISCSI returns BlockVolumeProcessor", func(tt *testing.T) {
-		validator, err := GetVolumeTypeValidator([]string{"ISCSI"})
+		validator, err := GetVolumeTypeValidator([]string{"ISCSI"}, "test_account")
 		assert.IsType(tt, &BlockVolumeProcessor{}, validator)
 		assert.NoError(tt, err)
 	})
 
 	t.Run("File-based protocol returns error if flag is false", func(tt *testing.T) {
-		utils.FileProtocolSupported = false
-		validator, err := GetVolumeTypeValidator([]string{"NFSV4"})
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+		validator, err := GetVolumeTypeValidator([]string{"NFSV4"}, "test_account")
 		assert.Nil(tt, validator)
 		assert.ErrorContains(tt, err, "file protocols are not enabled")
 	})
 
-	t.Run("File-based protocol returns FileVolumeProcessor if flag is true", func(tt *testing.T) {
-		utils.FileProtocolSupported = true
-		validator, err := GetVolumeTypeValidator([]string{"NFSV4"})
+	t.Run("File-based protocol returns FileVolumeProcessor if flag is true and account is allowlisted", func(tt *testing.T) {
+		utils.SetFileProtocolSupportedForTesting(true)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
+		validator, err := GetVolumeTypeValidator([]string{"NFSV4"}, "test_account")
 		assert.IsType(tt, &FileVolumeProcessor{}, validator)
 		assert.NoError(tt, err)
 	})
 
 	t.Run("Unknown protocol returns error", func(tt *testing.T) {
-		validator, err := GetVolumeTypeValidator([]string{"UNKNOWN"})
+		validator, err := GetVolumeTypeValidator([]string{"UNKNOWN"}, "test_account")
 		assert.Nil(tt, validator)
 		assert.ErrorContains(tt, err, "unsupported or unspecified protocol")
 	})
 
 	t.Run("No protocol specified returns error", func(tt *testing.T) {
-		validator, err := GetVolumeTypeValidator([]string{})
+		validator, err := GetVolumeTypeValidator([]string{}, "test_account")
 		assert.Nil(tt, validator)
 		assert.ErrorContains(tt, err, "unsupported or unspecified protocol")
 	})
@@ -6141,7 +6140,8 @@ func TestGetIPAddressForVolume(t *testing.T) {
 }
 
 func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
-	utils.FileProtocolSupported = true
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("test_account")
 	t.Run("FilePropertiesValidationEmptyAllowedClients", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -6250,6 +6250,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 		}
 
 		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
 			Name:         "test-volume",
 			PoolID:       pool.UUID,
 			QuotaInBytes: 107374182400, // 100GB
@@ -6404,9 +6405,12 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		// Set file protocol supported flag to false
-		oldFlag := utils.FileProtocolSupported
-		utils.FileProtocolSupported = false
-		defer func() { utils.FileProtocolSupported = oldFlag }()
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+		defer func() {
+			utils.SetFileProtocolSupportedForTesting(false)
+			utils.SetFileProtocolAllowlistedAccountsForTesting("")
+		}()
 
 		mockLogger := log.NewLogger()
 		store, err := database.SetupStorageForTest(mockLogger)
@@ -6526,7 +6530,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 		}
 
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
-		assert.ErrorContains(tt, err, "file protocols (NFSv3, NFSv4, SMB) are not enabled")
+		assert.ErrorContains(tt, err, "file protocols are not enabled")
 	})
 }
 

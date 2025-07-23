@@ -411,6 +411,7 @@ func (v *BlockVolumeProcessor) Validate(ctx context.Context, se database.Storage
 }
 
 func (v *FileVolumeProcessor) Validate(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
+	params.BlockProperties = nil // Ensure BlockProperties is nil for file volumes
 	for _, rule := range params.FileProperties.ExportRules {
 		if rule.AllowedClients == "" {
 			return customerrors.NewUserInputValidationErr("allowed clients cannot be nil in export rules")
@@ -428,12 +429,12 @@ func (v *FileVolumeProcessor) Validate(ctx context.Context, se database.Storage,
 	return nil
 }
 
-func GetVolumeTypeValidator(protocols []string) (VolumeTypeProcessor, error) {
+func GetVolumeTypeValidator(protocols []string, accountName string) (VolumeTypeProcessor, error) {
 	if utils.IsSanProtocols(protocols) {
 		return &BlockVolumeProcessor{}, nil
 	}
 	if utils.IsNasProtocols(protocols) {
-		if !utils.FileProtocolSupported {
+		if !utils.IsFileProtocolSupported(accountName) {
 			return nil, customerrors.NewUserInputValidationErr("file protocols are not enabled")
 		}
 		return &FileVolumeProcessor{}, nil
@@ -529,12 +530,8 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		return customerrors.NewUserInputValidationErr("at least one protocol must be specified")
 	}
 
-	if !utils.FileProtocolSupported && utils.IsNasProtocols(params.Protocols) {
-		return customerrors.NewUserInputValidationErr("file protocols (NFSv3, NFSv4, SMB) are not enabled")
-	}
-
 	// Protocol-specific validation
-	validator, err := GetVolumeTypeValidator(params.Protocols)
+	validator, err := GetVolumeTypeValidator(params.Protocols, params.AccountName)
 	if err != nil {
 		return err
 	}

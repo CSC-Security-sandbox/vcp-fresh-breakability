@@ -16,10 +16,8 @@
       "vsa_image_name": "r9-17-1xn-250710-0000-gcnv",
       "mediator_image_name": ""
     },
-    "tags": "tag1,tag2",
+    "tags": "",
     "labels": {
-      "key1": "value1",
-      "key2": "value2"
     },
     "user_boot_args": "",
     "deployment_type": "shared_ha",
@@ -79,7 +77,7 @@
       "disable_data_nic_tier1": false,
       "enable_premium_tier_data": false,
       "disable_gvnic": false,
-      "enable_nfs_v3_support": true
+      "enable_nfs_v3_support": false
     },
     "ontap_credentials": {
       "certificate": {

@@ -11,7 +11,9 @@ import (
 	"time"
 
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -19,7 +21,7 @@ var NewVSAClientWorkflowManager = _newVSAClientWorkflowManager
 
 var (
 	VSALifecycleManagerQueuePrefix = env.GetString("VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX", "vsa-lifecycle-manager")
-	VSALifecycleManagerQueue       = fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, env.GetString("ONTAP_VERSION", "9.18.1"))
+	VSALifecycleManagerQueue       = fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, env.GetString("ONTAP_VERSION", "9.17.1"))
 
 	VlmWorkflowStartToCloseTimeout = env.GetString("VLMWORKFLOW_START_TO_CLOSE_WORKFLOW_TIMEOUT", "20m")
 	VlmWorkflowRetryInterval       = env.GetString("VLMWORKFLOW_RETRY_INTERVAL", "1m")
@@ -50,6 +52,16 @@ func _newVSAClientWorkflowManager() *VSAClientWorkflowManager {
 	return &VSAClientWorkflowManager{}
 }
 
+func getVLMWorkerQueue(logger log.Logger, account string) string {
+	ontapVersion := env.GetString("ONTAP_VERSION", "9.17.1")
+	if utils.IsFileProtocolSupported(account) {
+		// not made it has configurable as this will be removed after AGA
+		ontapVersion = "9.18.1" // file protocol is supported in 9.18.1 and later
+		logger.Info("using 9.18.1 as ontap version for file protocol support", "account", account)
+	}
+	return fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, ontapVersion)
+}
+
 func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workflow.Context, createVSAClusterDeploymentRequest *CreateVSAClusterDeploymentRequest) (*CreateVSAClusterDeploymentResponse, error) {
 	logger := util.GetLogger(ctx)
 
@@ -57,10 +69,11 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 	if err != nil {
 		return nil, err
 	}
+	accountId := createVSAClusterDeploymentRequest.VLMConfig.Deployment.Labels["account_id"]
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		WorkflowID:            createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID, // This ensures that each child workflow has a unique identifier, even if the same Deployment ID is used across different zones
-		TaskQueue:             VSALifecycleManagerQueue,                                            // As VLM workflows are executed in a VSALifecycleManagerQueue queue
+		TaskQueue:             getVLMWorkerQueue(logger, accountId),                                // As VLM workflows are executed in a VSALifecycleManagerQueue queue
 		WaitForCancellation:   true,                                                                // The parent workflow waits until the child workflow is fully canceled (it finishes whatever it needs to do after being canceled).
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,          // Allows reuse only if the previous execution did not complete successfully (e.g., failed, timed out, terminated, or cancelled)
 		ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL,                            // If the parent workflow is closed, the child workflow will be requested to cancel.
@@ -91,9 +104,9 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 	if err != nil {
 		return nil, err
 	}
-
+	accountId := createSVMRequest.VLMConfig.Deployment.Labels["account_id"]
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-		TaskQueue:             VSALifecycleManagerQueue,
+		TaskQueue:             getVLMWorkerQueue(logger, accountId),
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 		ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL,

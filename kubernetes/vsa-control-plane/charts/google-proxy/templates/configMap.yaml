@@ -44,6 +44,7 @@ data:
   AUTO_TIERING_ENABLED: "{{ index .Values "autoTieringEnabled" }}"
   REGIONAL_SUPPORT_ENABLED: "{{ index .Values "regionalSupportEnabled" }}"
   FILES_PROTOCOL_SUPPORT: "{{ index .Values "filesProtocolSupport" }}"
+  FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: "{{ index .Values "fileProtocolAllowlistedAccounts" }}"
   MIN_QUOTA_IN_BYTES_POOL: "{{ index .Values "minQuotaInBytesPool" }}"
   MIN_QUOTA_IN_BYTES_VOLUME: "{{ index .Values "minQuotaInBytesVolume" }}"
   MAX_QUOTA_IN_BYTES_VOLUME: "{{ index .Values "maxQuotaInBytesVolume" }}"
