@@ -33,8 +33,6 @@ type KmsAttributes struct {
 	Instructions            string `json:"instructions"`
 	SdeKmsConfigIsHealthy   bool   `json:"sde_is_healthy"`
 	SdeKmsConfigHealthError string `json:"sde_health_error"`
-	SdeKmsState             string `json:"sde_kms_state"`
-	SdeKmsStateDetails      string `json:"sde_kms_state_details"`
 }
 
 func (kmsAttributes *KmsAttributes) Scan(value interface{}) error {

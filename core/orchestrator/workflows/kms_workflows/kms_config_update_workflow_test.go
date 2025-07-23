@@ -39,7 +39,7 @@ func TestUpdateKmsConfigWorkflow(t *testing.T) {
 
 		// Set up test data
 		params := &common.UpdateKmsConfigParams{
-			Name:            "test-pool",
+			ResourceID:      "test-pool",
 			AccountName:     "test-account",
 			KeyRing:         "key-ring1",
 			KeyName:         "key1",
@@ -89,7 +89,7 @@ func TestUpdateKmsConfigWorkflow(t *testing.T) {
 		}
 		// Set up test data
 		params := &common.UpdateKmsConfigParams{
-			Name:            "test-pool",
+			ResourceID:      "test-pool",
 			AccountName:     "test-account",
 			KeyRing:         "key-ring1",
 			KeyName:         "key1",
@@ -130,7 +130,7 @@ func TestUpdateKmsConfigWorkflow(t *testing.T) {
 		}
 		// Set up test data
 		params := &common.UpdateKmsConfigParams{
-			Name:            "test-pool",
+			ResourceID:      "test-pool",
 			AccountName:     "test-account",
 			KeyRing:         "key-ring1",
 			KeyName:         "key1",

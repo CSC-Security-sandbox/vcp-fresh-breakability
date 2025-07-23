@@ -94,11 +94,6 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	}
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
-	jwtToken, err := getSignedJwtToken(params.ProjectNumber)
-	if err != nil {
-		return nil, err
-	}
-	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
 	rollbackManager := common.NewRollbackManager()
 	rollbackManager.AddActivity(kmsConfigActivity.FailedKmsConfigCreateActivity, kmsConfig)
 	defer func() {
@@ -107,6 +102,14 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)
 		}
 	}()
+
+	jwtToken := ""
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GetSignedTokenActivity, params.ProjectNumber).Get(ctx, &jwtToken)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
 
 	// retry policy for polling the KMS configuration operation
 	pollingOptions := workflow.ActivityOptions{
@@ -148,13 +151,9 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	}
 
 	// Update the KMS configuration attributes in the database
-	kmsConfig.KmsAttributes = &datamodel.KmsAttributes{
-		SdeKmsConfigUUID:       cvpKmsConfig.UUID,
-		SdeServiceAccountEmail: cvpKmsConfig.ServiceAccountEmail,
-		SdeKmsState:            cvpKmsConfig.KmsState,
-		SdeKmsStateDetails:     cvpKmsConfig.KmsStateDetails,
-		Instructions:           cvpKmsConfig.Instructions,
-	}
+	kmsConfig.KmsAttributes.SdeKmsConfigUUID = cvpKmsConfig.UUID
+	kmsConfig.KmsAttributes.SdeServiceAccountEmail = cvpKmsConfig.ServiceAccountEmail
+	kmsConfig.KmsAttributes.Instructions = cvpKmsConfig.Instructions
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.UpdateKmsConfigAttributesActivity, kmsConfig, kmsConfig.KmsAttributes).Get(ctx, kmsConfig)
 	if err != nil {
 		return nil, err

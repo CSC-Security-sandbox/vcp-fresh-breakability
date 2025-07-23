@@ -3,8 +3,10 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
@@ -28,6 +30,7 @@ var (
 	validateUpdateKmsConfigParams = _validateUpdateKmsConfigParams
 	getKmsConfigByKeyFullPath     = _getKmsConfigByKeyFullPath
 	validateDeleteKmsConfigParams = _validateDeleteKmsConfigParams
+	ConvertKmsConfigStateV1beta   = convertKmsConfigStateV1beta
 )
 
 type KmsConfigInterface interface {
@@ -72,6 +75,7 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	dbKmsConfig.KeyProjectID = parsedKeyFullPath.ProjectID
 	dbKmsConfig.KmsAttributes = &datamodel.KmsAttributes{SdeKmsConfigUUID: params.UUID}
 	dbKmsConfig.Description = params.Description
+
 	dbKmsConfig, err = se.CreateKmsConfig(ctx, dbKmsConfig)
 	if err != nil {
 		return nil, "", err
@@ -80,7 +84,7 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeCreateKmsConfig),
 		State:         string(models.JobsStateNEW),
-		ResourceName:  params.Name,
+		ResourceName:  params.ResourceID,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{ResourceUUID: dbKmsConfig.UUID},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
@@ -185,7 +189,7 @@ func _updateKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeUpdateKmsConfig),
 		State:         string(models.JobsStateNEW),
-		ResourceName:  params.Name,
+		ResourceName:  params.ResourceID,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
@@ -254,10 +258,11 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeDeleteKmsConfig),
-		State:        string(models.JobsStateNEW),
-		ResourceName: kmsConfig.ResourceID,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		Type:          string(models.JobTypeDeleteKmsConfig),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  kmsConfig.ResourceID,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: params.KmsConfigID},
 	}
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
@@ -362,6 +367,7 @@ func convertDataStoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.Km
 	if kmsConfig == nil || kmsConfig.UUID == "" {
 		return nil
 	}
+	state, stateDetails := convertKmsConfigStateV1beta(kmsConfig.State, kmsConfig.StateDetails)
 	kmsModel := &models.KmsConfig{
 		BaseModel: models.BaseModel{
 			UUID:      kmsConfig.UUID,
@@ -371,8 +377,8 @@ func convertDataStoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.Km
 		},
 		Name:              kmsConfig.Name,
 		Description:       kmsConfig.Description,
-		State:             kmsConfig.State,
-		StateDetails:      kmsConfig.StateDetails,
+		State:             state,
+		StateDetails:      stateDetails,
 		KeyRing:           kmsConfig.KeyRing,
 		KeyRingLocation:   kmsConfig.KeyRingLocation,
 		KeyName:           kmsConfig.KeyName,
@@ -536,4 +542,30 @@ func validateKmsConfigState(ctx context.Context, se database.Storage, kmsConfigS
 		return "", errors.NewBadRequestErr("CMEK Configuration needs to be in either Ready or In_Use state for migration")
 	}
 	return "", nil
+}
+
+func convertKmsConfigStateV1beta(status, stateDetails string) (state, details string) {
+	switch status {
+	case models.LifeCycleStateCreated:
+		return cvpModels.KmsConfigV1betaKmsStateKEYCHECKPENDING, "Credentials created and key check pending"
+	case models.LifeCycleStateInUse:
+		return cvpModels.KmsConfigV1betaKmsStateINUSE, "Kms config in use"
+	case models.LifeCycleStateDeleted:
+		return cvpModels.KmsConfigV1betaKmsStateDELETED, "Kms config deleted"
+	case models.LifeCycleStateUpdating:
+		return cvpModels.KmsConfigV1betaKmsStateUPDATING, "Updating Kms config"
+	case models.LifeCycleStateDeleting:
+		return cvpModels.KmsConfigV1betaKmsStateDELETING, "Deleting Kms config"
+	case models.LifeCycleStateCreating:
+		return cvpModels.KmsConfigV1betaKmsStateCREATING, "Creating Kms config"
+	case models.LifeCycleStateREADY:
+		return cvpModels.KmsConfigV1betaKmsStateREADY, "Kms config is ready for use"
+	case models.LifeCycleStateMigrating:
+		return cvpModels.KmsConfigV1betaKmsStateMIGRATING, "Kms config is in migrating state"
+	default:
+		if strings.Contains(status, "error") {
+			return cvpModels.KmsConfigV1betaKmsStateERROR, strings.TrimPrefix(stateDetails, "error - ")
+		}
+		return status, ""
+	}
 }

@@ -31,8 +31,8 @@ func UpdateSDEKmsConfiguration(ctx context.Context, kmsConfig *datamodel.KmsConf
 	if params.Description != nil {
 		body.Description = params.Description
 	}
-	if params.Name != "" {
-		body.ResourceID = &params.Name
+	if params.ResourceID != "" {
+		body.ResourceID = &params.ResourceID
 	}
 	updateKmsConfigParams := &kms_configurations.V1betaUpdateKmsConfigurationParams{
 		KmsConfigID:    kmsConfig.KmsAttributes.SdeKmsConfigUUID,

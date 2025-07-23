@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 )
 
@@ -110,5 +111,45 @@ func TestGetReplicationJobs(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Len(tt, jobs, 1)
 		assert.Equal(tt, "job-2", jobs[0].UUID)
+	})
+}
+
+func TestGetJobByResourceUUID(t *testing.T) {
+	t.Run("ReturnsErrorWhenStorageFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		customErr := errors.New("job not found")
+		mockStorage.EXPECT().GetJobByResourceUUID(mock.Anything, "invalid-resource").Return(nil, customErr)
+		orchestrator := &Orchestrator{storage: mockStorage}
+		job, err := orchestrator.GetJobByResourceUUID(context.Background(), "invalid-resource")
+		assert.Error(tt, err)
+		assert.Nil(tt, job)
+		assert.Equal(tt, "job not found", err.Error())
+	})
+
+	t.Run("ReturnsJobWhenStorageSucceeds", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		dummyJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+			CorrelationID: "corr-1",
+			TrackingID:    1,
+			Type:          "type",
+			State:         models.LifeCycleStateCreating,
+			JobAttributes: &datamodel.JobAttributes{
+				PoolUUID:     "pool-1",
+				ResourceUUID: "resource-1",
+			},
+			ResourceName: "resource",
+		}
+		mockStorage.EXPECT().GetJobByResourceUUID(mock.Anything, "resource-1").Return(dummyJob, nil)
+		orchestrator := &Orchestrator{storage: mockStorage}
+		job, err := orchestrator.GetJobByResourceUUID(context.Background(), "resource-1")
+		assert.NoError(tt, err)
+		assert.NotNil(tt, job)
+		assert.Equal(tt, "job-uuid", job.UUID)
+		assert.Equal(tt, "corr-1", job.CorrelationID)
+		assert.Equal(tt, 1, job.TrackingID)
 	})
 }

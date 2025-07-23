@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
@@ -101,10 +102,7 @@ func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V
 		// Access the KMS crypto key to ensure it is accessible using impersonation
 		err = h.Orchestrator.AccessCryptoKeyWithImpersonation(ctx, kmsConfig)
 		if err != nil {
-			return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
-				Code:    http.StatusInternalServerError,
-				Message: err.Error(),
-			}, nil
+			return convertErrorToKmsConfigCheckV1beta(err), nil
 		}
 
 		// Update the KMS config health in the vsa DB
@@ -324,7 +322,7 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 			}
 			if operationID != "" {
 				return &gcpgenserver.OperationV1beta{
-					Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
+					Name:     gcpgenserver.NewOptString(utils.GenerateOperationURL(params.ProjectNumber, params.LocationId, operationID)),
 					Response: resp,
 					Done:     gcpgenserver.NewOptBool(false),
 				}, nil
@@ -332,20 +330,39 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 			return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{}, nil
 		default:
 			return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
-				Code:    500,
+				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
 			}, nil
 		}
 	}
+
 	done := true
 	switch kmsConfig.State {
 	case coremodel.LifeCycleStateError:
 		return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
-			Message: "Kms config is in error state, please delete the config and try again",
+			Message: "A previous config operation ran into error for this region and project, run verify operation to check the status or contact support",
 			Code:    http.StatusConflict,
 		}, nil
 	case coremodel.LifeCycleStateCreating:
 		done = false
+	case coremodel.LifeCycleStateDeleting, coremodel.LifeCycleStateUpdating, coremodel.LifeCycleStateMigrating:
+		return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
+			Message: "A KMS configuration already exists for this region and project and another operation is in progress.",
+			Code:    http.StatusConflict,
+		}, nil
+	case coremodel.LifeCycleStateCreated, coremodel.LifeCycleStateInUse:
+		if kmsConfig.ResourceID != req.ResourceId.Value {
+			return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
+				Message: fmt.Sprintf("A KMS configuration with resource ID %s already exists for this region and project", kmsConfig.ResourceID),
+				Code:    http.StatusConflict,
+			}, nil
+		}
+		done = true
+	}
+
+	job, err := h.Orchestrator.GetJobByResourceUUID(ctx, kmsConfig.UUID)
+	if err != nil {
+		return nil, err
 	}
 
 	resp, err := encodeKmsConfigV1(convertModelToKmsConfigV1Beta(kmsConfig))
@@ -353,11 +370,83 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 		return nil, err
 	}
 	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(utils.GenerateOperationURL(params.ProjectNumber, params.LocationId, job.UUID)),
 		Response: resp,
 		Done:     gcpgenserver.NewOptBool(done),
 	}, nil
 }
 
+func categorizeCvpClientErrorsForDescribeKmsConfigs(cvpErr error) (gcpgenserver.V1betaDescribeKmsConfigurationRes, error) {
+	getMsg := func(msg *string) string {
+		return nillable.GetString(msg, "")
+	}
+	getCode := func(code *float64) float64 {
+		return nillable.GetFloat64(code, 0)
+	}
+	switch e := cvpErr.(type) {
+	case *kms_configurations.V1betaDescribeKmsConfigurationNotFound:
+		msg := getMsg(&e.Payload.Message)
+		code := getCode(&e.Payload.Code)
+		return &gcpgenserver.V1betaDescribeKmsConfigurationNotFound{
+			Code:    code,
+			Message: msg,
+		}, nil
+	case *kms_configurations.V1betaDescribeKmsConfigurationUnprocessableEntity:
+		msg := getMsg(&e.Payload.Message)
+		code := getCode(&e.Payload.Code)
+		return &gcpgenserver.V1betaDescribeKmsConfigurationUnprocessableEntity{
+			Code:    code,
+			Message: msg,
+		}, nil
+	case *kms_configurations.V1betaDescribeKmsConfigurationConflict:
+		msg := getMsg(&e.Payload.Message)
+		code := getCode(&e.Payload.Code)
+		return &gcpgenserver.V1betaDescribeKmsConfigurationConflict{
+			Code:    code,
+			Message: msg,
+		}, nil
+	case *kms_configurations.V1betaDescribeKmsConfigurationBadRequest:
+		msg := getMsg(&e.Payload.Message)
+		code := getCode(&e.Payload.Code)
+		return &gcpgenserver.V1betaDescribeKmsConfigurationBadRequest{
+			Code:    code,
+			Message: msg,
+		}, nil
+	case *kms_configurations.V1betaDescribeKmsConfigurationForbidden:
+		msg := getMsg(&e.Payload.Message)
+		code := getCode(&e.Payload.Code)
+		return &gcpgenserver.V1betaDescribeKmsConfigurationForbidden{
+			Code:    code,
+			Message: msg,
+		}, nil
+	case *kms_configurations.V1betaDescribeKmsConfigurationUnauthorized:
+		msg := getMsg(&e.Payload.Message)
+		code := getCode(&e.Payload.Code)
+		return &gcpgenserver.V1betaDescribeKmsConfigurationUnauthorized{
+			Code:    code,
+			Message: msg,
+		}, nil
+	case *kms_configurations.V1betaDescribeKmsConfigurationTooManyRequests:
+		msg := getMsg(&e.Payload.Message)
+		code := getCode(&e.Payload.Code)
+		return &gcpgenserver.V1betaDescribeKmsConfigurationTooManyRequests{
+			Code:    code,
+			Message: msg,
+		}, nil
+	case *kms_configurations.V1betaDescribeKmsConfigurationDefault:
+		msg := getMsg(&e.Payload.Message)
+		code := getCode(&e.Payload.Code)
+		return &gcpgenserver.V1betaDescribeKmsConfigurationInternalServerError{
+			Code:    code,
+			Message: msg,
+		}, nil
+	default:
+		return &gcpgenserver.V1betaDescribeKmsConfigurationInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: "unknown error during the describe kms config",
+		}, nil
+	}
+}
 func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpgenserver.V1betaDescribeKmsConfigurationParams) (gcpgenserver.V1betaDescribeKmsConfigurationRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
@@ -370,6 +459,25 @@ func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpg
 			Message: parsingErr.Message,
 		}, nil
 	}
+
+	// Get The KMS configuration from the SDE DB
+	describeKmsConfigParams := &kms_configurations.V1betaDescribeKmsConfigurationParams{
+		KmsConfigID:    params.KmsConfigId,
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: &params.XCorrelationID.Value,
+	}
+	res, err := cvpClient.KmsConfigurations.V1betaDescribeKmsConfiguration(describeKmsConfigParams)
+	if err != nil {
+		return categorizeCvpClientErrorsForDescribeKmsConfigs(err)
+	}
+	if res == nil || res.Payload == nil {
+		return &gcpgenserver.V1betaDescribeKmsConfigurationInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: "unknown error during the describe kms configuration",
+		}, nil
+	}
+
 	getKmsConfigParams := &common.GetKmsConfigParams{
 		AccountName:   params.ProjectNumber,
 		UUID:          params.KmsConfigId,
@@ -382,93 +490,20 @@ func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpg
 		var notFoundErr *errors.NotFoundErr
 		switch {
 		case goErrors.As(err, &notFoundErr):
-			describeKmsConfigParams := &kms_configurations.V1betaDescribeKmsConfigurationParams{
-				KmsConfigID:    params.KmsConfigId,
-				LocationID:     params.LocationId,
-				ProjectNumber:  params.ProjectNumber,
-				XCorrelationID: &params.XCorrelationID.Value,
-			}
-			res, err := cvpClient.KmsConfigurations.V1betaDescribeKmsConfiguration(describeKmsConfigParams)
-			if err != nil {
-				getMsg := func(msg *string) string {
-					return nillable.GetString(msg, "")
-				}
-				getCode := func(code *float64) float64 {
-					return nillable.GetFloat64(code, 0)
-				}
-				switch e := err.(type) {
-				case *kms_configurations.V1betaDescribeKmsConfigurationNotFound:
-					msg := getMsg(&e.Payload.Message)
-					code := getCode(&e.Payload.Code)
-					return &gcpgenserver.V1betaDescribeKmsConfigurationNotFound{
-						Code:    code,
-						Message: msg,
-					}, nil
-				case *kms_configurations.V1betaDescribeKmsConfigurationUnprocessableEntity:
-					msg := getMsg(&e.Payload.Message)
-					code := getCode(&e.Payload.Code)
-					return &gcpgenserver.V1betaDescribeKmsConfigurationUnprocessableEntity{
-						Code:    code,
-						Message: msg,
-					}, nil
-				case *kms_configurations.V1betaDescribeKmsConfigurationConflict:
-					msg := getMsg(&e.Payload.Message)
-					code := getCode(&e.Payload.Code)
-					return &gcpgenserver.V1betaDescribeKmsConfigurationConflict{
-						Code:    code,
-						Message: msg,
-					}, nil
-				case *kms_configurations.V1betaDescribeKmsConfigurationBadRequest:
-					msg := getMsg(&e.Payload.Message)
-					code := getCode(&e.Payload.Code)
-					return &gcpgenserver.V1betaDescribeKmsConfigurationBadRequest{
-						Code:    code,
-						Message: msg,
-					}, nil
-				case *kms_configurations.V1betaDescribeKmsConfigurationForbidden:
-					msg := getMsg(&e.Payload.Message)
-					code := getCode(&e.Payload.Code)
-					return &gcpgenserver.V1betaDescribeKmsConfigurationForbidden{
-						Code:    code,
-						Message: msg,
-					}, nil
-				case *kms_configurations.V1betaDescribeKmsConfigurationUnauthorized:
-					msg := getMsg(&e.Payload.Message)
-					code := getCode(&e.Payload.Code)
-					return &gcpgenserver.V1betaDescribeKmsConfigurationUnauthorized{
-						Code:    code,
-						Message: msg,
-					}, nil
-				case *kms_configurations.V1betaDescribeKmsConfigurationTooManyRequests:
-					msg := getMsg(&e.Payload.Message)
-					code := getCode(&e.Payload.Code)
-					return &gcpgenserver.V1betaDescribeKmsConfigurationTooManyRequests{
-						Code:    code,
-						Message: msg,
-					}, nil
-				case *kms_configurations.V1betaDescribeKmsConfigurationDefault:
-					msg := getMsg(&e.Payload.Message)
-					code := getCode(&e.Payload.Code)
-					return &gcpgenserver.V1betaDescribeKmsConfigurationInternalServerError{
-						Code:    code,
-						Message: msg,
-					}, nil
-				}
-			}
-			if res == nil || res.Payload == nil {
-				return &gcpgenserver.V1betaDescribeKmsConfigurationInternalServerError{
-					Code:    http.StatusInternalServerError,
-					Message: "unknown error during the describe kms configuration",
-				}, nil
-			}
 			return convertToKmsConfigV1beta(res.Payload), nil
 		default:
 			// Handle any other error types
 			return &gcpgenserver.V1betaDescribeKmsConfigurationInternalServerError{
-				Message: "An unexpected error occurred",
+				Message: err.Error(),
 				Code:    http.StatusInternalServerError,
 			}, nil
 		}
+	}
+	switch res.Payload.KmsState {
+	case coremodel.LifeCycleStateError:
+		kmsConfig.State = coremodel.LifeCycleStateError
+	case coremodel.LifeCycleStateInUse:
+		kmsConfig.State = coremodel.LifeCycleStateInUse
 	}
 	return convertModelToKmsConfigV1Beta(kmsConfig), nil
 }
@@ -566,7 +601,7 @@ func (h Handler) V1betaUpdateKmsConfiguration(ctx context.Context, req *gcpgense
 	param := &common.UpdateKmsConfigParams{
 		KmsConfigID:    params.KmsConfigId,
 		AccountName:    params.ProjectNumber,
-		Name:           req.ResourceId.Value,
+		ResourceID:     req.ResourceId.Value,
 		XCorrelationID: params.XCorrelationID.Value,
 		Description:    &req.Description.Value,
 		Region:         region,
@@ -823,8 +858,8 @@ func (h Handler) V1betaDeleteKmsConfiguration(ctx context.Context, params gcpgen
 		}
 	}
 
-	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if kmsConfig != nil && kmsConfig.State == coremodel.LifeCycleStateUpdating {
+	operationID := utils.GenerateOperationURL(params.ProjectNumber, params.LocationId, jobUUID)
+	if kmsConfig != nil && kmsConfig.State == coremodel.LifeCycleStateDeleting {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -850,6 +885,15 @@ func convertToKmsConfigCheckV1beta(res *kms_configurations.V1betaCheckKmsConfigO
 	}
 }
 
+func convertErrorToKmsConfigCheckV1beta(err error) *gcpgenserver.KmsConfigCheckV1beta {
+	return &gcpgenserver.KmsConfigCheckV1beta{
+		ServiceAccount: gcpgenserver.NewOptString(""),
+		KmsConfigHealthCheck: gcpgenserver.NewOptKmsConfigHealthCheckV1beta(gcpgenserver.KmsConfigHealthCheckV1beta{
+			IsHealthy:   false,
+			HealthError: gcpgenserver.NewOptString(err.Error())}),
+	}
+}
+
 func convertToOperationV1beta(res *models.OperationV1beta) *gcpgenserver.OperationV1beta {
 	return &gcpgenserver.OperationV1beta{
 		Name: gcpgenserver.NewOptString(res.Name),
@@ -858,11 +902,12 @@ func convertToOperationV1beta(res *models.OperationV1beta) *gcpgenserver.Operati
 }
 
 func convertToKmsConfigV1beta(res *models.KmsConfigV1beta) *gcpgenserver.KmsConfigV1beta {
-	state := gcpgenserver.KmsConfigV1betaKmsState(res.KmsState)
+	newState, stateDetails := orchestrator.ConvertKmsConfigStateV1beta(res.KmsState, res.KmsStateDetails)
+	state := gcpgenserver.KmsConfigV1betaKmsState(newState)
 	kmsConfigV1beta := &gcpgenserver.KmsConfigV1beta{
 		UUID:            gcpgenserver.NewOptString(res.UUID),
 		KmsState:        gcpgenserver.NewOptKmsConfigV1betaKmsState(state),
-		KmsStateDetails: gcpgenserver.NewOptString(res.KmsStateDetails),
+		KmsStateDetails: gcpgenserver.NewOptString(stateDetails),
 		Description:     gcpgenserver.NewOptString(*res.Description),
 		CreatedTime:     gcpgenserver.NewOptDateTime(time.Time(res.CreatedTime)),
 	}
@@ -1039,10 +1084,11 @@ func _encodeEncryptVolumeV1beta(encryptVolumeV1beta *models.EncryptVolumeV1beta)
 
 // convertModelToKmsConfigV1Beta converts a vsaModel.KmsConfig to gcpgenserver.KmsConfigV1beta
 func convertModelToKmsConfigV1Beta(kmsConfig *coremodel.KmsConfig) *gcpgenserver.KmsConfigV1beta {
+	state, stateDetails := orchestrator.ConvertKmsConfigStateV1beta(kmsConfig.State, kmsConfig.StateDetails)
 	model := &gcpgenserver.KmsConfigV1beta{
 		UUID:            gcpgenserver.NewOptString(kmsConfig.UUID),
-		KmsState:        gcpgenserver.NewOptKmsConfigV1betaKmsState(gcpgenserver.KmsConfigV1betaKmsState(kmsConfig.State)),
-		KmsStateDetails: gcpgenserver.NewOptString(kmsConfig.StateDetails),
+		KmsState:        gcpgenserver.NewOptKmsConfigV1betaKmsState(gcpgenserver.KmsConfigV1betaKmsState(state)),
+		KmsStateDetails: gcpgenserver.NewOptString(stateDetails),
 		KeyFullPath: utils.ParsedKeyFullPathResource{ProjectID: kmsConfig.KeyProjectID,
 			KeyRing: kmsConfig.KeyRing, Location: kmsConfig.KeyRingLocation, CryptoKey: kmsConfig.KeyName}.String(),
 		ResourceId:  gcpgenserver.NewOptString(kmsConfig.ResourceID),

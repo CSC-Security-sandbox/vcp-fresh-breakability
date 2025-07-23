@@ -1912,11 +1912,11 @@ func (re *retryEngine) UpdateKmsConfigAttributes(ctx context.Context, uuid strin
 	return var0, err
 }
 
-func (re *retryEngine) GetJobByResourceUUID(ctx context.Context, kmsConfigUUID string) (*datamodel.Job, error) {
+func (re *retryEngine) GetJobByResourceUUID(ctx context.Context, resourceUUID string) (*datamodel.Job, error) {
 	var var0 *datamodel.Job
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetJobByResourceUUID(ctx, kmsConfigUUID)
+		var0, err = re.dataStore.GetJobByResourceUUID(ctx, resourceUUID)
 		if err != nil {
 			re.logError("GetJobByResourceUUID", err)
 			if !isTransientErr(err) {

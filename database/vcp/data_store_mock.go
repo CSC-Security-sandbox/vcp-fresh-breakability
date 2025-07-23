@@ -3709,9 +3709,9 @@ func (_c *MockDataStore_GetJob_Call) RunAndReturn(run func(context.Context, stri
 	return _c
 }
 
-// GetJobByResourceUUID provides a mock function with given fields: ctx, kmsConfigUUID
-func (_m *MockDataStore) GetJobByResourceUUID(ctx context.Context, kmsConfigUUID string) (*datamodel.Job, error) {
-	ret := _m.Called(ctx, kmsConfigUUID)
+// GetJobByResourceUUID provides a mock function with given fields: ctx, resourceUUID
+func (_m *MockDataStore) GetJobByResourceUUID(ctx context.Context, resourceUUID string) (*datamodel.Job, error) {
+	ret := _m.Called(ctx, resourceUUID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetJobByResourceUUID")
@@ -3720,10 +3720,10 @@ func (_m *MockDataStore) GetJobByResourceUUID(ctx context.Context, kmsConfigUUID
 	var r0 *datamodel.Job
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Job, error)); ok {
-		return rf(ctx, kmsConfigUUID)
+		return rf(ctx, resourceUUID)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Job); ok {
-		r0 = rf(ctx, kmsConfigUUID)
+		r0 = rf(ctx, resourceUUID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.Job)
@@ -3731,7 +3731,7 @@ func (_m *MockDataStore) GetJobByResourceUUID(ctx context.Context, kmsConfigUUID
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, kmsConfigUUID)
+		r1 = rf(ctx, resourceUUID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3746,12 +3746,12 @@ type MockDataStore_GetJobByResourceUUID_Call struct {
 
 // GetJobByResourceUUID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - kmsConfigUUID string
-func (_e *MockDataStore_Expecter) GetJobByResourceUUID(ctx interface{}, kmsConfigUUID interface{}) *MockDataStore_GetJobByResourceUUID_Call {
-	return &MockDataStore_GetJobByResourceUUID_Call{Call: _e.mock.On("GetJobByResourceUUID", ctx, kmsConfigUUID)}
+//   - resourceUUID string
+func (_e *MockDataStore_Expecter) GetJobByResourceUUID(ctx interface{}, resourceUUID interface{}) *MockDataStore_GetJobByResourceUUID_Call {
+	return &MockDataStore_GetJobByResourceUUID_Call{Call: _e.mock.On("GetJobByResourceUUID", ctx, resourceUUID)}
 }
 
-func (_c *MockDataStore_GetJobByResourceUUID_Call) Run(run func(ctx context.Context, kmsConfigUUID string)) *MockDataStore_GetJobByResourceUUID_Call {
+func (_c *MockDataStore_GetJobByResourceUUID_Call) Run(run func(ctx context.Context, resourceUUID string)) *MockDataStore_GetJobByResourceUUID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})

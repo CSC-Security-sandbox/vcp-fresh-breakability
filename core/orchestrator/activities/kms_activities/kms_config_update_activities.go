@@ -21,7 +21,7 @@ func (a *KmsConfigActivity) UpdateSDEKmsConfig(ctx context.Context, kmsConfig *d
 	if err != nil {
 		return err
 	}
-	logger.Debug("KmsConfig:%s update successfully in the sde", params.Name)
+	logger.Debug("KmsConfig:%s update successfully in the sde", params.ResourceID)
 
 	return nil
 }
@@ -43,8 +43,8 @@ func (a *KmsConfigActivity) UpdateKmsConfig(ctx context.Context, kmsConfig *data
 	if params.KeyProjectID != "" {
 		updateFields["key_project_id"] = params.KeyProjectID
 	}
-	if params.Name != "" {
-		updateFields["name"] = params.Name
+	if params.ResourceID != "" {
+		updateFields["resource_id"] = params.ResourceID
 	}
 	if !nillable.IsNilOrEmpty(params.Description) {
 		updateFields["description"] = *params.Description

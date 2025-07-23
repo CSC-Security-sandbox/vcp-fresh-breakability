@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
@@ -263,7 +264,7 @@ func TestConvertDataStoreKmsConfigToModel(t *testing.T) {
 			Name:              "test-name",
 			Description:       "test-description",
 			State:             "ACTIVE",
-			StateDetails:      "test-state-details",
+			StateDetails:      "",
 			KeyRing:           "test-key-ring",
 			KeyRingLocation:   "test-location",
 			KeyName:           "test-key-name",
@@ -350,7 +351,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		params := &common.UpdateKmsConfigParams{
 			KmsConfigID: "test-kms-config-id",
 			AccountName: "test-account",
-			Name:        "updated-kms-config",
+			ResourceID:  "updated-kms-config",
 		}
 
 		orchestrator := Orchestrator{
@@ -392,7 +393,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		params := &common.UpdateKmsConfigParams{
 			KmsConfigID: "test-kms-config-id",
 			AccountName: "test-account",
-			Name:        "updated-kms-config",
+			ResourceID:  "updated-kms-config",
 		}
 
 		orchestrator := Orchestrator{
@@ -430,7 +431,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		params := &common.UpdateKmsConfigParams{
 			KmsConfigID: "test-kms-config-id",
 			AccountName: "test-account",
-			Name:        "updated-kms-config",
+			ResourceID:  "updated-kms-config",
 			KeyName:     "key1",
 		}
 
@@ -470,7 +471,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		params := &common.UpdateKmsConfigParams{
 			KmsConfigID: "test-kms-config-id",
 			AccountName: "test-account",
-			Name:        "updated-kms-config",
+			ResourceID:  "updated-kms-config",
 			KeyName:     "key1",
 		}
 
@@ -509,7 +510,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		params := &common.UpdateKmsConfigParams{
 			KmsConfigID: "test-kms-config-id",
 			AccountName: "test-account",
-			Name:        "updated-kms-config",
+			ResourceID:  "updated-kms-config",
 			KeyName:     "key1",
 		}
 
@@ -548,7 +549,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		params := &common.UpdateKmsConfigParams{
 			KmsConfigID: "test-kms-config-id",
 			AccountName: "test-account",
-			Name:        "updated-kms-config",
+			ResourceID:  "updated-kms-config",
 		}
 
 		orchestrator := Orchestrator{
@@ -603,7 +604,6 @@ func TestCreateKmsConfig(t *testing.T) {
 			t.Errorf("Expected account error, got %v", err)
 		}
 	})
-
 	t.Run("CreateKmsConfigParseKeyFullPathResourceFails", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
@@ -623,7 +623,6 @@ func TestCreateKmsConfig(t *testing.T) {
 		_, _, err := _createKmsConfig(ctx, mockStorage, temporal, params)
 		assert.Error(tt, err)
 	})
-
 	t.Run("CreateKmsConfigReturnsErrorWhenJobCreationFails", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
@@ -648,7 +647,6 @@ func TestCreateKmsConfig(t *testing.T) {
 			t.Errorf("Expected job error, got %v", err)
 		}
 	})
-
 	t.Run("CreateKmsConfigReturnsErrorWhenStorageFails", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
@@ -1246,5 +1244,37 @@ func TestValidateKmsConfigState(t *testing.T) {
 
 		assert.NoError(tt, errValidate)
 		assert.Equal(tt, "uuid1", jobId)
+	})
+}
+
+func TestConvertKmsConfigStateV1beta(t *testing.T) {
+	t.Run("ReturnsKeyCheckPendingForCreatedState", func(t *testing.T) {
+		state, details := convertKmsConfigStateV1beta(models.LifeCycleStateCreated, "ignored")
+		assert.Equal(t, cvpModels.KmsConfigV1betaKmsStateKEYCHECKPENDING, state)
+		assert.Equal(t, "Credentials created and key check pending", details)
+	})
+
+	t.Run("ReturnsInUseForInUseState", func(t *testing.T) {
+		state, details := convertKmsConfigStateV1beta(models.LifeCycleStateInUse, "ignored")
+		assert.Equal(t, cvpModels.KmsConfigV1betaKmsStateINUSE, state)
+		assert.Equal(t, "Kms config in use", details)
+	})
+
+	t.Run("ReturnsReadyForREADYState", func(t *testing.T) {
+		state, details := convertKmsConfigStateV1beta(models.LifeCycleStateREADY, "ignored")
+		assert.Equal(t, cvpModels.KmsConfigV1betaKmsStateREADY, state)
+		assert.Equal(t, "Kms config is ready for use", details)
+	})
+
+	t.Run("ReturnsMigratingForMigratingState", func(t *testing.T) {
+		state, details := convertKmsConfigStateV1beta(models.LifeCycleStateMigrating, "ignored")
+		assert.Equal(t, cvpModels.KmsConfigV1betaKmsStateMIGRATING, state)
+		assert.Equal(t, "Kms config is in migrating state", details)
+	})
+
+	t.Run("ReturnsEmptyForUnknownState", func(t *testing.T) {
+		state, details := convertKmsConfigStateV1beta("unknown_state", "ignored")
+		assert.Equal(t, "unknown_state", state)
+		assert.Equal(t, "", details)
 	})
 }

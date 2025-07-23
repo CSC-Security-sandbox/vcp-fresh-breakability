@@ -69,3 +69,18 @@ type PollKmsConfigParams struct {
 	OperationUri   string
 	OperationDone  bool
 }
+
+// UpdateKmsConfigParams describes parameters supplied to UpdateKmsConfig
+type UpdateKmsConfigParams struct {
+	AccountName     string
+	KmsConfigID     string
+	ResourceID      string
+	KeyRing         string
+	KeyRingLocation string
+	KeyName         string
+	KeyProjectID    string
+	Description     *string
+	Region          string
+	XCorrelationID  string
+	KeyUri          string
+}

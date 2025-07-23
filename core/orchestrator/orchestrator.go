@@ -38,6 +38,7 @@ type OrchestratorFactory interface {
 
 	GetJob(ctx context.Context, operationId string) (*models.Job, error)
 	GetReplicationJobs(ctx context.Context, projectName string, poolUUID string) ([]*models.Job, error)
+	GetJobByResourceUUID(ctx context.Context, resourceUUID string) (*models.Job, error)
 
 	CreateSnapshot(ctx context.Context, params *commonparams.CreateSnapshotParams) (*models.Snapshot, string, error)
 	GetSnapshot(ctx context.Context, params *commonparams.GetSnapshotParams) (*models.Snapshot, error)

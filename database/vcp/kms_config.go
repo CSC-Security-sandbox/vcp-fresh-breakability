@@ -233,7 +233,7 @@ func _updateKmsConfigDetails(db *gorm.DB, uuid string, keyFullPath string, resou
 	dbKmsConfig.KeyRingLocation = parsedKeyFullPath.Location
 	dbKmsConfig.KeyRing = parsedKeyFullPath.KeyRing
 	dbKmsConfig.KeyName = parsedKeyFullPath.CryptoKey
-	dbKmsConfig.CustomerProjectID = parsedKeyFullPath.ProjectID
+	dbKmsConfig.KeyProjectID = parsedKeyFullPath.ProjectID
 	dbKmsConfig.ResourceID = resourceID
 	err = db.Where("uuid = ?", uuid).Updates(dbKmsConfig).Error
 	if err != nil {

@@ -133,7 +133,7 @@ type (
 		CreateKmsConfig(ctx context.Context, kmsConfig *datamodel.KmsConfig) (*datamodel.KmsConfig, error)
 		GetKmsConfigByUUID(ctx context.Context, uuid string) (*datamodel.KmsConfig, error)
 		UpdateKmsConfigAttributes(ctx context.Context, uuid string, attributes *datamodel.KmsAttributes) (*datamodel.KmsConfig, error)
-		GetJobByResourceUUID(ctx context.Context, kmsConfigUUID string) (*datamodel.Job, error)
+		GetJobByResourceUUID(ctx context.Context, resourceUUID string) (*datamodel.Job, error)
 		UpdateKmsConfigDetails(ctx context.Context, uuid string, fullKeyPath string, resourceID string) (*datamodel.KmsConfig, error)
 		GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string) (*datamodel.KmsConfig, error)
 		UpdateKmsConfig(ctx context.Context, kmsUUID string, updates map[string]interface{}) error

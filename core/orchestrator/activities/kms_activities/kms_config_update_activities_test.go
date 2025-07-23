@@ -71,7 +71,7 @@ func TestUpdateKmsConfig_Success(t *testing.T) {
 		KeyName:         "key2",
 		KeyRing:         "keyring1",
 		KeyRingLocation: "us-central1",
-		Name:            "kms",
+		ResourceID:      "kms",
 		Description:     &description,
 	}
 	updatedkms := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "kms", KeyName: params.KeyName, KeyRing: params.KeyRing, KeyRingLocation: params.KeyRingLocation, Description: *params.Description}
@@ -97,7 +97,7 @@ func TestUpdateKmsConfig_Error(t *testing.T) {
 		KeyName:         "key2",
 		KeyRing:         "keyring1",
 		KeyRingLocation: "us-central1",
-		Name:            "kms",
+		ResourceID:      "kms",
 		Description:     &description,
 	}
 	updatedkms := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, Name: "kms", KeyName: params.KeyName, KeyRing: params.KeyRing, KeyRingLocation: params.KeyRingLocation, Description: *params.Description}

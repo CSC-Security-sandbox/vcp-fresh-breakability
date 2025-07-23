@@ -843,3 +843,8 @@ func GetVPCNameFromSubnetID(vendorSubNetID string) string {
 func ConstructServiceAccountEmail(accountID string, projectID string) string {
 	return fmt.Sprintf("%s@%s.iam.gserviceaccount.com", accountID, projectID)
 }
+
+// GenerateOperationURL generates the formatted URL
+func GenerateOperationURL(projectNumber, locationId, operationID string) string {
+	return fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", projectNumber, locationId, operationID)
+}

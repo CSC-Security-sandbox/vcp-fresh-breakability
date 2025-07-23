@@ -18,6 +18,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
@@ -239,7 +240,7 @@ func (j *KmsConfigActivity) FailedKmsConfigCreateActivity(ctx context.Context, k
 // CreatedKmsConfigActivity updates the KMS configuration state to created
 func (j *KmsConfigActivity) CreatedKmsConfigActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig) error {
 	se := j.SE
-	kmsConfig.State = models.LifeCycleStateREADY
+	kmsConfig.State = models.LifeCycleStateCreated
 	kmsConfig.StateDetails = models.LifeCycleStateCreatedDetails
 	_, err := se.UpdateKmsConfigState(ctx, kmsConfig.UUID, kmsConfig.State, kmsConfig.StateDetails)
 	if err != nil {
@@ -401,4 +402,8 @@ func _updateKmsConfigHealth(ctx context.Context, se database.Storage, configChec
 		}
 	}
 	return kmsConfig, nil
+}
+
+func (j *KmsConfigActivity) GetSignedTokenActivity(ctx context.Context, projectNumber string) (string, error) {
+	return auth.GetSignedJwtToken(projectNumber)
 }

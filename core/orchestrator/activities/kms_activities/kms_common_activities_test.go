@@ -239,7 +239,7 @@ func TestCreatedKmsConfigActivity(t *testing.T) {
 	t.Run("CreatedKmsConfigActivityUpdatesStateToReady", func(tt *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
-		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateCreatedDetails,
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, State: models.LifeCycleStateCreated, StateDetails: models.LifeCycleStateCreatedDetails,
 			ServiceAccount: &datamodel.ServiceAccount{}}
 		mockSE.On("UpdateKmsConfigState", mock.Anything, kmsConfig.UUID, kmsConfig.State, kmsConfig.StateDetails).Return(kmsConfig, nil)
 		mockSE.On("UpdateServiceAccountState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.ServiceAccount{}, nil)
@@ -247,7 +247,7 @@ func TestCreatedKmsConfigActivity(t *testing.T) {
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
-		if kmsConfig.State != models.LifeCycleStateREADY {
+		if kmsConfig.State != models.LifeCycleStateCreated {
 			t.Errorf("expected state to be READY, got %v", kmsConfig.State)
 		}
 		if kmsConfig.StateDetails != models.LifeCycleStateCreatedDetails {
@@ -257,7 +257,7 @@ func TestCreatedKmsConfigActivity(t *testing.T) {
 	t.Run("WhenUpdateKmsConfigStateFails", func(tt *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
-		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateCreatedDetails,
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, State: models.LifeCycleStateCreated, StateDetails: models.LifeCycleStateCreatedDetails,
 			ServiceAccount: &datamodel.ServiceAccount{}}
 		mockSE.On("UpdateKmsConfigState", mock.Anything, kmsConfig.UUID, kmsConfig.State, kmsConfig.StateDetails).Return(nil, errors.New("some one"))
 		err := activity.CreatedKmsConfigActivity(context.Background(), kmsConfig)
