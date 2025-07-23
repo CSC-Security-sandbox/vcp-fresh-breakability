@@ -30,5 +30,12 @@
   {
     "filePath": "kubernetes/vsa-control-plane/charts/core/values.yaml",
     "yamlPath": ["images.core.tag", "images.core.digest","images.vcpDbMigrate.tag", "images.vcpDbMigrate.digest"]
+  },
+  {
+    "filePath": "kubernetes/vsa-harvest-otel/Chart.yaml",
+    "yamlPath": [
+      "version",
+      "appVersion"
+    ]
   }
 ]

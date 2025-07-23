@@ -5,29 +5,30 @@
 set -euo pipefail
 
 SECRET_NAME=ghcr-secret
-NAMESPACE=vcp
-
-# Create namespace if it doesn't exist
-kubectl get namespace "$NAMESPACE" >/dev/null 2>&1 || kubectl create namespace "$NAMESPACE"
-
-echo "Namespace '$NAMESPACE' ensured."
-
-# Apply PVC configuration
-kubectl apply -f "$(dirname "$0")/pvc.yaml"
-
-echo "Applied PVC configuration."
+NAMESPACES=(vcp vlm)
 
 if [[ -z "${GHVSA_PAT:-}" ]]; then
   echo "GHVSA_PAT environment variable is not set."
   exit 1
 fi
 
-kubectl create secret docker-registry "$SECRET_NAME" \
-  --docker-server=ghcr.io \
-  --docker-username=github \
-  --docker-password="$GHVSA_PAT" \
-  --docker-email=none@github.com \
-  --namespace "$NAMESPACE" \
-  --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -f "$(dirname "$0")/pvc.yaml"
+echo "Applied PVC configuration."
 
-echo "Kubernetes secret '$SECRET_NAME' created/updated in namespace '$NAMESPACE' for GitHub Container Registry."
+for NAMESPACE in "${NAMESPACES[@]}"; do
+  # Create namespace if it doesn't exist
+  kubectl get namespace "$NAMESPACE" >/dev/null 2>&1 || kubectl create namespace "$NAMESPACE"
+  echo "Namespace '$NAMESPACE' ensured."
+
+
+
+  kubectl create secret docker-registry "$SECRET_NAME" \
+    --docker-server=ghcr.io \
+    --docker-username=github \
+    --docker-password="$GHVSA_PAT" \
+    --docker-email=none@github.com \
+    --namespace "$NAMESPACE" \
+    --dry-run=client -o yaml | kubectl apply -f -
+
+  echo "Kubernetes secret '$SECRET_NAME' created/updated in namespace '$NAMESPACE' for GitHub Container Registry."
+done
