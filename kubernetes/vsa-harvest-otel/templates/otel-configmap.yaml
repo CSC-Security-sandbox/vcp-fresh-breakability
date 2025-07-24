@@ -5,6 +5,7 @@ metadata:
   name: {{ include "ontap-opentelemetry-collector.fullname" . }}
   labels:
     {{- include "ontap-opentelemetry-collector.labels" . | nindent 4 }}
+  namespace: {{ $.Values.global.namespace }}
 data:
   relay: |
     exporters:

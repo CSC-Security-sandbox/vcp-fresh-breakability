@@ -21,7 +21,7 @@ spec:
       containers:
         - name: {{ $.Values.containers.harvest }}
           {{- if .Values.images.pm2.secondary }}
-          image: "{{- include "containerImage" (list . (dict "name" "pm2" "secondary" true)) | trim -}}"
+          image: "{{- include "containerImage" (list . (dict "name" "pm2" "primary" true)) | trim -}}"
           {{- else }}
           image: "{{- include "containerImage" (list . (dict "name" "pm2" "secondary" false)) | trim -}}"
           {{- end }}

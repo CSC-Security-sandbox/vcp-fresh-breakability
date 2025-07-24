@@ -5,6 +5,7 @@ They are the same for a whole chart. Name starts with chart name (not component)
 {{- define "harvest.kubernetes.annotations" -}}
 prometheus.io/scrape: 'true'
 prometheus.io/path: '/metrics'
+gke-gcsfuse/volumes: 'true'
 {{- end -}}
 
 {{- define "harvest.netapp.annotations" -}}

@@ -6,10 +6,9 @@ metadata:
   name: harvest-pvc
   namespace: {{ $.Values.global.namespace }}
 spec:
-  storageClassName: "standard"
+  storageClassName: ""
   accessModes:
     - ReadWriteMany
   resources:
     requests:
-      storage: 25Gi
-
+      storage: {{ $.Values.persistentVolumes.storage }}

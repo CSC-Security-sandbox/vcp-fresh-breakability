@@ -1,0 +1,23 @@
+{{- if (.Values.horizontalPodAutoscaling.enable) -}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "harvest.name" . }}-hpa
+  namespace: vcp
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "harvest.name" . }}
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - external:
+        metric:
+          name: custom.googleapis.com|harvest_poller_total
+          selector: {}
+        target:
+          averageValue: "1"
+          type: AverageValue
+      type: External
+{{- end }}
