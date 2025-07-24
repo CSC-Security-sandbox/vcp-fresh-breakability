@@ -107,7 +107,7 @@ func (UnimplementedHandler) V1betaCreateReplication(ctx context.Context, req *Re
 //
 // Create a new snapshot in the specified volume.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
 func (UnimplementedHandler) V1betaCreateSnapshot(ctx context.Context, req *VolumeSnapshotCreateV1beta, params V1betaCreateSnapshotParams) (r V1betaCreateSnapshotRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
@@ -204,7 +204,7 @@ func (UnimplementedHandler) V1betaDeleteReplication(ctx context.Context, req *Re
 // resource not found, since that could be interpreted as resource already deleted, and therefore
 // will return operation done instead.
 //
-// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 func (UnimplementedHandler) V1betaDeleteSnapshot(ctx context.Context, params V1betaDeleteSnapshotParams) (r V1betaDeleteSnapshotRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
@@ -296,7 +296,7 @@ func (UnimplementedHandler) V1betaDescribePool(ctx context.Context, params V1bet
 //
 // Get descriptions of the requested snapshot.
 //
-// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 func (UnimplementedHandler) V1betaDescribeSnapshot(ctx context.Context, params V1betaDescribeSnapshotParams) (r V1betaDescribeSnapshotRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
@@ -642,7 +642,7 @@ func (UnimplementedHandler) V1betaListReplications(ctx context.Context, params V
 //
 // Lists all snapshots in a volume.
 //
-// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
 func (UnimplementedHandler) V1betaListSnapshot(ctx context.Context, params V1betaListSnapshotParams) (r V1betaListSnapshotRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
@@ -786,7 +786,7 @@ func (UnimplementedHandler) V1betaUpdateReplication(ctx context.Context, req *Re
 //
 // Updates name and description of the requested snapshot.
 //
-// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 func (UnimplementedHandler) V1betaUpdateSnapshot(ctx context.Context, req *VolumeSnapshotUpdateV1beta, params V1betaUpdateSnapshotParams) (r V1betaUpdateSnapshotRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

@@ -12,6 +12,7 @@ type Snapshot struct {
 	SizeInBytes           uint64
 	LifeCycleState        string
 	LifeCycleStateDetails string
+	StorageClass          string
 }
 
 type SnapshotPolicy struct {

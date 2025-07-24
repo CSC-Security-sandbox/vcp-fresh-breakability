@@ -1709,14 +1709,14 @@ func (s *Server) handleV1betaCreateReplicationRequest(args [3]string, argsEscape
 //
 // Create a new snapshot in the specified volume.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
 func (s *Server) handleV1betaCreateSnapshotRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1beta_createSnapshot"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots"),
 	}
 
 	// Start a span for this request.
@@ -3375,14 +3375,14 @@ func (s *Server) handleV1betaDeleteReplicationRequest(args [4]string, argsEscape
 // resource not found, since that could be interpreted as resource already deleted, and therefore
 // will return operation done instead.
 //
-// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 func (s *Server) handleV1betaDeleteSnapshotRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1beta_deleteSnapshot"),
 		semconv.HTTPRequestMethodKey.String("DELETE"),
-		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}"),
 	}
 
 	// Start a span for this request.
@@ -5018,14 +5018,14 @@ func (s *Server) handleV1betaDescribePoolRequest(args [3]string, argsEscaped boo
 //
 // Get descriptions of the requested snapshot.
 //
-// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 func (s *Server) handleV1betaDescribeSnapshotRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1beta_describeSnapshot"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}"),
 	}
 
 	// Start a span for this request.
@@ -11375,14 +11375,14 @@ func (s *Server) handleV1betaListReplicationsRequest(args [2]string, argsEscaped
 //
 // Lists all snapshots in a volume.
 //
-// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
 func (s *Server) handleV1betaListSnapshotRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1beta_listSnapshot"),
 		semconv.HTTPRequestMethodKey.String("GET"),
-		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots"),
 	}
 
 	// Start a span for this request.
@@ -14144,14 +14144,14 @@ func (s *Server) handleV1betaUpdateReplicationRequest(args [4]string, argsEscape
 //
 // Updates name and description of the requested snapshot.
 //
-// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 func (s *Server) handleV1betaUpdateSnapshotRequest(args [4]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1beta_updateSnapshot"),
 		semconv.HTTPRequestMethodKey.String("PUT"),
-		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}"),
 	}
 
 	// Start a span for this request.

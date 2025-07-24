@@ -471,6 +471,9 @@ func TestConvertDatastoreSnapshotToModel(t *testing.T) {
 			},
 			State:        "READY",
 			StateDetails: "Snapshot is ready",
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes: 1234,
+			},
 		}
 
 		expected := &models.Snapshot{
@@ -482,11 +485,15 @@ func TestConvertDatastoreSnapshotToModel(t *testing.T) {
 			VolumeUUID:     "test-volume-uuid",
 			LifeCycleState: "READY",
 			AccountName:    "test_account",
+			StorageClass:   STORAGE_CLASS_SOFTWARE,
+			SizeInBytes:    1234,
 		}
 
 		result := ConvertDatastoreSnapshotToModel(input)
 		assert.NotNil(tt, result, "Expected non-nil result")
 		assert.Equal(tt, expected.Name, result.Name, "Expected result to match the expected snapshot model")
+		assert.Equal(tt, expected.SizeInBytes, result.SizeInBytes, "Expected result to match the expected snapshot model")
+		assert.Equal(tt, expected.StorageClass, result.StorageClass, "Expected result to match the expected snapshot model")
 	})
 }
 

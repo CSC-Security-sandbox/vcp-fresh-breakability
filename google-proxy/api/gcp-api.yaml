@@ -5049,7 +5049,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
-  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot:
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots:
     get:
       operationId: v1beta_listSnapshot
       summary: Lists snapshots in a volume
@@ -5177,7 +5177,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
-  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}:
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}:
     get:
       tags:
         - snapshots

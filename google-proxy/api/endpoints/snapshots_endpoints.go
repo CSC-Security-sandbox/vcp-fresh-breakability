@@ -410,7 +410,7 @@ func convertToVCPSnapshotsV1Beta(snapshots []*coremodels.Snapshot) []gcpgenserve
 
 func convertToSnapshotsV1Beta(snap *cvpmodels.SnapshotV1beta) gcpgenserver.SnapshotV1beta {
 	snapshot := gcpgenserver.SnapshotV1beta{
-		ResourceId:           nillable.GetString(snap.Description, ""),
+		ResourceId:           nillable.GetString(snap.ResourceID, ""),
 		SnapshotId:           gcpgenserver.NewOptString(snap.SnapshotID),
 		VolumeId:             gcpgenserver.NewOptString(snap.VolumeID),
 		VolumeResourceId:     gcpgenserver.NewOptString(snap.VolumeResourceID),
@@ -451,5 +451,7 @@ func convertModelToVCPSnapshot(snapshot *coremodels.Snapshot) *gcpgenserver.Snap
 		SnapshotState:        gcpgenserver.NewOptSnapshotV1betaSnapshotState(gcpgenserver.SnapshotV1betaSnapshotState(snapshot.LifeCycleState)),
 		SnapshotStateDetails: gcpgenserver.NewOptString(snapshot.LifeCycleStateDetails),
 		Description:          gcpgenserver.NewOptString(snapshot.Description),
+		UsedBytes:            gcpgenserver.NewOptFloat64(float64(snapshot.SizeInBytes)),
+		StorageClass:         gcpgenserver.NewOptStorageClassV1beta(gcpgenserver.StorageClassV1betaSOFTWARE),
 	}
 }

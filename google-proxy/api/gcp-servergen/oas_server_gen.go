@@ -72,7 +72,7 @@ type Handler interface {
 	//
 	// Create a new snapshot in the specified volume.
 	//
-	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
 	V1betaCreateSnapshot(ctx context.Context, req *VolumeSnapshotCreateV1beta, params V1betaCreateSnapshotParams) (V1betaCreateSnapshotRes, error)
 	// V1betaCreateVolume implements v1beta_createVolume operation.
 	//
@@ -139,7 +139,7 @@ type Handler interface {
 	// resource not found, since that could be interpreted as resource already deleted, and therefore
 	// will return operation done instead.
 	//
-	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 	V1betaDeleteSnapshot(ctx context.Context, params V1betaDeleteSnapshotParams) (V1betaDeleteSnapshotRes, error)
 	// V1betaDeleteVolume implements v1beta_deleteVolume operation.
 	//
@@ -201,7 +201,7 @@ type Handler interface {
 	//
 	// Get descriptions of the requested snapshot.
 	//
-	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 	V1betaDescribeSnapshot(ctx context.Context, params V1betaDescribeSnapshotParams) (V1betaDescribeSnapshotRes, error)
 	// V1betaDescribeVolume implements v1beta_describeVolume operation.
 	//
@@ -433,7 +433,7 @@ type Handler interface {
 	//
 	// Lists all snapshots in a volume.
 	//
-	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
 	V1betaListSnapshot(ctx context.Context, params V1betaListSnapshotParams) (V1betaListSnapshotRes, error)
 	// V1betaListVolumes implements v1beta_listVolumes operation.
 	//
@@ -529,7 +529,7 @@ type Handler interface {
 	//
 	// Updates name and description of the requested snapshot.
 	//
-	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 	V1betaUpdateSnapshot(ctx context.Context, req *VolumeSnapshotUpdateV1beta, params V1betaUpdateSnapshotParams) (V1betaUpdateSnapshotRes, error)
 	// V1betaUpdateVolume implements v1beta_updateVolume operation.
 	//

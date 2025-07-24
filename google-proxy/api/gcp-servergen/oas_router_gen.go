@@ -1996,9 +1996,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 											}
 
-										case 's': // Prefix: "snapshot"
+										case 's': // Prefix: "snapshots"
 
-											if l := len("snapshot"); len(elem) >= l && elem[0:l] == "snapshot" {
+											if l := len("snapshots"); len(elem) >= l && elem[0:l] == "snapshots" {
 												elem = elem[l:]
 											} else {
 												break
@@ -4199,9 +4199,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 											}
 
-										case 's': // Prefix: "snapshot"
+										case 's': // Prefix: "snapshots"
 
-											if l := len("snapshot"); len(elem) >= l && elem[0:l] == "snapshot" {
+											if l := len("snapshots"); len(elem) >= l && elem[0:l] == "snapshots" {
 												elem = elem[l:]
 											} else {
 												break
@@ -4213,7 +4213,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													r.name = V1betaListSnapshotOperation
 													r.summary = "Lists snapshots in a volume"
 													r.operationID = "v1beta_listSnapshot"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots"
 													r.args = args
 													r.count = 3
 													return r, true
@@ -4221,7 +4221,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													r.name = V1betaCreateSnapshotOperation
 													r.summary = "Create a snapshot"
 													r.operationID = "v1beta_createSnapshot"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots"
 													r.args = args
 													r.count = 3
 													return r, true
@@ -4254,7 +4254,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 														r.name = V1betaDeleteSnapshotOperation
 														r.summary = "Delete a snapshot for a volume"
 														r.operationID = "v1beta_deleteSnapshot"
-														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}"
 														r.args = args
 														r.count = 4
 														return r, true
@@ -4262,7 +4262,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 														r.name = V1betaDescribeSnapshotOperation
 														r.summary = "Get a snapshot"
 														r.operationID = "v1beta_describeSnapshot"
-														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}"
 														r.args = args
 														r.count = 4
 														return r, true
@@ -4270,7 +4270,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 														r.name = V1betaUpdateSnapshotOperation
 														r.summary = "Update a snapshot"
 														r.operationID = "v1beta_updateSnapshot"
-														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}"
 														r.args = args
 														r.count = 4
 														return r, true

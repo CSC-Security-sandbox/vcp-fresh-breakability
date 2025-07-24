@@ -26,7 +26,8 @@ import (
 )
 
 const (
-	SNAPSHOT_TYPE_ADHOC = "adhoc"
+	SNAPSHOT_TYPE_ADHOC    = "adhoc"
+	STORAGE_CLASS_SOFTWARE = "SOFTWARE"
 )
 
 var (
@@ -395,6 +396,8 @@ func _convertDatastoreSnapshotToModel(snapshot *datamodel.Snapshot) *models.Snap
 		LifeCycleStateDetails: snapshot.StateDetails,
 		VolumeUUID:            snapshot.Volume.UUID,
 		VolumeName:            snapshot.Volume.Name,
+		SizeInBytes:           uint64(snapshot.SnapshotAttributes.SizeInBytes),
+		StorageClass:          STORAGE_CLASS_SOFTWARE,
 	}
 	return res
 }

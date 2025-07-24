@@ -352,6 +352,7 @@ func Test_convertToSnapshotsV1Beta(t *testing.T) {
 			SnapshotID:  "snapshot-id-1",
 			Description: nillable.ToPointer("description"),
 			VolumeID:    "vol-id",
+			ResourceID:  nillable.ToPointer("resource-id-1"),
 		}
 
 		result := convertToSnapshotsV1Beta(snapshotV1betas)
@@ -359,6 +360,7 @@ func Test_convertToSnapshotsV1Beta(t *testing.T) {
 		assert.Equal(t, result.SnapshotId.Value, snapshotV1betas.SnapshotID)
 		assert.Equal(t, result.Description.Value, *snapshotV1betas.Description)
 		assert.Equal(t, result.VolumeId.Value, snapshotV1betas.VolumeID)
+		assert.Equal(tt, result.ResourceId, *snapshotV1betas.ResourceID)
 	})
 }
 
@@ -375,6 +377,8 @@ func Test_convertModelToVCPSnapshot(t *testing.T) {
 			LifeCycleState:        coremodels.LifeCycleStateREADY,
 			LifeCycleStateDetails: "details",
 			Description:           "desc",
+			StorageClass:          "SOFTWARE",
+			SizeInBytes:           1234,
 		}
 		result := convertModelToVCPSnapshot(snapshot)
 		assert.Equal(tt, snapshot.Name, result.ResourceId)
@@ -385,6 +389,8 @@ func Test_convertModelToVCPSnapshot(t *testing.T) {
 		assert.Equal(tt, string(snapshot.LifeCycleState), string(result.SnapshotState.Value))
 		assert.Equal(tt, snapshot.LifeCycleStateDetails, result.SnapshotStateDetails.Value)
 		assert.Equal(tt, snapshot.Description, result.Description.Value)
+		assert.Equal(tt, snapshot.StorageClass, string(result.StorageClass.Value))
+		assert.Equal(tt, snapshot.SizeInBytes, uint64(result.UsedBytes.Value))
 	})
 
 	t.Run("Nil snapshot returns nil", func(tt *testing.T) {
@@ -897,6 +903,7 @@ func Test_getMultipleSnapshotsFromCVP(t *testing.T) {
 			SnapshotID:  "cvp-snap-id",
 			Description: nillable.ToPointer("desc"),
 			VolumeID:    "cvp-vol-id",
+			ResourceID:  nillable.ToPointer("cvp-res-id"),
 		}
 		resp := &snapshots.V1betaGetMultipleSnapshotsOK{
 			Payload: &snapshots.V1betaGetMultipleSnapshotsOKBody{
@@ -918,6 +925,7 @@ func Test_getMultipleSnapshotsFromCVP(t *testing.T) {
 		assert.True(tt, okType)
 		assert.Len(tt, ok.Snapshots, 1)
 		assert.Equal(tt, "cvp-snap-id", ok.Snapshots[0].SnapshotId.Value)
+		assert.Equal(tt, "cvp-res-id", ok.Snapshots[0].ResourceId)
 	})
 
 	t.Run("NotFoundError", func(tt *testing.T) {
