@@ -448,7 +448,9 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		Nodes:          dbNodes,
 		Password:       volume.Pool.PoolCredentials.Password,
 		SecretID:       volume.Pool.PoolCredentials.SecretID,
-		DeploymentName: volume.Pool.DeploymentName},
+		DeploymentName: volume.Pool.DeploymentName,
+		CertificateID:  volume.Pool.PoolCredentials.CertificateID,
+		AuthType:       volume.Pool.PoolCredentials.AuthType},
 	)
 
 	objectStoreName, err := workflows.GetObjStoreName(backupVault, volume)

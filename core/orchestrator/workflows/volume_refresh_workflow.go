@@ -95,7 +95,7 @@ func (wf *volumeMetricHydrationWorkflow) Run(ctx workflow.Context, args ...inter
 	if err != nil {
 		return nil, err
 	}
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: dbVolume.Pool.PoolCredentials.Password, SecretID: dbVolume.Pool.PoolCredentials.SecretID, DeploymentName: dbVolume.Pool.DeploymentName, CertificateID: dbVolume.Pool.PoolCredentials.CertificateID})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: dbVolume.Pool.PoolCredentials.Password, SecretID: dbVolume.Pool.PoolCredentials.SecretID, DeploymentName: dbVolume.Pool.DeploymentName, CertificateID: dbVolume.Pool.PoolCredentials.CertificateID, AuthType: dbVolume.Pool.PoolCredentials.AuthType})
 
 	volResponse := &vsa.VolumeResponse{}
 	err = workflow.ExecuteActivity(ctx, volumeActivity.GetVolumeFromONTAP, dbVolume, node).Get(ctx, &volResponse)
