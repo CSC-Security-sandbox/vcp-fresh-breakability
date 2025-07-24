@@ -6666,3 +6666,81 @@ func TestValidateAllowedClients(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateDeleteVolumeParams(t *testing.T) {
+	t.Run("WhenValidateDeleteVolumeParamsSuccess", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test-volume",
+		}
+
+		// Mock the storage method to return false (no backup in transition state)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(false, nil)
+
+		err := _validateDeleteVolumeParams(ctx, se, volume)
+		assert.NoError(tt, err)
+		se.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBackupInTransitionStateReturnsError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test-volume",
+		}
+
+		// Mock the storage method to return an error
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(false, errors.New("database error"))
+
+		err := _validateDeleteVolumeParams(ctx, se, volume)
+		assert.EqualError(tt, err, "database error")
+		se.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBackupInTransitionStateReturnsTrue", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test-volume",
+		}
+
+		// Mock the storage method to return true (backup in transition state)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(true, nil)
+
+		err := _validateDeleteVolumeParams(ctx, se, volume)
+		assert.EqualError(tt, err, "A backup operation on volume is currently in progress. Please wait for it to complete before deleting the volume")
+		se.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeIsNil", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+
+		// Mock the storage method to return false for empty UUID
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "").Return(false, nil)
+
+		err := _validateDeleteVolumeParams(ctx, se, &datamodel.Volume{})
+		assert.NoError(tt, err)
+		se.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBackupInTransitionStateWithDifferentUUID", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "different-uuid-format-12345"},
+			Name:      "test-volume-2",
+		}
+
+		// Mock the storage method to return true for different UUID format
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(true, nil)
+
+		err := _validateDeleteVolumeParams(ctx, se, volume)
+		assert.EqualError(tt, err, "A backup operation on volume is currently in progress. Please wait for it to complete before deleting the volume")
+		se.AssertExpectations(tt)
+	})
+}

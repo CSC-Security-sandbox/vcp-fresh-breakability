@@ -533,6 +533,12 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 				Done: gcpgenserver.NewOptBool(true),
 			}, nil
 		}
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaDeleteVolumeBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
 		logger.Error("Failed to delete volume", "error", err.Error())
 		return &gcpgenserver.V1betaDeleteVolumeInternalServerError{
 			Code:    500,

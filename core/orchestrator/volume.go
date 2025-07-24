@@ -32,6 +32,7 @@ var (
 	getIPAddressForVolume      = _getIPAddressForVolume
 	updateVolume               = _updateVolume
 	deleteVolume               = _deleteVolume
+	validateDeleteVolumeParams = _validateDeleteVolumeParams
 )
 
 const (
@@ -538,6 +539,20 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 	return validator.Validate(ctx, se, params, pool.AccountID)
 }
 
+func _validateDeleteVolumeParams(ctx context.Context, se database.Storage, volume *datamodel.Volume) error {
+	// Check if backup is in transition state for this volume
+	backupTransitionState, err := se.IsBackupInCreatingorDeletingStateByVolume(ctx, volume.UUID)
+	if err != nil {
+		return err
+	}
+
+	if backupTransitionState {
+		return customerrors.NewUserInputValidationErr("A backup operation on volume is currently in progress. Please wait for it to complete before deleting the volume")
+	}
+
+	return nil
+}
+
 func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) *models.Volume {
 	res := &models.Volume{
 		BaseModel: models.BaseModel{
@@ -667,6 +682,12 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	if utils.IsTransitionalState(volume.State) {
 		logger.Errorf("Volume %s cannot be deleted, while in transitioning state: %s", volume.Name, volume.State)
 		return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("volume is in transition state and cannot be deleted, state: "+volume.State))
+	}
+
+	// Validate delete volume parameters and preconditions
+	err = validateDeleteVolumeParams(ctx, se, volume)
+	if err != nil {
+		return nil, "", err
 	}
 
 	job := &datamodel.Job{
