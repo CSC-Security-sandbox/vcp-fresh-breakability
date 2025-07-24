@@ -34,12 +34,13 @@ func (a *InternalVolumeReplicationActivity) CreateVolumeReplicationInternal(ctx 
 	return res, nil
 }
 
-func (a *InternalVolumeReplicationActivity) UpdateVolumeReplicationDetails(ctx context.Context, replication *datamodel.VolumeReplication, replicationCreateResponseONTAP *vsa.VolumeReplication) error {
+func (a *InternalVolumeReplicationActivity) UpdateVolumeReplicationDetails(ctx context.Context, replication *datamodel.VolumeReplication, replicationCreateResponseONTAP *vsa.VolumeReplication, description *string) error {
 	se := a.SE
 
 	replication.State = models.LifeCycleStateAvailable
 	replication.StateDetails = models.LifeCycleStateAvailableDetails
 	replication.ReplicationAttributes.ExternalUUID = replicationCreateResponseONTAP.RelationshipID
+	replication.ReplicationAttributes.ReplicationSchedule = replicationCreateResponseONTAP.ReplicationSchedule
 	replication.MirrorState = &replicationCreateResponseONTAP.MirrorState
 	replication.RelationshipStatus = &replicationCreateResponseONTAP.RelationshipStatus
 	replication.TotalTransferBytes = replicationCreateResponseONTAP.TotalTransferBytes
@@ -51,6 +52,10 @@ func (a *InternalVolumeReplicationActivity) UpdateVolumeReplicationDetails(ctx c
 	replication.LagTime = replicationCreateResponseONTAP.LagTime
 	replication.LastUpdatedFromOntap = time.Now()
 	replication.ProgressLastUpdated = &replication.LastUpdatedFromOntap
+
+	if description != nil {
+		replication.Description = *description
+	}
 
 	if err := se.UpdateVolumeReplication(ctx, replication); err != nil {
 		return err

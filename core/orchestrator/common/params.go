@@ -225,6 +225,15 @@ type CreateVolumeReplicationInternalParams struct {
 	VolumeReplication *models.VolumeReplication
 }
 
+type UpdateVolumeReplicationInternalParams struct {
+	AccountName           string
+	VolumeReplicationUuid string
+	ReplicationSchedule   *string
+	Description           *string
+	LocationId            string
+	XCorrelationID        string
+}
+
 // CreateVolumeReplicationParams describes parameters supplied to CreatingVolumeReplication
 type CreateVolumeReplicationParams struct {
 	AccountName      string

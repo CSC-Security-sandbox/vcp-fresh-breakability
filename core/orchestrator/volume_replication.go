@@ -31,6 +31,7 @@ import (
 var (
 	// Internal functions for orchestrator package
 	createVolumeReplicationInternal = _createVolumeReplicationInternal
+	updateVolumeReplicationInternal = _updateVolumeReplicationInternal
 	stopReplicationInternal         = _stopReplicationInternal
 	resumeReplicationInternal       = _resumeReplicationInternal
 	deleteReplicationInternal       = _deleteReplicationInternal
@@ -82,7 +83,7 @@ func _createVolumeReplicationInternal(ctx context.Context, se database.Storage, 
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeCreateVolumeReplicationInternal),
 		State:         string(models.JobsStateNEW),
-		ResourceName:  params.VolumeReplication.Name,
+		ResourceName:  params.VolumeReplication.Uri,
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
@@ -114,6 +115,70 @@ func _createVolumeReplicationInternal(ctx context.Context, se database.Storage, 
 
 	if err != nil {
 		logger.Error("Failed to execute workflow for volume replication creation", "error", err)
+		return nil, nil, err
+	}
+
+	return convertDataStoreReplicationToModel(replicationDb), createdJob, nil
+}
+
+func (o *Orchestrator) UpdateVolumeReplicationInternal(ctx context.Context, params *commonparams.UpdateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error) {
+	return updateVolumeReplicationInternal(ctx, o.storage, o.temporal, params)
+}
+
+func _updateVolumeReplicationInternal(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.UpdateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error) {
+	logger := util.GetLogger(ctx)
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		logger.Error("Failed to get account", "error", err)
+		return nil, nil, err
+	}
+
+	replicationDb, err := se.GetVolumeReplication(ctx, params.VolumeReplicationUuid)
+	if err != nil {
+		logger.Error("Failed to get volume replication from database", "error", err)
+		return nil, nil, err
+	}
+
+	replicationDb.State = models.LifeCycleStateUpdating
+	replicationDb.StateDetails = models.LifeCycleStateUpdatingDetails
+	err = se.UpdateVolumeReplicationStates(ctx, replicationDb)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeUpdateVolumeReplicationInternal),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  replicationDb.Uri,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: replicationDb.UUID,
+			PoolUUID:     replicationDb.Volume.Pool.UUID,
+		},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, nil, err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		},
+		replicationWorkflows.UpdateInternalVolumeReplicationWorkflow,
+		params,
+		replicationDb,
+	)
+
+	if err != nil {
+		logger.Error("Failed to execute workflow for volume replication update", "error", err)
 		return nil, nil, err
 	}
 
@@ -153,7 +218,7 @@ func _stopReplicationInternal(ctx context.Context, se database.Storage, temporal
 	job := &datamodel.Job{
 		Type:         string(models.JobTypeStopVolumeReplicationInternal),
 		State:        string(models.JobsStateNEW),
-		ResourceName: replicationDb.Name,
+		ResourceName: replicationDb.Uri,
 		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: replicationDb.UUID,
@@ -679,7 +744,7 @@ func _releaseVolumeReplication(ctx context.Context, se database.Storage, tempora
 	job := &datamodel.Job{
 		Type:         string(models.JobTypeReleaseVolumeReplicationInternal),
 		State:        string(models.JobsStateNEW),
-		ResourceName: dbVolumeReplication.Name,
+		ResourceName: dbVolumeReplication.Uri,
 		AccountID:    sql.NullInt64{Int64: dbVolumeReplication.AccountID, Valid: true},
 	}
 	createdJob, err := se.CreateJob(ctx, job)
@@ -923,7 +988,7 @@ func _resumeReplicationInternal(ctx context.Context, se database.Storage, tempor
 	job := &datamodel.Job{
 		Type:         string(models.JobTypeResumeVolumeReplicationInternal),
 		State:        string(models.JobsStateNEW),
-		ResourceName: replicationDb.Name,
+		ResourceName: replicationDb.Uri,
 		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
 	}
 
@@ -989,7 +1054,7 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 	job := &datamodel.Job{
 		Type:         string(models.JobTypeDeleteVolumeReplicationInternal),
 		State:        string(models.JobsStateNEW),
-		ResourceName: dbVolumeReplication.Name,
+		ResourceName: dbVolumeReplication.Uri,
 		AccountID:    sql.NullInt64{Int64: dbVolumeReplication.AccountID, Valid: true},
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: dbVolumeReplication.UUID,

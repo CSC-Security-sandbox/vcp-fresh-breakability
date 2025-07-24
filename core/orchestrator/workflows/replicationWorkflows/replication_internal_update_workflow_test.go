@@ -20,8 +20,8 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-func TestCreateInternalVolumeReplicationWorkflow(t *testing.T) {
-	t.Run("TestCreateInternalVolumeReplicationWorkflow", func(tt *testing.T) {
+func TestUpdateInternalVolumeReplicationWorkflow(t *testing.T) {
+	t.Run("TestUpdateInternalVolumeReplicationWorkflowSuccess", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -33,12 +33,12 @@ func TestCreateInternalVolumeReplicationWorkflow(t *testing.T) {
 		}
 		mockStorage := database.NewMockStorage(tt)
 		commonActivity := activities.CommonActivities{SE: mockStorage}
-		internalVolumeCreateReplicationActivity := replicationActivities.InternalVolumeReplicationActivity{SE: mockStorage}
+		internalVolumeReplicationActivity := replicationActivities.InternalVolumeReplicationActivity{SE: mockStorage}
+		internalVolumeUpdateReplicationActivity := replicationActivities.InternalVolumeReplicationUpdateActivity{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(commonActivity.GetNode)
-		env.RegisterActivity(internalVolumeCreateReplicationActivity.CreateVolumeReplicationInternal)
-		env.RegisterActivity(internalVolumeCreateReplicationActivity.UpdateVolumeReplicationDetails)
-		env.RegisterActivity(internalVolumeCreateReplicationActivity.HydrateReplicationCreate)
+		env.RegisterActivity(internalVolumeUpdateReplicationActivity.UpdateVolumeReplicationOntap)
+		env.RegisterActivity(internalVolumeReplicationActivity.UpdateVolumeReplicationDetails)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		account := &datamodel.Account{
@@ -53,47 +53,47 @@ func TestCreateInternalVolumeReplicationWorkflow(t *testing.T) {
 					Password:      "password",
 					SecretID:      "",
 					CertificateID: "",
-				},
-			},
+				}},
 			Svm:              &datamodel.Svm{Name: "svm_test"},
 			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		}
-		params := &commonparams.CreateVolumeReplicationInternalParams{
-			VolumeReplication: &models.VolumeReplication{
-				Account: &models.Account{
-					BaseModel: models.BaseModel{
-						ID: 1,
-					},
-					Name: "test-account",
+		params := &commonparams.UpdateVolumeReplicationInternalParams{
+			VolumeReplicationUuid: "test-replication-uuid",
+		}
+
+		volumeReplication := &models.VolumeReplication{
+			Account: &models.Account{
+				BaseModel: models.BaseModel{
+					ID: 1,
 				},
-				Name: "test-replication",
-				ReplicationAttributes: &models.ReplicationDetails{
-					DestinationVolumeUUID: "test-volume-uuid",
-				},
-				Volume: &models.Volume{
-					BaseModel: models.BaseModel{
-						ID: 1,
-					},
+				Name: "test-account",
+			},
+			Name: "test-replication",
+			ReplicationAttributes: &models.ReplicationDetails{
+				DestinationVolumeUUID: "test-volume-uuid",
+			},
+			Volume: &models.Volume{
+				BaseModel: models.BaseModel{
+					ID: 1,
 				},
 			},
 		}
 		replicationDb := &datamodel.VolumeReplication{
-			Name: params.VolumeReplication.Name,
+			Name: volumeReplication.Name,
 			ReplicationAttributes: &datamodel.ReplicationDetails{
-				DestinationVolumeUUID: params.VolumeReplication.ReplicationAttributes.DestinationVolumeUUID,
+				DestinationVolumeUUID: volumeReplication.ReplicationAttributes.DestinationVolumeUUID,
 			},
 			AccountID: account.ID,
 			Account:   account,
-			VolumeID:  params.VolumeReplication.VolumeID,
+			VolumeID:  volumeReplication.VolumeID,
 			Volume:    volume,
 		}
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-		env.OnActivity("CreateVolumeReplicationInternal", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
-		env.OnActivity("UpdateVolumeReplicationDetails", mock.Anything, mock.Anything, mock.Anything, (*string)(nil)).Return(nil)
-		env.OnActivity("HydrateReplicationCreate", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("UpdateVolumeReplicationOntap", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
+		env.OnActivity("UpdateVolumeReplicationDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.ExecuteWorkflow(CreateInternalVolumeReplicationWorkflow, params, replicationDb)
+		env.ExecuteWorkflow(UpdateInternalVolumeReplicationWorkflow, params, replicationDb)
 
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		assert.Nil(tt, err)

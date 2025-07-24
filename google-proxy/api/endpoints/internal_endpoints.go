@@ -210,6 +210,29 @@ func (h Handler) V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx context.Contex
 	}, nil
 }
 
+func (h Handler) V1betaInternalUpdateVolumeReplication(ctx context.Context, req *gcpgenserver.VolumeReplicationUpdateInternalV1beta, params gcpgenserver.V1betaInternalUpdateVolumeReplicationParams) (gcpgenserver.V1betaInternalUpdateVolumeReplicationRes, error) {
+	logger := util.GetLogger(ctx)
+
+	param := prepareUpdateVolumeReplicationInternalParams(req, params)
+	volumeReplication, job, err := h.Orchestrator.UpdateVolumeReplicationInternal(ctx, param)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			logger.Info("No replications found to update", "replicationUUID", params.VolumeReplicationId)
+			return &gcpgenserver.V1betaInternalUpdateVolumeReplicationBadRequest{
+				Code:    404,
+				Message: "No replications found for the provided UUIDs",
+			}, nil
+		}
+		logger.Error("Failed to update volume replication", "error", err.Error())
+		return &gcpgenserver.V1betaInternalUpdateVolumeReplicationInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+	res := convertToInternalV1betaVolumeReplication(volumeReplication, job)
+	return res, nil
+}
+
 func convertToInternalV1betaVolumeReplication(volumeReplication *models.VolumeReplication, job *datamodel.Job) *gcpgenserver.VolumeReplicationInternalV1beta {
 	return &gcpgenserver.VolumeReplicationInternalV1beta{
 		VolumeReplicationUuid: gcpgenserver.NewOptString(volumeReplication.UUID),
@@ -274,6 +297,23 @@ func prepareCreateVolumeReplicationInternalParams(req *gcpgenserver.VolumeReplic
 		VolumeReplication: volRepParams,
 	}
 
+	return param
+}
+
+func prepareUpdateVolumeReplicationInternalParams(req *gcpgenserver.VolumeReplicationUpdateInternalV1beta, params gcpgenserver.V1betaInternalUpdateVolumeReplicationParams) *commonparams.UpdateVolumeReplicationInternalParams {
+	param := &commonparams.UpdateVolumeReplicationInternalParams{
+		VolumeReplicationUuid: params.VolumeReplicationId,
+		AccountName:           params.ProjectNumber,
+		XCorrelationID:        params.XCorrelationID.Value,
+		LocationId:            params.LocationId,
+	}
+	if req.Description.IsSet() {
+		param.Description = &req.Description.Value
+	}
+	if req.ReplicationSchedule.IsSet() {
+		schedule := string(req.ReplicationSchedule.Value)
+		param.ReplicationSchedule = &schedule
+	}
 	return param
 }
 

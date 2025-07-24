@@ -399,7 +399,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 						log.Fields{"error": err})
 				}
 			} else {
-				err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolState, poolsForMigration[index], models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails).Get(ctx, nil)
+				err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolState, poolsForMigration[index], models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
 				if err != nil {
 					kmsWorkflow.Logger.Error(fmt.Sprintf(
 						"Unable to update state of Pool to In_Use, after succesful migration of pool-id %s", poolsForMigration[index].UUID),

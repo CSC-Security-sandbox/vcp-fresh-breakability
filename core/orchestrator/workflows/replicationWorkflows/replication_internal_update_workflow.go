@@ -14,16 +14,16 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-type internalVolumeReplicationCreateWorkflow struct {
+type internalVolumeReplicationUpdateWorkflow struct {
 	workflows.BaseWorkflow
 	SE *database.Storage
 }
 
-var _ workflows.WorkflowInterface = &internalVolumeReplicationCreateWorkflow{}
+var _ workflows.WorkflowInterface = &internalVolumeReplicationUpdateWorkflow{}
 
-func CreateInternalVolumeReplicationWorkflow(ctx workflow.Context, params *common.CreateVolumeReplicationInternalParams, replication *datamodel.VolumeReplication) (*vsa.VolumeReplication, error) {
+func UpdateInternalVolumeReplicationWorkflow(ctx workflow.Context, params *common.UpdateVolumeReplicationInternalParams, replication *datamodel.VolumeReplication) (*vsa.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
-	repWf := new(internalVolumeReplicationCreateWorkflow)
+	repWf := new(internalVolumeReplicationUpdateWorkflow)
 	err := repWf.Setup(ctx, params)
 	if err != nil {
 		return nil, err
@@ -44,16 +44,16 @@ func CreateInternalVolumeReplicationWorkflow(ctx workflow.Context, params *commo
 	}()
 	_, err = repWf.Run(ctx, params, replication)
 	if err != nil {
-		logger.Info("Internal Volume Replication workflow run executed with error", "error", err)
+		logger.Info("Internal Volume Replication update workflow run executed with error", "error", err)
 	}
 	return nil, err
 }
 
-func (wf *internalVolumeReplicationCreateWorkflow) Setup(ctx workflow.Context, input interface{}) error {
-	createReplicationParams := input.(*common.CreateVolumeReplicationInternalParams)
+func (wf *internalVolumeReplicationUpdateWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+	updateReplicationParams := input.(*common.UpdateVolumeReplicationInternalParams)
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
-	wf.CustomerID = createReplicationParams.VolumeReplication.Account.Name
+	wf.CustomerID = updateReplicationParams.AccountName
 	wf.Status = workflows.WorkflowStatusCreated
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
 	logger := util.GetLogger(ctx)
@@ -68,9 +68,10 @@ func (wf *internalVolumeReplicationCreateWorkflow) Setup(ctx workflow.Context, i
 	})
 }
 
-func (wf *internalVolumeReplicationCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
-	params := args[0].(*common.CreateVolumeReplicationInternalParams)
+func (wf *internalVolumeReplicationUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	params := args[0].(*common.UpdateVolumeReplicationInternalParams)
 	replication := args[1].(*datamodel.VolumeReplication)
+	replicationUpdateActivity := &replicationActivities.InternalVolumeReplicationUpdateActivity{}
 	replicationActivity := &replicationActivities.InternalVolumeReplicationActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
@@ -93,21 +94,24 @@ func (wf *internalVolumeReplicationCreateWorkflow) Run(ctx workflow.Context, arg
 		return nil, err
 	}
 
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: replication.Volume.Pool.PoolCredentials.Password, SecretID: replication.Volume.Pool.PoolCredentials.SecretID, CertificateID: replication.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: replication.Volume.Pool.DeploymentName, AuthType: replication.Volume.Pool.PoolCredentials.AuthType})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{
+		Nodes:          dbNodes,
+		Password:       replication.Volume.Pool.PoolCredentials.Password,
+		SecretID:       replication.Volume.Pool.PoolCredentials.SecretID,
+		CertificateID:  replication.Volume.Pool.PoolCredentials.CertificateID,
+		DeploymentName: replication.Volume.Pool.DeploymentName,
+		AuthType:       replication.Volume.Pool.PoolCredentials.AuthType})
 
-	var replicationCreateResponse *vsa.VolumeReplication
-	volumeExternalUUID := replication.Volume.VolumeAttributes.ExternalUUID
-	err = workflow.ExecuteActivity(ctx, replicationActivity.CreateVolumeReplicationInternal, params, node, volumeExternalUUID).Get(ctx, &replicationCreateResponse)
+	var replicationUpdateResponse *vsa.VolumeReplication
+	err = workflow.ExecuteActivity(ctx, replicationUpdateActivity.UpdateVolumeReplicationOntap, params, node, replication.ReplicationAttributes.ExternalUUID).Get(ctx, &replicationUpdateResponse)
 	if err != nil {
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationDetails, replication, replicationCreateResponse, nil).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationDetails, replication, replicationUpdateResponse, params.Description).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-
-	err = workflow.ExecuteActivity(ctx, replicationActivity.HydrateReplicationCreate, replication, params.VolumeReplication.Account.Name).Get(ctx, nil)
 
 	return nil, err
 }

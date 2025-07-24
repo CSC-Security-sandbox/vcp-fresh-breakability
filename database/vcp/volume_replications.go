@@ -105,6 +105,9 @@ func (d *DataStoreRepository) UpdateVolumeReplication(ctx context.Context, volum
 	if dbReplication.ReplicationAttributes.ExternalUUID != volumeRep.ReplicationAttributes.ExternalUUID {
 		dbReplication.ReplicationAttributes.ExternalUUID = volumeRep.ReplicationAttributes.ExternalUUID
 	}
+	if dbReplication.ReplicationAttributes.ReplicationSchedule != volumeRep.ReplicationAttributes.ReplicationSchedule {
+		dbReplication.ReplicationAttributes.ReplicationSchedule = volumeRep.ReplicationAttributes.ReplicationSchedule
+	}
 	dbReplication.ReplicationAttributes = volumeRep.ReplicationAttributes
 	dbReplication.MirrorState = volumeRep.MirrorState
 	dbReplication.RelationshipStatus = volumeRep.RelationshipStatus
@@ -116,6 +119,8 @@ func (d *DataStoreRepository) UpdateVolumeReplication(ctx context.Context, volum
 	dbReplication.LastTransferDuration = volumeRep.LastTransferDuration
 	dbReplication.LastTransferEndTime = volumeRep.LastTransferEndTime
 	dbReplication.ProgressLastUpdated = volumeRep.ProgressLastUpdated
+	dbReplication.Description = volumeRep.Description
+
 	dbReplication.LagTime = volumeRep.LagTime
 	dbReplication.LastUpdatedFromOntap = volumeRep.LastUpdatedFromOntap
 	err = tx.Updates(dbReplication).Error

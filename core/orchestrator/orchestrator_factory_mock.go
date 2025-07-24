@@ -4448,6 +4448,74 @@ func (_c *MockOrchestratorFactory_UpdateVolume_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// UpdateVolumeReplicationInternal provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpdateVolumeReplicationInternal(ctx context.Context, params *common.UpdateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVolumeReplicationInternal")
+	}
+
+	var r0 *models.VolumeReplication
+	var r1 *datamodel.Job
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateVolumeReplicationInternalParams) *models.VolumeReplication); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.VolumeReplication)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.UpdateVolumeReplicationInternalParams) *datamodel.Job); ok {
+		r1 = rf(ctx, params)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*datamodel.Job)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.UpdateVolumeReplicationInternalParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_UpdateVolumeReplicationInternal_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVolumeReplicationInternal'
+type MockOrchestratorFactory_UpdateVolumeReplicationInternal_Call struct {
+	*mock.Call
+}
+
+// UpdateVolumeReplicationInternal is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.UpdateVolumeReplicationInternalParams
+func (_e *MockOrchestratorFactory_Expecter) UpdateVolumeReplicationInternal(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpdateVolumeReplicationInternal_Call {
+	return &MockOrchestratorFactory_UpdateVolumeReplicationInternal_Call{Call: _e.mock.On("UpdateVolumeReplicationInternal", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolumeReplicationInternal_Call) Run(run func(ctx context.Context, params *common.UpdateVolumeReplicationInternalParams)) *MockOrchestratorFactory_UpdateVolumeReplicationInternal_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.UpdateVolumeReplicationInternalParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolumeReplicationInternal_Call) Return(_a0 *models.VolumeReplication, _a1 *datamodel.Job, _a2 error) *MockOrchestratorFactory_UpdateVolumeReplicationInternal_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateVolumeReplicationInternal_Call) RunAndReturn(run func(context.Context, *common.UpdateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error)) *MockOrchestratorFactory_UpdateVolumeReplicationInternal_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockOrchestratorFactory creates a new instance of MockOrchestratorFactory. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockOrchestratorFactory(t interface {

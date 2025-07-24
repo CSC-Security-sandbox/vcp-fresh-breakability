@@ -148,7 +148,7 @@ func TestUpdateVolumeReplicationInternal(t *testing.T) {
 
 		vsaModel := &vsa.VolumeReplication{}
 		mockStorage.On("UpdateVolumeReplication", ctx, replication).Return(errors.New("storage error"))
-		err := activity.UpdateVolumeReplicationDetails(ctx, replication, vsaModel)
+		err := activity.UpdateVolumeReplicationDetails(ctx, replication, vsaModel, nil)
 
 		assert.Error(t, err)
 		assert.Equal(t, "storage error", err.Error())
@@ -168,7 +168,7 @@ func TestUpdateVolumeReplicationInternal(t *testing.T) {
 		}
 		vsaModel := &vsa.VolumeReplication{}
 		mockStorage.On("UpdateVolumeReplication", ctx, replication).Return(nil)
-		err := activity.UpdateVolumeReplicationDetails(ctx, replication, vsaModel)
+		err := activity.UpdateVolumeReplicationDetails(ctx, replication, vsaModel, nil)
 
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(tt)

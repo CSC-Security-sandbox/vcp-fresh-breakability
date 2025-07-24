@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
+	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -3560,5 +3561,187 @@ func TestSyncReplication(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.Equal(tt, jobResponse.UUID, jobuuid)
 		assert.Equal(tt, expectedResponse, resp)
+	})
+}
+
+func TestUpdateVolumeReplicationInternal(t *testing.T) {
+	t.Run("WhenGetAccountWithNameFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+		params := &commonparams.UpdateVolumeReplicationInternalParams{}
+		_, _, err := _updateVolumeReplicationInternal(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "account not found", err.Error())
+	})
+
+	t.Run("WhenGetVolumeReplicationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+		params := &commonparams.UpdateVolumeReplicationInternalParams{
+			VolumeReplicationUuid: "replication-uuid-1",
+		}
+		mockStorage.On("GetVolumeReplication", ctx, "replication-uuid-1").Return(nil, errors.New("volume replication not found"))
+		_, _, err := _updateVolumeReplicationInternal(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "volume replication not found", err.Error())
+	})
+	t.Run("WhenUpdateVolumeReplicationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+		params := &commonparams.UpdateVolumeReplicationInternalParams{
+			VolumeReplicationUuid: "replication-uuid-1",
+		}
+		mockStorage.On("GetVolumeReplication", ctx, "replication-uuid-1").Return(&datamodel.VolumeReplication{
+			Volume: &datamodel.Volume{State: models2.VolumeStateOnline},
+		}, nil)
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(errors.New("update failed"))
+		_, _, err := _updateVolumeReplicationInternal(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "update failed", err.Error())
+	})
+	t.Run("WhenExecuteWorkflowFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+		params := &commonparams.UpdateVolumeReplicationInternalParams{
+			VolumeReplicationUuid: "replication-uuid-1",
+		}
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+		}
+
+		volumeRep := &datamodel.VolumeReplication{BaseModel: datamodel.BaseModel{ID: 2}, Volume: &datamodel.Volume{State: models2.VolumeStateOnline, Pool: &datamodel.Pool{}}}
+		mockStorage.On("GetVolumeReplication", ctx, "replication-uuid-1").Return(volumeRep, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+		_, _, err := _updateVolumeReplicationInternal(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "failed to execute workflow", err.Error())
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "test-account",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		params := &commonparams.UpdateVolumeReplicationInternalParams{
+			VolumeReplicationUuid: "replication-uuid-1",
+		}
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			WorkflowID: "workflow-id",
+		}
+		volumeReplication := &models.VolumeReplication{
+			Account: &models.Account{
+				BaseModel: models.BaseModel{
+					ID: 1,
+				},
+				Name: "test-account",
+			},
+			Name: "test-replication",
+			ReplicationAttributes: &models.ReplicationDetails{
+				DestinationVolumeUUID: "test-volume-uuid",
+			},
+		}
+		replicationDb := &datamodel.VolumeReplication{
+			Name:        volumeReplication.Name,
+			Description: volumeReplication.Description,
+			Uri:         volumeReplication.Uri,
+			RemoteUri:   volumeReplication.RemoteUri,
+			Volume: &datamodel.Volume{
+				State: models2.VolumeStateOnline,
+				Pool: &datamodel.Pool{
+					BaseModel: datamodel.BaseModel{
+						UUID: "123",
+					},
+				}},
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				EndpointType:               volumeReplication.ReplicationAttributes.EndpointType,
+				ReplicationType:            volumeReplication.ReplicationAttributes.ReplicationType,
+				ReplicationSchedule:        volumeReplication.ReplicationAttributes.ReplicationSchedule,
+				SourceVolumeUUID:           volumeReplication.ReplicationAttributes.SourceVolumeUUID,
+				SourceLocation:             volumeReplication.ReplicationAttributes.SourceRegion,
+				SourceHostName:             volumeReplication.ReplicationAttributes.SourceHostName,
+				SourceReplicationUUID:      volumeReplication.ReplicationAttributes.SourceReplicationUUID,
+				SourceSvmName:              volumeReplication.ReplicationAttributes.SourceSvmName,
+				SourceVolumeName:           volumeReplication.ReplicationAttributes.SourceVolumeName,
+				DestinationVolumeUUID:      volumeReplication.ReplicationAttributes.DestinationVolumeUUID,
+				DestinationLocation:        volumeReplication.ReplicationAttributes.DestinationRegion,
+				DestinationHostName:        volumeReplication.ReplicationAttributes.DestinationHostName,
+				DestinationReplicationUUID: volumeReplication.ReplicationAttributes.DestinationReplicationUUID,
+				DestinationSvmName:         volumeReplication.ReplicationAttributes.DestinationSvmName,
+				DestinationVolumeName:      volumeReplication.ReplicationAttributes.DestinationVolumeName,
+			},
+			MirrorState:           volumeReplication.MirrorState,
+			RelationshipStatus:    volumeReplication.RelationshipStatus,
+			TotalProgress:         volumeReplication.TotalProgress,
+			TotalTransferBytes:    volumeReplication.TotalTransferBytes,
+			TotalTransferTimeSecs: volumeReplication.TotalTransferTimeSecs,
+			LastTransferSize:      volumeReplication.LastTransferSize,
+			LastTransferError:     volumeReplication.LastTransferError,
+			LastTransferDuration:  volumeReplication.LastTransferDuration,
+			LastTransferEndTime:   volumeReplication.LastTransferEndTime,
+			ProgressLastUpdated:   volumeReplication.ProgressLastUpdated,
+			LastUpdatedFromOntap:  volumeReplication.LastUpdatedFromOntap,
+			LagTime:               volumeReplication.LagTime,
+			AccountID:             account.ID,
+			Account:               account,
+			VolumeID:              volumeReplication.VolumeID,
+		}
+
+		replicationDb.State = models.LifeCycleStateUpdating
+		replicationDb.StateDetails = models.LifeCycleStateUpdatingDetails
+		expectedResponse := convertDataStoreReplicationToModel(replicationDb)
+
+		mockStorage.On("GetVolumeReplication", ctx, "replication-uuid-1").Return(replicationDb, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, params, replicationDb).Return(nil, nil)
+
+		actualResponse, jobActualResponse, err := updateVolumeReplicationInternal(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.Equal(tt, expectedResponse, actualResponse)
+		assert.Equal(tt, jobResponse, jobActualResponse)
 	})
 }
