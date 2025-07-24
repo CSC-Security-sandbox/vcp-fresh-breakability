@@ -265,7 +265,7 @@ func renderHarvestConfig(node datamodel.Node, port, customerProject, leaseName s
 		SERVICE_CONTROL_URL: env.GetString("SERVICE_CONTROL_URL", "https://servicecontrol.googleapis.com"),
 		SERVICE_NAME:        env.GetString("SERVICE_NAME", "autopush-netapp.sandbox.googleapis.com"),
 		POLLER_NAME:         "cluster" + strconv.FormatInt(node.PoolID, 10) + "-" + node.Name,
-		DATACENTER:          env.GetString("DATACENTER", "us-west-1"),
+		DATACENTER:          env.GetString("LOCAL_REGION", ""),
 		NODE_IP:             node.EndpointAddress,
 		AUTH_STYLE:          "basic",
 		USERNAME:            vsaNodeUserName,
