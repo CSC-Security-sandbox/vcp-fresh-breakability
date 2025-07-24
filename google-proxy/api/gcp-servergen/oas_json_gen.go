@@ -3469,6 +3469,8 @@ func (s *BackupV1betaState) Decode(d *jx.Decoder) error {
 		*s = BackupV1betaStateDELETED
 	case BackupV1betaStateERROR:
 		*s = BackupV1betaStateERROR
+	case BackupV1betaStateUPDATING:
+		*s = BackupV1betaStateUPDATING
 	default:
 		*s = BackupV1betaState(v)
 	}
@@ -39130,76 +39132,52 @@ func (s *V1betaListKmsConfigurationsNotFound) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode implements json.Marshaler.
-func (s *V1betaListKmsConfigurationsOK) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
+// Encode encodes V1betaListKmsConfigurationsOKApplicationJSON as json.
+func (s V1betaListKmsConfigurationsOKApplicationJSON) Encode(e *jx.Encoder) {
+	unwrapped := []KmsConfigV1beta(s)
 
-// encodeFields encodes fields.
-func (s *V1betaListKmsConfigurationsOK) encodeFields(e *jx.Encoder) {
-	{
-		if s.KmsMinusConfigurations != nil {
-			e.FieldStart("kms-configurations")
-			e.ArrStart()
-			for _, elem := range s.KmsMinusConfigurations {
-				elem.Encode(e)
-			}
-			e.ArrEnd()
-		}
+	e.ArrStart()
+	for _, elem := range unwrapped {
+		elem.Encode(e)
 	}
+	e.ArrEnd()
 }
 
-var jsonFieldsNameOfV1betaListKmsConfigurationsOK = [1]string{
-	0: "kms-configurations",
-}
-
-// Decode decodes V1betaListKmsConfigurationsOK from json.
-func (s *V1betaListKmsConfigurationsOK) Decode(d *jx.Decoder) error {
+// Decode decodes V1betaListKmsConfigurationsOKApplicationJSON from json.
+func (s *V1betaListKmsConfigurationsOKApplicationJSON) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode V1betaListKmsConfigurationsOK to nil")
+		return errors.New("invalid: unable to decode V1betaListKmsConfigurationsOKApplicationJSON to nil")
 	}
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "kms-configurations":
-			if err := func() error {
-				s.KmsMinusConfigurations = make([]KmsConfigV1beta, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem KmsConfigV1beta
-					if err := elem.Decode(d); err != nil {
-						return err
-					}
-					s.KmsMinusConfigurations = append(s.KmsMinusConfigurations, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"kms-configurations\"")
+	var unwrapped []KmsConfigV1beta
+	if err := func() error {
+		unwrapped = make([]KmsConfigV1beta, 0)
+		if err := d.Arr(func(d *jx.Decoder) error {
+			var elem KmsConfigV1beta
+			if err := elem.Decode(d); err != nil {
+				return err
 			}
-		default:
-			return d.Skip()
+			unwrapped = append(unwrapped, elem)
+			return nil
+		}); err != nil {
+			return err
 		}
 		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode V1betaListKmsConfigurationsOK")
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
 	}
-
+	*s = V1betaListKmsConfigurationsOKApplicationJSON(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaListKmsConfigurationsOK) MarshalJSON() ([]byte, error) {
+func (s V1betaListKmsConfigurationsOKApplicationJSON) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaListKmsConfigurationsOK) UnmarshalJSON(data []byte) error {
+func (s *V1betaListKmsConfigurationsOKApplicationJSON) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

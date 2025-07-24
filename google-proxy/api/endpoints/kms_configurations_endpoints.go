@@ -578,11 +578,31 @@ func (h Handler) V1betaListKmsConfigurations(ctx context.Context, params gcpgens
 			Message: "unknown error during the list kms configurations",
 		}, nil
 	}
-	operationResponse := gcpgenserver.V1betaListKmsConfigurationsOK{
-		KmsMinusConfigurations: []gcpgenserver.KmsConfigV1beta{},
-	}
+	operationResponse := gcpgenserver.V1betaListKmsConfigurationsOKApplicationJSON{}
 	for _, kmsConfig := range res.Payload {
-		operationResponse.KmsMinusConfigurations = append(operationResponse.KmsMinusConfigurations, *convertToKmsConfigV1beta(kmsConfig))
+		getKmsConfigParams := &common.GetKmsConfigParams{
+			AccountName:   params.ProjectNumber,
+			UUID:          kmsConfig.UUID,
+			LocationID:    params.LocationId,
+			ProjectNumber: params.ProjectNumber,
+		}
+		vcpKmsConfig, err := h.Orchestrator.GetKmsConfig(ctx, getKmsConfigParams)
+		if err != nil {
+			var notFoundErr *errors.NotFoundErr
+			if !goErrors.As(err, &notFoundErr) {
+				return &gcpgenserver.V1betaListKmsConfigurationsInternalServerError{
+					Code:    http.StatusInternalServerError,
+					Message: "unknown error during the list kms configurations",
+				}, nil
+			}
+		}
+		if vcpKmsConfig != nil {
+			switch vcpKmsConfig.State {
+			case coremodel.LifeCycleStateError, coremodel.LifeCycleStateInUse:
+				kmsConfig.KmsState = vcpKmsConfig.State
+			}
+		}
+		operationResponse = append(operationResponse, *convertToKmsConfigV1beta(kmsConfig))
 	}
 	return &operationResponse, nil
 }
@@ -908,8 +928,10 @@ func convertToKmsConfigV1beta(res *models.KmsConfigV1beta) *gcpgenserver.KmsConf
 		UUID:            gcpgenserver.NewOptString(res.UUID),
 		KmsState:        gcpgenserver.NewOptKmsConfigV1betaKmsState(state),
 		KmsStateDetails: gcpgenserver.NewOptString(stateDetails),
-		Description:     gcpgenserver.NewOptString(*res.Description),
 		CreatedTime:     gcpgenserver.NewOptDateTime(time.Time(res.CreatedTime)),
+	}
+	if res.Description != nil {
+		kmsConfigV1beta.Description = gcpgenserver.NewOptString(*res.Description)
 	}
 	if res.KeyFullPath != nil {
 		kmsConfigV1beta.KeyFullPath = *res.KeyFullPath

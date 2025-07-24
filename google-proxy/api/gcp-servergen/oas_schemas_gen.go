@@ -1820,6 +1820,7 @@ func (BackupV1betaState) AllValues() []BackupV1betaState {
 		BackupV1betaStateDELETING,
 		BackupV1betaStateDELETED,
 		BackupV1betaStateERROR,
+		BackupV1betaStateUPDATING,
 	}
 }
 
@@ -1841,6 +1842,8 @@ func (s BackupV1betaState) MarshalText() ([]byte, error) {
 	case BackupV1betaStateDELETED:
 		return []byte(s), nil
 	case BackupV1betaStateERROR:
+		return []byte(s), nil
+	case BackupV1betaStateUPDATING:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -1873,6 +1876,9 @@ func (s *BackupV1betaState) UnmarshalText(data []byte) error {
 		return nil
 	case BackupV1betaStateERROR:
 		*s = BackupV1betaStateERROR
+		return nil
+	case BackupV1betaStateUPDATING:
+		*s = BackupV1betaStateUPDATING
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -14670,15 +14676,6 @@ type V1betaDeleteBackupUnderBackupVaultBadRequest Error
 
 func (*V1betaDeleteBackupUnderBackupVaultBadRequest) v1betaDeleteBackupUnderBackupVaultRes() {}
 
-type V1betaUpdateBackupUnderBackupVaultBadRequest Error
-
-func (*V1betaUpdateBackupUnderBackupVaultBadRequest) V1betaUpdateBackupUnderBackupVaultBadRequest() {}
-
-type V1betaUpdateBackupUnderBackupVaultInternalServerError Error
-
-func (*V1betaUpdateBackupUnderBackupVaultInternalServerError) V1betaUpdateBackupUnderBackupVaultInternalServerError() {
-}
-
 type V1betaDeleteBackupUnderBackupVaultConflict Error
 
 func (*V1betaDeleteBackupUnderBackupVaultConflict) v1betaDeleteBackupUnderBackupVaultRes() {}
@@ -14707,10 +14704,6 @@ func (*V1betaDeleteBackupUnderBackupVaultTooManyRequests) v1betaDeleteBackupUnde
 type V1betaDeleteBackupUnderBackupVaultUnauthorized Error
 
 func (*V1betaDeleteBackupUnderBackupVaultUnauthorized) v1betaDeleteBackupUnderBackupVaultRes() {}
-
-type V1betaUpdateBackupUnderBackupVaultUnauthorized Error
-
-func (*V1betaUpdateBackupUnderBackupVaultUnauthorized) v1betaUpdateBackupUnderBackupVaultRes() {}
 
 type V1betaDeleteBackupUnderBackupVaultUnprocessableEntity Error
 
@@ -16655,21 +16648,9 @@ type V1betaListKmsConfigurationsNotFound Error
 
 func (*V1betaListKmsConfigurationsNotFound) v1betaListKmsConfigurationsRes() {}
 
-type V1betaListKmsConfigurationsOK struct {
-	KmsMinusConfigurations []KmsConfigV1beta `json:"kms-configurations"`
-}
+type V1betaListKmsConfigurationsOKApplicationJSON []KmsConfigV1beta
 
-// GetKmsMinusConfigurations returns the value of KmsMinusConfigurations.
-func (s *V1betaListKmsConfigurationsOK) GetKmsMinusConfigurations() []KmsConfigV1beta {
-	return s.KmsMinusConfigurations
-}
-
-// SetKmsMinusConfigurations sets the value of KmsMinusConfigurations.
-func (s *V1betaListKmsConfigurationsOK) SetKmsMinusConfigurations(val []KmsConfigV1beta) {
-	s.KmsMinusConfigurations = val
-}
-
-func (*V1betaListKmsConfigurationsOK) v1betaListKmsConfigurationsRes() {}
+func (*V1betaListKmsConfigurationsOKApplicationJSON) v1betaListKmsConfigurationsRes() {}
 
 type V1betaListKmsConfigurationsTooManyRequests Error
 

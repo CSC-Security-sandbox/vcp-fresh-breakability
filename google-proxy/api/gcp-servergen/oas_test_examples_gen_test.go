@@ -9175,8 +9175,8 @@ func TestV1betaListKmsConfigurationsNotFound_EncodeDecode(t *testing.T) {
 	var typ2 V1betaListKmsConfigurationsNotFound
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
-func TestV1betaListKmsConfigurationsOK_EncodeDecode(t *testing.T) {
-	var typ V1betaListKmsConfigurationsOK
+func TestV1betaListKmsConfigurationsOKApplicationJSON_EncodeDecode(t *testing.T) {
+	var typ V1betaListKmsConfigurationsOKApplicationJSON
 	typ.SetFake()
 
 	e := jx.Encoder{}
@@ -9184,7 +9184,7 @@ func TestV1betaListKmsConfigurationsOK_EncodeDecode(t *testing.T) {
 	data := e.Bytes()
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
-	var typ2 V1betaListKmsConfigurationsOK
+	var typ2 V1betaListKmsConfigurationsOKApplicationJSON
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaListKmsConfigurationsTooManyRequests_EncodeDecode(t *testing.T) {

@@ -8728,19 +8728,19 @@ func (s *V1betaListKmsConfigurationsNotFound) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *V1betaListKmsConfigurationsOK) SetFake() {
+func (s *V1betaListKmsConfigurationsOKApplicationJSON) SetFake() {
+	var unwrapped []KmsConfigV1beta
 	{
-		{
-			s.KmsMinusConfigurations = nil
-			for i := 0; i < 0; i++ {
-				var elem KmsConfigV1beta
-				{
-					elem.SetFake()
-				}
-				s.KmsMinusConfigurations = append(s.KmsMinusConfigurations, elem)
+		unwrapped = nil
+		for i := 0; i < 0; i++ {
+			var elem KmsConfigV1beta
+			{
+				elem.SetFake()
 			}
+			unwrapped = append(unwrapped, elem)
 		}
 	}
+	*s = V1betaListKmsConfigurationsOKApplicationJSON(unwrapped)
 }
 
 // SetFake set fake values.

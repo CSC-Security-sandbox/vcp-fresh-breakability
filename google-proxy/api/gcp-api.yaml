@@ -3456,23 +3456,18 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - type: object
-                    properties:
-                      kms-configurations:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/KmsConfig_v1beta'
+                type: array
+                items:
+                  $ref: '#/components/schemas/KmsConfig_v1beta'
               example:
-                kms-configurations:
-                  - uuid: 9760acf5-4638-11e7-9bdb-020073ca7773
-                    keyFullPath: projects/projectId/locations/keyRingLocation/keyRings/keyRing/cryptoKeys/keyName
-                    kmsState: READY
-                    kmsStateDetails: Kms config is ready for use
-                    description: Description of the KMS configuration
-                    createdTime: '2017-01-29T09:10:32.212Z'
-                    updatedTime: '2017-01-29T09:10:32.212Z'
-                    resourceId: my-resource
+                - uuid: 9760acf5-4638-11e7-9bdb-020073ca7773
+                  keyFullPath: projects/projectId/locations/keyRingLocation/keyRings/keyRing/cryptoKeys/keyName
+                  kmsState: READY
+                  kmsStateDetails: Kms config is ready for use
+                  description: Description of the KMS configuration
+                  createdTime: '2017-01-29T09:10:32.212Z'
+                  updatedTime: '2017-01-29T09:10:32.212Z'
+                  resourceId: my-resource
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -5361,7 +5356,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/StateUpdate_v1beta'
+              $ref: '#/components/schemas/ProjectStateUpdate_v1beta'
         required: true
       responses:
         "201":
@@ -5513,7 +5508,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/StateUpdate_v1beta'
+              $ref: '#/components/schemas/ProjectStateUpdate_v1beta'
         required: true
       responses:
         "201":
@@ -9125,6 +9120,7 @@ components:
             - DELETING
             - DELETED
             - ERROR
+            - UPDATING
           example: READY
         created:
           title: created

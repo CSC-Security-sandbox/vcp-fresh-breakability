@@ -11907,7 +11907,7 @@ func encodeV1betaListHostGroupsResponse(response V1betaListHostGroupsRes, w http
 
 func encodeV1betaListKmsConfigurationsResponse(response V1betaListKmsConfigurationsRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
-	case *V1betaListKmsConfigurationsOK:
+	case *V1betaListKmsConfigurationsOKApplicationJSON:
 		if err := func() error {
 			if err := response.Validate(); err != nil {
 				return err

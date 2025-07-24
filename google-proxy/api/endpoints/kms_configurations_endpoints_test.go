@@ -2113,6 +2113,7 @@ func TestV1betaListKmsConfigurations(t *testing.T) {
 		// Define request
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaListKmsConfigurationsParams{
@@ -2147,13 +2148,19 @@ func TestV1betaListKmsConfigurations(t *testing.T) {
 		mockClient.EXPECT().
 			V1betaListKmsConfigurations(mock.Anything).
 			Return(mockResponse, nil)
+		
+		// Set up the mock orchestrator behavior
+		mockOrchestrator.EXPECT().GetKmsConfig(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("KMS configuration not found", nil))
+		
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
 		defer func() { createClient = originalCreateClient }()
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
 		// Call the method under test
 		result, err := handler.V1betaListKmsConfigurations(context.Background(), params)
 
@@ -2161,7 +2168,8 @@ func TestV1betaListKmsConfigurations(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		// Check if the resource name is as expected
-		assert.Equal(t, "test-id", result.(*gcpgenserver.V1betaListKmsConfigurationsOK).KmsMinusConfigurations[0].UUID.Value)
+		kmsConfigsResponse := result.(*gcpgenserver.V1betaListKmsConfigurationsOKApplicationJSON)
+		assert.Equal(t, "test-id", (*kmsConfigsResponse)[0].UUID.Value)
 	})
 
 	t.Run("WhenListKmsConfigurationFailsWithBadRequest", func(t *testing.T) {
@@ -3148,5 +3156,277 @@ func TestCategorizeCvpClientErrorsForCreateKmsConfigs(t *testing.T) {
 		assert.IsType(t, &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{}, res)
 		assert.Equal(t, float64(500), res.(*gcpgenserver.V1betaCreateKmsConfigurationInternalServerError).Code)
 		assert.Equal(t, "unknown error during the create kms config", res.(*gcpgenserver.V1betaCreateKmsConfigurationInternalServerError).Message)
+	})
+}
+
+func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
+	params := gcpgenserver.V1betaListKmsConfigurationsParams{
+		LocationId:     "test-location",
+		ProjectNumber:  "12345",
+		XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+	}
+
+	t.Run("WhenResIsNil", func(t *testing.T) {
+		// Setup mock client
+		mockClient := kms_configurations.NewMockClientService(t)
+		
+		// Mock the CVP client to return nil response
+		mockClient.EXPECT().
+			V1betaListKmsConfigurations(mock.Anything).
+			Return(nil, nil)
+		
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Setup mock orchestrator factory
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		// Call the method under test
+		result, err := handler.V1betaListKmsConfigurations(context.Background(), params)
+
+		// Assertions - should return InternalServerError when res is nil
+		assert.NoError(t, err)
+		resultPtr, ok := result.(*gcpgenserver.V1betaListKmsConfigurationsInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(500), resultPtr.Code)
+		assert.Equal(t, "unknown error during the list kms configurations", resultPtr.Message)
+	})
+
+	t.Run("WhenResPayloadIsNil", func(t *testing.T) {
+		// Setup mock client
+		mockClient := kms_configurations.NewMockClientService(t)
+		
+		// Mock the CVP client to return response with nil payload
+		mockRes := &kms_configurations.V1betaListKmsConfigurationsOK{
+			Payload: nil,
+		}
+		mockClient.EXPECT().
+			V1betaListKmsConfigurations(mock.Anything).
+			Return(mockRes, nil)
+		
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Setup mock orchestrator factory
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		// Call the method under test
+		result, err := handler.V1betaListKmsConfigurations(context.Background(), params)
+
+		// Assertions - should return InternalServerError when res.Payload is nil
+		assert.NoError(t, err)
+		resultPtr, ok := result.(*gcpgenserver.V1betaListKmsConfigurationsInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(500), resultPtr.Code)
+		assert.Equal(t, "unknown error during the list kms configurations", resultPtr.Message)
+	})
+
+	t.Run("WhenOrchestratorGetKmsConfigReturnsNonNotFoundError", func(t *testing.T) {
+		// Setup mock client with valid response
+		mockClient := kms_configurations.NewMockClientService(t)
+		keyFullPath := "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"
+		resourceID := "resource-123"
+		kmsConfig := models.KmsConfigV1beta{
+			UUID:        "test-id",
+			ResourceID:  &resourceID,
+			KeyFullPath: &keyFullPath,
+			KmsState:    "ACTIVE",
+		}
+		mockRes := &kms_configurations.V1betaListKmsConfigurationsOK{
+			Payload: []*models.KmsConfigV1beta{&kmsConfig},
+		}
+		mockClient.EXPECT().
+			V1betaListKmsConfigurations(mock.Anything).
+			Return(mockRes, nil)
+		
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Setup mock orchestrator factory that returns a non-NotFoundErr error
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.EXPECT().
+			GetKmsConfig(mock.Anything, mock.MatchedBy(func(params *common.GetKmsConfigParams) bool {
+				return params.UUID == "test-id" && params.AccountName == "12345"
+			})).
+			Return(nil, fmt.Errorf("database connection error"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		// Call the method under test
+		result, err := handler.V1betaListKmsConfigurations(context.Background(), params)
+
+		// Assertions - should return InternalServerError when orchestrator returns non-NotFoundErr
+		assert.NoError(t, err)
+		resultPtr, ok := result.(*gcpgenserver.V1betaListKmsConfigurationsInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(500), resultPtr.Code)
+		assert.Equal(t, "unknown error during the list kms configurations", resultPtr.Message)
+	})
+
+	t.Run("WhenVcpKmsConfigStateIsError", func(t *testing.T) {
+		// Setup mock client with valid response
+		mockClient := kms_configurations.NewMockClientService(t)
+		keyFullPath := "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"
+		resourceID := "resource-123"
+		kmsConfig := models.KmsConfigV1beta{
+			UUID:        "test-id",
+			ResourceID:  &resourceID,
+			KeyFullPath: &keyFullPath,
+			KmsState:    "ACTIVE",
+		}
+		mockRes := &kms_configurations.V1betaListKmsConfigurationsOK{
+			Payload: []*models.KmsConfigV1beta{&kmsConfig},
+		}
+		mockClient.EXPECT().
+			V1betaListKmsConfigurations(mock.Anything).
+			Return(mockRes, nil)
+		
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Setup mock orchestrator factory that returns a KmsConfig with Error state
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		vcpKmsConfig := &vsaCoreModels.KmsConfig{
+			State: vsaCoreModels.LifeCycleStateError,
+		}
+		mockOrchestrator.EXPECT().
+			GetKmsConfig(mock.Anything, mock.MatchedBy(func(params *common.GetKmsConfigParams) bool {
+				return params.UUID == "test-id" && params.AccountName == "12345"
+			})).
+			Return(vcpKmsConfig, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		// Call the method under test
+		result, err := handler.V1betaListKmsConfigurations(context.Background(), params)
+
+		// Assertions - state should be overridden to "ERROR"
+		assert.NoError(t, err)
+		resultPtr, ok := result.(*gcpgenserver.V1betaListKmsConfigurationsOKApplicationJSON)
+		assert.True(t, ok)
+		resultSlice := *resultPtr
+		assert.Len(t, resultSlice, 1)
+		assert.Equal(t, "test-id", resultSlice[0].UUID.Value)
+		assert.Equal(t, "ERROR", string(resultSlice[0].KmsState.Value))
+	})
+
+	t.Run("WhenVcpKmsConfigStateIsInUse", func(t *testing.T) {
+		// Setup mock client with valid response
+		mockClient := kms_configurations.NewMockClientService(t)
+		keyFullPath := "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"
+		resourceID := "resource-123"
+		kmsConfig := models.KmsConfigV1beta{
+			UUID:        "test-id",
+			ResourceID:  &resourceID,
+			KeyFullPath: &keyFullPath,
+			KmsState:    "ACTIVE",
+		}
+		mockRes := &kms_configurations.V1betaListKmsConfigurationsOK{
+			Payload: []*models.KmsConfigV1beta{&kmsConfig},
+		}
+		mockClient.EXPECT().
+			V1betaListKmsConfigurations(mock.Anything).
+			Return(mockRes, nil)
+		
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Setup mock orchestrator factory that returns a KmsConfig with InUse state
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		vcpKmsConfig := &vsaCoreModels.KmsConfig{
+			State: vsaCoreModels.LifeCycleStateInUse,
+		}
+		mockOrchestrator.EXPECT().
+			GetKmsConfig(mock.Anything, mock.MatchedBy(func(params *common.GetKmsConfigParams) bool {
+				return params.UUID == "test-id" && params.AccountName == "12345"
+			})).
+			Return(vcpKmsConfig, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		// Call the method under test
+		result, err := handler.V1betaListKmsConfigurations(context.Background(), params)
+
+		// Assertions - state should be overridden to "IN_USE"
+		assert.NoError(t, err)
+		resultPtr, ok := result.(*gcpgenserver.V1betaListKmsConfigurationsOKApplicationJSON)
+		assert.True(t, ok)
+		resultSlice := *resultPtr
+		assert.Len(t, resultSlice, 1)
+		assert.Equal(t, "test-id", resultSlice[0].UUID.Value)
+		assert.Equal(t, "IN_USE", string(resultSlice[0].KmsState.Value))
+	})
+
+	t.Run("WhenVcpKmsConfigStateIsOtherValue", func(t *testing.T) {
+		// Setup mock client with valid response
+		mockClient := kms_configurations.NewMockClientService(t)
+		keyFullPath := "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/test-key"
+		resourceID := "resource-123"
+		kmsConfig := models.KmsConfigV1beta{
+			UUID:        "test-id",
+			ResourceID:  &resourceID,
+			KeyFullPath: &keyFullPath,
+			KmsState:    "ACTIVE",
+		}
+		mockRes := &kms_configurations.V1betaListKmsConfigurationsOK{
+			Payload: []*models.KmsConfigV1beta{&kmsConfig},
+		}
+		mockClient.EXPECT().
+			V1betaListKmsConfigurations(mock.Anything).
+			Return(mockRes, nil)
+		
+		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		// Setup mock orchestrator factory that returns a KmsConfig with some other state
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		vcpKmsConfig := &vsaCoreModels.KmsConfig{
+			State: vsaCoreModels.LifeCycleStateCreated, // This should not modify the CVP state
+		}
+		mockOrchestrator.EXPECT().
+			GetKmsConfig(mock.Anything, mock.MatchedBy(func(params *common.GetKmsConfigParams) bool {
+				return params.UUID == "test-id" && params.AccountName == "12345"
+			})).
+			Return(vcpKmsConfig, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		// Call the method under test
+		result, err := handler.V1betaListKmsConfigurations(context.Background(), params)
+
+		// Assertions - state should remain as from CVP
+		assert.NoError(t, err)
+		resultPtr, ok := result.(*gcpgenserver.V1betaListKmsConfigurationsOKApplicationJSON)
+		assert.True(t, ok)
+		resultSlice := *resultPtr
+		assert.Len(t, resultSlice, 1)
+		assert.Equal(t, "test-id", resultSlice[0].UUID.Value)
+		assert.Equal(t, "ACTIVE", string(resultSlice[0].KmsState.Value)) // Original CVP state preserved
 	})
 }
