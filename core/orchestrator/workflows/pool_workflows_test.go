@@ -17,7 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	envs "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -53,6 +53,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 
 	// Set up test data
@@ -115,7 +116,12 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
-
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		PrimaryZone:   "test-zone",
+		SecondaryZone: "test-secondary-zone",
+		Region:        "test-region",
+		MediatorZone:  "test-mediator-zone",
+	}, nil)
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
 	}
@@ -884,6 +890,12 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
 
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
@@ -992,7 +1004,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
 		}
@@ -1109,6 +1126,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
 
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
@@ -1233,7 +1256,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
 		}
@@ -1350,7 +1378,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
 		}
@@ -1472,7 +1505,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
 		}
@@ -1585,7 +1623,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
 		}
@@ -1696,7 +1739,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
 		}
@@ -1808,7 +1856,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
 		}
@@ -1924,7 +1977,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
 		}
@@ -2040,7 +2098,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
 		}
@@ -2156,7 +2219,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
 		}
@@ -2272,7 +2340,12 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
 		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 			return mockVSAClientWorkflowManager
 		}
@@ -2476,7 +2549,12 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
-
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		PrimaryZone:   "test-zone",
+		SecondaryZone: "test-secondary-zone",
+		Region:        "test-region",
+		MediatorZone:  "test-mediator-zone",
+	}, nil)
 	// Simulate failure in final job status update
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.New("failed to update job status")).Times(10)
 

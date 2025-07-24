@@ -4,6 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/workflow"
+	"google.golang.org/api/iam/v1"
 	"regexp"
 	"time"
 
@@ -27,12 +33,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"go.temporal.io/api/enums/v1"
-	"go.temporal.io/sdk/activity"
-	"go.temporal.io/sdk/client"
-	"go.temporal.io/sdk/temporal"
-	"go.temporal.io/sdk/workflow"
-	"google.golang.org/api/iam/v1"
 )
 
 var (
@@ -48,7 +48,8 @@ var (
 	WaitForServiceNetworkOperationStatus                   = _waitForServiceNetworkOperationStatus
 
 	vsaImageName      = env.GetString("VSA_IMAGE_NAME", "r9-17-1xn-250710-0000-gcnv")
-	vsaFilesImageName = env.GetString("VSA_FILES_IMAGE_NAME", "devn-250721-0200")
+	vsaFilesImageName = env.GetString("VSA_FILES_IMAGE_NAME", "r9-18-1xn-250722-0000")
+	mediatorImage     = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "devn-250315-0200-mediator-debian-12")
 )
 
 const (
@@ -250,7 +251,19 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, VLMCloudProvider, tenancyDetails.RegionalTenantProject)
 	rollbackManager.AddWorkflow(vlm.VSALifecycleManagerQueue, vlm.DeleteVSAClusterDeploymentWorkflowName, deleteVSAClusterDeploymentRequest)
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, params.Region, params.PrimaryZone, params.SecondaryZone, tenancyDetails.Network, tenancyDetails.SubnetworkNames, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, serviceAccount.Email, bucketName).Get(ctx, vlmConfig)
+	locationInfo := &common.LocationInfo{
+		PrimaryZone:   params.PrimaryZone,
+		SecondaryZone: params.SecondaryZone,
+		Region:        params.Region,
+	}
+
+	// Use resolved zones to identify VMs and build VLM config
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, locationInfo, tenancyDetails, serviceAccount.Email, bucketName).Get(ctx, vlmConfig)
+	if err != nil {
+		return nil, err
+	}
+	var resolvedLocationInfo *common.LocationInfo
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifySecondaryAndMediatorZone, tenancyDetails.RegionalTenantProject, locationInfo, vlmConfig.Deployment.VSAInstanceType).Get(ctx, &resolvedLocationInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +271,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	hostMap := make(map[string]string)
 
 	createVSAClusterDeploymentRequest := &vlm.CreateVSAClusterDeploymentRequest{}
-	prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest, *vlmConfig, *credConfig, dbPool)
+	prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest, *vlmConfig, *credConfig, dbPool, resolvedLocationInfo)
 	createVSAClusterDeploymentResponse, err := vsaClientWorkflowManager.CreateVSAClusterDeployment(ctx, createVSAClusterDeploymentRequest)
 	if err != nil {
 		return nil, err
@@ -481,11 +494,29 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		DesiredCapacityInGiB:    int64(utils.BytesToGigabytes(updatePoolParams.SizeInBytes)),
 	}
 
+	// Identify secondary and mediator zones first
+	locationInfo := &common.LocationInfo{
+		PrimaryZone:   pool.PoolAttributes.PrimaryZone,
+		SecondaryZone: pool.PoolAttributes.SecondaryZone,
+		Region:        updatePoolParams.Region,
+		MediatorZone:  pool.PoolAttributes.PrimaryZone, // this will be updated later to use the mediator zone
+	}
+
 	newVlmConfig := &vlm.VLMConfig{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, saEmail, bucketName).Get(ctx, newVlmConfig)
+	// Create tenancy info from pool cluster details
+	poolTenancyInfo := &common.TenancyInfo{
+		RegionalTenantProject: pool.ClusterDetails.RegionalTenantProject,
+		Network:               pool.ClusterDetails.Network,
+		SubnetworkNames:       pool.ClusterDetails.SubnetNames,
+		SnHostProject:         pool.ClusterDetails.SnHostProject,
+	}
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, locationInfo, poolTenancyInfo, saEmail, bucketName).Get(ctx, newVlmConfig)
 	if err != nil {
 		return nil, err
 	}
+
+	// Update the mediator zone in the VLM config
+	newVlmConfig.Deployment.Zone.MediatorZone = locationInfo.MediatorZone
 
 	credentials := &vlm.OntapCredentials{}
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentials, pool).Get(ctx, &credentials)
@@ -1035,9 +1066,17 @@ func (sa *SubnetActivity) GetTenancyDetails(ctx context.Context, workflowID stri
 	return subnetWfRes.TenancyDetails, nil
 }
 
-func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest *vlm.CreateVSAClusterDeploymentRequest, vlmConfig vlm.VLMConfig, ontapCredentials vlm.OntapCredentials, pool *datamodel.Pool) {
-	// Initialize labels map if it doesn't exist
+func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest *vlm.CreateVSAClusterDeploymentRequest, vlmConfig vlm.VLMConfig, ontapCredentials vlm.OntapCredentials, pool *datamodel.Pool, resolvedLocationInfo *common.LocationInfo) {
+	// resolve location assigment
+	vlmConfig.Deployment.Zone = vlm.ZoneInfo{
+		Zone1:        resolvedLocationInfo.PrimaryZone,
+		Zone2:        resolvedLocationInfo.SecondaryZone,
+		MediatorZone: resolvedLocationInfo.MediatorZone,
+	}
+
 	vlmConfig.Deployment.Images.VSAImageName = vsaImageName
+	vlmConfig.Deployment.Images.MediatorImageName = mediatorImage
+
 	if vlmConfig.Deployment.Labels == nil {
 		vlmConfig.Deployment.Labels = make(map[string]string)
 	}

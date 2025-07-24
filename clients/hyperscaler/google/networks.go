@@ -19,11 +19,12 @@ var (
 	minimumTenantNetworkSize = env.GetInt64("DATA_SUBNET_CIDR_BLOCK", int64(28))
 	defaultSleepTime         = time.Duration(env.GetInt64("GCP_NETWORK_SLEEP_SECONDS", int64(28))) * time.Second
 
-	CreateTPSubnetOp = _createTPSubnetOp
-	createSubnetwork = _createSubnetwork
-	createVPC        = _createVPC
-	insertFirewall   = _insertFirewall
-	updateFirewall   = _updateFirewall
+	CreateTPSubnetOp       = _createTPSubnetOp
+	createSubnetwork       = _createSubnetwork
+	createVPC              = _createVPC
+	insertFirewall         = _insertFirewall
+	updateFirewall         = _updateFirewall
+	getProjectIDFromNumber = _getProjectIDFromNumber
 )
 
 // GetTenantProject lists registered tenancy units for the customer project
@@ -353,6 +354,57 @@ func _insertFirewall(gcpService *GcpServices, request *models.Firewall) (*models
 	}
 	gcpService.Logger.Debugf("Operation to insert firewall created successfully for project name : %s, firewall name : %s", projectName, firewallName)
 	return convertComputeOpToComputeOp(op), nil
+}
+
+// GetZones retrieves a list of zones for a given project name using compute API. Reference : https://cloud.google.com/compute/docs/reference/rest/v1/zones/list
+func (gcpService *GcpServices) GetZones(projectNumber, region string) ([]string, error) {
+	projectName, err := getProjectIDFromNumber(gcpService, projectNumber)
+	if err != nil {
+		gcpService.Logger.Errorf("GetZones failed for project number : %s with error : %v", projectNumber, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+	}
+
+	gcpService.Logger.Debugf("Calling GetZones for project name : %s", projectName)
+
+	regionUrl := "https://www.googleapis.com/compute/v1/projects/" + projectName + "/regions/" + region
+	zoneList, err := gcpService.AdminGCPService.computeService.Zones.List(projectName).Filter("region= \"" + regionUrl + "\"").Context(gcpService.Ctx).Do()
+	if err != nil {
+		gcpService.Logger.Errorf("GetZones failed for project name : %s with error : %v", projectName, err.Error())
+		return nil, err
+	}
+	var zones []string
+	for _, zone := range zoneList.Items {
+		zones = append(zones, zone.Name)
+	}
+	gcpService.Logger.Debugf("GetZones success with number of zones = %d", len(zones))
+	return zones, nil
+}
+
+// IsMachineTypeAvailable checks if a specific machine type is available in a given project and zone using compute API. Reference : https://cloud.google.com/compute/docs/reference/rest/v1/machineTypes/get
+func (gcpService *GcpServices) IsMachineTypeAvailable(projectNumber, zone, machineType string) (bool, error) {
+	projectName, err := getProjectIDFromNumber(gcpService, projectNumber)
+	if err != nil {
+		gcpService.Logger.Errorf("IsMachineTypeAvailable failed for project number : %s with error : %v", projectNumber, err)
+		return false, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
+	}
+	gcpService.Logger.Debugf("Checking if machine type %s is available in project name : %s, zone : %s", machineType, projectName, zone)
+
+	_, err = gcpService.AdminGCPService.computeService.MachineTypes.Get(projectName, zone, machineType).Context(gcpService.Ctx).Do()
+	if err != nil {
+		gcpService.Logger.Debugf("Machine type %s is not available in zone %s", machineType, zone)
+		return false, nil
+	}
+	gcpService.Logger.Debugf("Machine type %s is available in zone %s", machineType, zone)
+	return true, nil
+}
+
+// _getProjectIDFromNumber retrieves the project ID from the project number using compute API. Reference : https://cloud.google.com/compute/docs/reference/rest/v1/projects/get
+func _getProjectIDFromNumber(gcpService *GcpServices, projectNumber string) (string, error) {
+	project, err := gcpService.AdminGCPService.computeService.Projects.Get(projectNumber).Context(gcpService.Ctx).Do()
+	if err != nil {
+		return "", err
+	}
+	return project.Name, nil
 }
 
 // _updateFirewall creates an operation to update an existing firewall rule in a project using the compute API. Reference: https://cloud.google.com/compute/docs/reference/rest/v1/firewalls/update

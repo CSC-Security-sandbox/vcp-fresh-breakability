@@ -49,6 +49,14 @@ type TenancyInfo struct {
 	Gateway               string
 }
 
+// LocationInfo contains location-related information for pool operations
+type LocationInfo struct {
+	PrimaryZone   string
+	SecondaryZone string
+	Region        string
+	MediatorZone  string
+}
+
 // HostParams FixMe: remove this once HostGroup table is created
 type HostParams struct {
 	HostName string

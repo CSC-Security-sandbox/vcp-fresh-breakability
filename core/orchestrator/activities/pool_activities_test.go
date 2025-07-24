@@ -3176,7 +3176,18 @@ func Test_IdentifyVMs_SuccessfullyPreparesConfig(t *testing.T) {
 	}
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "test-tenant-project@xyz.com", "test-tenant-project")
+	locationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   "test-zone1",
+		SecondaryZone: "test-zone2",
+		Region:        "test-region",
+	}
+	tenancyInfo := &commonparams.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		SnHostProject:         "test-sn-host-project",
+	}
+	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.NoError(t, err)
 }
@@ -3199,7 +3210,18 @@ func Test_IdentifyVMs_FailsToPrepareConfig(t *testing.T) {
 	}
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "test-tenant-project@xyz.com", "test-tenant-project")
+	locationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   "test-zone1",
+		SecondaryZone: "test-zone2",
+		Region:        "test-region",
+	}
+	tenancyInfo := &commonparams.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		SnHostProject:         "test-sn-host-project",
+	}
+	_, err := activity.IdentifyVMs(ctx, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to prepare VLM config")
@@ -3217,7 +3239,18 @@ func Test_IdentifyVMs_FailsToLoadConfig(t *testing.T) {
 	}
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "test-tenant-project@xyz.com", "test-tenant-project")
+	locationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   "test-zone1",
+		SecondaryZone: "test-zone2",
+		Region:        "test-region",
+	}
+	tenancyInfo := &commonparams.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		SnHostProject:         "test-sn-host-project",
+	}
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to load VMRS config from file")
@@ -3243,7 +3276,18 @@ func Test_IdentifyVMs_FailsToCreateDecisionMaker(t *testing.T) {
 	}
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "test-tenant-project@xyz.com", "test-tenant-project")
+	locationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   "test-zone1",
+		SecondaryZone: "test-zone2",
+		Region:        "test-region",
+	}
+	tenancyInfo := &commonparams.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		SnHostProject:         "test-sn-host-project",
+	}
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create decision maker")
@@ -3271,7 +3315,18 @@ func Test_IdentifyVMs_FailsToFindOptimalVMs(t *testing.T) {
 	mockDecisionMaker.Mock.On("FindOptimalVMs", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to find optimal VMs foo"))
 
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
-	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", []string{"test-subnet"}, "test-project", "test-sn-host-project", "test-tenant-project@xyz.com", "test-tenant-project")
+	locationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   "test-zone1",
+		SecondaryZone: "test-zone2",
+		Region:        "test-region",
+	}
+	tenancyInfo := &commonparams.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		SnHostProject:         "test-sn-host-project",
+	}
+	_, err := activity.IdentifyVMs(ctx, "test-path", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to find optimal VMs")
@@ -6140,4 +6195,160 @@ func Test_getCreateDataSubnetworkOp(t *testing.T) {
 			})
 		}
 	})
+}
+
+func Test_IdentifySecondaryAndMediatorZone_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	projectNumber := "123456789"
+	locationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   "us-central1-a",
+		SecondaryZone: "us-central1-b",
+		Region:        "us-central1",
+	}
+
+	// Mock GetGCPService to return error for now (simplified test)
+	originalGetGCPService := activities.GetGCPService
+	defer func() { activities.GetGCPService = originalGetGCPService }()
+	activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+		return nil, errors.New("GCP service not available in test")
+	}
+
+	// Act
+	result, err := activity.IdentifySecondaryAndMediatorZone(ctx, projectNumber, locationInfo, "c3-std-4")
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func Test_IdentifySecondaryAndMediatorZone_GCPServiceError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	projectNumber := "123456789"
+	locationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   "us-central1-a",
+		SecondaryZone: "us-central1-b",
+		Region:        "us-central1",
+	}
+
+	// Mock GetGCPService to return error
+	originalGetGCPService := activities.GetGCPService
+	defer func() { activities.GetGCPService = originalGetGCPService }()
+	activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+		return nil, errors.New("failed to get GCP service")
+	}
+
+	// Act
+	result, err := activity.IdentifySecondaryAndMediatorZone(ctx, projectNumber, locationInfo, "c3-std-4")
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func Test_resolveZonesForCluster_Success_NoSecondaryNoMediator(t *testing.T) {
+	// Arrange
+	mockService := new(hyperscaler.MockGoogleServices)
+	projectNumber := "123456789"
+	region := "us-central1"
+	primaryZone := "us-central1-a"
+	secondaryZone := ""
+	mediatorZone := ""
+	instanceType := "n2-standard-4"
+
+	// Mock GetZones to return available zones
+	mockService.On("GetZones", projectNumber, region).Return([]string{"us-central1-a", "us-central1-b", "us-central1-c"}, nil)
+
+	// Mock IsMachineTypeAvailable for secondary zone selection
+	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-b", instanceType).Return(true, nil)
+	// Mock IsMachineTypeAvailable for mediator zone selection
+	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-c", instanceType).Return(true, nil)
+
+	// Act
+	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, "us-central1-b", resolvedSecondary)
+	assert.Equal(t, "us-central1-c", resolvedMediator)
+	mockService.AssertExpectations(t)
+}
+
+func Test_resolveZonesForCluster_Error_PrimaryZoneEmpty(t *testing.T) {
+	// Arrange
+	mockService := new(hyperscaler.MockGoogleServices)
+	projectNumber := "123456789"
+	region := "us-central1"
+	primaryZone := ""
+	secondaryZone := ""
+	mediatorZone := ""
+	instanceType := "n2-standard-4"
+
+	// Act
+	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "primary zone is not set")
+	assert.Equal(t, "", resolvedSecondary)
+	assert.Equal(t, "", resolvedMediator)
+}
+
+func Test_resolveZonesForCluster_Error_GetZonesFails(t *testing.T) {
+	// Arrange
+	mockService := new(hyperscaler.MockGoogleServices)
+	projectNumber := "123456789"
+	region := "us-central1"
+	primaryZone := "us-central1-a"
+	secondaryZone := ""
+	mediatorZone := ""
+	instanceType := "n2-standard-4"
+
+	// Mock GetZones to return error
+	mockService.On("GetZones", projectNumber, region).Return(nil, errors.New("failed to get zones"))
+
+	// Act
+	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get zones")
+	assert.Equal(t, "", resolvedSecondary)
+	assert.Equal(t, "", resolvedMediator)
+	mockService.AssertExpectations(t)
+}
+
+func Test_resolveZonesForCluster_Error_NoSecondaryZoneSupportsInstanceType(t *testing.T) {
+	// Arrange
+	mockService := new(hyperscaler.MockGoogleServices)
+	projectNumber := "123456789"
+	region := "us-central1"
+	primaryZone := "us-central1-a"
+	secondaryZone := ""
+	mediatorZone := ""
+	instanceType := "n2-standard-4"
+
+	// Mock GetZones to return available zones
+	mockService.On("GetZones", projectNumber, region).Return([]string{"us-central1-a", "us-central1-b", "us-central1-c"}, nil)
+
+	// Mock IsMachineTypeAvailable to return false for all zones
+	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-b", instanceType).Return(false, nil)
+	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-c", instanceType).Return(false, nil)
+
+	// Act
+	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no secondary zone found that supports the instance type")
+	assert.Equal(t, "", resolvedSecondary)
+	assert.Equal(t, "", resolvedMediator)
+	mockService.AssertExpectations(t)
 }

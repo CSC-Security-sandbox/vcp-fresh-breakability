@@ -1967,3 +1967,262 @@ func Test_GetServiceNetOpStatus(t *testing.T) {
 		assert.Nil(tt, result)
 	})
 }
+
+func Test_GetZones(t *testing.T) {
+	projectNumber := "123456789"
+	projectID := "test-project"
+	region := "us-central1"
+	regionUrl := "https://www.googleapis.com/compute/v1/projects/" + projectID + "/regions/" + region
+	zones := []string{"us-central1-a", "us-central1-b"}
+
+	t.Run("WhenGetZonesSucceeds", func(tt *testing.T) {
+		ctx := context.Background()
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if strings.Contains(req.URL.Path, "/zones") {
+				resp := map[string]interface{}{
+					"items": []map[string]interface{}{
+						{"name": zones[0], "region": regionUrl},
+						{"name": zones[1], "region": regionUrl},
+					},
+				}
+				_ = json.NewEncoder(rw).Encode(resp)
+			}
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		// Mock getProjectIDFromNumber
+		getProjectIDFromNumber = func(_ *GcpServices, _ string) (string, error) {
+			return projectID, nil
+		}
+		defer func() { getProjectIDFromNumber = _getProjectIDFromNumber }()
+
+		out, err := gService.GetZones(projectNumber, region)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+		if len(out) != 2 || out[0] != zones[0] || out[1] != zones[1] {
+			tt.Errorf("Unexpected zones: %+v", out)
+		}
+	})
+
+	t.Run("WhenGetZonesFails", func(tt *testing.T) {
+		ctx := context.Background()
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			http.Error(rw, "internal error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 1),
+		}
+
+		// Mock getProjectIDFromNumber
+		getProjectIDFromNumber = func(_ *GcpServices, _ string) (string, error) {
+			return projectID, nil
+		}
+		defer func() { getProjectIDFromNumber = _getProjectIDFromNumber }()
+
+		_, err = gService.GetZones(projectNumber, region)
+		if err == nil {
+			tt.Error("Expected error but got none")
+		}
+	})
+}
+
+func Test__getProjectIDFromNumber(t *testing.T) {
+	ctx := context.Background()
+	projectNumber := "123456789"
+	projectName := "test-project"
+
+	t.Run("WhenGetProjectSucceeds", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if strings.Contains(req.URL.Path, "/projects/"+projectNumber) {
+				resp := &compute.Project{Name: projectName}
+				_ = json.NewEncoder(rw).Encode(resp)
+			} else {
+				http.Error(rw, "not found", http.StatusNotFound)
+			}
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{computeService: computeSvc},
+			Ctx:             ctx,
+		}
+
+		name, err := _getProjectIDFromNumber(gService, projectNumber)
+		if err != nil {
+			tt.Fatalf("unexpected error: %v", err)
+		}
+		if name != projectName {
+			tt.Errorf("expected %s, got %s", projectName, name)
+		}
+	})
+
+	t.Run("WhenGetProjectFails", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			http.Error(rw, "internal error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{computeService: computeSvc},
+			Ctx:             ctx,
+		}
+
+		_, err = _getProjectIDFromNumber(gService, projectNumber)
+		if err == nil {
+			tt.Error("expected error, got nil")
+		}
+	})
+}
+
+func Test_IsMachineTypeAvailable(t *testing.T) {
+	ctx := context.Background()
+	projectNumber := "123456789"
+	projectName := "test-project"
+	zone := "us-central1-a"
+	machineType := "n2-standard-4"
+
+	t.Run("WhenMachineTypeIsAvailable", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if strings.Contains(req.URL.Path, "/projects/"+projectName+"/zones/"+zone+"/machineTypes/"+machineType) {
+				// Return a successful response indicating machine type exists
+				resp := &compute.MachineType{Name: machineType, Zone: zone}
+				_ = json.NewEncoder(rw).Encode(resp)
+			} else if strings.Contains(req.URL.Path, "/projects/"+projectNumber) {
+				// Mock project lookup
+				resp := &compute.Project{Name: projectName}
+				_ = json.NewEncoder(rw).Encode(resp)
+			} else {
+				http.Error(rw, "not found", http.StatusNotFound)
+			}
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{computeService: computeSvc},
+			Ctx:             ctx,
+			Logger:          util.GetLogger(ctx),
+			Retry:           NewExponentialRetryStrategy(time.Millisecond, 1),
+		}
+
+		available, err := gService.IsMachineTypeAvailable(projectNumber, zone, machineType)
+		if err != nil {
+			tt.Fatalf("unexpected error: %v", err)
+		}
+		if !available {
+			tt.Error("expected machine type to be available")
+		}
+	})
+
+	t.Run("WhenMachineTypeIsNotAvailable", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if strings.Contains(req.URL.Path, "/projects/"+projectName+"/zones/"+zone+"/machineTypes/"+machineType) {
+				// Return 404 indicating machine type doesn't exist
+				http.Error(rw, "not found", http.StatusNotFound)
+			} else if strings.Contains(req.URL.Path, "/projects/"+projectNumber) {
+				// Mock project lookup
+				resp := &compute.Project{Name: projectName}
+				_ = json.NewEncoder(rw).Encode(resp)
+			} else {
+				http.Error(rw, "not found", http.StatusNotFound)
+			}
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{computeService: computeSvc},
+			Ctx:             ctx,
+			Logger:          util.GetLogger(ctx),
+			Retry:           NewExponentialRetryStrategy(time.Millisecond, 1),
+		}
+
+		available, err := gService.IsMachineTypeAvailable(projectNumber, zone, machineType)
+		if err != nil {
+			tt.Fatalf("unexpected error: %v", err)
+		}
+		if available {
+			tt.Error("expected machine type to not be available")
+		}
+	})
+
+	t.Run("WhenGetProjectIDFromNumberFails", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			// Return error for project lookup
+			http.Error(rw, "internal error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{computeService: computeSvc},
+			Ctx:             ctx,
+			Logger:          util.GetLogger(ctx),
+			Retry:           NewExponentialRetryStrategy(time.Millisecond, 1),
+		}
+
+		available, err := gService.IsMachineTypeAvailable(projectNumber, zone, machineType)
+		if err == nil {
+			tt.Error("expected error but got none")
+		}
+		if available {
+			tt.Error("expected false when error occurs")
+		}
+	})
+}

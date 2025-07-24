@@ -50,6 +50,9 @@ type Services interface {
 	DeleteAllServiceAccountKeys(ctx context.Context, email string) error
 	GetSecretWithCustomVersion(projectID, secretID string, versionID string) (*models.CustomSecret, error)
 
+	GetZones(projectName, region string) ([]string, error)
+	IsMachineTypeAvailable(projectNumber, zone, machineType string) (bool, error)
+
 	CreateResourceRecordSet(projectID, managedZone, ipAddress, recordName string) (*models.CustomCloudDNSRecord, error)
 	GetResourceRecordSet(projectID, managedZone, recordName string) (*models.CustomCloudDNSRecord, error)
 	DeleteResourceRecordSet(projectID, managedZone, recordName string) error

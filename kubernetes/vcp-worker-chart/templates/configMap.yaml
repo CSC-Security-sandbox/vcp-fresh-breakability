@@ -74,3 +74,6 @@ data:
   FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: {{ .Values.workerConfig.fileProtocolAllowlistedAccounts | quote }}
   VSA_IMAGE_NAME: {{ .Values.workerConfig.vsaImageName | quote }}
   VSA_FILES_IMAGE_NAME: {{ .Values.workerConfig.vsaFilesImageName | quote }}
+  VSA_MEDIATOR_INSTANCE_TYPE: {{ .Values.workerConfig.vsaMediatorInstanceType | quote }}
+  VSA_MEDIATOR_DISK_TYPE: {{ .Values.workerConfig.vsaMediatorDiskType | quote }}
+  VSA_MEDIATOR_IMAGE_NAME: {{ .Values.workerConfig.vsaMediatorImageName | quote }}

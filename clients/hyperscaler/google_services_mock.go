@@ -1668,6 +1668,65 @@ func (_c *MockGoogleServices_GetVPCNetwork_Call) RunAndReturn(run func(string, s
 	return _c
 }
 
+// GetZones provides a mock function with given fields: projectName, region
+func (_m *MockGoogleServices) GetZones(projectName string, region string) ([]string, error) {
+	ret := _m.Called(projectName, region)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetZones")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) ([]string, error)); ok {
+		return rf(projectName, region)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) []string); ok {
+		r0 = rf(projectName, region)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(projectName, region)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetZones_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetZones'
+type MockGoogleServices_GetZones_Call struct {
+	*mock.Call
+}
+
+// GetZones is a helper method to define mock.On call
+//   - projectName string
+//   - region string
+func (_e *MockGoogleServices_Expecter) GetZones(projectName interface{}, region interface{}) *MockGoogleServices_GetZones_Call {
+	return &MockGoogleServices_GetZones_Call{Call: _e.mock.On("GetZones", projectName, region)}
+}
+
+func (_c *MockGoogleServices_GetZones_Call) Run(run func(projectName string, region string)) *MockGoogleServices_GetZones_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetZones_Call) Return(_a0 []string, _a1 error) *MockGoogleServices_GetZones_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetZones_Call) RunAndReturn(run func(string, string) ([]string, error)) *MockGoogleServices_GetZones_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // InitializeClients provides a mock function with no fields
 func (_m *MockGoogleServices) InitializeClients() error {
 	ret := _m.Called()
@@ -1800,6 +1859,64 @@ func (_c *MockGoogleServices_IsAdminClientInitialized_Call) Return(_a0 bool) *Mo
 }
 
 func (_c *MockGoogleServices_IsAdminClientInitialized_Call) RunAndReturn(run func() bool) *MockGoogleServices_IsAdminClientInitialized_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IsMachineTypeAvailable provides a mock function with given fields: projectNumber, zone, machineType
+func (_m *MockGoogleServices) IsMachineTypeAvailable(projectNumber string, zone string, machineType string) (bool, error) {
+	ret := _m.Called(projectNumber, zone, machineType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsMachineTypeAvailable")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, string) (bool, error)); ok {
+		return rf(projectNumber, zone, machineType)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string) bool); ok {
+		r0 = rf(projectNumber, zone, machineType)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = rf(projectNumber, zone, machineType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_IsMachineTypeAvailable_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsMachineTypeAvailable'
+type MockGoogleServices_IsMachineTypeAvailable_Call struct {
+	*mock.Call
+}
+
+// IsMachineTypeAvailable is a helper method to define mock.On call
+//   - projectNumber string
+//   - zone string
+//   - machineType string
+func (_e *MockGoogleServices_Expecter) IsMachineTypeAvailable(projectNumber interface{}, zone interface{}, machineType interface{}) *MockGoogleServices_IsMachineTypeAvailable_Call {
+	return &MockGoogleServices_IsMachineTypeAvailable_Call{Call: _e.mock.On("IsMachineTypeAvailable", projectNumber, zone, machineType)}
+}
+
+func (_c *MockGoogleServices_IsMachineTypeAvailable_Call) Run(run func(projectNumber string, zone string, machineType string)) *MockGoogleServices_IsMachineTypeAvailable_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_IsMachineTypeAvailable_Call) Return(_a0 bool, _a1 error) *MockGoogleServices_IsMachineTypeAvailable_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_IsMachineTypeAvailable_Call) RunAndReturn(run func(string, string, string) (bool, error)) *MockGoogleServices_IsMachineTypeAvailable_Call {
 	_c.Call.Return(run)
 	return _c
 }

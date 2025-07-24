@@ -75,6 +75,7 @@ var (
 	GetServiceNetOpStatus             = _getServiceNetOpStatus
 	GetSubnetFromOperation            = _getSubnetFromOperation
 	GetGatewayFromIpCidrRange         = _getGatewayFromIpCidrRange
+	ResolveZonesForCluster            = _resolveZonesForCluster
 
 	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
 	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
@@ -130,10 +131,12 @@ const (
 )
 
 var (
-	maxRetries           = env.GetInt("GOOGLE_API_MAX_RETRIES", 6)
-	localRegion          = env.GetString("LOCAL_REGION", "")
-	firewallSourceRanges = env.GetString("FIREWALL_SOURCE_RANGES", "")
-	totalIPPerHAPair     = env.GetInt("TOTAL_IP_PER_HA_PAIR", 6)
+	maxRetries             = env.GetInt("GOOGLE_API_MAX_RETRIES", 6)
+	localRegion            = env.GetString("LOCAL_REGION", "")
+	firewallSourceRanges   = env.GetString("FIREWALL_SOURCE_RANGES", "")
+	totalIPPerHAPair       = env.GetInt("TOTAL_IP_PER_HA_PAIR", 6)
+	mediatorVmInstanceType = env.GetString("VSA_MEDIATOR_INSTANCE_TYPE", "n2-standard-4")
+	mediatorVmDiskType     = env.GetString("VSA_MEDIATOR_DISK_TYPE", "pd-ssd")
 )
 
 func (j *PoolActivity) CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
@@ -694,7 +697,7 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 }
 
 // The IdentifyVMs takes as input the VMRS configuration, the customer requested performance parameters, and the current VLM configuration to identify the optimal VMs to use for the VSA cluster.
-func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName, region, primaryZone, secondaryZone, network string, subnets []string, projectId, snHostProject string, saEmail string, autoTierBucket string) (*vlm.VLMConfig, error) {
+func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, customerRequest vmrs.CustomerRequestedPerformance, deploymentName string, locationInfo *commonparams.LocationInfo, tenancyInfo *commonparams.TenancyInfo, saEmail string, autoTierBucket string) (*vlm.VLMConfig, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debug("Identifying VMs to use for VSA cluster")
 
@@ -719,12 +722,12 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 	}
 
 	subnet := ""
-	if len(subnets) > 0 {
-		subnet = subnets[len(subnets)-1]
+	if len(tenancyInfo.SubnetworkNames) > 0 {
+		subnet = tenancyInfo.SubnetworkNames[len(tenancyInfo.SubnetworkNames)-1]
 	}
 
 	// Convert the decision to a VLMConfig.
-	err = PrepareVlmConfig(vlmConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, decision, saEmail, autoTierBucket)
+	err = PrepareVlmConfig(vlmConfig, deploymentName, locationInfo.Region, locationInfo.PrimaryZone, locationInfo.SecondaryZone, tenancyInfo.Network, subnet, tenancyInfo.RegionalTenantProject, tenancyInfo.SnHostProject, decision, saEmail, autoTierBucket)
 	if err != nil {
 		logger.Error("Failed to prepare VLM config", "error", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -782,6 +785,70 @@ func (j *PoolActivity) ConstructCurrentVlmConfig(ctx context.Context, poolId int
 
 	return vlmConfig, nil
 }
+func _resolveZonesForCluster(gcpService hyperscaler.GoogleServices, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType string) (string, string, error) {
+	if primaryZone == "" || projectNumber == "" || region == "" {
+		return "", "", vsaerrors.WrapAsTemporalApplicationError(errors.New("primary zone is not set or project number is empty or region is empty"))
+	}
+	zones, err := gcpService.GetZones(projectNumber, region)
+	if err != nil {
+		return "", "", vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	// Remove primaryZone from the list
+	var availableZones []string
+	for _, zone := range zones {
+		if zone != primaryZone {
+			availableZones = append(availableZones, zone)
+		}
+	}
+	if len(availableZones) < 1 {
+		return "", "", vsaerrors.WrapAsTemporalApplicationError(errors.New("no zones available besides primary"))
+	}
+
+	// Helper function to validate machine type in a zone
+	validateMachineTypeInZone := func(zone string, machineType string) bool {
+		isAvailable, err := gcpService.IsMachineTypeAvailable(projectNumber, zone, machineType)
+		if err != nil {
+			return false
+		}
+		return isAvailable
+	}
+
+	// If secondaryZone is not set, pick the first available zone that supports the instance type as secondary
+	if secondaryZone == "" {
+		// Find a secondary zone that supports the instance type
+		var validSecondaryZone string
+		for _, zone := range availableZones {
+			if validateMachineTypeInZone(zone, instanceType) {
+				validSecondaryZone = zone
+				break
+			}
+		}
+		if validSecondaryZone == "" {
+			return "", "", vsaerrors.WrapAsTemporalApplicationError(errors.New("no secondary zone found that supports the instance type"))
+		}
+		secondaryZone = validSecondaryZone
+	}
+
+	// If mediatorZone is not set, find one that supports the instance type and is different from secondary
+	if mediatorZone == "" {
+		for _, zone := range availableZones {
+			if zone != secondaryZone && validateMachineTypeInZone(zone, mediatorVmInstanceType) {
+				mediatorZone = zone
+				break
+			}
+		}
+		if mediatorZone == "" {
+			return "", "", vsaerrors.WrapAsTemporalApplicationError(errors.New("no mediator zone found that supports the instance type"))
+		}
+	} else {
+		// If mediatorZone is set, validate it supports the instance type and is different from secondary
+		if mediatorZone == secondaryZone {
+			return "", "", vsaerrors.WrapAsTemporalApplicationError(errors.New("mediator zone cannot be the same as secondary zone"))
+		}
+	}
+
+	return secondaryZone, mediatorZone, nil
+}
 
 func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZone, secondaryZone, network, subnet, regionalTenantProjectID, snHostProject string, decision *vmrs.Decision, vsaClusterSaEmail string, autoTierBucket string) error {
 	if err := ValidateVlmConfigInputs(vlmConfig, decision, deploymentID, region, primaryZone, network, subnet, regionalTenantProjectID, snHostProject, vsaClusterSaEmail); err != nil {
@@ -825,9 +892,6 @@ func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZo
 	vlmConfig.Deployment.DeploymentID = deploymentID
 	vlmConfig.Deployment.Zone.Zone1 = primaryZone
 	vlmConfig.Deployment.Zone.Zone2 = secondaryZone
-	if secondaryZone == "" {
-		vlmConfig.Deployment.Zone.Zone2 = primaryZone
-	}
 
 	networkConfigs := map[vlm.VSALIFType]struct {
 		VPC             string
@@ -849,6 +913,9 @@ func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZo
 
 	// Bootargs for key manager
 	vlmConfig.Deployment.UserBootargs = keyManagerBootarg
+
+	vlmConfig.Deployment.MediatorInstanceType = mediatorVmInstanceType
+	vlmConfig.Deployment.MediatorDiskType = mediatorVmDiskType
 
 	return nil
 }
@@ -1964,4 +2031,38 @@ func _getGatewayFromIpCidrRange(ipCidrRange string) (string, error) {
 	}
 	ip4[3] += 1
 	return ip4.String(), nil
+}
+
+// IdentifySecondaryAndMediatorZone identifies the secondary and mediator zones for a cluster
+// and returns the resolved zones.
+func (j *PoolActivity) IdentifySecondaryAndMediatorZone(ctx context.Context, projectNumber string, locationInfo *commonparams.LocationInfo, instanceType string) (*commonparams.LocationInfo, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debug("Identifying secondary and mediator zones for cluster")
+
+	// Get GCP service
+	gcpService, err := GetGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Use ResolveZonesForCluster to get the secondary and mediator zones
+	resolvedSecondaryZone, resolvedMediatorZone, err := ResolveZonesForCluster(gcpService, projectNumber, locationInfo.Region, locationInfo.PrimaryZone, locationInfo.SecondaryZone, locationInfo.MediatorZone, instanceType)
+	if err != nil {
+		logger.Error("Failed to resolve zones for cluster", "error", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Create and return the updated location info
+	updatedLocationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   locationInfo.PrimaryZone,
+		SecondaryZone: resolvedSecondaryZone,
+		Region:        locationInfo.Region,
+		MediatorZone:  resolvedMediatorZone,
+	}
+
+	logger.Debug("Successfully identified secondary and mediator zones",
+		"secondaryZone", resolvedSecondaryZone,
+		"mediatorZone", resolvedMediatorZone)
+
+	return updatedLocationInfo, nil
 }
