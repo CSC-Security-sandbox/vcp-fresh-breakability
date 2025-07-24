@@ -1379,3 +1379,68 @@ func TestVerifyDstReplicationDelete(t *testing.T) {
 		assert.Equal(tt, dstReplication, resp)
 	})
 }
+
+func TestVerifyDstReplicationSync(t *testing.T) {
+	event := &ResumeReplicationEvent{
+		CommonReplicationEventParams: CommonReplicationEventParams{
+			DstBasePath:              "dstPath",
+			DestinationProjectNumber: "destinationProjectNumber",
+			DstToken:                 "dstToken",
+			ReplicationModel: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "dstLocation",
+					DestinationReplicationUUID: "dstUUID",
+				},
+			},
+		},
+	}
+	t.Run("WhenGetReplicationError", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, errors.New("some error")
+		}
+
+		_, err := _verifyDstReplicationSync(ctx, event)
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenMirrorStateNotMirrored", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		mirrorState := "STOPPED"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState: &mirrorState,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+
+		expectedError := errors.NewUserInputValidationErr(fmt.Sprintf("Replication mirror state should be %s", models.ReplicationV1betaMirrorStateMIRRORED))
+		_, err := _verifyDstReplicationSync(ctx, event)
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		mirrorState := models.ReplicationV1betaMirrorStateMIRRORED
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState: &mirrorState,
+		}
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+
+		resp, err := _verifyDstReplicationSync(ctx, event)
+		assert.NoError(tt, err)
+		assert.Equal(tt, dstReplication, resp)
+	})
+}

@@ -49,6 +49,7 @@ var (
 	VerifyDstReplicationStop    = _verifyDstReplicationStop
 	VerifyDstVolume             = _verifyDstVolume
 	VerifyDstReplication        = _verifyDstReplication
+	VerifyDstReplicationSync    = _verifyDstReplicationSync
 
 	InternalUtilGetCallbackToken   = auth.GetSignedAccessToken
 	InternalUtilGetSignedToken     = auth.GetSignedJwtToken
@@ -821,6 +822,20 @@ func _verifyDstReplication(ctx context.Context, event *DeleteReplicationEvent) (
 	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateUNINITIALIZED && *dstReplication.RelationshipStatus == coreModels.SnapmirrorRelationshipTransferring {
 		logger.Error("Replication needs to be in stopped state", common.Error(err))
 		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status should be %s", models.VolumeReplicationCVPV1betaRelationshipStatusIdle))
+	}
+
+	return dstReplication, nil
+}
+
+func _verifyDstReplicationSync(ctx context.Context, event *ResumeReplicationEvent) (*coreModels.VolumeReplication, error) {
+	logger := util.GetLogger(ctx)
+	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
+	if err != nil || dstReplication == nil {
+		logger.Error("getReplication error", common.Error(err))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
+	}
+	if *dstReplication.MirrorState != models.ReplicationV1betaMirrorStateMIRRORED {
+		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication mirror state should be %s", models.ReplicationV1betaMirrorStateMIRRORED))
 	}
 
 	return dstReplication, nil

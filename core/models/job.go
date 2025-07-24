@@ -39,6 +39,7 @@ const (
 	JobTypeUpdateVolumeReplication           JobType = "UPDATE_VOLUME_REPLICATION"
 	JobTypeResumeVolumeReplication           JobType = "RESUME_VOLUME_REPLICATION"
 	JobTypeResumeVolumeReplicationInternal   JobType = "RESUME_VOLUME_REPLICATION_INTERNAL"
+	JobTypeSyncVolumeReplication             JobType = "SYNC_VOLUME_REPLICATION"
 	JobTypeReverseResumeVolumeReplication    JobType = "REVERSE_RESUME_VOLUME_REPLICATION"
 	JobTypeStopVolumeReplication             JobType = "STOP_VOLUME_REPLICATION"
 	JobTypeStopVolumeReplicationInternal     JobType = "STOP_VOLUME_REPLICATION_INTERNAL"

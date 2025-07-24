@@ -59,7 +59,7 @@ func TestResumeReplicationWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedDstTokenResume", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("VerifyDstVolume", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("ResizeVolumeIfNeeded", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("ResumeReplicationOnDestination", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("ResumeReplicationOnDestination", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("DescribeRemoteJobResume", mock.Anything, mock.Anything).Return(nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.ExecuteWorkflow(ResumeReplicationWorkflow, params, event)

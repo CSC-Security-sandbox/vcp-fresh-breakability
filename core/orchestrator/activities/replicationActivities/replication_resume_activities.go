@@ -6,6 +6,7 @@ import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	utilError "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -90,7 +91,7 @@ func (a *ResumeVolumeReplicationActivity) ResizeVolumeIfNeeded(ctx context.Conte
 	return nil
 }
 
-func (a *ResumeVolumeReplicationActivity) ResumeReplicationOnDestination(ctx context.Context, result *replication.ResumeReplicationResult) (*replication.ResumeReplicationResult, error) {
+func (a *ResumeVolumeReplicationActivity) ResumeReplicationOnDestination(ctx context.Context, result *replication.ResumeReplicationResult, params *common.ResumeReplicationParams) (*replication.ResumeReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("resumeReplicationOnDestination")
 
@@ -99,6 +100,7 @@ func (a *ResumeVolumeReplicationActivity) ResumeReplicationOnDestination(ctx con
 		ProjectNumber:       *result.DstProjectNumber,
 		LocationId:          result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
 		VolumeReplicationId: result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+		ForceResume:         googleproxyclient.NewOptBool(params.Force),
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalResumeVolumeReplication(ctx, *resumeReplicationParams)
 	if err != nil {

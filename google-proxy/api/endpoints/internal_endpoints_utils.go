@@ -58,7 +58,7 @@ func mapMirrorStateToInternal(mirrorState string) gcpgenserver.VolumeReplication
 
 func mapRelationshipStatusToInternal(relationshipStatus string) gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatus {
 	switch relationshipStatus {
-	case models.SnapmirrorRelationshipIdle, models.SnapmirrorRelationshipSuccess:
+	case models.SnapmirrorRelationshipIdle, models.SnapmirrorRelationshipSuccess, models.SnapmirrorRelationshipFinalizing:
 		return gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusIdle
 	case models.SnapmirrorRelationshipTransferring:
 		return gcpgenserver.VolumeReplicationInternalV1betaRelationshipStatusTransferring

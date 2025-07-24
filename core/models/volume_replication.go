@@ -15,6 +15,7 @@ const (
 	OntapUninitialized                 = "uninitialized"
 	OntapBrokenOff                     = "broken_off"
 	SnapmirrorRelationshipSuccess      = "success"
+	SnapmirrorRelationshipFinalizing   = "finalizing"
 	SnapmirrorRelationshipIdle         = "idle"
 	SnapmirrorRelationshipTransferring = "transferring"
 	SnapmirrorRelationshipFailed       = "failed"

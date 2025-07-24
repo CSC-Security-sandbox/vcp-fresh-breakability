@@ -34,6 +34,7 @@ const (
 	LifeCycleStateAvailableDetails     = "Available for use"
 	LifeCycleStateDisabledDetails      = "Disabled"
 	LifeCycleStateUpdatingDetails      = "Update in progress"
+	LifeCycleStateSyncDetails          = "Sync in progress"
 	LifeCycleStateDeletingDetails      = "Deletion in progress"
 	LifeCycleStateSplittingDetails     = "Splitting in progress"
 	LifeCycleStateDeletedDetails       = "Deleted"

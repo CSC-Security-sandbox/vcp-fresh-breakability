@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -394,17 +395,21 @@ func TestResumeReplicationOnDestination(t *testing.T) {
 				},
 			},
 		}
+		params := &common.ResumeReplicationParams{
+			Force: false,
+		}
 		resumeReplicationParams := &googleproxyclient.V1betaInternalResumeVolumeReplicationParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
 			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
 			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			ForceResume:         googleproxyclient.NewOptBool(params.Force),
 		}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 		mockClient.EXPECT().V1betaInternalResumeVolumeReplication(ctx, *resumeReplicationParams).Return(nil, errors.New("some-error"))
 		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
-		result, err := activity.ResumeReplicationOnDestination(context.Background(), inputResult)
+		result, err := activity.ResumeReplicationOnDestination(context.Background(), inputResult, params)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Equal(tt, "some-error", err.Error())
@@ -438,17 +443,21 @@ func TestResumeReplicationOnDestination(t *testing.T) {
 				},
 			},
 		}
+		params := &common.ResumeReplicationParams{
+			Force: true,
+		}
 		resumeReplicationParams := &googleproxyclient.V1betaInternalResumeVolumeReplicationParams{
 			ProjectNumber:       *inputResult.DstProjectNumber,
 			LocationId:          inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
 			VolumeReplicationId: inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
+			ForceResume:         googleproxyclient.NewOptBool(params.Force),
 		}
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return mc
 		}
 		mockClient.EXPECT().V1betaInternalResumeVolumeReplication(ctx, *resumeReplicationParams).Return(res, nil)
 		activity := ResumeVolumeReplicationActivity{SE: mockStorage}
-		result, err := activity.ResumeReplicationOnDestination(context.Background(), inputResult)
+		result, err := activity.ResumeReplicationOnDestination(context.Background(), inputResult, params)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, *result.JobId, "job-uuid")

@@ -405,6 +405,7 @@ type ResumeReplicationParams struct {
 	CorrelationId         string
 	VolumeResourceId      string
 	ReplicationResourceId string
+	Force                 bool
 }
 
 // UpdateHostGroupParams describes parameters supplied to UpdateHostGroup

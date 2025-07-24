@@ -41,7 +41,7 @@ func ResumeReplicationWorkflow(ctx workflow.Context, params *commonparams.Resume
 			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		}
 	}()
-	_, err = repWf.Run(ctx, event)
+	_, err = repWf.Run(ctx, event, params)
 	if err != nil {
 		logger.Info("Resume Replication workflow run executed with error", "error", err)
 	}
@@ -69,6 +69,7 @@ func (wf *ReplicationResumeWorkflow) Setup(ctx workflow.Context, input interface
 
 func (wf *ReplicationResumeWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
 	event := args[0].(*replication.ResumeReplicationEvent)
+	params := args[1].(*commonparams.ResumeReplicationParams)
 	replicationActivity := &replicationActivities.ResumeVolumeReplicationActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
@@ -127,7 +128,7 @@ func (wf *ReplicationResumeWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.ResumeReplicationOnDestination, &replicationResult).Get(ctx, &replicationResult)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.ResumeReplicationOnDestination, &replicationResult, params).Get(ctx, &replicationResult)
 	if err != nil {
 		return nil, err
 	}

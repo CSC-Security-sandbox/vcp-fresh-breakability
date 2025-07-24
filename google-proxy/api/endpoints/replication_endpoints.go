@@ -405,6 +405,7 @@ func (h Handler) V1betaResumeReplication(ctx context.Context, params gcpgenserve
 		CorrelationId:         params.XCorrelationID.Value,
 		VolumeResourceId:      params.VolumeResourceId,
 		ReplicationResourceId: params.ReplicationResourceId,
+		Force:                 false,
 	}
 
 	volumeRep, jobUUID, err := h.Orchestrator.ResumeReplication(ctx, resumeReplicationParams)
@@ -607,6 +608,69 @@ func (h Handler) V1betaStopReplication(ctx context.Context, req *gcpgenserver.Re
 			Done:     gcpgenserver.NewOptBool(false),
 		}, nil
 	}
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}
+
+func (h Handler) V1betaSyncReplication(ctx context.Context, params gcpgenserver.V1betaSyncReplicationParams) (gcpgenserver.V1betaSyncReplicationRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	if !crrEnabled {
+		return &gcpgenserver.V1betaSyncReplicationForbidden{
+			Code:    400,
+			Message: "CRR is not enabled",
+		}, nil
+	}
+	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaSyncReplicationBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	syncReplicationParams := &common.ResumeReplicationParams{
+		AccountName:           params.ProjectNumber,
+		Region:                region,
+		Zone:                  zone,
+		CorrelationId:         params.XCorrelationID.Value,
+		VolumeResourceId:      params.VolumeResourceId,
+		ReplicationResourceId: params.ReplicationResourceId,
+		Force:                 true,
+	}
+
+	volumeRep, jobUUID, err := h.Orchestrator.SyncReplication(ctx, syncReplicationParams)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaSyncReplicationBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to sync replication", "error", err.Error())
+		return &gcpgenserver.V1betaSyncReplicationInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+	resp, err := encodeVolumeReplicationV1(convertResumeModelToVCPVolumeReplicationV1beta(volumeRep))
+	if err != nil {
+		return nil, err
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	if volumeRep.State == models2.LifeCycleStateUpdating {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+
 	return &gcpgenserver.OperationV1beta{
 		Name:     gcpgenserver.NewOptString(operationID),
 		Response: resp,
