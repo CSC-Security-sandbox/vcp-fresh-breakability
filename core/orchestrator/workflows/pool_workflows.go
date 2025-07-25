@@ -49,7 +49,7 @@ var (
 
 	vsaImageName      = env.GetString("VSA_IMAGE_NAME", "r9-17-1xn-250710-0000-gcnv")
 	vsaFilesImageName = env.GetString("VSA_FILES_IMAGE_NAME", "r9-18-1xn-250722-0000")
-	mediatorImage     = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "devn-250315-0200-mediator-debian-12")
+	mediatorImage     = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "r9-17-1xn-250704-0000-mediator-debian-12")
 )
 
 const (

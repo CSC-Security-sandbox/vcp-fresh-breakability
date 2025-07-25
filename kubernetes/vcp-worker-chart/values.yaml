@@ -83,7 +83,7 @@ workerConfig:
   # Mediator VM Configuration
   vsaMediatorInstanceType: "n2-standard-4"
   vsaMediatorDiskType: "pd-ssd"
-  vsaMediatorImageName: "devn-250315-0200-mediator-debian-12"
+  vsaMediatorImageName: "r9-17-1xn-250704-0000-mediator-debian-12"
 
   # Harvest Configuration
   serviceControlUrl: "https://servicecontrol.googleapis.com"
