@@ -227,3 +227,32 @@ func (j *BackupVaultActivity) UpdateBackupVaultStateInCaseOfError(ctx context.Co
 	}
 	return nil
 }
+
+// DeleteBackupVaultBuckets deletes all buckets associated with a backup vault
+func (j *BackupVaultActivity) DeleteBackupVaultBuckets(ctx context.Context, backupVault *datamodel.BackupVault) error {
+	if backupVault == nil {
+		return errors.New("backupVault parameter is nil")
+	}
+
+	logger := util.GetLogger(ctx)
+
+	// Get GCP service for bucket deletion
+	gcpService, err := GetGCPService(ctx)
+	if err != nil {
+		return errors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Delete each bucket associated with the backup vault
+	for _, bucketDetail := range backupVault.BucketDetails {
+		if bucketDetail.BucketName != "" {
+			logger.Infof("Deleting bucket %s for backup vault %s", bucketDetail.BucketName, backupVault.Name)
+			err = DeleteGCPBucket(ctx, bucketDetail.BucketName, gcpService)
+			if err != nil {
+				logger.Errorf("Failed to delete bucket %s: %v", bucketDetail.BucketName, err)
+				return errors.WrapAsTemporalApplicationError(err)
+			}
+			logger.Infof("Successfully deleted bucket %s", bucketDetail.BucketName)
+		}
+	}
+	return nil
+}

@@ -220,6 +220,17 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, fmt.Errorf("DeleteBackupVaultInSDE failed: %w", err)
 	}
 
+	// Delete associated buckets
+	err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultBuckets, backupVault).Get(ctx, nil)
+	if err != nil {
+		wf.Logger.Error("Failed to delete backup vault buckets", log.Fields{
+			"error":  err,
+			"params": backupVault,
+		})
+		return nil, fmt.Errorf("DeleteBackupVaultBuckets failed: %w", err)
+	}
+
+	// Delete backup vault in VCP database
 	dbBackupVault := &datamodel.BackupVault{}
 	err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultInVCP, bvCommonParams.BackupVaultID).Get(ctx, &dbBackupVault)
 	if err != nil {

@@ -219,10 +219,12 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_Success() {
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(backupvaultDeleteActivity.DeleteBackupVaultInSDE)
+	s.env.RegisterActivity(backupvaultDeleteActivity.DeleteBackupVaultBuckets)
 	s.env.RegisterActivity(backupvaultDeleteActivity.DeleteBackupVaultInVCP)
 
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 	s.env.OnActivity(backupvaultDeleteActivity.DeleteBackupVaultInSDE, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(backupvaultDeleteActivity.DeleteBackupVaultBuckets, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupvaultDeleteActivity.DeleteBackupVaultInVCP, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	// Execute workflow
@@ -309,10 +311,12 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_DeleteVCPError() {
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(backupvaultDeleteActivity.DeleteBackupVaultInSDE)
+	s.env.RegisterActivity(backupvaultDeleteActivity.DeleteBackupVaultBuckets)
 	s.env.RegisterActivity(backupvaultDeleteActivity.DeleteBackupVaultInVCP)
 
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 	s.env.OnActivity(backupvaultDeleteActivity.DeleteBackupVaultInSDE, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(backupvaultDeleteActivity.DeleteBackupVaultBuckets, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupvaultDeleteActivity.DeleteBackupVaultInVCP, mock.Anything, mock.Anything).Return(nil, errors.New("failed to update backup vault in VCP"))
 	s.env.OnActivity(backupvaultDeleteActivity.UpdateBackupVaultStateInCaseOfError, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
@@ -360,6 +364,54 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_SignedTokenError() {
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get signed JWT token"))
 	s.env.OnActivity(backupvaultDeleteActivity.UpdateBackupVaultStateInCaseOfError, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+	// Execute workflow
+	s.env.ExecuteWorkflow(DeleteBackupVaultWorkflow, &common.BackupVaultParams{}, bv)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_DeleteBucketsError() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupvaultDeleteActivity := activities.BackupVaultActivity{SE: mockStorage}
+	des := "description of backup vault"
+	mrd := int64(30)
+	getSignedJwtToken = func(projectNumber string) (string, error) {
+		return "test-jwt-token", nil
+	}
+	defer func() {
+		getSignedJwtToken = auth.GetSignedJwtToken
+	}()
+	bv := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{ID: int64(1)},
+		Name:        "backup_vault_test",
+		Description: &des,
+		ImmutableAttributes: &datamodel.ImmutableAttributes{
+			IsDailyBackupImmutable:                 true,
+			IsWeeklyBackupImmutable:                true,
+			IsMonthlyBackupImmutable:               true,
+			IsAdhocBackupImmutable:                 true,
+			BackupMinimumEnforcedRetentionDuration: &mrd,
+		},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(backupvaultDeleteActivity.DeleteBackupVaultInSDE)
+	s.env.RegisterActivity(backupvaultDeleteActivity.DeleteBackupVaultBuckets)
+	s.env.RegisterActivity(backupvaultDeleteActivity.DeleteBackupVaultInVCP)
+
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+	s.env.OnActivity(backupvaultDeleteActivity.DeleteBackupVaultInSDE, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(backupvaultDeleteActivity.DeleteBackupVaultBuckets, mock.Anything, mock.Anything).Return(errors.New("failed to delete backup vault buckets"))
+	s.env.OnActivity(backupvaultDeleteActivity.UpdateBackupVaultStateInCaseOfError, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
 	// Execute workflow
 	s.env.ExecuteWorkflow(DeleteBackupVaultWorkflow, &common.BackupVaultParams{}, bv)
 
