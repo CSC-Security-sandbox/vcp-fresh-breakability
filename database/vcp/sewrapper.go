@@ -329,11 +329,11 @@ func (re *retryEngine) GetPoolsByAccountName(ctx context.Context, accountName st
 	return var0, err
 }
 
-func (re *retryEngine) CreateVolume(ctx context.Context, volume *datamodel.Volume, isRestore bool) (*datamodel.Volume, error) {
+func (re *retryEngine) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
 	var var0 *datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.CreateVolume(ctx, volume, isRestore)
+		var0, err = re.dataStore.CreateVolume(ctx, volume)
 		if err != nil {
 			re.logError("CreateVolume", err)
 			if !isTransientErr(err) {

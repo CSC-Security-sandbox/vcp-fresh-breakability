@@ -1353,14 +1353,15 @@ func TestCreateVolume(t *testing.T) {
 
 		minEnforcedRetentionDuration := int64(30)
 		bv := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
 			Name:      "bv1",
-			AccountID: 2,
+			AccountID: 0,
 			ImmutableAttributes: &datamodel.ImmutableAttributes{
 				BackupMinimumEnforcedRetentionDuration: &minEnforcedRetentionDuration,
 			},
 		}
-		backup := &datamodel.Backup{Name: "backupName", VolumeUUID: "463811e7-9760-acf5-9bdb-020073ca3335", State: "creating"}
+
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "463811e7-9760-acf5-9bdb-020073ca3333"}, Name: "backupName", VolumeUUID: "463811e7-9760-acf5-9bdb-020073ca3335", State: "creating"}
 
 		err = store.DB().Create(bv).Error
 		if err != nil {
@@ -1390,7 +1391,7 @@ func TestCreateVolume(t *testing.T) {
 				BackupChainBytes:       &[]int64{1000}[0],
 			},
 			BackupID:   "463811e7-9760-acf5-9bdb-020073ca3333",
-			BackupPath: "projects/123456789/locations/us-e4/backupVaults/bv1/backups/backupName",
+			BackupPath: "projects/project123/locations/location123/backupVaults/bv1/backups/backupName",
 		}
 
 		dbAccount := &datamodel.Account{
@@ -1498,7 +1499,7 @@ func TestCreateVolume(t *testing.T) {
 
 		minEnforcedRetentionDuration := int64(30)
 		bv := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "backup-vault-uuid"},
+			BaseModel: datamodel.BaseModel{UUID: "backup-vault-uuid"},
 			Name:      "bv1",
 			AccountID: account.ID,
 			ImmutableAttributes: &datamodel.ImmutableAttributes{
@@ -2047,7 +2048,7 @@ func TestCreateVolume(t *testing.T) {
 			AccountID: account.ID,
 			PoolID:    pool.ID,
 		}
-		createdVolume, err := store.CreateVolume(ctx, volume, false)
+		createdVolume, err := store.CreateVolume(ctx, volume)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, "test_volume", createdVolume.Name)
 		assert.Equal(tt, models.LifeCycleStateCreating, createdVolume.State)
@@ -2083,7 +2084,7 @@ func TestCreateVolume(t *testing.T) {
 		}
 		assert.NoError(tt, store.DB().Create(volume).Error)
 
-		createdVolume, err := store.CreateVolume(ctx, volume, false)
+		createdVolume, err := store.CreateVolume(ctx, volume)
 		assert.Error(tt, err, "Expected error, got nil")
 		assert.Nil(tt, createdVolume, "Expected nil volume")
 		assert.Contains(tt, err.Error(), "volume already exists")

@@ -178,6 +178,8 @@ type VolumeAttributes struct {
 	IsDataProtection bool             `json:"is_data_protection"`
 	SnapReserve      int64            `json:"snap_reserve"`
 	Labels           *JSONB           `json:"labels"`
+	RestoredBackupID   string           `json:"restored_backup_id"`
+	RestoredBackupPath string           `json:"restored_backup_path"`
 }
 
 type BlockProperties struct {

@@ -181,36 +181,44 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 	}
 
-	var isRestore bool
-	if params.BackupPath != "" && params.BackupID != "" {
-		isRestore = true
-	}
-	dbVolume, err := se.CreateVolume(ctx, volumeObj, isRestore)
-	if err != nil {
-		return nil, "", err
-	}
-
 	var backupVault *datamodel.BackupVault
 	var backup *datamodel.Backup
 
-	logger.Debug("params.BackupID : %v and params.BackupPath: %v", params.BackupID, params.BackupPath)
-	if params.BackupID != "" && params.BackupPath != "" {
-		components := strings.Split(params.BackupPath, "/")
+	if params.BackupPath != "" || params.BackupID != "" {
+		if volumeObj.VolumeAttributes == nil {
+			volumeObj.VolumeAttributes = &datamodel.VolumeAttributes{}
+		}
+		if params.BackupID != "" {
+			logger.Debug("params.BackupID : %v", params.BackupID)
+			volumeObj.VolumeAttributes.RestoredBackupID = params.BackupID
+		}
+		if params.BackupPath != "" {
+			logger.Debug("params.BackupPath: %v", params.BackupPath)
+			volumeObj.VolumeAttributes.RestoredBackupPath = params.BackupPath
+			components := strings.Split(params.BackupPath, "/")
 
-		// Ensure there are enough components to avoid out of range errors
-		if len(components) < MaxBackupPathComponents {
-			return nil, "", customerrors.NewUserInputValidationErr("Backup path is not in correct format")
+			// Ensure there are enough components to avoid out of range errors
+			if len(components) < MaxBackupPathComponents {
+				return nil, "", customerrors.NewUserInputValidationErr("Backup path is not in correct format")
+			}
+			backupVaultName := components[BackupVaultNameIndex]
+			backupName := components[BackupNameIndex]
+			// backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, backupVaultName, strconv.FormatInt(account.ID, 10))
+			backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, backupVaultName, strconv.FormatInt(account.ID, 10))
+			if err != nil {
+				return nil, "", err
+			}
+			backup, err = se.GetBackupByNameAndBackupVaultID(ctx, backupName, backupVault.ID)
+			if err != nil {
+				return nil, "", err
+			}
+			volumeObj.VolumeAttributes.RestoredBackupID = backup.UUID // Set the restored backup ID from the backup object
 		}
-		backupVaultName := components[BackupVaultNameIndex]
-		backupName := components[BackupNameIndex]
-		backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, backupVaultName, strconv.FormatInt(account.ID, 10))
-		if err != nil {
-			return nil, "", err
-		}
-		backup, err = se.GetBackupByNameAndBackupVaultID(ctx, backupName, backupVault.ID)
-		if err != nil {
-			return nil, "", err
-		}
+	}
+
+	dbVolume, err := se.CreateVolume(ctx, volumeObj)
+	if err != nil {
+		return nil, "", err
 	}
 
 	location, err := getLocationFromVendorID(dbVolume.Pool.VendorID)

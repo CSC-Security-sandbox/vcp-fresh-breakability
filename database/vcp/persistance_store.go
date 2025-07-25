@@ -409,8 +409,8 @@ func (s *PersistenceStore) UpdatePoolWithKmsConfigID(ctx context.Context, pool *
 	return s.dataStore.UpdatePoolWithKmsConfigID(ctx, pool, kmsConfigUUID)
 }
 
-func (s *PersistenceStore) CreateVolume(ctx context.Context, volume *datamodel.Volume, isRestore bool) (*datamodel.Volume, error) {
-	return s.dataStore.CreateVolume(ctx, volume, isRestore)
+func (s *PersistenceStore) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
+	return s.dataStore.CreateVolume(ctx, volume)
 }
 
 func (s *PersistenceStore) CreateVolumeReplication(ctx context.Context, volumeRep *datamodel.VolumeReplication) (*datamodel.VolumeReplication, error) {

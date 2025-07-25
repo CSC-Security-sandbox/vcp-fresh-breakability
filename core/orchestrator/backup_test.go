@@ -385,6 +385,8 @@ func TestDeleteBackup(t *testing.T) {
 			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: params.BackupVaultUUID}},
 		}
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
+		conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", backup.UUID}, {"state = ?", "RESTORING"}}
+		store.On("ListVolumes", ctx, conditions).Return(nil, nil)
 		store.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
 		store.On("UpdateBackupState", ctx, mock.Anything).Return(backup, nil)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
@@ -477,6 +479,8 @@ func TestDeleteBackup(t *testing.T) {
 			validateBackupDeleteParams = _validateBackupDeleteParams
 		}()
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(&datamodel.Backup{}, nil)
+		conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", ""}, {"state = ?", "RESTORING"}}
+		store.On("ListVolumes", ctx, conditions).Return(nil, nil)
 		store.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("job creation failed"))
 
 		_, _, err := deleteBackup(ctx, store, temporal, params)
@@ -503,6 +507,8 @@ func TestDeleteBackup(t *testing.T) {
 			validateBackupDeleteParams = _validateBackupDeleteParams
 		}()
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(&datamodel.Backup{}, nil)
+		conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", ""}, {"state = ?", "RESTORING"}}
+		store.On("ListVolumes", ctx, conditions).Return(nil, nil)
 		store.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{}, nil)
 		store.On("UpdateBackupState", ctx, mock.Anything).Return(nil, errors.New("update state failed"))
 
@@ -530,6 +536,8 @@ func TestDeleteBackup(t *testing.T) {
 			validateBackupDeleteParams = _validateBackupDeleteParams
 		}()
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(&datamodel.Backup{}, nil)
+		conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", ""}, {"state = ?", "RESTORING"}}
+		store.On("ListVolumes", ctx, conditions).Return(nil, nil)
 		store.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{}, nil)
 		store.On("UpdateBackupState", ctx, mock.Anything).Return(&datamodel.Backup{}, nil)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow execution failed")).Once()

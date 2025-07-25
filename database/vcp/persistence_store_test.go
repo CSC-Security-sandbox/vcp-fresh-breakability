@@ -267,7 +267,7 @@ func TestCreateVolume_Persistence_Store(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	vol := &datamodel.Volume{Name: "vol1"}
-	created, err := store.CreateVolume(ctx, vol, false)
+	created, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 }
@@ -278,7 +278,7 @@ func TestGetVolume_Persistence_Store(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	vol := &datamodel.Volume{Name: "vol2"}
-	created, err := store.CreateVolume(ctx, vol, false)
+	created, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 	found, err := store.GetVolume(ctx, created.UUID)
 	assert.NoError(t, err)
@@ -291,7 +291,7 @@ func TestUpdateVolume_Persistence_Store(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	vol := &datamodel.Volume{Name: "vol3"}
-	created, err := store.CreateVolume(ctx, vol, false)
+	created, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 	created.Name = "vol3-updated"
 	err = store.UpdateVolume(ctx, created)
@@ -304,7 +304,7 @@ func TestDeleteVolume_Persistence_Store(t *testing.T) {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
 	vol := &datamodel.Volume{Name: "vol4"}
-	created, err := store.CreateVolume(ctx, vol, false)
+	created, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 	_, err = store.DeleteVolume(ctx, created.UUID)
 	assert.NoError(t, err)
@@ -573,7 +573,7 @@ func TestGetAppConsistentSnapshotsForVolume_Persistence_Store(t *testing.T) {
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
 	vol := &datamodel.Volume{Name: "vol_snap", AccountID: createdAcc.ID}
-	createdVol, err := store.CreateVolume(ctx, vol, false)
+	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 	// Create a snapshot associated with the account and volume
 	snap := &datamodel.Snapshot{Name: "snap4", AccountID: createdAcc.ID, VolumeID: createdVol.ID, IsAppConsistent: true}
@@ -597,7 +597,7 @@ func TestGetSnapshotsByVolumeID_Persistence_Store(t *testing.T) {
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
 	vol := &datamodel.Volume{Name: "vol_snap2", AccountID: createdAcc.ID}
-	createdVol, err := store.CreateVolume(ctx, vol, false)
+	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
 	// Create two snapshots for the volume
@@ -637,10 +637,10 @@ func TestGetSnapshotsByVolumeIDs_Persistence_Store(t *testing.T) {
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
 	vol1 := &datamodel.Volume{Name: "test-volume-1", AccountID: createdAcc.ID}
-	createdVol1, err := store.CreateVolume(ctx, vol1, false)
+	createdVol1, err := store.CreateVolume(ctx, vol1)
 	assert.NoError(t, err)
 	vol2 := &datamodel.Volume{Name: "test-volume-2", AccountID: createdAcc.ID}
-	createdVol2, err := store.CreateVolume(ctx, vol2, false)
+	createdVol2, err := store.CreateVolume(ctx, vol2)
 	assert.NoError(t, err)
 
 	// Create two snapshots for the volume
@@ -674,7 +674,7 @@ func TestBatchDeleteSnapshots_Persistence_Store(t *testing.T) {
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
 	vol := &datamodel.Volume{Name: "test-volume", AccountID: createdAcc.ID}
-	createdVol, err := store.CreateVolume(ctx, vol, false)
+	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
 	// Create two snapshots for the volume
@@ -725,7 +725,7 @@ func TestGetReplicationSnapshotsByVolumeID_Persistence_Store(t *testing.T) {
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
 	vol := &datamodel.Volume{Name: "vol_snap2", AccountID: createdAcc.ID}
-	createdVol, err := store.CreateVolume(ctx, vol, false)
+	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
 	// Create two snapshots for the volume
@@ -889,7 +889,7 @@ func TestUpdateVolumeFields_Persistence_Store(t *testing.T) {
 
 	// Create a volume to update
 	vol := &datamodel.Volume{Name: "vol-update-fields"}
-	created, err := store.CreateVolume(ctx, vol, false)
+	created, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
 	// Case 1: Successful update
@@ -1024,7 +1024,7 @@ func TestVerifyVolumeOwnership_Persistence_Store(t *testing.T) {
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
 	vol := &datamodel.Volume{Name: "vol_verify", AccountID: createdAcc.ID}
-	createdVol, err := store.CreateVolume(ctx, vol, false)
+	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
 	// Verify ownership
@@ -1047,7 +1047,7 @@ func TestIsBackupInCreatingStateByVolume_Persistence_Store(t *testing.T) {
 
 	// Create a volume
 	vol := &datamodel.Volume{Name: "vol_backup_state"}
-	createdVol, err := store.CreateVolume(ctx, vol, false)
+	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
 	// Check backup state (should be false initially)
@@ -1215,7 +1215,7 @@ func TestListVolumeReplications_Persistence_Store(t *testing.T) {
 	createdAcc, err := store.CreateAccount(ctx, acc)
 	assert.NoError(t, err)
 	vol := &datamodel.Volume{Name: "vol_snap2", AccountID: createdAcc.ID}
-	createdVol, err := store.CreateVolume(ctx, vol, false)
+	createdVol, err := store.CreateVolume(ctx, vol)
 	assert.NoError(t, err)
 
 	// Create a volume replication
@@ -1339,9 +1339,9 @@ func TestGetVolumeCountByBackupVaultID_Persistence_Store(t *testing.T) {
 	// Create volumes associated with the backup vault
 	volume1 := &datamodel.Volume{DataProtection: &datamodel.DataProtection{BackupVaultID: createdVault.UUID}, Name: "volume1"}
 	volume2 := &datamodel.Volume{DataProtection: &datamodel.DataProtection{BackupVaultID: createdVault.UUID}, Name: "volume2"}
-	_, err = store.CreateVolume(ctx, volume1, false)
+	_, err = store.CreateVolume(ctx, volume1)
 	assert.NoError(t, err)
-	_, err = store.CreateVolume(ctx, volume2, false)
+	_, err = store.CreateVolume(ctx, volume2)
 	assert.NoError(t, err)
 
 	// Call the method under test
@@ -1396,11 +1396,11 @@ func TestListBackupPolicyVolumeCount_Persistence_Store(t *testing.T) {
 	vol1 := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "uuid-1"}, Name: "vol1", DataProtection: &datamodel.DataProtection{BackupPolicyID: "uuid-1"}}
 	vol2 := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "uuid-2"}, Name: "vol2", DataProtection: &datamodel.DataProtection{BackupPolicyID: "uuid-1"}}
 	vol3 := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "uuid-3"}, Name: "vol3", DataProtection: &datamodel.DataProtection{BackupPolicyID: "uuid-2"}}
-	_, err = store.CreateVolume(ctx, vol1, false)
+	_, err = store.CreateVolume(ctx, vol1)
 	assert.NoError(t, err)
-	_, err = store.CreateVolume(ctx, vol2, false)
+	_, err = store.CreateVolume(ctx, vol2)
 	assert.NoError(t, err)
-	_, err = store.CreateVolume(ctx, vol3, false)
+	_, err = store.CreateVolume(ctx, vol3)
 	assert.NoError(t, err)
 
 	// List backup policy volume counts

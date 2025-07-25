@@ -166,7 +166,7 @@ func TestCreateVolume(t *testing.T) {
 			tt.Fatalf("Failed to create volume: %v", err)
 		}
 
-		createdVolume, err := store.CreateVolume(context.Background(), volume, false)
+		createdVolume, err := store.CreateVolume(context.Background(), volume)
 		assert.EqualError(tt, err, "volume already exists", "Expected error 'volume already exists', got %v", err)
 		assert.Nil(tt, createdVolume, "Expected nil volume, got %v", createdVolume)
 	})
@@ -198,9 +198,13 @@ func TestCreateVolume(t *testing.T) {
 			Account:   account,
 			Pool:      pool,
 			PoolID:    pool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				RestoredBackupID:   "test-backup-uuid",
+				RestoredBackupPath: "test-backup-path",
+			},
 		}
 
-		createdVolume, err := store.CreateVolume(context.Background(), volume, true)
+		createdVolume, err := store.CreateVolume(context.Background(), volume)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, volume.Name, createdVolume.Name, "Expected volume name %v, got %v", volume.Name, createdVolume.Name)
 		assert.Equal(tt, models.LifeCycleStateRestoring, createdVolume.State, "Expected volume state %v, got %v", models.LifeCycleStateRestoring, createdVolume.State)

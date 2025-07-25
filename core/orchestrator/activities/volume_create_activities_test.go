@@ -38,10 +38,10 @@ func TestCreateVolume_Success(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	volume := &datamodel.Volume{Name: "test-volume"}
 
-	mockStorage.On("CreateVolume", ctx, volume, false).Return(volume, nil)
+	mockStorage.On("CreateVolume", ctx, volume).Return(volume, nil)
 
 	// Act
-	result, err := activity.CreateVolume(ctx, volume, false)
+	result, err := activity.CreateVolume(ctx, volume)
 
 	// Assert
 	assert.NoError(t, err)
@@ -57,10 +57,10 @@ func TestCreateVolume_Failure(t *testing.T) {
 	volume := &datamodel.Volume{Name: "test-volume"}
 	expectedError := errors.New("failed to create volume")
 
-	mockStorage.On("CreateVolume", ctx, volume, false).Return(nil, expectedError)
+	mockStorage.On("CreateVolume", ctx, volume).Return(nil, expectedError)
 
 	// Act
-	result, err := activity.CreateVolume(ctx, volume, false)
+	result, err := activity.CreateVolume(ctx, volume)
 
 	// Assert
 	assert.Error(t, err)
@@ -93,7 +93,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
 
 		// Mock the CreateVolume method
-		mockProvider.On("CreateVolume", mock.Anything, mock.Anything).Return(expectedResponse, nil)
+		mockProvider.On("CreateVolume", mock.Anything).Return(expectedResponse, nil)
 
 		// Act
 		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
@@ -216,7 +216,7 @@ func TestCreateVolumeInONTAP_Success_AlreadyCreated(t *testing.T) {
 	node := &models.Node{}
 	expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024, State: "online"}
 
-	mockProvider.On("CreateVolume", mock.Anything, mock.Anything).Return(nil, utilErrors.NewConflictErr("volume already exists"))
+	mockProvider.On("CreateVolume", mock.Anything).Return(nil, utilErrors.NewConflictErr("volume already exists"))
 	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm"}).Return(expectedResponse, nil)
 
 	// Act
@@ -251,7 +251,7 @@ func TestCreateVolumeInONTAP_Failure(t *testing.T) {
 	node := &models.Node{}
 	expectedError := errors.New("failed to create volume in ONTAP")
 
-	mockProvider.On("CreateVolume", mock.Anything, mock.Anything).Return(nil, expectedError)
+	mockProvider.On("CreateVolume", mock.Anything).Return(nil, expectedError)
 
 	// Act
 	result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
@@ -909,7 +909,7 @@ func TestCreateVolumeInONTAP_CheckVolumeExistsError(t *testing.T) {
 		}}
 	node := &models.Node{}
 
-	mockProvider.On("CreateVolume", mock.Anything, mock.Anything).Return(nil, utilErrors.NewConflictErr("volume already exists"))
+	mockProvider.On("CreateVolume", mock.Anything).Return(nil, utilErrors.NewConflictErr("volume already exists"))
 	mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "", VolumeName: "test-volume", SvmName: "test-svm"}).Return(nil, errors.New("volume not found"))
 
 	// Act

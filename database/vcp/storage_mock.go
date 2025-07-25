@@ -1118,9 +1118,9 @@ func (_c *MockStorage_CreateSVM_Call) RunAndReturn(run func(context.Context, *da
 	return _c
 }
 
-// CreateVolume provides a mock function with given fields: ctx, volume, isRestore
-func (_m *MockStorage) CreateVolume(ctx context.Context, volume *datamodel.Volume, isRestore bool) (*datamodel.Volume, error) {
-	ret := _m.Called(ctx, volume, isRestore)
+// CreateVolume provides a mock function with given fields: ctx, volume
+func (_m *MockStorage) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
+	ret := _m.Called(ctx, volume)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateVolume")
@@ -1128,19 +1128,19 @@ func (_m *MockStorage) CreateVolume(ctx context.Context, volume *datamodel.Volum
 
 	var r0 *datamodel.Volume
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, bool) (*datamodel.Volume, error)); ok {
-		return rf(ctx, volume, isRestore)
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume) (*datamodel.Volume, error)); ok {
+		return rf(ctx, volume)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, bool) *datamodel.Volume); ok {
-		r0 = rf(ctx, volume, isRestore)
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume) *datamodel.Volume); ok {
+		r0 = rf(ctx, volume)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.Volume)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Volume, bool) error); ok {
-		r1 = rf(ctx, volume, isRestore)
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Volume) error); ok {
+		r1 = rf(ctx, volume)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1156,14 +1156,13 @@ type MockStorage_CreateVolume_Call struct {
 // CreateVolume is a helper method to define mock.On call
 //   - ctx context.Context
 //   - volume *datamodel.Volume
-//   - isRestore bool
-func (_e *MockStorage_Expecter) CreateVolume(ctx interface{}, volume interface{}, isRestore interface{}) *MockStorage_CreateVolume_Call {
-	return &MockStorage_CreateVolume_Call{Call: _e.mock.On("CreateVolume", ctx, volume, isRestore)}
+func (_e *MockStorage_Expecter) CreateVolume(ctx interface{}, volume interface{}) *MockStorage_CreateVolume_Call {
+	return &MockStorage_CreateVolume_Call{Call: _e.mock.On("CreateVolume", ctx, volume)}
 }
 
-func (_c *MockStorage_CreateVolume_Call) Run(run func(ctx context.Context, volume *datamodel.Volume, isRestore bool)) *MockStorage_CreateVolume_Call {
+func (_c *MockStorage_CreateVolume_Call) Run(run func(ctx context.Context, volume *datamodel.Volume)) *MockStorage_CreateVolume_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.Volume), args[2].(bool))
+		run(args[0].(context.Context), args[1].(*datamodel.Volume))
 	})
 	return _c
 }
@@ -1173,7 +1172,7 @@ func (_c *MockStorage_CreateVolume_Call) Return(_a0 *datamodel.Volume, _a1 error
 	return _c
 }
 
-func (_c *MockStorage_CreateVolume_Call) RunAndReturn(run func(context.Context, *datamodel.Volume, bool) (*datamodel.Volume, error)) *MockStorage_CreateVolume_Call {
+func (_c *MockStorage_CreateVolume_Call) RunAndReturn(run func(context.Context, *datamodel.Volume) (*datamodel.Volume, error)) *MockStorage_CreateVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }

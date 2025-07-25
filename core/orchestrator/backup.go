@@ -284,6 +284,17 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	if err != nil {
 		return nil, "", err
 	}
+
+	// Check whether any volume restore is in progress for this backup
+	conditions := [][]interface{}{{"volume_attributes->>'restored_backup_id' = ?", backup.UUID}, {"state = ?", models.LifeCycleStateRestoring}}
+	volumes, err := se.ListVolumes(ctx, conditions)
+	if err != nil {
+		return nil, "", err
+	}
+	if len(volumes) > 0 {
+		return nil, "", customerrors.NewUserInputValidationErr("Cannot delete backup as restore is in progress for this backup")
+	}
+
 	backup.State = models.LifeCycleStateDeleting
 	backup.StateDetails = models.LifeCycleStateDeletingDetails
 

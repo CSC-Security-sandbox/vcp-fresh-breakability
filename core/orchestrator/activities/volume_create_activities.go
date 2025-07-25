@@ -48,10 +48,10 @@ var (
 	CheckForBucketResourceName  = _checkForBucketResourceName
 )
 
-func (a VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamodel.Volume, isRestore bool) (*datamodel.Volume, error) {
+func (a VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
 	se := a.SE
 
-	return se.CreateVolume(ctx, volume, isRestore)
+	return se.CreateVolume(ctx, volume)
 }
 
 func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot, backup *datamodel.Backup) (*vsa.VolumeResponse, error) {

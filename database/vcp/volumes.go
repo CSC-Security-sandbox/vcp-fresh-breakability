@@ -21,7 +21,7 @@ var (
 	listVolumesWithDetails = _listVolumesWithDetails
 )
 
-func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamodel.Volume, isRestore bool) (*datamodel.Volume, error) {
+func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err1 := startTransaction(db)
 	if err1 != nil {
@@ -33,7 +33,7 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 	err2 := tx.Where("name = ?", volume.Name).Where("account_id = ?", volume.AccountID).First(&volume).Error
 	if errors.Is(err2, gorm.ErrRecordNotFound) {
 		volume.UUID = utils.RandomUUID()
-		if isRestore {
+		if volume.VolumeAttributes != nil && volume.VolumeAttributes.RestoredBackupID != "" && volume.VolumeAttributes.RestoredBackupPath != "" {
 			// This is volume restore case
 			volume.State = models.LifeCycleStateRestoring
 			volume.StateDetails = models.LifeCycleStateRestoringDetails
