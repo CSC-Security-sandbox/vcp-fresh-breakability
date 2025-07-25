@@ -9,7 +9,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -24,36 +23,39 @@ type volumeDeleteWorkflow struct {
 var _ WorkflowInterface = &volumeDeleteWorkflow{}
 
 // DeleteVolumeWorkflow Delete Volume Workflow process volume related requests from a customer.
-func DeleteVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume) (gcpgenserver.V1betaDescribeVolumeRes, error) {
+func DeleteVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume) error {
 	log := util.GetLogger(ctx)
 	volumeWf := new(volumeDeleteWorkflow)
 	err := volumeWf.Setup(ctx, volume)
 	if err != nil {
-		return nil, err
+		log.Errorf("Volume delete workflow setup executed with error: %v", err)
+		return err
 	}
 	volumeWf.Status = WorkflowStatusRunning
 	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		log.Errorf("Failed to update job status to Processing for DeleteVolumeWorkflow: %v", err)
+		return err
 	}
-
-	defer func() {
-		if err != nil {
-			volumeWf.Status = WorkflowStatusFailed
-			err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
-		} else {
-			volumeWf.Status = WorkflowStatusCompleted
-			err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-		}
-	}()
 
 	_, err = volumeWf.Run(ctx, volume)
 	if err != nil {
-		log.Errorf("Volume delete workflow completed with error: %v", err)
-		return nil, err
+		log.Errorf("DeleteVolumeWorkflow completed with error: %v", err)
+		volumeWf.Status = WorkflowStatusFailed
+		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err2 != nil {
+			log.Errorf("Failed to update job status to Done with err for DeleteVolumeWorkflow: %v", err)
+			return err2
+		}
+		return err
 	}
-	log.Infof("Volume delete workflow completed successfully")
-	return nil, err
+
+	volumeWf.Status = WorkflowStatusCompleted
+	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if err != nil {
+		log.Errorf("Failed to update job status to Done for DeleteVolumeWorkflow: %v", err)
+	}
+	return err
 }
 
 func (wf *volumeDeleteWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -111,7 +113,7 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, err
 	}
 
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID,AuthType: volume.Pool.PoolCredentials.AuthType})
+	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType})
 
 	var ontapAsyncResponse *vsa.OntapAsyncResponse
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapmirrorInONTAP, volume.UUID, &node).Get(ctx, &ontapAsyncResponse)

@@ -6,7 +6,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -23,36 +22,39 @@ type volumeUpdateWorkflow struct {
 var _ WorkflowInterface = &volumeUpdateWorkflow{}
 
 // UpdateVolumeWorkflow Update Volume Workflow process volume related requests from a customer.
-func UpdateVolumeWorkflow(ctx workflow.Context, params *common.UpdateVolumeParams, volume *datamodel.Volume) (gcpgenserver.V1betaDescribeVolumeRes, error) {
+func UpdateVolumeWorkflow(ctx workflow.Context, params *common.UpdateVolumeParams, volume *datamodel.Volume) error {
 	log := util.GetLogger(ctx)
 	volumeWf := new(volumeUpdateWorkflow)
 	err := volumeWf.Setup(ctx, volume)
 	if err != nil {
-		return nil, err
+		log.Errorf("Volume update workflow setup executed with error: %v", err)
+		return err
 	}
 	volumeWf.Status = WorkflowStatusRunning
 	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		log.Errorf("Failed to update job status to Processing for UpdateVolumeWorkflow: %v", err)
+		return err
 	}
-
-	defer func() {
-		if err != nil {
-			volumeWf.Status = WorkflowStatusFailed
-			err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
-		} else {
-			volumeWf.Status = WorkflowStatusCompleted
-			err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-		}
-	}()
 
 	_, err = volumeWf.Run(ctx, params, volume)
 	if err != nil {
-		log.Errorf("Volume update workflow completed with error: %v", err)
-		return nil, err
+		log.Errorf("UpdateVolumeWorkflow completed with error: %v", err)
+		volumeWf.Status = WorkflowStatusFailed
+		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err2 != nil {
+			log.Errorf("Failed to update job status to Done with err for UpdateVolumeWorkflow: %v", err)
+			return err2
+		}
+		return err
 	}
-	log.Infof("Volume update workflow completed successfully")
-	return nil, err
+
+	volumeWf.Status = WorkflowStatusCompleted
+	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if err != nil {
+		log.Errorf("Failed to update job status to Done for UpdateVolumeWorkflow: %v", err)
+	}
+	return err
 }
 
 func (wf *volumeUpdateWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -99,9 +101,9 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {
-			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateError, models.LifeCycleStateUpdateErrorDetails).Get(ctx, nil)
+			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
 			if err2 != nil {
-				log.Errorf("Failed to update volume state in DB to error: %v", err2)
+				log.Errorf("Failed to update volume state in DB to READY: %v", err2)
 			}
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)
@@ -155,11 +157,11 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	if isUpdateRequired(volResponse, params, volume) {
+		rollbackManager.AddActivity(updateActivity.UpdateVolumeInONTAP, volume, getUpdateParamsForRollback(volResponse, volume), node)
 		err = workflow.ExecuteActivity(ctx, updateActivity.UpdateVolumeInONTAP, volume, params, node).Get(ctx, nil)
 		if err != nil {
 			return nil, err
 		}
-		rollbackManager.AddActivity(updateActivity.UpdateVolumeInONTAP, volume, getUpdateParamsForRollback(volResponse, volume), node)
 	}
 
 	// Avoid updating the lun if the size is not changed

@@ -2622,7 +2622,7 @@ func TestPrepareUpdateVolumeParams_QuotaValidation(t *testing.T) {
 		out, err := _prepareUpdateVolumeParams(req, params, region)
 		assert.Error(t, err)
 		assert.Nil(t, out)
-		assert.Contains(t, err.Error(), "volume size must be between 100 GiB and 102400 GiB.")
+		assert.Contains(t, err.Error(), "Invalid volume capacity 99. Must be between 100 GiB and 102400 GiB.")
 	})
 
 	t.Run("QuotaAboveMaximum", func(t *testing.T) {
@@ -2632,7 +2632,7 @@ func TestPrepareUpdateVolumeParams_QuotaValidation(t *testing.T) {
 		out, err := _prepareUpdateVolumeParams(req, params, region)
 		assert.Error(t, err)
 		assert.Nil(t, out)
-		assert.Contains(t, err.Error(), "volume size must be between 100 GiB and 102400 GiB.")
+		assert.Contains(t, err.Error(), "Invalid volume capacity 102401. Must be between 100 GiB and 102400 GiB.")
 	})
 }
 
@@ -2671,28 +2671,28 @@ func TestValidateVolumeQuotaSize(t *testing.T) {
 		// Test below minimum
 		err := validateVolumeQuotaSize(50 * 1024 * 1024 * 1024) // 50 GiB
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "volume size must be between 100 GiB and 102400 GiB")
+		assert.Contains(tt, err.Error(), "Invalid volume capacity 50. Must be between 100 GiB and 102400 GiB.")
 	})
 
 	t.Run("AboveMaximumQuota_ReturnsError", func(tt *testing.T) {
 		// Test above maximum
 		err := validateVolumeQuotaSize(200000 * 1024 * 1024 * 1024) // 200,000 GiB
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "volume size must be between 100 GiB and 102400 GiB")
+		assert.Contains(tt, err.Error(), "Invalid volume capacity 200000. Must be between 100 GiB and 102400 GiB.")
 	})
 
 	t.Run("ZeroQuota_ReturnsError", func(tt *testing.T) {
 		// Test zero value
 		err := validateVolumeQuotaSize(0)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "volume size must be between 100 GiB and 102400 GiB")
+		assert.Contains(tt, err.Error(), "Invalid volume capacity 0. Must be between 100 GiB and 102400 GiB.")
 	})
 
 	t.Run("NegativeQuota_ReturnsError", func(tt *testing.T) {
 		// Test negative value
 		err := validateVolumeQuotaSize(-1024 * 1024 * 1024) // -1 GiB
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "volume size must be between 100 GiB and 102400 GiB")
+		assert.Contains(tt, err.Error(), "Invalid volume capacity -1. Must be between 100 GiB and 102400 GiB.")
 	})
 }
 

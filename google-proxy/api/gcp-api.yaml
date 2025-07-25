@@ -6767,12 +6767,12 @@ components:
       properties:
         resourceId:
           maxLength: 63
-          pattern: "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
+          pattern: ^[a-zA-Z][a-zA-Z0-9_]{0,62}$
           type: string
           description: "A human readable label for the resource which is restricted\
-            \ to letters, numbers, and hyphen, with the first character a letter,\
+            \ to letters, numbers, and underscore, with the first character a letter,\
             \ the last a letter or a number, and a 63 character maximum"
-          example: some-volume-name
+          example: some_volume_name
         volumeId:
           title: volumeId
           maxLength: 36

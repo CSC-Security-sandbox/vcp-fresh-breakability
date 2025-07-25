@@ -14655,7 +14655,7 @@ func (s *VolumeV1beta) Validate() error {
 			MaxLengthSet: true,
 			Email:        false,
 			Hostname:     false,
-			Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
+			Regex:        regexMap["^[a-zA-Z][a-zA-Z0-9_]{0,62}$"],
 		}).Validate(string(s.ResourceId)); err != nil {
 			return errors.Wrap(err, "string")
 		}

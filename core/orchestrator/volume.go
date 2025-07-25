@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -269,8 +268,8 @@ func (o *Orchestrator) GetVolume(ctx context.Context, volumeId string, refreshVo
 		return nil, err
 	}
 
-	// return early if we don't need to update volume metrics
-	if !refreshVolumeFields {
+	// return early if we don't need to update volume metrics or if the volume is not in ready state
+	if !refreshVolumeFields || volume.State != models.LifeCycleStateREADY {
 		return convertDatastoreVolumeToModel(volume, &ipAddress), nil
 	}
 
@@ -453,7 +452,9 @@ func GetVolumeTypeValidator(protocols []string, accountName string) (VolumeTypeP
 
 func _validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 	if params.QuotaInBytes < minQuotaInBytesVolume || params.QuotaInBytes > maxQuotaInBytesVolume {
-		return customerrors.NewUserInputValidationErr("volume size must be between 100 GiB and 102,400 GiB.")
+		return customerrors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %d. Must be between %d GiB and %d GiB.",
+			utils.ConvertBytesToGib(float64(params.QuotaInBytes)), utils.ConvertBytesToGib(float64(minQuotaInBytesVolume)),
+			utils.ConvertBytesToGib(float64(maxQuotaInBytesVolume))))
 	}
 
 	if pool.QuotaInBytes+params.QuotaInBytes > uint64(pool.SizeInBytes) {
@@ -689,7 +690,7 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	if utils.IsTransitionalState(volume.State) {
 		logger.Errorf("Volume %s cannot be deleted, while in transitioning state: %s", volume.Name, volume.State)
-		return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("volume is in transition state and cannot be deleted, state: "+volume.State))
+		return nil, "", customerrors.NewUserInputValidationErr("volume is in transition state and cannot be deleted, state: " + volume.State)
 	}
 
 	// Validate delete volume parameters and preconditions
@@ -709,6 +710,15 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Error("Failed to create volume delete job in database", "error", err)
+		return nil, "", err
+	}
+
+	err = se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+		"state":         models.LifeCycleStateDeleting,
+		"state_details": models.LifeCycleStateDeletingDetails,
+	})
+	if err != nil {
+		logger.Error("Failed to update volume state in database", "error", err)
 		return nil, "", err
 	}
 

@@ -484,8 +484,8 @@ func validateVolumeQuotaSize(quota float64) error {
 	minQuotaVal := float64(utils.MinQuotaInBytesVolumeForVolume)
 	maxQuotaVal := float64(utils.MaxQuotaInBytesVolumeForVolume)
 	if quota < minQuotaVal || quota > maxQuotaVal {
-		return errors.NewUserInputValidationErr(fmt.Sprintf("volume size must be between %d GiB and %d GiB.",
-			utils.ConvertBytesToGib(minQuotaVal), utils.ConvertBytesToGib(maxQuotaVal)))
+		return errors.NewUserInputValidationErr(fmt.Sprintf("Invalid volume capacity %d. Must be between %d GiB and %d GiB.",
+			utils.ConvertBytesToGib(quota), utils.ConvertBytesToGib(minQuotaVal), utils.ConvertBytesToGib(maxQuotaVal)))
 	}
 	return nil
 }

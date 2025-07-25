@@ -208,27 +208,35 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 
 // CreateVolumeWorkflow Volume Workflow process volume related requests from a customer.
 func CreateVolumeWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume, backupVault *datamodel.BackupVault, backup *datamodel.Backup) (gcpgenserver.V1betaDescribeVolumeRes, error) {
+	log := util.GetLogger(ctx)
 	volumeWf := new(volumeCreateWorkflow)
 	err := volumeWf.Setup(ctx, params)
 	if err != nil {
+		log.Errorf("Failed to setup CreateVolumeWorkflow: %v", err)
 		return nil, err
 	}
 	volumeWf.Status = WorkflowStatusRunning
 	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
+		log.Errorf("Failed to update job status to Processing for CreateVolumeWorkflow: %v", err)
 		return nil, err
 	}
 	_, err = volumeWf.Run(ctx, volume, params, backupVault, backup)
 	if err != nil {
+		log.Errorf("CreateVolumeWorkflow completed with error: %v", err)
 		volumeWf.Status = WorkflowStatusFailed
 		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
 		if err2 != nil {
+			log.Errorf("Failed to update job status to Done with error for CreateVolumeWorkflow: %v", err2)
 			return nil, err2
 		}
 		return nil, err
 	}
 	volumeWf.Status = WorkflowStatusCompleted
 	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if err != nil {
+		log.Errorf("Failed to update job status to Done for CreateVolumeWorkflow: %v", err)
+	}
 	return nil, err
 }
 
