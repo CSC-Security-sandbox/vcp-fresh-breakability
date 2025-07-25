@@ -199,7 +199,7 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 	if err != nil {
 		return err
 	}
-	if success {
+	if success || params.InitiateSplit { // Split operation can run in background without polling
 		return nil
 	}
 	return client.Poll(job.JobUUID)
