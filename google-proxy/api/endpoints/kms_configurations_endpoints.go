@@ -102,7 +102,7 @@ func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V
 		// Access the KMS crypto key to ensure it is accessible using impersonation
 		err = h.Orchestrator.AccessCryptoKeyWithImpersonation(ctx, kmsConfig)
 		if err != nil {
-			return convertErrorToKmsConfigCheckV1beta(err), nil
+			return convertErrorToKmsConfigCheckV1beta(err, kmsConfig), nil
 		}
 
 		// Update the KMS config health in the vsa DB
@@ -896,8 +896,10 @@ func (h Handler) V1betaDeleteKmsConfiguration(ctx context.Context, params gcpgen
 func convertToKmsConfigCheckV1beta(res *kms_configurations.V1betaCheckKmsConfigOK) *gcpgenserver.KmsConfigCheckV1beta {
 	kmsConfigHealthCheckV1beta := gcpgenserver.KmsConfigHealthCheckV1beta{
 		IsHealthy:    *res.Payload.KmsConfigHealthCheck.IsHealthy,
-		HealthError:  gcpgenserver.NewOptString(res.Payload.KmsConfigHealthCheck.HealthError),
 		Instructions: gcpgenserver.NewOptString(res.Payload.KmsConfigHealthCheck.Instructions),
+	}
+	if res.Payload.KmsConfigHealthCheck.HealthError != "" {
+		kmsConfigHealthCheckV1beta.HealthError = gcpgenserver.NewOptString(res.Payload.KmsConfigHealthCheck.HealthError)
 	}
 	return &gcpgenserver.KmsConfigCheckV1beta{
 		ServiceAccount:       gcpgenserver.NewOptString(res.Payload.ServiceAccount),
@@ -905,12 +907,17 @@ func convertToKmsConfigCheckV1beta(res *kms_configurations.V1betaCheckKmsConfigO
 	}
 }
 
-func convertErrorToKmsConfigCheckV1beta(err error) *gcpgenserver.KmsConfigCheckV1beta {
+func convertErrorToKmsConfigCheckV1beta(err error, kmsConfig *coremodel.KmsConfig) *gcpgenserver.KmsConfigCheckV1beta {
+	serviceAccount := ""
+	if kmsConfig.KmsAttributes != nil && kmsConfig.KmsAttributes.SdeServiceAccountEmail != "" {
+		serviceAccount = kmsConfig.KmsAttributes.SdeServiceAccountEmail
+	}
 	return &gcpgenserver.KmsConfigCheckV1beta{
-		ServiceAccount: gcpgenserver.NewOptString(""),
+		ServiceAccount: gcpgenserver.NewOptString(serviceAccount),
 		KmsConfigHealthCheck: gcpgenserver.NewOptKmsConfigHealthCheckV1beta(gcpgenserver.KmsConfigHealthCheckV1beta{
-			IsHealthy:   false,
-			HealthError: gcpgenserver.NewOptString(err.Error())}),
+			IsHealthy:    false,
+			HealthError:  gcpgenserver.NewOptString(err.Error()),
+			Instructions: gcpgenserver.NewOptString(getKmsInstructions(kmsConfig))}),
 	}
 }
 

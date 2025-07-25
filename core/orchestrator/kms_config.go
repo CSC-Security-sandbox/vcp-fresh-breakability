@@ -546,7 +546,7 @@ func validateKmsConfigState(ctx context.Context, se database.Storage, kmsConfigS
 
 func convertKmsConfigStateV1beta(status, stateDetails string) (state, details string) {
 	switch status {
-	case models.LifeCycleStateCreated:
+	case models.LifeCycleStateCreated, models.LifeCycleStateKeyCheckPending:
 		return cvpModels.KmsConfigV1betaKmsStateKEYCHECKPENDING, "Credentials created and key check pending"
 	case models.LifeCycleStateInUse:
 		return cvpModels.KmsConfigV1betaKmsStateINUSE, "Kms config in use"

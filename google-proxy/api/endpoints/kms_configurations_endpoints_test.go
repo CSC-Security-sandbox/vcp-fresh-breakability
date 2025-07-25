@@ -2148,10 +2148,10 @@ func TestV1betaListKmsConfigurations(t *testing.T) {
 		mockClient.EXPECT().
 			V1betaListKmsConfigurations(mock.Anything).
 			Return(mockResponse, nil)
-		
+
 		// Set up the mock orchestrator behavior
 		mockOrchestrator.EXPECT().GetKmsConfig(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("KMS configuration not found", nil))
-		
+
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
 		defer func() { createClient = originalCreateClient }()
@@ -3169,12 +3169,12 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 	t.Run("WhenResIsNil", func(t *testing.T) {
 		// Setup mock client
 		mockClient := kms_configurations.NewMockClientService(t)
-		
+
 		// Mock the CVP client to return nil response
 		mockClient.EXPECT().
 			V1betaListKmsConfigurations(mock.Anything).
 			Return(nil, nil)
-		
+
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
 		defer func() { createClient = originalCreateClient }()
@@ -3200,7 +3200,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 	t.Run("WhenResPayloadIsNil", func(t *testing.T) {
 		// Setup mock client
 		mockClient := kms_configurations.NewMockClientService(t)
-		
+
 		// Mock the CVP client to return response with nil payload
 		mockRes := &kms_configurations.V1betaListKmsConfigurationsOK{
 			Payload: nil,
@@ -3208,7 +3208,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		mockClient.EXPECT().
 			V1betaListKmsConfigurations(mock.Anything).
 			Return(mockRes, nil)
-		
+
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
 		defer func() { createClient = originalCreateClient }()
@@ -3248,7 +3248,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		mockClient.EXPECT().
 			V1betaListKmsConfigurations(mock.Anything).
 			Return(mockRes, nil)
-		
+
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
 		defer func() { createClient = originalCreateClient }()
@@ -3294,7 +3294,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		mockClient.EXPECT().
 			V1betaListKmsConfigurations(mock.Anything).
 			Return(mockRes, nil)
-		
+
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
 		defer func() { createClient = originalCreateClient }()
@@ -3345,7 +3345,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		mockClient.EXPECT().
 			V1betaListKmsConfigurations(mock.Anything).
 			Return(mockRes, nil)
-		
+
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
 		defer func() { createClient = originalCreateClient }()
@@ -3396,7 +3396,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		mockClient.EXPECT().
 			V1betaListKmsConfigurations(mock.Anything).
 			Return(mockRes, nil)
-		
+
 		cvpClient := &cvpapi.Cvp{KmsConfigurations: mockClient}
 		originalCreateClient := createClient
 		defer func() { createClient = originalCreateClient }()
@@ -3428,5 +3428,16 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		assert.Len(t, resultSlice, 1)
 		assert.Equal(t, "test-id", resultSlice[0].UUID.Value)
 		assert.Equal(t, "ACTIVE", string(resultSlice[0].KmsState.Value)) // Original CVP state preserved
+	})
+}
+
+func TestConvertErrorToKmsConfigCheckV1beta_ReturnsUnhealthyWithErrorMessage(t *testing.T) {
+	t.Run("ReturnsUnhealthyWithErrorMessage", func(t *testing.T) {
+		err := errors.New("access denied")
+		kmsConfig := &vsaCoreModels.KmsConfig{ResourceID: "resource-id", KmsAttributes: &vsaCoreModels.KmsAttributes{SdeServiceAccountEmail: "some"}}
+		result := convertErrorToKmsConfigCheckV1beta(err, kmsConfig)
+		assert.False(t, result.KmsConfigHealthCheck.Value.IsHealthy)
+		assert.Equal(t, "access denied", result.KmsConfigHealthCheck.Value.HealthError.Value)
+		assert.NotEmpty(t, result.ServiceAccount)
 	})
 }
