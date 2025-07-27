@@ -273,7 +273,7 @@ func _volumesWithHG(db *gorm.DB, hostGroupUUID string, accountID int64) ([]*data
 		Preload("Pool").
 		Preload("Svm").
 		Where("account_id = ?", accountID).
-		Where("volume_attributes::jsonb->'block_properties' IS NOT NULL AND EXISTS (SELECT 1 FROM jsonb_array_elements(volume_attributes::jsonb->'block_properties'->'host_group_details') AS elem WHERE elem->>'host_group_uuid' = ?)", hostGroupUUID).
+		Where("(volume_attributes::jsonb->'block_properties' IS NOT NULL) AND (volume_attributes::jsonb->'block_properties'->'host_group_details' != 'null'::jsonb) AND EXISTS (SELECT 1 FROM jsonb_array_elements(volume_attributes::jsonb->'block_properties'->'host_group_details') AS elem WHERE elem->>'host_group_uuid' = ?)", hostGroupUUID).
 		Find(&volumes).Error
 
 	return volumes, err
