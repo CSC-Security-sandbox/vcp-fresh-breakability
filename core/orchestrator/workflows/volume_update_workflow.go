@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -196,7 +197,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	if volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" {
-		if runningEnv != "local" {
+		if runningEnv != common.LocalEnv {
 			var token string
 			err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, params.AccountName).Get(ctx, &token)
 			if err != nil {
@@ -235,6 +236,38 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			}
 
 			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateBucketDetailsOfBackupVault, &volume, &bucketDetails).Get(ctx, nil)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if volume.DataProtection != nil && params.DataProtection != nil && !nillable.IsNilOrEmpty(params.DataProtection.BackupPolicyId) {
+		// Assigning backup policy to the volume
+		if runningEnv != common.LocalEnv {
+			var token string
+			err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, params.AccountName).Get(ctx, &token)
+			if err != nil {
+				log.Errorf("Failed to get token for account %s: %v", params.AccountName, err)
+				return nil, err
+			}
+			ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, token)
+		}
+
+		var backupPolicyExists bool
+		err = workflow.ExecuteActivity(ctx, updateActivity.VerifyIfBackupPolicyExistsInVCP, *params.DataProtection.BackupPolicyId, volume.AccountID).Get(ctx, &backupPolicyExists)
+		if err != nil {
+			return nil, err
+		}
+
+		if !backupPolicyExists {
+			var vcpBackupPolicy *datamodel.BackupPolicy
+			err = workflow.ExecuteActivity(ctx, updateActivity.FetchAndCreateBackupPolicyFromSDE, volume, params.Region).Get(ctx, &vcpBackupPolicy)
+			if err != nil {
+				return nil, err
+			}
+
+			err = workflow.ExecuteActivity(ctx, updateActivity.CreateScheduleForBackupPolicy, vcpBackupPolicy).Get(ctx, nil)
 			if err != nil {
 				return nil, err
 			}

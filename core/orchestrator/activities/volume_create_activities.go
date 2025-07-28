@@ -39,13 +39,16 @@ type VolumeCreateActivity struct {
 }
 
 var (
-	GetResourceNamesForBackup   = _getResourceNamesForBackup
-	FindTenancy                 = _findTenancy
-	CreateBucket                = _createBucket
-	GenerateResourceNames       = _generateResourceNames
-	GetOrCreateAndGCSResources  = _getOrCreateAndGCSResources
-	CheckBackupVaultExistsInVCP = _checkBackupVaultExistsInVCP
-	CheckForBucketResourceName  = _checkForBucketResourceName
+	GetResourceNamesForBackup        = _getResourceNamesForBackup
+	FindTenancy                      = _findTenancy
+	CreateBucket                     = _createBucket
+	GenerateResourceNames            = _generateResourceNames
+	GetOrCreateAndGCSResources       = _getOrCreateAndGCSResources
+	CheckBackupVaultExistsInVCP      = _checkBackupVaultExistsInVCP
+	CheckForBucketResourceName       = _checkForBucketResourceName
+	CheckIfBackupPolicyExistsInVCP   = _checkIfBackupPolicyExistsInVCP
+	CreateBackupPolicyFetchedFromSDE = _createBackupPolicyFetchedFromSDE
+	CreateBackupPolicySchedule       = _createBackupPolicySchedule
 )
 
 func (a VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
@@ -712,7 +715,14 @@ func ConvertToVSASnapshotPolicySchedules(schedules []*datamodel.SnapshotPolicySc
 }
 
 func (a VolumeCreateActivity) CheckIfBackupPolicyExistsInVCP(ctx context.Context, backupPolicyUUID string, accountId int64) (bool, error) {
-	se := a.SE
+	return _checkIfBackupPolicyExistsInVCP(ctx, a.SE, backupPolicyUUID, accountId)
+}
+
+func (a VolumeCreateActivity) CreateBackupPolicyFetchedFromSDE(ctx context.Context, volume *datamodel.Volume, region string) (*datamodel.BackupPolicy, error) {
+	return _createBackupPolicyFetchedFromSDE(ctx, a.SE, volume, region)
+}
+
+func _checkIfBackupPolicyExistsInVCP(ctx context.Context, se database.Storage, backupPolicyUUID string, accountId int64) (bool, error) {
 	backupPolicy, err := se.GetBackupPolicyByUUIDAndOwnerID(ctx, backupPolicyUUID, accountId)
 	if err != nil {
 		if !errors.IsNotFoundErr(err) {
@@ -725,8 +735,7 @@ func (a VolumeCreateActivity) CheckIfBackupPolicyExistsInVCP(ctx context.Context
 	return false, nil
 }
 
-func (a VolumeCreateActivity) CreateBackupPolicyFetchedFromSDE(ctx context.Context, volume *datamodel.Volume, region string) (*datamodel.BackupPolicy, error) {
-	se := a.SE
+func _createBackupPolicyFetchedFromSDE(ctx context.Context, se database.Storage, volume *datamodel.Volume, region string) (*datamodel.BackupPolicy, error) {
 	logger := util.GetLogger(ctx)
 	GetSignedJwtToken := utils.GetAuthTokenFromContext(ctx)
 	cvpClient := CvpCreateClient(logger, GetSignedJwtToken)
@@ -759,6 +768,10 @@ func (a VolumeCreateActivity) CreateBackupPolicyFetchedFromSDE(ctx context.Conte
 }
 
 func (a VolumeCreateActivity) CreateBackupPolicySchedule(ctx context.Context, vcpBackupPolicy *datamodel.BackupPolicy) error {
+	return _createBackupPolicySchedule(ctx, a.Scheduler, vcpBackupPolicy)
+}
+
+func _createBackupPolicySchedule(ctx context.Context, temporalScheduler *scheduler.TemporalScheduler, vcpBackupPolicy *datamodel.BackupPolicy) error {
 	logger := util.GetLogger(ctx)
 	logger.Infof("Creating backup policy schedule for policy: %s", vcpBackupPolicy.Name)
 
@@ -782,7 +795,7 @@ func (a VolumeCreateActivity) CreateBackupPolicySchedule(ctx context.Context, vc
 		},
 	}
 
-	_, err := a.Scheduler.Create(ctx, createParams)
+	_, err := temporalScheduler.Create(ctx, createParams)
 	if err != nil {
 		logger.Errorf("Failed to create backup policy schedule: %v", err)
 		return err

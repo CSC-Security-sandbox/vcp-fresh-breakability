@@ -7449,7 +7449,6 @@ components:
           type: boolean
           description: Indicates whether policy is enable or disabled on the volume
           nullable: true
-          default: true
         backupChainBytes:
           title: backupChainBytes
           type: integer

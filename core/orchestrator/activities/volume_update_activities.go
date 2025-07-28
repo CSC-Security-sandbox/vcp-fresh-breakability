@@ -8,6 +8,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -23,7 +24,8 @@ var (
 )
 
 type VolumeUpdateActivity struct {
-	SE database.Storage
+	SE        database.Storage
+	Scheduler *scheduler.TemporalScheduler
 }
 
 // UpdateVolumeInONTAP updates the volume in ONTAP
@@ -269,7 +271,13 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 		if volume.DataProtection == nil {
 			volume.DataProtection = &datamodel.DataProtection{}
 		}
-		volume.DataProtection.BackupVaultID = params.DataProtection.BackupVaultID
+		if params.DataProtection.BackupVaultID != nil {
+			volume.DataProtection.BackupVaultID = *params.DataProtection.BackupVaultID
+		}
+		if params.DataProtection.BackupPolicyId != nil {
+			volume.DataProtection.BackupPolicyID = *params.DataProtection.BackupPolicyId
+		}
+		volume.DataProtection.ScheduledBackupEnabled = params.DataProtection.ScheduledBackupEnabled
 		updates["data_protection"] = volume.DataProtection
 	}
 
@@ -406,4 +414,19 @@ func (a *VolumeUpdateActivity) RefreshVolumeFieldsInDB(ctx context.Context, volu
 	}
 
 	return nil
+}
+
+// VerifyIfBackupPolicyExistsInVCP checks if a backup policy exists in the VCP
+func (a *VolumeUpdateActivity) VerifyIfBackupPolicyExistsInVCP(ctx context.Context, backupPolicyUUID string, accountId int64) (bool, error) {
+	return CheckIfBackupPolicyExistsInVCP(ctx, a.SE, backupPolicyUUID, accountId)
+}
+
+// FetchAndCreateBackupPolicyFromSDE creates a backup policy in the VCP
+func (a *VolumeUpdateActivity) FetchAndCreateBackupPolicyFromSDE(ctx context.Context, volume *datamodel.Volume, region string) (*datamodel.BackupPolicy, error) {
+	return CreateBackupPolicyFetchedFromSDE(ctx, a.SE, volume, region)
+}
+
+// CreateScheduleForBackupPolicy creates a backup policy schedule in the VCP
+func (a *VolumeUpdateActivity) CreateScheduleForBackupPolicy(ctx context.Context, backupPolicy *datamodel.BackupPolicy) error {
+	return CreateBackupPolicySchedule(ctx, a.Scheduler, backupPolicy)
 }

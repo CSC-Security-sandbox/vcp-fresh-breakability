@@ -128,7 +128,7 @@ type UpdateVolumeParams struct {
 	SnapReserve       *int64
 	BlockProperties   *BlockPropertiesRequest
 	SnapshotPolicy    *models.SnapshotPolicy
-	DataProtection    *models.DataProtection
+	DataProtection    *models.UpdateDataProtection
 	InitiateSplit     bool
 	AutoTieringPolicy *AutoTieringPolicy
 	FileProperties    *models.FileProperties

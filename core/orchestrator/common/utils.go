@@ -5,6 +5,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 )
 
+const (
+	LocalEnv = "local"
+)
+
 var CreateNodeForProvider = _createNodeForProvider
 
 // PrepareOperationID constructs a GCP operation ID from the provided project number, location ID, and job ID.

@@ -16,6 +16,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -796,11 +797,12 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	if params.DataProtection != nil {
-		if dbVolume.DataProtection == nil {
-			dbVolume.DataProtection = &datamodel.DataProtection{
-				BackupVaultID: params.DataProtection.BackupVaultID,
+		// If backup vault is already attached to the volume and the backup vault is changed or removed
+		if dbVolume.DataProtection != nil && dbVolume.DataProtection.BackupVaultID != "" && params.DataProtection.BackupVaultID != nil && (*params.DataProtection.BackupVaultID == "" || *params.DataProtection.BackupVaultID != dbVolume.DataProtection.BackupVaultID) {
+			// If backup policy is already assigned to the volume, we should not be able to remove the backup vault from the volume
+			if dbVolume.DataProtection.BackupPolicyID != "" {
+				return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault as backup policy is associated to the volume")
 			}
-		} else if dbVolume.DataProtection.BackupVaultID != "" && (params.DataProtection.BackupVaultID == "" || params.DataProtection.BackupVaultID != dbVolume.DataProtection.BackupVaultID) {
 			filters := [][]interface{}{{"volume_uuid = ?", dbVolume.UUID}}
 			backups, err := se.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, dbVolume.DataProtection.BackupVaultID, dbVolume.Account.ID, filters)
 			if err != nil {
@@ -809,9 +811,21 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 			if len(backups) > 0 {
 				return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault as there are backups associated with it")
 			}
-			dbVolume.DataProtection.BackupVaultID = params.DataProtection.BackupVaultID
+			dbVolume.DataProtection.BackupVaultID = *params.DataProtection.BackupVaultID
 		} else {
-			dbVolume.DataProtection.BackupVaultID = params.DataProtection.BackupVaultID
+			if dbVolume.DataProtection == nil {
+				dbVolume.DataProtection = &datamodel.DataProtection{}
+			}
+			dbVolume.DataProtection.BackupVaultID = nillable.GetString(params.DataProtection.BackupVaultID, dbVolume.DataProtection.BackupVaultID)
+			dbVolume.DataProtection.BackupPolicyID = nillable.GetString(params.DataProtection.BackupPolicyId, dbVolume.DataProtection.BackupPolicyID)
+			dbVolume.DataProtection.ScheduledBackupEnabled = params.DataProtection.ScheduledBackupEnabled
+
+			if dbVolume.DataProtection.BackupVaultID == "" && !nillable.IsNilOrEmpty(params.DataProtection.BackupPolicyId) {
+				return nil, "", customerrors.NewUserInputValidationErr("backup vault is required to assign a backup policy to a volume")
+			}
+			if dbVolume.DataProtection.BackupPolicyID != "" && params.DataProtection.ScheduledBackupEnabled == nil {
+				return nil, "", customerrors.NewUserInputValidationErr("scheduled backups needs to be enabled/disabled when a backup policy is assigned to a volume")
+			}
 		}
 	}
 
@@ -914,8 +928,8 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		}
 	}
 
-	if params.DataProtection != nil && params.DataProtection.BackupVaultID != "" {
-		bv, err := se.GetBackupVaultByUUIDndOwnerID(ctx, params.DataProtection.BackupVaultID, pool.Account.ID)
+	if params.DataProtection != nil && params.DataProtection.BackupVaultID != nil && *params.DataProtection.BackupVaultID != "" {
+		bv, err := se.GetBackupVaultByUUIDndOwnerID(ctx, *params.DataProtection.BackupVaultID, pool.Account.ID)
 		if err != nil && !customerrors.IsNotFoundErr(err) {
 			return err
 		}
@@ -923,6 +937,16 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 			if bv.LifeCycleState == models.LifeCycleStateError {
 				return customerrors.NewUserInputValidationErr("backup vault is in error state, please check the backup vault and try again")
 			}
+		}
+	}
+
+	if params.DataProtection != nil && !nillable.IsNilOrEmpty(params.DataProtection.BackupPolicyId) {
+		backupPolicy, err := se.GetBackupPolicyByUUIDAndOwnerID(ctx, *params.DataProtection.BackupPolicyId, pool.Account.ID)
+		if err != nil && !customerrors.IsNotFoundErr(err) {
+			return err
+		}
+		if backupPolicy != nil && backupPolicy.LifeCycleState != models.LifeCycleStateREADY {
+			return customerrors.NewUserInputValidationErr("backup policy is not in ready state, please check the backup policy and try again")
 		}
 	}
 
@@ -934,6 +958,9 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.IsDataProtection {
 		if params.SnapReserve != nil && *params.SnapReserve != volume.VolumeAttributes.SnapReserve {
 			return customerrors.NewUserInputValidationErr("Cannot update snapshotReserve on a Data Protection Volume")
+		}
+		if params.DataProtection != nil && !nillable.IsNilOrEmpty(params.DataProtection.BackupPolicyId) {
+			return customerrors.NewUserInputValidationErr("Cannot update backup policy on a Data Protection Volume. Only manual backups are supported")
 		}
 	}
 

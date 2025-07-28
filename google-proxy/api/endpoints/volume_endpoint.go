@@ -438,13 +438,13 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		if !backupEnabled {
 			return nil, errors.NewUserInputValidationErr("Backup feature is currently not enabled.")
 		}
-		param.DataProtection = &models.DataProtection{}
+		param.DataProtection = &models.UpdateDataProtection{}
 		reqBackupConfig, _ := req.BackupConfig.Get()
 		if reqBackupConfig.BackupVaultId.IsSet() {
-			param.DataProtection.BackupVaultID = reqBackupConfig.BackupVaultId.Value
+			param.DataProtection.BackupVaultID = &reqBackupConfig.BackupVaultId.Value
 		}
 		if reqBackupConfig.BackupPolicyId.IsSet() {
-			param.DataProtection.BackupPolicyId = reqBackupConfig.BackupPolicyId.Value
+			param.DataProtection.BackupPolicyId = &reqBackupConfig.BackupPolicyId.Value
 		}
 		if reqBackupConfig.ScheduledBackupEnabled.IsSet() {
 			param.DataProtection.ScheduledBackupEnabled = &reqBackupConfig.ScheduledBackupEnabled.Value

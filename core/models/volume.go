@@ -83,3 +83,10 @@ type DataProtection struct {
 	BackupPolicyId         string
 	BackupChainBytes       *int64
 }
+
+type UpdateDataProtection struct {
+	ScheduledBackupEnabled *bool
+	BackupVaultID          *string
+	BackupPolicyId         *string
+	BackupChainBytes       *int64
+}

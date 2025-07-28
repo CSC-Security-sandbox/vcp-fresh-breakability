@@ -6,6 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
+	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -303,6 +306,9 @@ func TestUpdateVolumeInDB_Failure(t *testing.T) {
 }
 
 func TestGetUpdatedFieldsFromParams(t *testing.T) {
+	backupVaultId := "vault-123"
+	backupPolicyId := "policy-uuid"
+	policyEnabled := true
 	tests := []struct {
 		name           string
 		ctx            context.Context
@@ -318,12 +324,15 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				VolumeAttributes: &datamodel.VolumeAttributes{},
 				DataProtection:   &datamodel.DataProtection{},
 			},
+
 			params: &common.UpdateVolumeParams{
 				Description:  "desc",
 				QuotaInBytes: 12345,
 				Labels:       &datamodel.JSONB{"env": "prod", "team": "devops"},
-				DataProtection: &models.DataProtection{
-					BackupVaultID: "vault-123",
+				DataProtection: &models.UpdateDataProtection{
+					BackupVaultID:          &backupVaultId,
+					BackupPolicyId:         &backupPolicyId,
+					ScheduledBackupEnabled: &policyEnabled,
 				},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume, se database.Storage) {
@@ -348,8 +357,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			params: &common.UpdateVolumeParams{
 				Description:    "desc",
 				SnapshotPolicy: &models.SnapshotPolicy{Name: "test-policy"},
-				DataProtection: &models.DataProtection{
-					BackupVaultID: "vault-123",
+				DataProtection: &models.UpdateDataProtection{
+					BackupVaultID: &backupVaultId,
 				},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, se database.Storage) {
@@ -371,8 +380,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			},
 			params: &common.UpdateVolumeParams{
 				QuotaInBytes: 999,
-				DataProtection: &models.DataProtection{
-					BackupVaultID: "vault-123",
+				DataProtection: &models.UpdateDataProtection{
+					BackupVaultID: &backupVaultId,
 				},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, se database.Storage) {
@@ -394,8 +403,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			},
 			params: &common.UpdateVolumeParams{
 				Labels: &datamodel.JSONB{"foo": "bar"},
-				DataProtection: &models.DataProtection{
-					BackupVaultID: "vault-123",
+				DataProtection: &models.UpdateDataProtection{
+					BackupVaultID: &backupVaultId,
 				},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume, se database.Storage) {
@@ -419,9 +428,7 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 				DataProtection:   &datamodel.DataProtection{},
 			},
 			params: &common.UpdateVolumeParams{
-				DataProtection: &models.DataProtection{
-					BackupVaultID: "",
-				},
+				DataProtection: &models.UpdateDataProtection{},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, _ *datamodel.Volume, se database.Storage) {
 				assert.Equal(t, models.LifeCycleStateREADY, fields["state"])
@@ -443,8 +450,8 @@ func TestGetUpdatedFieldsFromParams(t *testing.T) {
 			},
 			params: &common.UpdateVolumeParams{
 				Labels: &datamodel.JSONB{"foo": "bar"},
-				DataProtection: &models.DataProtection{
-					BackupVaultID: "vault-123",
+				DataProtection: &models.UpdateDataProtection{
+					BackupVaultID: &backupVaultId,
 				},
 			},
 			check: func(t *testing.T, fields map[string]interface{}, volume *datamodel.Volume, se database.Storage) {
@@ -1212,4 +1219,152 @@ func TestUpdateVolumeUsedBytes_UpdateError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), expectedError.Error())
 	mockStorage.AssertExpectations(t)
+}
+
+func TestVerifyIfBackupPolicyExistsInVCP(t *testing.T) {
+	ctx := context.Background()
+	backupPolicyUUID := "test-uuid"
+	accountId := int64(123)
+
+	t.Run("ReturnsTrueIfBackupPolicyExists", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := VolumeUpdateActivity{SE: mockStorage}
+		mockBackupPolicy := &datamodel.BackupPolicy{}
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountId).Return(mockBackupPolicy, nil)
+		ok, err := activity.VerifyIfBackupPolicyExistsInVCP(ctx, backupPolicyUUID, accountId)
+		assert.NoError(t, err)
+		assert.True(t, ok)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("ReturnsFalseIfBackupPolicyNotFound", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := VolumeUpdateActivity{SE: mockStorage}
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountId).
+			Return(nil, errors.NewNotFoundErr("backup policy", &backupPolicyUUID))
+		ok, err := activity.VerifyIfBackupPolicyExistsInVCP(ctx, backupPolicyUUID, accountId)
+		assert.NoError(t, err)
+		assert.False(t, ok)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("ReturnsErrorIfOtherError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := VolumeUpdateActivity{SE: mockStorage}
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountId).
+			Return(nil, errors.New("db error"))
+		ok, err := activity.VerifyIfBackupPolicyExistsInVCP(ctx, backupPolicyUUID, accountId)
+		assert.Error(t, err)
+		assert.False(t, ok)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestFetchAndCreateBackupPolicyFromSDESucceeds(t *testing.T) {
+	ctx := context.Background()
+	region := "us-central1"
+	backupPolicyUUID := "test-backup-policy-uuid"
+	accountName := "test-account"
+	accountID := int64(123)
+
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupPolicyID: backupPolicyUUID},
+		Account:        &datamodel.Account{Name: accountName},
+		AccountID:      accountID,
+	}
+
+	t.Run("FetchAndCreateBackupPolicyFromSDESucceeds", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := VolumeUpdateActivity{SE: mockStorage}
+		mockClient := backup_policy.NewMockClientService(t)
+
+		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		mockBackupPolicy := &cvpModels.BackupPolicyDetailsV1beta{
+			BackupPolicyV1beta: cvpModels.BackupPolicyV1beta{
+				BackupPolicyID: backupPolicyUUID,
+				State:          models.LifeCycleStateREADY,
+			},
+		}
+		mockClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(&backup_policy.V1betaDescribeBackupPolicyOK{
+			Payload: mockBackupPolicy,
+		}, nil)
+		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(&datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: backupPolicyUUID}, AccountID: accountID, LifeCycleState: models.LifeCycleStateREADY, LifeCycleStateDetails: models.LifeCycleStateAvailableDetails}, nil)
+
+		res, err := activity.FetchAndCreateBackupPolicyFromSDE(ctx, volume, region)
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+		assert.Equal(t, backupPolicyUUID, res.UUID)
+		assert.Equal(t, accountID, res.AccountID)
+	})
+
+	t.Run("FetchAndCreateBackupPolicyFromSDEFailsWhenCVPReturnsError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := VolumeUpdateActivity{SE: mockStorage}
+		mockClient := backup_policy.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		mockClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(nil, errors.New("cvp error"))
+		res, err := activity.FetchAndCreateBackupPolicyFromSDE(ctx, volume, region)
+		assert.Error(t, err)
+		assert.Nil(t, res)
+	})
+
+	t.Run("FetchAndCreateBackupPolicyFromSDEFailsWhenCVPReturnsNil", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := VolumeUpdateActivity{SE: mockStorage}
+		mockClient := backup_policy.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		mockClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(&backup_policy.V1betaDescribeBackupPolicyOK{
+			Payload: nil,
+		}, nil)
+
+		res, err := activity.FetchAndCreateBackupPolicyFromSDE(ctx, volume, region)
+		assert.Error(t, err)
+		assert.Nil(t, res)
+	})
+
+	t.Run("FetchAndCreateBackupPolicyFromSDEFailsWithDBError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := VolumeUpdateActivity{SE: mockStorage}
+		mockClient := backup_policy.NewMockClientService(t)
+
+		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		mockBackupPolicy := &cvpModels.BackupPolicyDetailsV1beta{
+			BackupPolicyV1beta: cvpModels.BackupPolicyV1beta{
+				BackupPolicyID: backupPolicyUUID,
+				State:          models.LifeCycleStateREADY,
+			},
+		}
+		mockClient.On("V1betaDescribeBackupPolicy", mock.Anything).Return(&backup_policy.V1betaDescribeBackupPolicyOK{
+			Payload: mockBackupPolicy,
+		}, nil)
+		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(nil, errors.New("db error"))
+
+		res, err := activity.FetchAndCreateBackupPolicyFromSDE(ctx, volume, region)
+		assert.Error(t, err)
+		assert.Nil(t, res)
+	})
 }

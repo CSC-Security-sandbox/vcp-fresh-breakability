@@ -1812,6 +1812,20 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Nil(t, param.AutoTieringPolicy)
 	})
+
+	t.Run("WhenBackupConfigSet_WithFewFields", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			BackupConfig: gcpgenserver.NewOptBackupConfigV1beta(gcpgenserver.BackupConfigV1beta{
+				BackupVaultId:  gcpgenserver.NewOptNilString("backup-vault-id"),
+				BackupPolicyId: gcpgenserver.NewOptNilString("backup-policy-id"),
+			}),
+		}
+
+		param, err := _prepareUpdateVolumeParams(req, params, "region")
+		assert.NoError(t, err)
+		assert.Equal(t, "backup-vault-id", *param.DataProtection.BackupVaultID)
+		assert.Equal(t, "backup-policy-id", *param.DataProtection.BackupPolicyId)
+	})
 }
 
 func TestV1betaGetVolumeCount(t *testing.T) {

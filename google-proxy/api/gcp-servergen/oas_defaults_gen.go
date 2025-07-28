@@ -51,14 +51,6 @@ func (s *ActiveDirectoryV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
-func (s *BackupConfigV1beta) setDefaults() {
-	{
-		val := bool(true)
-		s.ScheduledBackupEnabled.SetTo(val)
-	}
-}
-
-// setDefaults set default value of fields.
 func (s *BackupPolicyCreateV1beta) setDefaults() {
 	{
 		val := int(0)

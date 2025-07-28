@@ -203,7 +203,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
 	worker.RegisterActivity(&workflows.SubnetActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: dbcon, Scheduler: temporalScheduler})
-	worker.RegisterActivity(&activities.VolumeUpdateActivity{SE: dbcon})
+	worker.RegisterActivity(&activities.VolumeUpdateActivity{SE: dbcon, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&activities.VolumeDeleteActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.SnapshotCreateActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.SnapshotUpdateActivity{SE: dbcon})
