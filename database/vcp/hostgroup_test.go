@@ -54,6 +54,32 @@ func TestGetHostGroup(t *testing.T) {
 		assert.NoError(tt, err, "Failed to get host group")
 		assert.NotNil(tt, result, "Expected result to be not nil")
 	})
+	t.Run("WhenHostGroupExistsWithDifferentAccount", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-hg",
+			},
+			Name:      "test_hg",
+			AccountID: 2,
+		}
+		err = store.db.Create(hg).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create hg: %v", err)
+		}
+
+		result, err := store.GetHostGroup(context.Background(), "test-hg", 1)
+		assert.EqualError(tt, err, "host group not found")
+		assert.Nil(tt, result, "Expected result to be nil")
+	})
 }
 
 func TestCreateHostGroup(t *testing.T) {

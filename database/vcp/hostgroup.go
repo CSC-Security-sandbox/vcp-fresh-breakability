@@ -28,7 +28,7 @@ func (d *DataStoreRepository) GetHostGroup(ctx context.Context, hostGroupUUID st
 
 func _getHostGroupWithDetails(db *gorm.DB, hostGroup *datamodel.HostGroup) (*datamodel.HostGroup, error) {
 	var dbHostGroup datamodel.HostGroup
-	err := db.Where("uuid = ?", hostGroup.UUID).Preload("Account").First(&dbHostGroup).Error
+	err := db.Where("uuid = ? AND account_id = ?", hostGroup.UUID, hostGroup.AccountID).Preload("Account").First(&dbHostGroup).Error
 	if err != nil {
 		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "host group", nil)
 	}
@@ -57,7 +57,7 @@ func (d *DataStoreRepository) CreateHostGroup(ctx context.Context, hostGroup *da
 			return nil, err
 		}
 
-		dbHostGroup, err := getHostGroupWithDetails(tx, &datamodel.HostGroup{BaseModel: datamodel.BaseModel{UUID: hostGroup.UUID}})
+		dbHostGroup, err := getHostGroupWithDetails(tx, &datamodel.HostGroup{BaseModel: datamodel.BaseModel{UUID: hostGroup.UUID}, AccountID: hostGroup.AccountID})
 		if err != nil {
 			return nil, err
 		}
