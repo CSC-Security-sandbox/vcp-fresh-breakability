@@ -997,6 +997,22 @@ func TestGetNodeNodeGroupMapByNodeID(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.Equal(t, result.NodeGroupID, dbRecord.NodeGroupID)
 	assert.Equal(t, result.NodeID, dbRecord.NodeID)
+	assert.Nil(t, result.DeletedAt)
+}
+
+func TestGetNodeNodeGroupMapByNodeID_UnScoped(t *testing.T) {
+	repo, mapping := setupNodeNodeGroupMapTestRepo(t)
+	dbRecord, err := repo.CreateNodeNodeGroupMap(context.Background(), mapping)
+	assert.NoError(t, err)
+	assert.NotNil(t, dbRecord)
+	err = repo.DeleteNodeNodeGroupMap(context.Background(), dbRecord.ID)
+	assert.Nil(t, err)
+	result, err := repo.GetNodeNodeGroupMapByNodeID(context.Background(), dbRecord.NodeID)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, result.NodeGroupID, dbRecord.NodeGroupID)
+	assert.Equal(t, result.NodeID, dbRecord.NodeID)
+	assert.NotNil(t, result.DeletedAt)
 }
 
 func TestGetNodeNodeGroupMapByNodeID_Error(t *testing.T) {

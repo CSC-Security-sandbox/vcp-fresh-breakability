@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"strconv"
 	"strings"
 	"time"
@@ -59,12 +60,9 @@ func (d *DataStoreRepository) GetNodeNodeGroupMap(ctx context.Context, id int64)
 // GetNodeNodeGroupMapByNodeID retrieves nodegroup map by NodeID
 func (d *DataStoreRepository) GetNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64) (*datamodel.NodeNodeGroupMap, error) {
 	var mapping datamodel.NodeNodeGroupMap
-	err := d.db.GORM().WithContext(ctx).Preload("NodeGroup").Where("node_id = ?", nodeID).First(&mapping).Error
+	err := d.db.GORM().Unscoped().WithContext(ctx).Preload("NodeGroup").Where("node_id = ?", nodeID).First(&mapping).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, err)
-		}
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "node_node_group_map", nil))
 	}
 	return &mapping, nil
 }

@@ -359,7 +359,15 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			WorkflowID: "register-node-to-harvest-farm" + uuid.New().String(),
 			TaskQueue:  workflowengine.CustomerTaskQueue,
 		})
-		if err := workflow.ExecuteChildWorkflow(ctx, RegisterNodeToHarvestFarmWorkflow, registerNodeToHarvestFarmWorkflowInput).Get(ctx, nil); err != nil {
+		unregisterParams := &unRegisterNodeFromHarvestFarmParams{
+			PoolID:            dbPool.ID,
+			CustomerProjectID: params.AccountName,
+			TenantProjectID:   *tenantProjectNumber,
+		}
+
+		rollbackManager.AddWorkflow(workflowengine.CustomerTaskQueue, UnRegisterNodeFromHarvestFarmWorkflow, unregisterParams)
+
+		if err = workflow.ExecuteChildWorkflow(ctx, RegisterNodeToHarvestFarmWorkflow, registerNodeToHarvestFarmWorkflowInput).Get(ctx, nil); err != nil {
 			return nil, err
 		}
 	}

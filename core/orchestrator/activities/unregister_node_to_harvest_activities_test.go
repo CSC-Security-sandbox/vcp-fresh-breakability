@@ -2,7 +2,7 @@ package activities
 
 import (
 	"context"
-	"errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"net/http"
 	"strconv"
 	"testing"
@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/gorm"
@@ -76,26 +77,33 @@ func TestValidateAndGetNodes_Success(t *testing.T) {
 	nodesInfo := getUnRegisterNodes()
 
 	mockStorage.On("GetNodesByPoolID", ctx, testPoolID).Return(nodesInfo, nil)
-	dbNodesInfo, err := activity.ValidateAndGetNodes(ctx, testPoolID)
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		PoolID: testPoolID,
+	}
+	dbNodesInfo, err := activity.ValidateAndGetNodes(ctx, testActParams)
 
 	assert.NoError(t, err)
 	assert.True(t, len(dbNodesInfo) == nodeCount)
 	mockStorage.AssertExpectations(t)
 }
 
-func TestValidateAndGetNodes_EmptyNodes(t *testing.T) {
+func TestValidateAndGetNodes_FailWithNoNodes(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
 	testPoolID := int64(1)
-	nodesInfo := []*datamodel.Node{}
 
-	mockStorage.On("GetNodesByPoolID", ctx, testPoolID).Return(nodesInfo, nil)
-	dbNodesInfo, err := activity.ValidateAndGetNodes(ctx, testPoolID)
+	mockStorage.On("GetNodesByPoolID", ctx, testPoolID).Return(nil,
+		vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, errors.NewNotFoundErr("node", nil)))
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		PoolID: testPoolID,
+	}
+	dbNodesInfo, err := activity.ValidateAndGetNodes(ctx, testActParams)
 
-	assert.NoError(t, err)
-	assert.True(t, len(dbNodesInfo) == 0)
+	assert.Error(t, err)
+	assert.Nil(t, dbNodesInfo)
+	assert.Contains(t, err.Error(), UnRegisterNodesInfoNotAvailable)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -106,8 +114,11 @@ func TestValidateAndGetNodes_Error(t *testing.T) {
 
 	testPoolID := int64(1)
 
-	mockStorage.On("GetNodesByPoolID", ctx, testPoolID).Return(nil, gorm.ErrRecordNotFound)
-	dbNodesInfo, err := activity.ValidateAndGetNodes(ctx, testPoolID)
+	mockStorage.On("GetNodesByPoolID", ctx, testPoolID).Return(nil, errors.New("db-error"))
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		PoolID: testPoolID,
+	}
+	dbNodesInfo, err := activity.ValidateAndGetNodes(ctx, testActParams)
 
 	assert.Error(t, err)
 	assert.Nil(t, dbNodesInfo)
@@ -124,15 +135,40 @@ func TestGetNodeGroupMapping_Success(t *testing.T) {
 	for index, nodeInfo := range nodesInfo {
 		mockStorage.On("GetNodeNodeGroupMapByNodeID", ctx, nodeInfo.ID).Return(nodeGroupMapInfo[index], nil)
 	}
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		Nodes: nodesInfo,
+	}
 
-	result, err := activity.GetNodeGroupMapping(ctx, nodesInfo)
+	result, err := activity.GetNodeGroupMapping(ctx, testActParams)
 
 	assert.NoError(t, err)
 	assert.True(t, len(result) == nodeCount)
 	mockStorage.AssertExpectations(t)
 }
 
-func TestGetNodeGroupMapping_EmptyNodeGroup(t *testing.T) {
+func TestValidateAndGetNodes_FailWithNoNodeGroupMap(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	nodesInfo := getUnRegisterNodes()
+
+	mockStorage.On("GetNodeNodeGroupMapByNodeID", ctx, nodesInfo[0].ID).Return(nil,
+		vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, errors.NewNotFoundErr("nodeGroupMap", nil)))
+
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		Nodes: nodesInfo,
+	}
+
+	result, err := activity.GetNodeGroupMapping(ctx, testActParams)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), UnRegisterNodeGroupMapNotAvailable)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetNodeGroupMapping_DeletedNodeGroup(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -143,10 +179,14 @@ func TestGetNodeGroupMapping_EmptyNodeGroup(t *testing.T) {
 		mockStorage.On("GetNodeNodeGroupMapByNodeID", ctx, nodeInfo.ID).Return(nodeGroupMapInfo[index], nil)
 	}
 
-	result, err := activity.GetNodeGroupMapping(ctx, nodesInfo)
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		Nodes: nodesInfo,
+	}
+
+	result, err := activity.GetNodeGroupMapping(ctx, testActParams)
 
 	assert.NoError(t, err)
-	assert.True(t, len(result) == 0)
+	assert.True(t, len(result) == 2)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -157,9 +197,12 @@ func TestGetNodeGroupMapping_Error(t *testing.T) {
 
 	nodesInfo := getUnRegisterNodes()
 
-	mockStorage.On("GetNodeNodeGroupMapByNodeID", ctx, nodesInfo[0].ID).Return(nil, gorm.ErrRecordNotFound)
+	mockStorage.On("GetNodeNodeGroupMapByNodeID", ctx, nodesInfo[0].ID).Return(nil, errors.New("db-error"))
 
-	result, err := activity.GetNodeGroupMapping(ctx, nodesInfo)
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		Nodes: nodesInfo,
+	}
+	result, err := activity.GetNodeGroupMapping(ctx, testActParams)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -176,8 +219,11 @@ func TestDeleteNodeGroupMapping_Success(t *testing.T) {
 	for _, nodeGroupMap := range nodeGroupMapInfo {
 		mockStorage.On("DeleteNodeNodeGroupMap", ctx, nodeGroupMap.ID).Return(nil)
 	}
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		NodeGroupsMap: nodeGroupMapInfo,
+	}
 
-	err := activity.DeleteNodeGroupMapping(ctx, nodeGroupMapInfo)
+	err := activity.DeleteNodeGroupMapping(ctx, testActParams)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
@@ -191,7 +237,11 @@ func TestDeleteNodeGroupMapping_Error(t *testing.T) {
 
 	mockStorage.On("DeleteNodeNodeGroupMap", ctx, nodeGroupMapInfo[0].ID).Return(gorm.ErrRecordNotFound)
 
-	err := activity.DeleteNodeGroupMapping(ctx, nodeGroupMapInfo)
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		NodeGroupsMap: nodeGroupMapInfo,
+	}
+
+	err := activity.DeleteNodeGroupMapping(ctx, testActParams)
 	assert.Error(t, err)
 	mockStorage.AssertExpectations(t)
 }
@@ -210,11 +260,15 @@ func TestDeletePollersFromHarvestFarm_Success(t *testing.T) {
 	}
 	defer func() { deletePollerRestResponse = oldDeletePollerRestResponse }()
 
-	err := activity.DeletePollersFromHarvestFarm(ctx, nodeGroupMapInfo)
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		NodeGroupsMap: nodeGroupMapInfo,
+	}
+
+	err := activity.DeletePollersFromHarvestFarm(ctx, testActParams)
 	assert.NoError(t, err)
 }
 
-func TestDeletePollersFromHarvestFarm_StatusFailure(t *testing.T) {
+func TestDeletePollersFromHarvestFarm_StatusNotFound(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -228,9 +282,11 @@ func TestDeletePollersFromHarvestFarm_StatusFailure(t *testing.T) {
 	}
 	defer func() { deletePollerRestResponse = oldDeletePollerRestResponse }()
 
-	err := activity.DeletePollersFromHarvestFarm(ctx, nodeGroupMapInfo)
-	assert.Error(t, err)
-	assert.Equal(t, "delete yaml failed: Poller file not found for given lease and poller name", err.Error())
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		NodeGroupsMap: nodeGroupMapInfo,
+	}
+	err := activity.DeletePollersFromHarvestFarm(ctx, testActParams)
+	assert.NoError(t, err)
 }
 
 func TestDeletePollersFromHarvestFarm_Error(t *testing.T) {
@@ -245,7 +301,11 @@ func TestDeletePollersFromHarvestFarm_Error(t *testing.T) {
 	}
 	defer func() { deletePollerRestResponse = oldDeletePollerRestResponse }()
 
-	err := activity.DeletePollersFromHarvestFarm(ctx, nodeGroupMapInfo)
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		NodeGroupsMap: nodeGroupMapInfo,
+	}
+
+	err := activity.DeletePollersFromHarvestFarm(ctx, testActParams)
 	assert.Error(t, err)
 	assert.Equal(t, "rest-client failed", err.Error())
 }
@@ -269,7 +329,11 @@ func TestValidateAndReleaseLease(t *testing.T) {
 	}
 	defer func() { deleteKubernetesLease = oldDeleteKubernetesLease }()
 
-	err := activity.ValidateAndReleaseLease(ctx, nodeGroupMapInfo)
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		NodeGroupsMap: nodeGroupMapInfo,
+	}
+
+	err := activity.ValidateAndReleaseLease(ctx, testActParams)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
@@ -284,7 +348,11 @@ func TestValidateAndReleaseLease_NoLeaseToDelete(t *testing.T) {
 		mockStorage.On("GetNodeGroupMapNodeCount", ctx, nodeGroupMap.NodeGroupID).Return(int64(1), nil)
 	}
 
-	err := activity.ValidateAndReleaseLease(ctx, nodeGroupMapInfo)
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		NodeGroupsMap: nodeGroupMapInfo,
+	}
+
+	err := activity.ValidateAndReleaseLease(ctx, testActParams)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
@@ -305,7 +373,12 @@ func TestValidateAndReleaseLease_SingleLeaseToDelete(t *testing.T) {
 		return nil
 	}
 	defer func() { deleteKubernetesLease = oldDeleteKubernetesLease }()
-	err := activity.ValidateAndReleaseLease(ctx, nodeGroupMapInfo)
+
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		NodeGroupsMap: nodeGroupMapInfo,
+	}
+
+	err := activity.ValidateAndReleaseLease(ctx, testActParams)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
@@ -326,7 +399,11 @@ func TestValidateAndReleaseLease_LeaseClientError(t *testing.T) {
 	}
 	defer func() { deleteKubernetesLease = oldDeleteKubernetesLease }()
 
-	err := activity.ValidateAndReleaseLease(ctx, nodeGroupMapInfo)
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		NodeGroupsMap: nodeGroupMapInfo,
+	}
+
+	err := activity.ValidateAndReleaseLease(ctx, testActParams)
 	assert.Error(t, err)
 	assert.Equal(t, "lease-client failed", err.Error())
 	mockStorage.AssertExpectations(t)
@@ -340,7 +417,11 @@ func TestValidateAndReleaseLease_DBError(t *testing.T) {
 
 	mockStorage.On("GetNodeGroupMapNodeCount", ctx, nodeGroupMapInfo[0].NodeGroupID).Return(int64(0), errors.New("db-error"))
 
-	err := activity.ValidateAndReleaseLease(ctx, nodeGroupMapInfo)
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		NodeGroupsMap: nodeGroupMapInfo,
+	}
+
+	err := activity.ValidateAndReleaseLease(ctx, testActParams)
 	assert.Error(t, err)
 	assert.Equal(t, "db-error", err.Error())
 	mockStorage.AssertExpectations(t)
