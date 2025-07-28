@@ -43,4 +43,4 @@ spec:
   rules:
     - from:
         - source:
-            namespaces: ["temporal", "otel", {{ .Release.Namespace | quote}}]
+            namespaces: ["temporal", "vcp-open-telemetry", {{ .Release.Namespace | quote}}]
