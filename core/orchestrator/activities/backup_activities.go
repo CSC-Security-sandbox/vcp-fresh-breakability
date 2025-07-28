@@ -2,6 +2,7 @@ package activities
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -336,3 +337,95 @@ func (a *BackupActivity) UpdateBackup(ctx context.Context, backup *datamodel.Bac
 //
 //	return gcpService.DeleteHmacKey(projectNumber, accessKey, ServiceAccount)
 // }
+
+func GetSmSourcePath(volume *datamodel.Volume) string {
+	return fmt.Sprintf("%s:%s", volume.Svm.Name, volume.Name)
+}
+
+func GetObjStoreName(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (string, error) {
+	bucketDetails, err := GetBucketDetails(backupVault, vol)
+	if err != nil {
+		return "", err
+	}
+	return bucketDetails.BucketName, nil
+}
+
+func GetSmDestinationPath(backupVault *datamodel.BackupVault, volume *datamodel.Volume) (string, error) {
+	objStoreName, err := GetObjStoreName(backupVault, volume)
+	if err != nil {
+		return "", fmt.Errorf("failed to get object store name: %w", err)
+	}
+	return fmt.Sprintf("%s:/objstore/%s", objStoreName, volume.UUID), nil
+}
+
+func GetBucketDetails(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (*datamodel.BucketDetails, error) {
+	if vol.VolumeAttributes == nil {
+		return nil, fmt.Errorf("volume %s has no volume attributes", vol.Name)
+	}
+
+	for _, bucketDetail := range backupVault.BucketDetails {
+		if bucketDetail.VendorSubnetID == vol.VolumeAttributes.VendorSubnetID && bucketDetail.BucketName != "" {
+			return bucketDetail, nil
+		}
+	}
+	return nil, fmt.Errorf("no matching bucket details found for volume %s in backup vault %s", vol.Name, backupVault.Name)
+}
+
+func GetObjStoreNameFromBackup(backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {
+	bucketDetails, err := GetBucketDetailsFromBackup(backupVault, backup)
+	if err != nil {
+		return "", err
+	}
+	return bucketDetails.BucketName, nil
+}
+
+func GetBucketDetailsFromBackup(backupVault *datamodel.BackupVault, backup *datamodel.Backup) (*datamodel.BucketDetails, error) {
+	if backup.Attributes == nil {
+		return nil, fmt.Errorf("backup %s has no attributes", backup.Name)
+	}
+
+	for _, bucketDetail := range backupVault.BucketDetails {
+		if bucketDetail.BucketName != "" && bucketDetail.BucketName == backup.Attributes.BucketName {
+			return bucketDetail, nil
+		}
+	}
+	return nil, fmt.Errorf("no matching bucket details found for backup %s", backup.Name)
+}
+
+func GetSmSourcePathForRestore(backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {
+	objStoreName, err := GetObjStoreNameFromBackup(backupVault, backup)
+	if err != nil {
+		return "", fmt.Errorf("failed to get object store name: %w", err)
+	}
+	return fmt.Sprintf("%s:/objstore/%s", objStoreName, backup.Attributes.SnapshotID), nil
+}
+
+// Activity methods for workflow execution
+
+func (a BackupActivity) GetObjStoreNameActivity(ctx context.Context, backupVault *datamodel.BackupVault, volume *datamodel.Volume) (string, error) {
+	return GetObjStoreName(backupVault, volume)
+}
+
+func (a BackupActivity) GetBucketDetailsActivity(ctx context.Context, backupVault *datamodel.BackupVault, volume *datamodel.Volume) (*datamodel.BucketDetails, error) {
+	return GetBucketDetails(backupVault, volume)
+}
+
+func (a BackupActivity) GetObjStoreNameFromBackupActivity(ctx context.Context, backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {
+	return GetObjStoreNameFromBackup(backupVault, backup)
+}
+
+func (a BackupActivity) GetBucketDetailsFromBackupActivity(ctx context.Context, backupVault *datamodel.BackupVault, backup *datamodel.Backup) (*datamodel.BucketDetails, error) {
+	return GetBucketDetailsFromBackup(backupVault, backup)
+}
+
+func (a BackupActivity) GetSmSourcePathActivity(ctx context.Context, volume *datamodel.Volume) (string, error) {
+	return GetSmSourcePath(volume), nil
+}
+
+func (a BackupActivity) GetSmDestinationPathActivity(ctx context.Context, backupVault *datamodel.BackupVault, volume *datamodel.Volume) (string, error) {
+	return GetSmDestinationPath(backupVault, volume)
+}
+
+func (a BackupActivity) GetSmSourcePathForRestoreActivity(ctx context.Context, backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {
+	return GetSmSourcePathForRestore(backupVault, backup)
+}

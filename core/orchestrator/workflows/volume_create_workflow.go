@@ -339,8 +339,14 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	// backup path example: "projects/123456789/locations/us-e4/backupVaults/bv1/backups/backupName"
 	if isRestoreFromBackup {
 		objStore := &common.CloudTarget{}
-		smDestinationPath := GetSmSourcePath(dbVolume)
-		smSourcePath, err := getSmSourcePathForRestore(backupVault, backup)
+		backupActivity := &activities.BackupActivity{}
+		var smDestinationPath string
+		err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathActivity, dbVolume).Get(ctx, &smDestinationPath)
+		if err != nil {
+			return nil, err
+		}
+		var smSourcePath string
+		err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathForRestoreActivity, backupVault, backup).Get(ctx, &smSourcePath)
 		log.Debugf("\nsmDestinationPath: %v", smDestinationPath)
 		log.Debugf("\nsmSourcePath: %v", smSourcePath)
 
@@ -356,12 +362,12 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			IsRestore:       true,
 		}
 
-		objStoreName, err := getObjStoreNameFromBackup(backupVault, backup)
+		objStoreName, err := activities.GetObjStoreNameFromBackup(backupVault, backup)
 		if err != nil {
 			return nil, err
 		}
 
-		bucketDetails, err := getBucketDetailsFromBackup(backupVault, backup)
+		bucketDetails, err := activities.GetBucketDetailsFromBackup(backupVault, backup)
 		if err != nil {
 			return nil, err
 		}

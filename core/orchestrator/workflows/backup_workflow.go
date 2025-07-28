@@ -125,11 +125,13 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType})
 	objStore := &commonparams.CloudTarget{}
-	objStoreName, err := GetObjStoreName(backupVault, volume)
+	var objStoreName string
+	err = workflow.ExecuteActivity(ctx, backupActivity.GetObjStoreNameActivity, backupVault, volume).Get(ctx, &objStoreName)
 	if err != nil {
 		return nil, err
 	}
-	bucketDetails, err := GetBucketDetails(backupVault, volume)
+	var bucketDetails *datamodel.BucketDetails
+	err = workflow.ExecuteActivity(ctx, backupActivity.GetBucketDetailsActivity, backupVault, volume).Get(ctx, &bucketDetails)
 	if err != nil {
 		return nil, err
 	}
@@ -140,11 +142,16 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	dbBackup.Attributes.BucketName = bucketName
 	dbBackup.Attributes.ServiceAccountName = bucketDetails.ServiceAccountName
-	smDestinationPath, err := getSmDestinationPath(backupVault, volume)
+	var smDestinationPath string
+	err = workflow.ExecuteActivity(ctx, backupActivity.GetSmDestinationPathActivity, backupVault, volume).Get(ctx, &smDestinationPath)
 	if err != nil {
 		return nil, err
 	}
-	smSourcePath := GetSmSourcePath(volume)
+	var smSourcePath string
+	err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathActivity, volume).Get(ctx, &smSourcePath)
+	if err != nil {
+		return nil, err
+	}
 	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{}
 	SnapmirrorRelationshipParams := &commonparams.SnapmirrorRelationshipParams{
 		SourcePath:      smSourcePath,
@@ -204,31 +211,6 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	return nil, err
 }
 
-func getObjStoreNameFromBackup(backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {
-	bucketDetails, err := getBucketDetailsFromBackup(backupVault, backup)
-	if err != nil {
-		return "", err
-	}
-	return bucketDetails.BucketName, nil
-}
-
-func getBucketDetailsFromBackup(backupVault *datamodel.BackupVault, backup *datamodel.Backup) (*datamodel.BucketDetails, error) {
-	for _, bucketDetail := range backupVault.BucketDetails {
-		if bucketDetail.BucketName != "" && bucketDetail.BucketName == backup.Attributes.BucketName {
-			return bucketDetail, nil
-		}
-	}
-	return nil, fmt.Errorf("no matching bucket details found for backup %s", backup.Name)
-}
-
-func getSmSourcePathForRestore(backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {
-	objStoreName, err := getObjStoreNameFromBackup(backupVault, backup)
-	if err != nil {
-		return "", fmt.Errorf("failed to get object store name: %w", err)
-	}
-	return fmt.Sprintf("%s:/objstore/%s", objStoreName, backup.Attributes.SnapshotID), nil
-}
-
 func (wf *BackupCreateWorkflow) Revert(ctx workflow.Context, backup *datamodel.Backup, volume *datamodel.Volume, errString string) error {
 	// Implement the revert logic for backup workflows
 	// This might involve rolling back any changes made during the workflow execution
@@ -270,34 +252,6 @@ func (wf *BackupCreateWorkflow) Revert(ctx workflow.Context, backup *datamodel.B
 
 func getSnapshotName(backup *datamodel.Backup) string {
 	return fmt.Sprintf("vcp-ad-%s", backup.Name)
-}
-
-func GetObjStoreName(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (string, error) {
-	bucketDetails, err := GetBucketDetails(backupVault, vol)
-	if err != nil {
-		return "", err
-	}
-	return bucketDetails.BucketName, nil
-}
-func GetBucketDetails(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (*datamodel.BucketDetails, error) {
-	for _, bucketDetail := range backupVault.BucketDetails {
-		if bucketDetail.VendorSubnetID == vol.VolumeAttributes.VendorSubnetID && bucketDetail.BucketName != "" {
-			return bucketDetail, nil
-		}
-	}
-	return nil, fmt.Errorf("no matching bucket details found for volume %s in backup vault %s", vol.Name, backupVault.Name)
-}
-
-func GetSmSourcePath(volume *datamodel.Volume) string {
-	return fmt.Sprintf("%s:%s", volume.Svm.Name, volume.Name)
-}
-
-func getSmDestinationPath(backupVault *datamodel.BackupVault, volume *datamodel.Volume) (string, error) {
-	objStoreName, err := GetObjStoreName(backupVault, volume)
-	if err != nil {
-		return "", fmt.Errorf("failed to get object store name: %w", err)
-	}
-	return fmt.Sprintf("%s:/objstore/%s", objStoreName, volume.UUID), nil
 }
 
 func getBucketDetailsForBucket(backupVault *datamodel.BackupVault, bucketName string) (*datamodel.BucketDetails, error) {
@@ -458,12 +412,18 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 		var ontapAsyncResponse *vsa.OntapAsyncResponse
 		if backupCount == 1 {
-			smDestinationPath, err := getSmDestinationPath(dbBackupVault, volume)
+			var smDestinationPath string
+			err = workflow.ExecuteActivity(ctx, backupActivity.GetSmDestinationPathActivity, dbBackupVault, volume).Get(ctx, &smDestinationPath)
 			if err != nil {
 				return nil, err
 			}
 			var snapmirrorRelationship *commonparams.SnapmirrorRelationship
-			err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirror, node, GetSmSourcePath(volume), smDestinationPath).Get(ctx, &snapmirrorRelationship)
+			var smSourcePath string
+			err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathActivity, volume).Get(ctx, &smSourcePath)
+			if err != nil {
+				return nil, err
+			}
+			err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirror, node, smSourcePath, smDestinationPath).Get(ctx, &snapmirrorRelationship)
 			if err != nil {
 				return nil, err
 			}

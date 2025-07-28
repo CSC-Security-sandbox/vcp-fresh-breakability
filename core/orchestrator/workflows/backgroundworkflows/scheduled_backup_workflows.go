@@ -269,11 +269,13 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		return nil, err
 	}
 
-	objectStoreName, err := workflows.GetObjStoreName(backupVault, volume)
+	var objectStoreName string
+	err = workflow.ExecuteActivity(ctx, backupActivities.GetObjStoreNameActivity, backupVault, volume).Get(ctx, &objectStoreName)
 	if err != nil {
 		return nil, err
 	}
-	bucketDetails, err := workflows.GetBucketDetails(backupVault, volume)
+	var bucketDetails *datamodel.BucketDetails
+	err = workflow.ExecuteActivity(ctx, backupActivities.GetBucketDetailsActivity, backupVault, volume).Get(ctx, &bucketDetails)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +288,11 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	}
 
 	snapmirrorRelationship := &common.SnapmirrorRelationship{}
-	smSourcePath := workflows.GetSmSourcePath(volume)
+	var smSourcePath string
+	err = workflow.ExecuteActivity(ctx, backupActivities.GetSmSourcePathActivity, volume).Get(ctx, &smSourcePath)
+	if err != nil {
+		return nil, err
+	}
 	smDestinationPath := fmt.Sprintf("%s:/objstore/%s", cloudTarget.Name, volume.UUID)
 	SnapmirrorRelationshipParams := &common.SnapmirrorRelationshipParams{
 		SourcePath:      smSourcePath,
@@ -453,7 +459,8 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		AuthType:       volume.Pool.PoolCredentials.AuthType},
 	)
 
-	objectStoreName, err := workflows.GetObjStoreName(backupVault, volume)
+	var objectStoreName string
+	err = workflow.ExecuteActivity(ctx, backupActivities.GetObjStoreNameActivity, backupVault, volume).Get(ctx, &objectStoreName)
 	if err != nil {
 		return nil, err
 	}

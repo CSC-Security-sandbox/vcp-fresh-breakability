@@ -43,6 +43,38 @@ func TestScheduledBackupsTestSuite(t *testing.T) {
 	suite.Run(t, new(ScheduledBackupsTestSuite))
 }
 
+// Helper function to register all activities needed for CreateScheduledBackupWorkflow tests
+func (s *ScheduledBackupsTestSuite) registerCreateScheduledBackupActivities(commonActivity *activities.CommonActivities, backupActivity *activities.BackupActivity, scheduledBackupActivity *backgroundactivities.ScheduledBackupActivity) {
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(backupActivity.GetBackupVault)
+	s.env.RegisterActivity(backupActivity.GetObjStoreNameActivity)
+	s.env.RegisterActivity(backupActivity.GetBucketDetailsActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetorCreate)
+	s.env.RegisterActivity(backupActivity.SnapshotCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	s.env.RegisterActivity(backupActivity.FinishBackup)
+	s.env.RegisterActivity(scheduledBackupActivity.CreateScheduledBackup)
+	s.env.RegisterActivity(scheduledBackupActivity.GenerateScheduledSnapshotName)
+	s.env.RegisterActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE)
+}
+
+// Helper function to register all activities needed for DeleteScheduledBackupWorkflow tests
+func (s *ScheduledBackupsTestSuite) registerDeleteScheduledBackupActivities(commonActivity *activities.CommonActivities, backupActivity *activities.BackupActivity, scheduledBackupActivity *backgroundactivities.ScheduledBackupActivity) {
+	s.env.RegisterActivity(backupActivity.GetBackupVault)
+	s.env.RegisterActivity(scheduledBackupActivity.FetchScheduledBackupForDeletion)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(backupActivity.GetObjStoreNameActivity)
+	s.env.RegisterActivity(backupActivity.GetObjectStore)
+	s.env.RegisterActivity(backupActivity.IsBackupShared)
+	s.env.RegisterActivity(backupActivity.DeleteSnapshotFromObjectStore)
+	s.env.RegisterActivity(commonActivity.GetOntapJob)
+	s.env.RegisterActivity(backupActivity.DeleteBackup)
+	s.env.RegisterActivity(scheduledBackupActivity.HydrateDeletedBackupsToCCFE)
+}
+
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Success() {
 	mockStorage := database.NewMockStorage(s.T())
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
@@ -105,17 +137,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success() 
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
 
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(backupActivity.GetBackupVault)
-	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
-	s.env.RegisterActivity(backupActivity.SnapmirrorGetorCreate)
-	s.env.RegisterActivity(backupActivity.SnapshotCreate)
-	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
-	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
-	s.env.RegisterActivity(backupActivity.FinishBackup)
-	s.env.RegisterActivity(scheduledBackupActivity.CreateScheduledBackup)
-	s.env.RegisterActivity(scheduledBackupActivity.GenerateScheduledSnapshotName)
-	s.env.RegisterActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE)
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
@@ -138,6 +160,15 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success() 
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
 		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("vsa-backup-bucket", nil)
+	s.env.OnActivity(backupActivity.GetBucketDetailsActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.BucketDetails{
+			BucketName:         "vsa-backup-bucket",
+			ServiceAccountName: "test-service-account",
+		}, nil)
+	s.env.OnActivity(backupActivity.GetSmSourcePathActivity, mock.Anything, mock.Anything).
+		Return("test-svm-1:volume-uuid-1", nil)
 	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.CloudTarget{
 			Name: "vsa-backup-bucket",
@@ -688,11 +719,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetOrCreat
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
 
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(backupActivity.GetBackupVault)
-	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
-	s.env.RegisterActivity(scheduledBackupActivity.CreateScheduledBackup)
-	s.env.RegisterActivity(scheduledBackupActivity.GenerateScheduledSnapshotName)
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
@@ -715,6 +742,15 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetOrCreat
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
 		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("vsa-backup-bucket", nil)
+	s.env.OnActivity(backupActivity.GetBucketDetailsActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.BucketDetails{
+			BucketName:         "vsa-backup-bucket",
+			ServiceAccountName: "test-service-account",
+		}, nil)
+	s.env.OnActivity(backupActivity.GetSmSourcePathActivity, mock.Anything, mock.Anything).
+		Return("test-svm-1:volume-uuid-1", nil)
 	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, errors.New("could not get or create cloud target"))
 
@@ -766,12 +802,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
 
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(backupActivity.GetBackupVault)
-	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
-	s.env.RegisterActivity(backupActivity.SnapmirrorGetorCreate)
-	s.env.RegisterActivity(scheduledBackupActivity.CreateScheduledBackup)
-	s.env.RegisterActivity(scheduledBackupActivity.GenerateScheduledSnapshotName)
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
@@ -794,6 +825,15 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
 		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("vsa-backup-bucket", nil)
+	s.env.OnActivity(backupActivity.GetBucketDetailsActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.BucketDetails{
+			BucketName:         "vsa-backup-bucket",
+			ServiceAccountName: "test-service-account",
+		}, nil)
+	s.env.OnActivity(backupActivity.GetSmSourcePathActivity, mock.Anything, mock.Anything).
+		Return("test-svm-1:volume-uuid-1", nil)
 	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.CloudTarget{
 			Name: "vsa-backup-bucket",
@@ -853,13 +893,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotCr
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
 
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(backupActivity.GetBackupVault)
-	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
-	s.env.RegisterActivity(backupActivity.SnapmirrorGetorCreate)
-	s.env.RegisterActivity(backupActivity.SnapshotCreate)
-	s.env.RegisterActivity(scheduledBackupActivity.CreateScheduledBackup)
-	s.env.RegisterActivity(scheduledBackupActivity.GenerateScheduledSnapshotName)
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
@@ -882,6 +916,15 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotCr
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
 		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("vsa-backup-bucket", nil)
+	s.env.OnActivity(backupActivity.GetBucketDetailsActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.BucketDetails{
+			BucketName:         "vsa-backup-bucket",
+			ServiceAccountName: "test-service-account",
+		}, nil)
+	s.env.OnActivity(backupActivity.GetSmSourcePathActivity, mock.Anything, mock.Anything).
+		Return("test-svm-1:volume-uuid-1", nil)
 	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.CloudTarget{
 			Name: "vsa-backup-bucket",
@@ -947,14 +990,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
 
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(backupActivity.GetBackupVault)
-	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
-	s.env.RegisterActivity(backupActivity.SnapmirrorGetorCreate)
-	s.env.RegisterActivity(backupActivity.SnapshotCreate)
-	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
-	s.env.RegisterActivity(scheduledBackupActivity.CreateScheduledBackup)
-	s.env.RegisterActivity(scheduledBackupActivity.GenerateScheduledSnapshotName)
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
@@ -977,6 +1013,15 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
 		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("vsa-backup-bucket", nil)
+	s.env.OnActivity(backupActivity.GetBucketDetailsActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.BucketDetails{
+			BucketName:         "vsa-backup-bucket",
+			ServiceAccountName: "test-service-account",
+		}, nil)
+	s.env.OnActivity(backupActivity.GetSmSourcePathActivity, mock.Anything, mock.Anything).
+		Return("test-svm-1:volume-uuid-1", nil)
 	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.CloudTarget{
 			Name: "vsa-backup-bucket",
@@ -1047,15 +1092,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSnapmir
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
 
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(backupActivity.GetBackupVault)
-	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
-	s.env.RegisterActivity(backupActivity.SnapmirrorGetorCreate)
-	s.env.RegisterActivity(backupActivity.SnapshotCreate)
-	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
-	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
-	s.env.RegisterActivity(scheduledBackupActivity.CreateScheduledBackup)
-	s.env.RegisterActivity(scheduledBackupActivity.GenerateScheduledSnapshotName)
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
@@ -1078,6 +1115,15 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSnapmir
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
 		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("vsa-backup-bucket", nil)
+	s.env.OnActivity(backupActivity.GetBucketDetailsActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.BucketDetails{
+			BucketName:         "vsa-backup-bucket",
+			ServiceAccountName: "test-service-account",
+		}, nil)
+	s.env.OnActivity(backupActivity.GetSmSourcePathActivity, mock.Anything, mock.Anything).
+		Return("test-svm-1:volume-uuid-1", nil)
 	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.CloudTarget{
 			Name: "vsa-backup-bucket",
@@ -1149,16 +1195,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_FinishBack
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
 
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(backupActivity.GetBackupVault)
-	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
-	s.env.RegisterActivity(backupActivity.SnapmirrorGetorCreate)
-	s.env.RegisterActivity(backupActivity.SnapshotCreate)
-	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
-	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
-	s.env.RegisterActivity(backupActivity.FinishBackup)
-	s.env.RegisterActivity(scheduledBackupActivity.CreateScheduledBackup)
-	s.env.RegisterActivity(scheduledBackupActivity.GenerateScheduledSnapshotName)
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
@@ -1181,6 +1218,15 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_FinishBack
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
 		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("vsa-backup-bucket", nil)
+	s.env.OnActivity(backupActivity.GetBucketDetailsActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.BucketDetails{
+			BucketName:         "vsa-backup-bucket",
+			ServiceAccountName: "test-service-account",
+		}, nil)
+	s.env.OnActivity(backupActivity.GetSmSourcePathActivity, mock.Anything, mock.Anything).
+		Return("test-svm-1:volume-uuid-1", nil)
 	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.CloudTarget{
 			Name: "vsa-backup-bucket",
@@ -1253,17 +1299,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_HydrateBac
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
 
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(backupActivity.GetBackupVault)
-	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
-	s.env.RegisterActivity(backupActivity.SnapmirrorGetorCreate)
-	s.env.RegisterActivity(backupActivity.SnapshotCreate)
-	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
-	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
-	s.env.RegisterActivity(backupActivity.FinishBackup)
-	s.env.RegisterActivity(scheduledBackupActivity.CreateScheduledBackup)
-	s.env.RegisterActivity(scheduledBackupActivity.GenerateScheduledSnapshotName)
-	s.env.RegisterActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE)
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
@@ -1286,6 +1322,15 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_HydrateBac
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
 		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("vsa-backup-bucket", nil)
+	s.env.OnActivity(backupActivity.GetBucketDetailsActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.BucketDetails{
+			BucketName:         "vsa-backup-bucket",
+			ServiceAccountName: "test-service-account",
+		}, nil)
+	s.env.OnActivity(backupActivity.GetSmSourcePathActivity, mock.Anything, mock.Anything).
+		Return("test-svm-1:volume-uuid-1", nil)
 	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.CloudTarget{
 			Name: "vsa-backup-bucket",
@@ -1359,17 +1404,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_ErrorLaunc
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
 
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(backupActivity.GetBackupVault)
-	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
-	s.env.RegisterActivity(backupActivity.SnapmirrorGetorCreate)
-	s.env.RegisterActivity(backupActivity.SnapshotCreate)
-	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
-	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
-	s.env.RegisterActivity(backupActivity.FinishBackup)
-	s.env.RegisterActivity(scheduledBackupActivity.CreateScheduledBackup)
-	s.env.RegisterActivity(scheduledBackupActivity.GenerateScheduledSnapshotName)
-	s.env.RegisterActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE)
+	s.registerCreateScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
@@ -1392,6 +1427,15 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_ErrorLaunc
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.GenerateScheduledSnapshotName, mock.Anything, mock.Anything).
 		Return("scheduled-snapshot-name", nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("vsa-backup-bucket", nil)
+	s.env.OnActivity(backupActivity.GetBucketDetailsActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return(&datamodel.BucketDetails{
+			BucketName:         "vsa-backup-bucket",
+			ServiceAccountName: "test-service-account",
+		}, nil)
+	s.env.OnActivity(backupActivity.GetSmSourcePathActivity, mock.Anything, mock.Anything).
+		Return("test-svm-1:volume-uuid-1", nil)
 	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.CloudTarget{
 			Name: "vsa-backup-bucket",
@@ -1466,15 +1510,7 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflowSuccess() {
 	backupActivity := &activities.BackupActivity{SE: mockStorage}
 	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
 
-	s.env.RegisterActivity(backupActivity.GetBackupVault)
-	s.env.RegisterActivity(scheduledBackupActivity.FetchScheduledBackupForDeletion)
-	s.env.RegisterActivity(commonActivity.GetNode)
-	s.env.RegisterActivity(backupActivity.GetObjectStore)
-	s.env.RegisterActivity(backupActivity.IsBackupShared)
-	s.env.RegisterActivity(backupActivity.DeleteSnapshotFromObjectStore)
-	s.env.RegisterActivity(commonActivity.GetOntapJob)
-	s.env.RegisterActivity(backupActivity.DeleteBackup)
-	s.env.RegisterActivity(scheduledBackupActivity.HydrateDeletedBackupsToCCFE)
+	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
 
 	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
 		Return(&datamodel.BackupVault{
@@ -2402,4 +2438,191 @@ func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_HydrateDel
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_SharedBackupScenario() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
+
+	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
+		Return(&datamodel.BackupVault{
+			Name: "test-backup-vault",
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:         "vsa-backup-bucket",
+					VendorSubnetID:     "test-vendor-subnet-id",
+					ServiceAccountName: "test-service-account",
+				},
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.FetchScheduledBackupForDeletion, mock.Anything, mock.Anything, mock.Anything).
+		Return([]*datamodel.Backup{
+			{
+				Name: "test-backup-1",
+				Attributes: &datamodel.BackupAttributes{
+					SnapshotName:       "test-snapshot-1",
+					SnapshotID:         "test-snapshot-id-1",
+					EndpointUUID:       "test-endpoint-uuid-1",
+					BucketName:         "vsa-backup-bucket",
+					ServiceAccountName: "test-service-account",
+				},
+			},
+		}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
+		Return([]*datamodel.Node{
+			{
+				EndpointAddress: "0.0.0.0",
+			},
+		}, nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("vsa-backup-bucket", nil)
+	s.env.OnActivity(backupActivity.GetObjectStore, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.CloudTarget{
+			Name: "vsa-backup-bucket",
+			UUID: "test-cloud-target-uuid",
+		}, nil)
+	// This is the key test: IsBackupShared returns true, so DeleteSnapshotFromObjectStore should be skipped
+	s.env.OnActivity(backupActivity.IsBackupShared, mock.Anything, mock.Anything).
+		Return(true, nil)
+	// DeleteSnapshotFromObjectStore should NOT be called when backup is shared
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).
+		Return(nil, nil)
+	s.env.OnActivity(scheduledBackupActivity.HydrateDeletedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volume-uuid-1",
+		},
+		Name:   "test-volume-1",
+		PoolID: 1,
+		Svm: &datamodel.Svm{
+			Name: "test-svm-1",
+		},
+		Pool: &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "pool-password",
+				SecretID: "pool-credential-secret-id",
+			},
+			DeploymentName: "test-pool-deployment",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "backup-vault-uuid-1",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:   "external-uuid-1",
+			VendorSubnetID: "test-vendor-subnet-id",
+		},
+	}
+	backupPolicy := &datamodel.BackupPolicy{
+		DailyBackupsToKeep:   3,
+		WeeklyBackupsToKeep:  1,
+		MonthlyBackupsToKeep: 1,
+	}
+	s.env.ExecuteWorkflow(DeleteScheduledBackupWorkflow, volume, backupPolicy)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}
+
+// TestDeleteScheduledBackupWorkflow_WaitForONTAPJobFailure tests the failure scenario
+// when DeleteSnapshotFromObjectStore succeeds but WaitForONTAPJob fails
+func (s *ScheduledBackupsTestSuite) TestDeleteScheduledBackupWorkflow_WaitForONTAPJobFailure() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.registerDeleteScheduledBackupActivities(commonActivity, backupActivity, scheduledBackupActivity)
+
+	s.env.OnActivity(backupActivity.GetBackupVault, mock.Anything, mock.Anything).
+		Return(&datamodel.BackupVault{
+			Name: "test-backup-vault",
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:         "vsa-backup-bucket",
+					VendorSubnetID:     "test-vendor-subnet-id",
+					ServiceAccountName: "test-service-account",
+				},
+			},
+		}, nil)
+	s.env.OnActivity(scheduledBackupActivity.FetchScheduledBackupForDeletion, mock.Anything, mock.Anything, mock.Anything).
+		Return([]*datamodel.Backup{
+			{
+				Name: "test-backup-1",
+				Attributes: &datamodel.BackupAttributes{
+					SnapshotName:       "test-snapshot-1",
+					SnapshotID:         "test-snapshot-id-1",
+					EndpointUUID:       "test-endpoint-uuid-1",
+					BucketName:         "vsa-backup-bucket",
+					ServiceAccountName: "test-service-account",
+				},
+			},
+		}, nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
+		Return([]*datamodel.Node{
+			{
+				EndpointAddress: "0.0.0.0",
+			},
+		}, nil)
+	s.env.OnActivity(backupActivity.GetObjStoreNameActivity, mock.Anything, mock.Anything, mock.Anything).
+		Return("vsa-backup-bucket", nil)
+	s.env.OnActivity(backupActivity.GetObjectStore, mock.Anything, mock.Anything, mock.Anything).
+		Return(&common.CloudTarget{
+			Name: "vsa-backup-bucket",
+			UUID: "test-cloud-target-uuid",
+		}, nil)
+	s.env.OnActivity(backupActivity.IsBackupShared, mock.Anything, mock.Anything).
+		Return(false, nil)
+	s.env.OnActivity(backupActivity.DeleteSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.OntapAsyncResponse{
+			JobUUID: "test-job-uuid-1",
+		}, nil)
+	// This is the key test: GetOntapJob indicates failure
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vsa.OntapJob{
+			State: "failure",
+			Error: &vsa.OntapError{
+				Message: "failed to delete cloud endpoint",
+			},
+		}, nil)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volume-uuid-1",
+		},
+		Name:   "test-volume-1",
+		PoolID: 1,
+		Svm: &datamodel.Svm{
+			Name: "test-svm-1",
+		},
+		Pool: &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "pool-password",
+				SecretID: "pool-credential-secret-id",
+			},
+			DeploymentName: "test-pool-deployment",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "backup-vault-uuid-1",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:   "external-uuid-1",
+			VendorSubnetID: "test-vendor-subnet-id",
+		},
+	}
+	backupPolicy := &datamodel.BackupPolicy{
+		DailyBackupsToKeep:   3,
+		WeeklyBackupsToKeep:  1,
+		MonthlyBackupsToKeep: 1,
+	}
+	s.env.ExecuteWorkflow(DeleteScheduledBackupWorkflow, volume, backupPolicy)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to delete cloud endpoint")
 }
