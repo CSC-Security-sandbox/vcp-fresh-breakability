@@ -152,9 +152,8 @@ func TestNewClientWithCert(t *testing.T) {
 		Certificate: &models.Certificate{
 			SignedCertificate:        "signedCert",
 			PrivateKey:               "privateKey",
-			InterMediateCertificates: []string{"intermediateCert"},
+			InterMediateCertificates: []string{"intermediateCert", "rootCaCert"},
 			CommonName:               "commonName",
-			RootCaCertificate:        "rootCaCert",
 		},
 		InsecureSkipVerify:          false,
 		Trace:                       log.NewLogger().(*log.Slogger),
@@ -223,9 +222,8 @@ func TestNewClientWithCert_GetAPICallCertificateFails(t *testing.T) {
 		Certificate: &models.Certificate{
 			SignedCertificate:        "signedCert",
 			PrivateKey:               "privateKey",
-			InterMediateCertificates: []string{"intermediateCert"},
+			InterMediateCertificates: []string{"intermediateCert", "rootCaCert"},
 			CommonName:               "commonName",
-			RootCaCertificate:        "rootCaCert",
 		},
 		InsecureSkipVerify:          false,
 		Trace:                       log.NewLogger().(*log.Slogger),
@@ -398,7 +396,6 @@ func Test_getAPICallCertificate(t *testing.T) {
 			PrivateKey:               "privateKey",
 			InterMediateCertificates: []string{"intermediateCert"},
 			CommonName:               "commonName",
-			RootCaCertificate:        "rootCa",
 		},
 		Trace: log.NewLogger().(*log.Slogger),
 	}
@@ -408,13 +405,12 @@ func Test_getAPICallCertificate(t *testing.T) {
 			SignedCertificate:        "-----BEGIN CERTIFICATE-----\nMIIElTCCAv2gAwIBAgIUf/gBBHqKQY3nzZ6vAAK836RR1Y0wDQYJKoZIhvcNAQEL\nBQAwWjELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM\nGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDETMBEGA1UEAwwKY29tbW9uTmFtZTAe\nFw0yNTA3MDcxMTE4NTVaFw0yNjA3MDcxMTE4NTVaMFoxCzAJBgNVBAYTAkFVMRMw\nEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0\neSBMdGQxEzARBgNVBAMMCmNvbW1vbk5hbWUwggGiMA0GCSqGSIb3DQEBAQUAA4IB\njwAwggGKAoIBgQCuARBS7IwSa/rOivjHPi7JS48Qq+ytlfDd52s77+42dWOmcvK9\nXOdTEndL2CPqGYSNvdloSv37xqEDeTTi1mOaHsAydXBuQyEJ+DIWltJ3EWUQkLVb\nHQoLPhdVHLfgkP+T217SvuSz9VQgOYLSOU/pTPxOSaiD0DhcvytqpXJaTbN0jX7z\nxFn6NB0RpWQ10caPukLPvLBc4TUUdnP2FyqetnNqhcYTyhqW4YnE7xITIn7N/Ytm\nbsXpLVf6HcvAz3oJlaqvrKMerWFlu3RJlqBqMUHxBCT8EM0mubhKWlwdnAXJ1CkF\nuruoStyRBjbor7EbSHyv0UCnopOcCwAruxaZJ+D/ubJCp6RJITuYBZjjdres6jkI\n8tTcPdE7gXn2tYTCv0ohVB6E5r2FuGN0AT5emHtG35Tqf1dp1GisylTW3MwD+wnI\nkSrvbTm8TblCMYfBRfiMlJ7a/WdmtYsmm+lbn09EjB+95HJZBl/m/1qVx7MGyN0x\ne/eakTqNROVHyP8CAwEAAaNTMFEwHQYDVR0OBBYEFEv+6pMBj+bsQ9a8USMXONRa\nnuqCMB8GA1UdIwQYMBaAFEv+6pMBj+bsQ9a8USMXONRanuqCMA8GA1UdEwEB/wQF\nMAMBAf8wDQYJKoZIhvcNAQELBQADggGBAGNwydFCDRZQohYGE4b1yeqsnTxkF7M/\nFAeU7eiSAU5m3HGhauR9mf/b9NABQARyYCEtbOEwwIjvZGhGUWAfNeihNUKwn9oo\nzDOCQ9/7F8FFLjZWw9L4tdbpldWzcCh9UvlT3f2821l7qBs3RtX6tUni/Yt4fC0W\nW8r7sqnVdFbm97DLYMDcUIQCgLqswlv1jt+6u74fypYY77HKkMXIlqq2qo7sAr7p\niVQ87W7fpobGN7YA2xoI9XV0Jld5aSu2/MdIhVMtSe1HzsxtNqWnw0h6eanooBHw\nkpWXXOZ9vi1GklPUADUMyWAdeUVz52vUkkIPYXB9kygsfoGMHDj6rXu8DKuKGb/u\n/7k2vg+Xh4i9P1qemzn+sQXsmw0JxmGK0TbVsA9lV+/UNRlBBr3ExKJrfXKI/Mmq\nlynCzRoFM1VenLgIvvcQ6lJKFNNQp4GBuAPdbKPW2hk0HrqfNvVIwbsiY47m9Aqn\nBoq1EHq7lck9tZl0DasAEe5DBMa6EYTK0A==\n-----END CERTIFICATE-----",
 			PrivateKey:               "-----BEGIN PRIVATE KEY-----\n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\noajITPMsTs0keLUerqNhaGUv\n-----END PRIVATE KEY-----",
 			InterMediateCertificates: []string{"-----BEGIN CERTIFICATE-----\nMIIElTCCAv2gAwIBAgIUf/gBBHqKQY3nzZ6vAAK836RR1Y0wDQYJKoZIhvcNAQEL\nBQAwWjELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM\nGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDETMBEGA1UEAwwKY29tbW9uTmFtZTAe\nFw0yNTA3MDcxMTE4NTVaFw0yNjA3MDcxMTE4NTVaMFoxCzAJBgNVBAYTAkFVMRMw\nEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0\neSBMdGQxEzARBgNVBAMMCmNvbW1vbk5hbWUwggGiMA0GCSqGSIb3DQEBAQUAA4IB\njwAwggGKAoIBgQCuARBS7IwSa/rOivjHPi7JS48Qq+ytlfDd52s77+42dWOmcvK9\nXOdTEndL2CPqGYSNvdloSv37xqEDeTTi1mOaHsAydXBuQyEJ+DIWltJ3EWUQkLVb\nHQoLPhdVHLfgkP+T217SvuSz9VQgOYLSOU/pTPxOSaiD0DhcvytqpXJaTbN0jX7z\nxFn6NB0RpWQ10caPukLPvLBc4TUUdnP2FyqetnNqhcYTyhqW4YnE7xITIn7N/Ytm\nbsXpLVf6HcvAz3oJlaqvrKMerWFlu3RJlqBqMUHxBCT8EM0mubhKWlwdnAXJ1CkF\nuruoStyRBjbor7EbSHyv0UCnopOcCwAruxaZJ+D/ubJCp6RJITuYBZjjdres6jkI\n8tTcPdE7gXn2tYTCv0ohVB6E5r2FuGN0AT5emHtG35Tqf1dp1GisylTW3MwD+wnI\nkSrvbTm8TblCMYfBRfiMlJ7a/WdmtYsmm+lbn09EjB+95HJZBl/m/1qVx7MGyN0x\ne/eakTqNROVHyP8CAwEAAaNTMFEwHQYDVR0OBBYEFEv+6pMBj+bsQ9a8USMXONRa\nnuqCMB8GA1UdIwQYMBaAFEv+6pMBj+bsQ9a8USMXONRanuqCMA8GA1UdEwEB/wQF\nMAMBAf8wDQYJKoZIhvcNAQELBQADggGBAGNwydFCDRZQohYGE4b1yeqsnTxkF7M/\nFAeU7eiSAU5m3HGhauR9mf/b9NABQARyYCEtbOEwwIjvZGhGUWAfNeihNUKwn9oo\nzDOCQ9/7F8FFLjZWw9L4tdbpldWzcCh9UvlT3f2821l7qBs3RtX6tUni/Yt4fC0W\nW8r7sqnVdFbm97DLYMDcUIQCgLqswlv1jt+6u74fypYY77HKkMXIlqq2qo7sAr7p\niVQ87W7fpobGN7YA2xoI9XV0Jld5aSu2/MdIhVMtSe1HzsxtNqWnw0h6eanooBHw\nkpWXXOZ9vi1GklPUADUMyWAdeUVz52vUkkIPYXB9kygsfoGMHDj6rXu8DKuKGb/u\n/7k2vg+Xh4i9P1qemzn+sQXsmw0JxmGK0TbVsA9lV+/UNRlBBr3ExKJrfXKI/Mmq\nlynCzRoFM1VenLgIvvcQ6lJKFNNQp4GBuAPdbKPW2hk0HrqfNvVIwbsiY47m9Aqn\nBoq1EHq7lck9tZl0DasAEe5DBMa6EYTK0A==\n-----END CERTIFICATE-----"},
-			RootCaCertificate:        "-----BEGIN CERTIFICATE-----\nMIIElTCCAv2gAwIBAgIUf/gBBHqKQY3nzZ6vAAK836RR1Y0wDQYJKoZIhvcNAQEL\nBQAwWjELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM\nGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDETMBEGA1UEAwwKY29tbW9uTmFtZTAe\nFw0yNTA3MDcxMTE4NTVaFw0yNjA3MDcxMTE4NTVaMFoxCzAJBgNVBAYTAkFVMRMw\nEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0\neSBMdGQxEzARBgNVBAMMCmNvbW1vbk5hbWUwggGiMA0GCSqGSIb3DQEBAQUAA4IB\njwAwggGKAoIBgQCuARBS7IwSa/rOivjHPi7JS48Qq+ytlfDd52s77+42dWOmcvK9\nXOdTEndL2CPqGYSNvdloSv37xqEDeTTi1mOaHsAydXBuQyEJ+DIWltJ3EWUQkLVb\nHQoLPhdVHLfgkP+T217SvuSz9VQgOYLSOU/pTPxOSaiD0DhcvytqpXJaTbN0jX7z\nxFn6NB0RpWQ10caPukLPvLBc4TUUdnP2FyqetnNqhcYTyhqW4YnE7xITIn7N/Ytm\nbsXpLVf6HcvAz3oJlaqvrKMerWFlu3RJlqBqMUHxBCT8EM0mubhKWlwdnAXJ1CkF\nuruoStyRBjbor7EbSHyv0UCnopOcCwAruxaZJ+D/ubJCp6RJITuYBZjjdres6jkI\n8tTcPdE7gXn2tYTCv0ohVB6E5r2FuGN0AT5emHtG35Tqf1dp1GisylTW3MwD+wnI\nkSrvbTm8TblCMYfBRfiMlJ7a/WdmtYsmm+lbn09EjB+95HJZBl/m/1qVx7MGyN0x\ne/eakTqNROVHyP8CAwEAAaNTMFEwHQYDVR0OBBYEFEv+6pMBj+bsQ9a8USMXONRa\nnuqCMB8GA1UdIwQYMBaAFEv+6pMBj+bsQ9a8USMXONRanuqCMA8GA1UdEwEB/wQF\nMAMBAf8wDQYJKoZIhvcNAQELBQADggGBAGNwydFCDRZQohYGE4b1yeqsnTxkF7M/\nFAeU7eiSAU5m3HGhauR9mf/b9NABQARyYCEtbOEwwIjvZGhGUWAfNeihNUKwn9oo\nzDOCQ9/7F8FFLjZWw9L4tdbpldWzcCh9UvlT3f2821l7qBs3RtX6tUni/Yt4fC0W\nW8r7sqnVdFbm97DLYMDcUIQCgLqswlv1jt+6u74fypYY77HKkMXIlqq2qo7sAr7p\niVQ87W7fpobGN7YA2xoI9XV0Jld5aSu2/MdIhVMtSe1HzsxtNqWnw0h6eanooBHw\nkpWXXOZ9vi1GklPUADUMyWAdeUVz52vUkkIPYXB9kygsfoGMHDj6rXu8DKuKGb/u\n/7k2vg+Xh4i9P1qemzn+sQXsmw0JxmGK0TbVsA9lV+/UNRlBBr3ExKJrfXKI/Mmq\nlynCzRoFM1VenLgIvvcQ6lJKFNNQp4GBuAPdbKPW2hk0HrqfNvVIwbsiY47m9Aqn\nBoq1EHq7lck9tZl0DasAEe5DBMa6EYTK0A==\n-----END CERTIFICATE-----",
 			CommonName:               "commonName",
 		},
 		Trace: log.NewLogger().(*log.Slogger),
 	}
 	t.Run("success", func(t *testing.T) {
-		utils.ParsePEMCertificate = func(cert, _ string) (*x509.CertPool, error) {
+		utils.ParsePEMCertificate = func(cert []string, _ string) (*x509.CertPool, error) {
 			return x509.NewCertPool(), nil
 		}
 		_, _, err := _getAPICallCertificate(validParam)
@@ -422,7 +418,7 @@ func Test_getAPICallCertificate(t *testing.T) {
 	})
 
 	t.Run("parse PEM error ", func(t *testing.T) {
-		utils.ParsePEMCertificate = func(cert, _ string) (*x509.CertPool, error) {
+		utils.ParsePEMCertificate = func(cert []string, _ string) (*x509.CertPool, error) {
 			return nil, errors.New("parse error")
 		}
 		_, _, err := _getAPICallCertificate(params)
@@ -431,7 +427,7 @@ func Test_getAPICallCertificate(t *testing.T) {
 	})
 
 	t.Run("Load PEM error", func(t *testing.T) {
-		utils.ParsePEMCertificate = func(cert, _ string) (*x509.CertPool, error) {
+		utils.ParsePEMCertificate = func(cert []string, _ string) (*x509.CertPool, error) {
 			return x509.NewCertPool(), nil
 		}
 		_, _, err := _getAPICallCertificate(params)

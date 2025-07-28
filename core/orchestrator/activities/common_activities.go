@@ -122,7 +122,6 @@ func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, e
 				InterMediateCertificates: certificate.InterMediateCertificates,
 				CommonName:               certificate.CommonName,
 				PrivateKey:               certificate.PrivateKey,
-				RootCaCertificate:        certificate.RootCaCertificate,
 			},
 			InsecureSkipVerify: false,
 		}), nil

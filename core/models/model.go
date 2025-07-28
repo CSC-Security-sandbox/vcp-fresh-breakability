@@ -110,7 +110,6 @@ type CertCache struct {
 type Certificate struct {
 	SignedCertificate        string
 	PrivateKey               string
-	RootCaCertificate        string
 	InterMediateCertificates []string
 	CommonName               string
 }

@@ -102,12 +102,11 @@ type SPConfig struct {
 
 // If user wants to use certificate-based authentication, needs to provide following input. Certificate will be installed during deployment and can be used for authentication. Priority will be given to password, if both certificate and password is provided.
 type OntapCertificate struct {
-	Certificate             string   `json:"certificate"`              // Certificate for ONTAP (Mandatory)
-	PrivateKey              string   `json:"private_key"`              // Private key for ONTAP (Mandatory)
-	InterMediateCertificate []string `json:"intermediate_certificate"` // Intermediate certificate for ONTAP (Optional)
-	CommonName              string   `json:"common_name"`              // Common name for ONTAP (Mandatory)
-	CaCertificate           string   `json:"ca_certificate"`           // CA certificate for ONTAP (Mandatory)
-	DNSName                 string   `json:"cert_dns"`                 // DNS name for the certificate (Optional)
+	Certificate             string   `json:"certificate"`              // Certificate for ONTAP
+	PrivateKey              string   `json:"private_key"`              // Private key for ONTAP
+	InterMediateCertificate []string `json:"intermediate_certificate"` // Intermediate certificate for ONTAP
+	CommonName              string   `json:"common_name"`              // Common name for ONTAP
+	DNSName                 string   `json:"cert_dns"`                 // DNS name for the certificate
 }
 
 // OntapCredentials holds the credentials for ONTAP, including the certificate and password. Certificate is an optional field if user wants use certificate.

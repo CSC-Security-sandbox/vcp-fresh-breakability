@@ -23,7 +23,6 @@ type CustomCertificate struct {
 	CaName                     string
 	CaGroupName                string
 	CertificateID              string
-	RootCACertificate          string
 }
 
 // CustomCertificateParam is a struct that represents the parameters needed to create a certificate

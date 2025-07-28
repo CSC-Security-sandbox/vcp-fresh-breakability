@@ -802,36 +802,38 @@ func GetArrayDiff(existingList []string, newList []string) ([]string, []string) 
 }
 
 // _parsePEMCertificate takes a PEM-encoded certificate string and returns a CertPool containing the certificate.
-func _parsePEMCertificate(pemCert, typeOfCertificate string) (*x509.CertPool, error) {
-	// Convert the PEM-encoded certificate string to bytes
-	certBytes := []byte(pemCert)
-
-	// Parse the PEM block
-	var block *pem.Block
-	var rest = certBytes
-	var cert []byte
-
-	for {
-		block, rest = pem.Decode(rest)
-		if block == nil {
-			break
-		}
-		if block.Type == typeOfCertificate {
-			cert = block.Bytes
-			break
-		}
-	}
-
-	if cert == nil {
-		return nil, errors.New("Failed to parse certificate")
-	}
-
-	// Create a CertPool and add the parsed certificate
+func _parsePEMCertificate(pemCerts []string, typeOfCertificate string) (*x509.CertPool, error) {
 	byteCert := x509.NewCertPool()
-	if !byteCert.AppendCertsFromPEM(pem.EncodeToMemory(&pem.Block{Type: typeOfCertificate, Bytes: cert})) {
-		return nil, errors.New("Failed to append certificate to cert pool")
-	}
 
+	for _, pemCert := range pemCerts {
+		// Convert the PEM-encoded certificate string to bytes
+		certBytes := []byte(pemCert)
+
+		// Parse the PEM block
+		var block *pem.Block
+		var rest = certBytes
+		var cert []byte
+
+		for {
+			block, rest = pem.Decode(rest)
+			if block == nil {
+				break
+			}
+			if block.Type == typeOfCertificate {
+				cert = block.Bytes
+				break
+			}
+		}
+
+		if cert == nil {
+			return nil, errors.New("Failed to parse certificate")
+		}
+
+		// Create a CertPool and add the parsed certificate
+		if !byteCert.AppendCertsFromPEM(pem.EncodeToMemory(&pem.Block{Type: typeOfCertificate, Bytes: cert})) {
+			return nil, errors.New("Failed to append certificate to cert pool")
+		}
+	}
 	return byteCert, nil
 }
 

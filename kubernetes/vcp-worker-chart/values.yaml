@@ -58,7 +58,7 @@ workerConfig:
   gcpServiceUrl: "https://cloudvolumesgcp-api.netapp.com"
   loggerLevel: "info"
   vmrsConfigPath: "config/vmrs_gcp.yaml"
-  certificateLifetime: "25920000s"
+  certificateLifetime: "94608000s"
   caName: "20250522-ea9-684"
   caPoolName: "vsa-pool-ca"
   caPoolDeployedProjectId: "266893635349"

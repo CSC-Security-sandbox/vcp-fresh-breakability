@@ -251,8 +251,8 @@ func (rc *OntapRestClient) NameServices() NameServicesClient {
 
 // getAPICallCertificate retrieves the certificate and root CA for API calls
 func _getAPICallCertificate(params RESTClientParams) (*x509.CertPool, tls.Certificate, error) {
-	if params.Certificate != nil && params.Certificate.InterMediateCertificates != nil && len(params.Certificate.InterMediateCertificates) == 1 && params.Certificate.RootCaCertificate != "" && params.Certificate.SignedCertificate != "" && params.Certificate.PrivateKey != "" {
-		rootCA, err := utils.ParsePEMCertificate(params.Certificate.RootCaCertificate, CERTIFICATE)
+	if params.Certificate != nil && params.Certificate.InterMediateCertificates != nil && len(params.Certificate.InterMediateCertificates) > 0 && params.Certificate.SignedCertificate != "" && params.Certificate.PrivateKey != "" {
+		rootCA, err := utils.ParsePEMCertificate(params.Certificate.InterMediateCertificates, CERTIFICATE)
 		if err != nil {
 			params.Trace.Errorf("error parsing root CA certificate: %v", err)
 			return nil, tls.Certificate{}, err

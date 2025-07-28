@@ -117,7 +117,6 @@ func NewProvider(ctx context.Context, provider ProviderDetails) *OntapRestProvid
 			PrivateKey:               provider.Certificate.PrivateKey,
 			InterMediateCertificates: provider.Certificate.InterMediateCertificates,
 			CommonName:               provider.Certificate.CommonName,
-			RootCaCertificate:        provider.Certificate.RootCaCertificate,
 		}
 		ontapRestProvider.ClientParams.CertificateBasedAuthEnabled = true
 	} else {

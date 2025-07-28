@@ -174,10 +174,6 @@ func convertPrivateCACertificateToCustomCertificate(certificateId string, cert *
 		PemCertificateChain:        cert.PemCertificateChain,
 		IssuerCertificateAuthority: cert.IssuerCertificateAuthority,
 	}
-	if len(cert.PemCertificateChain) > 0 {
-		// The first certificate in the chain is the root CA certificate as we are not configuring intermediate CAs(subordinate CAs) in the CA pool.
-		customCert.RootCACertificate = cert.PemCertificateChain[0]
-	}
 	return customCert, nil
 }
 

@@ -3938,7 +3938,6 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 					SubjectCommonName:   "CN",
 					PemCertificate:      "cert",
 					PemCertificateChain: []string{"chain"},
-					RootCACertificate:   "root",
 				},
 				Secret: &hyperscaler_models.CustomSecret{
 					SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "key"},
@@ -3956,7 +3955,6 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 		assert.Equal(t, "cert", creds.Certificate.Certificate)
 		assert.Equal(t, "key", creds.Certificate.PrivateKey)
 		assert.Equal(t, []string{"chain"}, creds.Certificate.InterMediateCertificate)
-		assert.Equal(t, "root", creds.Certificate.CaCertificate)
 		assert.Equal(t, "pwd", creds.AdminPassword)
 	})
 
@@ -4740,7 +4738,6 @@ func TestPoolActivity_CreateOnTapCredentials_Success(t *testing.T) {
 				SubjectCommonName:   "test-cn",
 				PemCertificate:      "test-cert",
 				PemCertificateChain: []string{"test-chain"},
-				RootCACertificate:   "test-ca",
 			},
 			Secret: &hyperscaler_models.CustomSecret{
 				SecretVersion: &hyperscaler_models.CustomSecretVersion{

@@ -158,7 +158,6 @@ func Test_convertPrivateCACertificateToCustomCertificate(t *testing.T) {
 			SubjectCommonName:          "common",
 			SubjectOrganization:        "org",
 			SubjectAltName:             []string{"dns1", "dns2"},
-			RootCACertificate:          "chain1",
 		}
 		result, err := _validateAndConvertPrivateCACertificateToCustomCertificate("cert-id", input)
 		assert.NoError(tt, err)

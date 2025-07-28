@@ -176,7 +176,6 @@ func Test_GetProviderByNode(t *testing.T) {
 				InterMediateCertificates: []string{"intermediate"},
 				CommonName:               "common",
 				PrivateKey:               "key",
-				RootCaCertificate:        "rootCaCert",
 			}, nil
 		}
 

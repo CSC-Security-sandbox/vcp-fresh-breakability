@@ -409,7 +409,6 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 		credentials.Certificate.Certificate = certificate.Certificate.PemCertificate
 		credentials.Certificate.PrivateKey = certificate.Secret.SecretVersion.Value
 		credentials.Certificate.InterMediateCertificate = certificate.Certificate.PemCertificateChain
-		credentials.Certificate.CaCertificate = certificate.Certificate.RootCACertificate
 		fallthrough
 	case commonparams.USERNAME_PWD_SEC_MGR:
 		secret, err := GeneratePasswordForVSACluster(gcpService, commonparams.SecretManagerProjectID, region, pool.PoolCredentials.SecretID)
@@ -459,7 +458,6 @@ func (j *PoolActivity) GetOnTapCredentials(ctx context.Context, pool *datamodel.
 		credentials.Certificate.Certificate = certificate.SignedCertificate
 		credentials.Certificate.PrivateKey = certificate.PrivateKey
 		credentials.Certificate.InterMediateCertificate = certificate.InterMediateCertificates
-		credentials.Certificate.CaCertificate = certificate.RootCaCertificate
 		fallthrough
 	case commonparams.USERNAME_PWD_SEC_MGR:
 		secret, err := GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
@@ -1713,7 +1711,6 @@ func _generateAndCreateCertificateForVSACluster(gcpService hyperscaler.GoogleSer
 		SignedCertificate:        cert.PemCertificate,
 		PrivateKey:               secret.SecretVersion.Value,
 		InterMediateCertificates: cert.PemCertificateChain,
-		RootCaCertificate:        cert.RootCACertificate,
 	})
 	return &hyperscaler_models.CustomCertificateResponse{
 		Certificate: cert,
@@ -1877,7 +1874,6 @@ func _getCertificateFromCacheOrSecretManager(ctx context.Context, certificateID 
 			PrivateKey:               certificateResponse.Secret.SecretVersion.Value,
 			CommonName:               certificateResponse.Certificate.SubjectCommonName,
 			InterMediateCertificates: certificateResponse.Certificate.PemCertificateChain,
-			RootCaCertificate:        certificateResponse.Certificate.RootCACertificate,
 		}
 		commonparams.AddToCertAuthCache(certificateID, cert)
 		return cert, nil
