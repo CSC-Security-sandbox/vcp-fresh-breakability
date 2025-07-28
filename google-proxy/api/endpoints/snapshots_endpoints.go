@@ -52,6 +52,9 @@ func (h Handler) V1betaGetMultipleSnapshots(ctx context.Context, req *gcpgenserv
 			response := convertModelToVCPSnapshot(snapshot)
 			snapshotsVCP = append(snapshotsVCP, *response)
 		}
+		return &gcpgenserver.V1betaGetMultipleSnapshotsOK{
+			Snapshots: snapshotsVCP,
+		}, nil
 	}
 	return getMultipleSnapshotsFromCVP(ctx, req, params, snapshotsVCP)
 }
