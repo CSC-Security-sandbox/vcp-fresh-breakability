@@ -41,8 +41,10 @@ var (
 	vmrsConfigPath                                         = env.GetString("VMRS_CONFIG_PATH", "config/vmrs_gcp.yaml")
 	maxNodesPerGroup                                       = env.GetInt("MAX_NODES_PER_GROUP", 200)
 	enableMetrics                                          = env.GetBool("ENABLE_METRICS", false)
+	enableUniqueSerialNumberGeneration                     = env.GetBool("ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION", false)
 	configureKmsConfigForSvmActivity                       = _configureKmsConfigForSvmActivity
 	getSignedJwtToken                                      = auth.GetSignedJwtToken
+	isProberProject                                        = utils.IsProberProject
 	GetNewVSAClientWorkflowManager                         = _getNewVSAClientWorkflowManager
 	ExtractOntapVersion                                    = _extractOntapVersion
 	WaitForServiceNetworkOperationStatus                   = _waitForServiceNetworkOperationStatus
@@ -266,6 +268,16 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifySecondaryAndMediatorZone, tenancyDetails.RegionalTenantProject, locationInfo, vlmConfig.Deployment.VSAInstanceType).Get(ctx, &resolvedLocationInfo)
 	if err != nil {
 		return nil, err
+	}
+
+	// Allocate unique serial numbers in production
+	// This is disabled by default (enableUniqueSerialNumberGeneration=false)
+	// Serial number will only be allocated if the project is not a prober project.
+	if enableUniqueSerialNumberGeneration && !isProberProject(params.AccountName) {
+		err = workflow.ExecuteActivity(ctx, poolActivity.AllocateClusterSerialNumber, vlmConfig, params.AccountName).Get(ctx, vlmConfig)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	hostMap := make(map[string]string)

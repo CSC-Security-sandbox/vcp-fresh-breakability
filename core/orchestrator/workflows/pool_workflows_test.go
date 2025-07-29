@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	envs "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -503,6 +505,135 @@ func TestCreatePoolWorkflow_GetTenancyDetailsError(t *testing.T) {
 	// Assert workflow execution
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: common.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+	}
+	svmName := "svmName"
+	oldEnableUniqueSerialNumberGeneration := enableUniqueSerialNumberGeneration
+	defer func() {
+		enableUniqueSerialNumberGeneration = oldEnableUniqueSerialNumberGeneration
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+		isProberProject = utils.IsProberProject
+		err := os.Unsetenv("VCP_VSA_ENABLE_SERIAL_NUMBER")
+		if err != nil {
+			t.Errorf("Failed to unset VCP_VSA_ENABLE_SERIAL_NUMBER")
+		}
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+	isProberProject = func(projectID string) bool {
+		return false
+	}
+	enableUniqueSerialNumberGeneration = true
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+		Gateway:               "192.168.1.254",
+	}, nil)
+	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("AllocateClusterSerialNumber", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			SPConfig: vlm.SPConfig{
+				IOps:       1024,
+				Throughput: 64,
+				Size:       "1TiB",
+			},
+			SerialNumberPrefix: "93500011111",
+		},
+	}, nil)
+	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
+	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		PrimaryZone:   "test-zone",
+		SecondaryZone: "test-secondary-zone",
+		Region:        "test-region",
+		MediatorZone:  "test-mediator-zone",
+	}, nil)
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
 }
 

@@ -2022,3 +2022,115 @@ func TestGetSnHostProject_ReturnsEmptyString_WhenSnHostProjectIsEmpty(t *testing
 	result := GetSnHostProject(pool)
 	assert.Equal(t, "", result)
 }
+
+func TestIsProberProject(t *testing.T) {
+	tests := []struct {
+		name              string
+		proberProjectList string
+		projectNumber     string
+		expectedResult    bool
+	}{
+		{
+			name:              "Project exists in prober list",
+			proberProjectList: "project1,project2,project3",
+			projectNumber:     "project2",
+			expectedResult:    true,
+		},
+		{
+			name:              "Project does not exist in prober list",
+			proberProjectList: "project1,project2,project3",
+			projectNumber:     "project4",
+			expectedResult:    false,
+		},
+		{
+			name:              "Empty prober list",
+			proberProjectList: "",
+			projectNumber:     "project1",
+			expectedResult:    false,
+		},
+		{
+			name:              "Empty project number with populated list",
+			proberProjectList: "project1,project2,project3",
+			projectNumber:     "",
+			expectedResult:    false,
+		},
+		{
+			name:              "Empty project number with empty list",
+			proberProjectList: "",
+			projectNumber:     "",
+			expectedResult:    false,
+		},
+		{
+			name:              "Single project in list matches",
+			proberProjectList: "single-project",
+			projectNumber:     "single-project",
+			expectedResult:    true,
+		},
+		{
+			name:              "Single project in list does not match",
+			proberProjectList: "single-project",
+			projectNumber:     "different-project",
+			expectedResult:    false,
+		},
+		{
+			name:              "Project with whitespace in list",
+			proberProjectList: "project1, project2 , project3",
+			projectNumber:     "project2",
+			expectedResult:    true,
+		},
+		{
+			name:              "Case sensitive matching - exact match",
+			proberProjectList: "Project1,PROJECT2,project3",
+			projectNumber:     "PROJECT2",
+			expectedResult:    true,
+		},
+		{
+			name:              "Case sensitive matching - no match",
+			proberProjectList: "Project1,PROJECT2,project3",
+			projectNumber:     "project2",
+			expectedResult:    false,
+		},
+		{
+			name:              "Numeric project numbers",
+			proberProjectList: "123456789,987654321,555666777",
+			projectNumber:     "987654321",
+			expectedResult:    true,
+		},
+		{
+			name:              "Mixed alphanumeric project numbers",
+			proberProjectList: "proj-123,test-456,demo-789",
+			projectNumber:     "test-456",
+			expectedResult:    true,
+		},
+		{
+			name:              "Project list with empty entries",
+			proberProjectList: "project1,,project2, ,project3",
+			projectNumber:     "project2",
+			expectedResult:    true,
+		},
+		{
+			name:              "Project number with special characters",
+			proberProjectList: "project-1,project_2,project.3",
+			projectNumber:     "project_2",
+			expectedResult:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variable for the test
+			err := os.Setenv("PROBER_PROJECT_LIST", tt.proberProjectList)
+			if err != nil {
+				t.Fatalf("Failed to set environment variable: %v", err)
+			}
+
+			// Reset the global variable to pick up new environment value
+			isProberProject = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
+
+			result := IsProberProject(tt.projectNumber)
+			if result != tt.expectedResult {
+				t.Errorf("IsProberProject(%q) = %v, want %v", tt.projectNumber, result, tt.expectedResult)
+			}
+		})
+	}
+}

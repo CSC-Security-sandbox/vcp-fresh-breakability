@@ -292,5 +292,11 @@
     "message": "Error while creating KMS configuration",
     "retriable": false,
     "http_code": 500
+  },
+  "6069": {
+    "description": "Cluster serial number generation failed",
+    "message": "Error while generating Cluster serial number",
+    "retriable": false,
+    "http_code": 500
   }
 }

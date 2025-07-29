@@ -1619,3 +1619,25 @@ func TestUpdatePoolSubnetNames_UpdatesSnHostProject(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedSnHostProject, updatedPool.SnHostProject)
 }
+
+func TestGetNextSerialNumberInRegion(t *testing.T) {
+	// Could not cover success case due to the use of a sequence, and sqlite in-memory database does not support sequences.
+	t.Run("ReturnsError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		if err != nil {
+			t.Fatalf("Failed to set up test database: %v", err)
+		}
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		if err != nil {
+			t.Fatalf("Failed to clean up test database: %v", err)
+		}
+
+		_, err = store.GetNextSerialNumberInRegion(context.Background(), "93501")
+		if err == nil {
+			tt.Errorf("Expected error, got nil")
+		}
+	})
+}

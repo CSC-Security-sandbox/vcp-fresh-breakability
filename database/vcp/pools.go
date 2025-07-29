@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -19,6 +20,7 @@ import (
 )
 
 var (
+	uniqueSerialSeqName = "cluster_serial_seq"
 	getPoolWithDetails  = _getPoolWithDetails
 	listPoolWithDetails = _listPoolWithDetails
 	getPoolByName       = _getPoolByName
@@ -415,4 +417,34 @@ func (d *DataStoreRepository) UpdatePoolWithKmsConfigID(ctx context.Context, poo
 	}
 	poolWithDetails, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: dbPool.UUID}})
 	return &poolWithDetails.Pool, err
+}
+
+// GetNextSerialNumberInRegion retrieves the next number from a regional db counter and returns the serial number suffix with the given prefix.
+func (d *DataStoreRepository) GetNextSerialNumberInRegion(ctx context.Context, prefix string) (string, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return "", err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	var nextClusterSerialNumber int64
+
+	query := fmt.Sprintf("SELECT nextval('%s')", uniqueSerialSeqName)
+	err = tx.Raw(query).Scan(&nextClusterSerialNumber).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// If you get this error, it means the sequence does not exist.
+		// In local setup, please run the migration script to create the sequence.
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, err)
+	} else if err != nil {
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	// Example, in case seq returns 1: 935010000000000001
+	// Example, in case seq returns 45555: 935010000000045555
+	// 935: predefined prefix
+	// 01: region code, e.g., 01 for us-central1
+	// 00000000001: nextClusterSerialNumber padded to 13 digits
+	return fmt.Sprintf("%s%013d", prefix, nextClusterSerialNumber), nil
 }

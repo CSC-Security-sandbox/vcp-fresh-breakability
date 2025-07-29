@@ -4679,6 +4679,63 @@ func (_c *MockStorage_GetNextSVMIndexByPoolID_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// GetNextSerialNumberInRegion provides a mock function with given fields: ctx, region
+func (_m *MockStorage) GetNextSerialNumberInRegion(ctx context.Context, region string) (string, error) {
+	ret := _m.Called(ctx, region)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetNextSerialNumberInRegion")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
+		return rf(ctx, region)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = rf(ctx, region)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, region)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetNextSerialNumberInRegion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNextSerialNumberInRegion'
+type MockStorage_GetNextSerialNumberInRegion_Call struct {
+	*mock.Call
+}
+
+// GetNextSerialNumberInRegion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - region string
+func (_e *MockStorage_Expecter) GetNextSerialNumberInRegion(ctx interface{}, region interface{}) *MockStorage_GetNextSerialNumberInRegion_Call {
+	return &MockStorage_GetNextSerialNumberInRegion_Call{Call: _e.mock.On("GetNextSerialNumberInRegion", ctx, region)}
+}
+
+func (_c *MockStorage_GetNextSerialNumberInRegion_Call) Run(run func(ctx context.Context, region string)) *MockStorage_GetNextSerialNumberInRegion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetNextSerialNumberInRegion_Call) Return(_a0 string, _a1 error) *MockStorage_GetNextSerialNumberInRegion_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetNextSerialNumberInRegion_Call) RunAndReturn(run func(context.Context, string) (string, error)) *MockStorage_GetNextSerialNumberInRegion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetNodeGroup provides a mock function with given fields: ctx, id
 func (_m *MockStorage) GetNodeGroup(ctx context.Context, id int64) (*datamodel.NodeGroup, error) {
 	ret := _m.Called(ctx, id)

@@ -963,3 +963,7 @@ func (s *PersistenceStore) GetNodeGroupMapNodeCount(ctx context.Context, nodeGro
 func (s *PersistenceStore) GetNodeNodeGroupMapByNodeID(ctx context.Context, nodeID int64) (*datamodel.NodeNodeGroupMap, error) {
 	return s.dataStore.GetNodeNodeGroupMapByNodeID(ctx, nodeID)
 }
+
+func (s *PersistenceStore) GetNextSerialNumberInRegion(ctx context.Context, prefix string) (string, error) {
+	return s.dataStore.GetNextSerialNumberInRegion(ctx, prefix)
+}

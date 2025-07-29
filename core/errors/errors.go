@@ -142,6 +142,7 @@ const (
 	ErrKMSDelete                                                     = 6066
 	ErrKMSUpdate                                                     = 6067
 	ErrKMSCreate                                                     = 6068
+	ErrGeneratingUniqueSerialNumber                                  = 6069
 )
 
 type Error interface {

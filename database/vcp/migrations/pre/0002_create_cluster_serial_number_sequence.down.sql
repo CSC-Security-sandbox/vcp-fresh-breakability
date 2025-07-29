@@ -1,0 +1,1 @@
+DROP SEQUENCE IF EXISTS cluster_serial_seq;

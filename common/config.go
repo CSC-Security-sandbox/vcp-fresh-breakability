@@ -1,6 +1,8 @@
 package common
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -92,6 +94,14 @@ func LoadConfig() *Config {
 		return nil
 	}
 
+	region := env.GetString("LOCAL_REGION", "")
+	regionMapJsonForNodeSerialNumber := env.GetString("REGION_CODE_MAP", `{"africa-south1": "01","asia-east1": "02","asia-east2": "03","asia-northeast1": "04","asia-northeast2": "05","asia-northeast3": "06","asia-south1": "07","asia-south2": "08","asia-southeast1": "09","asia-southeast2": "10","australia-southeast1": "11","australia-southeast2": "12","europe-central2": "13","europe-north1": "14","europe-north2": "15","europe-southwest1": "16","europe-west1": "17","europe-west10": "18","europe-west12": "19","europe-west2": "20","europe-west3": "21","europe-west4": "22","europe-west6": "23","europe-west8": "24","europe-west9": "25","me-central1": "26","me-central2": "27","me-west1": "28","northamerica-northeast1": "29","northamerica-northeast2": "30","northamerica-south1": "31","southamerica-east1": "32","southamerica-west1": "33","us-central1": "34","us-east1": "35","us-east4": "36","us-east5": "37","us-south1": "38","us-west1": "39","us-west2": "40","us-west3": "41","us-west4": "42"}`)
+
+	if err := validateRegionMap(region, regionMapJsonForNodeSerialNumber); err != nil {
+		slog.Error("Invalid Region: %v", err)
+		return nil
+	}
+
 	return &Config{
 		GCPPort:              gcpPort,
 		GCPHost:              gcpHost,
@@ -132,4 +142,24 @@ func parseDuration(value string) time.Duration {
 		return 0
 	}
 	return duration
+}
+
+func validateRegionMap(region, regionMapJsonForNodeSerialNumber string) error {
+	regionMap := make(map[string]string)
+	if err := json.Unmarshal([]byte(regionMapJsonForNodeSerialNumber), &regionMap); err != nil {
+		return fmt.Errorf("failed to parse region code map: %w", err)
+	}
+	_, ok := regionMap[region]
+	if !ok {
+		return fmt.Errorf("failed to find region code for cluster serial number generation: region %s is not mapped in region code map", region)
+	}
+	// Check for duplicate values
+	valueSet := make(map[string]struct{})
+	for _, v := range regionMap {
+		if _, exists := valueSet[v]; exists {
+			return fmt.Errorf("duplicate region code value found: %s", v)
+		}
+		valueSet[v] = struct{}{}
+	}
+	return nil
 }

@@ -59,6 +59,7 @@ var (
 	fileProtocolSupported = env.GetBool("FILES_PROTOCOL_SUPPORT", false)
 	// fileProtocolAllowlistedAccounts contains the parsed set of account IDs that are allowlisted for file protocol support
 	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
+	isProberProject                 = ParseCommaSeparatedStringToMap(env.GetString("PROBER_PROJECT_LIST", ""))
 )
 
 const (
@@ -889,6 +890,13 @@ func IsFileProtocolSupported(accountID string) bool {
 	// Check if the accountID is in the allowlisted accounts
 	// Exact matching (account IDs are typically numbered strings)
 	_, exists := fileProtocolAllowlistedAccounts[accountID]
+	return exists
+}
+
+// IsProberProject checks if the given project number is a prober project by search it in PROBER_PROJECT_LIST.
+func IsProberProject(projectNumber string) bool {
+	// Check if the project number is in the allowlisted prober projects
+	_, exists := isProberProject[projectNumber]
 	return exists
 }
 

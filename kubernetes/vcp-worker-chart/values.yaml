@@ -79,7 +79,7 @@ workerConfig:
   vsaImageName: "r9-17-1xn-250710-0000-gcnv"
   # this will be removed after AGA
   vsaFilesImageName: "r9-18-1xn-250722-0000"
-  
+
   # Mediator VM Configuration
   vsaMediatorInstanceType: "n2-standard-4"
   vsaMediatorDiskType: "pd-ssd"
@@ -99,6 +99,10 @@ workerConfig:
   harvestPortEnd: 13500
   firewallSourceRanges: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,34.0.0.0/8,46.149.16.0/20,52.94.203.152/29,52.94.203.160/29,185.35.244.0/22,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20,198.18.0.0/15"
   cvpHost: ""
+  proberProjectList: ""
+  enableUniqueSerialNumberGeneration: false
+  clusterSerialNumberPrefix: "935"
+
   workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
 
   # Database configuration
@@ -120,3 +124,48 @@ workerConfig:
 
 #Enabling or Disabling Secret Manager for Microservice Secrets
 secretManagerEnabled: false
+
+# Make sure to update the regionNumberMap if new regions are added. In both Google proxy and vcp-worker-chart
+regionNumberMap:
+  africa-south1: "01"
+  asia-east1: "02"
+  asia-east2: "03"
+  asia-northeast1: "04"
+  asia-northeast2: "05"
+  asia-northeast3: "06"
+  asia-south1: "07"
+  asia-south2: "08"
+  asia-southeast1: "09"
+  asia-southeast2: "10"
+  australia-southeast1: "11"
+  australia-southeast2: "12"
+  europe-central2: "13"
+  europe-north1: "14"
+  europe-north2: "15"
+  europe-southwest1: "16"
+  europe-west1: "17"
+  europe-west10: "18"
+  europe-west12: "19"
+  europe-west2: "20"
+  europe-west3: "21"
+  europe-west4: "22"
+  europe-west6: "23"
+  europe-west8: "24"
+  europe-west9: "25"
+  me-central1: "26"
+  me-central2: "27"
+  me-west1: "28"
+  northamerica-northeast1: "29"
+  northamerica-northeast2: "30"
+  northamerica-south1: "31"
+  southamerica-east1: "32"
+  southamerica-west1: "33"
+  us-central1: "34"
+  us-east1: "35"
+  us-east4: "36"
+  us-east5: "37"
+  us-south1: "38"
+  us-west1: "39"
+  us-west2: "40"
+  us-west3: "41"
+  us-west4: "42"

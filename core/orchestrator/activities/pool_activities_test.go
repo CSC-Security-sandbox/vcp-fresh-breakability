@@ -6514,3 +6514,70 @@ func TestAllocateSVMName(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 }
+
+func Test_AllocateClusterSerialNumber(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		serialNumber := "935010000000000001"
+
+		cfg := &vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+				GCPConfig: vlm.GCPConfig{},
+			},
+		}
+		oldRegionNumber := activities.RegionNumber
+		activities.RegionNumber = "34"
+		defer func() { activities.RegionNumber = oldRegionNumber }()
+
+		mockStorage.On("GetNextSerialNumberInRegion", ctx, "93534").Return(serialNumber, nil)
+		vlmConfig, err := activity.AllocateClusterSerialNumber(ctx, cfg)
+		assert.NoError(t, err)
+		assert.Equal(t, serialNumber, vlmConfig.Deployment.SerialNumberPrefix)
+	})
+
+	t.Run("FailureOnRegionNotAvailable", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+
+		cfg := &vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+				GCPConfig: vlm.GCPConfig{},
+			},
+		}
+
+		oldRegionNumber := activities.RegionNumber
+		activities.RegionNumber = ""
+		defer func() { activities.RegionNumber = oldRegionNumber }()
+
+		vlmConfig, err := activity.AllocateClusterSerialNumber(ctx, cfg)
+		assert.Error(t, err)
+		assert.Nil(t, vlmConfig)
+		assert.Contains(t, err.Error(), "region number is not set")
+	})
+	t.Run("FailureOnGetNextSerialNumberInRegionError", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		cfg := &vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+				GCPConfig: vlm.GCPConfig{},
+			},
+		}
+
+		oldRegionNumber := activities.RegionNumber
+		activities.RegionNumber = "34"
+		defer func() { activities.RegionNumber = oldRegionNumber }()
+
+		mockStorage.On("GetNextSerialNumberInRegion", ctx, "93534").Return("", errors.New("error fetching serial number"))
+		vlmConfig, err := activity.AllocateClusterSerialNumber(ctx, cfg)
+		assert.Error(t, err)
+		assert.Nil(t, vlmConfig)
+		assert.Contains(t, err.Error(), "error fetching serial number")
+	})
+}

@@ -51,6 +51,10 @@ data:
   JWK_KIDS_URL: "{{ index .Values "jwkKidsUrl" }}"
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: "{{ index .Values "workflowGlobalTimeoutMinutes" }}"
   MAX_HOSTS_PER_HOSTGROUP: "{{ index .Values "maxHostsPerHostgroup" }}"
+  PROBER_PROJECT_LIST: {{ .Values.proberProjectList | quote }}
+  ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: "{{ index .Values "enableUniqueSerialNumberGeneration" }}"
+  CLUSTER_SERIAL_NUMBER_PREFIX: "{{ index .Values "clusterSerialNumberPrefix" }}"
+  REGION_NUMBER_MAP : "{{ index .Values "regionNumberMap" | toJson }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_NAME: {{ index .Values "database" "name"  }}
