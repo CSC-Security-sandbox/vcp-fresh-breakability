@@ -2,7 +2,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: harvest-farm-lease-create
-  namespace: vcp
+  namespace: {{ .Release.Namespace }}
 rules:
   - apiGroups: [ "coordination.k8s.io" ]
     resources: [ "leases" ]
@@ -12,10 +12,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: harvest-farm-lease-create-binding
-  namespace: vcp
+  namespace: {{ .Release.Namespace }}
 subjects:
   - kind: ServiceAccount
-    name: default
+    name: {{ .Values.serviceAccount.name }}
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: Role
