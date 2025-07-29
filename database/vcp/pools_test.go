@@ -1290,22 +1290,22 @@ func TestConvertPoolViewToPool(t *testing.T) {
 	}
 	view := &datamodel.PoolView{
 		Pool: datamodel.Pool{
-			BaseModel:               datamodel.BaseModel{UUID: "uuid-1"},
-			Name:                    "test-pool",
-			Description:             "desc",
-			State:                   "READY",
-			StateDetails:            "Available",
-			VendorID:                "vendor-1",
-			ServiceLevel:            "premium",
-			SizeInBytes:             1000,
-			UsedBytes:               500,
-			Network:                 "net-1",
-			AllowAutoTiering:        true,
+			BaseModel:         datamodel.BaseModel{UUID: "uuid-1"},
+			Name:              "test-pool",
+			Description:       "desc",
+			State:             "READY",
+			StateDetails:      "Available",
+			VendorID:          "vendor-1",
+			ServiceLevel:      "premium",
+			SizeInBytes:       1000,
+			UsedBytes:         500,
+			Network:           "net-1",
+			AllowAutoTiering:  true,
 			AutoTieringConfig: autoTiering,
-			AccountID:               1,
-			Account:                 &datamodel.Account{Name: "acc"},
-			ClusterDetails:          datamodel.ClusterDetails{ExternalName: "cluster"},
-			QosType:                 "qos",
+			AccountID:         1,
+			Account:           &datamodel.Account{Name: "acc"},
+			ClusterDetails:    datamodel.ClusterDetails{ExternalName: "cluster"},
+			QosType:           "qos",
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password:      "pass",
 				SecretID:      "",
@@ -1575,4 +1575,47 @@ func TestUpdatePoolState(t *testing.T) {
 		assert.Error(tt, errDB)
 		assert.EqualError(tt, errDB, "[0] undefined error: pool not found")
 	})
+}
+
+func TestUpdatePoolSubnetNames_UpdatesSnHostProject(t *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	err = ClearInMemoryDB(store.db.GORM())
+	if err != nil {
+		t.Fatalf("Failed to clean up test database: %v", err)
+	}
+
+	// Create account and pool
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test_account"}
+	err = store.db.Create(account).Error()
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+	pool := &datamodel.Pool{
+		BaseModel:     datamodel.BaseModel{UUID: "test-pool-uuid"},
+		Name:          "test_pool",
+		AccountID:     account.ID,
+		Account:       account,
+		SnHostProject: "",
+	}
+	err = store.db.Create(pool).Error()
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	// Update SnHostProject
+	expectedSnHostProject := "new-sn-host-project"
+	subnetNames := []string{"subnet-1", "subnet-2"}
+	err = store.UpdatePoolSubnetNames(context.Background(), pool.UUID, expectedSnHostProject, subnetNames)
+	assert.NoError(t, err)
+
+	// Verify update
+	updatedPool := &datamodel.Pool{}
+	err = store.db.GORM().First(updatedPool, "uuid = ?", pool.UUID).Error
+	assert.NoError(t, err)
+	assert.Equal(t, expectedSnHostProject, updatedPool.SnHostProject)
 }

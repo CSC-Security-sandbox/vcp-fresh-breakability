@@ -187,6 +187,7 @@ func (d *DataStoreRepository) UpdatePoolSubnetNames(ctx context.Context, poolUUI
 	if subnetNames != nil {
 		dbPool.ClusterDetails.SubnetNames = subnetNames
 		dbPool.ClusterDetails.SnHostProject = snHostProject
+		dbPool.SnHostProject = snHostProject
 	}
 	dbPool.UpdatedAt = time.Now()
 
@@ -348,28 +349,29 @@ func ConvertPoolViewToPool(view *datamodel.PoolView) *datamodel.Pool {
 		return nil
 	}
 	return &datamodel.Pool{
-		BaseModel:               view.BaseModel,
-		Name:                    view.Name,
-		Description:             view.Description,
-		State:                   view.State,
-		StateDetails:            view.StateDetails,
-		VendorID:                view.VendorID,
-		ServiceLevel:            view.ServiceLevel,
-		SizeInBytes:             view.SizeInBytes,
-		UsedBytes:               view.UsedBytes,
-		Network:                 view.Network,
-		AllowAutoTiering:        view.AllowAutoTiering,
-		AccountID:               view.AccountID,
-		Account:                 view.Account,
-		PoolAttributes:          view.PoolAttributes,
-		ClusterDetails:          view.ClusterDetails,
-		QosType:                 view.QosType,
+		BaseModel:         view.BaseModel,
+		Name:              view.Name,
+		Description:       view.Description,
+		State:             view.State,
+		StateDetails:      view.StateDetails,
+		VendorID:          view.VendorID,
+		ServiceLevel:      view.ServiceLevel,
+		SizeInBytes:       view.SizeInBytes,
+		UsedBytes:         view.UsedBytes,
+		Network:           view.Network,
+		AllowAutoTiering:  view.AllowAutoTiering,
+		AccountID:         view.AccountID,
+		Account:           view.Account,
+		PoolAttributes:    view.PoolAttributes,
+		ClusterDetails:    view.ClusterDetails,
+		QosType:           view.QosType,
 		AutoTieringConfig: view.AutoTieringConfig,
-		ServiceAccountId:        view.ServiceAccountId,
-		DeploymentName:          view.DeploymentName,
-		PoolCredentials:         view.PoolCredentials,
-		KmsConfigID:             view.KmsConfigID,
-		KmsConfig:               view.KmsConfig,
+		ServiceAccountId:  view.ServiceAccountId,
+		DeploymentName:    view.DeploymentName,
+		PoolCredentials:   view.PoolCredentials,
+		KmsConfigID:       view.KmsConfigID,
+		KmsConfig:         view.KmsConfig,
+		SnHostProject:     view.SnHostProject,
 	}
 }
 

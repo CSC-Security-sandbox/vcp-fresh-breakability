@@ -2005,3 +2005,20 @@ func TestParseCommaSeparatedStringToMap_EdgeCases(t *testing.T) {
 		})
 	}
 }
+
+func TestGetSnHostProject_ReturnsSnHostProject_WhenPoolIsNotNil(t *testing.T) {
+	pool := &datamodel.Pool{SnHostProject: "test-sn-host-project"}
+	result := GetSnHostProject(pool)
+	assert.Equal(t, "test-sn-host-project", result)
+}
+
+func TestGetSnHostProject_ReturnsEmptyString_WhenPoolIsNil(t *testing.T) {
+	result := GetSnHostProject(nil)
+	assert.Equal(t, "", result)
+}
+
+func TestGetSnHostProject_ReturnsEmptyString_WhenSnHostProjectIsEmpty(t *testing.T) {
+	pool := &datamodel.Pool{SnHostProject: ""}
+	result := GetSnHostProject(pool)
+	assert.Equal(t, "", result)
+}

@@ -33,6 +33,7 @@ type Pool struct {
 	KmsConfig         *KmsConfig         `gorm:"ForeignKey:KmsConfigID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	DeploymentName    string             `gorm:"column:deployment_name;uniqueIndex:idx_account_deployment"`
 	PoolCredentials   *PoolCredentials   `gorm:"column:pool_credentials;type:jsonb"`
+	SnHostProject     string             `gorm:"column:sn_host_project;index"`
 }
 
 type PoolCredentials struct {

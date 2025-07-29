@@ -915,3 +915,10 @@ func SetFileProtocolAllowlistedAccountsForTesting(accounts string) {
 	// Re-parse the accounts to update the cached value
 	fileProtocolAllowlistedAccounts = ParseCommaSeparatedStringToMap(env.GetString("FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS", ""))
 }
+
+func GetSnHostProject(pool *datamodel.Pool) string {
+	if pool == nil {
+		return ""
+	}
+	return pool.SnHostProject
+}

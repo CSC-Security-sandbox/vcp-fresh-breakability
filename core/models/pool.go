@@ -25,6 +25,7 @@ type Pool struct {
 	AutoTieringConfig       *AutoTieringConfig
 	SaAccountID             string
 	DeploymentName          string
+	SnHostProject           string
 }
 
 // PoolAttributes describes the attributes of a pool model

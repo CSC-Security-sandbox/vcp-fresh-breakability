@@ -309,7 +309,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		Network:               tenancyDetails.Network,
 		SubnetNames:           tenancyDetails.SubnetworkNames,
 	}
-
+	dbPool.SnHostProject = tenancyDetails.SnHostProject
 	err = workflow.ExecuteActivity(ctx, poolActivity.SavePoolWithClusterDetails, dbPool, clusterDetails).Get(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -496,7 +496,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	saEmail := utils.ConstructServiceAccountEmail(pool.ServiceAccountId, pool.ClusterDetails.RegionalTenantProject)
 	currentVlmConfig := &vlm.VLMConfig{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.ConstructCurrentVlmConfig, pool.ID, dbPool.DeploymentName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, pool.ClusterDetails.SnHostProject, dsc, saEmail, bucketName).Get(ctx, currentVlmConfig)
+	err = workflow.ExecuteActivity(ctx, poolActivity.ConstructCurrentVlmConfig, pool.ID, dbPool.DeploymentName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, utils.GetSnHostProject(pool), dsc, saEmail, bucketName).Get(ctx, currentVlmConfig)
 	if err != nil {
 		return nil, err
 	}
