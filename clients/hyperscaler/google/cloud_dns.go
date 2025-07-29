@@ -28,13 +28,7 @@ func (gcpService *GcpServices) CreateResourceRecordSet(projectID, managedZone, i
 		return nil, err
 	}
 	gcpService.Logger.Debugf("Resource record set created successfully: %s", resp.Name)
-	return &models.CustomCloudDNSRecord{
-		RecordName:  resp.Name,
-		Type:        resp.Type,
-		TTL:         resp.Ttl,
-		Data:        resp.Rrdatas[0],
-		ManagedZone: managedZone,
-	}, nil
+	return common.ValidateAndConvertToCustomCloudDNSRecord(resp, managedZone)
 }
 
 // GetResourceRecordSet retrieves a DNS resource record set by its name and type in the specified managed zone. Reference : https://cloud.google.com/dns/docs/reference/rest/v1/resourceRecordSets/get
@@ -50,13 +44,8 @@ func (gcpService *GcpServices) GetResourceRecordSet(projectID, managedZone, reco
 		return nil, fmt.Errorf("no DNS records found for recordName : %s, recordType : %s", recordName, recordType)
 	}
 	gcpService.Logger.Debugf("Resource record set got successfully: %v", resp.Rrsets[0])
-	return &models.CustomCloudDNSRecord{
-		RecordName:  resp.Rrsets[0].Name,
-		Type:        resp.Rrsets[0].Type,
-		TTL:         resp.Rrsets[0].Ttl,
-		Data:        resp.Rrsets[0].Rrdatas[0],
-		ManagedZone: managedZone,
-	}, nil
+
+	return common.ValidateAndConvertToCustomCloudDNSRecord(resp.Rrsets[0], managedZone)
 }
 
 // DeleteResourceRecordSet deletes a DNS resource record set by its name and type in the specified managed zone. Reference : https://cloud.google.com/dns/docs/reference/rest/v1/resourceRecordSets/delete

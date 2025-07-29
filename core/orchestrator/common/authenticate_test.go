@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
+	"google.golang.org/api/dns/v1"
 	"google.golang.org/api/privateca/v1"
 	"google.golang.org/api/secretmanager/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -279,5 +280,50 @@ func Test__convertCertificateParamsToCustomCertificate(t *testing.T) {
 		if err == nil {
 			tt.Errorf("Expected err, got %+v", err)
 		}
+	})
+}
+func Test_validateAndConvertToCustomCloudDNSRecord(t *testing.T) {
+	t.Run("NilRecordSet", func(tt *testing.T) {
+		result, err := _validateAndConvertToCustomCloudDNSRecord(nil, "zone")
+		assert.Nil(tt, result)
+		assert.Equal(tt, "resource record set is nil", err.Error())
+	})
+
+	t.Run("InvalidRecordSet_EmptyFields", func(tt *testing.T) {
+		recordSet := &dns.ResourceRecordSet{}
+		result, err := _validateAndConvertToCustomCloudDNSRecord(recordSet, "zone")
+		assert.Nil(tt, result)
+		assert.Equal(tt, "resource record set is invalid", err.Error())
+	})
+
+	t.Run("InvalidRecordSet_EmptyRrdatas", func(tt *testing.T) {
+		recordSet := &dns.ResourceRecordSet{
+			Name: "test.com.",
+			Type: "A",
+			Ttl:  300,
+		}
+		result, err := _validateAndConvertToCustomCloudDNSRecord(recordSet, "zone")
+		assert.Nil(tt, result)
+		assert.Equal(tt, "resource record set is invalid", err.Error())
+	})
+
+	t.Run("ValidRecordSet", func(tt *testing.T) {
+		recordSet := &dns.ResourceRecordSet{
+			Name:    "test.com.",
+			Type:    "A",
+			Ttl:     300,
+			Rrdatas: []string{"1.2.3.4"},
+		}
+		managedZone := "zone"
+		expected := &models.CustomCloudDNSRecord{
+			RecordName:  "test.com.",
+			Type:        "A",
+			TTL:         300,
+			Data:        "1.2.3.4",
+			ManagedZone: managedZone,
+		}
+		result, err := _validateAndConvertToCustomCloudDNSRecord(recordSet, managedZone)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
 	})
 }

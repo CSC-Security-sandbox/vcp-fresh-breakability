@@ -10,6 +10,7 @@ import (
 	"github.com/go-openapi/errors"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"google.golang.org/api/dns/v1"
 	"google.golang.org/api/privateca/v1"
 	"google.golang.org/api/secretmanager/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -78,6 +79,7 @@ var (
 	ValidateAndConvertPrivateCACertificateToCustomCertificate = _validateAndConvertPrivateCACertificateToCustomCertificate
 	ConvertSecretToCustomSecret                               = _convertSecretToCustomSecret
 	ConvertSecretVersionToCustomSecretVersion                 = _convertSecretVersionToCustomSecretVersion
+	ValidateAndConvertToCustomCloudDNSRecord                  = _validateAndConvertToCustomCloudDNSRecord
 )
 
 func _validateAndConvertPrivateCACertificateToCustomCertificate(certificateId string, cert *privateca.Certificate) (*models.CustomCertificate, error) {
@@ -191,15 +193,32 @@ func parseTimestamps(timeStr string) (*timestamppb.Timestamp, error) {
 }
 
 func _validateAndConvertCertificateParamsToCustomCertificate(param *models.CustomCertificateParam, pemBlock pem.Block) (*models.CustomCertificate, error) {
-	if param == nil || param.CertificateID == "" || param.CaName == "" || param.CertOwningEntity == "" || param.Region == "" || param.CaPoolName == "" || pemBlock.Type == "" {
+	if param == nil || param.CertificateID == "" || param.CaName == "" || param.CertOwningEntity == "" || param.Region == "" || param.CaPoolName == "" || pemBlock.Type == "" && param.CommonName == "" {
 		return nil, fmt.Errorf("invalid certificate parameters")
 	}
 	return &models.CustomCertificate{
-		CertificateID:    param.CertificateID,
-		CaName:           param.CaName,
-		CertOwningEntity: param.CertOwningEntity,
-		Region:           param.Region,
-		CaGroupName:      param.CaPoolName,
-		PemCsr:           string(pem.EncodeToMemory(&pemBlock)),
+		CertificateID:     param.CertificateID,
+		CaName:            param.CaName,
+		CertOwningEntity:  param.CertOwningEntity,
+		Region:            param.Region,
+		CaGroupName:       param.CaPoolName,
+		PemCsr:            string(pem.EncodeToMemory(&pemBlock)),
+		SubjectCommonName: param.CommonName,
+	}, nil
+}
+
+func _validateAndConvertToCustomCloudDNSRecord(recordSet *dns.ResourceRecordSet, managedZone string) (*models.CustomCloudDNSRecord, error) {
+	if recordSet == nil {
+		return nil, fmt.Errorf("resource record set is nil")
+	}
+	if recordSet.Name == "" || recordSet.Type == "" || recordSet.Ttl == 0 || recordSet.Rrdatas == nil || len(recordSet.Rrdatas) == 0 {
+		return nil, fmt.Errorf("resource record set is invalid")
+	}
+	return &models.CustomCloudDNSRecord{
+		RecordName:  recordSet.Name,
+		Type:        recordSet.Type,
+		TTL:         recordSet.Ttl,
+		Data:        recordSet.Rrdatas[0],
+		ManagedZone: managedZone,
 	}, nil
 }

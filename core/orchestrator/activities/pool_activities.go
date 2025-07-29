@@ -978,16 +978,16 @@ func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm
 			}
 
 			IpaddressVm1 := details.VM1.SystemLIFs[vlm.LIFTypeNodeMgmt].IP
-			haPairNode1 := fmt.Sprintf("%s-%d.%s.%s.", "dns", (2*i)+1, clusterName, commonparams.VsaDeployedDnsName)
-			record1, err := GetOrCreateCloudDNSRecord(gcpService, IpaddressVm1, haPairNode1)
+			haPairNode1 := fmt.Sprintf("%s-%d.%s.%s", "dns", (2*i)+1, clusterName, commonparams.VsaDeployedDnsName)
+			record1, err := GetOrCreateCloudDNSRecord(gcpService, haPairNode1, IpaddressVm1)
 			if err != nil {
 				return nil, err
 			}
 			hostMap[IpaddressVm1] = record1.RecordName
 
 			IpaddressVm2 := details.VM2.SystemLIFs[vlm.LIFTypeNodeMgmt].IP
-			haPairNode2 := fmt.Sprintf("%s-%d.%s.%s.", "dns", (2*i)+2, clusterName, commonparams.VsaDeployedDnsName)
-			record2, err := GetOrCreateCloudDNSRecord(gcpService, IpaddressVm2, haPairNode2)
+			haPairNode2 := fmt.Sprintf("%s-%d.%s.%s", "dns", (2*i)+2, clusterName, commonparams.VsaDeployedDnsName)
+			record2, err := GetOrCreateCloudDNSRecord(gcpService, haPairNode2, IpaddressVm2)
 			if err != nil {
 				return nil, err
 			}
@@ -1071,6 +1071,7 @@ func _saveNodeDetails(ctx context.Context, se database.Storage, vmConfig vlm.VMC
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+
 	vsaNode, err := provider.GetNodeByName(node.Name)
 	if err != nil {
 		return nil, err
