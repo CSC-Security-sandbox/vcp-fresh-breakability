@@ -671,6 +671,9 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
 
 	ontapVersion := ExtractOntapVersion(dbPool.ClusterDetails.OntapVersion)
+	if ontapVersion == "" {
+		ontapVersion = vlm.VSALifecycleManagerQueue
+	}
 
 	deleteVSAClusterDeploymentRequest := &vlm.DeleteVSAClusterDeploymentRequest{}
 	prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, VLMCloudProvider, dbPool.ClusterDetails.RegionalTenantProject)

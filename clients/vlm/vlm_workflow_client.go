@@ -76,7 +76,6 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 		TaskQueue:             getVLMWorkerQueue(logger, accountId),                                // As VLM workflows are executed in a VSALifecycleManagerQueue queue
 		WaitForCancellation:   true,                                                                // The parent workflow waits until the child workflow is fully canceled (it finishes whatever it needs to do after being canceled).
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,          // Allows reuse only if the previous execution did not complete successfully (e.g., failed, timed out, terminated, or cancelled)
-		ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL,                            // If the parent workflow is closed, the child workflow will be requested to cancel.
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:    retryPolicy.InitialInterval,
 			BackoffCoefficient: retryPolicy.BackoffCoefficient,
@@ -109,7 +108,6 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 		TaskQueue:             getVLMWorkerQueue(logger, accountId),
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:    retryPolicy.InitialInterval,
 			BackoffCoefficient: retryPolicy.BackoffCoefficient,
@@ -148,7 +146,6 @@ func (vlmManager *VSAClientWorkflowManager) DeleteVSAClusterDeployment(ctx workf
 		TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + ontapVersion,
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:    retryPolicy.InitialInterval,
 			BackoffCoefficient: retryPolicy.BackoffCoefficient,
@@ -178,7 +175,6 @@ func (vlmManager *VSAClientWorkflowManager) UpdateVSAClusterDeployment(ctx workf
 		TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + ontapVersion,
 		WaitForCancellation:   true,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY,
-		ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:    retryPolicy.InitialInterval,
 			BackoffCoefficient: retryPolicy.BackoffCoefficient,
