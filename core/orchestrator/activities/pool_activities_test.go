@@ -655,7 +655,7 @@ func Test_SaveSVMAndLifData_Success(t *testing.T) {
 	}, nil)
 	mockStorage.On("CreateLif", mock.Anything, mock.Anything).Return(&datamodel.Lif{}, nil)
 
-	_, err := env.ExecuteActivity(activity.SaveSVMAndLifData, pool, vlmConfig)
+	_, err := env.ExecuteActivity(activity.SaveSVMAndLifData, pool, vlmConfig, "gcnv")
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -687,7 +687,7 @@ func Test_SaveSVMAndLifDataDBCreationError(t *testing.T) {
 
 	mockStorage.On("CreateSVM", ctx, mock.Anything).Return(&datamodel.Svm{}, errors.New("connection error"))
 
-	svm, err := activity.SaveSVMAndLifData(ctx, pool, vlmConfig)
+	svm, err := activity.SaveSVMAndLifData(ctx, pool, vlmConfig, "gcnv")
 
 	assert.Nil(t, svm)
 	assert.Error(t, err)
@@ -714,7 +714,7 @@ func Test_SaveSVMAndLifData_CouldNotFetchNodes(t *testing.T) {
 	mockStorage.On("CreateSVM", ctx, mock.Anything).Return(&datamodel.Svm{}, nil)
 	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nil, gorm.ErrRecordNotFound)
 
-	svm, err := activity.SaveSVMAndLifData(ctx, pool, vlmConfig)
+	svm, err := activity.SaveSVMAndLifData(ctx, pool, vlmConfig, "gcnv")
 
 	assert.Nil(t, svm)
 	assert.Error(t, err)
@@ -746,7 +746,7 @@ func Test_SaveSVMAndLifData_NotEnoughNodes(t *testing.T) {
 		{BaseModel: datamodel.BaseModel{ID: 1}},
 	}, nil)
 
-	_, err := env.ExecuteActivity(activity.SaveSVMAndLifData, pool, vlmConfig)
+	_, err := env.ExecuteActivity(activity.SaveSVMAndLifData, pool, vlmConfig, "gcnv")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not enough nodes in the cluster")
@@ -784,7 +784,7 @@ func Test_SaveSVMAndLifData_FailsToCreateLif(t *testing.T) {
 	}, nil)
 	mockStorage.On("CreateLif", mock.Anything, mock.Anything).Return(nil, errors.New("failed to create LIF"))
 
-	_, err := env.ExecuteActivity(activity.SaveSVMAndLifData, pool, vlmConfig)
+	_, err := env.ExecuteActivity(activity.SaveSVMAndLifData, pool, vlmConfig, "gcnv")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create LIF")
@@ -819,7 +819,7 @@ func Test_SaveSVMAndLifData_NonExistentHomeNode(t *testing.T) {
 		{BaseModel: datamodel.BaseModel{ID: 2}, Name: "another-node"},
 	}, nil)
 
-	svm, err := activity.SaveSVMAndLifData(ctx, pool, vlmConfig)
+	svm, err := activity.SaveSVMAndLifData(ctx, pool, vlmConfig, "gcnv")
 
 	assert.Nil(t, svm)
 	assert.Error(t, err)
@@ -6348,4 +6348,169 @@ func Test_resolveZonesForCluster_Error_NoSecondaryZoneSupportsInstanceType(t *te
 	assert.Equal(t, "", resolvedSecondary)
 	assert.Equal(t, "", resolvedMediator)
 	mockService.AssertExpectations(t)
+}
+
+func TestAllocateSVMName(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	t.Run("FirstSVMInPool", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 123},
+			DeploymentName: "gcnv",
+		}
+
+		mockStorage.On("GetNextSVMIndexByPoolID", ctx, int64(123)).Return(int64(1), nil)
+
+		// Act
+		result, err := activity.AllocateSVMName(ctx, pool)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "gcnv-svm-01", result)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("SecondSVMInPool", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 123},
+			DeploymentName: "gcnv",
+		}
+
+		mockStorage.On("GetNextSVMIndexByPoolID", ctx, int64(123)).Return(int64(2), nil)
+
+		// Act
+		result, err := activity.AllocateSVMName(ctx, pool)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "gcnv-svm-02", result)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("TenthSVMInPool", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 123},
+			DeploymentName: "gcnv",
+		}
+
+		mockStorage.On("GetNextSVMIndexByPoolID", ctx, int64(123)).Return(int64(10), nil)
+
+		// Act
+		result, err := activity.AllocateSVMName(ctx, pool)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "gcnv-svm-10", result)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("EleventhSVMInPool", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 123},
+			DeploymentName: "gcnv",
+		}
+
+		mockStorage.On("GetNextSVMIndexByPoolID", ctx, int64(123)).Return(int64(11), nil)
+
+		// Act
+		result, err := activity.AllocateSVMName(ctx, pool)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "gcnv-svm-11", result)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("NinetyNinthSVMInPool", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 123},
+			DeploymentName: "gcnv",
+		}
+
+		mockStorage.On("GetNextSVMIndexByPoolID", ctx, int64(123)).Return(int64(99), nil)
+
+		// Act
+		result, err := activity.AllocateSVMName(ctx, pool)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "gcnv-svm-99", result)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("HundredthSVMInPool", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 123},
+			DeploymentName: "gcnv",
+		}
+
+		mockStorage.On("GetNextSVMIndexByPoolID", ctx, int64(123)).Return(int64(100), nil)
+
+		// Act
+		result, err := activity.AllocateSVMName(ctx, pool)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "gcnv-svm-100", result)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("DifferentDeploymentName", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 456},
+			DeploymentName: "test-deployment",
+		}
+
+		mockStorage.On("GetNextSVMIndexByPoolID", ctx, int64(456)).Return(int64(6), nil)
+
+		// Act
+		result, err := activity.AllocateSVMName(ctx, pool)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "test-deployment-svm-06", result)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("DatabaseError", func(t *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: 123},
+			DeploymentName: "gcnv",
+		}
+
+		expectedError := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, fmt.Errorf("database connection failed"))
+		mockStorage.On("GetNextSVMIndexByPoolID", ctx, int64(123)).Return(int64(0), expectedError)
+
+		// Act
+		result, err := activity.AllocateSVMName(ctx, pool)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Empty(t, result)
+		mockStorage.AssertExpectations(t)
+	})
 }

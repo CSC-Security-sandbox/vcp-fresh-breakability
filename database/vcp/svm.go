@@ -29,6 +29,16 @@ func (d *DataStoreRepository) GetSvmsByPoolID(ctx context.Context, poolID int64)
 	return svms, nil
 }
 
+// GetNextSVMIndexByPoolID retrieves the next SVM index (count + 1) by pool ID
+func (d *DataStoreRepository) GetNextSVMIndexByPoolID(ctx context.Context, poolID int64) (int64, error) {
+	var count int64
+	err := d.db.GORM().Unscoped().WithContext(ctx).Model(&datamodel.Svm{}).Where("pool_id = ?", poolID).Count(&count).Error
+	if err != nil {
+		return 0, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return count + 1, nil
+}
+
 // GetSvmsByKmsConfigID retrieves SVMs by kms config id
 func (d *DataStoreRepository) GetSvmsByKmsConfigID(ctx context.Context, kmsConfigID int64) ([]*datamodel.Svm, error) {
 	return getSvmsByKmsConfigID(d.db.GORM().WithContext(ctx), kmsConfigID)

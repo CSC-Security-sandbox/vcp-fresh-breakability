@@ -551,12 +551,10 @@ func (j *PoolActivity) GetOntapVersion(ctx context.Context, node *models.Node) (
 	return version, nil
 }
 
-func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlm.VLMConfig) (*datamodel.Svm, error) {
+func (j *PoolActivity) SaveSVMAndLifData(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlm.VLMConfig, svmName string) (*datamodel.Svm, error) {
 	se := j.SE
 
-	name := DefaultSvmName
-	svm := vlmConfig.Svm[name]
-
+	svm := vlmConfig.Svm[svmName]
 	svmRec := &datamodel.Svm{
 		Name:      svm.Svmname,
 		AccountID: pool.AccountID,
@@ -2061,4 +2059,23 @@ func (j *PoolActivity) IdentifySecondaryAndMediatorZone(ctx context.Context, pro
 		"mediatorZone", resolvedMediatorZone)
 
 	return updatedLocationInfo, nil
+}
+
+func (j *PoolActivity) AllocateSVMName(ctx context.Context, pool *datamodel.Pool) (string, error) {
+	// TODO: This function currently just adds a sequence to the SVM name.
+	// It will be enhanced later when multiple SVM support is added to handle
+	// more sophisticated naming strategies and SVM allocation logic.
+	se := j.SE
+
+	// Get the next SVM index directly from the database
+	nextSequence, err := se.GetNextSVMIndexByPoolID(ctx, pool.ID)
+	if err != nil {
+		return "", vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Format the sequence with leading zeros (01, 02, 03, etc.)
+	sequenceStr := fmt.Sprintf("%02d", nextSequence)
+
+	// Return SVM name with sequence
+	return fmt.Sprintf("%s-svm-%s", pool.DeploymentName, sequenceStr), nil
 }

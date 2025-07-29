@@ -85,6 +85,7 @@ type (
 
 		CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error)
 		GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Svm, error)
+		GetNextSVMIndexByPoolID(ctx context.Context, poolID int64) (int64, error)
 		UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datamodel.Svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID string) (*datamodel.Svm, error)
 
 		CreateLif(ctx context.Context, lif *datamodel.Lif) (*datamodel.Lif, error)

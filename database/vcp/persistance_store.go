@@ -569,6 +569,10 @@ func (s *PersistenceStore) GetSvmsByPoolID(ctx context.Context, poolID int64) ([
 	return s.dataStore.GetSvmsByPoolID(ctx, poolID)
 }
 
+func (s *PersistenceStore) GetNextSVMIndexByPoolID(ctx context.Context, poolID int64) (int64, error) {
+	return s.dataStore.GetNextSVMIndexByPoolID(ctx, poolID)
+}
+
 func (s *PersistenceStore) UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datamodel.Svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID string) (*datamodel.Svm, error) {
 	return s.dataStore.UpdateSvmWithKmsConfigIDs(ctx, svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID)
 }

@@ -1082,6 +1082,26 @@ func (re *retryEngine) GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*da
 	return var0, err
 }
 
+func (re *retryEngine) GetNextSVMIndexByPoolID(ctx context.Context, poolID int64) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetNextSVMIndexByPoolID(ctx, poolID)
+		if err != nil {
+			re.logError("GetNextSVMIndexByPoolID", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datamodel.Svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID string) (*datamodel.Svm, error) {
 	var var0 *datamodel.Svm
 	err := retry.Do(func(attempt int) (bool, error) {

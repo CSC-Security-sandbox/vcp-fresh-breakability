@@ -58,6 +58,124 @@ func TestGetSvmsByPoolID(t *testing.T) {
 	})
 }
 
+func TestGetNextSVMIndexByPoolID(t *testing.T) {
+	t.Run("WhenSvmsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create multiple SVMs for the same pool
+		svm1 := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-svm-uuid-1",
+			},
+			Name:   "test_svm_1",
+			PoolID: 1234,
+		}
+		err = store.db.Create(svm1).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create svm1: %v", err)
+		}
+
+		svm2 := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "test-svm-uuid-2",
+			},
+			Name:   "test_svm_2",
+			PoolID: 1234,
+		}
+		err = store.db.Create(svm2).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create svm2: %v", err)
+		}
+
+		// Create SVM for different pool
+		svm3 := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{
+				ID:   3,
+				UUID: "test-svm-uuid-3",
+			},
+			Name:   "test_svm_3",
+			PoolID: 5678,
+		}
+		err = store.db.Create(svm3).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create svm3: %v", err)
+		}
+
+		result, err := store.GetNextSVMIndexByPoolID(context.Background(), 1234)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, int64(3), result, "Expected next index to be 3 (count 2 + 1), got %v", result)
+	})
+	t.Run("WhenSvmDoesNotExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		result, err := store.GetNextSVMIndexByPoolID(context.Background(), 12)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, int64(1), result, "Expected next index to be 1 (count 0 + 1), got %v", result)
+	})
+	t.Run("WhenDeletedSvmsExist", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create an SVM
+		svm1 := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-svm-uuid-1",
+			},
+			Name:   "test_svm_1",
+			PoolID: 1234,
+		}
+		err = store.db.Create(svm1).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create svm1: %v", err)
+		}
+
+		// Create another SVM
+		svm2 := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "test-svm-uuid-2",
+			},
+			Name:   "test_svm_2",
+			PoolID: 1234,
+		}
+		err = store.db.Create(svm2).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create svm2: %v", err)
+		}
+
+		// Delete one SVM (soft delete)
+		err = store.db.Delete(svm2).Error()
+		if err != nil {
+			tt.Fatalf("Failed to delete svm2: %v", err)
+		}
+
+		// Count should include deleted SVMs for name uniqueness
+		result, err := store.GetNextSVMIndexByPoolID(context.Background(), 1234)
+		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.Equal(tt, int64(3), result, "Expected next index to be 3 (count 2 including deleted SVM + 1), got %v", result)
+	})
+}
+
 func TestCreateSVM(t *testing.T) {
 	t.Run("WhenSvmIsCreatedSuccessfully", func(tt *testing.T) {
 		db, err := SetupTestDB()

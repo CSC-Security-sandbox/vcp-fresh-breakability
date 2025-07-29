@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	IpSpace = env.GetString("VSA_IC_LIF_IPSPACE", "GcnvIpSpace")
+	IpSpace = env.GetString("VSA_IC_LIF_IPSPACE", "Gcnv")
 )
 
 const clusterPeerAvailable = "available"

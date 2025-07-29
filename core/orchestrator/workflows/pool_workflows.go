@@ -315,15 +315,21 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
+	svmName := ""
+	err = workflow.ExecuteActivity(ctx, poolActivity.AllocateSVMName, dbPool).Get(ctx, &svmName)
+	if err != nil {
+		return nil, err
+	}
+
 	createSVMRequest := &vlm.CreateSVMRequest{}
-	prepareCreateSVMRequest(createSVMRequest, DefaultSvmName, createVSAClusterDeploymentResponse.VLMConfig, *credConfig)
+	prepareCreateSVMRequest(createSVMRequest, svmName, createVSAClusterDeploymentResponse.VLMConfig, *credConfig)
 	createSVMResponse, err := vsaClientWorkflowManager.CreateVSASVM(ctx, createSVMRequest)
 	if err != nil {
 		return nil, err
 	}
 
 	svm := &datamodel.Svm{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.SaveSVMAndLifData, dbPool, createSVMResponse.VLMConfig).Get(ctx, svm)
+	err = workflow.ExecuteActivity(ctx, poolActivity.SaveSVMAndLifData, dbPool, createSVMResponse.VLMConfig, svmName).Get(ctx, svm)
 	if err != nil {
 		return nil, err
 	}
