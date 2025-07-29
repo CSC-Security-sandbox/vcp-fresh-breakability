@@ -77,3 +77,4 @@ data:
   VSA_MEDIATOR_INSTANCE_TYPE: {{ .Values.workerConfig.vsaMediatorInstanceType | quote }}
   VSA_MEDIATOR_DISK_TYPE: {{ .Values.workerConfig.vsaMediatorDiskType | quote }}
   VSA_MEDIATOR_IMAGE_NAME: {{ .Values.workerConfig.vsaMediatorImageName | quote }}
+  METRICS_PORT: {{ .Values.workerConfig.metricsPort | quote }}

@@ -138,6 +138,8 @@ spec:
               value: "24"
             - name: CLOUD_DNS_CACHE_TTL
               value: "300"
+            - name: METRICS_PORT
+              value: "9090"
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1

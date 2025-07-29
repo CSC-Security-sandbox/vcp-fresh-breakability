@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/google/uuid"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -38,6 +41,44 @@ func main() {
 	eg, ctx := errgroup.WithContext(ctx)
 	logger := log.NewLogger()
 	logger.Info("Starting temporal worker")
+
+	// Setup OpenTelemetry for metrics export
+	shutdown, err := log.SetupOpenTelemetry(ctx)
+	if err != nil {
+		logger.Error("Failed to set up OpenTelemetry", "error", err.Error())
+		os.Exit(1)
+	}
+	defer func() {
+		if err := shutdown(ctx); err != nil {
+			logger.Error("Failed to shutdown OpenTelemetry", "error", err.Error())
+		}
+	}()
+
+	// Start metrics HTTP server
+	metricsPort := os.Getenv("METRICS_PORT")
+	if metricsPort == "" {
+		metricsPort = "9090"
+	}
+	eg.Go(func() error {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		server := &http.Server{
+			Addr:         ":" + metricsPort,
+			Handler:      mux,
+			ReadTimeout:  10 * time.Second,
+			WriteTimeout: 10 * time.Second,
+			IdleTimeout:  120 * time.Second,
+		}
+		logger.Info("Starting metrics server", "port", metricsPort)
+		go func() {
+			<-ctx.Done()
+			logger.Info("Shutting down metrics server")
+			if err := server.Shutdown(context.Background()); err != nil {
+				logger.Error("Metrics server shutdown error", "error", err.Error())
+			}
+		}()
+		return server.ListenAndServe()
+	})
 
 	// Create a Temporal client
 	workflowClient, err := initializeTemporalClient(logger)

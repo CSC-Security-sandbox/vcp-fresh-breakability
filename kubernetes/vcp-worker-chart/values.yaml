@@ -84,6 +84,8 @@ workerConfig:
   vsaMediatorInstanceType: "n2-standard-4"
   vsaMediatorDiskType: "pd-ssd"
   vsaMediatorImageName: "r9-17-1xn-250704-0000-mediator-debian-12"
+  
+  metricsPort: "9090"
 
   # Harvest Configuration
   serviceControlUrl: "https://servicecontrol.googleapis.com"
