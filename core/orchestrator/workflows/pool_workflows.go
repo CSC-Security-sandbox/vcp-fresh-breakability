@@ -231,7 +231,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	rollbackManager.AddActivity(poolActivity.DeleteOnTapCredentials, pool)
 
-	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
+	sizeInGB := utils.BytesToGigabytes(params.HotTierSizeInBytes)
 	// Convert CustomPerformanceParams to CustomerRequestedPerformance.
 	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{
 		DesiredIOPS:             params.CustomPerformanceParams.Iops,

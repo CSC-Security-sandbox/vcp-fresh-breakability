@@ -29,10 +29,11 @@ var (
 )
 
 const (
-	HTTP_BAD_REQUEST_CODE = 400
-	DEFAULT_IOPS          = 1024
-	maxRuneCount          = 63
-	maxByteCount          = 128
+	HTTP_BAD_REQUEST_CODE     = 400
+	DEFAULT_IOPS              = 1024
+	maxRuneCount              = 63
+	maxByteCount              = 128
+	MinPoolHotTierSizeInBytes = 1099511627776 // 1 TiB
 )
 
 // V1betaDescribePool handles the request to describe a pool.
@@ -127,6 +128,11 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		totalIops = int(req.TotalIops.Value)
 	}
 
+	hotTierSizeInBytes := uint64(req.SizeInBytes)
+	if req.AllowAutoTiering.IsSet() && req.AllowAutoTiering.Value {
+		hotTierSizeInBytes = uint64(req.HotTierSizeInBytes.Value)
+	}
+
 	param := &common.CreatePoolParams{
 		AccountName:             params.ProjectNumber,
 		Region:                  region,
@@ -140,7 +146,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		SizeInBytes:             uint64(req.SizeInBytes),
 		QosType:                 req.QosType.Value,
 		AllowAutoTiering:        req.AllowAutoTiering.Value,
-		HotTierSizeInBytes:      uint64(req.HotTierSizeInBytes.Value),
+		HotTierSizeInBytes:      hotTierSizeInBytes,
 		EnableHotTierAutoResize: req.EnableHotTierAutoResize.Value,
 		CustomPerformanceParams: &common.CustomPerformanceParams{ThroughputMibps: int64(req.TotalThroughputMibps.Value), Enabled: req.CustomPerformanceEnabled.Value, Iops: int64(totalIops)},
 		KmsConfigId:             req.KmsConfigId.Value,
@@ -742,6 +748,54 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 				Code:    http.StatusBadRequest,
 				Message: "Multiple Zone values cannot be passed for Zonal Pool Creation",
 			}
+		}
+	}
+	// Validate auto-tiering parameters
+	if !autoTieringEnabled && ((req.AllowAutoTiering.IsSet() && req.AllowAutoTiering.Value) || (req.HotTierSizeInBytes.IsSet() && req.HotTierSizeInBytes.Value > 0)) {
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "Auto-Tiering feature is currently not enabled.",
+		}
+	}
+
+	if req.AllowAutoTiering.IsSet() && req.AllowAutoTiering.Value {
+		// 1. HotTierSizeInBytes is required when auto-tiering is enabled
+		if !req.HotTierSizeInBytes.IsSet() || req.HotTierSizeInBytes.Value == 0 {
+			return &gcpgenserver.Error{
+				Code:    HTTP_BAD_REQUEST_CODE,
+				Message: "HotTierSizeInBytes is a required field to enable auto-tiering",
+			}
+		}
+
+		hotTierSize := uint64(req.HotTierSizeInBytes.Value)
+		poolSize := uint64(req.SizeInBytes)
+
+		// 2. HotTierSizeInBytes must be less than or equal to pool size
+		if hotTierSize > poolSize {
+			return &gcpgenserver.Error{
+				Code:    HTTP_BAD_REQUEST_CODE,
+				Message: fmt.Sprintf("Hot-tier size %s exceeds the total storage pool capacity %s.", utils.FmtUint64Bytes(hotTierSize), utils.FmtUint64Bytes(poolSize)),
+			}
+		}
+
+		// 3. HotTierSizeInBytes must be >= minimum size (1TB)
+		if hotTierSize < MinPoolHotTierSizeInBytes {
+			return &gcpgenserver.Error{
+				Code:    HTTP_BAD_REQUEST_CODE,
+				Message: fmt.Sprintf("HotTierSizeInBytes is a required field to enable auto-tiering and must be between %s and a value less than the pool size %s.", utils.FmtUint64Bytes(MinPoolHotTierSizeInBytes), utils.FmtUint64Bytes(poolSize)),
+			}
+		}
+	}
+
+	// Auto-tiering params cannot be set without enabling AllowAutoTiering
+	allowAutoTieringValue := false
+	if req.AllowAutoTiering.IsSet() {
+		allowAutoTieringValue = req.AllowAutoTiering.Value
+	}
+	if !allowAutoTieringValue && ((req.HotTierSizeInBytes.IsSet() && req.HotTierSizeInBytes.Value > 0) || (req.EnableHotTierAutoResize.IsSet() && req.EnableHotTierAutoResize.Value)) {
+		return &gcpgenserver.Error{
+			Code:    HTTP_BAD_REQUEST_CODE,
+			Message: "HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering",
 		}
 	}
 	return nil

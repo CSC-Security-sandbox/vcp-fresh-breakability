@@ -268,10 +268,6 @@ func _validateCreatePoolParams(params *commonparams.CreatePoolParams) error {
 	if minCustomIops > uint64(params.CustomPerformanceParams.Iops) {
 		return customerrors.NewUserInputValidationErr(fmt.Sprintf("TotalIops must be greater than %d for Unified Flex Storage Pool", minCustomIops))
 	}
-
-	if !autoTieringEnabled && (params.AllowAutoTiering || params.HotTierSizeInBytes > 0) {
-		return customerrors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
-	}
 	return nil
 }
 

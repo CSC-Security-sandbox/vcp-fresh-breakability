@@ -15,6 +15,7 @@ import (
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -1053,8 +1054,122 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, operationID, result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
-}
+	// Test cases for hotTierSizeInBytes assignment logic - keep only the essential integration tests
+	t.Run("HotTierSizeInBytes assignment when auto-tiering is enabled", func(tt *testing.T) {
+		// Save and restore the original auto-tiering state
+		originalAutoTieringEnabled := autoTieringEnabled
+		defer func() { autoTieringEnabled = originalAutoTieringEnabled }()
+		autoTieringEnabled = true // Enable auto-tiering for this test
 
+		const (
+			poolSize    = 2199023255552 // 2 TiB
+			hotTierSize = 1099511627776 // 1 TiB
+		)
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4-a",
+			ProjectNumber: "project-number",
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			ResourceId:               "test-pool",
+			Unified:                  gcpgenserver.NewOptBool(true),
+			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:              poolSize,
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			AllowAutoTiering:         gcpgenserver.NewOptNilBool(true),
+			HotTierSizeInBytes:       gcpgenserver.NewOptNilFloat64(float64(hotTierSize)),
+			EnableHotTierAutoResize:  gcpgenserver.NewOptNilBool(true),
+			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64),
+			Network:                  "test-network",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4-a", nil
+		}
+
+		// Mock that pool doesn't exist
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+
+		// Capture the CreatePool parameters to verify hotTierSizeInBytes assignment
+		var capturedParams *common.CreatePoolParams
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.MatchedBy(func(params *common.CreatePoolParams) bool {
+			capturedParams = params
+			return true
+		})).Return(&models.Pool{BaseModel: models.BaseModel{UUID: "new-pool-uuid"}, PoolAttributes: &models.PoolAttributes{}}, "operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+
+		// Verify that when auto-tiering is enabled, hotTierSizeInBytes is set to HotTierSizeInBytes.Value
+		assert.NotNil(tt, capturedParams, "CreatePool should have been called")
+		assert.Equal(tt, uint64(hotTierSize), capturedParams.HotTierSizeInBytes, "HotTierSizeInBytes should be set to the explicit hot tier size when auto-tiering is enabled")
+		assert.True(tt, capturedParams.AllowAutoTiering, "AllowAutoTiering should be true")
+	})
+
+	t.Run("HotTierSizeInBytes assignment when auto-tiering is disabled", func(tt *testing.T) {
+		const poolSize = 2199023255552 // 2 TiB
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4-a",
+			ProjectNumber: "project-number",
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			ResourceId:               "test-pool",
+			Unified:                  gcpgenserver.NewOptBool(true),
+			ServiceLevel:             gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:              poolSize,
+			QosType:                  gcpgenserver.NewOptNilString("auto"),
+			AllowAutoTiering:         gcpgenserver.NewOptNilBool(false),
+			CustomPerformanceEnabled: gcpgenserver.NewOptBool(true),
+			TotalThroughputMibps:     gcpgenserver.NewOptNilFloat64(64),
+			Network:                  "test-network",
+			// HotTierSizeInBytes not set when auto-tiering is disabled
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4-a", nil
+		}
+
+		// Mock that pool doesn't exist
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+
+		// Capture the CreatePool parameters to verify hotTierSizeInBytes assignment
+		var capturedParams *common.CreatePoolParams
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.MatchedBy(func(params *common.CreatePoolParams) bool {
+			capturedParams = params
+			return true
+		})).Return(&models.Pool{BaseModel: models.BaseModel{UUID: "new-pool-uuid"}, PoolAttributes: &models.PoolAttributes{}}, "operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+
+		// Verify that when auto-tiering is disabled, hotTierSizeInBytes is set to SizeInBytes (pool size)
+		assert.NotNil(tt, capturedParams, "CreatePool should have been called")
+		assert.Equal(tt, uint64(poolSize), capturedParams.HotTierSizeInBytes, "HotTierSizeInBytes should be set to pool size when auto-tiering is disabled")
+	})
+}
 func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 	validationErrorCases := []struct {
 		name    string
@@ -1255,6 +1370,9 @@ func TestV1betaUpdatePool(t *testing.T) {
 				Throughput: 64, // 64 MiBps
 				Iops:       1024,
 			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
 		}, nil)
 		// Set orchestrator to return an error when UpdatePool is called.
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
@@ -1304,6 +1422,9 @@ func TestV1betaUpdatePool(t *testing.T) {
 			CustomPerformanceParams: &models.CustomPerformanceParams{
 				Throughput: 64, // 64 MiBps
 				Iops:       1024,
+			},
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
 			},
 		}, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).
@@ -1877,5 +1998,253 @@ func TestGetHotTierSizeInBytes(t *testing.T) {
 		}
 		result := getHotTierSizeInBytes(config)
 		assert.Equal(tt, float64(1024), result)
+	})
+}
+
+func TestValidateCreatePoolParams_AutoTieringValidation(t *testing.T) {
+	const (
+		minPoolHotTierSize = 1099511627776 // 1 TiB
+		validPoolSize      = 2199023255552 // 2 TiB
+		smallPoolSize      = 1073741824    // 1 GiB
+		largePoolSize      = 5497558138880 // 5 TiB
+	)
+
+	// Save original state and restore after all tests
+	originalAutoTieringEnabled := autoTieringEnabled
+	defer func() { autoTieringEnabled = originalAutoTieringEnabled }()
+
+	t.Run("Feature Gate Tests", func(tt *testing.T) {
+		t.Run("AutoTiering feature disabled - AllowAutoTiering is true", func(ttt *testing.T) {
+			autoTieringEnabled = false
+			req := &gcpgenserver.PoolV1beta{
+				Unified:          gcpgenserver.NewOptBool(true),
+				SizeInBytes:      validPoolSize,
+				AllowAutoTiering: gcpgenserver.NewOptNilBool(true),
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when auto-tiering feature is disabled but AllowAutoTiering is true")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "Auto-Tiering feature is currently not enabled.")
+		})
+
+		t.Run("AutoTiering feature disabled - HotTierSizeInBytes is set", func(ttt *testing.T) {
+			autoTieringEnabled = false
+			req := &gcpgenserver.PoolV1beta{
+				Unified:            gcpgenserver.NewOptBool(true),
+				SizeInBytes:        validPoolSize,
+				AllowAutoTiering:   gcpgenserver.NewOptNilBool(false),
+				HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(float64(minPoolHotTierSize)),
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when auto-tiering feature is disabled but HotTierSizeInBytes is set")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "Auto-Tiering feature is currently not enabled.")
+		})
+
+		t.Run("AutoTiering feature disabled - no auto-tiering params set (should pass)", func(ttt *testing.T) {
+			autoTieringEnabled = false
+			req := &gcpgenserver.PoolV1beta{
+				Unified:     gcpgenserver.NewOptBool(true),
+				SizeInBytes: validPoolSize,
+				// Neither AllowAutoTiering nor HotTierSizeInBytes are set
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.Nil(ttt, err, "Expected no error when auto-tiering feature is disabled and no auto-tiering params are set")
+		})
+	})
+
+	// For the rest of the tests, enable auto-tiering feature
+	autoTieringEnabled = true
+
+	t.Run("Valid Auto-Tiering Configurations", func(tt *testing.T) {
+		t.Run("Valid configuration with all parameters", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Unified:                 gcpgenserver.NewOptBool(true),
+				SizeInBytes:             validPoolSize,
+				AllowAutoTiering:        gcpgenserver.NewOptNilBool(true),
+				HotTierSizeInBytes:      gcpgenserver.NewOptNilFloat64(float64(minPoolHotTierSize)),
+				EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(true),
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.Nil(ttt, err, "Expected no error for valid auto-tiering parameters")
+		})
+
+		t.Run("HotTierSizeInBytes equal to pool size", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Unified:            gcpgenserver.NewOptBool(true),
+				SizeInBytes:        validPoolSize,
+				AllowAutoTiering:   gcpgenserver.NewOptNilBool(true),
+				HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(float64(validPoolSize)), // Equal to pool size
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.Nil(ttt, err, "Expected no error when HotTierSizeInBytes equals pool size")
+		})
+
+		t.Run("Complex valid scenario - large pool with explicit auto-resize disabled", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Unified:                 gcpgenserver.NewOptBool(true),
+				SizeInBytes:             largePoolSize, // 5 TiB pool
+				AllowAutoTiering:        gcpgenserver.NewOptNilBool(true),
+				HotTierSizeInBytes:      gcpgenserver.NewOptNilFloat64(float64(validPoolSize)), // 2 TiB hot tier
+				EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(false),                     // Explicitly disable auto-resize
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.Nil(ttt, err, "Expected no error for complex valid auto-tiering scenario")
+		})
+	})
+
+	t.Run("Invalid Auto-Tiering Configurations", func(tt *testing.T) {
+		t.Run("AllowAutoTiering enabled but HotTierSizeInBytes not set", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Unified:          gcpgenserver.NewOptBool(true),
+				SizeInBytes:      validPoolSize,
+				AllowAutoTiering: gcpgenserver.NewOptNilBool(true),
+				// HotTierSizeInBytes not set
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when HotTierSizeInBytes is not set with auto-tiering enabled")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "HotTierSizeInBytes is a required field to enable auto-tiering")
+		})
+
+		t.Run("AllowAutoTiering enabled but HotTierSizeInBytes is zero", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Unified:            gcpgenserver.NewOptBool(true),
+				SizeInBytes:        validPoolSize,
+				AllowAutoTiering:   gcpgenserver.NewOptNilBool(true),
+				HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(0),
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when HotTierSizeInBytes is zero with auto-tiering enabled")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "HotTierSizeInBytes is a required field to enable auto-tiering")
+		})
+
+		t.Run("HotTierSizeInBytes exceeds pool size", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Unified:            gcpgenserver.NewOptBool(true),
+				SizeInBytes:        validPoolSize,
+				AllowAutoTiering:   gcpgenserver.NewOptNilBool(true),
+				HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(float64(largePoolSize)), // Larger than pool size
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when HotTierSizeInBytes exceeds pool size")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "Hot-tier size")
+			assert.Contains(ttt, err.Message, "exceeds the total storage pool capacity")
+			assert.Contains(ttt, err.Message, "5TiB")
+			assert.Contains(ttt, err.Message, "2TiB")
+		})
+
+		t.Run("HotTierSizeInBytes below minimum", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Unified:            gcpgenserver.NewOptBool(true),
+				SizeInBytes:        validPoolSize,
+				AllowAutoTiering:   gcpgenserver.NewOptNilBool(true),
+				HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(float64(smallPoolSize)), // Below 1 TiB minimum
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when HotTierSizeInBytes is below minimum")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "HotTierSizeInBytes is a required field to enable auto-tiering")
+			assert.Contains(ttt, err.Message, "1TiB")
+		})
+	})
+
+	t.Run("Boundary Conditions", func(tt *testing.T) {
+		t.Run("HotTierSizeInBytes at minimum boundary (exactly 1 TiB)", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Unified:            gcpgenserver.NewOptBool(true),
+				SizeInBytes:        validPoolSize,
+				AllowAutoTiering:   gcpgenserver.NewOptNilBool(true),
+				HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(float64(minPoolHotTierSize)), // Exactly 1 TiB
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.Nil(ttt, err, "Expected no error when HotTierSizeInBytes is exactly at minimum boundary")
+		})
+
+		t.Run("HotTierSizeInBytes just below minimum (1 TiB - 1 byte)", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Unified:            gcpgenserver.NewOptBool(true),
+				SizeInBytes:        validPoolSize,
+				AllowAutoTiering:   gcpgenserver.NewOptNilBool(true),
+				HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(float64(minPoolHotTierSize - 1)), // Just below 1 TiB
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when HotTierSizeInBytes is just below minimum")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "HotTierSizeInBytes is a required field to enable auto-tiering")
+		})
+	})
+
+	t.Run("Auto-Tiering Disabled Scenarios", func(tt *testing.T) {
+		t.Run("AllowAutoTiering disabled but HotTierSizeInBytes is set", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Unified:            gcpgenserver.NewOptBool(true),
+				SizeInBytes:        validPoolSize,
+				AllowAutoTiering:   gcpgenserver.NewOptNilBool(false),
+				HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(float64(minPoolHotTierSize)),
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when HotTierSizeInBytes is set but auto-tiering is disabled")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering")
+		})
+
+		t.Run("AllowAutoTiering disabled but EnableHotTierAutoResize is set", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Unified:                 gcpgenserver.NewOptBool(true),
+				SizeInBytes:             validPoolSize,
+				AllowAutoTiering:        gcpgenserver.NewOptNilBool(false),
+				EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(true),
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when EnableHotTierAutoResize is set but auto-tiering is disabled")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering")
+		})
+
+		t.Run("AllowAutoTiering not set (defaults to false) with HotTierSizeInBytes set", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Unified:     gcpgenserver.NewOptBool(true),
+				SizeInBytes: validPoolSize,
+				// AllowAutoTiering not set (defaults to false)
+				HotTierSizeInBytes: gcpgenserver.NewOptNilFloat64(float64(minPoolHotTierSize)),
+			}
+			zone := "us-east4-a"
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when HotTierSizeInBytes is set but auto-tiering is not enabled")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "HotTierSizeInBytes and EnableHotTierAutoResize cannot be set without enabling AllowAutoTiering")
+		})
 	})
 }
