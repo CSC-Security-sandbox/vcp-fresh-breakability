@@ -38,7 +38,7 @@ func (j *ScheduledBackupActivity) CreateScheduledBackup(ctx context.Context, vol
 		State:         models.LifeCycleStateCreating,
 		StateDetails:  models.LifeCycleStateCreatingDetails,
 		Type:          backupTypeSCHEDULED,
-		ScheduleTag:   scheduleTag,
+		ScheduleTag:   &scheduleTag,
 		VolumeUUID:    volume.UUID,
 		BackupVaultID: backupVault.ID,
 		BackupVault:   backupVault,

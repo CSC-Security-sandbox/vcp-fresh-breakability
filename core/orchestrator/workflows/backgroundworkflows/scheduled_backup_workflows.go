@@ -1,10 +1,12 @@
 package backgroundworkflows
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -28,8 +30,12 @@ var (
 	scheduledMonthlyBackupDay = env.GetInt("SCHEDULED_MONTHLY_BACKUP_DAY", 1) // Default to 1st day of the month
 )
 
-type createScheduledBackupInitWorkflow struct {
+type baseScheduledBackupWorkflow struct {
 	workflows.BaseWorkflow
+}
+
+type createScheduledBackupInitWorkflow struct {
+	baseScheduledBackupWorkflow
 }
 
 // Enforcing workflows.WorkflowInterface interface on all the scheduled backup workflows
@@ -42,26 +48,39 @@ var (
 // CreateScheduledBackupInitWorkflow initializes the scheduled backup workflow for a given backup policy.
 func CreateScheduledBackupInitWorkflow(ctx workflow.Context, backupPolicy *datamodel.BackupPolicy) error {
 	createScheduledBackupInitWF := new(createScheduledBackupInitWorkflow)
-	err := createScheduledBackupInitWF.Setup(ctx, nil)
+	createdJob, err := createScheduledBackupInitWF.CreateJob(
+		ctx, backupPolicy.AccountID, backupPolicy.Name, string(models.JobTypeInitCreateScheduledBackup))
 	if err != nil {
 		return err
 	}
 
+	err = createScheduledBackupInitWF.Setup(ctx, createdJob)
+	if err != nil {
+		return err
+	}
 	createScheduledBackupInitWF.Status = workflows.WorkflowStatusRunning
+
 	_, err = createScheduledBackupInitWF.Run(ctx, backupPolicy)
 	if err != nil {
 		createScheduledBackupInitWF.Status = workflows.WorkflowStatusFailed
+		err2 := createScheduledBackupInitWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err2 != nil {
+			createScheduledBackupInitWF.Logger.Errorf("Failed to update job status: %v", err2)
+		}
 		return err
 	}
 	createScheduledBackupInitWF.Status = workflows.WorkflowStatusCompleted
+	err2 := createScheduledBackupInitWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if err2 != nil {
+		createScheduledBackupInitWF.Logger.Errorf("Failed to update job status: %v", err2)
+	}
 	return nil
 }
 
 // Setup initializes the workflow with necessary parameters and sets up a query handler for status.
-func (wf *createScheduledBackupInitWorkflow) Setup(ctx workflow.Context, _ interface{}) error {
-	// TODO: We can consider creating jobs to track the parent workflow and all the child workflows created by it.
-	info := workflow.GetInfo(ctx)
-	wf.ID = info.WorkflowExecution.ID
+func (wf *createScheduledBackupInitWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+	job := input.(*datamodel.Job)
+	wf.ID = job.UUID
 	wf.Status = workflows.WorkflowStatusCreated
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID})
 	logger := util.GetLogger(ctx)
@@ -139,31 +158,45 @@ func (wf *createScheduledBackupInitWorkflow) Run(ctx workflow.Context, args ...i
 }
 
 type createScheduledBackupWorkflow struct {
-	workflows.BaseWorkflow
+	baseScheduledBackupWorkflow
 }
 
 // CreateScheduledBackupWorkflow creates a scheduled backup for a given volume and backup policy.
 func CreateScheduledBackupWorkflow(ctx workflow.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) error {
 	createScheduledBackupWF := new(createScheduledBackupWorkflow)
-	err := createScheduledBackupWF.Setup(ctx, nil)
+	createdJob, err := createScheduledBackupWF.CreateJob(
+		ctx, backupPolicy.AccountID, volume.Name, string(models.JobTypeCreateScheduledBackup))
 	if err != nil {
 		return err
 	}
 
+	err = createScheduledBackupWF.Setup(ctx, createdJob)
+	if err != nil {
+		return err
+	}
 	createScheduledBackupWF.Status = workflows.WorkflowStatusRunning
+
 	_, err = createScheduledBackupWF.Run(ctx, volume, backupPolicy)
 	if err != nil {
 		createScheduledBackupWF.Status = workflows.WorkflowStatusFailed
+		err2 := createScheduledBackupWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err2 != nil {
+			createScheduledBackupWF.Logger.Errorf("Failed to update job status: %v", err2)
+		}
 		return err
 	}
 	createScheduledBackupWF.Status = workflows.WorkflowStatusCompleted
+	err2 := createScheduledBackupWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if err2 != nil {
+		createScheduledBackupWF.Logger.Errorf("Failed to update job status: %v", err2)
+	}
 	return nil
 }
 
 // Setup initializes the workflow with necessary parameters and sets up a query handler for status.
-func (wf *createScheduledBackupWorkflow) Setup(ctx workflow.Context, _ interface{}) error {
-	info := workflow.GetInfo(ctx)
-	wf.ID = info.WorkflowExecution.ID
+func (wf *createScheduledBackupWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+	job := input.(*datamodel.Job)
+	wf.ID = job.UUID
 	wf.Status = workflows.WorkflowStatusCreated
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID})
 	logger := util.GetLogger(ctx)
@@ -366,31 +399,45 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 }
 
 type deleteScheduledBackupWorkflow struct {
-	workflows.BaseWorkflow
+	baseScheduledBackupWorkflow
 }
 
 // DeleteScheduledBackupWorkflow removes older scheduled backups for a volume and backup policy according to daily, weekly, and monthly retention limits.
 func DeleteScheduledBackupWorkflow(ctx workflow.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) error {
 	deleteScheduledBackupWF := new(deleteScheduledBackupWorkflow)
-	err := deleteScheduledBackupWF.Setup(ctx, nil)
+	createdJob, err := deleteScheduledBackupWF.CreateJob(
+		ctx, backupPolicy.AccountID, volume.Name, string(models.JobTypeDeleteScheduledBackup))
 	if err != nil {
 		return err
 	}
 
+	err = deleteScheduledBackupWF.Setup(ctx, createdJob)
+	if err != nil {
+		return err
+	}
 	deleteScheduledBackupWF.Status = workflows.WorkflowStatusRunning
+
 	_, err = deleteScheduledBackupWF.Run(ctx, volume, backupPolicy)
 	if err != nil {
 		deleteScheduledBackupWF.Status = workflows.WorkflowStatusFailed
+		err2 := deleteScheduledBackupWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err2 != nil {
+			deleteScheduledBackupWF.Logger.Errorf("Failed to update job status: %v", err2)
+		}
 		return err
 	}
 	deleteScheduledBackupWF.Status = workflows.WorkflowStatusCompleted
+	err2 := deleteScheduledBackupWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if err2 != nil {
+		deleteScheduledBackupWF.Logger.Errorf("Failed to update job status: %v", err2)
+	}
 	return nil
 }
 
 // Setup initializes the workflow with necessary parameters and sets up a query handler for status.
-func (wf *deleteScheduledBackupWorkflow) Setup(ctx workflow.Context, _ interface{}) error {
-	info := workflow.GetInfo(ctx)
-	wf.ID = info.WorkflowExecution.ID
+func (wf *deleteScheduledBackupWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+	job := input.(*datamodel.Job)
+	wf.ID = job.UUID
 	wf.Status = workflows.WorkflowStatusCreated
 	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID})
 	logger := util.GetLogger(ctx)
@@ -502,4 +549,29 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		return nil, err
 	}
 	return nil, nil
+}
+
+func (wf *baseScheduledBackupWorkflow) CreateJob(ctx workflow.Context, accountID int64, resourceName, jobType string) (*datamodel.Job, error) {
+	logger := util.GetLogger(ctx)
+
+	// The job state is set to PROCESSING here because the workflow itself is creating the job
+	job := &datamodel.Job{
+		AccountID:    sql.NullInt64{Int64: accountID, Valid: true},
+		ResourceName: resourceName,
+		Type:         jobType,
+		State:        string(models.JobsStatePROCESSING),
+	}
+
+	commonActivities := activities.CommonActivities{}
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: 10 * time.Second,
+	})
+
+	var createdJob *datamodel.Job
+	err := workflow.ExecuteActivity(ctx, commonActivities.CreateJob, job).Get(ctx, &createdJob)
+	if err != nil {
+		logger.Errorf("Failed to create job: %v", err)
+		return nil, err
+	}
+	return createdJob, nil
 }

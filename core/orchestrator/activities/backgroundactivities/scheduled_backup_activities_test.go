@@ -29,7 +29,7 @@ func TestCreateScheduledBackup(t *testing.T) {
 		expectedBackup := &datamodel.Backup{
 			Name:          mock.Anything,
 			Type:          "SCHEDULED",
-			ScheduleTag:   scheduleTag,
+			ScheduleTag:   &scheduleTag,
 			VolumeUUID:    volume.UUID,
 			BackupVaultID: backupVault.ID,
 			BackupVault:   backupVault,

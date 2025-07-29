@@ -57,6 +57,9 @@ const (
 	JobTypeDeleteSnapmirrorSnapshotsInternal JobType = "DELETE_SM_SNAPSHOTS_INTERNAL"
 	JobTypeCreateSubnet                      JobType = "CREATE_SUBNET"
 	JobTypeDeleteBackupVault                 JobType = "DELETE_BACKUP_VAULT"
+	JobTypeInitCreateScheduledBackup         JobType = "INIT_CREATE_SCHEDULED_BACKUP"
+	JobTypeCreateScheduledBackup             JobType = "CREATE_SCHEDULED_BACKUP"
+	JobTypeDeleteScheduledBackup             JobType = "DELETE_SCHEDULED_BACKUP"
 	JobTypeRefreshVolumeFields               JobType = "REFRESH_VOLUME_FIELDS"
 	JobTypeUpdateBackup                      JobType = "UPDATE_BACKUP"
 )

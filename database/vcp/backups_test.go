@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"gorm.io/gorm"
 )
 
@@ -896,7 +897,7 @@ func TestFetchScheduledBackupsForDeletion(t *testing.T) {
 				SnapshotID: "test-snapshot-id-1",
 			},
 			Name:        "Daily-backup1",
-			ScheduleTag: Daily,
+			ScheduleTag: nillable.ToPointer(Daily),
 			Type:        BackupTypeScheduled,
 			VolumeUUID:  "volume-uuid-1",
 		}
@@ -909,7 +910,7 @@ func TestFetchScheduledBackupsForDeletion(t *testing.T) {
 				SnapshotID: "test-snapshot-id-2",
 			},
 			Name:        "Daily-backup2",
-			ScheduleTag: Daily,
+			ScheduleTag: nillable.ToPointer(Daily),
 			Type:        BackupTypeScheduled,
 			VolumeUUID:  "volume-uuid-1",
 		}
@@ -923,7 +924,7 @@ func TestFetchScheduledBackupsForDeletion(t *testing.T) {
 				SnapshotID: "test-snapshot-id-2",
 			},
 			Name:        "Weekly-backup1",
-			ScheduleTag: Weekly,
+			ScheduleTag: nillable.ToPointer(Weekly),
 			Type:        BackupTypeScheduled,
 			VolumeUUID:  "volume-uuid-1",
 		}
@@ -935,7 +936,7 @@ func TestFetchScheduledBackupsForDeletion(t *testing.T) {
 				SnapshotID: "test-snapshot-id-3",
 			},
 			Name:        "Monthly-backup1",
-			ScheduleTag: Monthly,
+			ScheduleTag: nillable.ToPointer(Monthly),
 			Type:        BackupTypeScheduled,
 			VolumeUUID:  "volume-uuid-1",
 		}
@@ -999,7 +1000,7 @@ func TestFetchScheduledBackupsForDeletion(t *testing.T) {
 				SnapshotID: "test-snapshot-id-1",
 			},
 			Name:        "Daily-backup1",
-			ScheduleTag: Daily,
+			ScheduleTag: nillable.ToPointer(Daily),
 			Type:        BackupTypeScheduled,
 			VolumeUUID:  "volume-uuid-1",
 		}
@@ -1033,7 +1034,7 @@ func TestIsBackupShared(t *testing.T) {
 				SnapshotID: "test-snapshot-id-1",
 			},
 			Name:        "Daily-backup1",
-			ScheduleTag: Daily,
+			ScheduleTag: nillable.ToPointer(Daily),
 			Type:        BackupTypeScheduled,
 			VolumeUUID:  "volume-uuid-1",
 		}
@@ -1046,7 +1047,7 @@ func TestIsBackupShared(t *testing.T) {
 				SnapshotID: "test-snapshot-id-1",
 			},
 			Name:        "Daily-backup2",
-			ScheduleTag: Daily,
+			ScheduleTag: nillable.ToPointer(Daily),
 			Type:        BackupTypeScheduled,
 			VolumeUUID:  "volume-uuid-1",
 		}
