@@ -192,9 +192,13 @@ type BlockProperties struct {
 }
 
 type FileProperties struct {
+	ExportPolicy *ExportPolicy `json:"export_policy"`
+	JunctionPath string        `json:"junction_path"`
+}
+
+type ExportPolicy struct {
 	ExportPolicyName string        `json:"export_policy_name"`
 	ExportRules      []*ExportRule `json:"export_rules"`
-	JunctionPath     string        `json:"junction_path"`
 }
 
 type ExportRule struct {

@@ -21,7 +21,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -182,6 +183,61 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 			return params.TieringPolicy.CoolAccessTieringPolicy == ontapModels.VolumeInlineTieringPolicyAuto &&
 				params.TieringPolicy.CoolAccessRetrievalPolicy == "onread" &&
 				params.TieringPolicy.CoolnessPeriod == 45
+		})).Return(expectedResponse, nil)
+
+		// Act
+		result, err := activity.CreateVolumeInONTAP(ctx, volume, node, nil, nil)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, result)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("TestCreateVolumeInONTAP_WithFileProperties_ExportPolicyAndJunctionPathAreSet", func(t *testing.T) {
+		// Setup file protocol support for this test
+		utils.SetFileProtocolSupportedForTesting(true)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("test-account")
+		defer func() {
+			utils.SetFileProtocolSupportedForTesting(false)
+			utils.SetFileProtocolAllowlistedAccountsForTesting("")
+		}()
+
+		// Arrange
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := activities.GetProviderByNode
+		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+
+		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := activities.VolumeCreateActivity{
+			SE: database.NewMockStorage(t),
+		}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			Svm:  &datamodel.Svm{Name: "test-svm"},
+			Account: &datamodel.Account{Name: "test-account"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+				FileProperties: &datamodel.FileProperties{
+					JunctionPath: "/test/junction/path",
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "test-export-policy",
+					},
+				},
+			},
+		}
+		node := &models.Node{}
+		expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
+
+		// Mock the CreateVolume method and verify ExportPolicy and JunctionPath are set
+		mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
+			return params.ExportPolicy != nil && *params.ExportPolicy == "test-export-policy" &&
+				params.JunctionPath != nil && *params.JunctionPath == "/test/junction/path"
 		})).Return(expectedResponse, nil)
 
 		// Act
@@ -2167,13 +2223,15 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		volume := &datamodel.Volume{
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				FileProperties: &datamodel.FileProperties{
-					ExportPolicyName: "test-export-policy",
-					ExportRules: []*datamodel.ExportRule{
-						{
-							AllowedClients: "10.0.0.0/8",
-							AccessType:     "ReadWrite",
-							UnixReadOnly:   false,
-							UnixReadWrite:  true,
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "test-export-policy",
+						ExportRules: []*datamodel.ExportRule{
+							{
+								AllowedClients: "10.0.0.0/8",
+								AccessType:     "ReadWrite",
+								UnixReadOnly:   false,
+								UnixReadWrite:  true,
+							},
 						},
 					},
 				},
@@ -2255,11 +2313,13 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		volume := &datamodel.Volume{
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				FileProperties: &datamodel.FileProperties{
-					ExportPolicyName: "existing-export-policy",
-					ExportRules: []*datamodel.ExportRule{
-						{
-							AllowedClients: "192.168.1.0/24",
-							AccessType:     "ReadOnly",
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "existing-export-policy",
+						ExportRules: []*datamodel.ExportRule{
+							{
+								AllowedClients: "192.168.1.0/24",
+								AccessType:     "ReadOnly",
+							},
 						},
 					},
 				},
@@ -2304,11 +2364,13 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		volume := &datamodel.Volume{
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				FileProperties: &datamodel.FileProperties{
-					ExportPolicyName: "test-export-policy",
-					ExportRules: []*datamodel.ExportRule{
-						{
-							AllowedClients: "10.0.0.0/8",
-							AccessType:     "ReadWrite",
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "test-export-policy",
+						ExportRules: []*datamodel.ExportRule{
+							{
+								AllowedClients: "10.0.0.0/8",
+								AccessType:     "ReadWrite",
+							},
 						},
 					},
 				},
@@ -2354,25 +2416,27 @@ func TestCreateExportPolicyInOntap(t *testing.T) {
 		volume := &datamodel.Volume{
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				FileProperties: &datamodel.FileProperties{
-					ExportPolicyName: "multi-rule-policy",
-					ExportRules: []*datamodel.ExportRule{
-						{
-							AllowedClients: "10.0.0.0/8",
-							AccessType:     "ReadWrite",
-							CIFS:           false,
-							NFSv3:          true,
-							NFSv4:          true,
-							Index:          1,
-							AnonymousUser:  "nobody",
-						},
-						{
-							AllowedClients: "192.168.1.0/24",
-							AccessType:     "ReadOnly",
-							CIFS:           true,
-							NFSv3:          false,
-							NFSv4:          true,
-							Index:          2,
-							AnonymousUser:  "anonymous",
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "multi-rule-policy",
+						ExportRules: []*datamodel.ExportRule{
+							{
+								AllowedClients: "10.0.0.0/8",
+								AccessType:     "ReadWrite",
+								CIFS:           false,
+								NFSv3:          true,
+								NFSv4:          true,
+								Index:          1,
+								AnonymousUser:  "nobody",
+							},
+							{
+								AllowedClients: "192.168.1.0/24",
+								AccessType:     "ReadOnly",
+								CIFS:           true,
+								NFSv3:          false,
+								NFSv4:          true,
+								Index:          2,
+								AnonymousUser:  "anonymous",
+							},
 						},
 					},
 				},

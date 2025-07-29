@@ -2079,13 +2079,15 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_Success() {
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			Protocols: []string{"NFSV3"}, // NFS volume
 			FileProperties: &datamodel.FileProperties{
-				ExportPolicyName: "test-export-policy",
-				ExportRules: []*datamodel.ExportRule{
-					{
-						AllowedClients: "10.0.0.0/8",
-						AccessType:     "ReadWrite",
-						NFSv3:          true,
-						NFSv4:          false,
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "test-export-policy",
+					ExportRules: []*datamodel.ExportRule{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "ReadWrite",
+							NFSv3:          true,
+							NFSv4:          false,
+						},
 					},
 				},
 			},
@@ -2148,12 +2150,14 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_CreateExportPol
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			Protocols: []string{"NFSV3"}, // NFS volume
 			FileProperties: &datamodel.FileProperties{
-				ExportPolicyName: "test-export-policy",
-				ExportRules: []*datamodel.ExportRule{
-					{
-						AllowedClients: "10.0.0.0/8",
-						AccessType:     "ReadWrite",
-						NFSv3:          true,
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "test-export-policy",
+					ExportRules: []*datamodel.ExportRule{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "ReadWrite",
+							NFSv3:          true,
+						},
 					},
 				},
 			},
@@ -2208,13 +2212,15 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBackupVault
 			Protocols:      []string{"NFSV3"}, // NFS volume
 			VendorSubnetID: "subnet-12345",
 			FileProperties: &datamodel.FileProperties{
-				ExportPolicyName: "backup-export-policy",
-				ExportRules: []*datamodel.ExportRule{
-					{
-						AllowedClients: "192.168.1.0/24",
-						AccessType:     "ReadOnly",
-						NFSv3:          true,
-						NFSv4:          true,
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "backup-export-policy",
+					ExportRules: []*datamodel.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "ReadOnly",
+							NFSv3:          true,
+							NFSv4:          true,
+						},
 					},
 				},
 			},
@@ -2294,28 +2300,30 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_MultipleExportR
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			Protocols: []string{"NFSV3"}, // NFS volume
 			FileProperties: &datamodel.FileProperties{
-				ExportPolicyName: "multi-rule-export-policy",
-				ExportRules: []*datamodel.ExportRule{
-					{
-						AllowedClients: "10.0.0.0/8",
-						AccessType:     "ReadWrite",
-						NFSv3:          true,
-						NFSv4:          false,
-						Index:          1,
-					},
-					{
-						AllowedClients: "192.168.1.0/24",
-						AccessType:     "ReadOnly",
-						NFSv3:          false,
-						NFSv4:          true,
-						Index:          2,
-					},
-					{
-						AllowedClients: "172.16.0.0/12",
-						AccessType:     "ReadWrite",
-						NFSv3:          true,
-						NFSv4:          true,
-						Index:          3,
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "multi-rule-export-policy",
+					ExportRules: []*datamodel.ExportRule{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "ReadWrite",
+							NFSv3:          true,
+							NFSv4:          false,
+							Index:          1,
+						},
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "ReadOnly",
+							NFSv3:          false,
+							NFSv4:          true,
+							Index:          2,
+						},
+						{
+							AllowedClients: "172.16.0.0/12",
+							AccessType:     "ReadWrite",
+							NFSv3:          true,
+							NFSv4:          true,
+							Index:          3,
+						},
 					},
 				},
 			},
@@ -2376,12 +2384,14 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_CreateSnapshotP
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			Protocols: []string{"NFSV3"}, // NFS volume
 			FileProperties: &datamodel.FileProperties{
-				ExportPolicyName: "test-export-policy",
-				ExportRules: []*datamodel.ExportRule{
-					{
-						AllowedClients: "10.0.0.0/8",
-						AccessType:     "ReadWrite",
-						NFSv3:          true,
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "test-export-policy",
+					ExportRules: []*datamodel.ExportRule{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "ReadWrite",
+							NFSv3:          true,
+						},
 					},
 				},
 			},
@@ -2435,12 +2445,14 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_CreateVolumeInO
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			Protocols: []string{"NFSV3"}, // NFS volume
 			FileProperties: &datamodel.FileProperties{
-				ExportPolicyName: "test-export-policy",
-				ExportRules: []*datamodel.ExportRule{
-					{
-						AllowedClients: "10.0.0.0/8",
-						AccessType:     "ReadWrite",
-						NFSv3:          true,
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "test-export-policy",
+					ExportRules: []*datamodel.ExportRule{
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "ReadWrite",
+							NFSv3:          true,
+						},
 					},
 				},
 			},
@@ -2496,13 +2508,15 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_WithBucketCreat
 			Protocols:      []string{"NFSV3"}, // NFS volume
 			VendorSubnetID: "subnet-67890",
 			FileProperties: &datamodel.FileProperties{
-				ExportPolicyName: "new-bucket-export-policy",
-				ExportRules: []*datamodel.ExportRule{
-					{
-						AllowedClients: "172.16.0.0/12",
-						AccessType:     "ReadWrite",
-						NFSv3:          true,
-						NFSv4:          true,
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "new-bucket-export-policy",
+					ExportRules: []*datamodel.ExportRule{
+						{
+							AllowedClients: "172.16.0.0/12",
+							AccessType:     "ReadWrite",
+							NFSv3:          true,
+							NFSv4:          true,
+						},
 					},
 				},
 			},
@@ -2748,9 +2762,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_ComplexErrorScenarios() {
 			Protocols:       []string{"iscsi", "NFSV3"}, // Mixed protocols
 			BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"},
 			FileProperties: &datamodel.FileProperties{
-				ExportPolicyName: "test-policy",
-				ExportRules: []*datamodel.ExportRule{
-					{AllowedClients: "10.0.0.0/8", AccessType: "ReadWrite", NFSv3: true},
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*datamodel.ExportRule{
+						{AllowedClients: "10.0.0.0/8", AccessType: "ReadWrite", NFSv3: true},
+					},
 				},
 			},
 		},
@@ -2790,9 +2806,11 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_ComplexErrorScenarios_Full() {
 			Protocols:       []string{"iscsi", "NFSV3"}, // Mixed protocols
 			BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"},
 			FileProperties: &datamodel.FileProperties{
-				ExportPolicyName: "test-policy",
-				ExportRules: []*datamodel.ExportRule{
-					{AllowedClients: "10.0.0.0/8", AccessType: "ReadWrite", NFSv3: true},
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*datamodel.ExportRule{
+						{AllowedClients: "10.0.0.0/8", AccessType: "ReadWrite", NFSv3: true},
+					},
 				},
 			},
 		},

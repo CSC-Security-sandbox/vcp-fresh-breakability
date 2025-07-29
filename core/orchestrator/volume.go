@@ -136,22 +136,29 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	if params.FileProperties != nil {
-		exportRules := make([]*datamodel.ExportRule, 0, len(params.FileProperties.ExportRules))
-		for _, rule := range params.FileProperties.ExportRules {
-			exportRules = append(exportRules, &datamodel.ExportRule{
-				AllowedClients: rule.AllowedClients,
-				AccessType:     rule.AccessType,
-				CIFS:           rule.CIFS,
-				NFSv3:          rule.NFSv3,
-				NFSv4:          rule.NFSv4,
-				Index:          rule.Index,
-			})
-		}
 		junctionPath := common.CreateJunctionPath(params.CreationToken)
 		volumeObj.VolumeAttributes.FileProperties = &datamodel.FileProperties{
-			ExportPolicyName: params.FileProperties.ExportPolicyName,
-			ExportRules:      exportRules,
-			JunctionPath:     junctionPath,
+			JunctionPath: junctionPath,
+		}
+		if params.FileProperties.ExportPolicy != nil {
+			exportRules := make([]*datamodel.ExportRule, 0, len(params.FileProperties.ExportPolicy.ExportRules))
+			for _, rule := range params.FileProperties.ExportPolicy.ExportRules {
+				exportRules = append(exportRules, &datamodel.ExportRule{
+					AllowedClients: rule.AllowedClients,
+					AccessType:     rule.AccessType,
+					CIFS:           rule.CIFS,
+					NFSv3:          rule.NFSv3,
+					NFSv4:          rule.NFSv4,
+					Index:          rule.Index,
+				})
+			}
+			volumeObj.VolumeAttributes.FileProperties = &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportPolicyName: params.FileProperties.ExportPolicy.ExportPolicyName,
+					ExportRules:      exportRules,
+				},
+				JunctionPath: junctionPath,
+			}
 		}
 	}
 
@@ -421,13 +428,22 @@ func (v *BlockVolumeProcessor) Validate(ctx context.Context, se database.Storage
 
 func (v *FileVolumeProcessor) Validate(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
 	params.BlockProperties = nil // Ensure BlockProperties is nil for file volumes
-	for _, rule := range params.FileProperties.ExportRules {
-		if rule.AllowedClients == "" {
-			return customerrors.NewUserInputValidationErr("allowed clients cannot be nil in export rules")
-		} else {
-			// Validate allowed clients
-			if err := validateAllowedClients(rule.AllowedClients); err != nil {
-				return customerrors.NewUserInputValidationErr(fmt.Sprintf("allowed clients validation failed: %v", err))
+	if params.FileProperties == nil {
+		return customerrors.NewUserInputValidationErr("FileProperties cannot be nil for NAS volumes")
+	}
+
+	if params.FileProperties.ExportPolicy != nil {
+		if len(params.FileProperties.ExportPolicy.ExportRules) == 0 {
+			return customerrors.NewUserInputValidationErr("Export Rules cannot be empty in Export Policy")
+		}
+		for _, rule := range params.FileProperties.ExportPolicy.ExportRules {
+			if rule.AllowedClients == "" {
+				return customerrors.NewUserInputValidationErr("allowed clients cannot be nil in export rules")
+			} else {
+				// Validate allowed clients
+				if err := validateAllowedClients(rule.AllowedClients); err != nil {
+					return customerrors.NewUserInputValidationErr(fmt.Sprintf("allowed clients validation failed: %v", err))
+				}
 			}
 		}
 	}
@@ -626,32 +642,39 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 	}
 
 	if attributes.FileProperties != nil {
-		exportRules := make([]*models.ExportRule, 0, len(attributes.FileProperties.ExportRules))
-		for _, rule := range attributes.FileProperties.ExportRules {
-			exportRules = append(exportRules, &models.ExportRule{
-				AllowedClients:      rule.AllowedClients,
-				AccessType:          rule.AccessType,
-				CIFS:                rule.CIFS,
-				NFSv3:               rule.NFSv3,
-				NFSv4:               rule.NFSv4,
-				UnixReadOnly:        rule.UnixReadOnly,
-				UnixReadWrite:       rule.UnixReadWrite,
-				Index:               rule.Index,
-				ChownMode:           rule.ChownMode,
-				AnonymousUser:       rule.AnonymousUser,
-				Kerberos5iReadOnly:  rule.Kerberos5iReadOnly,
-				Kerberos5iReadWrite: rule.Kerberos5iReadWrite,
-				Kerberos5pReadOnly:  rule.Kerberos5pReadOnly,
-				Kerberos5pReadWrite: rule.Kerberos5pReadWrite,
-				Kerberos5ReadOnly:   rule.Kerberos5ReadOnly,
-				Kerberos5ReadWrite:  rule.Kerberos5ReadWrite,
-				S3:                  rule.S3,
-			})
-		}
 		res.FileProperties = &models.FileProperties{
-			ExportPolicyName: attributes.FileProperties.ExportPolicyName,
-			ExportRules:      exportRules,
-			JunctionPath:     attributes.FileProperties.JunctionPath,
+			JunctionPath: attributes.FileProperties.JunctionPath,
+		}
+		if attributes.FileProperties.ExportPolicy != nil {
+			exportRules := make([]*models.ExportRule, 0, len(attributes.FileProperties.ExportPolicy.ExportRules))
+			for _, rule := range attributes.FileProperties.ExportPolicy.ExportRules {
+				exportRules = append(exportRules, &models.ExportRule{
+					AllowedClients:      rule.AllowedClients,
+					AccessType:          rule.AccessType,
+					CIFS:                rule.CIFS,
+					NFSv3:               rule.NFSv3,
+					NFSv4:               rule.NFSv4,
+					UnixReadOnly:        rule.UnixReadOnly,
+					UnixReadWrite:       rule.UnixReadWrite,
+					Index:               rule.Index,
+					ChownMode:           rule.ChownMode,
+					AnonymousUser:       rule.AnonymousUser,
+					Kerberos5iReadOnly:  rule.Kerberos5iReadOnly,
+					Kerberos5iReadWrite: rule.Kerberos5iReadWrite,
+					Kerberos5pReadOnly:  rule.Kerberos5pReadOnly,
+					Kerberos5pReadWrite: rule.Kerberos5pReadWrite,
+					Kerberos5ReadOnly:   rule.Kerberos5ReadOnly,
+					Kerberos5ReadWrite:  rule.Kerberos5ReadWrite,
+					S3:                  rule.S3,
+				})
+			}
+			res.FileProperties = &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: attributes.FileProperties.ExportPolicy.ExportPolicyName,
+					ExportRules:      exportRules,
+				},
+				JunctionPath: attributes.FileProperties.JunctionPath,
+			}
 		}
 	}
 

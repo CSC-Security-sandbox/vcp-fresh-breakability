@@ -237,7 +237,9 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 	}
 
 	param.FileProperties = &models.FileProperties{
-		ExportPolicyName: req.Volume.CreationToken.Value,
+		ExportPolicy: &models.ExportPolicy{
+			ExportPolicyName: req.Volume.CreationToken.Value,
+		},
 	}
 	if req.Volume.ExportPolicy.IsSet() {
 		var exportRules []*models.ExportRule
@@ -254,7 +256,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 				Index:          index + 1, // adding 1 as 0 index is not supported by ontap
 			})
 		}
-		param.FileProperties.ExportRules = exportRules
+		param.FileProperties.ExportPolicy.ExportRules = exportRules
 	}
 
 	if req.Volume.BlockProperties.IsSet() {
@@ -619,9 +621,9 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		res.Labels = gcpgenserver.NewOptVolumeV1betaLabels(labels)
 	}
 
-	if volume.FileProperties != nil {
+	if volume.FileProperties != nil && volume.FileProperties.ExportPolicy != nil {
 		rules := make([]gcpgenserver.SimpleExportPolicyRuleV1beta, 0)
-		for _, rule := range volume.FileProperties.ExportRules {
+		for _, rule := range volume.FileProperties.ExportPolicy.ExportRules {
 			rules = append(rules, gcpgenserver.SimpleExportPolicyRuleV1beta{
 				AllowedClients: rule.AllowedClients,
 				AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessType(rule.AccessType),

@@ -15,7 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -96,8 +96,8 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 		},
 	}
 
-	if utils.IsFileProtocolSupported(volume.Account.Name) && volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil {
-		params.ExportPolicy = &volume.VolumeAttributes.FileProperties.ExportPolicyName
+	if utils.IsFileProtocolSupported(volume.Account.Name) && volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil && volume.VolumeAttributes.FileProperties.ExportPolicy != nil {
+		params.ExportPolicy = &volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName
 		params.JunctionPath = &volume.VolumeAttributes.FileProperties.JunctionPath
 	}
 
@@ -166,7 +166,7 @@ func (a VolumeCreateActivity) CreateExportPolicyInOntap(ctx context.Context, vol
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	vsaExportRules := make([]*vsa.ExportRule, 0)
-	for _, rule := range volume.VolumeAttributes.FileProperties.ExportRules {
+	for _, rule := range volume.VolumeAttributes.FileProperties.ExportPolicy.ExportRules {
 		vsaExportRule := &vsa.ExportRule{
 			AccessType:     rule.AccessType,
 			AllowedClients: rule.AllowedClients,
@@ -179,7 +179,7 @@ func (a VolumeCreateActivity) CreateExportPolicyInOntap(ctx context.Context, vol
 		vsaExportRules = append(vsaExportRules, vsaExportRule)
 	}
 	vsaExportPolicy := &vsa.ExportPolicy{
-		ExportPolicyName: volume.VolumeAttributes.FileProperties.ExportPolicyName,
+		ExportPolicyName: volume.VolumeAttributes.FileProperties.ExportPolicy.ExportPolicyName,
 		SvmName:          volume.Svm.Name,
 		ExportRules:      vsaExportRules,
 	}

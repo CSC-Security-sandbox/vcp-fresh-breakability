@@ -6722,13 +6722,15 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 			Protocols:    []string{utils.ProtocolNFSv3},
 			Network:      "test-network",
 			FileProperties: &models.FileProperties{
-				ExportPolicyName: "test-policy",
-				ExportRules: []*models.ExportRule{
-					{
-						AllowedClients: "", // Empty allowed clients
-						AccessType:     models.ReadWrite,
-						NFSv3:          true,
-						Index:          1,
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "", // Empty allowed clients
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							Index:          1,
+						},
 					},
 				},
 			},
@@ -7029,18 +7031,20 @@ func TestConvertDatastoreVolumeToModelFileProperties(t *testing.T) {
 				CreationToken: "test-token",
 				Protocols:     []string{utils.ProtocolNFSv3},
 				FileProperties: &datamodel.FileProperties{
-					ExportPolicyName: "test-policy",
-					JunctionPath:     "/test-path",
-					ExportRules: []*datamodel.ExportRule{
-						{
-							AllowedClients: "192.168.1.0/24",
-							AccessType:     models.ReadWrite,
-							CIFS:           false,
-							NFSv3:          true,
-							NFSv4:          false,
-							Index:          1,
+					ExportPolicy: &datamodel.ExportPolicy{
+						ExportPolicyName: "test-policy",
+						ExportRules: []*datamodel.ExportRule{
+							{
+								AllowedClients: "192.168.1.0/24",
+								AccessType:     models.ReadWrite,
+								CIFS:           false,
+								NFSv3:          true,
+								NFSv4:          false,
+								Index:          1,
+							},
 						},
 					},
+					JunctionPath: "/test-path",
 				},
 			},
 		}
@@ -7050,14 +7054,15 @@ func TestConvertDatastoreVolumeToModelFileProperties(t *testing.T) {
 
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.FileProperties)
-		assert.Equal(tt, "test-policy", result.FileProperties.ExportPolicyName)
+		assert.NotNil(tt, result.FileProperties.ExportPolicy)
+		assert.Equal(tt, "test-policy", result.FileProperties.ExportPolicy.ExportPolicyName)
 		assert.Equal(tt, "/test-path", result.FileProperties.JunctionPath)
-		assert.Len(tt, result.FileProperties.ExportRules, 1)
-		assert.Equal(tt, "192.168.1.0/24", result.FileProperties.ExportRules[0].AllowedClients)
-		assert.Equal(tt, models.ReadWrite, result.FileProperties.ExportRules[0].AccessType)
-		assert.False(tt, result.FileProperties.ExportRules[0].CIFS)
-		assert.True(tt, result.FileProperties.ExportRules[0].NFSv3)
-		assert.False(tt, result.FileProperties.ExportRules[0].NFSv4)
+		assert.Len(tt, result.FileProperties.ExportPolicy.ExportRules, 1)
+		assert.Equal(tt, "192.168.1.0/24", result.FileProperties.ExportPolicy.ExportRules[0].AllowedClients)
+		assert.Equal(tt, models.ReadWrite, result.FileProperties.ExportPolicy.ExportRules[0].AccessType)
+		assert.False(tt, result.FileProperties.ExportPolicy.ExportRules[0].CIFS)
+		assert.True(tt, result.FileProperties.ExportPolicy.ExportRules[0].NFSv3)
+		assert.False(tt, result.FileProperties.ExportPolicy.ExportRules[0].NFSv4)
 	})
 
 	t.Run("ConvertVolumeWithoutFileProperties", func(tt *testing.T) {
@@ -7207,5 +7212,248 @@ func TestValidateDeleteVolumeParams(t *testing.T) {
 		err := _validateDeleteVolumeParams(ctx, se, volume)
 		assert.EqualError(tt, err, "A backup operation on volume is currently in progress. Please wait for it to complete before deleting the volume")
 		se.AssertExpectations(tt)
+	})
+}
+
+func TestFileVolumeProcessor_Validate(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage := &database.MockStorage{}
+	processor := &FileVolumeProcessor{}
+	accountID := int64(123)
+
+	t.Run("Success_WithValidExportPolicy", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.NoError(tt, err)
+		assert.Nil(tt, params.BlockProperties, "BlockProperties should be nil for file volumes")
+	})
+
+	t.Run("Success_WithMultipleExportRules", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							Index:          1,
+						},
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     models.ReadOnly,
+							NFSv4:          true,
+							Index:          2,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Success_WithNilExportPolicy", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			FileProperties: &models.FileProperties{
+				ExportPolicy: nil,
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Error_NilFileProperties", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken:  "test-token",
+			FileProperties: nil,
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.EqualError(tt, err, "FileProperties cannot be nil for NAS volumes")
+	})
+
+	t.Run("Error_EmptyExportRules", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules:      []*models.ExportRule{},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.EqualError(tt, err, "Export Rules cannot be empty in Export Policy")
+	})
+
+	t.Run("Error_EmptyAllowedClients", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.EqualError(tt, err, "allowed clients cannot be nil in export rules")
+	})
+
+	t.Run("Error_InvalidAllowedClients", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "invalid-ip-format",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.ErrorContains(tt, err, "allowed clients validation failed")
+	})
+
+	t.Run("Error_EmptyCreationToken", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "",
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.EqualError(tt, err, "Creation Token cannot be empty")
+	})
+
+	t.Run("ClearsBlockProperties", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			BlockProperties: &common.BlockPropertiesRequest{
+				OSType: "linux",
+			},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							Index:          1,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.NoError(tt, err)
+		assert.Nil(tt, params.BlockProperties, "BlockProperties should be cleared for file volumes")
+	})
+
+	t.Run("MultipleExportRules_OneWithInvalidClients", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							Index:          1,
+						},
+						{
+							AllowedClients: "invalid-client",
+							AccessType:     models.ReadOnly,
+							NFSv4:          true,
+							Index:          2,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.ErrorContains(tt, err, "allowed clients validation failed")
+	})
+
+	t.Run("MultipleExportRules_OneWithEmptyClients", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			CreationToken: "test-token",
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     models.ReadWrite,
+							NFSv3:          true,
+							Index:          1,
+						},
+						{
+							AllowedClients: "",
+							AccessType:     models.ReadOnly,
+							NFSv4:          true,
+							Index:          2,
+						},
+					},
+				},
+			},
+		}
+
+		err := processor.Validate(ctx, mockStorage, params, accountID)
+		assert.EqualError(tt, err, "allowed clients cannot be nil in export rules")
 	})
 }

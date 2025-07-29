@@ -28,6 +28,15 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
+	
+	// Setup file protocol support for NFS tests
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetFileProtocolAllowlistedAccountsForTesting("")
+	}()
+	
 	t.Run("ValidInputWithBlockProperties", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
@@ -80,7 +89,9 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				BackupPolicyId:         "backup-policy-id",
 			},
 			FileProperties: &models.FileProperties{
-				ExportPolicyName: req.Volume.CreationToken.Value,
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: req.Volume.CreationToken.Value,
+				},
 			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region)
@@ -141,7 +152,9 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 			},
 			SnapshotID: "test-snapshot-id",
 			FileProperties: &models.FileProperties{
-				ExportPolicyName: req.Volume.CreationToken.Value,
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: req.Volume.CreationToken.Value,
+				},
 			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region)
@@ -284,7 +297,9 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				RetrievalPolicy:      "default",
 			},
 			FileProperties: &models.FileProperties{
-				ExportPolicyName: req.Volume.CreationToken.Value,
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: req.Volume.CreationToken.Value,
+				},
 			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region)
@@ -357,7 +372,128 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 				TieringPolicy:      "none",
 			},
 			FileProperties: &models.FileProperties{
-				ExportPolicyName: req.Volume.CreationToken.Value,
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: req.Volume.CreationToken.Value,
+				},
+			},
+		}
+		result, err := prepareCreateVolumeParams(req, params, region)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
+	})
+
+	t.Run("ValidInputWithFilePropertiesAndExportRules", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test-volume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+				},
+				ExportPolicy: gcpgenserver.NewOptExportPolicyV1beta(
+					gcpgenserver.ExportPolicyV1beta{
+						Rules: []gcpgenserver.SimpleExportPolicyRuleV1beta{
+							{
+								AllowedClients: "192.168.1.0/24",
+								AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE,
+								Nfsv3:          gcpgenserver.NewOptNilBool(true),
+								Nfsv4:          gcpgenserver.NewOptNilBool(false),
+							},
+							{
+								AllowedClients: "10.0.0.0/8",
+								AccessType:     gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY,
+								Nfsv3:          gcpgenserver.NewOptNilBool(false),
+								Nfsv4:          gcpgenserver.NewOptNilBool(true),
+							},
+						},
+					},
+				),
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:   "test-project",
+			Name:          "test-volume",
+			PoolID:        "test-pool",
+			QuotaInBytes:  1024,
+			Network:       "",
+			CreationToken: "test-token",
+			Region:        "test-region",
+			VendorID:      "/projects/test-project/locations/test-location/volumes/test-volume",
+			Protocols: []string{
+				"NFSV3",
+			},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: req.Volume.CreationToken.Value,
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "READ_WRITE",
+							NFSv3:          true,
+							NFSv4:          false,
+							Index:          1,
+						},
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "READ_ONLY",
+							NFSv3:          false,
+							NFSv4:          true,
+							Index:          2,
+						},
+					},
+				},
+			},
+		}
+		result, err := prepareCreateVolumeParams(req, params, region)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
+	})
+
+	t.Run("ValidInputWithMultipleProtocols", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:    "test-volume",
+				CreationToken: gcpgenserver.NewOptString("test-token"),
+				PoolId:        gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+					gcpgenserver.ProtocolsV1betaNFSV4,
+					gcpgenserver.ProtocolsV1betaSMB,
+				},
+			},
+		}
+		params := gcpgenserver.V1betaCreateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+		}
+		region := "test-region"
+
+		expected := &common.CreateVolumeParams{
+			AccountName:   "test-project",
+			Name:          "test-volume",
+			PoolID:        "test-pool",
+			QuotaInBytes:  1024,
+			Network:       "",
+			CreationToken: "test-token",
+			Region:        "test-region",
+			VendorID:      "/projects/test-project/locations/test-location/volumes/test-volume",
+			Protocols: []string{
+				"NFSV3", "NFSV4", "SMB",
+			},
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: req.Volume.CreationToken.Value,
+					ExportRules:      nil,
+				},
 			},
 		}
 		result, err := prepareCreateVolumeParams(req, params, region)
@@ -2381,6 +2517,60 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.Equal(t, "token", out.CreationToken.Value)
 		assert.Equal(t, "LINUX", string(out.BlockProperties.Value.OsType.Value))
 		assert.Equal(t, "ISCSI", string(out.Protocols[0]))
+	})
+
+	t.Run("WithFilePropertiesAndExportRules", func(t *testing.T) {
+		vol := &models.Volume{
+			CreationToken: "file-token",
+			PoolID:        "file-pool",
+			QuotaInBytes:  2048,
+			ProtocolTypes: []string{"NFSV3"},
+			LifeCycleState: "READY",
+			FileProperties: &models.FileProperties{
+				ExportPolicy: &models.ExportPolicy{
+					ExportPolicyName: "test-export-policy",
+					ExportRules: []*models.ExportRule{
+						{
+							AllowedClients: "192.168.1.0/24",
+							AccessType:     "READ_WRITE",
+							NFSv3:          true,
+							NFSv4:          false,
+							Index:          1,
+						},
+						{
+							AllowedClients: "10.0.0.0/8",
+							AccessType:     "READ_ONLY",
+							NFSv3:          false,
+							NFSv4:          true,
+							Index:          2,
+						},
+					},
+				},
+			},
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+		assert.Equal(t, "file-token", out.CreationToken.Value)
+		assert.Equal(t, "NFSV3", string(out.Protocols[0]))
+		
+		// Verify ExportPolicy is properly converted
+		assert.True(t, out.ExportPolicy.IsSet())
+		exportPolicy := out.ExportPolicy.Value
+		assert.Len(t, exportPolicy.Rules, 2)
+		
+		// Verify first rule
+		rule1 := exportPolicy.Rules[0]
+		assert.Equal(t, "192.168.1.0/24", rule1.AllowedClients)
+		assert.Equal(t, gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE, rule1.AccessType)
+		assert.True(t, rule1.Nfsv3.Value)
+		assert.False(t, rule1.Nfsv4.Value)
+		
+		// Verify second rule
+		rule2 := exportPolicy.Rules[1]
+		assert.Equal(t, "10.0.0.0/8", rule2.AllowedClients)
+		assert.Equal(t, gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY, rule2.AccessType)
+		assert.False(t, rule2.Nfsv3.Value)
+		assert.True(t, rule2.Nfsv4.Value)
 	})
 }
 

@@ -46,7 +46,11 @@ type BlockProperties struct {
 }
 
 type FileProperties struct {
-	JunctionPath     string
+	JunctionPath string
+	ExportPolicy *ExportPolicy
+}
+
+type ExportPolicy struct {
 	ExportPolicyName string
 	ExportRules      []*ExportRule
 }
