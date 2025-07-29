@@ -6,8 +6,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"gorm.io/gorm"
 )
 
@@ -481,6 +483,66 @@ func TestGetBackupPolicyWithDetails(t *testing.T) {
 
 	t.Run("Returns error when backup policy not found", func(tt *testing.T) {
 		result, err := _getBackupPolicyWithDetails(store.db.GORM(), &datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid"}, AccountID: 9999})
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+}
+
+func TestUpdateBackupPolicy(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err, "Failed to set up test database")
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err, "Failed to clean up test database")
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-account",
+	}
+	err = store.db.Create(account).Error()
+	assert.NoError(t, err, "Expected no error when creating account")
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel:             datamodel.BaseModel{UUID: "test-backup-policy-uuid"},
+		Name:                  "test-backup-policy",
+		Description:           nillable.ToPointer("This is a test backup policy"),
+		PolicyEnabled:         false,
+		DailyBackupsToKeep:    5,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  1,
+		AccountID:             account.ID,
+		Account:               account,
+		LifeCycleState:        models.LifeCycleStateREADY,
+		LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+	}
+	err = store.db.Create(backupPolicy).Error()
+	assert.NoError(t, err, "Expected no error when creating backup policy")
+
+	t.Run("UpdateBackupPolicySucceeds", func(tt *testing.T) {
+		updates := map[string]interface{}{
+			"description":             "Updated description",
+			"policy_enabled":          true,
+			"daily_backups_to_keep":   10,
+			"weekly_backups_to_keep":  5,
+			"monthly_backups_to_keep": 3,
+		}
+		result, err := store.UpdateBackupPolicy(context.Background(), backupPolicy.UUID, updates)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "Updated description", *result.Description)
+		assert.True(tt, result.PolicyEnabled)
+		assert.Equal(tt, int64(10), result.DailyBackupsToKeep)
+		assert.Equal(tt, int64(5), result.WeeklyBackupsToKeep)
+		assert.Equal(tt, int64(3), result.MonthlyBackupsToKeep)
+	})
+
+	t.Run("UpdateBackupPolicyFails", func(tt *testing.T) {
+		updates := map[string]interface{}{
+			"non_existent_column": "This will fail",
+		}
+		result, err := store.UpdateBackupPolicy(context.Background(), backupPolicy.UUID, updates)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 	})

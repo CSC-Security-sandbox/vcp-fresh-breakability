@@ -1610,6 +1610,66 @@ func (_c *MockOrchestratorFactory_GetBackupPolicyByNameAndOwnerID_Call) RunAndRe
 	return _c
 }
 
+// GetBackupPolicyByUUIDAndOwnerID provides a mock function with given fields: ctx, uuid, ownerID
+func (_m *MockOrchestratorFactory) GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, uuid string, ownerID string) (*models.BackupPolicy, error) {
+	ret := _m.Called(ctx, uuid, ownerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupPolicyByUUIDAndOwnerID")
+	}
+
+	var r0 *models.BackupPolicy
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*models.BackupPolicy, error)); ok {
+		return rf(ctx, uuid, ownerID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *models.BackupPolicy); ok {
+		r0 = rf(ctx, uuid, ownerID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.BackupPolicy)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, uuid, ownerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetBackupPolicyByUUIDAndOwnerID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupPolicyByUUIDAndOwnerID'
+type MockOrchestratorFactory_GetBackupPolicyByUUIDAndOwnerID_Call struct {
+	*mock.Call
+}
+
+// GetBackupPolicyByUUIDAndOwnerID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - uuid string
+//   - ownerID string
+func (_e *MockOrchestratorFactory_Expecter) GetBackupPolicyByUUIDAndOwnerID(ctx interface{}, uuid interface{}, ownerID interface{}) *MockOrchestratorFactory_GetBackupPolicyByUUIDAndOwnerID_Call {
+	return &MockOrchestratorFactory_GetBackupPolicyByUUIDAndOwnerID_Call{Call: _e.mock.On("GetBackupPolicyByUUIDAndOwnerID", ctx, uuid, ownerID)}
+}
+
+func (_c *MockOrchestratorFactory_GetBackupPolicyByUUIDAndOwnerID_Call) Run(run func(ctx context.Context, uuid string, ownerID string)) *MockOrchestratorFactory_GetBackupPolicyByUUIDAndOwnerID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupPolicyByUUIDAndOwnerID_Call) Return(_a0 *models.BackupPolicy, _a1 error) *MockOrchestratorFactory_GetBackupPolicyByUUIDAndOwnerID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupPolicyByUUIDAndOwnerID_Call) RunAndReturn(run func(context.Context, string, string) (*models.BackupPolicy, error)) *MockOrchestratorFactory_GetBackupPolicyByUUIDAndOwnerID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackupVaultByNameAndOwnerID provides a mock function with given fields: ctx, bvName, ownerID
 func (_m *MockOrchestratorFactory) GetBackupVaultByNameAndOwnerID(ctx context.Context, bvName string, ownerID string) (*models.BackupVaultV1beta, error) {
 	ret := _m.Called(ctx, bvName, ownerID)
@@ -4048,6 +4108,72 @@ func (_c *MockOrchestratorFactory_UpdateBackup_Call) Return(_a0 *models.Backup, 
 }
 
 func (_c *MockOrchestratorFactory_UpdateBackup_Call) RunAndReturn(run func(context.Context, *common.UpdateBackupParams) (*models.Backup, string, error)) *MockOrchestratorFactory_UpdateBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateBackupPolicy provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpdateBackupPolicy(ctx context.Context, params *common.UpdateBackupPolicyParams) (*models.BackupPolicy, string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateBackupPolicy")
+	}
+
+	var r0 *models.BackupPolicy
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateBackupPolicyParams) (*models.BackupPolicy, string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateBackupPolicyParams) *models.BackupPolicy); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.BackupPolicy)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.UpdateBackupPolicyParams) string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.UpdateBackupPolicyParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_UpdateBackupPolicy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupPolicy'
+type MockOrchestratorFactory_UpdateBackupPolicy_Call struct {
+	*mock.Call
+}
+
+// UpdateBackupPolicy is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.UpdateBackupPolicyParams
+func (_e *MockOrchestratorFactory_Expecter) UpdateBackupPolicy(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpdateBackupPolicy_Call {
+	return &MockOrchestratorFactory_UpdateBackupPolicy_Call{Call: _e.mock.On("UpdateBackupPolicy", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateBackupPolicy_Call) Run(run func(ctx context.Context, params *common.UpdateBackupPolicyParams)) *MockOrchestratorFactory_UpdateBackupPolicy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.UpdateBackupPolicyParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateBackupPolicy_Call) Return(_a0 *models.BackupPolicy, _a1 string, _a2 error) *MockOrchestratorFactory_UpdateBackupPolicy_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateBackupPolicy_Call) RunAndReturn(run func(context.Context, *common.UpdateBackupPolicyParams) (*models.BackupPolicy, string, error)) *MockOrchestratorFactory_UpdateBackupPolicy_Call {
 	_c.Call.Return(run)
 	return _c
 }

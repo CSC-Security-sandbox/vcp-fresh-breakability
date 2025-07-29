@@ -368,3 +368,25 @@ func (d *DataStoreRepository) IsBackupShared(ctx context.Context, backup *datamo
 
 	return count > 0, nil
 }
+
+func (d *DataStoreRepository) GetBackupCountByVolumeUUIDs(ctx context.Context, volumeUUIDs []string, conditions [][]interface{}) (map[string]int64, error) {
+	var results []struct {
+		VolumeUUID  string `json:"volume_uuid"`
+		BackupCount int64  `json:"backup_count"`
+	}
+	db := d.db.ApplyFilter(conditions).GORM().WithContext(ctx)
+	err := db.Model(&datamodel.Backup{}).
+		Select("volume_uuid, count(*) as backup_count").
+		Where("volume_uuid IN ?", volumeUUIDs).
+		Group("volume_uuid").
+		Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	var backupsCountByVolume = make(map[string]int64)
+	for _, result := range results {
+		backupsCountByVolume[result.VolumeUUID] = result.BackupCount
+	}
+	return backupsCountByVolume, nil
+}

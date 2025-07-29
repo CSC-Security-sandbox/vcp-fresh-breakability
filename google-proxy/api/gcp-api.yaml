@@ -9012,9 +9012,8 @@ components:
           description: Limit to number of daily backups. Note that the sum of daily,
             weekly and monthly backups should be greater than 1.
           example: 24
-          minimum: 0
+          minimum: 2
           maximum: 1019
-          default: 0
         weeklyBackupLimit:
           title: Weekly backup limit
           type: integer
@@ -9023,7 +9022,6 @@ components:
           example: 24
           minimum: 0
           maximum: 1019
-          default: 0
         monthlyBackupLimit:
           title: Monthly backup limit
           type: integer
@@ -9032,7 +9030,6 @@ components:
           example: 24
           minimum: 0
           maximum: 1019
-          default: 0
     SnapshotId_v1beta:
       title: SnapshotId
       type: object

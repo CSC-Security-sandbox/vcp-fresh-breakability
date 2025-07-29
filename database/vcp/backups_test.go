@@ -1180,3 +1180,57 @@ func TestReturnsErrorOnDBFailure(tt *testing.T) {
 	assert.Error(tt, err)
 	assert.Equal(tt, int64(0), count)
 }
+
+func TestGetBackupCountByVolumeUUIDs(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	// Create backups for two volumes
+	backup1 := &datamodel.Backup{
+		BaseModel:  datamodel.BaseModel{UUID: "backup-uuid-1"},
+		VolumeUUID: "volume-uuid-1",
+		State:      models.LifeCycleStateAvailable,
+	}
+	backup2 := &datamodel.Backup{
+		BaseModel:  datamodel.BaseModel{UUID: "backup-uuid-2"},
+		VolumeUUID: "volume-uuid-1",
+		State:      models.LifeCycleStateAvailable,
+	}
+	backup3 := &datamodel.Backup{
+		BaseModel:  datamodel.BaseModel{UUID: "backup-uuid-3"},
+		VolumeUUID: "volume-uuid-2",
+		State:      models.LifeCycleStateAvailable,
+	}
+	err = store.db.Create(backup1).Error()
+	assert.NoError(t, err)
+	err = store.db.Create(backup2).Error()
+	assert.NoError(t, err)
+	err = store.db.Create(backup3).Error()
+	assert.NoError(t, err)
+
+	// Test: returns correct counts
+	volumeUUIDs := []string{"volume-uuid-1", "volume-uuid-2"}
+	counts, err := store.GetBackupCountByVolumeUUIDs(context.Background(), volumeUUIDs, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), counts["volume-uuid-1"])
+	assert.Equal(t, int64(1), counts["volume-uuid-2"])
+
+	// Test: returns zero for volume with no backups
+	volumeUUIDs = []string{"volume-uuid-3"}
+	counts, err = store.GetBackupCountByVolumeUUIDs(context.Background(), volumeUUIDs, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(0), counts["volume-uuid-3"])
+
+	// Test: returns error on DB failure
+	sqlDB, err := store.db.GORM().DB()
+	assert.NoError(t, err)
+	_ = sqlDB.Close()
+	_, err = store.GetBackupCountByVolumeUUIDs(context.Background(), []string{"volume-uuid-1"}, nil)
+	assert.Error(t, err)
+}

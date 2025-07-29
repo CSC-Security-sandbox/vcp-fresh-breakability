@@ -238,6 +238,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(replicationWorkflows.ReplicationDeleteWorkflow)
 	worker.RegisterWorkflow(ontaprest.PollOntapJob)
 	worker.RegisterWorkflow(workflows.DeleteBackupVaultWorkflow)
+	worker.RegisterWorkflow(workflows.UpdateBackupPolicyWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
@@ -272,4 +273,5 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&replicationActivities.StopVolumeReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.UnRegisterNodeFromHarvestActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.DeleteVolumeReplicationActivity{SE: dbcon})
+	worker.RegisterActivity(&activities.BackupPolicyActivity{SE: dbcon, Scheduler: temporalScheduler})
 }

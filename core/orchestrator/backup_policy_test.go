@@ -3,15 +3,19 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestGetBackupPolicyByNameAndOwnerID(tt *testing.T) {
@@ -58,7 +62,7 @@ func TestGetBackupPolicyByNameAndOwnerID(tt *testing.T) {
 		defer func() { getAccountWithName = oldGetAccountWithName }()
 		oldGetBackupPolicyWithName := getBackupPolicyByNameAndOwnerID
 		getBackupPolicyByNameAndOwnerID = func(ctx context.Context, se database.Storage, backupPolicy, ownerID string) (*datamodel.BackupPolicy, error) {
-			return nil, utilErrors.NewNotFoundErr("backup policy", &backupPolicyName)
+			return nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName)
 		}
 		defer func() { getBackupPolicyByNameAndOwnerID = oldGetBackupPolicyWithName }()
 
@@ -66,7 +70,7 @@ func TestGetBackupPolicyByNameAndOwnerID(tt *testing.T) {
 		result, err := o.GetBackupPolicyByNameAndOwnerID(context.Background(), backupPolicyName, account.UUID)
 		assert.Error(tt, err, "Expected error")
 		assert.Nil(tt, result, "Expected result to be nil")
-		assert.Equal(tt, utilErrors.NewNotFoundErr("backup policy", &backupPolicyName).Error(), err.Error(), "Expected error message to match")
+		assert.Equal(tt, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName).Error(), err.Error(), "Expected error message to match")
 	})
 	tt.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
 		mockLogger := log.NewLogger()
@@ -295,5 +299,661 @@ func Test_convertDatastoreBackupPolicyToModel(t *testing.T) {
 		}
 		model := convertDatastoreBackupPolicyToModel(backupPolicy)
 		assert.Equal(t, expectedModel, model)
+	})
+}
+
+func TestGetBackupPolicyByUUIDAndOwnerID(t *testing.T) {
+	t.Run("WhenBackupPolicyExists", func(tt *testing.T) {
+		ctx, se, orchestrator, _ := setup(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test-account-name",
+		}
+		account, err := se.CreateAccount(ctx, account)
+		assert.NoError(tt, err)
+
+		dbBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-backup-policy-uuid",
+			},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		dbBackupPolicy, err = se.CreateBackupPolicyEntryInVCP(ctx, dbBackupPolicy)
+		assert.NoError(tt, err)
+
+		result, err := orchestrator.GetBackupPolicyByUUIDAndOwnerID(ctx, dbBackupPolicy.UUID, account.Name)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, dbBackupPolicy.UUID, result.BackupPolicyUUID)
+	})
+
+	t.Run("WhenAccountDoesNotExist", func(tt *testing.T) {
+		ctx, se, orchestrator, _ := setup(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test-account-name",
+		}
+		account, err := se.CreateAccount(ctx, account)
+		assert.NoError(tt, err)
+
+		dbBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-backup-policy-uuid",
+			},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		dbBackupPolicy, err = se.CreateBackupPolicyEntryInVCP(ctx, dbBackupPolicy)
+		assert.NoError(tt, err)
+
+		result, err := orchestrator.GetBackupPolicyByUUIDAndOwnerID(ctx, dbBackupPolicy.UUID, "non-existent-account")
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+
+	t.Run("WhenBackupPolicyDoesNotExist", func(tt *testing.T) {
+		ctx, se, orchestrator, _ := setup(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test-account-name",
+		}
+		account, err := se.CreateAccount(ctx, account)
+		assert.NoError(tt, err)
+
+		dbBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-backup-policy-uuid",
+			},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		_, err = se.CreateBackupPolicyEntryInVCP(ctx, dbBackupPolicy)
+		assert.NoError(tt, err)
+
+		result, err := orchestrator.GetBackupPolicyByUUIDAndOwnerID(ctx, "non-existent-uuid", account.Name)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
+}
+
+func TestUpdateBackupPolicy(t *testing.T) {
+	t.Run("UpdateBackupPolicySucceeds", func(tt *testing.T) {
+		ctx, se, orchestrator, temporal := setup(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test-account",
+		}
+		account, err := se.CreateAccount(ctx, account)
+		assert.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-pool-uuid",
+			},
+			Name:      "test-pool",
+			Account:   account,
+			AccountID: account.ID,
+		}
+		pool, err = se.CreatingPool(ctx, pool)
+		assert.NoError(tt, err)
+		pool, err = se.CreatedPool(ctx, pool)
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-backup-vault-uuid",
+			},
+			Name:      "test-backup-vault",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		backupVault, err = se.CreateBackupVaultEntryInVCP(ctx, backupVault)
+		assert.NoError(tt, err)
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-backup-policy-uuid",
+			},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		backupPolicy, err = se.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
+		assert.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-volume-uuid",
+			},
+			Name:      "test-volume",
+			AccountID: account.ID,
+			Account:   account,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:  backupVault.UUID,
+				BackupPolicyID: backupPolicy.UUID,
+			},
+		}
+		volume, err = se.CreateVolume(ctx, volume)
+		assert.NoError(tt, err)
+		_, err = se.UpdateVolumeState(ctx, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+		assert.NoError(tt, err)
+
+		params := &commonparams.UpdateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "test-account",
+			BackupPolicyID:     "test-backup-policy-uuid",
+			LocationID:         "test-location",
+			Description:        nillable.ToPointer("This is a test backup policy"),
+			PolicyEnabled:      nillable.ToPointer(false),
+			DailyBackupLimit:   nillable.ToPointer(int64(5)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+		}
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, params, mock.Anything).
+			Return(nil, nil)
+		updated, _, err := orchestrator.UpdateBackupPolicy(ctx, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updated)
+		assert.Equal(tt, *backupPolicy.Description, *updated.Description)
+		assert.Equal(tt, backupPolicy.PolicyEnabled, updated.Enabled)
+		assert.Equal(tt, backupPolicy.DailyBackupsToKeep, updated.DailyBackupLimit)
+		assert.Equal(tt, backupPolicy.WeeklyBackupsToKeep, updated.WeeklyBackupLimit)
+		assert.Equal(tt, backupPolicy.MonthlyBackupsToKeep, updated.MonthlyBackupLimit)
+		assert.Equal(tt, models.LifeCycleStateUpdating, updated.State)
+	})
+
+	t.Run("SucceedsWhenBackupPolicyIsNotInUseByAnyVolumes", func(tt *testing.T) {
+		ctx, se, orchestrator, temporal := setup(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test-account",
+		}
+		account, err := se.CreateAccount(ctx, account)
+		assert.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-pool-uuid",
+			},
+			Name:      "test-pool",
+			Account:   account,
+			AccountID: account.ID,
+		}
+		pool, err = se.CreatingPool(ctx, pool)
+		assert.NoError(tt, err)
+		pool, err = se.CreatedPool(ctx, pool)
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-backup-vault-uuid",
+			},
+			Name:      "test-backup-vault",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		backupVault, err = se.CreateBackupVaultEntryInVCP(ctx, backupVault)
+		assert.NoError(tt, err)
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-backup-policy-uuid",
+			},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		backupPolicy, err = se.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
+		assert.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-volume-uuid",
+			},
+			Name:      "test-volume",
+			AccountID: account.ID,
+			Account:   account,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: backupVault.UUID,
+			},
+		}
+		volume, err = se.CreateVolume(ctx, volume)
+		assert.NoError(tt, err)
+		_, err = se.UpdateVolumeState(ctx, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+		assert.NoError(tt, err)
+
+		params := &commonparams.UpdateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "test-account",
+			BackupPolicyID:     "test-backup-policy-uuid",
+			LocationID:         "test-location",
+			Description:        nillable.ToPointer("This is a test backup policy"),
+			PolicyEnabled:      nillable.ToPointer(false),
+			DailyBackupLimit:   nillable.ToPointer(int64(5)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+		}
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, params, mock.Anything).
+			Return(nil, nil)
+		updated, _, err := orchestrator.UpdateBackupPolicy(ctx, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updated)
+		assert.Equal(tt, *backupPolicy.Description, *updated.Description)
+		assert.Equal(tt, backupPolicy.PolicyEnabled, updated.Enabled)
+		assert.Equal(tt, backupPolicy.DailyBackupsToKeep, updated.DailyBackupLimit)
+		assert.Equal(tt, backupPolicy.WeeklyBackupsToKeep, updated.WeeklyBackupLimit)
+		assert.Equal(tt, backupPolicy.MonthlyBackupsToKeep, updated.MonthlyBackupLimit)
+		assert.Equal(tt, models.LifeCycleStateUpdating, updated.State)
+	})
+
+	t.Run("FailsWhenAccountDoesNotExist", func(tt *testing.T) {
+		ctx, se, orchestrator, _ := setup(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test-account",
+		}
+		_, err := se.CreateAccount(ctx, account)
+		assert.NoError(tt, err)
+
+		params := &commonparams.UpdateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "non-existent-account",
+			BackupPolicyID:     "test-backup-policy-uuid",
+			LocationID:         "test-location",
+			Description:        nillable.ToPointer("This is a test backup policy"),
+			PolicyEnabled:      nillable.ToPointer(false),
+			DailyBackupLimit:   nillable.ToPointer(int64(5)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+		}
+		updated, _, err := orchestrator.UpdateBackupPolicy(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, updated)
+	})
+
+	t.Run("FailsWhenBackupPolicyIsNotInReadyState", func(tt *testing.T) {
+		ctx, se, orchestrator, _ := setup(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test-account",
+		}
+		account, err := se.CreateAccount(ctx, account)
+		assert.NoError(tt, err)
+
+		dbBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-backup-policy-uuid",
+			},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateUpdating,
+			LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		}
+		_, err = se.CreateBackupPolicyEntryInVCP(ctx, dbBackupPolicy)
+		assert.NoError(tt, err)
+
+		params := &commonparams.UpdateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "test-account",
+			BackupPolicyID:     "test-backup-policy-uuid",
+			LocationID:         "test-location",
+			Description:        nillable.ToPointer("This is a test backup policy"),
+			PolicyEnabled:      nillable.ToPointer(false),
+			DailyBackupLimit:   nillable.ToPointer(int64(5)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+		}
+		updated, _, err := orchestrator.UpdateBackupPolicy(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, updated)
+		assert.IsType(tt, &utilerrors.UserInputValidationErr{}, err)
+		assert.Equal(tt, "backup policy is not in a valid state for update", err.Error())
+	})
+
+	t.Run("FailsWhenBackupPolicyDoesNotExist", func(tt *testing.T) {
+		ctx, se, orchestrator, _ := setup(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test-account",
+		}
+		account, err := se.CreateAccount(ctx, account)
+		assert.NoError(tt, err)
+
+		dbBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-backup-policy-uuid",
+			},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateUpdating,
+			LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		}
+		_, err = se.CreateBackupPolicyEntryInVCP(ctx, dbBackupPolicy)
+		assert.NoError(tt, err)
+
+		params := &commonparams.UpdateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "test-account",
+			BackupPolicyID:     "non-existent-backup-policy-uuid",
+			LocationID:         "test-location",
+			Description:        nillable.ToPointer("This is a test backup policy"),
+			PolicyEnabled:      nillable.ToPointer(false),
+			DailyBackupLimit:   nillable.ToPointer(int64(5)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+		}
+		updated, _, err := orchestrator.UpdateBackupPolicy(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, updated)
+	})
+
+	t.Run("FailsWhenBackupPolicyCountExceedsLimits", func(tt *testing.T) {
+		ctx, se, orchestrator, _ := setup(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test-account",
+		}
+		account, err := se.CreateAccount(ctx, account)
+		assert.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-pool-uuid",
+			},
+			Name:      "test-pool",
+			Account:   account,
+			AccountID: account.ID,
+		}
+		pool, err = se.CreatingPool(ctx, pool)
+		assert.NoError(tt, err)
+		pool, err = se.CreatedPool(ctx, pool)
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-backup-vault-uuid",
+			},
+			Name:      "test-backup-vault",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		backupVault, err = se.CreateBackupVaultEntryInVCP(ctx, backupVault)
+		assert.NoError(tt, err)
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-backup-policy-uuid",
+			},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   1,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		backupPolicy, err = se.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
+		assert.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-volume-uuid",
+			},
+			Name:      "test-volume",
+			AccountID: account.ID,
+			Account:   account,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:  backupVault.UUID,
+				BackupPolicyID: backupPolicy.UUID,
+			},
+		}
+		volume, err = se.CreateVolume(ctx, volume)
+		assert.NoError(tt, err)
+		_, err = se.UpdateVolumeState(ctx, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+		assert.NoError(tt, err)
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-backup-uuid",
+			},
+			Name:          "test-backup",
+			BackupVaultID: backupVault.ID,
+			BackupVault:   backupVault,
+			VolumeUUID:    volume.UUID,
+			Type:          "MANUAL",
+			State:         models.LifeCycleStateAvailable,
+			StateDetails:  models.LifeCycleStateAvailableDetails,
+		}
+		_, err = se.CreateBackup(ctx, backup)
+		assert.NoError(tt, err)
+		_, err = se.FinishBackup(ctx, backup)
+		assert.NoError(tt, err)
+
+		params := &commonparams.UpdateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "test-account",
+			BackupPolicyID:     "test-backup-policy-uuid",
+			LocationID:         "test-location",
+			Description:        nillable.ToPointer("This is a test backup policy"),
+			PolicyEnabled:      nillable.ToPointer(false),
+			DailyBackupLimit:   nillable.ToPointer(int64(500)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(300)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(200)),
+		}
+		updated, _, err := orchestrator.UpdateBackupPolicy(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, updated)
+		assert.Equal(tt, fmt.Sprintf("the total number of backups exceeds the limit of %d for volume %s", maxBackupsToKeep, volume.UUID), err.Error())
+	})
+
+	t.Run("FailsWhenWorkflowExecutionErrors", func(tt *testing.T) {
+		ctx, se, orchestrator, temporal := setup(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test-account",
+		}
+		account, err := se.CreateAccount(ctx, account)
+		assert.NoError(tt, err)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-pool-uuid",
+			},
+			Name:      "test-pool",
+			Account:   account,
+			AccountID: account.ID,
+		}
+		pool, err = se.CreatingPool(ctx, pool)
+		assert.NoError(tt, err)
+		pool, err = se.CreatedPool(ctx, pool)
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-backup-vault-uuid",
+			},
+			Name:      "test-backup-vault",
+			AccountID: account.ID,
+			Account:   account,
+		}
+		backupVault, err = se.CreateBackupVaultEntryInVCP(ctx, backupVault)
+		assert.NoError(tt, err)
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-backup-policy-uuid",
+			},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		backupPolicy, err = se.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
+		assert.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-volume-uuid",
+			},
+			Name:      "test-volume",
+			AccountID: account.ID,
+			Account:   account,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:  backupVault.UUID,
+				BackupPolicyID: backupPolicy.UUID,
+			},
+		}
+		volume, err = se.CreateVolume(ctx, volume)
+		assert.NoError(tt, err)
+		_, err = se.UpdateVolumeState(ctx, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+		assert.NoError(tt, err)
+
+		params := &commonparams.UpdateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "test-account",
+			BackupPolicyID:     "test-backup-policy-uuid",
+			LocationID:         "test-location",
+			Description:        nillable.ToPointer("This is a test backup policy"),
+			PolicyEnabled:      nillable.ToPointer(false),
+			DailyBackupLimit:   nillable.ToPointer(int64(5)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+		}
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, params, mock.Anything).
+			Return(nil, errors.New("could not execute workflow"))
+		updated, _, err := orchestrator.UpdateBackupPolicy(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, updated)
+		assert.Equal(tt, "could not execute workflow", err.Error())
 	})
 }

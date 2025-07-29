@@ -1,13 +1,22 @@
 package activities
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/go-openapi/strfmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
-	cvpModel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
@@ -15,7 +24,128 @@ var (
 	convertToBackupPolicyDataModel = _convertToBackupPolicyDataModel
 )
 
-func _convertToBackupPolicyDataModel(backupPolicy *cvpModel.BackupPolicyDetailsV1beta) *datamodel.BackupPolicy {
+type BackupPolicyActivity struct {
+	SE        database.Storage
+	Scheduler scheduler.Scheduler
+}
+
+func (j *BackupPolicyActivity) UpdateBackupPolicyInSDE(ctx context.Context, params *common.UpdateBackupPolicyParams) (*cvpmodels.BackupPolicyV1beta, error) {
+	return updateBackupPolicyInSDE(ctx, params)
+}
+
+func (j *BackupPolicyActivity) RevertBackupPolicyUpdateInSDE(ctx context.Context, params *common.UpdateBackupPolicyParams, dbBackupPolicy *datamodel.BackupPolicy) (*cvpmodels.BackupPolicyV1beta, error) {
+	params.Description = dbBackupPolicy.Description
+	params.PolicyEnabled = &dbBackupPolicy.PolicyEnabled
+	params.DailyBackupLimit = &dbBackupPolicy.DailyBackupsToKeep
+	params.WeeklyBackupLimit = &dbBackupPolicy.WeeklyBackupsToKeep
+	params.MonthlyBackupLimit = &dbBackupPolicy.MonthlyBackupsToKeep
+	return updateBackupPolicyInSDE(ctx, params)
+}
+
+func (j *BackupPolicyActivity) UpdateBackupPolicyInVCP(ctx context.Context, params *common.UpdateBackupPolicyParams, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
+	se := j.SE
+
+	updates := map[string]interface{}{
+		"life_cycle_state":         models.LifeCycleStateREADY,
+		"life_cycle_state_details": models.LifeCycleStateReadyDetails,
+	}
+	if params.Description != nil {
+		updates["description"] = *params.Description
+	}
+	if params.PolicyEnabled != nil {
+		updates["policy_enabled"] = *params.PolicyEnabled
+	}
+	if params.DailyBackupLimit != nil {
+		updates["daily_backups_to_keep"] = *params.DailyBackupLimit
+	}
+	if params.WeeklyBackupLimit != nil {
+		updates["weekly_backups_to_keep"] = *params.WeeklyBackupLimit
+	}
+	if params.MonthlyBackupLimit != nil {
+		updates["monthly_backups_to_keep"] = *params.MonthlyBackupLimit
+	}
+	updated, err := se.UpdateBackupPolicy(ctx, backupPolicy.UUID, updates)
+	if err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+func (j *BackupPolicyActivity) RevertBackupPolicyUpdateInVCP(ctx context.Context, dbBackupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
+	se := j.SE
+	updates := map[string]interface{}{
+		"description":              dbBackupPolicy.Description,
+		"policy_enabled":           dbBackupPolicy.PolicyEnabled,
+		"daily_backups_to_keep":    dbBackupPolicy.DailyBackupsToKeep,
+		"weekly_backups_to_keep":   dbBackupPolicy.WeeklyBackupsToKeep,
+		"monthly_backups_to_keep":  dbBackupPolicy.MonthlyBackupsToKeep,
+		"life_cycle_state":         models.LifeCycleStateREADY,
+		"life_cycle_state_details": models.LifeCycleStateReadyDetails,
+	}
+	updated, err := se.UpdateBackupPolicy(ctx, dbBackupPolicy.UUID, updates)
+	if err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+func (j *BackupPolicyActivity) PauseBackupPolicySchedule(ctx context.Context, dbBackupPolicy *datamodel.BackupPolicy) error {
+	temporalScheduler := j.Scheduler
+	_, err := temporalScheduler.Pause(ctx, scheduler.PauseScheduleParams{ScheduleParams: scheduler.ScheduleParams{ScheduleID: dbBackupPolicy.UUID}})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (j *BackupPolicyActivity) UnpauseBackupPolicySchedule(ctx context.Context, dbBackupPolicy *datamodel.BackupPolicy) error {
+	temporalScheduler := j.Scheduler
+	_, err := temporalScheduler.Unpause(ctx, scheduler.UnpauseScheduleParams{ScheduleParams: scheduler.ScheduleParams{ScheduleID: dbBackupPolicy.UUID}})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func updateBackupPolicyInSDE(ctx context.Context, params *common.UpdateBackupPolicyParams) (*cvpmodels.BackupPolicyV1beta, error) {
+	logger := util.GetLogger(ctx)
+	token := utils.GetAuthTokenFromContext(ctx)
+	cvpClient := cvpCreateClient(logger, token)
+	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
+
+	op, _, err := cvpClient.BackupPolicy.V1betaUpdateBackupPolicy(&backup_policy.V1betaUpdateBackupPolicyParams{
+		LocationID:     params.LocationID,
+		ProjectNumber:  params.AccountName,
+		XCorrelationID: &xCorrelationID,
+		BackupPolicyID: params.BackupPolicyID,
+		Body: &cvpmodels.BackupPolicyUpdateV1beta{
+			Description: params.Description,
+			Enabled:     params.PolicyEnabled,
+			BackupPolicyScheduleV1beta: cvpmodels.BackupPolicyScheduleV1beta{
+				DailyBackupLimit:   params.DailyBackupLimit,
+				WeeklyBackupLimit:  params.WeeklyBackupLimit,
+				MonthlyBackupLimit: params.MonthlyBackupLimit,
+			},
+		},
+	})
+	if err != nil {
+		logger.Error("Error Updating BackupPolicy : ", err)
+		return nil, err
+	}
+
+	responseBytes, err := json.MarshalIndent(op.Payload.Response, "", "  ")
+	if err != nil {
+		return nil, errors.New("failed to marshal response from SDE BackupPolicy Update")
+	}
+	data := cvpmodels.BackupPolicyV1beta{}
+	err = utils.ConvertJsonToModel(responseBytes, &data)
+	if err != nil {
+		return nil, err
+	}
+	return &data, nil
+}
+
+func _convertToBackupPolicyDataModel(backupPolicy *cvpmodels.BackupPolicyDetailsV1beta) *datamodel.BackupPolicy {
 	var createdTime strfmt.DateTime
 	if backupPolicy.CreatedAt != nil {
 		createdTime = *backupPolicy.CreatedAt

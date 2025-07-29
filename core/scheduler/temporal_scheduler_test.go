@@ -3,19 +3,21 @@ package scheduler
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/mock"
-	"go.temporal.io/sdk/mocks"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.temporal.io/sdk/client"
+	"go.temporal.io/sdk/mocks"
 )
 
 type mockScheduleHandle struct {
 	client.ScheduleHandle
-	id         string
-	updateFunc func(ctx context.Context, opts client.ScheduleUpdateOptions) error
-	deleteFunc func(ctx context.Context) error
+	id          string
+	updateFunc  func(ctx context.Context, opts client.ScheduleUpdateOptions) error
+	deleteFunc  func(ctx context.Context) error
+	pauseFunc   func(ctx context.Context, opts client.SchedulePauseOptions) error
+	unpauseFunc func(ctx context.Context, opts client.ScheduleUnpauseOptions) error
 }
 
 func (m *mockScheduleHandle) GetID() string { return m.id }
@@ -26,9 +28,24 @@ func (m *mockScheduleHandle) Update(ctx context.Context, opts client.ScheduleUpd
 	}
 	return nil
 }
+
 func (m *mockScheduleHandle) Delete(ctx context.Context) error {
 	if m.deleteFunc != nil {
 		return m.deleteFunc(ctx)
+	}
+	return nil
+}
+
+func (m *mockScheduleHandle) Pause(ctx context.Context, opts client.SchedulePauseOptions) error {
+	if m.pauseFunc != nil {
+		return m.pauseFunc(ctx, opts)
+	}
+	return nil
+}
+
+func (m *mockScheduleHandle) Unpause(ctx context.Context, opts client.ScheduleUnpauseOptions) error {
+	if m.unpauseFunc != nil {
+		return m.unpauseFunc(ctx, opts)
 	}
 	return nil
 }
@@ -189,6 +206,106 @@ func TestTemporalScheduler_Delete_Error(t *testing.T) {
 	}
 
 	resp, err := scheduler.Delete(ctx, params)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	mockClient.AssertExpectations(t)
+}
+
+func TestTemporalScheduler_Pause(t *testing.T) {
+	mockClient := &mocks.ScheduleClient{}
+	scheduler := NewTemporalScheduler(mockClient)
+
+	ctx := context.Background()
+	scheduleID := "test-schedule"
+	mockHandle := &mockScheduleHandle{id: scheduleID}
+
+	mockClient.On("GetHandle", ctx, scheduleID).Return(mockHandle).Once()
+
+	params := PauseScheduleParams{
+		ScheduleParams: ScheduleParams{
+			ScheduleID: scheduleID,
+		},
+	}
+
+	resp, err := scheduler.Pause(ctx, params)
+	require.NoError(t, err)
+	require.Equal(t, scheduleID, resp.ID)
+	require.Equal(t, ScheduleStatePaused, resp.Status)
+	mockClient.AssertExpectations(t)
+}
+
+func TestTemporalScheduler_Pause_Error(t *testing.T) {
+	mockClient := &mocks.ScheduleClient{}
+	scheduler := NewTemporalScheduler(mockClient)
+
+	ctx := context.Background()
+	scheduleID := "test-schedule"
+	mockHandle := &mockScheduleHandle{
+		id: scheduleID,
+		pauseFunc: func(ctx context.Context, opts client.SchedulePauseOptions) error {
+			return errors.New("pause error")
+		},
+	}
+
+	mockClient.On("GetHandle", ctx, scheduleID).Return(mockHandle).Times(3)
+
+	params := PauseScheduleParams{
+		ScheduleParams: ScheduleParams{
+			ScheduleID: scheduleID,
+		},
+	}
+
+	resp, err := scheduler.Pause(ctx, params)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	mockClient.AssertExpectations(t)
+}
+
+func TestTemporalScheduler_Unpause(t *testing.T) {
+	mockClient := &mocks.ScheduleClient{}
+	scheduler := NewTemporalScheduler(mockClient)
+
+	ctx := context.Background()
+	scheduleID := "test-schedule"
+	mockHandle := &mockScheduleHandle{id: scheduleID}
+
+	mockClient.On("GetHandle", ctx, scheduleID).Return(mockHandle).Once()
+
+	params := UnpauseScheduleParams{
+		ScheduleParams: ScheduleParams{
+			ScheduleID: scheduleID,
+		},
+	}
+
+	resp, err := scheduler.Unpause(ctx, params)
+	require.NoError(t, err)
+	require.Equal(t, scheduleID, resp.ID)
+	require.Equal(t, ScheduleStateActive, resp.Status)
+	mockClient.AssertExpectations(t)
+}
+
+func TestTemporalScheduler_Unpause_Error(t *testing.T) {
+	mockClient := &mocks.ScheduleClient{}
+	scheduler := NewTemporalScheduler(mockClient)
+
+	ctx := context.Background()
+	scheduleID := "test-schedule"
+	mockHandle := &mockScheduleHandle{
+		id: scheduleID,
+		unpauseFunc: func(ctx context.Context, opts client.ScheduleUnpauseOptions) error {
+			return errors.New("unpause error")
+		},
+	}
+
+	mockClient.On("GetHandle", ctx, scheduleID).Return(mockHandle).Times(3)
+
+	params := UnpauseScheduleParams{
+		ScheduleParams: ScheduleParams{
+			ScheduleID: scheduleID,
+		},
+	}
+
+	resp, err := scheduler.Unpause(ctx, params)
 	require.Error(t, err)
 	require.Nil(t, resp)
 	mockClient.AssertExpectations(t)

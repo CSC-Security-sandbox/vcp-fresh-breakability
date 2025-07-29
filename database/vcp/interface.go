@@ -166,6 +166,7 @@ type (
 		ListBackupPolicyVolumeCount(ctx context.Context, conditions [][]interface{}) (map[string]int64, error)
 		ListBackupPolicies(ctx context.Context, conditions [][]interface{}) ([]*datamodel.BackupPolicy, error)
 		CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error)
+		UpdateBackupPolicy(ctx context.Context, uuid string, updates map[string]interface{}) (*datamodel.BackupPolicy, error)
 
 		CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error)
 		GetBackup(ctx context.Context, backupVaultUUID string, backupUUID string, accountName string) (*datamodel.Backup, error)
@@ -178,6 +179,7 @@ type (
 		BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error)
 		FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) ([]*datamodel.Backup, error)
 		IsBackupShared(ctx context.Context, backup *datamodel.Backup) (bool, error)
+		GetBackupCountByVolumeUUIDs(ctx context.Context, volumeUUIDs []string, conditions [][]interface{}) (map[string]int64, error)
 
 		CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)
 		GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error)

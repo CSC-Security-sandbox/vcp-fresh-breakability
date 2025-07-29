@@ -1015,7 +1015,7 @@ func (s *BackupPolicyCreateV1beta) Validate() error {
 			if err := func() error {
 				if err := (validate.Int{
 					MinSet:        true,
-					Min:           0,
+					Min:           2,
 					MaxSet:        true,
 					Max:           1019,
 					MinExclusive:  false,
@@ -1341,7 +1341,7 @@ func (s *BackupPolicyUpdateV1beta) Validate() error {
 			if err := func() error {
 				if err := (validate.Int{
 					MinSet:        true,
-					Min:           0,
+					Min:           2,
 					MaxSet:        true,
 					Max:           1019,
 					MinExclusive:  false,

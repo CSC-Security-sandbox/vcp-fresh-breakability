@@ -3369,6 +3369,66 @@ func (_c *MockStorage_GetBackupCountByBackupVaultID_Call) RunAndReturn(run func(
 	return _c
 }
 
+// GetBackupCountByVolumeUUIDs provides a mock function with given fields: ctx, volumeUUIDs, conditions
+func (_m *MockStorage) GetBackupCountByVolumeUUIDs(ctx context.Context, volumeUUIDs []string, conditions [][]interface{}) (map[string]int64, error) {
+	ret := _m.Called(ctx, volumeUUIDs, conditions)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupCountByVolumeUUIDs")
+	}
+
+	var r0 map[string]int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string, [][]interface{}) (map[string]int64, error)); ok {
+		return rf(ctx, volumeUUIDs, conditions)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string, [][]interface{}) map[string]int64); ok {
+		r0 = rf(ctx, volumeUUIDs, conditions)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]int64)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string, [][]interface{}) error); ok {
+		r1 = rf(ctx, volumeUUIDs, conditions)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetBackupCountByVolumeUUIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupCountByVolumeUUIDs'
+type MockStorage_GetBackupCountByVolumeUUIDs_Call struct {
+	*mock.Call
+}
+
+// GetBackupCountByVolumeUUIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUIDs []string
+//   - conditions [][]interface{}
+func (_e *MockStorage_Expecter) GetBackupCountByVolumeUUIDs(ctx interface{}, volumeUUIDs interface{}, conditions interface{}) *MockStorage_GetBackupCountByVolumeUUIDs_Call {
+	return &MockStorage_GetBackupCountByVolumeUUIDs_Call{Call: _e.mock.On("GetBackupCountByVolumeUUIDs", ctx, volumeUUIDs, conditions)}
+}
+
+func (_c *MockStorage_GetBackupCountByVolumeUUIDs_Call) Run(run func(ctx context.Context, volumeUUIDs []string, conditions [][]interface{})) *MockStorage_GetBackupCountByVolumeUUIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string), args[2].([][]interface{}))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetBackupCountByVolumeUUIDs_Call) Return(_a0 map[string]int64, _a1 error) *MockStorage_GetBackupCountByVolumeUUIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetBackupCountByVolumeUUIDs_Call) RunAndReturn(run func(context.Context, []string, [][]interface{}) (map[string]int64, error)) *MockStorage_GetBackupCountByVolumeUUIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackupPolicyByNameAndOwnerID provides a mock function with given fields: ctx, backupPolicyName, accountID
 func (_m *MockStorage) GetBackupPolicyByNameAndOwnerID(ctx context.Context, backupPolicyName string, accountID int64) (*datamodel.BackupPolicy, error) {
 	ret := _m.Called(ctx, backupPolicyName, accountID)
@@ -7586,6 +7646,66 @@ func (_c *MockStorage_UpdateBackup_Call) Return(_a0 *datamodel.Backup, _a1 error
 }
 
 func (_c *MockStorage_UpdateBackup_Call) RunAndReturn(run func(context.Context, *datamodel.Backup) (*datamodel.Backup, error)) *MockStorage_UpdateBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateBackupPolicy provides a mock function with given fields: ctx, uuid, updates
+func (_m *MockStorage) UpdateBackupPolicy(ctx context.Context, uuid string, updates map[string]interface{}) (*datamodel.BackupPolicy, error) {
+	ret := _m.Called(ctx, uuid, updates)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateBackupPolicy")
+	}
+
+	var r0 *datamodel.BackupPolicy
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]interface{}) (*datamodel.BackupPolicy, error)); ok {
+		return rf(ctx, uuid, updates)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, map[string]interface{}) *datamodel.BackupPolicy); ok {
+		r0 = rf(ctx, uuid, updates)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupPolicy)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, map[string]interface{}) error); ok {
+		r1 = rf(ctx, uuid, updates)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_UpdateBackupPolicy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupPolicy'
+type MockStorage_UpdateBackupPolicy_Call struct {
+	*mock.Call
+}
+
+// UpdateBackupPolicy is a helper method to define mock.On call
+//   - ctx context.Context
+//   - uuid string
+//   - updates map[string]interface{}
+func (_e *MockStorage_Expecter) UpdateBackupPolicy(ctx interface{}, uuid interface{}, updates interface{}) *MockStorage_UpdateBackupPolicy_Call {
+	return &MockStorage_UpdateBackupPolicy_Call{Call: _e.mock.On("UpdateBackupPolicy", ctx, uuid, updates)}
+}
+
+func (_c *MockStorage_UpdateBackupPolicy_Call) Run(run func(ctx context.Context, uuid string, updates map[string]interface{})) *MockStorage_UpdateBackupPolicy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(map[string]interface{}))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateBackupPolicy_Call) Return(_a0 *datamodel.BackupPolicy, _a1 error) *MockStorage_UpdateBackupPolicy_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_UpdateBackupPolicy_Call) RunAndReturn(run func(context.Context, string, map[string]interface{}) (*datamodel.BackupPolicy, error)) *MockStorage_UpdateBackupPolicy_Call {
 	_c.Call.Return(run)
 	return _c
 }

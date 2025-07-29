@@ -289,19 +289,6 @@ type BackupRetentionPolicyParams struct {
 	IsAdhocBackupImmutable                 *bool
 }
 
-type BackupPolicyParams struct {
-	Name                 string
-	OwnerID              string
-	BackupPolicyUUID     string
-	VolumesAssigned      int64
-	DailyBackupsToKeep   int64
-	WeeklyBackupsToKeep  int64
-	MonthlyBackupsToKeep int64
-	Enabled              bool
-	Description          *string
-	AccountName          string
-}
-
 type BucketDetails struct {
 	BucketName          string
 	ServiceAccountName  string
@@ -339,6 +326,18 @@ type GetBackupParams struct {
 	AccountName   string
 	BackupVaultID string
 	BackupUUID    string
+}
+
+type UpdateBackupPolicyParams struct {
+	Name               string
+	AccountName        string
+	BackupPolicyID     string
+	LocationID         string
+	Description        *string
+	PolicyEnabled      *bool
+	DailyBackupLimit   *int64
+	WeeklyBackupLimit  *int64
+	MonthlyBackupLimit *int64
 }
 
 type ReplicationInternalGetMultipleParams struct {

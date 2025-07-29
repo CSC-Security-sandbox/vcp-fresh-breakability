@@ -964,6 +964,14 @@ func (s *PersistenceStore) GetNodeNodeGroupMapByNodeID(ctx context.Context, node
 	return s.dataStore.GetNodeNodeGroupMapByNodeID(ctx, nodeID)
 }
 
+func (s *PersistenceStore) UpdateBackupPolicy(ctx context.Context, uuid string, updates map[string]interface{}) (*datamodel.BackupPolicy, error) {
+	return s.dataStore.UpdateBackupPolicy(ctx, uuid, updates)
+}
+
+func (s *PersistenceStore) GetBackupCountByVolumeUUIDs(ctx context.Context, volumeUUIDs []string, conditions [][]interface{}) (map[string]int64, error) {
+	return s.dataStore.GetBackupCountByVolumeUUIDs(ctx, volumeUUIDs, conditions)
+}
+
 func (s *PersistenceStore) GetNextSerialNumberInRegion(ctx context.Context, prefix string) (string, error) {
 	return s.dataStore.GetNextSerialNumberInRegion(ctx, prefix)
 }

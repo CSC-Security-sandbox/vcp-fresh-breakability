@@ -12,6 +12,7 @@ import (
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestSetupStorageForTest_Persistence_Store(t *testing.T) {
@@ -1377,6 +1378,65 @@ func TestDeleteBackupVaultInVCP_Error(t *testing.T) {
 	// Attempt to delete a non-existent backup vault
 	_, err := store.DeleteBackupVaultInVCP(ctx, "non-existent-uuid")
 	assert.Error(t, err)
+}
+
+func TestPersistenceStore_UpdateBackupPolicy(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	assert.NoError(t, err)
+
+	ctx := context.Background()
+
+	// Setup: create account and backup policy
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-account",
+	}
+	account, err = store.CreateAccount(ctx, account)
+	assert.NoError(t, err)
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel:             datamodel.BaseModel{UUID: "test-backup-policy-uuid"},
+		Name:                  "test-backup-policy",
+		Description:           nillable.ToPointer("Initial description"),
+		PolicyEnabled:         false,
+		DailyBackupsToKeep:    5,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  1,
+		AccountID:             account.ID,
+		Account:               account,
+		LifeCycleState:        models.LifeCycleStateREADY,
+		LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+	}
+	_, err = store.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
+	assert.NoError(t, err)
+
+	t.Run("UpdateBackupPolicySucceeds", func(tt *testing.T) {
+		updates := map[string]interface{}{
+			"description":             "Updated description",
+			"policy_enabled":          true,
+			"daily_backups_to_keep":   10,
+			"weekly_backups_to_keep":  5,
+			"monthly_backups_to_keep": 3,
+		}
+		result, err := store.UpdateBackupPolicy(ctx, backupPolicy.UUID, updates)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "Updated description", *result.Description)
+		assert.True(tt, result.PolicyEnabled)
+		assert.Equal(tt, int64(10), result.DailyBackupsToKeep)
+		assert.Equal(tt, int64(5), result.WeeklyBackupsToKeep)
+		assert.Equal(tt, int64(3), result.MonthlyBackupsToKeep)
+	})
+
+	t.Run("UpdateBackupPolicyFails", func(tt *testing.T) {
+		updates := map[string]interface{}{
+			"non_existent_column": "This should fail",
+		}
+		result, err := store.UpdateBackupPolicy(ctx, backupPolicy.UUID, updates)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+	})
 }
 
 func TestListBackupPolicyVolumeCount_Persistence_Store(t *testing.T) {

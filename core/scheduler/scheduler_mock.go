@@ -139,6 +139,124 @@ func (_c *MockScheduler_Delete_Call) RunAndReturn(run func(context.Context, Dele
 	return _c
 }
 
+// Pause provides a mock function with given fields: ctx, params
+func (_m *MockScheduler) Pause(ctx context.Context, params PauseScheduleParams) (*ScheduleResponse, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Pause")
+	}
+
+	var r0 *ScheduleResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, PauseScheduleParams) (*ScheduleResponse, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, PauseScheduleParams) *ScheduleResponse); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ScheduleResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, PauseScheduleParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockScheduler_Pause_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Pause'
+type MockScheduler_Pause_Call struct {
+	*mock.Call
+}
+
+// Pause is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params PauseScheduleParams
+func (_e *MockScheduler_Expecter) Pause(ctx interface{}, params interface{}) *MockScheduler_Pause_Call {
+	return &MockScheduler_Pause_Call{Call: _e.mock.On("Pause", ctx, params)}
+}
+
+func (_c *MockScheduler_Pause_Call) Run(run func(ctx context.Context, params PauseScheduleParams)) *MockScheduler_Pause_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(PauseScheduleParams))
+	})
+	return _c
+}
+
+func (_c *MockScheduler_Pause_Call) Return(_a0 *ScheduleResponse, _a1 error) *MockScheduler_Pause_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockScheduler_Pause_Call) RunAndReturn(run func(context.Context, PauseScheduleParams) (*ScheduleResponse, error)) *MockScheduler_Pause_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Unpause provides a mock function with given fields: ctx, params
+func (_m *MockScheduler) Unpause(ctx context.Context, params UnpauseScheduleParams) (*ScheduleResponse, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Unpause")
+	}
+
+	var r0 *ScheduleResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, UnpauseScheduleParams) (*ScheduleResponse, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, UnpauseScheduleParams) *ScheduleResponse); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ScheduleResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, UnpauseScheduleParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockScheduler_Unpause_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Unpause'
+type MockScheduler_Unpause_Call struct {
+	*mock.Call
+}
+
+// Unpause is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params UnpauseScheduleParams
+func (_e *MockScheduler_Expecter) Unpause(ctx interface{}, params interface{}) *MockScheduler_Unpause_Call {
+	return &MockScheduler_Unpause_Call{Call: _e.mock.On("Unpause", ctx, params)}
+}
+
+func (_c *MockScheduler_Unpause_Call) Run(run func(ctx context.Context, params UnpauseScheduleParams)) *MockScheduler_Unpause_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(UnpauseScheduleParams))
+	})
+	return _c
+}
+
+func (_c *MockScheduler_Unpause_Call) Return(_a0 *ScheduleResponse, _a1 error) *MockScheduler_Unpause_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockScheduler_Unpause_Call) RunAndReturn(run func(context.Context, UnpauseScheduleParams) (*ScheduleResponse, error)) *MockScheduler_Unpause_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Update provides a mock function with given fields: ctx, params
 func (_m *MockScheduler) Update(ctx context.Context, params UpdateScheduleParams) (*ScheduleResponse, error) {
 	ret := _m.Called(ctx, params)

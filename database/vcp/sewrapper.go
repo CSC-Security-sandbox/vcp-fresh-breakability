@@ -2510,6 +2510,26 @@ func (re *retryEngine) CreateBackupPolicyEntryInVCP(ctx context.Context, backupP
 	return var0, err
 }
 
+func (re *retryEngine) UpdateBackupPolicy(ctx context.Context, uuid string, updates map[string]interface{}) (*datamodel.BackupPolicy, error) {
+	var var0 *datamodel.BackupPolicy
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateBackupPolicy(ctx, uuid, updates)
+		if err != nil {
+			re.logError("UpdateBackupPolicy", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
 	var var0 *datamodel.Backup
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -2717,6 +2737,26 @@ func (re *retryEngine) IsBackupShared(ctx context.Context, backup *datamodel.Bac
 		var0, err = re.dataStore.IsBackupShared(ctx, backup)
 		if err != nil {
 			re.logError("IsBackupShared", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) GetBackupCountByVolumeUUIDs(ctx context.Context, volumeUUIDs []string, conditions [][]interface{}) (map[string]int64, error) {
+	var var0 map[string]int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupCountByVolumeUUIDs(ctx, volumeUUIDs, conditions)
+		if err != nil {
+			re.logError("GetBackupCountByVolumeUUIDs", err)
 			if !isTransientErr(err) {
 				return false, err
 			}

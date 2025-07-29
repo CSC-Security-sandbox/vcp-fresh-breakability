@@ -38,6 +38,14 @@ type TemporalUpdateScheduleParams struct {
 // Currently empty, reserved for future use.
 type TemporalDeleteScheduleParams struct{}
 
+// TemporalPauseScheduleParams defines options for pausing a Temporal schedule.
+// Currently empty, reserved for future use.
+type TemporalPauseScheduleParams struct{}
+
+// TemporalUnpauseScheduleParams defines options for unpausing a Temporal schedule.
+// Currently empty, reserved for future use.
+type TemporalUnpauseScheduleParams struct{}
+
 // _newTemporalScheduler creates a new TemporalScheduler using the provided ScheduleClient.
 //
 // schedulerClient: The Temporal ScheduleClient used to manage schedules.
@@ -163,5 +171,75 @@ func (temporalScheduler TemporalScheduler) Delete(ctx context.Context, params De
 	}
 
 	logger.Error("ALERT: Failed to delete schedule after multiple attempts", "error", lastErr)
+	return nil, lastErr
+}
+
+// Pause pauses an existing schedule in Temporal using the provided parameters.
+//
+// ctx: Context for request-scoped values and cancellation.
+// params: Parameters for pausing the schedule.
+// Returns a pointer to ScheduleResponse on success, or an error if pausing fails.
+func (temporalScheduler TemporalScheduler) Pause(ctx context.Context, params PauseScheduleParams) (*ScheduleResponse, error) {
+	logger := util.GetLogger(ctx)
+
+	// handle the maxRetries parameter
+	maxRetries := params.MaxRetries
+	if maxRetries == 0 {
+		maxRetries = DefaultMaxRetries
+	}
+
+	var lastErr error
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		scheduleHandler := temporalScheduler.schedulerClient.GetHandle(ctx, params.ScheduleID)
+		err := scheduleHandler.Pause(ctx, client.SchedulePauseOptions{})
+
+		if err == nil {
+			logger.Info("Schedule paused successfully")
+			return &ScheduleResponse{
+				ID:     scheduleHandler.GetID(),
+				Status: ScheduleStatePaused,
+			}, nil
+		}
+
+		lastErr = err
+		logger.Error("Failed to pause schedule", "error", err, "attempt", attempt)
+	}
+
+	logger.Error("ALERT: Failed to pause schedule after multiple attempts", "error", lastErr)
+	return nil, lastErr
+}
+
+// Unpause unpauses an existing schedule in Temporal using the provided parameters.
+//
+// ctx: Context for request-scoped values and cancellation.
+// params: Parameters for unpausing the schedule.
+// Returns a pointer to ScheduleResponse on success, or an error if unpausing fails.
+func (temporalScheduler TemporalScheduler) Unpause(ctx context.Context, params UnpauseScheduleParams) (*ScheduleResponse, error) {
+	logger := util.GetLogger(ctx)
+
+	// handle the maxRetries parameter
+	maxRetries := params.MaxRetries
+	if maxRetries == 0 {
+		maxRetries = DefaultMaxRetries
+	}
+
+	var lastErr error
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		scheduleHandler := temporalScheduler.schedulerClient.GetHandle(ctx, params.ScheduleID)
+		err := scheduleHandler.Unpause(ctx, client.ScheduleUnpauseOptions{})
+
+		if err == nil {
+			logger.Info("Schedule unpaused successfully")
+			return &ScheduleResponse{
+				ID:     scheduleHandler.GetID(),
+				Status: ScheduleStateActive,
+			}, nil
+		}
+
+		lastErr = err
+		logger.Error("Failed to unpause schedule", "error", err, "attempt", attempt)
+	}
+
+	logger.Error("ALERT: Failed to unpause schedule after multiple attempts", "error", lastErr)
 	return nil, lastErr
 }

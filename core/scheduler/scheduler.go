@@ -12,6 +12,8 @@ const (
 	ScheduleStateActive ScheduleState = "ACTIVE"
 	// ScheduleStateDeleted means the schedule has been deleted or is inactive.
 	ScheduleStateDeleted ScheduleState = "DELETED"
+	// ScheduleStatePaused means the schedule is currently paused.
+	ScheduleStatePaused ScheduleState = "PAUSED"
 )
 
 const DefaultMaxRetries = 3
@@ -46,6 +48,18 @@ type DeleteScheduleParams struct {
 	TemporalScheduleOptions TemporalDeleteScheduleParams
 }
 
+// PauseScheduleParams contains parameters required to pause a schedule.
+type PauseScheduleParams struct {
+	ScheduleParams
+	TemporalScheduleOptions TemporalPauseScheduleParams
+}
+
+// UnpauseScheduleParams contains parameters required to pause a schedule.
+type UnpauseScheduleParams struct {
+	ScheduleParams
+	TemporalScheduleOptions TemporalUnpauseScheduleParams
+}
+
 // ScheduleResponse represents the result of a schedule operation.
 type ScheduleResponse struct {
 	ID     string
@@ -60,4 +74,8 @@ type Scheduler interface {
 	Update(ctx context.Context, params UpdateScheduleParams) (*ScheduleResponse, error)
 	// Delete removes an existing schedule with the given parameters.
 	Delete(ctx context.Context, params DeleteScheduleParams) (*ScheduleResponse, error)
+	// Pause pauses an existing schedule with the given parameters.
+	Pause(ctx context.Context, params PauseScheduleParams) (*ScheduleResponse, error)
+	// Unpause pauses an existing schedule with the given parameters.
+	Unpause(ctx context.Context, params UnpauseScheduleParams) (*ScheduleResponse, error)
 }

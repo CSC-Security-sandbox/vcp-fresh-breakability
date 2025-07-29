@@ -10,6 +10,7 @@ import (
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -107,6 +108,23 @@ func (d *DataStoreRepository) CreateBackupPolicyEntryInVCP(ctx context.Context, 
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return dbBackupPolicyDetail, nil
+}
+
+func (d *DataStoreRepository) UpdateBackupPolicy(ctx context.Context, uuid string, updates map[string]interface{}) (*datamodel.BackupPolicy, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	var updated datamodel.BackupPolicy
+	err = tx.Model(&updated).Clauses(clause.Returning{}).Where("uuid = ?", uuid).Updates(updates).Error
+	if err != nil {
+		return nil, err
+	}
+	return &updated, nil
 }
 
 func _getBackupPolicyWithDetails(db *gorm.DB, query *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {

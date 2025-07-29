@@ -1,14 +1,24 @@
 package activities
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
-	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestConvertsValidBackupPolicyV1betaToDataModel(tt *testing.T) {
@@ -22,12 +32,12 @@ func TestConvertsValidBackupPolicyV1betaToDataModel(tt *testing.T) {
 		policyEnabled := true
 		backupPolicyUUID := "uuid-123"
 		volumeCount := int64(0)
-		backupPolicy := &cvpModels.BackupPolicyDetailsV1beta{
-			BackupPolicyV1beta: cvpModels.BackupPolicyV1beta{
+		backupPolicy := &cvpmodels.BackupPolicyDetailsV1beta{
+			BackupPolicyV1beta: cvpmodels.BackupPolicyV1beta{
 				ResourceID:  &name,
 				CreatedAt:   &createdAt,
 				Description: &description,
-				BackupPolicyScheduleV1beta: cvpModels.BackupPolicyScheduleV1beta{
+				BackupPolicyScheduleV1beta: cvpmodels.BackupPolicyScheduleV1beta{
 					DailyBackupLimit:   &dailyLimit,
 					WeeklyBackupLimit:  &weeklyLimit,
 					MonthlyBackupLimit: &monthlyLimit,
@@ -56,7 +66,7 @@ func TestConvertsValidBackupPolicyV1betaToDataModel(tt *testing.T) {
 		assert.Equal(t, res, expected)
 	})
 	tt.Run("ConvertBackupPolicyWithNilFieldsToDataModel", func(t *testing.T) {
-		backupPolicy := &cvpModels.BackupPolicyDetailsV1beta{}
+		backupPolicy := &cvpmodels.BackupPolicyDetailsV1beta{}
 		expected := &datamodel.BackupPolicy{
 			BaseModel: datamodel.BaseModel{
 				UUID:      "",
@@ -75,5 +85,402 @@ func TestConvertsValidBackupPolicyV1betaToDataModel(tt *testing.T) {
 		}
 		res := convertToBackupPolicyDataModel(backupPolicy)
 		assert.Equal(t, res, expected)
+	})
+}
+
+func TestUpdateBackupPolicyInSDE(t *testing.T) {
+	t.Run("UpdateBackupPolicyInSDESucceeds", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockScheduler := scheduler.NewMockScheduler(t)
+		mockClient := backup_policy.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+
+		originalCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		expected := &cvpmodels.BackupPolicyV1beta{
+			BackupPolicyScheduleV1beta: cvpmodels.BackupPolicyScheduleV1beta{
+				DailyBackupLimit:   nillable.ToPointer(int64(5)),
+				WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+				MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+			},
+			BackupPolicyID: "test-backup-policy-uuid",
+			CreatedAt:      nillable.ToPointer(strfmt.DateTime(time.Now())),
+			Description:    nillable.ToPointer("This is a test backup policy"),
+			Enabled:        nillable.ToPointer(true),
+			ResourceID:     nillable.ToPointer("test-backup-policy"),
+			State:          models.LifeCycleStateREADY,
+			VolumeCount:    nillable.ToPointer(int64(2)),
+		}
+		mockClient.On("V1betaUpdateBackupPolicy", mock.Anything).Return(
+			&backup_policy.V1betaUpdateBackupPolicyAccepted{
+				Payload: &cvpmodels.OperationV1beta{
+					Done:     nillable.ToPointer(true),
+					Response: expected,
+				},
+			}, nil, nil)
+
+		params := &common.UpdateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "test-account",
+			BackupPolicyID:     "test-backup-policy-uuid",
+			LocationID:         "test-location",
+			Description:        nillable.ToPointer("This is a test backup policy"),
+			PolicyEnabled:      nillable.ToPointer(true),
+			DailyBackupLimit:   nillable.ToPointer(int64(5)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+		}
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		updatedBackupPolicy, err := backupPolicyActivity.UpdateBackupPolicyInSDE(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, updatedBackupPolicy)
+		assert.Equal(t, *expected.Description, *updatedBackupPolicy.Description)
+		assert.Equal(t, *expected.Enabled, *updatedBackupPolicy.Enabled)
+		assert.Equal(t, *expected.DailyBackupLimit, *updatedBackupPolicy.DailyBackupLimit)
+		assert.Equal(t, *expected.WeeklyBackupLimit, *updatedBackupPolicy.WeeklyBackupLimit)
+		assert.Equal(t, *expected.MonthlyBackupLimit, *updatedBackupPolicy.MonthlyBackupLimit)
+		mockStorage.AssertExpectations(t)
+		mockScheduler.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupPolicyInSDEFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockScheduler := scheduler.NewMockScheduler(t)
+		mockClient := backup_policy.NewMockClientService(t)
+		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+
+		originalCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		mockClient.On("V1betaUpdateBackupPolicy", mock.Anything).Return(
+			nil, nil, errors.New("could not update backup policy in SDE"))
+
+		params := &common.UpdateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "test-account",
+			BackupPolicyID:     "test-backup-policy-uuid",
+			LocationID:         "test-location",
+			Description:        nillable.ToPointer("This is a test backup policy"),
+			PolicyEnabled:      nillable.ToPointer(true),
+			DailyBackupLimit:   nillable.ToPointer(int64(5)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+		}
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		updatedBackupPolicy, err := backupPolicyActivity.UpdateBackupPolicyInSDE(context.Background(), params)
+		assert.Error(t, err)
+		assert.Nil(t, updatedBackupPolicy)
+		assert.Equal(tt, "could not update backup policy in SDE", err.Error())
+		mockStorage.AssertExpectations(t)
+		mockScheduler.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+}
+
+func TestRevertBackupPolicyUpdateInSDE(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockScheduler := scheduler.NewMockScheduler(t)
+	mockClient := backup_policy.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+
+	originalCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = originalCreateClient }()
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	expected := &cvpmodels.BackupPolicyV1beta{
+		BackupPolicyScheduleV1beta: cvpmodels.BackupPolicyScheduleV1beta{
+			DailyBackupLimit:   nillable.ToPointer(int64(2)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(2)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+		},
+		BackupPolicyID: "test-backup-policy-uuid",
+		CreatedAt:      nillable.ToPointer(strfmt.DateTime(time.Now())),
+		Description:    nil,
+		Enabled:        nillable.ToPointer(false),
+		ResourceID:     nillable.ToPointer("test-backup-policy"),
+		State:          models.LifeCycleStateREADY,
+		VolumeCount:    nillable.ToPointer(int64(2)),
+	}
+	mockClient.On("V1betaUpdateBackupPolicy", mock.Anything).Return(
+		&backup_policy.V1betaUpdateBackupPolicyAccepted{
+			Payload: &cvpmodels.OperationV1beta{
+				Done:     nillable.ToPointer(true),
+				Response: expected,
+			},
+		}, nil, nil)
+
+	params := &common.UpdateBackupPolicyParams{
+		Name:               "test-backup-policy",
+		AccountName:        "test-account",
+		BackupPolicyID:     "test-backup-policy-uuid",
+		LocationID:         "test-location",
+		Description:        nillable.ToPointer("This is a test backup policy"),
+		PolicyEnabled:      nillable.ToPointer(true),
+		DailyBackupLimit:   nillable.ToPointer(int64(5)),
+		WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+		MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+	}
+
+	dbBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			ID:   int64(1),
+			UUID: "test-backup-policy-uuid",
+		},
+		Name: "test-backup-policy",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: int64(1),
+			},
+		},
+		AccountID:             1,
+		Description:           nil,
+		DailyBackupsToKeep:    2,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  2,
+		PolicyEnabled:         false,
+		LifeCycleState:        models.LifeCycleStateREADY,
+		LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+	}
+
+	backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+	revertedBackupPolicy, err := backupPolicyActivity.RevertBackupPolicyUpdateInSDE(context.Background(), params, dbBackupPolicy)
+	assert.NoError(t, err)
+	assert.NotNil(t, revertedBackupPolicy)
+	assert.Nil(t, revertedBackupPolicy.Description)
+	assert.Equal(t, *expected.Enabled, *revertedBackupPolicy.Enabled)
+	assert.Equal(t, *expected.DailyBackupLimit, *revertedBackupPolicy.DailyBackupLimit)
+	assert.Equal(t, *expected.WeeklyBackupLimit, *revertedBackupPolicy.WeeklyBackupLimit)
+	assert.Equal(t, *expected.MonthlyBackupLimit, *revertedBackupPolicy.MonthlyBackupLimit)
+	mockStorage.AssertExpectations(t)
+	mockScheduler.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestUpdateBackupPolicyInVCP(t *testing.T) {
+	t.Run("UpdateBackupPolicyInVCPSucceeds", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		expected := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "test-backup-policy-uuid",
+			},
+			Name:                  "test-backup-policy",
+			Account:               &datamodel.Account{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+			AccountID:             1,
+			Description:           nillable.ToPointer("This is a test backup policy"),
+			DailyBackupsToKeep:    5,
+			WeeklyBackupsToKeep:   3,
+			MonthlyBackupsToKeep:  2,
+			PolicyEnabled:         true,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+		}
+		mockStorage.On("UpdateBackupPolicy", mock.Anything, mock.Anything, mock.Anything).Return(expected, nil)
+
+		params := &common.UpdateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "test-account",
+			BackupPolicyID:     "test-backup-policy-uuid",
+			LocationID:         "test-location",
+			Description:        nillable.ToPointer("This is a test backup policy"),
+			PolicyEnabled:      nillable.ToPointer(true),
+			DailyBackupLimit:   nillable.ToPointer(int64(5)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+		}
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "test-backup-policy-uuid",
+			},
+		}
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		updated, err := backupPolicyActivity.UpdateBackupPolicyInVCP(context.Background(), params, backupPolicy)
+		assert.NoError(t, err)
+		assert.NotNil(t, updated)
+		assert.Equal(tt, expected.Description, updated.Description)
+		assert.Equal(tt, expected.PolicyEnabled, updated.PolicyEnabled)
+		assert.Equal(tt, expected.DailyBackupsToKeep, updated.DailyBackupsToKeep)
+		assert.Equal(tt, expected.WeeklyBackupsToKeep, updated.WeeklyBackupsToKeep)
+		assert.Equal(tt, expected.MonthlyBackupsToKeep, updated.MonthlyBackupsToKeep)
+	})
+
+	t.Run("UpdateBackupPolicyInVCPFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		mockStorage.On("UpdateBackupPolicy", mock.Anything, mock.Anything, mock.Anything).Return(
+			nil, errors.New("could not update backup policy in VCP"))
+
+		params := &common.UpdateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "test-account",
+			BackupPolicyID:     "test-backup-policy-uuid",
+			LocationID:         "test-location",
+			Description:        nillable.ToPointer("This is a test backup policy"),
+			PolicyEnabled:      nillable.ToPointer(true),
+			DailyBackupLimit:   nillable.ToPointer(int64(5)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+		}
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "test-backup-policy-uuid",
+			},
+		}
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		updated, err := backupPolicyActivity.UpdateBackupPolicyInVCP(context.Background(), params, backupPolicy)
+		assert.Error(t, err)
+		assert.Nil(t, updated)
+		assert.Equal(t, "could not update backup policy in VCP", err.Error())
+	})
+}
+
+func TestRevertBackupPolicyUpdateInVCP(t *testing.T) {
+	t.Run("RevertBackupPolicyInVCPSucceeds", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		expected := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "test-backup-policy-uuid",
+			},
+			Name:                  "test-backup-policy",
+			Account:               &datamodel.Account{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+			AccountID:             1,
+			Description:           nil,
+			DailyBackupsToKeep:    2,
+			WeeklyBackupsToKeep:   2,
+			MonthlyBackupsToKeep:  2,
+			PolicyEnabled:         false,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+		}
+		mockStorage.On("UpdateBackupPolicy", mock.Anything, mock.Anything, mock.Anything).Return(expected, nil)
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "test-backup-policy-uuid",
+			},
+			Description:           nil,
+			PolicyEnabled:         false,
+			DailyBackupsToKeep:    2,
+			WeeklyBackupsToKeep:   2,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+		}
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		updated, err := backupPolicyActivity.RevertBackupPolicyUpdateInVCP(context.Background(), backupPolicy)
+		assert.NoError(t, err)
+		assert.NotNil(t, updated)
+		assert.Equal(tt, expected.Description, updated.Description)
+		assert.Equal(tt, expected.PolicyEnabled, updated.PolicyEnabled)
+		assert.Equal(tt, expected.DailyBackupsToKeep, updated.DailyBackupsToKeep)
+		assert.Equal(tt, expected.WeeklyBackupsToKeep, updated.WeeklyBackupsToKeep)
+		assert.Equal(tt, expected.MonthlyBackupsToKeep, updated.MonthlyBackupsToKeep)
+	})
+
+	t.Run("RevertBackupPolicyInVCPFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		mockStorage.On("UpdateBackupPolicy", mock.Anything, mock.Anything, mock.Anything).Return(
+			nil, errors.New("could not update backup policy in VCP"))
+
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				ID:   int64(1),
+				UUID: "test-backup-policy-uuid",
+			},
+			Description:           nil,
+			PolicyEnabled:         false,
+			DailyBackupsToKeep:    2,
+			WeeklyBackupsToKeep:   2,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+		}
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		updated, err := backupPolicyActivity.RevertBackupPolicyUpdateInVCP(context.Background(), backupPolicy)
+		assert.Error(t, err)
+		assert.Nil(t, updated)
+	})
+}
+
+func TestPauseBackupPolicySchedule(t *testing.T) {
+	t.Run("PauseBackupPolicyScheduleSucceeds", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		mockScheduler.On("Pause", mock.Anything, mock.Anything).Return(&scheduler.ScheduleResponse{}, nil)
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := backupPolicyActivity.PauseBackupPolicySchedule(context.Background(),
+			&datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid"}})
+		assert.NoError(t, err)
+	})
+
+	t.Run("PauseBackupPolicyScheduleFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		mockScheduler.On("Pause", mock.Anything, mock.Anything).Return(nil, errors.New("could not pause backup policy schedule"))
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := backupPolicyActivity.PauseBackupPolicySchedule(context.Background(),
+			&datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid"}})
+		assert.Error(t, err)
+		assert.Equal(t, "could not pause backup policy schedule", err.Error())
+	})
+}
+
+func TestUnpauseBackupPolicySchedule(t *testing.T) {
+	t.Run("UnpauseBackupPolicyScheduleSucceeds", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		mockScheduler.On("Unpause", mock.Anything, mock.Anything).Return(&scheduler.ScheduleResponse{}, nil)
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := backupPolicyActivity.UnpauseBackupPolicySchedule(context.Background(),
+			&datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid"}})
+		assert.NoError(t, err)
+	})
+
+	t.Run("PauseBackupPolicyScheduleFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		mockScheduler.On("Unpause", mock.Anything, mock.Anything).Return(nil, errors.New("could not unpause backup policy schedule"))
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := backupPolicyActivity.UnpauseBackupPolicySchedule(context.Background(),
+			&datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: "test-backup-policy-uuid"}})
+		assert.Error(t, err)
+		assert.Equal(t, "could not unpause backup policy schedule", err.Error())
 	})
 }
