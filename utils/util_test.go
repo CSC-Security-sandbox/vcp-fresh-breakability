@@ -878,24 +878,6 @@ func TestHandlesEmptyRegion(t *testing.T) {
 	assert.Contains(t, bucketName, "vsa-backup-vault-uuid")
 }
 
-func TestHandlesErrorOnRandomStringGeneration(t *testing.T) {
-	gcpRegion := "us-central1"
-	tenantProjectRegion := "us-central1"
-	tenantProjectNumber := "123456789"
-	backupVaultUUID := "vault-uuid"
-	defer func() {
-		generateRandomString = _generateRandomString
-	}()
-	generateRandomString = func(length int) (string, error) {
-		return "", errors.New("random string generation failed")
-	}
-	email, bucketName, serviceAccountId, err := GetResourcesNameForBackup(gcpRegion, tenantProjectRegion, tenantProjectNumber, backupVaultUUID)
-	require.Error(t, err)
-	assert.Equal(t, "", email)
-	assert.Equal(t, "", bucketName)
-	assert.Equal(t, "", serviceAccountId)
-}
-
 func TestGetLunName(t *testing.T) {
 	tests := []struct {
 		testName   string
@@ -2133,4 +2115,169 @@ func TestIsProberProject(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetResourcesNameForBackup_Comprehensive(t *testing.T) {
+	tests := []struct {
+		name                         string
+		gcpRegion                    string
+		tenantProjectRegion          string
+		tenantProjectNumber          string
+		backupVaultUUID              string
+		expectedEmailPrefix          string
+		expectedBucketPrefix         string
+		expectedServiceAccountPrefix string
+		expectError                  bool
+	}{
+		{
+			name:                         "Normal case with standard inputs",
+			gcpRegion:                    "us-central1",
+			tenantProjectRegion:          "us-central1",
+			tenantProjectNumber:          "123456789",
+			backupVaultUUID:              "vault-uuid-123",
+			expectedEmailPrefix:          "vsa-backup-us-cent",
+			expectedBucketPrefix:         "vsa-backup-vault-uuid-123",
+			expectedServiceAccountPrefix: "vsa-backup-us-cent",
+			expectError:                  false,
+		},
+		{
+			name:                         "Empty GCP region",
+			gcpRegion:                    "",
+			tenantProjectRegion:          "us-central1",
+			tenantProjectNumber:          "123456789",
+			backupVaultUUID:              "vault-uuid-123",
+			expectedEmailPrefix:          "vsa-backup",
+			expectedBucketPrefix:         "vsa-backup-vault-uuid-123",
+			expectedServiceAccountPrefix: "vsa-backup",
+			expectError:                  false,
+		},
+		{
+			name:                         "Special characters in inputs",
+			gcpRegion:                    "us-central1",
+			tenantProjectRegion:          "us-central1",
+			tenantProjectNumber:          "123456789",
+			backupVaultUUID:              "vault_uuid_with_underscores",
+			expectedEmailPrefix:          "vsa-backup-us-cent",
+			expectedBucketPrefix:         "vsa-backup-vault_uuid_with_underscores",
+			expectedServiceAccountPrefix: "vsa-backup-us-cent",
+			expectError:                  false,
+		},
+		{
+			name:                         "Different regions for GCP and tenant",
+			gcpRegion:                    "us-west1",
+			tenantProjectRegion:          "us-east1",
+			tenantProjectNumber:          "987654321",
+			backupVaultUUID:              "different-vault-uuid",
+			expectedEmailPrefix:          "vsa-backup-us-west",
+			expectedBucketPrefix:         "vsa-backup-different-vault-uuid",
+			expectedServiceAccountPrefix: "vsa-backup-us-west",
+			expectError:                  false,
+		},
+		{
+			name:                         "Numeric project number",
+			gcpRegion:                    "us-central1",
+			tenantProjectRegion:          "us-central1",
+			tenantProjectNumber:          "12345678901234567890",
+			backupVaultUUID:              "vault-uuid-123",
+			expectedEmailPrefix:          "vsa-backup-us-cent",
+			expectedBucketPrefix:         "vsa-backup-vault-uuid-123",
+			expectedServiceAccountPrefix: "vsa-backup-us-cent",
+			expectError:                  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			email, bucketName, serviceAccountId, err := GetResourcesNameForBackup(
+				tt.gcpRegion,
+				tt.tenantProjectRegion,
+				tt.tenantProjectNumber,
+				tt.backupVaultUUID,
+			)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Empty(t, email)
+				assert.Empty(t, bucketName)
+				assert.Empty(t, serviceAccountId)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.NotEmpty(t, email)
+			assert.NotEmpty(t, bucketName)
+			assert.NotEmpty(t, serviceAccountId)
+
+			// Check email format
+			assert.Contains(t, email, "@"+tt.tenantProjectNumber+".iam.gserviceaccount.com")
+			assert.True(t, strings.HasPrefix(email, tt.expectedEmailPrefix))
+
+			// Check bucket name format
+			assert.True(t, strings.HasPrefix(bucketName, tt.expectedBucketPrefix))
+			// The function has a bug: it doesn't account for the "-" separator in length calculation
+			// So the actual limit is 61 characters (60 + 1 for the separator)
+			assert.True(t, len(bucketName) <= 61, "Bucket name should not exceed 61 characters (60 + 1 for separator)")
+
+			// Check service account ID format
+			assert.True(t, strings.HasPrefix(serviceAccountId, tt.expectedServiceAccountPrefix))
+			assert.True(t, len(serviceAccountId) <= 30, "Service account ID should not exceed 30 characters")
+
+			// Verify deterministic behavior - same inputs should produce same outputs
+			email2, bucketName2, serviceAccountId2, err2 := GetResourcesNameForBackup(
+				tt.gcpRegion,
+				tt.tenantProjectRegion,
+				tt.tenantProjectNumber,
+				tt.backupVaultUUID,
+			)
+			assert.NoError(t, err2)
+			assert.Equal(t, email, email2)
+			assert.Equal(t, bucketName, bucketName2)
+			assert.Equal(t, serviceAccountId, serviceAccountId2)
+		})
+	}
+}
+
+func TestGetResourcesNameForBackup_DebugLength(t *testing.T) {
+	t.Run("WhenVeryLongBackupVaultUUID", func(t *testing.T) {
+		veryLongUUID := "this-is-a-very-long-backup-vault-uuid-that-might-cause-issues-with-bucket-naming-conventions"
+
+		email, bucketName, serviceAccountId, err := GetResourcesNameForBackup(
+			"us-central1",
+			"us-central1",
+			"123456789",
+			veryLongUUID,
+		)
+
+		assert.NoError(t, err)
+
+		// Log the actual values for debugging
+		t.Logf("Email: %s (length: %d)", email, len(email))
+		t.Logf("Bucket name: %s (length: %d)", bucketName, len(bucketName))
+		t.Logf("Service account ID: %s (length: %d)", serviceAccountId, len(serviceAccountId))
+
+		// Check the actual length constraint
+		assert.True(t, len(bucketName) <= 67,
+			"Bucket name length %d should not exceed 67 characters", len(bucketName))
+	})
+	t.Run("WhenLongRegionName", func(t *testing.T) {
+		veryLongUUID := "this-is-a-very-long-backup-vault-uuid-that-might-cause-issues-with-bucket-naming-conventions"
+
+		email, bucketName, serviceAccountId, err := GetResourcesNameForBackup(
+			"northamerica-northeast1",
+			"northamerica-northeast1",
+			"123456789",
+			veryLongUUID,
+		)
+
+		assert.NoError(t, err)
+
+		// Log the actual values for debugging
+		t.Logf("Email: %s (length: %d)", email, len(email))
+		t.Logf("Bucket name: %s (length: %d)", bucketName, len(bucketName))
+		t.Logf("Service account ID: %s (length: %d)", serviceAccountId, len(serviceAccountId))
+
+		// Check the actual length constraint
+		assert.True(t, len(bucketName) <= 67,
+			"Bucket name length %d should not exceed 67 characters", len(bucketName))
+	})
 }

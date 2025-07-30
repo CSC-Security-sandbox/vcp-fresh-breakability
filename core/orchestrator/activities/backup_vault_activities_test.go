@@ -819,3 +819,378 @@ func TestBackupVaultActivity_DeleteBackupVaultBuckets_EdgeCases(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func TestDeleteBackupVaultInSDE_ErrorHandling(t *testing.T) {
+	tests := []struct {
+		name          string
+		errorType     interface{}
+		expectedError string
+		expectedType  string
+		shouldRetry   bool
+	}{
+		{
+			name:          "BadRequest error",
+			errorType:     &backup_vault.V1betaDeleteBackupVaultBadRequest{},
+			expectedError: "Bad request deleting backup vault vault-123:",
+			expectedType:  "V1betaDeleteBackupVaultBadRequest",
+			shouldRetry:   false,
+		},
+		{
+			name:          "Unauthorized error",
+			errorType:     &backup_vault.V1betaDeleteBackupVaultUnauthorized{},
+			expectedError: "Unauthorized to delete backup vault vault-123:",
+			expectedType:  "V1betaDeleteBackupVaultUnauthorized",
+			shouldRetry:   false,
+		},
+		{
+			name:          "Forbidden error",
+			errorType:     &backup_vault.V1betaDeleteBackupVaultForbidden{},
+			expectedError: "Forbidden to delete backup vault vault-123:",
+			expectedType:  "V1betaDeleteBackupVaultForbidden",
+			shouldRetry:   false,
+		},
+		{
+			name:          "NotFound error",
+			errorType:     &backup_vault.V1betaDeleteBackupVaultNotFound{},
+			expectedError: "Backup vault vault-123 not found:",
+			expectedType:  "V1betaDeleteBackupVaultNotFound",
+			shouldRetry:   false,
+		},
+		{
+			name:          "Conflict error",
+			errorType:     &backup_vault.V1betaDeleteBackupVaultConflict{},
+			expectedError: "Conflict deleting backup vault vault-123:",
+			expectedType:  "V1betaDeleteBackupVaultConflict",
+			shouldRetry:   false,
+		},
+		{
+			name:          "UnprocessableEntity error",
+			errorType:     &backup_vault.V1betaDeleteBackupVaultUnprocessableEntity{},
+			expectedError: "Unprocessable entity deleting backup vault vault-123:",
+			expectedType:  "V1betaDeleteBackupVaultUnprocessableEntity",
+			shouldRetry:   false,
+		},
+		{
+			name:          "InternalServerError error",
+			errorType:     &backup_vault.V1betaDeleteBackupVaultInternalServerError{},
+			expectedError: "Internal server error deleting backup vault vault-123:",
+			expectedType:  "V1betaDeleteBackupVaultInternalServerError",
+			shouldRetry:   false,
+		},
+		{
+			name:          "TooManyRequests error",
+			errorType:     &backup_vault.V1betaDeleteBackupVaultTooManyRequests{},
+			expectedError: "Too many requests deleting backup vault vault-123:",
+			expectedType:  "V1betaDeleteBackupVaultTooManyRequests",
+			shouldRetry:   true,
+		},
+		{
+			name:          "NotImplemented error",
+			errorType:     &backup_vault.V1betaDeleteBackupVaultNotImplemented{},
+			expectedError: "Not implemented deleting backup vault vault-123:",
+			expectedType:  "V1betaDeleteBackupVaultNotImplemented",
+			shouldRetry:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockClient := backup_vault.NewMockClientService(t)
+			ctx := context.Background()
+
+			paramz := &common.BackupVaultParams{
+				Region:        "us-central1",
+				OwnerID:       "owner-123",
+				BackupVaultID: "vault-123",
+			}
+
+			// Mock the error response
+			mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(nil, nil, tt.errorType).Once()
+
+			cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+			originalCreateClient := cvpCreateClient
+			defer func() { cvpCreateClient = originalCreateClient }()
+			cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+				return *cvpClient
+			}
+
+			activity := BackupVaultActivity{}
+
+			result, err := activity.DeleteBackupVaultInSDE(ctx, paramz)
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+			assert.Contains(t, err.Error(), tt.expectedError)
+
+			// Check if it's a temporal error and verify retry behavior
+			if tt.shouldRetry {
+				// Should be a retryable error
+				assert.Contains(t, err.Error(), "Too many requests")
+				assert.Contains(t, err.Error(), "retryable: true")
+			} else {
+				// Should be a non-retryable error
+				assert.Contains(t, err.Error(), "retryable: false")
+			}
+
+			mockClient.AssertCalled(t, "V1betaDeleteBackupVault", mock.Anything)
+		})
+	}
+}
+
+func TestUpdateBackupVaultInSDE_ErrorHandling(t *testing.T) {
+	tests := []struct {
+		name          string
+		errorType     interface{}
+		expectedError string
+		expectedType  string
+		shouldRetry   bool
+	}{
+		{
+			name:          "BadRequest error",
+			errorType:     &backup_vault.V1betaUpdateBackupVaultBadRequest{},
+			expectedError: "Bad request updating backup vault vault-123:",
+			expectedType:  "V1betaUpdateBackupVaultBadRequest",
+			shouldRetry:   false,
+		},
+		{
+			name:          "Unauthorized error",
+			errorType:     &backup_vault.V1betaUpdateBackupVaultUnauthorized{},
+			expectedError: "Unauthorized to update backup vault vault-123:",
+			expectedType:  "V1betaUpdateBackupVaultUnauthorized",
+			shouldRetry:   false,
+		},
+		{
+			name:          "Forbidden error",
+			errorType:     &backup_vault.V1betaUpdateBackupVaultForbidden{},
+			expectedError: "Forbidden to update backup vault vault-123:",
+			expectedType:  "V1betaUpdateBackupVaultForbidden",
+			shouldRetry:   false,
+		},
+		{
+			name:          "Conflict error",
+			errorType:     &backup_vault.V1betaUpdateBackupVaultConflict{},
+			expectedError: "Conflict updating backup vault vault-123:",
+			expectedType:  "V1betaUpdateBackupVaultConflict",
+			shouldRetry:   false,
+		},
+		{
+			name:          "UnprocessableEntity error",
+			errorType:     &backup_vault.V1betaUpdateBackupVaultUnprocessableEntity{},
+			expectedError: "Unprocessable entity updating backup vault vault-123:",
+			expectedType:  "V1betaUpdateBackupVaultUnprocessableEntity",
+			shouldRetry:   false,
+		},
+		{
+			name:          "InternalServerError error",
+			errorType:     &backup_vault.V1betaUpdateBackupVaultInternalServerError{},
+			expectedError: "Internal server error updating backup vault vault-123:",
+			expectedType:  "V1betaUpdateBackupVaultInternalServerError",
+			shouldRetry:   false,
+		},
+		{
+			name:          "TooManyRequests error",
+			errorType:     &backup_vault.V1betaUpdateBackupVaultTooManyRequests{},
+			expectedError: "Too many requests updating backup vault vault-123:",
+			expectedType:  "V1betaUpdateBackupVaultTooManyRequests",
+			shouldRetry:   true,
+		},
+		{
+			name:          "NotImplemented error",
+			errorType:     &backup_vault.V1betaUpdateBackupVaultNotImplemented{},
+			expectedError: "Not implemented updating backup vault vault-123:",
+			expectedType:  "V1betaUpdateBackupVaultNotImplemented",
+			shouldRetry:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockClient := backup_vault.NewMockClientService(t)
+			ctx := context.Background()
+
+			des := "test description"
+			paramz := &common.BackupVaultParams{
+				Region:        "us-central1",
+				OwnerID:       "owner-123",
+				BackupVaultID: "vault-123",
+				Description:   &des,
+			}
+
+			// Mock the error response
+			mockClient.On("V1betaUpdateBackupVault", mock.Anything).Return(nil, tt.errorType).Once()
+
+			cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+			originalCreateClient := cvpCreateClient
+			defer func() { cvpCreateClient = originalCreateClient }()
+			cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+				return *cvpClient
+			}
+
+			activity := BackupVaultActivity{}
+
+			result, err := activity.UpdateBackupVaultInSDE(ctx, paramz)
+
+			assert.Error(t, err)
+			assert.Nil(t, result)
+			assert.Contains(t, err.Error(), tt.expectedError)
+
+			// Check if it's a temporal error and verify retry behavior
+			if tt.shouldRetry {
+				// Should be a retryable error
+				assert.Contains(t, err.Error(), "Too many requests")
+				assert.Contains(t, err.Error(), "retryable: true")
+			} else {
+				// Should be a non-retryable error
+				assert.Contains(t, err.Error(), "retryable: false")
+			}
+
+			mockClient.AssertCalled(t, "V1betaUpdateBackupVault", mock.Anything)
+		})
+	}
+}
+
+func TestUpdateBackupVaultInSDE_ResponseMarshallingError(t *testing.T) {
+	mockClient := backup_vault.NewMockClientService(t)
+	ctx := context.Background()
+	desc := "test description"
+	paramz := &common.BackupVaultParams{
+		Region:        "us-central1",
+		OwnerID:       "owner-123",
+		BackupVaultID: "vault-123",
+		Description:   &desc,
+	}
+
+	// Mock a response that will cause marshalling error
+	mockClient.On("V1betaUpdateBackupVault", mock.Anything).Return(
+		&backup_vault.V1betaUpdateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: make(chan int), // Invalid type to cause marshalling error
+			},
+		}, nil).Once()
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	originalCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = originalCreateClient }()
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	activity := BackupVaultActivity{}
+
+	result, err := activity.UpdateBackupVaultInSDE(ctx, paramz)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "failed to marshal response from SDE BackupVault Updation")
+	mockClient.AssertCalled(t, "V1betaUpdateBackupVault", mock.Anything)
+}
+
+func TestUpdateBackupVaultInSDE_ModelConversionError(t *testing.T) {
+	mockClient := backup_vault.NewMockClientService(t)
+	ctx := context.Background()
+
+	desc := "test description"
+	paramz := &common.BackupVaultParams{
+		Region:        "us-central1",
+		OwnerID:       "owner-123",
+		BackupVaultID: "vault-123",
+		Description:   &desc,
+	}
+
+	// Mock a successful response
+	mockClient.On("V1betaUpdateBackupVault", mock.Anything).Return(
+		&backup_vault.V1betaUpdateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: map[string]interface{}{
+					"BackupVaultID": "vault-123",
+				},
+			},
+		}, nil).Once()
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	originalCreateClient := cvpCreateClient
+	originalConvertToBackupVaultDataModel := convertToBackupVaultDataModel
+
+	defer func() {
+		cvpCreateClient = originalCreateClient
+		convertToBackupVaultDataModel = originalConvertToBackupVaultDataModel
+	}()
+
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	// Mock conversion error
+	convertToBackupVaultDataModel = func(bv *models.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
+		return nil, errors.New("conversion error")
+	}
+
+	activity := BackupVaultActivity{}
+
+	result, err := activity.UpdateBackupVaultInSDE(ctx, paramz)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "conversion error")
+	mockClient.AssertCalled(t, "V1betaUpdateBackupVault", mock.Anything)
+}
+
+func TestDeleteBackupVaultInSDE_ModelConversionError(t *testing.T) {
+	mockClient := backup_vault.NewMockClientService(t)
+	ctx := context.Background()
+
+	paramz := &common.BackupVaultParams{
+		Region:        "us-central1",
+		OwnerID:       "owner-123",
+		BackupVaultID: "vault-123",
+	}
+
+	// Mock a successful response
+	mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(
+		&backup_vault.V1betaDeleteBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Response: map[string]interface{}{
+					"BackupVaultID": "vault-123",
+				},
+			},
+		}, nil, nil).Once()
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	originalCreateClient := cvpCreateClient
+	originalConvertToBackupVaultDataModel := convertToBackupVaultDataModel
+
+	defer func() {
+		cvpCreateClient = originalCreateClient
+		convertToBackupVaultDataModel = originalConvertToBackupVaultDataModel
+	}()
+
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	// Mock conversion error
+	convertToBackupVaultDataModel = func(bv *models.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
+		return nil, errors.New("conversion error")
+	}
+
+	activity := BackupVaultActivity{}
+
+	result, err := activity.DeleteBackupVaultInSDE(ctx, paramz)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "conversion error")
+	mockClient.AssertCalled(t, "V1betaDeleteBackupVault", mock.Anything)
+}
+
+func TestDeleteBackupVaultBuckets_NilBackupVault(t *testing.T) {
+	activity := &BackupVaultActivity{
+		SE: database.NewMockStorage(t),
+	}
+
+	ctx := context.Background()
+	err := activity.DeleteBackupVaultBuckets(ctx, nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "backupVault parameter is nil")
+}

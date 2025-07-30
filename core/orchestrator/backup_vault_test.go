@@ -366,7 +366,7 @@ func TestGetBackupVaultByUUIDGetOrCreateError(tt *testing.T) {
 	assert.Nil(tt, res, "Expected result to be nil")
 }
 
-func TestCreateBackupVault(t *testing.T) {
+func TestUpdateBackupVault(t *testing.T) {
 	t.Run("WhenAccountNotFound", func(t *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
@@ -713,4 +713,611 @@ func TestReturnsUpdatingErrorWhenBackupVaultHasBackups(t *testing.T) {
 	assert.Nil(t, result)
 	assert.Empty(t, jobID)
 	assert.Equal(t, "backup vault is in transition state", err.Error())
+}
+
+func TestDeleteBackupVaultRollbackScenarios(t *testing.T) {
+	t.Run("WhenWorkflowStartFails_ShouldRollbackBackupVaultState", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "backup-vault-uuid", ID: 1},
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Setup mocks
+		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+		mockStorage.On("GetBackupCountByBackupVaultID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, "backup-vault-uuid").Return(int64(0), nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(backupVault, nil)
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails).Return(backupVault, nil)
+		mockStorage.On("UpdateJob", ctx, "job-uuid", models.LifeCycleStateError, 0, mock.Anything).Return(nil)
+
+		// Mock workflow execution to fail
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow start failed"))
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		result, jobID, err := o.DeleteBackupVault(ctx, &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			BackupVaultID: "backup-vault-uuid",
+			Name:          "test-vault",
+		})
+
+		// Verify results
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Empty(t, jobID)
+		assert.Equal(t, "workflow start failed", err.Error())
+
+		// Verify rollback was called
+		mockStorage.AssertCalled(t, "UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails)
+		mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", models.LifeCycleStateError, 0, "workflow start failed")
+	})
+
+	t.Run("WhenWorkflowStartFails_AndRollbackFails_ShouldLogError", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "backup-vault-uuid", ID: 1},
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Setup mocks
+		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+		mockStorage.On("GetBackupCountByBackupVaultID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, "backup-vault-uuid").Return(int64(0), nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(backupVault, nil)
+		// Mock rollback to fail
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails).Return(nil, errors.New("rollback failed"))
+		mockStorage.On("UpdateJob", ctx, "job-uuid", models.LifeCycleStateError, 0, mock.Anything).Return(nil)
+
+		// Mock workflow execution to fail
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow start failed"))
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		result, jobID, err := o.DeleteBackupVault(ctx, &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			BackupVaultID: "backup-vault-uuid",
+			Name:          "test-vault",
+		})
+
+		// Verify results
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Empty(t, jobID)
+		assert.Equal(t, "workflow start failed", err.Error())
+
+		// Verify rollback was attempted even though it failed
+		mockStorage.AssertCalled(t, "UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails)
+		mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", models.LifeCycleStateError, 0, "workflow start failed")
+	})
+
+	t.Run("WhenWorkflowStartFails_AndJobUpdateFails_ShouldLogError", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "backup-vault-uuid", ID: 1},
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Setup mocks
+		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+		mockStorage.On("GetBackupCountByBackupVaultID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, "backup-vault-uuid").Return(int64(0), nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(backupVault, nil)
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails).Return(backupVault, nil)
+		// Mock job update to fail
+		mockStorage.On("UpdateJob", ctx, "job-uuid", models.LifeCycleStateError, 0, mock.Anything).Return(errors.New("job update failed"))
+
+		// Mock workflow execution to fail
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow start failed"))
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		result, jobID, err := o.DeleteBackupVault(ctx, &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			BackupVaultID: "backup-vault-uuid",
+			Name:          "test-vault",
+		})
+
+		// Verify results
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Empty(t, jobID)
+		assert.Equal(t, "workflow start failed", err.Error())
+
+		// Verify both rollback operations were attempted
+		mockStorage.AssertCalled(t, "UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails)
+		mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", models.LifeCycleStateError, 0, "workflow start failed")
+	})
+
+	t.Run("WhenWorkflowStartSucceeds_ShouldNotRollback", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		enforcedDuration := int64(30)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "backup-vault-uuid", ID: 1},
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			Account:               account,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &enforcedDuration,
+				IsDailyBackupImmutable:                 false,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+				IsAdhocBackupImmutable:                 false,
+			},
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Setup mocks
+		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+		mockStorage.On("GetBackupCountByBackupVaultID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, "backup-vault-uuid").Return(int64(0), nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(backupVault, nil)
+
+		// Mock workflow execution to succeed
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		result, jobID, err := o.DeleteBackupVault(ctx, &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			BackupVaultID: "backup-vault-uuid",
+			Name:          "test-vault",
+		})
+
+		// Verify results
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "job-uuid", jobID)
+
+		// Verify rollback was NOT called
+		mockStorage.AssertNotCalled(t, "UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails)
+		mockStorage.AssertNotCalled(t, "UpdateJob", ctx, "job-uuid", models.LifeCycleStateError, 0, mock.Anything)
+	})
+	t.Run("WhenCreateJobFails_ShouldNotRollback", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		enforcedDuration := int64(30)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "backup-vault-uuid", ID: 1},
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			Account:               account,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &enforcedDuration,
+				IsDailyBackupImmutable:                 false,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+				IsAdhocBackupImmutable:                 false,
+			},
+		}
+
+		// Setup mocks
+		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+		mockStorage.On("GetBackupCountByBackupVaultID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, "backup-vault-uuid").Return(int64(0), nil)
+		// Mock CreateJob to fail
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("create job failed"))
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		result, jobID, err := o.DeleteBackupVault(ctx, &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			BackupVaultID: "backup-vault-uuid",
+			Name:          "test-vault",
+		})
+
+		// Verify results
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Empty(t, jobID)
+		assert.Equal(t, "create job failed", err.Error())
+
+		// Verify rollback was NOT called since no job was created
+		mockStorage.AssertNotCalled(t, "UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails)
+		mockStorage.AssertNotCalled(t, "UpdateJob", ctx, mock.Anything, models.LifeCycleStateError, 0, mock.Anything)
+	})
+
+	t.Run("WhenBackupVaultHasDifferentOriginalState_ShouldRollbackToCorrectState", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		enforcedDuration := int64(30)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "backup-vault-uuid", ID: 1},
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: "Updating backup vault",
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &enforcedDuration,
+				IsDailyBackupImmutable:                 false,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+				IsAdhocBackupImmutable:                 false,
+			},
+			Account: account,
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Setup mocks
+		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+		mockStorage.On("GetBackupCountByBackupVaultID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetVolumeCountByBackupVaultID", ctx, "backup-vault-uuid").Return(int64(0), nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(backupVault, nil)
+		// Mock rollback to original state
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, "Updating backup vault").Return(backupVault, nil)
+		mockStorage.On("UpdateJob", ctx, "job-uuid", models.LifeCycleStateError, 0, mock.Anything).Return(nil)
+
+		// Mock workflow execution to fail
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow start failed"))
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		result, jobID, err := o.DeleteBackupVault(ctx, &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			BackupVaultID: "backup-vault-uuid",
+			Name:          "test-vault",
+		})
+
+		// Verify results
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Empty(t, jobID)
+		assert.Equal(t, "workflow start failed", err.Error())
+
+		// Verify rollback was called with the original state
+		mockStorage.AssertCalled(t, "UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, "Updating backup vault")
+		mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", models.LifeCycleStateError, 0, "workflow start failed")
+	})
+}
+
+func TestUpdateBackupVaultDeferFunction(t *testing.T) {
+	t.Run("WhenWorkflowStartFails_ShouldRollbackBackupVaultState", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "backup-vault-uuid", ID: 1},
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Setup mocks
+		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(backupVault, nil)
+		// Mock rollback
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails).Return(backupVault, nil)
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+
+		// Mock workflow execution to fail
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow start failed"))
+
+		params := &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			BackupVaultID: "backup-vault-uuid",
+			Name:          "test-vault",
+		}
+
+		result, jobID, err := updateBackupVault(ctx, mockStorage, mockTemporal, params)
+
+		// Verify results
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Empty(t, jobID)
+		assert.Equal(t, "workflow start failed", err.Error())
+
+		// Verify rollback was called
+		mockStorage.AssertCalled(t, "UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails)
+		mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow start failed")
+	})
+
+	t.Run("WhenWorkflowStartFails_AndRollbackFails_ShouldLogError", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "backup-vault-uuid", ID: 1},
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Setup mocks
+		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(backupVault, nil)
+		// Mock rollback to fail
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails).Return(nil, errors.New("rollback failed"))
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+
+		// Mock workflow execution to fail
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow start failed"))
+
+		params := &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			BackupVaultID: "backup-vault-uuid",
+			Name:          "test-vault",
+		}
+
+		result, jobID, err := updateBackupVault(ctx, mockStorage, mockTemporal, params)
+
+		// Verify results
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Empty(t, jobID)
+		assert.Equal(t, "workflow start failed", err.Error())
+
+		// Verify rollback was attempted even though it failed
+		mockStorage.AssertCalled(t, "UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails)
+		mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow start failed")
+	})
+
+	t.Run("WhenWorkflowStartFails_AndJobUpdateFails_ShouldLogError", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "backup-vault-uuid", ID: 1},
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Setup mocks
+		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(backupVault, nil)
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails).Return(backupVault, nil)
+		// Mock job update to fail
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).Return(errors.New("job update failed"))
+
+		// Mock workflow execution to fail
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow start failed"))
+
+		params := &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			BackupVaultID: "backup-vault-uuid",
+			Name:          "test-vault",
+		}
+
+		result, jobID, err := updateBackupVault(ctx, mockStorage, mockTemporal, params)
+
+		// Verify results
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Empty(t, jobID)
+		assert.Equal(t, "workflow start failed", err.Error())
+
+		// Verify both rollback operations were attempted
+		mockStorage.AssertCalled(t, "UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails)
+		mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow start failed")
+	})
+
+	t.Run("WhenWorkflowStartSucceeds_ShouldNotRollback", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		enforcedDuration := int64(30)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "backup-vault-uuid", ID: 1},
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			Account:               account,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &enforcedDuration,
+				IsDailyBackupImmutable:                 false,
+				IsWeeklyBackupImmutable:                false,
+				IsMonthlyBackupImmutable:               false,
+				IsAdhocBackupImmutable:                 false,
+			},
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Setup mocks
+		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(backupVault, nil)
+
+		// Mock workflow execution to succeed
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			BackupVaultID: "backup-vault-uuid",
+			Name:          "test-vault",
+		}
+
+		result, jobID, err := updateBackupVault(ctx, mockStorage, mockTemporal, params)
+
+		// Verify results
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "job-uuid", jobID)
+
+		// Verify rollback was NOT called
+		mockStorage.AssertNotCalled(t, "UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails)
+		mockStorage.AssertNotCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything)
+	})
+
+	t.Run("WhenCreateJobFails_ShouldNotRollback", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "backup-vault-uuid", ID: 1},
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+			Account:               account,
+		}
+
+		// Setup mocks
+		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+		// Mock CreateJob to fail
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("create job failed"))
+
+		params := &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			BackupVaultID: "backup-vault-uuid",
+			Name:          "test-vault",
+		}
+
+		result, jobID, err := updateBackupVault(ctx, mockStorage, mockTemporal, params)
+
+		// Verify results
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Empty(t, jobID)
+		assert.Equal(t, "create job failed", err.Error())
+
+		// Verify rollback was NOT called since no job was created
+		mockStorage.AssertNotCalled(t, "UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, models.LifeCycleStateAvailableDetails)
+		mockStorage.AssertNotCalled(t, "UpdateJob", ctx, mock.Anything, string(models.JobsStateERROR), 0, mock.Anything)
+	})
+
+	t.Run("WhenBackupVaultHasDifferentOriginalState_ShouldRollbackToCorrectState", func(t *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "backup-vault-uuid", ID: 1},
+			LifeCycleState:        models.LifeCycleStateAvailable,
+			LifeCycleStateDetails: "Updating backup vault",
+			Account:               account,
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+
+		// Setup mocks
+		mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "backup-vault-uuid", int64(1)).Return(backupVault, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(backupVault, nil)
+		// Mock rollback to original state
+		mockStorage.On("UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, "Updating backup vault").Return(backupVault, nil)
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, mock.Anything).Return(nil)
+
+		// Mock workflow execution to fail
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow start failed"))
+
+		params := &commonparams.BackupVaultParams{
+			OwnerID:       "owner-uuid",
+			BackupVaultID: "backup-vault-uuid",
+			Name:          "test-vault",
+		}
+
+		result, jobID, err := updateBackupVault(ctx, mockStorage, mockTemporal, params)
+
+		// Verify results
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Empty(t, jobID)
+		assert.Equal(t, "workflow start failed", err.Error())
+
+		// Verify rollback was called with the original state
+		mockStorage.AssertCalled(t, "UpdateBackupVaultState", ctx, backupVault, models.LifeCycleStateAvailable, "Updating backup vault")
+		mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow start failed")
+	})
 }

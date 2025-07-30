@@ -512,6 +512,7 @@ func TestDeleteBackup(t *testing.T) {
 		store.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{}, nil)
 		store.On("UpdateBackupState", ctx, mock.Anything).Return(nil, errors.New("update state failed"))
 
+		store.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		_, _, err := deleteBackup(ctx, store, temporal, params)
 		assert.EqualError(t, err, "update state failed")
 	})
@@ -540,6 +541,9 @@ func TestDeleteBackup(t *testing.T) {
 		store.On("ListVolumes", ctx, conditions).Return(nil, nil)
 		store.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{}, nil)
 		store.On("UpdateBackupState", ctx, mock.Anything).Return(&datamodel.Backup{}, nil)
+		store.On("UpdateBackupState", ctx, mock.Anything).Return(&datamodel.Backup{}, nil)
+		store.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow execution failed")).Once()
 
 		_, _, err := deleteBackup(ctx, store, temporal, params)
@@ -811,6 +815,8 @@ func TestUpdateBackup(t *testing.T) {
 		store.On("GetBackup", ctx, params.BackupVaultUUID, params.BackupUUID, account.Name).Return(backup, nil)
 		store.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}, nil)
 		store.On("UpdateBackupState", ctx, mock.Anything).Return(backup, nil)
+		store.On("UpdateBackupState", ctx, mock.Anything).Return(&datamodel.Backup{}, nil)
+		store.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow execution failed")).Once()
 
 		_, _, err := updateBackup(ctx, store, temporal, params)
@@ -867,5 +873,318 @@ func TestUpdateBackup(t *testing.T) {
 
 		_, _, err := updateBackup(ctx, store, temporal, params)
 		assert.EqualError(t, err, "job creation failed")
+	})
+}
+
+func TestCreateBackupDeferFunction(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	t.Run("DeferFunction_WhenErrorAndWorkflowNotStarted_StateUpdated_ShouldRollbackBackupState", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			VolumeUUID:    "testVolumeUUID",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+		}
+
+		// Setup mocks for successful initial operations
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "testAccount"}
+		volume := &datamodel.Volume{
+			Name:             "vol",
+			Account:          account,
+			VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{"NFS"}},
+			State:            "READY",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "testVaultID"},
+			AccountID: 1,
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "wf-id",
+		}
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:      params.BackupName,
+			State:     models.LifeCycleStateCreating,
+		}
+
+		// Mock successful operations up to backup creation
+		validateCreateBackupParams = func(ctx context.Context, se database.Storage, params *common.CreateBackupParams) error {
+			return nil
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			validateCreateBackupParams = _validateCreateBackupParams
+			getOrCreateAccount = _getOrCreateAccount
+		}()
+
+		store.On("GetVolumeWithAccountID", ctx, params.VolumeUUID, int64(1)).Return(volume, nil)
+		store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
+		store.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+
+		// Mock workflow execution failure
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow execution failed")).Once()
+
+		// Mock the rollback operations that should be called by defer
+		expectedRollbackBackup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         params.BackupName,
+			State:        models.LifeCycleStateError,
+			StateDetails: "workflow execution failed",
+		}
+		store.On("UpdateBackupState", ctx, expectedRollbackBackup).Return(expectedRollbackBackup, nil).Once()
+		store.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil, nil).Once()
+
+		_, _, err := _createBackup(ctx, store, temporal, params)
+		assert.EqualError(t, err, "workflow execution failed")
+
+		// Verify that rollback operations were called
+		store.AssertExpectations(t)
+	})
+
+	t.Run("DeferFunction_WhenErrorAndWorkflowNotStarted_StateNotUpdated_ShouldNotRollbackBackupState", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			VolumeUUID:    "testVolumeUUID",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+		}
+
+		// Setup mocks for successful initial operations
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "testAccount"}
+		volume := &datamodel.Volume{
+			Name:             "vol",
+			Account:          account,
+			VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{"NFS"}},
+			State:            "READY",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "testVaultID"},
+			AccountID: 1,
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "wf-id",
+		}
+
+		validateCreateBackupParams = func(ctx context.Context, se database.Storage, params *common.CreateBackupParams) error {
+			return nil
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			validateCreateBackupParams = _validateCreateBackupParams
+			getOrCreateAccount = _getOrCreateAccount
+		}()
+
+		store.On("GetVolumeWithAccountID", ctx, params.VolumeUUID, int64(1)).Return(volume, nil)
+		store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
+		store.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		// Mock backup creation failure - this means stateUpdated will be false
+		store.On("CreateBackup", ctx, mock.Anything).Return(nil, errors.New("backup creation failed"))
+
+		// Mock job rollback only (backup rollback should not be called)
+		store.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "backup creation failed").Return(nil, nil).Once()
+
+		_, _, err := _createBackup(ctx, store, temporal, params)
+		assert.EqualError(t, err, "backup creation failed")
+
+		// Verify that only job rollback was called, not backup rollback
+		store.AssertExpectations(t)
+	})
+
+	t.Run("DeferFunction_WhenBackupRollbackFails_ShouldLogError", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			VolumeUUID:    "testVolumeUUID",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+		}
+
+		// Setup mocks for successful initial operations
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "testAccount"}
+		volume := &datamodel.Volume{
+			Name:             "vol",
+			Account:          account,
+			VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{"NFS"}},
+			State:            "READY",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "testVaultID"},
+			AccountID: 1,
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "wf-id",
+		}
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:      params.BackupName,
+			State:     models.LifeCycleStateCreating,
+		}
+
+		validateCreateBackupParams = func(ctx context.Context, se database.Storage, params *common.CreateBackupParams) error {
+			return nil
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			validateCreateBackupParams = _validateCreateBackupParams
+			getOrCreateAccount = _getOrCreateAccount
+		}()
+
+		store.On("GetVolumeWithAccountID", ctx, params.VolumeUUID, int64(1)).Return(volume, nil)
+		store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
+		store.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+
+		// Mock workflow execution failure
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow execution failed")).Once()
+
+		// Mock backup rollback failure
+		expectedRollbackBackup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         params.BackupName,
+			State:        models.LifeCycleStateError,
+			StateDetails: "workflow execution failed",
+		}
+		store.On("UpdateBackupState", ctx, expectedRollbackBackup).Return(nil, errors.New("rollback failed")).Once()
+		// Job rollback should still be called even if backup rollback fails
+		store.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil, nil).Once()
+
+		_, _, err := _createBackup(ctx, store, temporal, params)
+		assert.EqualError(t, err, "workflow execution failed")
+
+		// Verify that rollback operations were called
+		store.AssertExpectations(t)
+	})
+
+	t.Run("DeferFunction_WhenJobRollbackFails_ShouldLogError", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			VolumeUUID:    "testVolumeUUID",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+		}
+
+		// Setup mocks for successful initial operations
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "testAccount"}
+		volume := &datamodel.Volume{
+			Name:             "vol",
+			Account:          account,
+			VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{"NFS"}},
+			State:            "READY",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "testVaultID"},
+			AccountID: 1,
+		}
+		job := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "wf-id",
+		}
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:      params.BackupName,
+			State:     models.LifeCycleStateCreating,
+		}
+
+		validateCreateBackupParams = func(ctx context.Context, se database.Storage, params *common.CreateBackupParams) error {
+			return nil
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			validateCreateBackupParams = _validateCreateBackupParams
+			getOrCreateAccount = _getOrCreateAccount
+		}()
+
+		store.On("GetVolumeWithAccountID", ctx, params.VolumeUUID, int64(1)).Return(volume, nil)
+		store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
+		store.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+
+		// Mock workflow execution failure
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow execution failed")).Once()
+
+		// Mock successful backup rollback but failed job rollback
+		expectedRollbackBackup := &datamodel.Backup{
+			BaseModel:    datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:         params.BackupName,
+			State:        models.LifeCycleStateError,
+			StateDetails: "workflow execution failed",
+		}
+		store.On("UpdateBackupState", ctx, expectedRollbackBackup).Return(expectedRollbackBackup, nil).Once()
+		store.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil, errors.New("job rollback failed")).Once()
+
+		_, _, err := _createBackup(ctx, store, temporal, params)
+		assert.EqualError(t, err, "workflow execution failed")
+
+		// Verify that rollback operations were called
+		store.AssertExpectations(t)
+	})
+
+	t.Run("DeferFunction_WhenJobCreationFails_ShouldNotRollbackJob", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		params := &common.CreateBackupParams{
+			BackupName:    "testBackup",
+			VolumeUUID:    "testVolumeUUID",
+			BackupVaultID: "testVaultID",
+			AccountName:   "testAccount",
+		}
+
+		// Setup mocks for successful initial operations
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}, Name: "testAccount"}
+		volume := &datamodel.Volume{
+			Name:             "vol",
+			Account:          account,
+			VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{"NFS"}},
+			State:            "READY",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "testVaultID"},
+			AccountID: 1,
+		}
+
+		validateCreateBackupParams = func(ctx context.Context, se database.Storage, params *common.CreateBackupParams) error {
+			return nil
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() {
+			validateCreateBackupParams = _validateCreateBackupParams
+			getOrCreateAccount = _getOrCreateAccount
+		}()
+
+		store.On("GetVolumeWithAccountID", ctx, params.VolumeUUID, int64(1)).Return(volume, nil)
+		store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
+		// Mock job creation failure - this means createdJob will be nil
+		store.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("job creation failed"))
+
+		// No rollback operations should be called since createdJob is nil
+		_, _, err := _createBackup(ctx, store, temporal, params)
+		assert.EqualError(t, err, "job creation failed")
+
+		// Verify that no rollback operations were called
+		store.AssertExpectations(t)
 	})
 }

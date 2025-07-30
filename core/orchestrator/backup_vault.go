@@ -113,16 +113,46 @@ func _deleteBackupVault(ctx context.Context, se database.Storage, temporal clien
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
+	// Store original state for rollback
+	originalState := dbBv.LifeCycleState
+	originalStateDetails := dbBv.LifeCycleStateDetails
+	workflowStarted := false
+	stateUpdated := false
+
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
 	}
 
+	// Defer function to handle rollback on workflow startup failure only
+	defer func() {
+		if err != nil && !workflowStarted {
+			// This condition is met: err != nil (workflow start failed)
+			// && !workflowStarted (true, since workflow didn't start)
+			// && stateUpdated (true, since state was successfully updated)
+
+			// Rollback the backup vault state to original state
+			if stateUpdated {
+				if _, rollbackErr := se.UpdateBackupVaultState(ctx, dbBv, originalState, originalStateDetails); rollbackErr != nil {
+					logger.Error("Failed to rollback backup vault state", "error", rollbackErr, "originalState", originalState)
+				}
+			}
+
+			// Mark the job as ERROR
+			if createdJob != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
+				}
+			}
+		}
+	}()
+
 	dbBV, err := se.UpdateBackupVaultState(ctx, dbBv, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails)
 	if err != nil {
 		return nil, "", err
 	}
+	stateUpdated = true
 
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
@@ -138,6 +168,7 @@ func _deleteBackupVault(ctx context.Context, se database.Storage, temporal clien
 		logger.Error("Failed to start backup vault delete workflow: ", "error", err)
 		return nil, "", err
 	}
+	workflowStarted = true
 	return convertDatastoreBackupVaultToModel(dbBV), createdJob.UUID, nil
 }
 
@@ -170,16 +201,44 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
 
+	// Store original state for rollback
+	originalState := dbBv.LifeCycleState
+	originalStateDetails := dbBv.LifeCycleStateDetails
+	workflowStarted := false
+	stateUpdated := false
+
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
 	}
 
+	// Defer function to handle rollback on workflow startup failure only
+	defer func() {
+		if err != nil && !workflowStarted {
+			// Only rollback if the state was successfully updated but workflow failed to start
+			// The workflow will handle its own error states
+			if stateUpdated {
+				if _, rollbackErr := se.UpdateBackupVaultState(ctx, dbBv, originalState, originalStateDetails); rollbackErr != nil {
+					logger.Error("Failed to rollback backup vault state", "error", rollbackErr, "originalState", originalState)
+				}
+			}
+
+			// Mark job as error if it was created
+			if createdJob != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
+				}
+			}
+		}
+	}()
+
 	dbBV, err := se.UpdateBackupVaultState(ctx, dbBv, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
 	if err != nil {
 		return nil, "", err
 	}
+	stateUpdated = true
+
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -195,6 +254,7 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 		logger.Error("Failed to start backup vault update workflow: ", "error", err)
 		return nil, "", err
 	}
+	workflowStarted = true
 	return convertDatastoreBackupVaultToModel(dbBV), createdJob.UUID, nil
 }
 

@@ -98,7 +98,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_UpdateSDEError() {
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Nil(s.T(), s.env.GetWorkflowError())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
 
 func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_UpdateVCPError() {
@@ -144,7 +144,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_UpdateVCPError() {
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Nil(s.T(), s.env.GetWorkflowError())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
 
 func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_SignedTokenError() {
@@ -188,7 +188,7 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_SignedTokenError() {
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Nil(s.T(), s.env.GetWorkflowError())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
 
 func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_Success() {
@@ -280,7 +280,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_DeleteSDEError() {
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Nil(s.T(), s.env.GetWorkflowError())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
 
 func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_DeleteVCPError() {
@@ -328,7 +328,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_DeleteVCPError() {
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Nil(s.T(), s.env.GetWorkflowError())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
 
 func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_SignedTokenError() {
@@ -372,7 +372,7 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_SignedTokenError() {
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Nil(s.T(), s.env.GetWorkflowError())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
 
 func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_DeleteBucketsError() {
@@ -420,5 +420,5 @@ func (s *UnitTestSuite) Test_DeleteBackupVaultWorkflow_DeleteBucketsError() {
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Nil(s.T(), s.env.GetWorkflowError())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }

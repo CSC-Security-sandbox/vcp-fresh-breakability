@@ -3,6 +3,7 @@ package activities
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
@@ -14,6 +15,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
 )
 
 var (
@@ -45,8 +47,74 @@ func _deleteBackupVaultInSDE(ctx context.Context, paramz *common.BackupVaultPara
 		BackupVaultID:  paramz.BackupVaultID,
 	})
 	if err != nil {
-		logger.Error("Error Deleting BackupVault : ", err)
-		return nil, err
+		switch e := err.(type) {
+		case *backup_vault.V1betaDeleteBackupVaultBadRequest:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Bad request deleting backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaDeleteBackupVaultBadRequest",
+				err,
+			)
+
+		case *backup_vault.V1betaDeleteBackupVaultUnauthorized:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Unauthorized to delete backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaDeleteBackupVaultUnauthorized",
+				err,
+			)
+
+		case *backup_vault.V1betaDeleteBackupVaultForbidden:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Forbidden to delete backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaDeleteBackupVaultForbidden",
+				err,
+			)
+
+		case *backup_vault.V1betaDeleteBackupVaultNotFound:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Backup vault %s not found: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaDeleteBackupVaultNotFound",
+				err,
+			)
+
+		case *backup_vault.V1betaDeleteBackupVaultConflict:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Conflict deleting backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaDeleteBackupVaultConflict",
+				err,
+			)
+
+		case *backup_vault.V1betaDeleteBackupVaultUnprocessableEntity:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Unprocessable entity deleting backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaDeleteBackupVaultUnprocessableEntity",
+				err,
+			)
+
+		case *backup_vault.V1betaDeleteBackupVaultInternalServerError:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Internal server error deleting backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaDeleteBackupVaultInternalServerError",
+				err,
+			)
+
+		case *backup_vault.V1betaDeleteBackupVaultTooManyRequests:
+			return nil, temporal.NewApplicationError(
+				fmt.Sprintf("Too many requests deleting backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaDeleteBackupVaultTooManyRequests",
+				err,
+			)
+
+		case *backup_vault.V1betaDeleteBackupVaultNotImplemented:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Not implemented deleting backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaDeleteBackupVaultNotImplemented",
+				err,
+			)
+
+		default:
+			logger.Warnf("Unknown error type for backup vault deletion %s: %T - %s", paramz.BackupVaultID, err, err.Error())
+			return nil, err
+		}
 	}
 
 	responseBytes, err := json.MarshalIndent(vault.Payload.Response, "", "  ")
@@ -126,8 +194,67 @@ func _updateBackupVaultInSDE(ctx context.Context, paramz *common.BackupVaultPara
 		Body:           body,
 	})
 	if err != nil {
-		logger.Error("Error Updating BackupVault : ", err)
-		return nil, err
+		switch e := err.(type) {
+		case *backup_vault.V1betaUpdateBackupVaultBadRequest:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Bad request updating backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaUpdateBackupVaultBadRequest",
+				err,
+			)
+
+		case *backup_vault.V1betaUpdateBackupVaultUnauthorized:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Unauthorized to update backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaUpdateBackupVaultUnauthorized",
+				err,
+			)
+
+		case *backup_vault.V1betaUpdateBackupVaultForbidden:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Forbidden to update backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaUpdateBackupVaultForbidden",
+				err,
+			)
+
+		case *backup_vault.V1betaUpdateBackupVaultConflict:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Conflict updating backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaUpdateBackupVaultConflict",
+				err,
+			)
+
+		case *backup_vault.V1betaUpdateBackupVaultUnprocessableEntity:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Unprocessable entity updating backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaUpdateBackupVaultUnprocessableEntity",
+				err,
+			)
+
+		case *backup_vault.V1betaUpdateBackupVaultInternalServerError:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Internal server error updating backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaUpdateBackupVaultInternalServerError",
+				err,
+			)
+
+		case *backup_vault.V1betaUpdateBackupVaultTooManyRequests:
+			return nil, temporal.NewApplicationError(
+				fmt.Sprintf("Too many requests updating backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaUpdateBackupVaultTooManyRequests",
+				err,
+			)
+
+		case *backup_vault.V1betaUpdateBackupVaultNotImplemented:
+			return nil, temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Not implemented updating backup vault %s: %s", paramz.BackupVaultID, e.Error()),
+				"V1betaUpdateBackupVaultNotImplemented",
+				err,
+			)
+
+		default:
+			logger.Warnf("Unknown error type for backup vault Updation %s: %T - %s", paramz.BackupVaultID, err, err.Error())
+			return nil, err
+		}
 	}
 
 	responseBytes, err := json.MarshalIndent(vault.Payload.Response, "", "  ")

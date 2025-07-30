@@ -43,13 +43,17 @@ func UpdateBackupVaultWorkflow(ctx workflow.Context, params *common.BackupVaultP
 	_, err = bvWF.Run(ctx, backupVault, params)
 	if err != nil {
 		bvWF.Status = WorkflowStatusFailed
-		err = bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
-		if err != nil {
-			return nil, err
+		err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err2 != nil {
+			bvWF.Logger.Errorf("Error when updating the job status: %v", err2)
 		}
+		return nil, err
 	}
 	bvWF.Status = WorkflowStatusCompleted
-	err = bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if err2 != nil {
+		bvWF.Logger.Errorf("Error when updating the job status: %v", err2)
+	}
 	return nil, err
 }
 
@@ -143,13 +147,17 @@ func DeleteBackupVaultWorkflow(ctx workflow.Context, params *common.BackupVaultP
 	_, err = bvWF.Run(ctx, backupVault, params)
 	if err != nil {
 		bvWF.Status = WorkflowStatusFailed
-		err = bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
-		if err != nil {
-			return nil, err
+		err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		if err2 != nil {
+			bvWF.Logger.Errorf("Error when updating the job status: %v", err2)
 		}
+		return nil, err
 	}
 	bvWF.Status = WorkflowStatusCompleted
-	err = bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if err2 != nil {
+		bvWF.Logger.Errorf("Error when updating the job status: %v", err2)
+	}
 	return nil, err
 }
 

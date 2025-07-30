@@ -140,6 +140,7 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 		// Define request
 		// Create a mock client
 		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 		origBackupEnabled := backupEnabled
 		defer func() { backupEnabled = origBackupEnabled }()
 		backupEnabled = true
@@ -173,6 +174,7 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 				BackupRetentionPolicy:  &bvRetentionPolicy,
 			},
 		}
+		mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		// Set up the mock client behavior
 		mockClient.EXPECT().
@@ -184,7 +186,7 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
+		handler := Handler{Orchestrator: mockOrchestrator}
 		// Call the method under test
 		result, err := handler.V1betaDescribeBackupVault(context.Background(), params)
 

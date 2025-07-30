@@ -86,7 +86,8 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 		return nil, "", err
 	}
-
+	workflowStarted := false
+	stateUpdated := false
 	job := &datamodel.Job{
 		Type:         string(models.JobTypeCreateBackup),
 		State:        string(models.JobsStateNEW),
@@ -115,10 +116,33 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	dbBackup.State = models.LifeCycleStateCreating
 	dbBackup.StateDetails = models.LifeCycleStateCreatingDetails
 
+	defer func() {
+		if err != nil && !workflowStarted {
+			// Only rollback if the state was successfully updated but workflow failed to start
+			// The workflow will handle its own error states
+			if stateUpdated {
+				dbBackup.State = models.LifeCycleStateError
+				dbBackup.StateDetails = err.Error()
+				if _, rollbackErr := se.UpdateBackupState(ctx, dbBackup); rollbackErr != nil {
+					logger.Error("Failed to make backup  state", "error", rollbackErr, "originalState", dbBackup.State, "backupUUID", dbBackup.UUID)
+				}
+			}
+
+			// Mark job as error if it was created
+			if createdJob != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
+				}
+			}
+		}
+	}()
+
 	dbBackup, err = se.CreateBackup(ctx, dbBackup)
 	if err != nil {
 		return nil, "", err
 	}
+
+	stateUpdated = true
 
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
@@ -137,7 +161,7 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		logger.Error("Failed to start create backup workflow: ", "error", err)
 		return nil, "", err
 	}
-
+	workflowStarted = true
 	return convertDatastoreBackupToModel(dbBackup), createdJob.UUID, nil
 }
 
@@ -162,6 +186,11 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", customerrors.NewUserInputValidationErr("Backup can only be updated when in AVAILABLE state, current state: " + backup.State)
 	}
 
+	stateUpdated := false
+	workflowStarted := false
+	originalState := backup.State
+	originalStateDetails := backup.StateDetails
+
 	// Update backup state
 	backup.State = models.LifeCycleStateUpdating
 	backup.StateDetails = models.LifeCycleStateUpdatingDetails
@@ -179,12 +208,33 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	defer func() {
+		if err != nil && !workflowStarted {
+			// Only rollback if the state was successfully updated but workflow failed to start
+			// The workflow will handle its own error states
+			if stateUpdated {
+				backup.State = originalState
+				backup.StateDetails = originalStateDetails
+				if _, rollbackErr := se.UpdateBackupState(ctx, backup); rollbackErr != nil {
+					logger.Error("Failed to rollback backup  state", "error", rollbackErr, "originalState", originalState)
+				}
+			}
+
+			// Mark job as error if it was created
+			if createdJob != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
+				}
+			}
+		}
+	}()
+
 	backup, err = se.UpdateBackupState(ctx, backup)
 	if err != nil {
 		logger.Error("Failed to update backup state in database", "error", err)
 		return nil, "", err
 	}
-
+	stateUpdated = true
 	backup.Description = params.Description
 
 	// Execute the workflow for updating the backup
@@ -202,7 +252,7 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		logger.Error("Failed to start update backup workflow: ", "error", err)
 		return nil, "", err
 	}
-
+	workflowStarted = true
 	return convertDatastoreBackupToModel(backup), createdJob.UUID, nil
 }
 
@@ -295,6 +345,11 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", customerrors.NewUserInputValidationErr("Cannot delete backup as restore is in progress for this backup")
 	}
 
+	originalState := backup.State
+	originalStateDetails := backup.StateDetails
+	workflowStarted := false
+	stateUpdated := false
+
 	backup.State = models.LifeCycleStateDeleting
 	backup.StateDetails = models.LifeCycleStateDeletingDetails
 
@@ -310,12 +365,33 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	defer func() {
+		if err != nil && !workflowStarted {
+			// Only rollback if the state was successfully updated but workflow failed to start
+			// The workflow will handle its own error states
+			if stateUpdated {
+				backup.State = originalState
+				backup.StateDetails = originalStateDetails
+				if _, rollbackErr := se.UpdateBackupState(ctx, backup); rollbackErr != nil {
+					logger.Error("Failed to rollback backup  state", "error", rollbackErr, "originalState", originalState)
+				}
+			}
+
+			// Mark job as error if it was created
+			if createdJob != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
+				}
+			}
+		}
+	}()
+
 	_, err = se.UpdateBackupState(ctx, backup)
 	if err != nil {
 		logger.Error("Failed to change backup state in database", "error", err)
 		return nil, "", err
 	}
-
+	stateUpdated = true
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -331,7 +407,7 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		logger.Error("Failed to start delete backup workflow: ", "error", err)
 		return nil, "", err
 	}
-
+	workflowStarted = true
 	return nil, createdJob.UUID, nil
 }
 

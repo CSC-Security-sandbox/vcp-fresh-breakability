@@ -3,7 +3,9 @@ package utils
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	goerrors "errors"
@@ -541,16 +543,16 @@ func GetAuthTokenFromContext(ctx context.Context) string {
 	return ""
 }
 
-// GenerateResourceNames generates unique service account name, email, and bucket name
+// GetResourcesNameForBackup generates unique service account name, email, and bucket name
 func GetResourcesNameForBackup(gcpRegion, tenantProjectRegion, tenantProjectNumber, backupVaultUUID string) (email, bucketName, serviceAccountId string, err error) {
 	const maxServiceAccountLength = 30
 	const maxBucketNameLength = 60
 
-	// Generate a random string for uniqueness
-	randCode, err := generateRandomString(6)
-	if err != nil {
-		return "", "", "", err
-	}
+	// Generate a deterministic hash based on BackupVault+TenantProjectNumber+TenantProjectRegion combination
+	combinedInput := fmt.Sprintf("%s-%s-%s", backupVaultUUID, tenantProjectNumber, tenantProjectRegion)
+	hash := sha256.Sum256([]byte(combinedInput))
+	// Use first 6 characters of hex encoding for deterministic "random" code
+	randCode := hex.EncodeToString(hash[:3]) // 3 bytes = 6 hex chars
 
 	// Generate service account ID
 	baseServiceAccountId := "vsa-backup-" + sliceRegionForServiceAccount(gcpRegion)
@@ -560,12 +562,12 @@ func GetResourcesNameForBackup(gcpRegion, tenantProjectRegion, tenantProjectNumb
 	serviceAccountId = baseServiceAccountId + randCode
 
 	// Generate email
-	email = ConstructServiceAccountEmail(serviceAccountId, tenantProjectNumber)
+	email = fmt.Sprintf("%s@%s.iam.gserviceaccount.com", serviceAccountId, tenantProjectNumber)
 
 	// Generate bucket name
 	baseBucketName := fmt.Sprintf("vsa-backup-%s", backupVaultUUID)
-	if len(baseBucketName)+len(randCode) > maxBucketNameLength {
-		baseBucketName = baseBucketName[:maxBucketNameLength-len(randCode)]
+	if len(baseBucketName)+1+len(randCode) > maxBucketNameLength {
+		baseBucketName = baseBucketName[:maxBucketNameLength-1-len(randCode)]
 	}
 	bucketName = baseBucketName + "-" + randCode
 

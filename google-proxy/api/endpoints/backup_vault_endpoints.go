@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-faster/jx"
+	"github.com/go-openapi/strfmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -62,12 +63,12 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 	if req.BackupRegion.IsSet() {
 		backupRegion = &req.BackupRegion.Value
 	}
-
 	// Check if the BackupVault already exists
 	existingBackupVault, err := h.Orchestrator.GetBackupVaultByNameAndOwnerID(ctx, req.ResourceId.Value, reqPayloadparams.ProjectNumber)
 	if err == nil && existingBackupVault != nil {
 		logger.Infof("backupVault with name: %s already exists ", req.ResourceId)
-		bvJSON, err := json.Marshal(existingBackupVault)
+		convertedBackupVault := convertCoreToCvpBackupVault(existingBackupVault)
+		bvJSON, err := json.Marshal(convertedBackupVault)
 		if err != nil {
 			logger.Error("Failed to marshal backup vault", "error", err)
 			return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
@@ -75,7 +76,6 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 				Message: "Failed to marshal Backup vault",
 			}, err
 		}
-
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.OptString{Value: "operation-id"},
 			Done:     gcpgenserver.NewOptBool(true),
@@ -139,7 +139,6 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 				Code:    code,
 				Message: msg,
 			}, nil
-
 		case *backup_vault.V1betaCreateBackupVaultForbidden:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
@@ -147,7 +146,6 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 				Code:    code,
 				Message: msg,
 			}, nil
-
 		case *backup_vault.V1betaCreateBackupVaultTooManyRequests:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
@@ -272,7 +270,6 @@ func _deleteBackupVaultInSDE(ctx context.Context, params gcpgenserver.V1betaDele
 				Code:    code,
 				Message: msg,
 			}, nil
-
 		case *backup_vault.V1betaDeleteBackupVaultForbidden:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
@@ -280,7 +277,6 @@ func _deleteBackupVaultInSDE(ctx context.Context, params gcpgenserver.V1betaDele
 				Code:    code,
 				Message: msg,
 			}, nil
-
 		case *backup_vault.V1betaDeleteBackupVaultTooManyRequests:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
@@ -307,7 +303,6 @@ func (h Handler) V1betaDeleteBackupVault(ctx context.Context, params gcpgenserve
 	}
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaDeleteBackupVaultBadRequest{
@@ -409,7 +404,6 @@ func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenser
 				Code:    code,
 				Message: msg,
 			}, nil
-
 		case *backup_vault.V1betaDescribeBackupVaultForbidden:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
@@ -417,7 +411,6 @@ func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenser
 				Code:    code,
 				Message: msg,
 			}, nil
-
 		case *backup_vault.V1betaDescribeBackupVaultTooManyRequests:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
@@ -431,6 +424,14 @@ func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenser
 				Message: err.Error(),
 			}, nil
 		}
+	}
+	vcpBackupVaultDetails, err := h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
+	if err != nil && !errors.IsNotFoundErr(err) {
+		return nil, err
+	}
+	if vcpBackupVaultDetails != nil {
+		cvpResponse.Payload.State = vcpBackupVaultDetails.LifeCycleState
+		cvpResponse.Payload.StateDetails = vcpBackupVaultDetails.LifeCycleStateDetails
 	}
 	response := convertBackupVaultV1Beta(cvpResponse.Payload)
 	return &response, nil
@@ -473,7 +474,6 @@ func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgens
 				Code:    code,
 				Message: msg,
 			}, nil
-
 		case *backup_vault.V1betaGetMultipleBackupVaultsForbidden:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
@@ -823,8 +823,42 @@ func convertBackupVaultV1Beta(bv *models.BackupVaultV1beta) gcpgenserver.BackupV
 	if bv.BackupVaultType != nil {
 		convertedBackupVault.BackupVaultType = gcpgenserver.NewOptBackupVaultV1betaBackupVaultType(gcpgenserver.BackupVaultV1betaBackupVaultType(*bv.BackupVaultType))
 	}
-
 	return convertedBackupVault
+}
+
+func convertCoreToCvpBackupVault(coreBV *coremodels.BackupVaultV1beta) *models.BackupVaultV1beta {
+	var backupRetentionPolicy *models.BackupRetentionPolicyV1beta
+	if coreBV.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration != nil ||
+		coreBV.BackupRetentionPolicy.IsDailyBackupImmutable ||
+		coreBV.BackupRetentionPolicy.IsWeeklyBackupImmutable ||
+		coreBV.BackupRetentionPolicy.IsMonthlyBackupImmutable ||
+		coreBV.BackupRetentionPolicy.IsAdhocBackupImmutable {
+		backupRetentionPolicy = &models.BackupRetentionPolicyV1beta{
+			BackupMinimumEnforcedRetentionDays: coreBV.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration,
+			DailyBackupImmutable:               coreBV.BackupRetentionPolicy.IsDailyBackupImmutable,
+			WeeklyBackupImmutable:              coreBV.BackupRetentionPolicy.IsWeeklyBackupImmutable,
+			MonthlyBackupImmutable:             coreBV.BackupRetentionPolicy.IsMonthlyBackupImmutable,
+			ManualBackupImmutable:              coreBV.BackupRetentionPolicy.IsAdhocBackupImmutable,
+		}
+	}
+
+	// Create the CVP backup vault model
+	cvpBV := &models.BackupVaultV1beta{
+		BackupVaultID:          coreBV.BackupVaultID,
+		ResourceID:             &coreBV.Name,
+		Description:            coreBV.Description,
+		BackupRegion:           coreBV.BackupRegion,
+		SourceRegion:           coreBV.SourceRegion,
+		DestinationBackupVault: coreBV.DestinationBackupVault,
+		SourceBackupVault:      coreBV.SourceBackupVault,
+		BackupVaultType:        coreBV.BackupVaultType,
+		State:                  coreBV.LifeCycleState,
+		StateDetails:           coreBV.LifeCycleStateDetails,
+		CreatedAt:              strfmt.DateTime(coreBV.CreatedAt),
+		DeletedAt:              (*strfmt.DateTime)(coreBV.DeletedAt),
+		BackupRetentionPolicy:  backupRetentionPolicy,
+	}
+	return cvpBV
 }
 
 func convertCoreModelsToBackupVaultV1beta(beta *coremodels.BackupVaultV1beta) *gcpgenserver.BackupVaultV1beta {
