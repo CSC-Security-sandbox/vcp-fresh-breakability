@@ -52,3 +52,21 @@ func TestHandlesMissingEnvironmentVariablesGracefully(t *testing.T) {
 		t.Fatalf("Expected PusherServiceProject to default to 'netapp-au-se1-autopush-sde-tst', got %s", config.PusherServiceProject)
 	}
 }
+func TestRegionNameDefaultValue(t *testing.T) {
+	config := LoadConfig()
+
+	if config.RegionName != "" {
+		t.Fatalf("Expected RegionName to default to empty string, got %s", config.RegionName)
+	}
+}
+
+func TestRegionNameWithEnvironmentVariable(t *testing.T) {
+	// Set environment variable for this test
+	t.Setenv("LOCAL_REGION", "us-west-1")
+
+	config := LoadConfig()
+
+	if config.RegionName != "us-west-1" {
+		t.Fatalf("Expected RegionName to be 'us-west-1', got %s", config.RegionName)
+	}
+}

@@ -8,13 +8,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
-func TestValidateRegionMap(t *testing.T) {
+func TestLoadConfig(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		err := os.Setenv("LOCAL_REGION", "us-central1")
-		if err != nil {
-			return
-		}
-		err = os.Setenv("REGION_CODE_MAP", `{"us-central1": "34"}`)
 		if err != nil {
 			return
 		}
@@ -23,13 +19,42 @@ func TestValidateRegionMap(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to unset region")
 			}
-			err = os.Unsetenv("REGION_CODE_MAP")
+		}()
+		config := LoadConfig()
+		if config == nil {
+			t.Errorf("expected config to be set")
+		}
+	})
+	t.Run("Failure", func(t *testing.T) {
+		config := LoadConfig()
+		if config != nil {
+			t.Errorf("expected config to be nil")
+		}
+	})
+}
+
+func TestValidateRegionMap(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		err := os.Setenv("LOCAL_REGION", "us-central1")
+		if err != nil {
+			return
+		}
+		err = os.Setenv("REGION_NUMBER_MAP", `{"us-central1": "34"}`)
+		if err != nil {
+			return
+		}
+		defer func() {
+			err := os.Unsetenv("LOCAL_REGION")
+			if err != nil {
+				t.Errorf("Failed to unset region")
+			}
+			err = os.Unsetenv("REGION_NUMBER_MAP")
 			if err != nil {
 				return
 			}
 		}()
 		region := env.GetString("LOCAL_REGION", "")
-		regionMapJsonForNodeSerialNumber := env.GetString("REGION_CODE_MAP", "")
+		regionMapJsonForNodeSerialNumber := env.GetString("REGION_NUMBER_MAP", "")
 		err = validateRegionMap(region, regionMapJsonForNodeSerialNumber)
 		if err != nil {
 			t.Errorf("expected no error, got %v", err)
@@ -40,7 +65,7 @@ func TestValidateRegionMap(t *testing.T) {
 		if err != nil {
 			return
 		}
-		err = os.Setenv("REGION_CODE_MAP", `{"africa-south1": "01"`)
+		err = os.Setenv("REGION_NUMBER_MAP", `{"africa-south1": "01"`)
 		if err != nil {
 			return
 		}
@@ -49,13 +74,13 @@ func TestValidateRegionMap(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to unset region")
 			}
-			err = os.Unsetenv("REGION_CODE_MAP")
+			err = os.Unsetenv("REGION_NUMBER_MAP")
 			if err != nil {
 				return
 			}
 		}()
 		region := env.GetString("LOCAL_REGION", "")
-		regionMapJsonForNodeSerialNumber := env.GetString("REGION_CODE_MAP", "")
+		regionMapJsonForNodeSerialNumber := env.GetString("REGION_NUMBER_MAP", "")
 		err = validateRegionMap(region, regionMapJsonForNodeSerialNumber)
 		if err == nil {
 			t.Errorf("expected error for unmapped region, got nil")
@@ -66,7 +91,7 @@ func TestValidateRegionMap(t *testing.T) {
 		if err != nil {
 			return
 		}
-		err = os.Setenv("REGION_CODE_MAP", `{africa-south1}`)
+		err = os.Setenv("REGION_NUMBER_MAP", `{africa-south1}`)
 		if err != nil {
 			return
 		}
@@ -75,13 +100,13 @@ func TestValidateRegionMap(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to unset region")
 			}
-			err = os.Unsetenv("REGION_CODE_MAP")
+			err = os.Unsetenv("REGION_NUMBER_MAP")
 			if err != nil {
 				return
 			}
 		}()
 		region := env.GetString("LOCAL_REGION", "")
-		regionMapJsonForNodeSerialNumber := env.GetString("REGION_CODE_MAP", "")
+		regionMapJsonForNodeSerialNumber := env.GetString("REGION_NUMBER_MAP", "")
 		err = validateRegionMap(region, regionMapJsonForNodeSerialNumber)
 		if err == nil {
 			t.Errorf("expected error for invalid JSON, got nil")
@@ -92,7 +117,7 @@ func TestValidateRegionMap(t *testing.T) {
 		if err != nil {
 			return
 		}
-		err = os.Setenv("REGION_CODE_MAP", `{"africa-south1": "34","us-central1": "34"}`)
+		err = os.Setenv("REGION_NUMBER_MAP", `{"africa-south1": "34","us-central1": "34"}`)
 		if err != nil {
 			return
 		}
@@ -101,16 +126,68 @@ func TestValidateRegionMap(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to unset region")
 			}
-			err = os.Unsetenv("REGION_CODE_MAP")
+			err = os.Unsetenv("REGION_NUMBER_MAP")
 			if err != nil {
 				return
 			}
 		}()
 		region := env.GetString("LOCAL_REGION", "")
-		regionMapJsonForNodeSerialNumber := env.GetString("REGION_CODE_MAP", "")
+		regionMapJsonForNodeSerialNumber := env.GetString("REGION_NUMBER_MAP", "")
 		err = validateRegionMap(region, regionMapJsonForNodeSerialNumber)
 		if !strings.Contains(err.Error(), "duplicate region code value found") {
 			t.Errorf("expected error for duplicate region code")
+		}
+	})
+	t.Run("EmptyRegionMap", func(t *testing.T) {
+		err := os.Setenv("LOCAL_REGION", "us-central1")
+		if err != nil {
+			return
+		}
+		err = os.Setenv("REGION_NUMBER_MAP", `{}`)
+		if err != nil {
+			return
+		}
+		defer func() {
+			err := os.Unsetenv("LOCAL_REGION")
+			if err != nil {
+				t.Errorf("Failed to unset region")
+			}
+			err = os.Unsetenv("REGION_NUMBER_MAP")
+			if err != nil {
+				return
+			}
+		}()
+		region := env.GetString("LOCAL_REGION", "")
+		regionMapJsonForNodeSerialNumber := env.GetString("REGION_NUMBER_MAP", "")
+		err = validateRegionMap(region, regionMapJsonForNodeSerialNumber)
+		if err == nil {
+			t.Errorf("expected error for empty region map, got nil")
+		}
+	})
+	t.Run("EmptyLocalRegion", func(t *testing.T) {
+		err := os.Setenv("LOCAL_REGION", "")
+		if err != nil {
+			return
+		}
+		err = os.Setenv("REGION_NUMBER_MAP", `{"us-central1": "34"}`)
+		if err != nil {
+			return
+		}
+		defer func() {
+			err := os.Unsetenv("LOCAL_REGION")
+			if err != nil {
+				t.Errorf("Failed to unset region")
+			}
+			err = os.Unsetenv("REGION_NUMBER_MAP")
+			if err != nil {
+				return
+			}
+		}()
+		region := env.GetString("LOCAL_REGION", "")
+		regionMapJsonForNodeSerialNumber := env.GetString("REGION_NUMBER_MAP", "")
+		err = validateRegionMap(region, regionMapJsonForNodeSerialNumber)
+		if err == nil {
+			t.Errorf("expected error for empty local region, got nil")
 		}
 	})
 }

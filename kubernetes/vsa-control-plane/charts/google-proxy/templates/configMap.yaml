@@ -54,7 +54,7 @@ data:
   PROBER_PROJECT_LIST: {{ .Values.proberProjectList | quote }}
   ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: "{{ index .Values "enableUniqueSerialNumberGeneration" }}"
   CLUSTER_SERIAL_NUMBER_PREFIX: "{{ index .Values "clusterSerialNumberPrefix" }}"
-  REGION_NUMBER_MAP: {{ .Values.regionNumberMap | toJson | quote }}
+  REGION_NUMBER_MAP: {{ .Values.global.coreConfig.regionNumberMap | toJson | quote }}
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_NAME: {{ index .Values "database" "name"  }}

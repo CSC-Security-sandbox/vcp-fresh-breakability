@@ -92,6 +92,8 @@ spec:
               value: {{ .Values.database.name | default "vcp" | quote }}
             - name: DB_TYPE
               value: {{ .Values.database.type | default "postgres" | quote }}
+            - name: LOCAL_REGION
+              value: {{ .Values.global.coreConfig.localRegion | default "" | quote }}
 
           resources:
             limits:

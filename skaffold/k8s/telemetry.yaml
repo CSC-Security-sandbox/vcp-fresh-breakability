@@ -89,6 +89,6 @@ spec:
               value: "autopush-netapp.sandbox.googleapis.com"
             - name: PUSHER_SERVICE_PROJECT
               value: "netapp-au-se1-autopush-sde-tst"
-            - name: REGION
+            - name: LOCAL_REGION
               value: "us-west2"
 

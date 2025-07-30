@@ -16,7 +16,7 @@ func LoadConfig() *TelemetryConfig {
 	operationBatchSize := env.GetInt64("OPERATION_BATCH_SIZE", 200)
 	pusherServiceName := env.GetString("PUSHER_SERVICE_NAME", "autopush-netapp.sandbox.googleapis.com")
 	pusherServiceProject := env.GetString("PUSHER_SERVICE_PROJECT", "netapp-au-se1-autopush-sde-tst")
-	regionName := env.GetString("REGION", "")
+	regionName := env.GetString("LOCAL_REGION", "")
 
 	return &TelemetryConfig{
 		RootUrl:              rootUrl,
