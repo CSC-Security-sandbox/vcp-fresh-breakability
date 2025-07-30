@@ -1,0 +1,10 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: vsa-harvest-farm-mtls
+  namespace: {{ $.Values.global.namespace }}
+spec:
+  host: harvest-farm-service.vcp.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL

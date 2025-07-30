@@ -133,6 +133,7 @@ resources:
     memory: 1024Mi
 
 service:
+  name: vsa-harvest-farm-service
   type: ClusterIP
-  port: 12990
+  port: 3000
   protocol: TCP

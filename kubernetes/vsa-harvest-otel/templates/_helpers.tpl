@@ -1,9 +1,9 @@
 {{- define "harvest.name" -}}
-multi-harvest
+{{ .Chart.Name }}
 {{- end }}
 
 {{- define "gcnv-harvest.name" -}}
-harvest-poller
+vsa-harvest-poller
 {{- end }}
 
 {{/*

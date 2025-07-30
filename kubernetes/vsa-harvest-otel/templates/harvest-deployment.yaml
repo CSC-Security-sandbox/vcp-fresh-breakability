@@ -6,11 +6,15 @@ metadata:
 spec:
   replicas: {{ $.Values.replicaCount }}
   selector:
-    matchLabels: {{ include "harvest.kubernetes.labels" . | nindent 6 }}
+    matchLabels:
+      {{ include "harvest.kubernetes.labels" . | nindent 6 }}
+      app: {{ .Chart.Name }}
   template:
     metadata:
       annotations: {{ include "harvest.kubernetes.annotations" $ | nindent 8 }}
-      labels: {{ include "harvest.kubernetes.labels" $ | nindent 8 }}
+      labels:
+        {{ include "harvest.kubernetes.labels" $ | nindent 8 }}
+        app: {{ .Chart.Name }}
     spec:
       serviceAccountName: {{ $.Values.serviceAccount.name }}
       tolerations:
