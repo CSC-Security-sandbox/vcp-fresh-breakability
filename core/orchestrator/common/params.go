@@ -424,6 +424,17 @@ type ResumeReplicationParams struct {
 	Force                 bool
 }
 
+type UpdateReplicationParams struct {
+	AccountName           string
+	Region                string
+	Zone                  string
+	CorrelationId         string
+	VolumeResourceId      string
+	ReplicationResourceId string
+	ReplicationSchedule   *string
+	Description           *string
+}
+
 // UpdateHostGroupParams describes parameters supplied to UpdateHostGroup
 type UpdateHostGroupParams struct {
 	Hosts         []string

@@ -42,6 +42,7 @@ var (
 	deleteReplication        = _deleteReplication
 	releaseVolumeReplication = _releaseVolumeReplication
 	syncReplication          = _syncReplication
+	updateReplication                 = _updateReplication
 
 	validateCreateReplicationParams = replication.ValidateCreateReplicationParams
 	validateReplicationParams       = replication.ValidateReplicationParams
@@ -49,6 +50,7 @@ var (
 	verifyDstReplicationStop        = replication.VerifyDstReplicationStop
 	VerifyDstReplicationDelete      = replication.VerifyDstReplication
 	verifyDstReplicationSync        = replication.VerifyDstReplicationSync
+	validateReplicationUpdate                  = replication.ValidateReplicationUpdate
 
 	convertCreateReplicationParamsToEventParam = _convertCreateReplicationParamsToEventParam
 	getReplicationObjects                      = _getReplicationObjects
@@ -940,6 +942,80 @@ func _resumeReplication(ctx context.Context, se database.Storage, temporal clien
 			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
 		replicationWorkflows.ResumeReplicationWorkflow,
+		params,
+		&event,
+	)
+	if err != nil {
+		logger.Error("Failed to execute workflow", "error", err)
+		return nil, "", err
+	}
+
+	dstReplication.State = models.LifeCycleStateUpdating
+	dstReplication.StateDetails = models.LifeCycleStateUpdatingDetails
+	dstReplication.ReplicationAttributes.EndpointType = event.ReplicationModel.ReplicationAttributes.EndpointType
+
+	return dstReplication, createdJob.UUID, nil
+}
+
+func (o *Orchestrator) UpdateReplication(ctx context.Context, params *commonparams.UpdateReplicationParams) (*models.VolumeReplication, string, error) {
+	return updateReplication(ctx, o.storage, o.temporal, params)
+}
+
+func _updateReplication(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.UpdateReplicationParams) (*models.VolumeReplication, string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	event := replication.UpdateReplicationEvent{
+		CommonReplicationEventParams: replication.CommonReplicationEventParams{
+			VolumeResourceID:      params.VolumeResourceId,
+			ReplicationResourceID: params.ReplicationResourceId,
+			AccountName:           params.AccountName,
+			XCorrelationID:        &params.CorrelationId,
+			Location:              params.Region,
+			Zone:                  params.Zone,
+		},
+		ReplicationSchedule: params.ReplicationSchedule,
+		Description:         params.Description,
+	}
+
+	err = validateReplicationParams(ctx, &event.CommonReplicationEventParams, account.ID, se)
+	if err != nil {
+		return nil, "", err
+	}
+
+	dstReplication, err := validateReplicationUpdate(ctx, &event)
+	if err != nil {
+		return nil, "", err
+	}
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeUpdateVolumeReplication),
+		State:        string(models.JobsStateNEW),
+		ResourceName: event.ReplicationModel.Uri,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: event.ReplicationModel.UUID,
+			PoolUUID:     event.ReplicationModel.Volume.Pool.UUID,
+		},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		replicationWorkflows.UpdateVolumeReplicationWorkflow,
 		params,
 		&event,
 	)

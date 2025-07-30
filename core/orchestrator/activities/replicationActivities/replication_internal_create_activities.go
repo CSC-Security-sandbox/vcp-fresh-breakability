@@ -39,17 +39,19 @@ func (a *InternalVolumeReplicationActivity) UpdateVolumeReplicationDetails(ctx c
 
 	replication.State = models.LifeCycleStateAvailable
 	replication.StateDetails = models.LifeCycleStateAvailableDetails
-	replication.ReplicationAttributes.ExternalUUID = replicationCreateResponseONTAP.RelationshipID
-	replication.ReplicationAttributes.ReplicationSchedule = replicationCreateResponseONTAP.ReplicationSchedule
-	replication.MirrorState = &replicationCreateResponseONTAP.MirrorState
-	replication.RelationshipStatus = &replicationCreateResponseONTAP.RelationshipStatus
-	replication.TotalTransferBytes = replicationCreateResponseONTAP.TotalTransferBytes
-	replication.TotalTransferTimeSecs = replicationCreateResponseONTAP.TotalTransferTimeSecs
-	replication.LastTransferSize = int64(replicationCreateResponseONTAP.LastTransferSize)
-	replication.LastTransferError = replicationCreateResponseONTAP.LastTransferError
-	replication.LastTransferDuration = replicationCreateResponseONTAP.LastTransferDuration
-	replication.LastTransferEndTime = replicationCreateResponseONTAP.LastTransferEndTime
-	replication.LagTime = replicationCreateResponseONTAP.LagTime
+	if replicationCreateResponseONTAP != nil {
+		replication.ReplicationAttributes.ExternalUUID = replicationCreateResponseONTAP.RelationshipID
+		replication.ReplicationAttributes.ReplicationSchedule = replicationCreateResponseONTAP.ReplicationSchedule
+		replication.MirrorState = &replicationCreateResponseONTAP.MirrorState
+		replication.RelationshipStatus = &replicationCreateResponseONTAP.RelationshipStatus
+		replication.TotalTransferBytes = replicationCreateResponseONTAP.TotalTransferBytes
+		replication.TotalTransferTimeSecs = replicationCreateResponseONTAP.TotalTransferTimeSecs
+		replication.LastTransferSize = int64(replicationCreateResponseONTAP.LastTransferSize)
+		replication.LastTransferError = replicationCreateResponseONTAP.LastTransferError
+		replication.LastTransferDuration = replicationCreateResponseONTAP.LastTransferDuration
+		replication.LastTransferEndTime = replicationCreateResponseONTAP.LastTransferEndTime
+		replication.LagTime = replicationCreateResponseONTAP.LagTime
+	}
 	replication.LastUpdatedFromOntap = time.Now()
 	replication.ProgressLastUpdated = &replication.LastUpdatedFromOntap
 

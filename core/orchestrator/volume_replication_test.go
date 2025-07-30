@@ -3745,3 +3745,264 @@ func TestUpdateVolumeReplicationInternal(t *testing.T) {
 		assert.Equal(tt, jobResponse, jobActualResponse)
 	})
 }
+
+func TestUpdateReplication(t *testing.T) {
+	t.Run("WhenGetAccountFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+		}()
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+		params := &commonparams.UpdateReplicationParams{
+			AccountName: "account-name",
+		}
+		_, _, err := _updateReplication(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "account not found", err.Error())
+	})
+	t.Run("WhenValidationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+			return errors.New("validation error")
+		}
+		params := &commonparams.UpdateReplicationParams{
+			AccountName: "account-name",
+		}
+		_, _, err := _updateReplication(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "validation error", err.Error())
+	})
+	t.Run("WhenDstReplicationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+			return nil
+		}
+
+		validateReplicationUpdate = func(ctx context.Context, event *replication.UpdateReplicationEvent) (*models.VolumeReplication, error) {
+			return nil, errors.New("failed to verify destination replication")
+		}
+
+		params := &commonparams.UpdateReplicationParams{
+			AccountName: "account-name",
+		}
+		_, _, err := _updateReplication(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "failed to verify destination replication", err.Error())
+	})
+	t.Run("WhenCreateJobFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{
+						BaseModel: datamodel.BaseModel{
+							UUID: "pool-uuid-1",
+						},
+					},
+				},
+				BaseModel: datamodel.BaseModel{
+					UUID: "uuid-1",
+				},
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+			}
+			return nil
+		}
+
+		validateReplicationUpdate = func(ctx context.Context, event *replication.UpdateReplicationEvent) (*models.VolumeReplication, error) {
+			return nil, nil
+		}
+
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("failed to create job"))
+
+		params := &commonparams.UpdateReplicationParams{
+			AccountName: "account-name",
+		}
+		_, _, err := _updateReplication(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "failed to create job", err.Error())
+	})
+	t.Run("WhenExecuteWorkflowFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{
+						BaseModel: datamodel.BaseModel{
+							UUID: "pool-uuid-1",
+						},
+					},
+				},
+				BaseModel: datamodel.BaseModel{
+					UUID: "uuid-1",
+				},
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+			}
+			return nil
+		}
+
+		validateReplicationUpdate = func(ctx context.Context, event *replication.UpdateReplicationEvent) (*models.VolumeReplication, error) {
+			return nil, nil
+		}
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+
+		params := &commonparams.UpdateReplicationParams{
+			AccountName: "account-name",
+		}
+		_, _, err := _updateReplication(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "failed to execute workflow", err.Error())
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			validateReplicationParams = replication.ValidateReplicationParams
+			verifyDstReplicationResume = replication.VerifyDstReplicationResume
+		}()
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "account-name",
+		}
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+
+		validateReplicationParams = func(ctx context.Context, event *replication.CommonReplicationEventParams, accountID int64, se database.Storage) error {
+			event.ReplicationModel = &datamodel.VolumeReplication{
+				Volume: &datamodel.Volume{
+					Pool: &datamodel.Pool{
+						BaseModel: datamodel.BaseModel{
+							UUID: "pool-uuid-1",
+						},
+					},
+				},
+				BaseModel: datamodel.BaseModel{
+					UUID: "uuid-1",
+				},
+				Uri: "projects/1234567890/locations/us-central1/volumes/gosrcvolume1/replications/replication-id-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					EndpointType: "src",
+				},
+			}
+			return nil
+		}
+		expectedResponse := &models.VolumeReplication{
+			ReplicationAttributes: &models.ReplicationDetails{},
+		}
+
+		validateReplicationUpdate = func(ctx context.Context, event *replication.UpdateReplicationEvent) (*models.VolumeReplication, error) {
+			return expectedResponse, nil
+		}
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid",
+			},
+		}
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.UpdateReplicationParams{
+			AccountName: "account-name",
+		}
+
+		resp, jobuuid, err := _updateReplication(ctx, mockStorage, mockTemporal, params)
+		assert.Nil(tt, err)
+		assert.Equal(tt, jobResponse.UUID, jobuuid)
+		assert.Equal(tt, expectedResponse, resp)
+	})
+}

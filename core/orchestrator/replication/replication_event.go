@@ -118,6 +118,13 @@ type ResumeReplicationEvent struct {
 	CommonReplicationEventParams
 }
 
+type UpdateReplicationEvent struct {
+	ReplicationEventBase
+	CommonReplicationEventParams
+	ReplicationSchedule *string
+	Description         *string
+}
+
 type ResumeReplicationResult struct {
 	Ctx              context.Context
 	Event            *ResumeReplicationEvent
@@ -154,4 +161,22 @@ type DeleteReplicationResult struct {
 	DstVolume        *gcpgenserver.VolumeV1beta
 	Error            error
 	JobId            string
+}
+
+type UpdateReplicationResult struct {
+	Ctx              context.Context
+	Event            *UpdateReplicationEvent
+	EventBytes       []byte
+	DstBasePath      *string
+	SrcBasePath      *string
+	DstProjectNumber *string
+	SrcProjectNumber *string
+	DstJwtToken      *string
+	SrcJwtToken      *string
+	DstReplication   *googleproxyclient.VolumeReplicationInternalV1beta
+	DstVolume        *googleproxyclient.VolumeV1beta
+	SrcVolume        *googleproxyclient.VolumeV1beta
+	Error            error
+	JobId            *string
+	DbVolReplication *datamodel.VolumeReplication
 }

@@ -143,6 +143,8 @@ const (
 	ErrKMSUpdate                                                     = 6067
 	ErrKMSCreate                                                     = 6068
 	ErrGeneratingUniqueSerialNumber                                  = 6069
+	ErrorEmptyUpdateReplicationPayload                               = 6070
+	ErrorReplicationScheduleUnspecified                              = 6071
 )
 
 type Error interface {

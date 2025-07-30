@@ -173,6 +173,23 @@ func TestUpdateVolumeReplicationInternal(t *testing.T) {
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(tt)
 	})
+	t.Run("WhenSuccessWithOntapResponseNil", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := InternalVolumeReplicationActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		replication := &datamodel.VolumeReplication{
+			State: "initial",
+			ReplicationAttributes: &datamodel.ReplicationDetails{
+				ExternalUUID: "external-uuid",
+			},
+		}
+		mockStorage.On("UpdateVolumeReplication", ctx, replication).Return(nil)
+		err := activity.UpdateVolumeReplicationDetails(ctx, replication, nil, nil)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(tt)
+	})
 }
 
 func TestHydrateReplicationCreate(t *testing.T) {

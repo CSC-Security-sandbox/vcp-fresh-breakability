@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func Test_getReplicationJobs(t *testing.T) {
@@ -1440,6 +1441,76 @@ func TestVerifyDstReplicationSync(t *testing.T) {
 		}
 
 		resp, err := _verifyDstReplicationSync(ctx, event)
+		assert.NoError(tt, err)
+		assert.Equal(tt, dstReplication, resp)
+	})
+}
+
+func TestValidateReplicationUpdate(t *testing.T) {
+	event := &UpdateReplicationEvent{
+		CommonReplicationEventParams: CommonReplicationEventParams{
+			DstBasePath:              "dstPath",
+			DestinationProjectNumber: "destinationProjectNumber",
+			DstToken:                 "dstToken",
+			ReplicationModel: &datamodel.VolumeReplication{
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "dstLocation",
+					DestinationReplicationUUID: "dstUUID",
+				},
+			},
+		},
+	}
+	t.Run("WhenGetReplicationError", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return nil, errors.New("some error")
+		}
+
+		event1 := *event
+		event1.Description = nillable.ToPointer("New description")
+		_, err := _validateReplicationUpdate(ctx, &event1)
+		assert.Error(tt, err)
+	})
+	t.Run("WhenNothingToUpdate", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		_, err := _validateReplicationUpdate(ctx, event)
+		assert.Error(tt, err)
+		assert.Equal(tt, "[0] undefined error: empty replication update payload", err.Error())
+	})
+	t.Run("WhenReplicationScheduleUnspecified", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+
+		event1 := *event
+		event1.ReplicationSchedule = nillable.ToPointer("REPLICATION_SCHEDULE_UNSPECIFIED")
+		_, err := _validateReplicationUpdate(ctx, &event1)
+		assert.Error(tt, err)
+		assert.Equal(tt, "[0] undefined error: Invalid replication schedule provided.", err.Error())
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		defer func() {
+			getReplication = _getReplication
+		}()
+		mirrorState := "STOPPED"
+		relationshipStatus := "IDLE"
+		dstReplication := &coreModels.VolumeReplication{
+			MirrorState:        &mirrorState,
+			RelationshipStatus: &relationshipStatus,
+		}
+		event.Description = nillable.ToPointer("New description")
+		getReplication = func(ctx context.Context, basePath string, projectNumber string, locationID string, volumeReplicationID string, jwt string) (*coreModels.VolumeReplication, error) {
+			return dstReplication, nil
+		}
+		resp, err := _validateReplicationUpdate(ctx, event)
 		assert.NoError(tt, err)
 		assert.Equal(tt, dstReplication, resp)
 	})

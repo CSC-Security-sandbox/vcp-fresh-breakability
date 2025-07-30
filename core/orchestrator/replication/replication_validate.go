@@ -46,6 +46,7 @@ var (
 	getReplicationJobs          = _getReplicationJobs
 	getReplication              = _getReplication
 	VerifyDstReplicationResume  = _verifyDstReplicationResume
+	ValidateReplicationUpdate   = _validateReplicationUpdate
 	VerifyDstReplicationStop    = _verifyDstReplicationStop
 	VerifyDstVolume             = _verifyDstVolume
 	VerifyDstReplication        = _verifyDstReplication
@@ -656,6 +657,28 @@ func _verifyDstReplicationStop(ctx context.Context, event *StopReplicationEvent)
 
 	if *dstReplication.MirrorState == models.ReplicationV1betaMirrorStateMIRRORED && *dstReplication.RelationshipStatus == strings.ToLower(models.ReplicationV1betaMirrorStateTRANSFERRING) && !event.ForceStop {
 		return nil, utilErrors.NewUserInputValidationErr(fmt.Sprintf("Replication relationship status is in %s state", strings.ToLower(models.ReplicationV1betaMirrorStateTRANSFERRING)))
+	}
+
+	return dstReplication, nil
+}
+
+func _validateReplicationUpdate(ctx context.Context, event *UpdateReplicationEvent) (*coreModels.VolumeReplication, error) {
+	logger := util.GetLogger(ctx)
+
+	if event.ReplicationSchedule == nil && event.Description == nil {
+		logger.Error("empty replication update payload")
+		return nil, errors.NewVCPError(errors.ErrorEmptyUpdateReplicationPayload, errors.New("empty replication update payload"))
+	}
+
+	if event.ReplicationSchedule != nil && *event.ReplicationSchedule == models.ReplicationV1betaReplicationScheduleREPLICATIONSCHEDULEUNSPECIFIED {
+		logger.Error("replicationSchedule is UNSPECIFIED for update replication")
+		return nil, errors.NewVCPError(errors.ErrorReplicationScheduleUnspecified, errors.New("Invalid replication schedule provided."))
+	}
+
+	dstReplication, err := getReplication(ctx, event.DstBasePath, event.DestinationProjectNumber, event.ReplicationModel.ReplicationAttributes.DestinationLocation, event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID, event.DstToken)
+	if err != nil || dstReplication == nil {
+		logger.Error("getReplication error", common.Error(err))
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalGetMultipleReplications, err)
 	}
 
 	return dstReplication, nil

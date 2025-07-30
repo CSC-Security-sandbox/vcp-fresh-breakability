@@ -902,7 +902,7 @@ func TestV1betaResumeReplication(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "location-id", "location-id", nil
 		}
-		convertResumeModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+		convertVcpReplicationModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
 			return &gcpgenserver.ReplicationV1beta{}
 		}
 
@@ -934,7 +934,7 @@ func TestV1betaResumeReplication(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "location-id", "location-id", nil
 		}
-		convertResumeModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+		convertVcpReplicationModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
 			return &gcpgenserver.ReplicationV1beta{}
 		}
 
@@ -1063,7 +1063,7 @@ func TestV1betaStopReplication(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "location-id", "location-id", nil
 		}
-		convertResumeModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+		convertVcpReplicationModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
 			return &gcpgenserver.ReplicationV1beta{}
 		}
 		mockOrchestrator.On("StopReplication", mock.Anything, mock.Anything).Return(&models2.VolumeReplication{}, "job-uuid", nil)
@@ -1217,7 +1217,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "location-id", "location-id", nil
 		}
-		convertResumeModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+		convertVcpReplicationModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
 			return &gcpgenserver.ReplicationV1beta{}
 		}
 
@@ -1252,7 +1252,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "location-id", "location-id", nil
 		}
-		convertResumeModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+		convertVcpReplicationModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
 			return &gcpgenserver.ReplicationV1beta{}
 		}
 
@@ -1392,7 +1392,7 @@ func TestV1betaSyncReplication(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "location-id", "location-id", nil
 		}
-		convertResumeModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+		convertVcpReplicationModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
 			return &gcpgenserver.ReplicationV1beta{}
 		}
 
@@ -1424,7 +1424,7 @@ func TestV1betaSyncReplication(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "location-id", "location-id", nil
 		}
-		convertResumeModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+		convertVcpReplicationModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
 			return &gcpgenserver.ReplicationV1beta{}
 		}
 
@@ -1435,6 +1435,199 @@ func TestV1betaSyncReplication(t *testing.T) {
 		mockOrchestrator.On("SyncReplication", mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)
 
 		result, err := handler.V1betaSyncReplication(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
+	})
+}
+
+func TestV1betaUpdateReplication(t *testing.T) {
+	t.Run("WhenCRRNotEnabled", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			crrEnabled = env.GetBool("CRR_ENABLED", true)
+		}()
+		crrEnabled = false
+		params := gcpgenserver.V1betaUpdateReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationUpdateV1beta{
+			Description: gcpgenserver.NewOptString("new description"),
+		}
+		result, _ := handler.V1betaUpdateReplication(context.Background(), req, params)
+		assert.Equal(tt, float64(403), result.(*gcpgenserver.V1betaUpdateReplicationForbidden).Code)
+	})
+	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationUpdateV1beta{
+			Description: gcpgenserver.NewOptString("new description"),
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", &gcpgenserver.Error{
+				Code:    400,
+				Message: "Invalid location ID",
+			}
+		}
+
+		resp, _ := handler.V1betaUpdateReplication(context.Background(), req, params)
+		assert.NotNil(tt, resp)
+		assert.Equal(tt, float64(400), resp.(*gcpgenserver.V1betaUpdateReplicationBadRequest).Code)
+		assert.Equal(tt, "Invalid location ID", resp.(*gcpgenserver.V1betaUpdateReplicationBadRequest).Message)
+	})
+	t.Run("WhenResumeReplicationFailsWithBadRequest", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationUpdateV1beta{
+			Description: gcpgenserver.NewOptString("new description"),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+
+		mockOrchestrator.On("UpdateReplication", mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("Invalid input"))
+
+		result, err := handler.V1betaUpdateReplication(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaUpdateReplicationBadRequest).Code)
+		assert.Equal(tt, "Invalid input", result.(*gcpgenserver.V1betaUpdateReplicationBadRequest).Message)
+	})
+	t.Run("WhenResumeReplicationFailsWithSomeOtherError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationUpdateV1beta{
+			Description: gcpgenserver.NewOptString("new description"),
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+
+		mockOrchestrator.On("UpdateReplication", mock.Anything, mock.Anything).Return(nil, "", errors.New("some error"))
+
+		result, err := handler.V1betaUpdateReplication(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(500), result.(*gcpgenserver.V1betaUpdateReplicationInternalServerError).Code)
+		assert.Equal(tt, "some error", result.(*gcpgenserver.V1betaUpdateReplicationInternalServerError).Message)
+	})
+	t.Run("WhenResumeReplicationSucceedsWithNoJob", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationUpdateV1beta{
+			Description: gcpgenserver.NewOptString("new description"),
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+		convertVcpReplicationModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+			return &gcpgenserver.ReplicationV1beta{}
+		}
+
+		mockOrchestrator.On("UpdateReplication", mock.Anything, mock.Anything).Return(&models2.VolumeReplication{}, "job-uuid", nil)
+
+		result, err := handler.V1betaUpdateReplication(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
+	})
+	t.Run("WhenResumeReplicationSucceedsWithJob", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		params := gcpgenserver.V1betaUpdateReplicationParams{
+			ProjectNumber:         "project-number",
+			LocationId:            "location-id",
+			VolumeResourceId:      "volume-resource-id",
+			ReplicationResourceId: "replication-resource-id",
+			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
+		}
+		req := &gcpgenserver.ReplicationUpdateV1beta{
+			Description: gcpgenserver.NewOptString("new description"),
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "location-id", "location-id", nil
+		}
+		convertVcpReplicationModelToVCPVolumeReplicationV1beta = func(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+			return &gcpgenserver.ReplicationV1beta{}
+		}
+
+		repResponse := &models2.VolumeReplication{
+			State: models2.LifeCycleStateUpdating,
+		}
+
+		mockOrchestrator.On("UpdateReplication", mock.Anything, mock.Anything).Return(repResponse, "job-uuid", nil)
+
+		result, err := handler.V1betaUpdateReplication(context.Background(), req, params)
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -23,10 +24,10 @@ import (
 )
 
 var (
-	convertModelToVCPVolumeReplication             = _convertModelToVCPVolumeReplication
-	validateReplicationURIList                     = _validateReplicationURIList
-	convertResumeModelToVCPVolumeReplicationV1beta = _convertResumeModelToVCPVolumeReplicationV1beta
-	crrEnabled                                     = env.GetBool("CRR_ENABLED", true)
+	convertModelToVCPVolumeReplication                     = _convertModelToVCPVolumeReplication
+	validateReplicationURIList                             = _validateReplicationURIList
+	convertVcpReplicationModelToVCPVolumeReplicationV1beta = _convertVcpReplicationModelToVCPVolumeReplicationV1beta
+	crrEnabled                                             = env.GetBool("CRR_ENABLED", true)
 )
 
 func (h Handler) V1betaCreateReplication(ctx context.Context, req *gcpgenserver.ReplicationCreateV1beta, params gcpgenserver.V1betaCreateReplicationParams) (gcpgenserver.V1betaCreateReplicationRes, error) {
@@ -424,7 +425,81 @@ func (h Handler) V1betaResumeReplication(ctx context.Context, params gcpgenserve
 		}, nil
 	}
 
-	resp, err := encodeVolumeReplicationV1(convertResumeModelToVCPVolumeReplicationV1beta(volumeRep))
+	resp, err := encodeVolumeReplicationV1(convertVcpReplicationModelToVCPVolumeReplicationV1beta(volumeRep))
+	if err != nil {
+		return nil, err
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	if volumeRep.State == models2.LifeCycleStateUpdating {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}
+
+func (h Handler) V1betaUpdateReplication(ctx context.Context, req *gcpgenserver.ReplicationUpdateV1beta, params gcpgenserver.V1betaUpdateReplicationParams) (gcpgenserver.V1betaUpdateReplicationRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	if !crrEnabled {
+		return &gcpgenserver.V1betaUpdateReplicationForbidden{
+			Code:    403,
+			Message: "CRR is not enabled",
+		}, nil
+	}
+	region, zone, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaUpdateReplicationBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	updateReplicationParams := &common.UpdateReplicationParams{
+		AccountName:           params.ProjectNumber,
+		Region:                region,
+		Zone:                  zone,
+		CorrelationId:         params.XCorrelationID.Value,
+		VolumeResourceId:      params.VolumeResourceId,
+		ReplicationResourceId: params.ReplicationResourceId,
+	}
+
+	if req.Description.IsSet() {
+		updateReplicationParams.Description = nillable.ToPointer(req.Description.Value)
+	}
+	if req.ReplicationSchedule.IsSet() {
+		updateReplicationParams.ReplicationSchedule = nillable.ToPointer(string(req.ReplicationSchedule.Value))
+	}
+
+	volumeRep, jobUUID, err := h.Orchestrator.UpdateReplication(ctx, updateReplicationParams)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaUpdateReplicationBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			}, nil
+		} else if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaUpdateReplicationNotFound{
+				Code:    http.StatusNotFound,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to update replication", "error", err.Error())
+		return &gcpgenserver.V1betaUpdateReplicationInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+
+	resp, err := encodeVolumeReplicationV1(convertVcpReplicationModelToVCPVolumeReplicationV1beta(volumeRep))
 	if err != nil {
 		return nil, err
 	}
@@ -486,7 +561,7 @@ func (h Handler) V1betaDeleteReplication(ctx context.Context, req *gcpgenserver.
 		}, nil
 	}
 
-	resp, err := encodeVolumeReplicationV1(convertResumeModelToVCPVolumeReplicationV1beta(volumeRep))
+	resp, err := encodeVolumeReplicationV1(convertVcpReplicationModelToVCPVolumeReplicationV1beta(volumeRep))
 	if err != nil {
 		return nil, err
 	}
@@ -506,7 +581,7 @@ func (h Handler) V1betaDeleteReplication(ctx context.Context, req *gcpgenserver.
 	}, nil
 }
 
-func _convertResumeModelToVCPVolumeReplicationV1beta(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
+func _convertVcpReplicationModelToVCPVolumeReplicationV1beta(volumeReplication *models2.VolumeReplication) *gcpgenserver.ReplicationV1beta {
 	if volumeReplication == nil {
 		return &gcpgenserver.ReplicationV1beta{}
 	}
@@ -595,7 +670,7 @@ func (h Handler) V1betaStopReplication(ctx context.Context, req *gcpgenserver.Re
 		}, nil
 	}
 
-	resp, err := encodeVolumeReplicationV1(convertResumeModelToVCPVolumeReplicationV1beta(volumeRep))
+	resp, err := encodeVolumeReplicationV1(convertVcpReplicationModelToVCPVolumeReplicationV1beta(volumeRep))
 	if err != nil {
 		return nil, err
 	}
@@ -657,7 +732,7 @@ func (h Handler) V1betaSyncReplication(ctx context.Context, params gcpgenserver.
 			Message: err.Error(),
 		}, nil
 	}
-	resp, err := encodeVolumeReplicationV1(convertResumeModelToVCPVolumeReplicationV1beta(volumeRep))
+	resp, err := encodeVolumeReplicationV1(convertVcpReplicationModelToVCPVolumeReplicationV1beta(volumeRep))
 	if err != nil {
 		return nil, err
 	}
