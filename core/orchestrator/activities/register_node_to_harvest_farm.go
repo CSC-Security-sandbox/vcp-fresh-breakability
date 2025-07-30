@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -198,6 +199,7 @@ type UploadHarvestTemplateActivity struct {
 type UploadHarvestTemplateInput struct {
 	NodeMappings []*datamodel.NodeNodeGroupMap
 	UploadURL    string
+	Credentials  *vlm.OntapCredentials
 }
 
 // UploadYAMLFileInput is the input struct for uploadYAMLFile
@@ -271,6 +273,12 @@ func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Contex
 			logger.Errorf("HarvestConfig is nil for node mapping at index %d", i)
 			return errors.New("invalid node mapping: nil HarvestConfig")
 		}
+
+		// Set password if credentials are provided
+		if input.Credentials != nil {
+			mapping.HarvestConfig.PASSWORD = input.Credentials.AdminPassword
+		}
+
 		tmplStr, err := renderFunc(mapping.HarvestConfig)
 		if err != nil {
 			logger.Errorf("Failed to render template for node mapping %d: %v", i, err)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"gorm.io/gorm"
@@ -109,6 +110,44 @@ func TestUploadHarvestTemplate_Success(t *testing.T) {
 	}
 	ctx := context.Background()
 	assert.NoError(t, activity.UploadHarvestTemplate(ctx, input))
+}
+
+func TestUploadHarvestTemplate_WithCredentials(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := r.ParseMultipartForm(10 << 20)
+		assert.NoError(t, err)
+		file, _, err := r.FormFile("file")
+		assert.NoError(t, err)
+		defer func() {
+			cerr := file.Close()
+			assert.NoError(t, cerr)
+		}()
+		content, err := io.ReadAll(file)
+		assert.NoError(t, err)
+		assert.Contains(t, string(content), "fake-yaml")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	harvestConfig := &datamodel.HarvestConfig{}
+	input := UploadHarvestTemplateInput{
+		NodeMappings: []*datamodel.NodeNodeGroupMap{{HarvestConfig: harvestConfig, NodeGroup: &datamodel.NodeGroup{LeaseName: "lease-1"}}},
+		UploadURL:    ts.URL,
+		Credentials:  &vlm.OntapCredentials{AdminPassword: "test-password"},
+	}
+	activity := &UploadHarvestTemplateActivity{
+		LoadHarvestTemplateFunc:   func() (string, error) { return "template: {{.Fake}}", nil },
+		RenderHarvestTemplateFunc: func(cfg *datamodel.HarvestConfig) (string, error) { 
+			// Verify that the password was set from credentials
+			assert.Equal(t, "test-password", cfg.PASSWORD)
+			return "fake-yaml", nil 
+		},
+	}
+	ctx := context.Background()
+	assert.NoError(t, activity.UploadHarvestTemplate(ctx, input))
+	
+	// Verify that the password was actually set in the HarvestConfig
+	assert.Equal(t, "test-password", harvestConfig.PASSWORD)
 }
 
 func TestUploadHarvestTemplate_RenderError(t *testing.T) {

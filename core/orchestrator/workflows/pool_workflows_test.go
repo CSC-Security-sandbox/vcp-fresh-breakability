@@ -134,12 +134,13 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	enableMetrics = true
 	defer func() { enableMetrics = oldEnableMetrics }()
 	// Mock child workflow execution
-	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, RegisterNodeToHarvestFarmWorkflowInput{
-		PoolID:            0,
-		CustomerProjectID: "test-account",
-		MaxNodesPerGroup:  200,
-		TenantProjectID:   "test-project",
-	}).Return(nil)
+	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
+		return input.PoolID == 0 &&
+			input.CustomerProjectID == "test-account" &&
+			input.MaxNodesPerGroup == 200 &&
+			input.TenantProjectID == "test-project" &&
+			input.Pool != nil
+	})).Return(nil)
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 
@@ -271,12 +272,13 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	enableMetrics = true
 	defer func() { enableMetrics = oldEnableMetrics }()
 	// Mock child workflow execution
-	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, RegisterNodeToHarvestFarmWorkflowInput{
-		PoolID:            0,
-		CustomerProjectID: "test-account",
-		MaxNodesPerGroup:  200,
-		TenantProjectID:   "test-project",
-	}).Return(errors.New("failed to register node"))
+	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
+		return input.PoolID == 0 &&
+			input.CustomerProjectID == "test-account" &&
+			input.MaxNodesPerGroup == 200 &&
+			input.TenantProjectID == "test-project" &&
+			input.Pool != nil
+	})).Return(errors.New("failed to register node"))
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 
@@ -1417,12 +1419,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 
 		// Mock child workflow execution
-		env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, RegisterNodeToHarvestFarmWorkflowInput{
-			PoolID:            0,
-			CustomerProjectID: "test-account",
-			MaxNodesPerGroup:  200,
-			TenantProjectID:   "test-project",
-		}).Return(nil)
+		env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
+			return input.PoolID == 0 &&
+				input.CustomerProjectID == "test-account" &&
+				input.MaxNodesPerGroup == 200 &&
+				input.TenantProjectID == "test-project" &&
+				input.Pool != nil
+		})).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
@@ -1541,12 +1544,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 
 		// Mock child workflow execution
-		env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, RegisterNodeToHarvestFarmWorkflowInput{
-			PoolID:            0,
-			CustomerProjectID: "test-account",
-			MaxNodesPerGroup:  200,
-			TenantProjectID:   "test-project",
-		}).Return(nil)
+		env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
+			return input.PoolID == 0 &&
+				input.CustomerProjectID == "test-account" &&
+				input.MaxNodesPerGroup == 200 &&
+				input.TenantProjectID == "test-project" &&
+				input.Pool != nil
+		})).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
@@ -2977,12 +2981,13 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	}
 
 	// Mock child workflow execution
-	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, RegisterNodeToHarvestFarmWorkflowInput{
-		PoolID:            0,
-		CustomerProjectID: "test-account",
-		MaxNodesPerGroup:  200,
-		TenantProjectID:   "test-project",
-	}).Return(nil)
+	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
+		return input.PoolID == 0 &&
+			input.CustomerProjectID == "test-account" &&
+			input.MaxNodesPerGroup == 200 &&
+			input.TenantProjectID == "test-project" &&
+			input.Pool != nil
+	})).Return(nil)
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
 

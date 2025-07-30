@@ -3,9 +3,10 @@ package workflows
 import (
 	"fmt"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -13,9 +14,9 @@ import (
 
 // RegisterNodeToHarvestFarmWorkflowInput holds input parameters for the workflow
 type RegisterNodeToHarvestFarmWorkflowInput struct {
-	PoolID           int64
-	MaxNodesPerGroup int
-
+	PoolID            int64
+	Pool              *datamodel.Pool
+	MaxNodesPerGroup  int
 	CustomerProjectID string
 	TenantProjectID   string
 }
@@ -105,11 +106,24 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 		return nil, err
 	}
 
+	poolActivity := &activities.PoolActivity{}
+	credentials := &vlm.OntapCredentials{}
+	err = workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentials, input.Pool).Get(ctx, &credentials)
+	if err != nil {
+		return nil, err
+	}
+
+	if credentials == nil {
+		return nil, fmt.Errorf("failed to get credentials for pool %d", input.Pool.ID)
+	}
+
 	// Render and upload a Harvest template for each node mapping (sequentially)
 	uploadInput := activities.UploadHarvestTemplateInput{
 		NodeMappings: updatedNodeMappings,
 		UploadURL:    uploadURL,
+		Credentials:  credentials,
 	}
+
 	uploadActivity := &activities.UploadHarvestTemplateActivity{}
 	err = workflow.ExecuteActivity(ctx, uploadActivity.UploadHarvestTemplate, uploadInput).Get(ctx, nil)
 	if err != nil {
