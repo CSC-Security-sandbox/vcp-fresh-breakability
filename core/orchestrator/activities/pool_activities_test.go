@@ -4323,7 +4323,7 @@ func Test_GetCertificateFromCacheOrSecretManager(t *testing.T) {
 		}
 		mockCertResp := &hyperscaler_models.CustomCertificateResponse{
 			Certificate: &hyperscaler_models.CustomCertificate{
-				CertificateID:       "signed-cert",
+				PemCertificate:      "signed-cert",
 				SubjectCommonName:   "common-name",
 				PemCertificateChain: []string{"intermediate"},
 			},

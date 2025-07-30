@@ -59,11 +59,11 @@ workerConfig:
   loggerLevel: "info"
   vmrsConfigPath: "config/vmrs_gcp.yaml"
   certificateLifetime: "94608000s"
-  caName: "20250522-ea9-684"
+  caName: "20250718-pn6-boa"
   caPoolName: "vsa-pool-ca"
   caPoolDeployedProjectId: "266893635349"
   secretManagerProjectId: "266893635349"
-  vsaDeployedDnsName: "au-se1.vsa."
+  vsaDeployedDnsName: "au-se1.vsa"
   vsaManagedZone: "au-se1-vsa"
   vsaSecretCacheCleanupIntervalHours: 24
   vsaSecretAuthCacheExpirationHours: 24

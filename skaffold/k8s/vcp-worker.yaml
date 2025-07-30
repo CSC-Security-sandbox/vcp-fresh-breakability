@@ -121,7 +121,7 @@ spec:
             - name: CERTIFICATE_LIFETIME
               value: "25920000s"  # 300 days
             - name: CA_NAME
-              value: "20250522-ea9-684"
+              value: "20250718-pn6-boa"
             - name: CA_POOL_NAME
               value: "vsa-pool-ca"
             - name: CA_POOL_DEPLOYED_PROJECT_ID
@@ -129,7 +129,7 @@ spec:
             - name: SECRET_MANAGER_PROJECT_ID
               value: "266893635349"
             - name: VSA_DEPLOYED_DNS_NAME
-              value: "au-se1.vsa."
+              value: "au-se1.vsa"
             - name: VSA_MANAGED_ZONE
               value: "au-se1-vsa"
             - name: VSA_SECRET_CACHE_CLEANUP_INTERVAL_HOURS
