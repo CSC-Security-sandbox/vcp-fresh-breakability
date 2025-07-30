@@ -12,7 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -22,6 +22,7 @@ var (
 	convertReplicationScheduleToInternalReplicationSchedule = _convertReplicationScheduleToInternalReplicationSchedule
 	convertVolumeReplicationCreateParams                    = _convertVolumeReplicationCreateParams
 	hydrateVolume                                           = HydrateVolume
+	describeVolume                                          = DescribeVolume
 )
 
 type VolumeReplicationCreateActivity struct {
@@ -155,6 +156,27 @@ func (a *VolumeReplicationCreateActivity) CreateDestinationVolume(ctx context.Co
 	return nil, nil
 }
 
+func DescribeVolume(ctx context.Context, result *replication.CreateReplicationResult) (*googleproxyclient.InternalVolumeV1beta, error) {
+	logger := util.GetLogger(ctx)
+	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
+
+	createVolumeParams := &googleproxyclient.V1betaInternalDescribeVolumeParams{
+		ProjectNumber: *result.DstProjectNumber,
+		LocationId:    result.Event.DestinationLocationID,
+		VolumeId:      result.DstVolume.VolumeId.Value,
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaInternalDescribeVolume(ctx, *createVolumeParams)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrDescribingVolume, err)
+	}
+	volumeV1Beta, ok := res.(*googleproxyclient.InternalVolumeV1beta)
+	if ok {
+		return volumeV1Beta, nil
+	}
+	return nil, nil
+}
+
 func (a *VolumeReplicationCreateActivity) HydrateDestinationVolume(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	if hydrationEnabled {
 		err := hydrateVolume(ctx, convertVolumeV1BetaToVolumeModel(*result.DstVolume, result.Event.DestinationLocationID), *result.DstProjectNumber, result.DstPool.ResourceId)
@@ -274,12 +296,30 @@ func (a *VolumeReplicationCreateActivity) AcceptSvmPeer(ctx context.Context, res
 }
 
 func (a *VolumeReplicationCreateActivity) GetVolumeSVMNames(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
-	srcClusterName := result.Event.SourcePool.ClusterDetails.ExternalName
-	srcSvm := srcClusterName[:strings.LastIndex(srcClusterName, "-")] + "-datasvm-" + activities.DefaultSvmName
-	dstClusterName := result.DstPool.ClusterName.Value
-	dstSvm := dstClusterName[:strings.LastIndex(dstClusterName, "-")] + "-datasvm-" + activities.DefaultSvmName
+	logger := util.GetLogger(ctx)
+	se := a.SE
+	srcVol, err := se.DescribeVolume(ctx, result.Event.SourceVolume.UUID)
+	if err != nil {
+		logger.Error("Failed to describe source volume", "error", err)
+		return nil, err
+	}
+	if srcVol.Svm == nil || srcVol.Svm.Name == "" {
+		logger.Error("Source volume SVM name not found")
+		return nil, errors.New("Source volume SVM name not found")
+	}
 
-	result.SrcSvm = &srcSvm
+	dstVol, err := describeVolume(ctx, result)
+	if err != nil {
+		logger.Error("Failed to describe destination volume", "error", err)
+		return nil, err
+	}
+	if !dstVol.SvmName.IsSet() {
+		logger.Error("Destination volume SVM name not found")
+		return nil, errors.New("Destination volume SVM name not found")
+	}
+
+	dstSvm := dstVol.SvmName.Value
+	result.SrcSvm = &srcVol.Svm.Name
 	result.DstSvm = &dstSvm
 	return result, nil
 }
@@ -364,9 +404,19 @@ func convertSourceVolumeToDestinationVolume(result *replication.CreateReplicatio
 		OsType: googleproxyclient.NewOptBlockPropertiesV1betaOsType(convertBlockPropertiesOsType(osType)),
 	}
 
+	var creationToken *string
+	if creationToken = &result.Event.CreateReplicationParams.DestinationVolumeParameters.ShareName; result.Event.CreateReplicationParams.DestinationVolumeParameters.ShareName == "" {
+		creationToken = &result.Event.SourceVolume.VolumeAttributes.CreationToken
+	}
+
+	var resourceId *string
+	if resourceId = &result.Event.CreateReplicationParams.DestinationVolumeParameters.VolumeID; result.Event.CreateReplicationParams.DestinationVolumeParameters.VolumeID == "" {
+		resourceId = &result.Event.SourceVolume.Name
+	}
+
 	volume := googleproxyclient.VolumeV1beta{
-		ResourceId:      result.Event.CreateReplicationParams.DestinationVolumeParameters.VolumeID,
-		CreationToken:   googleproxyclient.NewOptString(result.Event.CreateReplicationParams.DestinationVolumeParameters.ShareName),
+		ResourceId:      *resourceId,
+		CreationToken:   googleproxyclient.NewOptString(*creationToken),
 		PoolId:          googleproxyclient.NewNilString(result.DstPool.PoolId.Value),
 		QuotaInBytes:    googleproxyclient.NewOptFloat64(float64(srcVol.SizeInBytes)),
 		Network:         googleproxyclient.NewOptString(result.DstPool.Network),

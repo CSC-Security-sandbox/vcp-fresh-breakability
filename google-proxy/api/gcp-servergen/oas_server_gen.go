@@ -335,6 +335,12 @@ type Handler interface {
 	//
 	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pool/{poolName}
 	V1betaInternalDescribePool(ctx context.Context, params V1betaInternalDescribePoolParams) (V1betaInternalDescribePoolRes, error)
+	// V1betaInternalDescribeVolume implements v1beta_internalDescribeVolume operation.
+	//
+	// Returns the description of the specified volume by volume Id.
+	//
+	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
+	V1betaInternalDescribeVolume(ctx context.Context, params V1betaInternalDescribeVolumeParams) (V1betaInternalDescribeVolumeRes, error)
 	// V1betaInternalDescribeVolumeReplication implements v1beta_internalDescribeVolumeReplication operation.
 	//
 	// Returns the description of the specified volume replication by volume replication Id.

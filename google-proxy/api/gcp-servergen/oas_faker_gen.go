@@ -1663,6 +1663,205 @@ func (s *InternalJobV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *InternalVolumeV1beta) SetFake() {
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeId.SetFake()
+		}
+	}
+	{
+		{
+			s.Created.SetFake()
+		}
+	}
+	{
+		{
+			s.Deleted.SetFake()
+		}
+	}
+	{
+		{
+			s.CreationToken.SetFake()
+		}
+	}
+	{
+		{
+			s.PoolId.SetFake()
+		}
+	}
+	{
+		{
+			s.PoolResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsConfigId.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsConfigResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.Network.SetFake()
+		}
+	}
+	{
+		{
+			s.ActiveDirectoryConfigId.SetFake()
+		}
+	}
+	{
+		{
+			s.ActiveDirectoryResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.ServiceLevel.SetFake()
+		}
+	}
+	{
+		{
+			s.SecurityStyle.SetFake()
+		}
+	}
+	{
+		{
+			s.UsedBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.QuotaInBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeState.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeStateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.IsDataProtection.SetFake()
+		}
+	}
+	{
+		{
+			s.IsOnPremMigration.SetFake()
+		}
+	}
+	{
+		{
+			s.InReplication.SetFake()
+		}
+	}
+	{
+		{
+			s.BlockProperties.SetFake()
+		}
+	}
+	{
+		{
+			s.Protocols = nil
+			for i := 0; i < 0; i++ {
+				var elem ProtocolsV1beta
+				{
+					elem.SetFake()
+				}
+				s.Protocols = append(s.Protocols, elem)
+			}
+		}
+	}
+	{
+		{
+			s.MountPoints = nil
+			for i := 0; i < 0; i++ {
+				var elem MountPointV1beta
+				{
+					elem.SetFake()
+				}
+				s.MountPoints = append(s.MountPoints, elem)
+			}
+		}
+	}
+	{
+		{
+			s.Labels.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.Zone.SetFake()
+		}
+	}
+	{
+		{
+			s.LargeCapacity.SetFake()
+		}
+	}
+	{
+		{
+			s.SecondaryZone.SetFake()
+		}
+	}
+	{
+		{
+			s.LargeVolumeConstituentCount.SetFake()
+		}
+	}
+	{
+		{
+			s.SvmName.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *InternalVolumeV1betaLabels) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *InternalVolumeV1betaSecurityStyle) SetFake() {
+	*s = InternalVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *InternalVolumeV1betaServiceLevel) SetFake() {
+	*s = InternalVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *InternalVolumeV1betaVolumeState) SetFake() {
+	*s = InternalVolumeV1betaVolumeStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
 func (s *JobV1beta) SetFake() {
 	{
 		{
@@ -2269,6 +2468,42 @@ func (s *OptInt64) SetFake() {
 	var elem int64
 	{
 		elem = int64(0)
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptInternalVolumeV1betaLabels) SetFake() {
+	var elem InternalVolumeV1betaLabels
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptInternalVolumeV1betaSecurityStyle) SetFake() {
+	var elem InternalVolumeV1betaSecurityStyle
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptInternalVolumeV1betaServiceLevel) SetFake() {
+	var elem InternalVolumeV1betaServiceLevel
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptInternalVolumeV1betaVolumeState) SetFake() {
+	var elem InternalVolumeV1betaVolumeState
+	{
+		elem.SetFake()
 	}
 	s.SetTo(elem)
 }
@@ -7804,6 +8039,42 @@ func (s *V1betaInternalDescribePoolUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaInternalDescribeVolumeBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeVolumeBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeVolumeForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeVolumeForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeVolumeInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeVolumeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeVolumeNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeVolumeNotFound(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaInternalDescribeVolumeReplicationBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -7873,6 +8144,24 @@ func (s *V1betaInternalDescribeVolumeReplicationUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaInternalDescribeVolumeReplicationUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeVolumeTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeVolumeTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaInternalDescribeVolumeUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaInternalDescribeVolumeUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

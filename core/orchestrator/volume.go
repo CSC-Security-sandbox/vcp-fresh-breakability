@@ -606,6 +606,9 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 	res.CreationToken = attributes.CreationToken
 	res.ProtocolTypes = attributes.Protocols
 
+	if volume.Svm != nil {
+		res.SvmName = volume.Svm.Name
+	}
 	if attributes.BlockProperties != nil {
 		res.BlockProperties = &models.BlockProperties{
 			OSType:          attributes.BlockProperties.OSType,

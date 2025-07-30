@@ -217,6 +217,10 @@ type V1betaInternalDescribeVolumeReplicationRes interface {
 	v1betaInternalDescribeVolumeReplicationRes()
 }
 
+type V1betaInternalDescribeVolumeRes interface {
+	v1betaInternalDescribeVolumeRes()
+}
+
 type V1betaInternalGetReplicationJobsRes interface {
 	v1betaInternalGetReplicationJobsRes()
 }

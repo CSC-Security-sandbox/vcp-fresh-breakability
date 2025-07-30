@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
+
 	"github.com/ogen-go/ogen/json"
 	"github.com/ogen-go/ogen/validate"
 )
@@ -1310,7 +1311,6 @@ func (s *BackupConfigV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode BackupConfigV1beta to nil")
 	}
-	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -3468,6 +3468,8 @@ func (s *BackupV1betaState) Decode(d *jx.Decoder) error {
 		*s = BackupV1betaStateDELETED
 	case BackupV1betaStateERROR:
 		*s = BackupV1betaStateERROR
+	case BackupV1betaStateUPDATING:
+		*s = BackupV1betaStateUPDATING
 	default:
 		*s = BackupV1betaState(v)
 	}
@@ -7897,6 +7899,804 @@ func (s *InternalJobV1beta) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *InternalVolumeV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *InternalVolumeV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.ResourceId.Set {
+			e.FieldStart("resourceId")
+			s.ResourceId.Encode(e)
+		}
+	}
+	{
+		if s.VolumeId.Set {
+			e.FieldStart("volumeId")
+			s.VolumeId.Encode(e)
+		}
+	}
+	{
+		if s.Created.Set {
+			e.FieldStart("created")
+			s.Created.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.Deleted.Set {
+			e.FieldStart("deleted")
+			s.Deleted.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.CreationToken.Set {
+			e.FieldStart("creationToken")
+			s.CreationToken.Encode(e)
+		}
+	}
+	{
+		if s.PoolId.Set {
+			e.FieldStart("poolId")
+			s.PoolId.Encode(e)
+		}
+	}
+	{
+		if s.PoolResourceId.Set {
+			e.FieldStart("poolResourceId")
+			s.PoolResourceId.Encode(e)
+		}
+	}
+	{
+		if s.KmsConfigId.Set {
+			e.FieldStart("kmsConfigId")
+			s.KmsConfigId.Encode(e)
+		}
+	}
+	{
+		if s.KmsConfigResourceId.Set {
+			e.FieldStart("kmsConfigResourceId")
+			s.KmsConfigResourceId.Encode(e)
+		}
+	}
+	{
+		if s.Network.Set {
+			e.FieldStart("network")
+			s.Network.Encode(e)
+		}
+	}
+	{
+		if s.ActiveDirectoryConfigId.Set {
+			e.FieldStart("activeDirectoryConfigId")
+			s.ActiveDirectoryConfigId.Encode(e)
+		}
+	}
+	{
+		if s.ActiveDirectoryResourceId.Set {
+			e.FieldStart("activeDirectoryResourceId")
+			s.ActiveDirectoryResourceId.Encode(e)
+		}
+	}
+	{
+		if s.ServiceLevel.Set {
+			e.FieldStart("serviceLevel")
+			s.ServiceLevel.Encode(e)
+		}
+	}
+	{
+		if s.SecurityStyle.Set {
+			e.FieldStart("securityStyle")
+			s.SecurityStyle.Encode(e)
+		}
+	}
+	{
+		if s.UsedBytes.Set {
+			e.FieldStart("usedBytes")
+			s.UsedBytes.Encode(e)
+		}
+	}
+	{
+		if s.QuotaInBytes.Set {
+			e.FieldStart("quotaInBytes")
+			s.QuotaInBytes.Encode(e)
+		}
+	}
+	{
+		if s.VolumeState.Set {
+			e.FieldStart("volumeState")
+			s.VolumeState.Encode(e)
+		}
+	}
+	{
+		if s.VolumeStateDetails.Set {
+			e.FieldStart("volumeStateDetails")
+			s.VolumeStateDetails.Encode(e)
+		}
+	}
+	{
+		if s.IsDataProtection.Set {
+			e.FieldStart("isDataProtection")
+			s.IsDataProtection.Encode(e)
+		}
+	}
+	{
+		if s.IsOnPremMigration.Set {
+			e.FieldStart("isOnPremMigration")
+			s.IsOnPremMigration.Encode(e)
+		}
+	}
+	{
+		if s.InReplication.Set {
+			e.FieldStart("inReplication")
+			s.InReplication.Encode(e)
+		}
+	}
+	{
+		if s.BlockProperties.Set {
+			e.FieldStart("blockProperties")
+			s.BlockProperties.Encode(e)
+		}
+	}
+	{
+		if s.Protocols != nil {
+			e.FieldStart("protocols")
+			e.ArrStart()
+			for _, elem := range s.Protocols {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.MountPoints != nil {
+			e.FieldStart("mountPoints")
+			e.ArrStart()
+			for _, elem := range s.MountPoints {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.Labels.Set {
+			e.FieldStart("labels")
+			s.Labels.Encode(e)
+		}
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.Zone.Set {
+			e.FieldStart("zone")
+			s.Zone.Encode(e)
+		}
+	}
+	{
+		if s.LargeCapacity.Set {
+			e.FieldStart("largeCapacity")
+			s.LargeCapacity.Encode(e)
+		}
+	}
+	{
+		if s.SecondaryZone.Set {
+			e.FieldStart("secondaryZone")
+			s.SecondaryZone.Encode(e)
+		}
+	}
+	{
+		if s.LargeVolumeConstituentCount.Set {
+			e.FieldStart("largeVolumeConstituentCount")
+			s.LargeVolumeConstituentCount.Encode(e)
+		}
+	}
+	{
+		if s.SvmName.Set {
+			e.FieldStart("svmName")
+			s.SvmName.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfInternalVolumeV1beta = [31]string{
+	0:  "resourceId",
+	1:  "volumeId",
+	2:  "created",
+	3:  "deleted",
+	4:  "creationToken",
+	5:  "poolId",
+	6:  "poolResourceId",
+	7:  "kmsConfigId",
+	8:  "kmsConfigResourceId",
+	9:  "network",
+	10: "activeDirectoryConfigId",
+	11: "activeDirectoryResourceId",
+	12: "serviceLevel",
+	13: "securityStyle",
+	14: "usedBytes",
+	15: "quotaInBytes",
+	16: "volumeState",
+	17: "volumeStateDetails",
+	18: "isDataProtection",
+	19: "isOnPremMigration",
+	20: "inReplication",
+	21: "blockProperties",
+	22: "protocols",
+	23: "mountPoints",
+	24: "labels",
+	25: "description",
+	26: "zone",
+	27: "largeCapacity",
+	28: "secondaryZone",
+	29: "largeVolumeConstituentCount",
+	30: "svmName",
+}
+
+// Decode decodes InternalVolumeV1beta from json.
+func (s *InternalVolumeV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InternalVolumeV1beta to nil")
+	}
+	s.setDefaults()
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "resourceId":
+			if err := func() error {
+				s.ResourceId.Reset()
+				if err := s.ResourceId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resourceId\"")
+			}
+		case "volumeId":
+			if err := func() error {
+				s.VolumeId.Reset()
+				if err := s.VolumeId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"volumeId\"")
+			}
+		case "created":
+			if err := func() error {
+				s.Created.Reset()
+				if err := s.Created.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"created\"")
+			}
+		case "deleted":
+			if err := func() error {
+				s.Deleted.Reset()
+				if err := s.Deleted.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deleted\"")
+			}
+		case "creationToken":
+			if err := func() error {
+				s.CreationToken.Reset()
+				if err := s.CreationToken.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"creationToken\"")
+			}
+		case "poolId":
+			if err := func() error {
+				s.PoolId.Reset()
+				if err := s.PoolId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"poolId\"")
+			}
+		case "poolResourceId":
+			if err := func() error {
+				s.PoolResourceId.Reset()
+				if err := s.PoolResourceId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"poolResourceId\"")
+			}
+		case "kmsConfigId":
+			if err := func() error {
+				s.KmsConfigId.Reset()
+				if err := s.KmsConfigId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kmsConfigId\"")
+			}
+		case "kmsConfigResourceId":
+			if err := func() error {
+				s.KmsConfigResourceId.Reset()
+				if err := s.KmsConfigResourceId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kmsConfigResourceId\"")
+			}
+		case "network":
+			if err := func() error {
+				s.Network.Reset()
+				if err := s.Network.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"network\"")
+			}
+		case "activeDirectoryConfigId":
+			if err := func() error {
+				s.ActiveDirectoryConfigId.Reset()
+				if err := s.ActiveDirectoryConfigId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectoryConfigId\"")
+			}
+		case "activeDirectoryResourceId":
+			if err := func() error {
+				s.ActiveDirectoryResourceId.Reset()
+				if err := s.ActiveDirectoryResourceId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectoryResourceId\"")
+			}
+		case "serviceLevel":
+			if err := func() error {
+				s.ServiceLevel.Reset()
+				if err := s.ServiceLevel.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"serviceLevel\"")
+			}
+		case "securityStyle":
+			if err := func() error {
+				s.SecurityStyle.Reset()
+				if err := s.SecurityStyle.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"securityStyle\"")
+			}
+		case "usedBytes":
+			if err := func() error {
+				s.UsedBytes.Reset()
+				if err := s.UsedBytes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"usedBytes\"")
+			}
+		case "quotaInBytes":
+			if err := func() error {
+				s.QuotaInBytes.Reset()
+				if err := s.QuotaInBytes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"quotaInBytes\"")
+			}
+		case "volumeState":
+			if err := func() error {
+				s.VolumeState.Reset()
+				if err := s.VolumeState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"volumeState\"")
+			}
+		case "volumeStateDetails":
+			if err := func() error {
+				s.VolumeStateDetails.Reset()
+				if err := s.VolumeStateDetails.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"volumeStateDetails\"")
+			}
+		case "isDataProtection":
+			if err := func() error {
+				s.IsDataProtection.Reset()
+				if err := s.IsDataProtection.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"isDataProtection\"")
+			}
+		case "isOnPremMigration":
+			if err := func() error {
+				s.IsOnPremMigration.Reset()
+				if err := s.IsOnPremMigration.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"isOnPremMigration\"")
+			}
+		case "inReplication":
+			if err := func() error {
+				s.InReplication.Reset()
+				if err := s.InReplication.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"inReplication\"")
+			}
+		case "blockProperties":
+			if err := func() error {
+				s.BlockProperties.Reset()
+				if err := s.BlockProperties.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"blockProperties\"")
+			}
+		case "protocols":
+			if err := func() error {
+				s.Protocols = make([]ProtocolsV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ProtocolsV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Protocols = append(s.Protocols, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"protocols\"")
+			}
+		case "mountPoints":
+			if err := func() error {
+				s.MountPoints = make([]MountPointV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem MountPointV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.MountPoints = append(s.MountPoints, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"mountPoints\"")
+			}
+		case "labels":
+			if err := func() error {
+				s.Labels.Reset()
+				if err := s.Labels.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"labels\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "zone":
+			if err := func() error {
+				s.Zone.Reset()
+				if err := s.Zone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"zone\"")
+			}
+		case "largeCapacity":
+			if err := func() error {
+				s.LargeCapacity.Reset()
+				if err := s.LargeCapacity.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"largeCapacity\"")
+			}
+		case "secondaryZone":
+			if err := func() error {
+				s.SecondaryZone.Reset()
+				if err := s.SecondaryZone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"secondaryZone\"")
+			}
+		case "largeVolumeConstituentCount":
+			if err := func() error {
+				s.LargeVolumeConstituentCount.Reset()
+				if err := s.LargeVolumeConstituentCount.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"largeVolumeConstituentCount\"")
+			}
+		case "svmName":
+			if err := func() error {
+				s.SvmName.Reset()
+				if err := s.SvmName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"svmName\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InternalVolumeV1beta")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *InternalVolumeV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InternalVolumeV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s InternalVolumeV1betaLabels) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields implements json.Marshaler.
+func (s InternalVolumeV1betaLabels) encodeFields(e *jx.Encoder) {
+	for k, elem := range s {
+		e.FieldStart(k)
+
+		e.Str(elem)
+	}
+}
+
+// Decode decodes InternalVolumeV1betaLabels from json.
+func (s *InternalVolumeV1betaLabels) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InternalVolumeV1betaLabels to nil")
+	}
+	m := s.init()
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		var elem string
+		if err := func() error {
+			v, err := d.Str()
+			elem = string(v)
+			if err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return errors.Wrapf(err, "decode field %q", k)
+		}
+		m[string(k)] = elem
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InternalVolumeV1betaLabels")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InternalVolumeV1betaLabels) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InternalVolumeV1betaLabels) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InternalVolumeV1betaSecurityStyle as json.
+func (s InternalVolumeV1betaSecurityStyle) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InternalVolumeV1betaSecurityStyle from json.
+func (s *InternalVolumeV1betaSecurityStyle) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InternalVolumeV1betaSecurityStyle to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InternalVolumeV1betaSecurityStyle(v) {
+	case InternalVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED:
+		*s = InternalVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED
+	case InternalVolumeV1betaSecurityStyleNTFS:
+		*s = InternalVolumeV1betaSecurityStyleNTFS
+	case InternalVolumeV1betaSecurityStyleUNIX:
+		*s = InternalVolumeV1betaSecurityStyleUNIX
+	default:
+		*s = InternalVolumeV1betaSecurityStyle(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InternalVolumeV1betaSecurityStyle) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InternalVolumeV1betaSecurityStyle) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InternalVolumeV1betaServiceLevel as json.
+func (s InternalVolumeV1betaServiceLevel) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InternalVolumeV1betaServiceLevel from json.
+func (s *InternalVolumeV1betaServiceLevel) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InternalVolumeV1betaServiceLevel to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InternalVolumeV1betaServiceLevel(v) {
+	case InternalVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED:
+		*s = InternalVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED
+	case InternalVolumeV1betaServiceLevelFLEX:
+		*s = InternalVolumeV1betaServiceLevelFLEX
+	case InternalVolumeV1betaServiceLevelSTANDARD:
+		*s = InternalVolumeV1betaServiceLevelSTANDARD
+	case InternalVolumeV1betaServiceLevelPREMIUM:
+		*s = InternalVolumeV1betaServiceLevelPREMIUM
+	case InternalVolumeV1betaServiceLevelEXTREME:
+		*s = InternalVolumeV1betaServiceLevelEXTREME
+	default:
+		*s = InternalVolumeV1betaServiceLevel(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InternalVolumeV1betaServiceLevel) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InternalVolumeV1betaServiceLevel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InternalVolumeV1betaVolumeState as json.
+func (s InternalVolumeV1betaVolumeState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes InternalVolumeV1betaVolumeState from json.
+func (s *InternalVolumeV1betaVolumeState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InternalVolumeV1betaVolumeState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch InternalVolumeV1betaVolumeState(v) {
+	case InternalVolumeV1betaVolumeStateSTATEUNSPECIFIED:
+		*s = InternalVolumeV1betaVolumeStateSTATEUNSPECIFIED
+	case InternalVolumeV1betaVolumeStateCREATING:
+		*s = InternalVolumeV1betaVolumeStateCREATING
+	case InternalVolumeV1betaVolumeStateREADY:
+		*s = InternalVolumeV1betaVolumeStateREADY
+	case InternalVolumeV1betaVolumeStateUPDATING:
+		*s = InternalVolumeV1betaVolumeStateUPDATING
+	case InternalVolumeV1betaVolumeStateRESTORING:
+		*s = InternalVolumeV1betaVolumeStateRESTORING
+	case InternalVolumeV1betaVolumeStateDELETED:
+		*s = InternalVolumeV1betaVolumeStateDELETED
+	case InternalVolumeV1betaVolumeStateDISABLED:
+		*s = InternalVolumeV1betaVolumeStateDISABLED
+	case InternalVolumeV1betaVolumeStateDELETING:
+		*s = InternalVolumeV1betaVolumeStateDELETING
+	case InternalVolumeV1betaVolumeStateERROR:
+		*s = InternalVolumeV1betaVolumeStateERROR
+	case InternalVolumeV1betaVolumeStateREADONLY:
+		*s = InternalVolumeV1betaVolumeStateREADONLY
+	case InternalVolumeV1betaVolumeStatePREPARING:
+		*s = InternalVolumeV1betaVolumeStatePREPARING
+	default:
+		*s = InternalVolumeV1betaVolumeState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s InternalVolumeV1betaVolumeState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InternalVolumeV1betaVolumeState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *JobV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -10617,6 +11417,139 @@ func (s OptInt64) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptInt64) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InternalVolumeV1betaLabels as json.
+func (o OptInternalVolumeV1betaLabels) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes InternalVolumeV1betaLabels from json.
+func (o *OptInternalVolumeV1betaLabels) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptInternalVolumeV1betaLabels to nil")
+	}
+	o.Set = true
+	o.Value = make(InternalVolumeV1betaLabels)
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptInternalVolumeV1betaLabels) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptInternalVolumeV1betaLabels) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InternalVolumeV1betaSecurityStyle as json.
+func (o OptInternalVolumeV1betaSecurityStyle) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes InternalVolumeV1betaSecurityStyle from json.
+func (o *OptInternalVolumeV1betaSecurityStyle) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptInternalVolumeV1betaSecurityStyle to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptInternalVolumeV1betaSecurityStyle) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptInternalVolumeV1betaSecurityStyle) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InternalVolumeV1betaServiceLevel as json.
+func (o OptInternalVolumeV1betaServiceLevel) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes InternalVolumeV1betaServiceLevel from json.
+func (o *OptInternalVolumeV1betaServiceLevel) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptInternalVolumeV1betaServiceLevel to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptInternalVolumeV1betaServiceLevel) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptInternalVolumeV1betaServiceLevel) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes InternalVolumeV1betaVolumeState as json.
+func (o OptInternalVolumeV1betaVolumeState) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes InternalVolumeV1betaVolumeState from json.
+func (o *OptInternalVolumeV1betaVolumeState) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptInternalVolumeV1betaVolumeState to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptInternalVolumeV1betaVolumeState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptInternalVolumeV1betaVolumeState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -14494,6 +15427,7 @@ func (s *PoolUpdateV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode PoolUpdateV1beta to nil")
 	}
+	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -35163,6 +36097,158 @@ func (s *V1betaInternalDescribePoolUnprocessableEntity) UnmarshalJSON(data []byt
 	return s.Decode(d)
 }
 
+// Encode encodes V1betaInternalDescribeVolumeBadRequest as json.
+func (s *V1betaInternalDescribeVolumeBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalDescribeVolumeBadRequest from json.
+func (s *V1betaInternalDescribeVolumeBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalDescribeVolumeBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalDescribeVolumeBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalDescribeVolumeBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalDescribeVolumeBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalDescribeVolumeForbidden as json.
+func (s *V1betaInternalDescribeVolumeForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalDescribeVolumeForbidden from json.
+func (s *V1betaInternalDescribeVolumeForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalDescribeVolumeForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalDescribeVolumeForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalDescribeVolumeForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalDescribeVolumeForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalDescribeVolumeInternalServerError as json.
+func (s *V1betaInternalDescribeVolumeInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalDescribeVolumeInternalServerError from json.
+func (s *V1betaInternalDescribeVolumeInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalDescribeVolumeInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalDescribeVolumeInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalDescribeVolumeInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalDescribeVolumeInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalDescribeVolumeNotFound as json.
+func (s *V1betaInternalDescribeVolumeNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalDescribeVolumeNotFound from json.
+func (s *V1betaInternalDescribeVolumeNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalDescribeVolumeNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalDescribeVolumeNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalDescribeVolumeNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalDescribeVolumeNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes V1betaInternalDescribeVolumeReplicationBadRequest as json.
 func (s *V1betaInternalDescribeVolumeReplicationBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
@@ -35463,6 +36549,82 @@ func (s *V1betaInternalDescribeVolumeReplicationUnprocessableEntity) MarshalJSON
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaInternalDescribeVolumeReplicationUnprocessableEntity) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalDescribeVolumeTooManyRequests as json.
+func (s *V1betaInternalDescribeVolumeTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalDescribeVolumeTooManyRequests from json.
+func (s *V1betaInternalDescribeVolumeTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalDescribeVolumeTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalDescribeVolumeTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalDescribeVolumeTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalDescribeVolumeTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaInternalDescribeVolumeUnauthorized as json.
+func (s *V1betaInternalDescribeVolumeUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaInternalDescribeVolumeUnauthorized from json.
+func (s *V1betaInternalDescribeVolumeUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaInternalDescribeVolumeUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaInternalDescribeVolumeUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaInternalDescribeVolumeUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaInternalDescribeVolumeUnauthorized) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -39128,76 +40290,52 @@ func (s *V1betaListKmsConfigurationsNotFound) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode implements json.Marshaler.
-func (s *V1betaListKmsConfigurationsOK) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
+// Encode encodes V1betaListKmsConfigurationsOKApplicationJSON as json.
+func (s V1betaListKmsConfigurationsOKApplicationJSON) Encode(e *jx.Encoder) {
+	unwrapped := []KmsConfigV1beta(s)
 
-// encodeFields encodes fields.
-func (s *V1betaListKmsConfigurationsOK) encodeFields(e *jx.Encoder) {
-	{
-		if s.KmsMinusConfigurations != nil {
-			e.FieldStart("kms-configurations")
-			e.ArrStart()
-			for _, elem := range s.KmsMinusConfigurations {
-				elem.Encode(e)
-			}
-			e.ArrEnd()
-		}
+	e.ArrStart()
+	for _, elem := range unwrapped {
+		elem.Encode(e)
 	}
+	e.ArrEnd()
 }
 
-var jsonFieldsNameOfV1betaListKmsConfigurationsOK = [1]string{
-	0: "kms-configurations",
-}
-
-// Decode decodes V1betaListKmsConfigurationsOK from json.
-func (s *V1betaListKmsConfigurationsOK) Decode(d *jx.Decoder) error {
+// Decode decodes V1betaListKmsConfigurationsOKApplicationJSON from json.
+func (s *V1betaListKmsConfigurationsOKApplicationJSON) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode V1betaListKmsConfigurationsOK to nil")
+		return errors.New("invalid: unable to decode V1betaListKmsConfigurationsOKApplicationJSON to nil")
 	}
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "kms-configurations":
-			if err := func() error {
-				s.KmsMinusConfigurations = make([]KmsConfigV1beta, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem KmsConfigV1beta
-					if err := elem.Decode(d); err != nil {
-						return err
-					}
-					s.KmsMinusConfigurations = append(s.KmsMinusConfigurations, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"kms-configurations\"")
+	var unwrapped []KmsConfigV1beta
+	if err := func() error {
+		unwrapped = make([]KmsConfigV1beta, 0)
+		if err := d.Arr(func(d *jx.Decoder) error {
+			var elem KmsConfigV1beta
+			if err := elem.Decode(d); err != nil {
+				return err
 			}
-		default:
-			return d.Skip()
+			unwrapped = append(unwrapped, elem)
+			return nil
+		}); err != nil {
+			return err
 		}
 		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode V1betaListKmsConfigurationsOK")
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
 	}
-
+	*s = V1betaListKmsConfigurationsOKApplicationJSON(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaListKmsConfigurationsOK) MarshalJSON() ([]byte, error) {
+func (s V1betaListKmsConfigurationsOKApplicationJSON) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaListKmsConfigurationsOK) UnmarshalJSON(data []byte) error {
+func (s *V1betaListKmsConfigurationsOKApplicationJSON) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

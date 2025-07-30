@@ -906,11 +906,100 @@ func TestUpdateReplicationDetails(t *testing.T) {
 	})
 }
 
-func TestGetVolumePlacement(t *testing.T) {
-	t.Run("ValidVolumePlacement", func(tt *testing.T) {
+func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
+	t.Run("Success_ValidSVMNames", func(tt *testing.T) {
 		// Arrange
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		
+		// Setup mock volume response from storage
+		srcVolume := &datamodel.Volume{
+			Svm: &datamodel.Svm{
+				Name: "src-svm-name",
+			},
+		}
+		mockStorage.On("DescribeVolume", ctx, "test-source-uuid").Return(srcVolume, nil)
+		
+		// Setup result with required fields
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					BaseModel: datamodel.BaseModel{
+						UUID: "test-source-uuid",
+					},
+				},
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "src-cluster",
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				ClusterName: googleproxyclient.NewOptString("dst-cluster"),
+			},
+			DstProjectNumber: &[]string{"123456789"}[0],
+			DstBasePath:      &[]string{"https://test-base-path.com"}[0],
+			DstJwtToken:      &[]string{"test-jwt-token"}[0],
+			DstVolume: &gcpserver.VolumeV1beta{
+				VolumeId: gcpserver.NewOptString("test-dst-volume-id"),
+			},
+		}
+
+		// Mock the destination volume response
+		expectedDestVolume := &googleproxyclient.InternalVolumeV1beta{
+			SvmName: googleproxyclient.NewOptNilString("dst-svm-name"),
+		}
+
+		// Mock the GetGProxyClient function
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockClient,
+			}
+		}
+
+		expectedParams := googleproxyclient.V1betaInternalDescribeVolumeParams{
+			ProjectNumber: "123456789",
+			LocationId:    "",
+			VolumeId:      "test-dst-volume-id",
+		}
+		mockClient.EXPECT().V1betaInternalDescribeVolume(ctx, expectedParams).Return(expectedDestVolume, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+
+		// Act
+		updatedResult, err := activity.GetVolumeSVMNames(ctx, result)
+
+		// Assert
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult.SrcSvm)
+		assert.NotNil(tt, updatedResult.DstSvm)
+		assert.Equal(tt, "src-svm-name", *updatedResult.SrcSvm)
+		assert.Equal(tt, "dst-svm-name", *updatedResult.DstSvm)
+		
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Error_SourceVolumeDescribeFailed", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		
+		// Setup mock storage to return error
+		mockStorage.On("DescribeVolume", ctx, "test-source-uuid").Return(nil, errors.New("source volume not found"))
+		
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					BaseModel: datamodel.BaseModel{
+						UUID: "test-source-uuid",
+					},
+				},
 				SourcePool: datamodel.Pool{
 					ClusterDetails: datamodel.ClusterDetails{
 						ExternalName: "src-cluster",
@@ -921,7 +1010,149 @@ func TestGetVolumePlacement(t *testing.T) {
 				ClusterName: googleproxyclient.NewOptString("dst-cluster"),
 			},
 		}
-		activity := VolumeReplicationCreateActivity{}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+
+		// Act
+		updatedResult, err := activity.GetVolumeSVMNames(ctx, result)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "source volume not found")
+		
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Error_DestinationVolumeDescribeFailed", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		
+		// Setup mock volume response from storage
+		srcVolume := &datamodel.Volume{
+			Svm: &datamodel.Svm{
+				Name: "src-svm-name",
+			},
+		}
+		mockStorage.On("DescribeVolume", ctx, "test-source-uuid").Return(srcVolume, nil)
+		
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					BaseModel: datamodel.BaseModel{
+						UUID: "test-source-uuid",
+					},
+				},
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "src-cluster",
+					},
+				},
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				ClusterName: googleproxyclient.NewOptString("dst-cluster"),
+			},
+			DstProjectNumber: &[]string{"123456789"}[0],
+			DstBasePath:      &[]string{"https://test-base-path.com"}[0],
+			DstJwtToken:      &[]string{"test-jwt-token"}[0],
+			DstVolume: &gcpserver.VolumeV1beta{
+				VolumeId: gcpserver.NewOptString("test-dst-volume-id"),
+			},
+		}
+
+		// Mock the GetGProxyClient function to return error
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockClient,
+			}
+		}
+
+		expectedParams := googleproxyclient.V1betaInternalDescribeVolumeParams{
+			ProjectNumber: "123456789",
+			LocationId:    "",
+			VolumeId:      "test-dst-volume-id",
+		}
+		mockClient.EXPECT().V1betaInternalDescribeVolume(ctx, expectedParams).Return(nil, errors.New("destination volume not found"))
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+
+		// Act
+		updatedResult, err := activity.GetVolumeSVMNames(ctx, result)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "destination volume not found")
+		
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_EmptyClusterNames", func(tt *testing.T) {
+		// Arrange
+		mockStorage := database.NewMockStorage(t)
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		
+		// Mock DescribeVolume call that happens in GetVolumeSVMNames
+		mockVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		mockStorage.On("DescribeVolume", mock.Anything, "test-source-volume-uuid").Return(mockVolume, nil)
+		
+		// Mock the GetGProxyClient function
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockClient,
+			}
+		}
+
+		expectedDstVolume := &googleproxyclient.InternalVolumeV1beta{
+			ResourceId: googleproxyclient.NewOptString("test-volume"),
+			SvmName:    googleproxyclient.NewOptNilString("test-dst-svm"),
+		}
+		
+		expectedParams := googleproxyclient.V1betaInternalDescribeVolumeParams{
+			ProjectNumber: "123456789",
+			VolumeId:      "test-dst-volume-id",
+		}
+		mockClient.EXPECT().V1betaInternalDescribeVolume(mock.Anything, expectedParams).Return(expectedDstVolume, nil)
+		
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: "test-source-volume-uuid"},
+				},
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "",
+					},
+				},
+			},
+			DstProjectNumber: &[]string{"123456789"}[0],
+			DstBasePath:      &[]string{"https://test-base-path.com"}[0],
+			DstJwtToken:      &[]string{"test-jwt-token"}[0],
+			DstVolume: &gcpserver.VolumeV1beta{
+				VolumeId: gcpserver.NewOptString("test-dst-volume-id"),
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				ClusterName: googleproxyclient.NewOptString(""),
+			},
+		}
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
 
 		// Act
 		updatedResult, err := activity.GetVolumeSVMNames(context.Background(), result)
@@ -930,8 +1161,678 @@ func TestGetVolumePlacement(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, updatedResult.SrcSvm)
 		assert.NotNil(tt, updatedResult.DstSvm)
-		assert.Equal(tt, "src-datasvm-gcnv", *updatedResult.SrcSvm)
-		assert.Equal(tt, "dst-datasvm-gcnv", *updatedResult.DstSvm)
+		assert.Equal(tt, "test-svm", *updatedResult.SrcSvm)
+		assert.Equal(tt, "test-dst-svm", *updatedResult.DstSvm)
+		
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_NilDstPool", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		// Mock source volume
+		mockVolume := &datamodel.Volume{
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		sourceVolumeUUID := "source-volume-uuid"
+
+		// Mock destination fields
+		dstProjectNumber := "123456789"
+		dstBasePath := "https://test-base-path.com"
+		dstJwtToken := "test-jwt-token"
+		dstLocationID := "us-central1-b"
+		dstVolumeID := "dst-volume-id"
+
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: sourceVolumeUUID},
+				},
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "src-cluster",
+					},
+				},
+				DestinationLocationID: dstLocationID,
+			},
+			DstPool: nil,
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstProjectNumber: &dstProjectNumber,
+			DstVolume: &gcpserver.VolumeV1beta{
+				VolumeId: gcpserver.NewOptString(dstVolumeID),
+			},
+		}
+
+		// Setup mocks
+		mockStorage.On("DescribeVolume", ctx, sourceVolumeUUID).Return(mockVolume, nil)
+
+		// Mock google proxy client
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		expectedDescribeParams := googleproxyclient.V1betaInternalDescribeVolumeParams{
+			ProjectNumber: dstProjectNumber,
+			LocationId:    dstLocationID,
+			VolumeId:      dstVolumeID,
+		}
+
+		mockDescribeResponse := &googleproxyclient.InternalVolumeV1beta{
+			SvmName: googleproxyclient.NewOptNilString("test-dst-svm"),
+		}
+
+		mockClient.EXPECT().V1betaInternalDescribeVolume(ctx, expectedDescribeParams).Return(mockDescribeResponse, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+
+		// Act
+		updatedResult, err := activity.GetVolumeSVMNames(ctx, result)
+
+		// Assert
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult.SrcSvm)
+		assert.NotNil(tt, updatedResult.DstSvm)
+		assert.Equal(tt, "test-svm", *updatedResult.SrcSvm)
+		assert.Equal(tt, "test-dst-svm", *updatedResult.DstSvm)
+	})
+
+	t.Run("Success_LongClusterNames", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+
+		// Mock source volume
+		mockVolume := &datamodel.Volume{
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		sourceVolumeUUID := "source-volume-uuid"
+
+		// Mock destination fields
+		dstProjectNumber := "123456789"
+		dstBasePath := "https://test-base-path.com"
+		dstJwtToken := "test-jwt-token"
+		dstLocationID := "us-central1-b"
+		dstVolumeID := "dst-volume-id"
+
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					BaseModel: datamodel.BaseModel{UUID: sourceVolumeUUID},
+				},
+				SourcePool: datamodel.Pool{
+					ClusterDetails: datamodel.ClusterDetails{
+						ExternalName: "very-long-source-cluster-name-for-testing",
+					},
+				},
+				DestinationLocationID: dstLocationID,
+			},
+			DstPool: &googleproxyclient.PoolInternalV1beta{
+				ClusterName: googleproxyclient.NewOptString("very-long-destination-cluster-name-for-testing"),
+			},
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstProjectNumber: &dstProjectNumber,
+			DstVolume: &gcpserver.VolumeV1beta{
+				VolumeId: gcpserver.NewOptString(dstVolumeID),
+			},
+		}
+
+		// Setup mocks
+		mockStorage.On("DescribeVolume", ctx, sourceVolumeUUID).Return(mockVolume, nil)
+
+		// Mock google proxy client
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		expectedDescribeParams := googleproxyclient.V1betaInternalDescribeVolumeParams{
+			ProjectNumber: dstProjectNumber,
+			LocationId:    dstLocationID,
+			VolumeId:      dstVolumeID,
+		}
+
+		mockDescribeResponse := &googleproxyclient.InternalVolumeV1beta{
+			SvmName: googleproxyclient.NewOptNilString("test-dst-svm"),
+		}
+
+		mockClient.EXPECT().V1betaInternalDescribeVolume(ctx, expectedDescribeParams).Return(mockDescribeResponse, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+
+		// Act
+		updatedResult, err := activity.GetVolumeSVMNames(ctx, result)
+
+		// Assert
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult.SrcSvm)
+		assert.NotNil(tt, updatedResult.DstSvm)
+		assert.Equal(tt, "test-svm", *updatedResult.SrcSvm)
+		assert.Equal(tt, "test-dst-svm", *updatedResult.DstSvm)
+	})
+
+	t.Run("Error_SourceVolumeNilSvm", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		
+		// Setup mock volume response from storage with nil SVM
+		srcVolume := &datamodel.Volume{
+			Svm: nil, // SVM is nil
+		}
+		mockStorage.On("DescribeVolume", ctx, "test-source-uuid").Return(srcVolume, nil)
+		
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					BaseModel: datamodel.BaseModel{
+						UUID: "test-source-uuid",
+					},
+				},
+			},
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+
+		// Act
+		updatedResult, err := activity.GetVolumeSVMNames(ctx, result)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Source volume SVM name not found")
+		
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Error_SourceVolumeEmptySvmName", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		
+		// Setup mock volume response from storage with empty SVM name
+		srcVolume := &datamodel.Volume{
+			Svm: &datamodel.Svm{
+				Name: "", // SVM name is empty
+			},
+		}
+		mockStorage.On("DescribeVolume", ctx, "test-source-uuid").Return(srcVolume, nil)
+		
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					BaseModel: datamodel.BaseModel{
+						UUID: "test-source-uuid",
+					},
+				},
+			},
+		}
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+
+		// Act
+		updatedResult, err := activity.GetVolumeSVMNames(ctx, result)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Source volume SVM name not found")
+		
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Error_DestinationVolumeSvmNameNotSet", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		
+		// Setup mock volume response from storage
+		srcVolume := &datamodel.Volume{
+			Svm: &datamodel.Svm{
+				Name: "src-svm-name",
+			},
+		}
+		mockStorage.On("DescribeVolume", ctx, "test-source-uuid").Return(srcVolume, nil)
+		
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					BaseModel: datamodel.BaseModel{
+						UUID: "test-source-uuid",
+					},
+				},
+				DestinationLocationID: "us-central1",
+			},
+			DstProjectNumber: &[]string{"123456789"}[0],
+			DstBasePath:      &[]string{"https://test-base-path.com"}[0],
+			DstJwtToken:      &[]string{"test-jwt-token"}[0],
+			DstVolume: &gcpserver.VolumeV1beta{
+				VolumeId: gcpserver.NewOptString("test-dst-volume-id"),
+			},
+		}
+
+		// Mock the destination volume response with SvmName not set
+		expectedDestVolume := &googleproxyclient.InternalVolumeV1beta{
+			SvmName: googleproxyclient.OptNilString{Set: false}, // SvmName is not set
+		}
+
+		// Mock the GetGProxyClient function
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockClient,
+			}
+		}
+
+		expectedParams := googleproxyclient.V1betaInternalDescribeVolumeParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-central1",
+			VolumeId:      "test-dst-volume-id",
+		}
+		mockClient.EXPECT().V1betaInternalDescribeVolume(ctx, expectedParams).Return(expectedDestVolume, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+
+		// Act
+		updatedResult, err := activity.GetVolumeSVMNames(ctx, result)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Nil(tt, updatedResult)
+		assert.Contains(tt, err.Error(), "Destination volume SVM name not found")
+		
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_DestinationVolumeEmptySvmName", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		
+		// Setup mock volume response from storage
+		srcVolume := &datamodel.Volume{
+			Svm: &datamodel.Svm{
+				Name: "src-svm-name",
+			},
+		}
+		mockStorage.On("DescribeVolume", ctx, "test-source-uuid").Return(srcVolume, nil)
+		
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				SourceVolume: datamodel.Volume{
+					BaseModel: datamodel.BaseModel{
+						UUID: "test-source-uuid",
+					},
+				},
+				DestinationLocationID: "us-central1",
+			},
+			DstProjectNumber: &[]string{"123456789"}[0],
+			DstBasePath:      &[]string{"https://test-base-path.com"}[0],
+			DstJwtToken:      &[]string{"test-jwt-token"}[0],
+			DstVolume: &gcpserver.VolumeV1beta{
+				VolumeId: gcpserver.NewOptString("test-dst-volume-id"),
+			},
+		}
+
+		// Mock the destination volume response with empty SvmName but set
+		expectedDestVolume := &googleproxyclient.InternalVolumeV1beta{
+			SvmName: googleproxyclient.NewOptNilString(""), // Empty but set SvmName
+		}
+
+		// Mock the GetGProxyClient function
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockClient,
+			}
+		}
+
+		expectedParams := googleproxyclient.V1betaInternalDescribeVolumeParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-central1",
+			VolumeId:      "test-dst-volume-id",
+		}
+		mockClient.EXPECT().V1betaInternalDescribeVolume(ctx, expectedParams).Return(expectedDestVolume, nil)
+
+		activity := VolumeReplicationCreateActivity{SE: mockStorage}
+
+		// Act
+		updatedResult, err := activity.GetVolumeSVMNames(ctx, result)
+
+		// Assert
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedResult.SrcSvm)
+		assert.NotNil(tt, updatedResult.DstSvm)
+		assert.Equal(tt, "src-svm-name", *updatedResult.SrcSvm)
+		assert.Equal(tt, "", *updatedResult.DstSvm) // Empty destination SVM name
+		
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestVolumeReplicationCreateActivity_DescribeVolume(t *testing.T) {
+	t.Run("Success_ValidVolumeDescription", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		
+		dstProjectNumber := "123456789"
+		dstBasePath := "https://test-base-path.com"
+		dstJwtToken := "test-jwt-token"
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationLocationID: "us-central1",
+			},
+			DstProjectNumber: &dstProjectNumber,
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstVolume: &gcpserver.VolumeV1beta{
+				VolumeId: gcpserver.NewOptString("test-volume-id"),
+			},
+		}
+
+		expectedVolume := &googleproxyclient.InternalVolumeV1beta{
+			ResourceId:  googleproxyclient.NewOptString("test-volume"),
+			UsedBytes:   googleproxyclient.NewOptNilFloat64(1024000000000),
+			VolumeState: googleproxyclient.NewOptInternalVolumeV1betaVolumeState(googleproxyclient.InternalVolumeV1betaVolumeStateREADY),
+		}
+
+		// Mock the GetGProxyClient function
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockClient,
+			}
+		}
+
+		expectedParams := googleproxyclient.V1betaInternalDescribeVolumeParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-central1",
+			VolumeId:      "test-volume-id",
+		}
+		mockClient.EXPECT().V1betaInternalDescribeVolume(ctx, expectedParams).Return(expectedVolume, nil)
+
+		// Act
+		resultVolume, err := DescribeVolume(ctx, result)
+
+		// Assert
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resultVolume)
+		assert.Equal(tt, "test-volume", resultVolume.ResourceId.Value)
+		assert.Equal(tt, float64(1024000000000), resultVolume.UsedBytes.Value)
+		assert.Equal(tt, googleproxyclient.InternalVolumeV1betaVolumeStateREADY, resultVolume.VolumeState.Value)
+	})
+
+	t.Run("Error_ClientError", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		
+		dstProjectNumber := "123456789"
+		dstBasePath := "https://test-base-path.com"
+		dstJwtToken := "test-jwt-token"
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationLocationID: "us-central1",
+			},
+			DstProjectNumber: &dstProjectNumber,
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstVolume: &gcpserver.VolumeV1beta{
+				VolumeId: gcpserver.NewOptString("test-volume-id"),
+			},
+		}
+
+		// Mock the GetGProxyClient function
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockClient,
+			}
+		}
+
+		expectedParams := googleproxyclient.V1betaInternalDescribeVolumeParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-central1",
+			VolumeId:      "test-volume-id",
+		}
+		mockClient.EXPECT().V1betaInternalDescribeVolume(ctx, expectedParams).Return(nil, errors.New("volume not found"))
+
+		// Act
+		resultVolume, err := DescribeVolume(ctx, result)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Nil(tt, resultVolume)
+		assert.Contains(tt, err.Error(), "volume not found")
+	})
+
+	t.Run("Error_EmptyProjectNumber", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		
+		// Provide empty project number but valid other fields to avoid nil pointer dereference
+		emptyProjectNumber := ""
+		dstBasePath := "https://test-base-path.com"
+		dstJwtToken := "test-jwt-token"
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationLocationID: "us-central1",
+			},
+			DstProjectNumber: &emptyProjectNumber,
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstVolume: &gcpserver.VolumeV1beta{
+				VolumeId: gcpserver.NewOptString("test-volume-id"),
+			},
+		}
+
+		// Mock the GetGProxyClient function
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockClient,
+			}
+		}
+
+		expectedParams := googleproxyclient.V1betaInternalDescribeVolumeParams{
+			ProjectNumber: emptyProjectNumber,
+			LocationId:    "us-central1",
+			VolumeId:      "test-volume-id",
+		}
+
+		// Mock client to return an error for empty project number
+		mockClient.EXPECT().V1betaInternalDescribeVolume(ctx, expectedParams).Return(nil, errors.New("invalid project number"))
+
+		// Act
+		resultVolume, err := DescribeVolume(ctx, result)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Nil(tt, resultVolume)
+	})
+
+	t.Run("Error_EmptyLocationID", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		
+		dstProjectNumber := "123456789"
+		dstBasePath := "https://test-base-path.com"
+		dstJwtToken := "test-jwt-token"
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationLocationID: "",
+			},
+			DstProjectNumber: &dstProjectNumber,
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstVolume: &gcpserver.VolumeV1beta{
+				VolumeId: gcpserver.NewOptString("test-volume-id"),
+			},
+		}
+
+		// Mock the GetGProxyClient function
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockClient,
+			}
+		}
+
+		expectedParams := googleproxyclient.V1betaInternalDescribeVolumeParams{
+			ProjectNumber: dstProjectNumber,
+			LocationId:    "",
+			VolumeId:      "test-volume-id",
+		}
+
+		// Mock client to return an error for empty location ID
+		mockClient.EXPECT().V1betaInternalDescribeVolume(ctx, expectedParams).Return(nil, errors.New("invalid location ID"))
+
+		// Act
+		resultVolume, err := DescribeVolume(ctx, result)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Nil(tt, resultVolume)
+	})
+
+	t.Run("Error_MissingEvent", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		
+		dstProjectNumber := "123456789"
+		dstBasePath := "https://test-base-path.com"
+		dstJwtToken := "test-jwt-token"
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationLocationID: "us-central1",
+			},
+			DstProjectNumber: &dstProjectNumber,
+			DstBasePath:      &dstBasePath,
+			DstJwtToken:      &dstJwtToken,
+			DstVolume: &gcpserver.VolumeV1beta{
+				VolumeId: gcpserver.NewOptString("test-volume-id"),
+			},
+		}
+
+		// Mock the GetGProxyClient function
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockClient,
+			}
+		}
+
+		expectedParams := googleproxyclient.V1betaInternalDescribeVolumeParams{
+			ProjectNumber: dstProjectNumber,
+			LocationId:    "us-central1",
+			VolumeId:      "test-volume-id",
+		}
+
+		// Mock client to return an error to simulate missing event or other failure
+		mockClient.EXPECT().V1betaInternalDescribeVolume(ctx, expectedParams).Return(nil, errors.New("event processing error"))
+
+		// Act
+		resultVolume, err := DescribeVolume(ctx, result)
+
+		// Assert
+		assert.Error(tt, err)
+		assert.Nil(tt, resultVolume)
+	})
+
+	t.Run("Success_ValidParametersConstruction", func(tt *testing.T) {
+		// Arrange
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(t)
+		
+		// Mock the googleproxyclient.GetGProxyClient to return a client that will cause an error
+		// but after parameter validation, so we can verify parameter construction is correct
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+		
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return &googleproxyclient.ProxyClient{
+				Invoker: mockClient,
+			}
+		}
+		
+		dstProjectNumber := "123456789"
+		result := &replication.CreateReplicationResult{
+			Event: &replication.CreateReplicationEvent{
+				DestinationLocationID: "us-central1",
+			},
+			DstProjectNumber: &dstProjectNumber,
+			DstBasePath:      &[]string{"https://test.example.com"}[0],
+			DstJwtToken:      &[]string{"test-jwt-token"}[0],
+			DstVolume: &gcpserver.VolumeV1beta{
+				VolumeId: gcpserver.NewOptString("test-volume-id"),
+			},
+		}
+
+		expectedParams := googleproxyclient.V1betaInternalDescribeVolumeParams{
+			ProjectNumber: dstProjectNumber,
+			LocationId:    "us-central1",
+			VolumeId:      "test-volume-id",
+		}
+
+		// Mock client to return an error to test parameter construction
+		mockClient.EXPECT().V1betaInternalDescribeVolume(ctx, expectedParams).Return(nil, errors.New("parameter construction test error"))
+
+		// Act - This will fail due to mock error, but we test that parameters are constructed correctly
+		resultVolume, err := DescribeVolume(ctx, result)
+
+		// Assert - We expect an error due to mock error, but parameters were validated
+		assert.Error(tt, err)
+		assert.Nil(tt, resultVolume)
 	})
 }
 

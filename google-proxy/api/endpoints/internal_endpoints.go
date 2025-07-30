@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -11,6 +12,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+)
+
+var (
+	jsonUnmarshal = json.Unmarshal
 )
 
 func (h Handler) V1betaInternalDescribePool(ctx context.Context, params gcpgenserver.V1betaInternalDescribePoolParams) (gcpgenserver.V1betaInternalDescribePoolRes, error) {
@@ -396,4 +401,33 @@ func (h Handler) V1betaInternalResumeVolumeReplication(ctx context.Context, para
 	}
 
 	return convertToInternalV1betaVolumeReplication(volumeReplication, job), nil
+}
+
+func (h Handler) V1betaInternalDescribeVolume(ctx context.Context, params gcpgenserver.V1betaInternalDescribeVolumeParams) (gcpgenserver.V1betaInternalDescribeVolumeRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	volume, err := h.Orchestrator.GetVolume(ctx, params.VolumeId, true)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalDescribeVolumeNotFound{
+				Code:    404,
+				Message: "Volume not found",
+			}, nil
+		}
+		logger.Error("Failed to describe volume", "error", err.Error())
+		return &gcpgenserver.V1betaInternalDescribeVolumeInternalServerError{Code: 500, Message: "Internal server error"}, err
+	}
+
+	volumeRes := convertModelToVCPVolume(volume)
+	resp, err := jsonMarshal(volumeRes)
+	if err != nil {
+		return &gcpgenserver.V1betaInternalDescribeVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
+	}
+	res := gcpgenserver.InternalVolumeV1beta{}
+	err = jsonUnmarshal(resp, &res)
+	if err != nil {
+		return &gcpgenserver.V1betaInternalDescribeVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
+	}
+	res.SvmName = gcpgenserver.NewOptNilString(volume.SvmName)
+	return &res, nil
 }

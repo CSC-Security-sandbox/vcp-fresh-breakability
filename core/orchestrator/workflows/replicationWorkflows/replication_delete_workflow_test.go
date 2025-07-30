@@ -11,7 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -21,7 +21,7 @@ import (
 )
 
 func TestReplicationDeleteWorkflow(t *testing.T) {
-	t.Run("TestReplicationDeleteWorkflow", func(tt *testing.T) {
+	t.Run("TestReplicationDeleteWorkflow_Success", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -52,11 +52,25 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
-		params := &commonparams.DeleteReplicationParams{}
+		params := &commonparams.DeleteReplicationParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			CorrelationId:         "test-correlation-id",
+			VolumeResourceId:      "test-volume-id",
+			ReplicationResourceId: "test-replication-id",
+			Zone:                  "us-central1-a",
+		}
 
 		event := &replication.DeleteReplicationEvent{
 			CommonReplicationEventParams: replication.CommonReplicationEventParams{
-				ReplicationModel: &datamodel.VolumeReplication{},
+				ReplicationModel:         &datamodel.VolumeReplication{},
+				SourceProjectNumber:      "123456789",
+				DestinationProjectNumber: "987654321",
+				VolumeResourceID:         "test-volume-id",
+				ReplicationResourceID:    "test-replication-id",
+				Location:                 "us-central1",
+				Zone:                     "us-central1-a",
+				AccountName:              "test-account",
 			},
 		}
 
@@ -86,12 +100,60 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 		env.OnActivity("DeHydrateDestinationVolumeReplication", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("DeleteVolumeOnDestination", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("DeHydrateDestinationVolume", mock.Anything, mock.Anything).Return(replicationResult, nil)
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.ExecuteWorkflow(ReplicationDeleteWorkflow, params, event)
 
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		assert.Nil(tt, err)
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
+	})
+	
+	t.Run("TestReplicationDeleteWorkflow_Failure", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		resumeReplicationActivity := replicationActivities.DeleteVolumeReplicationActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(resumeReplicationActivity.GetSrcBasePathDelete)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.DeleteReplicationParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			CorrelationId:         "test-correlation-id",
+			VolumeResourceId:      "test-volume-id",
+			ReplicationResourceId: "test-replication-id",
+			Zone:                  "us-central1-a",
+		}
+
+		event := &replication.DeleteReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel:         &datamodel.VolumeReplication{},
+				SourceProjectNumber:      "123456789",
+				DestinationProjectNumber: "987654321",
+				VolumeResourceID:         "test-volume-id",
+				ReplicationResourceID:    "test-replication-id",
+				Location:                 "us-central1",
+				Zone:                     "us-central1-a",
+				AccountName:              "test-account",
+			},
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Simulate failure in the first activity
+		env.OnActivity("GetSrcBasePathDelete", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		
+		env.ExecuteWorkflow(ReplicationDeleteWorkflow, params, event)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
 	})
 }

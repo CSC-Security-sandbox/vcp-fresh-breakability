@@ -85,7 +85,7 @@ type Invoker interface {
 	//
 	// Create a new snapshot in the specified volume.
 	//
-	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
 	V1betaCreateSnapshot(ctx context.Context, request *VolumeSnapshotCreateV1beta, params V1betaCreateSnapshotParams) (V1betaCreateSnapshotRes, error)
 	// V1betaCreateVolume invokes v1beta_createVolume operation.
 	//
@@ -152,7 +152,7 @@ type Invoker interface {
 	// resource not found, since that could be interpreted as resource already deleted, and therefore
 	// will return operation done instead.
 	//
-	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 	V1betaDeleteSnapshot(ctx context.Context, params V1betaDeleteSnapshotParams) (V1betaDeleteSnapshotRes, error)
 	// V1betaDeleteVolume invokes v1beta_deleteVolume operation.
 	//
@@ -214,7 +214,7 @@ type Invoker interface {
 	//
 	// Get descriptions of the requested snapshot.
 	//
-	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 	V1betaDescribeSnapshot(ctx context.Context, params V1betaDescribeSnapshotParams) (V1betaDescribeSnapshotRes, error)
 	// V1betaDescribeVolume invokes v1beta_describeVolume operation.
 	//
@@ -348,6 +348,12 @@ type Invoker interface {
 	//
 	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/pool/{poolName}
 	V1betaInternalDescribePool(ctx context.Context, params V1betaInternalDescribePoolParams) (V1betaInternalDescribePoolRes, error)
+	// V1betaInternalDescribeVolume invokes v1beta_internalDescribeVolume operation.
+	//
+	// Returns the description of the specified volume by volume Id.
+	//
+	// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
+	V1betaInternalDescribeVolume(ctx context.Context, params V1betaInternalDescribeVolumeParams) (V1betaInternalDescribeVolumeRes, error)
 	// V1betaInternalDescribeVolumeReplication invokes v1beta_internalDescribeVolumeReplication operation.
 	//
 	// Returns the description of the specified volume replication by volume replication Id.
@@ -446,7 +452,7 @@ type Invoker interface {
 	//
 	// Lists all snapshots in a volume.
 	//
-	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
 	V1betaListSnapshot(ctx context.Context, params V1betaListSnapshotParams) (V1betaListSnapshotRes, error)
 	// V1betaListVolumes invokes v1beta_listVolumes operation.
 	//
@@ -542,7 +548,7 @@ type Invoker interface {
 	//
 	// Updates name and description of the requested snapshot.
 	//
-	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 	V1betaUpdateSnapshot(ctx context.Context, request *VolumeSnapshotUpdateV1beta, params V1betaUpdateSnapshotParams) (V1betaUpdateSnapshotRes, error)
 	// V1betaUpdateVolume invokes v1beta_updateVolume operation.
 	//
@@ -1594,7 +1600,7 @@ func (c *Client) sendV1betaCreateReplication(ctx context.Context, request *Repli
 //
 // Create a new snapshot in the specified volume.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
 func (c *Client) V1betaCreateSnapshot(ctx context.Context, request *VolumeSnapshotCreateV1beta, params V1betaCreateSnapshotParams) (V1betaCreateSnapshotRes, error) {
 	res, err := c.sendV1betaCreateSnapshot(ctx, request, params)
 	return res, err
@@ -1670,7 +1676,7 @@ func (c *Client) sendV1betaCreateSnapshot(ctx context.Context, request *VolumeSn
 		}
 		pathParts[5] = encoded
 	}
-	pathParts[6] = "/snapshot"
+	pathParts[6] = "/snapshots"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	r, err := ht.NewRequest(ctx, "POST", u)
@@ -2738,7 +2744,7 @@ func (c *Client) sendV1betaDeleteReplication(ctx context.Context, request *Repli
 // resource not found, since that could be interpreted as resource already deleted, and therefore
 // will return operation done instead.
 //
-// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 func (c *Client) V1betaDeleteSnapshot(ctx context.Context, params V1betaDeleteSnapshotParams) (V1betaDeleteSnapshotRes, error) {
 	res, err := c.sendV1betaDeleteSnapshot(ctx, params)
 	return res, err
@@ -2805,7 +2811,7 @@ func (c *Client) sendV1betaDeleteSnapshot(ctx context.Context, params V1betaDele
 		}
 		pathParts[5] = encoded
 	}
-	pathParts[6] = "/snapshot/"
+	pathParts[6] = "/snapshots/"
 	{
 		// Encode "snapshotId" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
@@ -3901,7 +3907,7 @@ func (c *Client) sendV1betaDescribePool(ctx context.Context, params V1betaDescri
 //
 // Get descriptions of the requested snapshot.
 //
-// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 func (c *Client) V1betaDescribeSnapshot(ctx context.Context, params V1betaDescribeSnapshotParams) (V1betaDescribeSnapshotRes, error) {
 	res, err := c.sendV1betaDescribeSnapshot(ctx, params)
 	return res, err
@@ -3968,7 +3974,7 @@ func (c *Client) sendV1betaDescribeSnapshot(ctx context.Context, params V1betaDe
 		}
 		pathParts[5] = encoded
 	}
-	pathParts[6] = "/snapshot/"
+	pathParts[6] = "/snapshots/"
 	{
 		// Encode "snapshotId" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
@@ -6513,6 +6519,114 @@ func (c *Client) sendV1betaInternalDescribePool(ctx context.Context, params V1be
 	return result, nil
 }
 
+// V1betaInternalDescribeVolume invokes v1beta_internalDescribeVolume operation.
+//
+// Returns the description of the specified volume by volume Id.
+//
+// GET /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}
+func (c *Client) V1betaInternalDescribeVolume(ctx context.Context, params V1betaInternalDescribeVolumeParams) (V1betaInternalDescribeVolumeRes, error) {
+	res, err := c.sendV1betaInternalDescribeVolume(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaInternalDescribeVolume(ctx context.Context, params V1betaInternalDescribeVolumeParams) (res V1betaInternalDescribeVolumeRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [6]string
+	pathParts[0] = "/v1beta/internal/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaInternalDescribeVolumeResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1betaInternalDescribeVolumeReplication invokes v1beta_internalDescribeVolumeReplication operation.
 //
 // Returns the description of the specified volume replication by volume replication Id.
@@ -8151,7 +8265,7 @@ func (c *Client) sendV1betaListReplications(ctx context.Context, params V1betaLi
 //
 // Lists all snapshots in a volume.
 //
-// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
 func (c *Client) V1betaListSnapshot(ctx context.Context, params V1betaListSnapshotParams) (V1betaListSnapshotRes, error) {
 	res, err := c.sendV1betaListSnapshot(ctx, params)
 	return res, err
@@ -8218,7 +8332,7 @@ func (c *Client) sendV1betaListSnapshot(ctx context.Context, params V1betaListSn
 		}
 		pathParts[5] = encoded
 	}
-	pathParts[6] = "/snapshot"
+	pathParts[6] = "/snapshots"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	r, err := ht.NewRequest(ctx, "GET", u)
@@ -10129,7 +10243,7 @@ func (c *Client) sendV1betaUpdateReplication(ctx context.Context, request *Repli
 //
 // Updates name and description of the requested snapshot.
 //
-// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshot/{snapshotId}
+// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}
 func (c *Client) V1betaUpdateSnapshot(ctx context.Context, request *VolumeSnapshotUpdateV1beta, params V1betaUpdateSnapshotParams) (V1betaUpdateSnapshotRes, error) {
 	res, err := c.sendV1betaUpdateSnapshot(ctx, request, params)
 	return res, err
@@ -10196,7 +10310,7 @@ func (c *Client) sendV1betaUpdateSnapshot(ctx context.Context, request *VolumeSn
 		}
 		pathParts[5] = encoded
 	}
-	pathParts[6] = "/snapshot/"
+	pathParts[6] = "/snapshots/"
 	{
 		// Encode "snapshotId" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{

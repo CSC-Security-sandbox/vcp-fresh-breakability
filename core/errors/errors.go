@@ -145,6 +145,7 @@ const (
 	ErrGeneratingUniqueSerialNumber                                  = 6069
 	ErrorEmptyUpdateReplicationPayload                               = 6070
 	ErrorReplicationScheduleUnspecified                              = 6071
+	ErrDescribingVolume                                              = 6072
 )
 
 type Error interface {

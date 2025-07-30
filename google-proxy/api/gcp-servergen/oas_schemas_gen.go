@@ -4119,6 +4119,624 @@ func (s *InternalJobV1beta) SetScheduledAt(val OptDateTime) {
 
 func (*InternalJobV1beta) v1betaInternalMountVolumeReplicationRes() {}
 
+// Ref: #/components/schemas/InternalVolume_v1beta
+type InternalVolumeV1beta struct {
+	// A human readable label for the resource which is restricted to letters, numbers, and underscore,
+	// with the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId OptString `json:"resourceId"`
+	// Uuid v4 of the volume.
+	VolumeId OptString `json:"volumeId"`
+	// Creation date of the resource.
+	Created OptDateTime `json:"created"`
+	// Deletion date of the resource.
+	Deleted OptNilDateTime `json:"deleted"`
+	// A creation token must be supplied by the caller and is used by the API to ensure idempotent
+	// creation of a volume. Subsequent calls to the create-volume operation using the same creation
+	// token will have no effect. The creation token can be any user supplied string e.g. a randomly
+	// generated v4 Uuid.(This is required for a NAS volume).
+	CreationToken OptString `json:"creationToken"`
+	// Uuid of the pool Id under which volumes get created.
+	PoolId OptNilString `json:"poolId"`
+	// A human readable label for the pool.
+	PoolResourceId OptNilString `json:"poolResourceId"`
+	// Uuid of the key to be used for encryption.
+	KmsConfigId OptNilString `json:"kmsConfigId"`
+	// The resource Id for the connected KMS configuration.
+	KmsConfigResourceId OptNilString `json:"kmsConfigResourceId"`
+	// Servicenetworking.connections.network value that is returned after creating a successful VPC
+	// peering connection via the GCP service networking API.
+	Network OptString `json:"network"`
+	// Uuid of Active Directory configuration.
+	ActiveDirectoryConfigId OptNilString `json:"activeDirectoryConfigId"`
+	// The resource Id for the connected Active Directory.
+	ActiveDirectoryResourceId OptNilString `json:"activeDirectoryResourceId"`
+	// The service level of the volume. Will be specified as premium or extreme, which will be equivalent
+	// to having specified performance medium or high, respectively.  However, if any service level's
+	// name is one of premium or extreme, the performance will be that of the service level, not the
+	// performance equivalent.
+	ServiceLevel OptInternalVolumeV1betaServiceLevel `json:"serviceLevel"`
+	// The security style of the NAS volume.
+	SecurityStyle OptInternalVolumeV1betaSecurityStyle `json:"securityStyle"`
+	// Current storage usage for the volume in bytes.
+	UsedBytes OptNilFloat64 `json:"usedBytes"`
+	// Maximum storage quota allowed for a volume in bytes. This is a soft quota used for alerting only.
+	QuotaInBytes OptFloat64 `json:"quotaInBytes"`
+	// The current lifecycle state of the resource.
+	VolumeState OptInternalVolumeV1betaVolumeState `json:"volumeState"`
+	// Details about the current lifecycle state.
+	VolumeStateDetails OptString `json:"volumeStateDetails"`
+	// Flag indicating if the volume is a data protection volume or not.
+	IsDataProtection OptBool `json:"isDataProtection"`
+	// Flag indicating if the volume is migrating from on premise Ontap or not.
+	IsOnPremMigration OptNilBool `json:"isOnPremMigration"`
+	// Flag indicating if the volume is in a cross region replication.
+	InReplication   OptBool                  `json:"inReplication"`
+	BlockProperties OptBlockPropertiesV1beta `json:"blockProperties"`
+	// Protocol type through which volume can be accessed.
+	Protocols []ProtocolsV1beta `json:"protocols"`
+	// Mount points for the volume.
+	MountPoints []MountPointV1beta `json:"mountPoints"`
+	// JSON dictionary of resource labels to allow linking of billing labels to a volume.
+	Labels OptInternalVolumeV1betaLabels `json:"labels"`
+	// Description of the volume.
+	Description OptNilString `json:"description"`
+	// The target zone to which the storage pool has to be migrated.
+	Zone OptString `json:"zone"`
+	// Flag indicating if the volume will be a large capacity volume (flexgroup) or a regular volume
+	// (flexvol).
+	LargeCapacity OptNilBool `json:"largeCapacity"`
+	// The desired zone for the fail over.
+	SecondaryZone OptNilString `json:"secondaryZone"`
+	// The count of number of constituent volumes for the large volume.
+	LargeVolumeConstituentCount OptNilInt32 `json:"largeVolumeConstituentCount"`
+	// SVM name of the volume.
+	SvmName OptNilString `json:"svmName"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *InternalVolumeV1beta) GetResourceId() OptString {
+	return s.ResourceId
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *InternalVolumeV1beta) GetVolumeId() OptString {
+	return s.VolumeId
+}
+
+// GetCreated returns the value of Created.
+func (s *InternalVolumeV1beta) GetCreated() OptDateTime {
+	return s.Created
+}
+
+// GetDeleted returns the value of Deleted.
+func (s *InternalVolumeV1beta) GetDeleted() OptNilDateTime {
+	return s.Deleted
+}
+
+// GetCreationToken returns the value of CreationToken.
+func (s *InternalVolumeV1beta) GetCreationToken() OptString {
+	return s.CreationToken
+}
+
+// GetPoolId returns the value of PoolId.
+func (s *InternalVolumeV1beta) GetPoolId() OptNilString {
+	return s.PoolId
+}
+
+// GetPoolResourceId returns the value of PoolResourceId.
+func (s *InternalVolumeV1beta) GetPoolResourceId() OptNilString {
+	return s.PoolResourceId
+}
+
+// GetKmsConfigId returns the value of KmsConfigId.
+func (s *InternalVolumeV1beta) GetKmsConfigId() OptNilString {
+	return s.KmsConfigId
+}
+
+// GetKmsConfigResourceId returns the value of KmsConfigResourceId.
+func (s *InternalVolumeV1beta) GetKmsConfigResourceId() OptNilString {
+	return s.KmsConfigResourceId
+}
+
+// GetNetwork returns the value of Network.
+func (s *InternalVolumeV1beta) GetNetwork() OptString {
+	return s.Network
+}
+
+// GetActiveDirectoryConfigId returns the value of ActiveDirectoryConfigId.
+func (s *InternalVolumeV1beta) GetActiveDirectoryConfigId() OptNilString {
+	return s.ActiveDirectoryConfigId
+}
+
+// GetActiveDirectoryResourceId returns the value of ActiveDirectoryResourceId.
+func (s *InternalVolumeV1beta) GetActiveDirectoryResourceId() OptNilString {
+	return s.ActiveDirectoryResourceId
+}
+
+// GetServiceLevel returns the value of ServiceLevel.
+func (s *InternalVolumeV1beta) GetServiceLevel() OptInternalVolumeV1betaServiceLevel {
+	return s.ServiceLevel
+}
+
+// GetSecurityStyle returns the value of SecurityStyle.
+func (s *InternalVolumeV1beta) GetSecurityStyle() OptInternalVolumeV1betaSecurityStyle {
+	return s.SecurityStyle
+}
+
+// GetUsedBytes returns the value of UsedBytes.
+func (s *InternalVolumeV1beta) GetUsedBytes() OptNilFloat64 {
+	return s.UsedBytes
+}
+
+// GetQuotaInBytes returns the value of QuotaInBytes.
+func (s *InternalVolumeV1beta) GetQuotaInBytes() OptFloat64 {
+	return s.QuotaInBytes
+}
+
+// GetVolumeState returns the value of VolumeState.
+func (s *InternalVolumeV1beta) GetVolumeState() OptInternalVolumeV1betaVolumeState {
+	return s.VolumeState
+}
+
+// GetVolumeStateDetails returns the value of VolumeStateDetails.
+func (s *InternalVolumeV1beta) GetVolumeStateDetails() OptString {
+	return s.VolumeStateDetails
+}
+
+// GetIsDataProtection returns the value of IsDataProtection.
+func (s *InternalVolumeV1beta) GetIsDataProtection() OptBool {
+	return s.IsDataProtection
+}
+
+// GetIsOnPremMigration returns the value of IsOnPremMigration.
+func (s *InternalVolumeV1beta) GetIsOnPremMigration() OptNilBool {
+	return s.IsOnPremMigration
+}
+
+// GetInReplication returns the value of InReplication.
+func (s *InternalVolumeV1beta) GetInReplication() OptBool {
+	return s.InReplication
+}
+
+// GetBlockProperties returns the value of BlockProperties.
+func (s *InternalVolumeV1beta) GetBlockProperties() OptBlockPropertiesV1beta {
+	return s.BlockProperties
+}
+
+// GetProtocols returns the value of Protocols.
+func (s *InternalVolumeV1beta) GetProtocols() []ProtocolsV1beta {
+	return s.Protocols
+}
+
+// GetMountPoints returns the value of MountPoints.
+func (s *InternalVolumeV1beta) GetMountPoints() []MountPointV1beta {
+	return s.MountPoints
+}
+
+// GetLabels returns the value of Labels.
+func (s *InternalVolumeV1beta) GetLabels() OptInternalVolumeV1betaLabels {
+	return s.Labels
+}
+
+// GetDescription returns the value of Description.
+func (s *InternalVolumeV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetZone returns the value of Zone.
+func (s *InternalVolumeV1beta) GetZone() OptString {
+	return s.Zone
+}
+
+// GetLargeCapacity returns the value of LargeCapacity.
+func (s *InternalVolumeV1beta) GetLargeCapacity() OptNilBool {
+	return s.LargeCapacity
+}
+
+// GetSecondaryZone returns the value of SecondaryZone.
+func (s *InternalVolumeV1beta) GetSecondaryZone() OptNilString {
+	return s.SecondaryZone
+}
+
+// GetLargeVolumeConstituentCount returns the value of LargeVolumeConstituentCount.
+func (s *InternalVolumeV1beta) GetLargeVolumeConstituentCount() OptNilInt32 {
+	return s.LargeVolumeConstituentCount
+}
+
+// GetSvmName returns the value of SvmName.
+func (s *InternalVolumeV1beta) GetSvmName() OptNilString {
+	return s.SvmName
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *InternalVolumeV1beta) SetResourceId(val OptString) {
+	s.ResourceId = val
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *InternalVolumeV1beta) SetVolumeId(val OptString) {
+	s.VolumeId = val
+}
+
+// SetCreated sets the value of Created.
+func (s *InternalVolumeV1beta) SetCreated(val OptDateTime) {
+	s.Created = val
+}
+
+// SetDeleted sets the value of Deleted.
+func (s *InternalVolumeV1beta) SetDeleted(val OptNilDateTime) {
+	s.Deleted = val
+}
+
+// SetCreationToken sets the value of CreationToken.
+func (s *InternalVolumeV1beta) SetCreationToken(val OptString) {
+	s.CreationToken = val
+}
+
+// SetPoolId sets the value of PoolId.
+func (s *InternalVolumeV1beta) SetPoolId(val OptNilString) {
+	s.PoolId = val
+}
+
+// SetPoolResourceId sets the value of PoolResourceId.
+func (s *InternalVolumeV1beta) SetPoolResourceId(val OptNilString) {
+	s.PoolResourceId = val
+}
+
+// SetKmsConfigId sets the value of KmsConfigId.
+func (s *InternalVolumeV1beta) SetKmsConfigId(val OptNilString) {
+	s.KmsConfigId = val
+}
+
+// SetKmsConfigResourceId sets the value of KmsConfigResourceId.
+func (s *InternalVolumeV1beta) SetKmsConfigResourceId(val OptNilString) {
+	s.KmsConfigResourceId = val
+}
+
+// SetNetwork sets the value of Network.
+func (s *InternalVolumeV1beta) SetNetwork(val OptString) {
+	s.Network = val
+}
+
+// SetActiveDirectoryConfigId sets the value of ActiveDirectoryConfigId.
+func (s *InternalVolumeV1beta) SetActiveDirectoryConfigId(val OptNilString) {
+	s.ActiveDirectoryConfigId = val
+}
+
+// SetActiveDirectoryResourceId sets the value of ActiveDirectoryResourceId.
+func (s *InternalVolumeV1beta) SetActiveDirectoryResourceId(val OptNilString) {
+	s.ActiveDirectoryResourceId = val
+}
+
+// SetServiceLevel sets the value of ServiceLevel.
+func (s *InternalVolumeV1beta) SetServiceLevel(val OptInternalVolumeV1betaServiceLevel) {
+	s.ServiceLevel = val
+}
+
+// SetSecurityStyle sets the value of SecurityStyle.
+func (s *InternalVolumeV1beta) SetSecurityStyle(val OptInternalVolumeV1betaSecurityStyle) {
+	s.SecurityStyle = val
+}
+
+// SetUsedBytes sets the value of UsedBytes.
+func (s *InternalVolumeV1beta) SetUsedBytes(val OptNilFloat64) {
+	s.UsedBytes = val
+}
+
+// SetQuotaInBytes sets the value of QuotaInBytes.
+func (s *InternalVolumeV1beta) SetQuotaInBytes(val OptFloat64) {
+	s.QuotaInBytes = val
+}
+
+// SetVolumeState sets the value of VolumeState.
+func (s *InternalVolumeV1beta) SetVolumeState(val OptInternalVolumeV1betaVolumeState) {
+	s.VolumeState = val
+}
+
+// SetVolumeStateDetails sets the value of VolumeStateDetails.
+func (s *InternalVolumeV1beta) SetVolumeStateDetails(val OptString) {
+	s.VolumeStateDetails = val
+}
+
+// SetIsDataProtection sets the value of IsDataProtection.
+func (s *InternalVolumeV1beta) SetIsDataProtection(val OptBool) {
+	s.IsDataProtection = val
+}
+
+// SetIsOnPremMigration sets the value of IsOnPremMigration.
+func (s *InternalVolumeV1beta) SetIsOnPremMigration(val OptNilBool) {
+	s.IsOnPremMigration = val
+}
+
+// SetInReplication sets the value of InReplication.
+func (s *InternalVolumeV1beta) SetInReplication(val OptBool) {
+	s.InReplication = val
+}
+
+// SetBlockProperties sets the value of BlockProperties.
+func (s *InternalVolumeV1beta) SetBlockProperties(val OptBlockPropertiesV1beta) {
+	s.BlockProperties = val
+}
+
+// SetProtocols sets the value of Protocols.
+func (s *InternalVolumeV1beta) SetProtocols(val []ProtocolsV1beta) {
+	s.Protocols = val
+}
+
+// SetMountPoints sets the value of MountPoints.
+func (s *InternalVolumeV1beta) SetMountPoints(val []MountPointV1beta) {
+	s.MountPoints = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *InternalVolumeV1beta) SetLabels(val OptInternalVolumeV1betaLabels) {
+	s.Labels = val
+}
+
+// SetDescription sets the value of Description.
+func (s *InternalVolumeV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetZone sets the value of Zone.
+func (s *InternalVolumeV1beta) SetZone(val OptString) {
+	s.Zone = val
+}
+
+// SetLargeCapacity sets the value of LargeCapacity.
+func (s *InternalVolumeV1beta) SetLargeCapacity(val OptNilBool) {
+	s.LargeCapacity = val
+}
+
+// SetSecondaryZone sets the value of SecondaryZone.
+func (s *InternalVolumeV1beta) SetSecondaryZone(val OptNilString) {
+	s.SecondaryZone = val
+}
+
+// SetLargeVolumeConstituentCount sets the value of LargeVolumeConstituentCount.
+func (s *InternalVolumeV1beta) SetLargeVolumeConstituentCount(val OptNilInt32) {
+	s.LargeVolumeConstituentCount = val
+}
+
+// SetSvmName sets the value of SvmName.
+func (s *InternalVolumeV1beta) SetSvmName(val OptNilString) {
+	s.SvmName = val
+}
+
+func (*InternalVolumeV1beta) v1betaInternalDescribeVolumeRes() {}
+
+// JSON dictionary of resource labels to allow linking of billing labels to a volume.
+type InternalVolumeV1betaLabels map[string]string
+
+func (s *InternalVolumeV1betaLabels) init() InternalVolumeV1betaLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// The security style of the NAS volume.
+type InternalVolumeV1betaSecurityStyle string
+
+const (
+	InternalVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED InternalVolumeV1betaSecurityStyle = "SECURITY_STYLE_UNSPECIFIED"
+	InternalVolumeV1betaSecurityStyleNTFS                     InternalVolumeV1betaSecurityStyle = "NTFS"
+	InternalVolumeV1betaSecurityStyleUNIX                     InternalVolumeV1betaSecurityStyle = "UNIX"
+)
+
+// AllValues returns all InternalVolumeV1betaSecurityStyle values.
+func (InternalVolumeV1betaSecurityStyle) AllValues() []InternalVolumeV1betaSecurityStyle {
+	return []InternalVolumeV1betaSecurityStyle{
+		InternalVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED,
+		InternalVolumeV1betaSecurityStyleNTFS,
+		InternalVolumeV1betaSecurityStyleUNIX,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InternalVolumeV1betaSecurityStyle) MarshalText() ([]byte, error) {
+	switch s {
+	case InternalVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED:
+		return []byte(s), nil
+	case InternalVolumeV1betaSecurityStyleNTFS:
+		return []byte(s), nil
+	case InternalVolumeV1betaSecurityStyleUNIX:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InternalVolumeV1betaSecurityStyle) UnmarshalText(data []byte) error {
+	switch InternalVolumeV1betaSecurityStyle(data) {
+	case InternalVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED:
+		*s = InternalVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED
+		return nil
+	case InternalVolumeV1betaSecurityStyleNTFS:
+		*s = InternalVolumeV1betaSecurityStyleNTFS
+		return nil
+	case InternalVolumeV1betaSecurityStyleUNIX:
+		*s = InternalVolumeV1betaSecurityStyleUNIX
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The service level of the volume. Will be specified as premium or extreme, which will be equivalent
+// to having specified performance medium or high, respectively.  However, if any service level's
+// name is one of premium or extreme, the performance will be that of the service level, not the
+// performance equivalent.
+type InternalVolumeV1betaServiceLevel string
+
+const (
+	InternalVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED InternalVolumeV1betaServiceLevel = "SERVICE_LEVEL_UNSPECIFIED"
+	InternalVolumeV1betaServiceLevelFLEX                    InternalVolumeV1betaServiceLevel = "FLEX"
+	InternalVolumeV1betaServiceLevelSTANDARD                InternalVolumeV1betaServiceLevel = "STANDARD"
+	InternalVolumeV1betaServiceLevelPREMIUM                 InternalVolumeV1betaServiceLevel = "PREMIUM"
+	InternalVolumeV1betaServiceLevelEXTREME                 InternalVolumeV1betaServiceLevel = "EXTREME"
+)
+
+// AllValues returns all InternalVolumeV1betaServiceLevel values.
+func (InternalVolumeV1betaServiceLevel) AllValues() []InternalVolumeV1betaServiceLevel {
+	return []InternalVolumeV1betaServiceLevel{
+		InternalVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED,
+		InternalVolumeV1betaServiceLevelFLEX,
+		InternalVolumeV1betaServiceLevelSTANDARD,
+		InternalVolumeV1betaServiceLevelPREMIUM,
+		InternalVolumeV1betaServiceLevelEXTREME,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InternalVolumeV1betaServiceLevel) MarshalText() ([]byte, error) {
+	switch s {
+	case InternalVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED:
+		return []byte(s), nil
+	case InternalVolumeV1betaServiceLevelFLEX:
+		return []byte(s), nil
+	case InternalVolumeV1betaServiceLevelSTANDARD:
+		return []byte(s), nil
+	case InternalVolumeV1betaServiceLevelPREMIUM:
+		return []byte(s), nil
+	case InternalVolumeV1betaServiceLevelEXTREME:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InternalVolumeV1betaServiceLevel) UnmarshalText(data []byte) error {
+	switch InternalVolumeV1betaServiceLevel(data) {
+	case InternalVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED:
+		*s = InternalVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED
+		return nil
+	case InternalVolumeV1betaServiceLevelFLEX:
+		*s = InternalVolumeV1betaServiceLevelFLEX
+		return nil
+	case InternalVolumeV1betaServiceLevelSTANDARD:
+		*s = InternalVolumeV1betaServiceLevelSTANDARD
+		return nil
+	case InternalVolumeV1betaServiceLevelPREMIUM:
+		*s = InternalVolumeV1betaServiceLevelPREMIUM
+		return nil
+	case InternalVolumeV1betaServiceLevelEXTREME:
+		*s = InternalVolumeV1betaServiceLevelEXTREME
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The current lifecycle state of the resource.
+type InternalVolumeV1betaVolumeState string
+
+const (
+	InternalVolumeV1betaVolumeStateSTATEUNSPECIFIED InternalVolumeV1betaVolumeState = "STATE_UNSPECIFIED"
+	InternalVolumeV1betaVolumeStateCREATING         InternalVolumeV1betaVolumeState = "CREATING"
+	InternalVolumeV1betaVolumeStateREADY            InternalVolumeV1betaVolumeState = "READY"
+	InternalVolumeV1betaVolumeStateUPDATING         InternalVolumeV1betaVolumeState = "UPDATING"
+	InternalVolumeV1betaVolumeStateRESTORING        InternalVolumeV1betaVolumeState = "RESTORING"
+	InternalVolumeV1betaVolumeStateDELETED          InternalVolumeV1betaVolumeState = "DELETED"
+	InternalVolumeV1betaVolumeStateDISABLED         InternalVolumeV1betaVolumeState = "DISABLED"
+	InternalVolumeV1betaVolumeStateDELETING         InternalVolumeV1betaVolumeState = "DELETING"
+	InternalVolumeV1betaVolumeStateERROR            InternalVolumeV1betaVolumeState = "ERROR"
+	InternalVolumeV1betaVolumeStateREADONLY         InternalVolumeV1betaVolumeState = "READ_ONLY"
+	InternalVolumeV1betaVolumeStatePREPARING        InternalVolumeV1betaVolumeState = "PREPARING"
+)
+
+// AllValues returns all InternalVolumeV1betaVolumeState values.
+func (InternalVolumeV1betaVolumeState) AllValues() []InternalVolumeV1betaVolumeState {
+	return []InternalVolumeV1betaVolumeState{
+		InternalVolumeV1betaVolumeStateSTATEUNSPECIFIED,
+		InternalVolumeV1betaVolumeStateCREATING,
+		InternalVolumeV1betaVolumeStateREADY,
+		InternalVolumeV1betaVolumeStateUPDATING,
+		InternalVolumeV1betaVolumeStateRESTORING,
+		InternalVolumeV1betaVolumeStateDELETED,
+		InternalVolumeV1betaVolumeStateDISABLED,
+		InternalVolumeV1betaVolumeStateDELETING,
+		InternalVolumeV1betaVolumeStateERROR,
+		InternalVolumeV1betaVolumeStateREADONLY,
+		InternalVolumeV1betaVolumeStatePREPARING,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InternalVolumeV1betaVolumeState) MarshalText() ([]byte, error) {
+	switch s {
+	case InternalVolumeV1betaVolumeStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case InternalVolumeV1betaVolumeStateCREATING:
+		return []byte(s), nil
+	case InternalVolumeV1betaVolumeStateREADY:
+		return []byte(s), nil
+	case InternalVolumeV1betaVolumeStateUPDATING:
+		return []byte(s), nil
+	case InternalVolumeV1betaVolumeStateRESTORING:
+		return []byte(s), nil
+	case InternalVolumeV1betaVolumeStateDELETED:
+		return []byte(s), nil
+	case InternalVolumeV1betaVolumeStateDISABLED:
+		return []byte(s), nil
+	case InternalVolumeV1betaVolumeStateDELETING:
+		return []byte(s), nil
+	case InternalVolumeV1betaVolumeStateERROR:
+		return []byte(s), nil
+	case InternalVolumeV1betaVolumeStateREADONLY:
+		return []byte(s), nil
+	case InternalVolumeV1betaVolumeStatePREPARING:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InternalVolumeV1betaVolumeState) UnmarshalText(data []byte) error {
+	switch InternalVolumeV1betaVolumeState(data) {
+	case InternalVolumeV1betaVolumeStateSTATEUNSPECIFIED:
+		*s = InternalVolumeV1betaVolumeStateSTATEUNSPECIFIED
+		return nil
+	case InternalVolumeV1betaVolumeStateCREATING:
+		*s = InternalVolumeV1betaVolumeStateCREATING
+		return nil
+	case InternalVolumeV1betaVolumeStateREADY:
+		*s = InternalVolumeV1betaVolumeStateREADY
+		return nil
+	case InternalVolumeV1betaVolumeStateUPDATING:
+		*s = InternalVolumeV1betaVolumeStateUPDATING
+		return nil
+	case InternalVolumeV1betaVolumeStateRESTORING:
+		*s = InternalVolumeV1betaVolumeStateRESTORING
+		return nil
+	case InternalVolumeV1betaVolumeStateDELETED:
+		*s = InternalVolumeV1betaVolumeStateDELETED
+		return nil
+	case InternalVolumeV1betaVolumeStateDISABLED:
+		*s = InternalVolumeV1betaVolumeStateDISABLED
+		return nil
+	case InternalVolumeV1betaVolumeStateDELETING:
+		*s = InternalVolumeV1betaVolumeStateDELETING
+		return nil
+	case InternalVolumeV1betaVolumeStateERROR:
+		*s = InternalVolumeV1betaVolumeStateERROR
+		return nil
+	case InternalVolumeV1betaVolumeStateREADONLY:
+		*s = InternalVolumeV1betaVolumeStateREADONLY
+		return nil
+	case InternalVolumeV1betaVolumeStatePREPARING:
+		*s = InternalVolumeV1betaVolumeStatePREPARING
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/Job_v1beta
 type JobV1beta struct {
 	// Uuid v4 used to identify the job.
@@ -6758,6 +7376,190 @@ func (o OptInt64) Get() (v int64, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInt64) Or(d int64) int64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInternalVolumeV1betaLabels returns new OptInternalVolumeV1betaLabels with value set to v.
+func NewOptInternalVolumeV1betaLabels(v InternalVolumeV1betaLabels) OptInternalVolumeV1betaLabels {
+	return OptInternalVolumeV1betaLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInternalVolumeV1betaLabels is optional InternalVolumeV1betaLabels.
+type OptInternalVolumeV1betaLabels struct {
+	Value InternalVolumeV1betaLabels
+	Set   bool
+}
+
+// IsSet returns true if OptInternalVolumeV1betaLabels was set.
+func (o OptInternalVolumeV1betaLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInternalVolumeV1betaLabels) Reset() {
+	var v InternalVolumeV1betaLabels
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInternalVolumeV1betaLabels) SetTo(v InternalVolumeV1betaLabels) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInternalVolumeV1betaLabels) Get() (v InternalVolumeV1betaLabels, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInternalVolumeV1betaLabels) Or(d InternalVolumeV1betaLabels) InternalVolumeV1betaLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInternalVolumeV1betaSecurityStyle returns new OptInternalVolumeV1betaSecurityStyle with value set to v.
+func NewOptInternalVolumeV1betaSecurityStyle(v InternalVolumeV1betaSecurityStyle) OptInternalVolumeV1betaSecurityStyle {
+	return OptInternalVolumeV1betaSecurityStyle{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInternalVolumeV1betaSecurityStyle is optional InternalVolumeV1betaSecurityStyle.
+type OptInternalVolumeV1betaSecurityStyle struct {
+	Value InternalVolumeV1betaSecurityStyle
+	Set   bool
+}
+
+// IsSet returns true if OptInternalVolumeV1betaSecurityStyle was set.
+func (o OptInternalVolumeV1betaSecurityStyle) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInternalVolumeV1betaSecurityStyle) Reset() {
+	var v InternalVolumeV1betaSecurityStyle
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInternalVolumeV1betaSecurityStyle) SetTo(v InternalVolumeV1betaSecurityStyle) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInternalVolumeV1betaSecurityStyle) Get() (v InternalVolumeV1betaSecurityStyle, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInternalVolumeV1betaSecurityStyle) Or(d InternalVolumeV1betaSecurityStyle) InternalVolumeV1betaSecurityStyle {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInternalVolumeV1betaServiceLevel returns new OptInternalVolumeV1betaServiceLevel with value set to v.
+func NewOptInternalVolumeV1betaServiceLevel(v InternalVolumeV1betaServiceLevel) OptInternalVolumeV1betaServiceLevel {
+	return OptInternalVolumeV1betaServiceLevel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInternalVolumeV1betaServiceLevel is optional InternalVolumeV1betaServiceLevel.
+type OptInternalVolumeV1betaServiceLevel struct {
+	Value InternalVolumeV1betaServiceLevel
+	Set   bool
+}
+
+// IsSet returns true if OptInternalVolumeV1betaServiceLevel was set.
+func (o OptInternalVolumeV1betaServiceLevel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInternalVolumeV1betaServiceLevel) Reset() {
+	var v InternalVolumeV1betaServiceLevel
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInternalVolumeV1betaServiceLevel) SetTo(v InternalVolumeV1betaServiceLevel) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInternalVolumeV1betaServiceLevel) Get() (v InternalVolumeV1betaServiceLevel, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInternalVolumeV1betaServiceLevel) Or(d InternalVolumeV1betaServiceLevel) InternalVolumeV1betaServiceLevel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInternalVolumeV1betaVolumeState returns new OptInternalVolumeV1betaVolumeState with value set to v.
+func NewOptInternalVolumeV1betaVolumeState(v InternalVolumeV1betaVolumeState) OptInternalVolumeV1betaVolumeState {
+	return OptInternalVolumeV1betaVolumeState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInternalVolumeV1betaVolumeState is optional InternalVolumeV1betaVolumeState.
+type OptInternalVolumeV1betaVolumeState struct {
+	Value InternalVolumeV1betaVolumeState
+	Set   bool
+}
+
+// IsSet returns true if OptInternalVolumeV1betaVolumeState was set.
+func (o OptInternalVolumeV1betaVolumeState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInternalVolumeV1betaVolumeState) Reset() {
+	var v InternalVolumeV1betaVolumeState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInternalVolumeV1betaVolumeState) SetTo(v InternalVolumeV1betaVolumeState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInternalVolumeV1betaVolumeState) Get() (v InternalVolumeV1betaVolumeState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInternalVolumeV1betaVolumeState) Or(d InternalVolumeV1betaVolumeState) InternalVolumeV1betaVolumeState {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -16135,6 +16937,22 @@ type V1betaInternalDescribePoolUnprocessableEntity Error
 
 func (*V1betaInternalDescribePoolUnprocessableEntity) v1betaInternalDescribePoolRes() {}
 
+type V1betaInternalDescribeVolumeBadRequest Error
+
+func (*V1betaInternalDescribeVolumeBadRequest) v1betaInternalDescribeVolumeRes() {}
+
+type V1betaInternalDescribeVolumeForbidden Error
+
+func (*V1betaInternalDescribeVolumeForbidden) v1betaInternalDescribeVolumeRes() {}
+
+type V1betaInternalDescribeVolumeInternalServerError Error
+
+func (*V1betaInternalDescribeVolumeInternalServerError) v1betaInternalDescribeVolumeRes() {}
+
+type V1betaInternalDescribeVolumeNotFound Error
+
+func (*V1betaInternalDescribeVolumeNotFound) v1betaInternalDescribeVolumeRes() {}
+
 type V1betaInternalDescribeVolumeReplicationBadRequest Error
 
 func (*V1betaInternalDescribeVolumeReplicationBadRequest) v1betaInternalDescribeVolumeReplicationRes() {
@@ -16174,6 +16992,14 @@ type V1betaInternalDescribeVolumeReplicationUnprocessableEntity Error
 
 func (*V1betaInternalDescribeVolumeReplicationUnprocessableEntity) v1betaInternalDescribeVolumeReplicationRes() {
 }
+
+type V1betaInternalDescribeVolumeTooManyRequests Error
+
+func (*V1betaInternalDescribeVolumeTooManyRequests) v1betaInternalDescribeVolumeRes() {}
+
+type V1betaInternalDescribeVolumeUnauthorized Error
+
+func (*V1betaInternalDescribeVolumeUnauthorized) v1betaInternalDescribeVolumeRes() {}
 
 type V1betaInternalGetReplicationJobsBadRequest Error
 
@@ -19864,8 +20690,8 @@ func (s *VolumeUpdateV1betaLabels) init() VolumeUpdateV1betaLabels {
 
 // Ref: #/components/schemas/Volume_v1beta
 type VolumeV1beta struct {
-	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
-	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	// A human readable label for the resource which is restricted to letters, numbers, and underscore,
+	// with the first character a letter, the last a letter or a number, and a 63 character maximum.
 	ResourceId string `json:"resourceId"`
 	// Uuid v4 of the volume.
 	VolumeId OptString `json:"volumeId"`

@@ -159,6 +159,34 @@ func (s *HourlyScheduleV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *InternalVolumeV1beta) setDefaults() {
+	{
+		val := InternalVolumeV1betaServiceLevel("PREMIUM")
+		s.ServiceLevel.SetTo(val)
+	}
+	{
+		val := float64(0)
+		s.UsedBytes.SetTo(val)
+	}
+	{
+		val := float64(1000000000000)
+		s.QuotaInBytes.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.IsOnPremMigration.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.InReplication.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.LargeCapacity.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *MonthlyScheduleV1beta) setDefaults() {
 	{
 		val := float64(0)

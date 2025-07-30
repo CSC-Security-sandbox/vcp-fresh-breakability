@@ -564,7 +564,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									elem = elem[idx:]
 
 									if len(elem) == 0 {
-										break
+										switch r.Method {
+										case "GET":
+											s.handleV1betaInternalDescribeVolumeRequest([3]string{
+												args[0],
+												args[1],
+												args[2],
+											}, elemIsEscaped, w, r)
+										default:
+											s.notAllowed(w, r, "GET")
+										}
+
+										return
 									}
 									switch elem[0] {
 									case '/': // Prefix: "/snapmirrorSnapshots"
@@ -2701,7 +2712,18 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									elem = elem[idx:]
 
 									if len(elem) == 0 {
-										break
+										switch method {
+										case "GET":
+											r.name = V1betaInternalDescribeVolumeOperation
+											r.summary = "Describe a volume"
+											r.operationID = "v1beta_internalDescribeVolume"
+											r.pathPattern = "/v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}"
+											r.args = args
+											r.count = 3
+											return r, true
+										default:
+											return
+										}
 									}
 									switch elem[0] {
 									case '/': // Prefix: "/snapmirrorSnapshots"

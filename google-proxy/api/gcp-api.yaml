@@ -2631,6 +2631,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}:
+    get:
+      tags:
+        - v1Beta_internal
+      summary: Describe a volume
+      description: Returns the description of the specified volume by volume Id.
+      operationId: v1beta_internalDescribeVolume
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - name: volumeId
+          in: path
+          description: Uuid v4 used to identify the volume
+          required: true
+          schema:
+            maxLength: 36
+            minLength: 36
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalVolume_v1beta'
+              example:
+                volumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
+                resourceId: my-volume
+                created: 2016-11-29T20:14:50.459Z
+                creationToken: happily-successful-einstein
+                volumeState: READY
+                volumeStateDetails: Available for use
+                serviceLevel: EXTREME
+                securityStyle: UNIX
+                usedBytes: 38786062792785
+                quotaInBytes: 100000000000000
+                encryptionType: SERVICE_MANAGED
+                description: My volume description
+                activeDirectoryConfigUuid: 8064bdf5-4638-11e7-9bdb-020073ca7773
+                kmsConfigId: 2653acf5-4638-11e7-9bdb-020073ca7773
+                labels:
+                  someKey: SomeValue
+                  someKey2: SomeValue2
+                protocols:
+                  - NFSV3
+                svmName: my-svm
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumes/count:
     get:
       operationId: v1beta_getVolumeCount
@@ -7110,6 +7176,263 @@ components:
           example: 24
         cacheParameters:
           $ref: '#/components/schemas/FlexCache_v1beta'
+    InternalVolume_v1beta:
+      title: Volume v1beta model definition
+      type: object
+      properties:
+        resourceId:
+          maxLength: 63
+          pattern: ^[a-zA-Z][a-zA-Z0-9_]{0,62}$
+          type: string
+          description: "A human readable label for the resource which is restricted\
+            \ to letters, numbers, and underscore, with the first character a letter,\
+            \ the last a letter or a number, and a 63 character maximum"
+          example: some_volume_name
+        volumeId:
+          title: volumeId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: Uuid v4 of the volume
+          readOnly: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca0001
+        created:
+          title: created
+          type: string
+          description: Creation date of the resource
+          format: date-time
+          readOnly: true
+          example: 2016-11-30T20:32:50.459Z
+        deleted:
+          title: deleted
+          type: string
+          description: Deletion date of the resource
+          format: date-time
+          nullable: true
+          readOnly: true
+          example: 2016-11-30T20:32:50.459Z
+          x-omitempty: true
+        creationToken:
+          title: creationToken
+          type: string
+          description: A creation token must be supplied by the caller and is used
+            by the API to ensure idempotent creation of a volume. Subsequent calls
+            to the create-volume operation using the same creation token will have
+            no effect. The creation token can be any user supplied string e.g. a randomly
+            generated v4 Uuid.(This is required for a NAS volume)
+          example: hopefully-sufficient-newton
+        poolId:
+          title: poolId
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: Uuid of the pool Id under which volumes get created.
+          nullable: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        poolResourceId:
+          title: poolResourceId
+          type: string
+          description: A human readable label for the pool
+          nullable: true
+          readOnly: true
+          example: projects/451164690828/locations/eu-west1/pools/mypool
+        kmsConfigId:
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: Uuid of the key to be used for encryption.
+          nullable: true
+          readOnly: true
+          example: 6aae31f1-f685-4fda-b875-db0ea99235fc
+        kmsConfigResourceId:
+          title: kmsConfigResourceId
+          type: string
+          description: The resource Id for the connected KMS configuration
+          nullable: true
+          readOnly: true
+          example: projects/my-project-1/locations/eu-west-1/kmsConfigs/myconfig
+        network:
+          title: network
+          pattern: "^projects\\/\\d+\\/global\\/networks\\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$"
+          type: string
+          description: Servicenetworking.connections.network value that is returned
+            after creating a successful VPC peering connection via the GCP service
+            networking API
+          readOnly: true
+          example: projects/1079058383248/global/networks/network-to-netapp2
+        activeDirectoryConfigId:
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          description: Uuid of Active Directory configuration
+          nullable: true
+          readOnly: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        activeDirectoryResourceId:
+          title: activeDirectoryResourceId
+          type: string
+          description: The resource Id for the connected Active Directory
+          nullable: true
+          readOnly: true
+          example: projects/my-project-1/locations/eu-west-1/activeDirectories/mydirectory
+        serviceLevel:
+          title: serviceLevel
+          type: string
+          description: "The service level of the volume. Will be specified as premium\
+            \ or extreme, which will be equivalent to having specified performance\
+            \ medium or high, respectively.  However, if any service level's name\
+            \ is one of premium or extreme, the performance will be that of the service\
+            \ level, not the performance equivalent."
+          readOnly: true
+          example: PREMIUM
+          default: PREMIUM
+          enum:
+            - SERVICE_LEVEL_UNSPECIFIED
+            - FLEX
+            - STANDARD
+            - PREMIUM
+            - EXTREME
+        securityStyle:
+          title: securityStyle
+          type: string
+          description: The security style of the NAS volume.
+          example: NTFS
+          enum:
+            - SECURITY_STYLE_UNSPECIFIED
+            - NTFS
+            - UNIX
+        usedBytes:
+          title: usedBytes
+          minimum: 0
+          type: number
+          description: Current storage usage for the volume in bytes
+          format: double
+          nullable: true
+          readOnly: true
+          example: 101010.0
+          default: 0.0
+        quotaInBytes:
+          title: quotaInBytes
+          type: number
+          description: Maximum storage quota allowed for a volume in bytes. This is
+            a soft quota used for alerting only.
+          format: double
+          example: 4000000000000
+          default: 1000000000000
+        volumeState:
+          type: string
+          description: The current lifecycle state of the resource
+          readOnly: true
+          example: READY
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - RESTORING
+            - DELETED
+            - DISABLED
+            - DELETING
+            - ERROR
+            - READ_ONLY
+            - PREPARING
+        volumeStateDetails:
+          title: volumeStateDetails
+          type: string
+          description: Details about the current lifecycle state
+          readOnly: true
+          example: Error connecting to remote service
+        isDataProtection:
+          title: isDataProtection
+          type: boolean
+          description: Flag indicating if the volume is a data protection volume or
+            not
+          readOnly: true
+        isOnPremMigration:
+          title: isOnPremMigration
+          type: boolean
+          description: Flag indicating if the volume is migrating from on premise
+            Ontap or not
+          nullable: true
+          readOnly: true
+          default: false
+        inReplication:
+          title: inReplication
+          type: boolean
+          description: Flag indicating if the volume is in a cross region replication
+          readOnly: true
+          default: false
+        blockProperties:
+          $ref: '#/components/schemas/BlockProperties_v1beta'
+        protocols:
+          title: protocol
+          type: array
+          description: Protocol type through which volume can be accessed.
+          items:
+            $ref: '#/components/schemas/protocols_v1beta'
+        mountPoints:
+          title: mountPoints
+          type: array
+          description: Mount points for the volume
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/MountPoint_v1beta'
+        labels:
+          title: labels
+          type: object
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing
+            labels to a volume
+          example:
+            someKey: SomeValue
+            someKey2: SomeValue2
+        description:
+          title: description
+          maxLength: 2048
+          type: string
+          description: Description of the volume
+          nullable: true
+          example: My Volume description
+        zone:
+          title: zone
+          type: string
+          description: The target zone to which the storage pool has to be migrated.
+          example: us-east1-b
+        largeCapacity:
+          title: largeCapacity
+          type: boolean
+          description: Flag indicating if the volume will be a large capacity volume
+            (flexgroup) or a regular volume (flexvol)
+          nullable: true
+          default: false
+          x-omitempty: false
+        secondaryZone:
+          title: SecondaryZone
+          type: string
+          description: The desired zone for the fail over.
+          nullable: true
+          readOnly: true
+          example: us-east1-b
+        largeVolumeConstituentCount:
+          title: largeVolumeConstituentCount
+          minimum: 2
+          type: integer
+          description: The count of number of constituent volumes for the large volume.
+          format: int32
+          nullable: true
+          example: 24
+        svmName:
+          title: svmName
+          type: string
+          description: SVM name of the volume
+          readOnly: true
+          nullable: true
+          example: svm-name
     VolumeIdList_v1beta:
       title: VolumeIdList
       required:

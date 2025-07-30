@@ -24,6 +24,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -139,12 +140,12 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 
 	if event.SourceVolume.VolumeAttributes.IsDataProtection {
 		logger.Error("sourceVolume already in replication")
-		return nil, errors.NewVCPError(errors.ErrValidateCreateSourceVolumeInReplicationGroup, nil)
+		return nil, errors.NewVCPError(errors.ErrValidateCreateSourceVolumeInReplicationGroup, errors.New("sourceVolume already in replication"))
 	}
 
 	if event.SourceVolume.State != string(googleproxyclient.VolumeV1betaVolumeStateREADY) {
 		logger.Error("sourceVolume is not in a READY state")
-		return nil, errors.NewVCPError(errors.ErrValidateCreateSourceVolumeNotReady, nil)
+		return nil, errors.NewVCPError(errors.ErrValidateCreateSourceVolumeNotReady, errors.New("sourceVolume is not in a READY state"))
 	}
 
 	err = validateStoragePoolUri(*event.CreateReplicationParams.DestinationVolumeParameters.StoragePool)
@@ -442,7 +443,7 @@ func _createReplicationObjects(event *CreateReplicationEvent, remotelocation, re
 			UpdatedAt: time.Now(),
 		},
 		Name:        *event.CreateReplicationParams.ResourceID,
-		Description: *event.CreateReplicationParams.Description,
+		Description: nillable.GetString(event.CreateReplicationParams.Description, ""),
 	}
 	replicationAttributes := datamodel.ReplicationDetails{
 		SourceVolumeUUID:    sourceVolumeUUID.String(),
