@@ -298,5 +298,11 @@
     "message": "Error while generating Cluster serial number",
     "retriable": false,
     "http_code": 500
+  },
+  "6073": {
+    "description": "Client error during HandleResouceEvent",
+    "message": "Client error during HandleResouceEvent",
+    "retriable": false,
+    "http_code": 500
   }
 }

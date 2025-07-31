@@ -3416,7 +3416,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										switch method {
 										case "PUT":
 											r.name = V1betaResourceStateUpdateOperation
-											r.summary = "Updates the resource state of GCP 1P resources."
+											r.summary = "Updates the resource state of GCP resources."
 											r.operationID = "v1beta_resourceStateUpdate"
 											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent"
 											r.args = args

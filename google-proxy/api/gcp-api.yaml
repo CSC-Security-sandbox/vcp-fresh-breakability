@@ -5484,8 +5484,8 @@ paths:
       operationId: v1beta_resourceStateUpdate
       tags:
         - resourceEvents
-      summary: Updates the resource state of GCP 1P resources.
-      description: Updates the resource state of GCP 1P resources based on the path
+      summary: Updates the resource state of GCP resources.
+      description: Updates the resource state of GCP resources based on the path
         and body parameters.
       parameters:
         - $ref: '#/components/parameters/projectNumberPathParameter'

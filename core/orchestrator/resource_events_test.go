@@ -179,3 +179,115 @@ func TestCreateOrGetStartProjectEventJobl(t *testing.T) {
 		assert.Equal(tt, "jobUUID", res)
 	})
 }
+func TestUpdateResourceStateJob(t *testing.T) {
+	t.Run("WhenGetOrCreateAccountFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("panic")
+		}
+		params := &commonparams.UpdateResourceStateParams{
+			LocationId:     "us-central1",
+			ProjectNumber:  "12345",
+			XCorrelationID: "test-correlation-id",
+			State:          models.StateOn,
+		}
+		_, err := _updateResourceState(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "panic", err.Error())
+	})
+	t.Run("WhenCreateJobReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "12345", BaseModel: datamodel.BaseModel{ID: 1}}, nil
+		}
+
+		jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", int64(1)),
+			utils.NewFilterCondition("type", "=", string(models.JobTypeHandleResourceEvent)),
+			utils.NewFilterCondition("state", "in", jobTransitioningStates))
+		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{}, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("panic"))
+
+		params := &commonparams.UpdateResourceStateParams{
+			LocationId:     "us-central1",
+			ProjectNumber:  "12345",
+			XCorrelationID: "test-correlation-id",
+			State:          models.StateOff,
+		}
+		_, err := _updateResourceState(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "panic", err.Error())
+	})
+	t.Run("WhenTemporalExecuteWorkflowReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "12345", BaseModel: datamodel.BaseModel{ID: 1}}, nil
+		}
+
+		jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", int64(1)),
+			utils.NewFilterCondition("type", "=", string(models.JobTypeHandleResourceEvent)),
+			utils.NewFilterCondition("state", "in", jobTransitioningStates))
+		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{}, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{}, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
+
+		params := &commonparams.UpdateResourceStateParams{
+			LocationId:     "us-central1",
+			ProjectNumber:  "12345",
+			XCorrelationID: "test-correlation-id",
+			State:          models.StateOff,
+		}
+		_, err := _updateResourceState(ctx, mockStorage, mockTemporal, params)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "failed to execute workflow", err.Error())
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "12345", BaseModel: datamodel.BaseModel{ID: 1}}, nil
+		}
+
+		jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
+		filter := utils.CreateFilterWithConditions(
+			utils.NewFilterCondition("account_id", "=", int64(1)),
+			utils.NewFilterCondition("type", "=", string(models.JobTypeHandleResourceEvent)),
+			utils.NewFilterCondition("state", "in", jobTransitioningStates))
+		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{}, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "jobUUID"}}, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := &commonparams.UpdateResourceStateParams{
+			LocationId:     "us-central1",
+			ProjectNumber:  "12345",
+			XCorrelationID: "test-correlation-id",
+			State:          models.StateOff,
+		}
+		res, err := _updateResourceState(ctx, mockStorage, mockTemporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, "jobUUID", res)
+	})
+}

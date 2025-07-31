@@ -1,0 +1,278 @@
+package resource_events_activities
+
+import (
+	"context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/resource_events"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
+)
+
+const (
+	ErrTypeResourceNotFound = "KmsConfigNotFound"
+)
+
+var (
+	PollCvpOperationForWorkflow = pollCvpOperationForWorkflow
+)
+
+type ResourceEventsActivity struct {
+	SE database.Storage
+}
+
+func (a *ResourceEventsActivity) HandleResourceEventCheckForVCPActivity(ctx context.Context, params *common.HandleResourceEventParams) (bool, error) {
+	switch params.ResourceType {
+	case common.ResourceStateV1ResourceTypeKmsConfig:
+		return a.checkKmsConfigExistence(ctx, params)
+	case common.ResourceStateV1ResourceTypeStoragePool:
+		return a.checkStoragePoolExistence(ctx, params)
+	case common.ResourceStateV1ResourceTypeSnapshot:
+		return a.checkSnapshotExistence(ctx, params)
+	case common.ResourceStateV1ResourceTypeVolume:
+		return a.checkVolumeExistence(ctx, params)
+	default:
+		return false, errors.New("unsupported resource type")
+	}
+}
+
+func (a *ResourceEventsActivity) checkKmsConfigExistence(ctx context.Context, params *common.HandleResourceEventParams) (bool, error) {
+	_, err := a.SE.GetKmsConfig(ctx, params.ResourceId)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return false, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (a *ResourceEventsActivity) checkStoragePoolExistence(ctx context.Context, params *common.HandleResourceEventParams) (bool, error) {
+	account, err := a.SE.GetAccount(ctx, params.ProjectNumber)
+	if err != nil {
+		return false, err
+	}
+	_, err = a.SE.GetPool(ctx, params.ResourceId, account.ID)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return false, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (a *ResourceEventsActivity) checkSnapshotExistence(ctx context.Context, params *common.HandleResourceEventParams) (bool, error) {
+	account, err := a.SE.GetAccount(ctx, params.ProjectNumber)
+	if err != nil {
+		return false, err
+	}
+	volume, err := a.SE.GetVolumeWithAccountID(ctx, params.ParentResourceID, account.ID)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = a.SE.GetSnapshotByUUID(ctx, params.ResourceId, account.ID, volume.ID)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return false, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (a *ResourceEventsActivity) checkVolumeExistence(ctx context.Context, params *common.HandleResourceEventParams) (bool, error) {
+	_, err := a.SE.GetVolume(ctx, params.ResourceId)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return false, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (a *ResourceEventsActivity) HandleResourceEventsOFFForVCPActivity(ctx context.Context, params *common.HandleResourceEventParams) (bool, error) {
+	switch params.ResourceType {
+	case common.ResourceStateV1ResourceTypeKmsConfig:
+		return a.handleKmsConfig(ctx, params, common.ResourceStateDisabled, common.ResourceLifeCycleStateDisabledDetails)
+	case common.ResourceStateV1ResourceTypeStoragePool:
+		return a.handleStoragePool(ctx, params, common.ResourceStateDisabled, common.ResourceLifeCycleStateDisabledDetails)
+	case common.ResourceStateV1ResourceTypeSnapshot:
+		return a.handleSnapshot(ctx, params, common.ResourceStateDisabled, common.ResourceLifeCycleStateDisabledDetails)
+	case common.ResourceStateV1ResourceTypeVolume:
+		return a.handleVolume(ctx, params, common.ResourceStateDisabled, common.ResourceLifeCycleStateDisabledDetails)
+	default:
+		return false, errors.New("unsupported resource type")
+	}
+}
+
+func (a *ResourceEventsActivity) HandleResourceEventsONForVCPActivity(ctx context.Context, params *common.HandleResourceEventParams) (bool, error) {
+	switch params.ResourceType {
+	case common.ResourceStateV1ResourceTypeKmsConfig:
+		return a.handleKmsConfig(ctx, params, common.ResourceStateEnabled, common.ResourceLifeCycleStateEnabledDetails)
+	case common.ResourceStateV1ResourceTypeStoragePool:
+		return a.handleStoragePool(ctx, params, common.ResourceStateEnabled, common.ResourceLifeCycleStateEnabledDetails)
+	case common.ResourceStateV1ResourceTypeSnapshot:
+		return a.handleSnapshot(ctx, params, common.ResourceStateEnabled, common.ResourceLifeCycleStateEnabledDetails)
+	case common.ResourceStateV1ResourceTypeVolume:
+		return a.handleVolume(ctx, params, common.ResourceStateEnabled, common.ResourceLifeCycleStateEnabledDetails)
+	default:
+		return false, errors.New("unsupported resource type")
+	}
+}
+
+func (a *ResourceEventsActivity) HandleResourceEventsForSDEActivity(ctx context.Context, params *common.HandleResourceEventParams) (*common.HandleResourceEventResult, error) {
+	body := &models.ResourceStateUpdateV1beta{
+		StateUpdateV1beta: models.StateUpdateV1beta{
+			State: params.State,
+		},
+		ResourceType: params.ResourceType,
+		ResourceID:   params.ResourceId,
+	}
+
+	reqParams := &resource_events.V1betaResourceStateUpdateParams{
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: &params.XCorrelationID,
+		Body:           body,
+	}
+
+	jwtToken, err := getSignedToken(params.ProjectNumber)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGetSignedToken, err))
+	}
+
+	logger := util.GetLogger(ctx)
+	cvpClient := createClient(logger, jwtToken)
+	created, accepted, _, err := cvpClient.ResourceEvents.V1betaResourceStateUpdate(reqParams)
+	if err != nil {
+		logger.Errorf("Error turning %s Resource: %v", params.State, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err))
+	}
+
+	if created != nil {
+		pl := created.GetPayload()
+		return &common.HandleResourceEventResult{
+			Done: pl.Done,
+			Name: &pl.Name,
+		}, nil
+	}
+
+	if accepted != nil {
+		pl := accepted.GetPayload()
+		return &common.HandleResourceEventResult{
+			Done: pl.Done,
+			Name: &pl.Name,
+		}, nil
+	}
+
+	return nil, nil
+}
+
+func (j *ResourceEventsActivity) PollHandleResourceEventSDEOperationActivity(ctx context.Context, params *common.HandleResourceEventParams, result *common.HandleResourceEventResult) error {
+	if result.Done != nil && *result.Done {
+		return nil
+	}
+
+	if result.Name == nil {
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInvalidOperationName, errors.New("operation name is nil")))
+	}
+
+	logger := util.GetLogger(ctx)
+	jwtToken, err := getSignedToken(params.ProjectNumber)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGetSignedToken, err))
+	}
+	cvpClient := createClient(logger, jwtToken)
+
+	// Extract the operation UUID
+	operationUUID := utils.GetOperationUUID(*result.Name)
+	operationParams := async.NewV1betaDescribeOperationParams()
+	operationParams.OperationID = operationUUID
+	operationParams.ProjectNumber = params.ProjectNumber
+	operationParams.LocationID = params.LocationID
+	res, err := PollCvpOperationForWorkflow(ctx, cvpClient, operationParams)
+	if err != nil {
+		logger.Errorf("Error while polling SDE handleResourceEvent operation: %s", operationUUID)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if res.Done != nil && *res.Done {
+		if res.Error != nil {
+			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, errors.New(res.Error.Message)))
+		}
+		return nil
+	}
+	return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrSDEJobNotFinished, errors.New("job not finished")))
+}
+
+func (a *ResourceEventsActivity) handleKmsConfig(ctx context.Context, params *common.HandleResourceEventParams, state string, stateDetails string) (bool, error) {
+	_, err := a.SE.UpdateKmsConfigState(ctx, params.ResourceId, state, stateDetails)
+	if isNotFound, err0 := handleError(err); err0 != nil || isNotFound {
+		return false, err
+	}
+	return true, nil
+}
+
+func (a *ResourceEventsActivity) handleStoragePool(ctx context.Context, params *common.HandleResourceEventParams, state string, stateDetails string) (bool, error) {
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID: params.ResourceId,
+		},
+		State:        state,
+		StateDetails: stateDetails,
+	}
+	_, err := a.SE.UpdatePoolState(ctx, pool, state, stateDetails)
+	if isNotFound, err0 := handleError(err); err0 != nil || isNotFound {
+		return false, err
+	}
+	return true, nil
+}
+
+func (a *ResourceEventsActivity) handleSnapshot(ctx context.Context, params *common.HandleResourceEventParams, state string, stateDetails string) (bool, error) {
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{
+			UUID: params.ResourceId,
+		},
+		State:        state,
+		StateDetails: stateDetails,
+	}
+	_, err := a.SE.UpdateSnapshot(ctx, snapshot)
+	if isNotFound, err0 := handleError(err); err0 != nil || isNotFound {
+		return false, err
+	}
+	return true, nil
+}
+
+func (a *ResourceEventsActivity) handleVolume(ctx context.Context, params *common.HandleResourceEventParams, state string, stateDetails string) (bool, error) {
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: params.ResourceId,
+		},
+		State:        state,
+		StateDetails: stateDetails,
+	}
+	err := a.SE.UpdateVolume(ctx, volume)
+	if isNotFound, err0 := handleError(err); err0 != nil || isNotFound {
+		return false, err
+	}
+	return true, nil
+}
+
+func handleError(err error) (bool, error) {
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return true, nil
+		}
+		return false, err
+	}
+	return false, nil
+}

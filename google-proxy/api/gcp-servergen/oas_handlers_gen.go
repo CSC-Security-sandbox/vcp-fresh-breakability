@@ -5627,7 +5627,7 @@ func (s *Server) handleV1betaFinishProjectEventRequest(args [2]string, argsEscap
 		}
 
 		type (
-			Request  = *ProjectStateUpdateV1beta
+			Request  = *StateUpdateV1beta
 			Params   = V1betaFinishProjectEventParams
 			Response = V1betaFinishProjectEventRes
 		)
@@ -11868,7 +11868,7 @@ func (s *Server) handleV1betaListVolumesRequest(args [2]string, argsEscaped bool
 
 // handleV1betaResourceStateUpdateRequest handles v1beta_resourceStateUpdate operation.
 //
-// Updates the resource state of GCP 1P resources based on the path and body parameters.
+// Updates the resource state of GCP resources based on the path and body parameters.
 //
 // PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent
 func (s *Server) handleV1betaResourceStateUpdateRequest(args [2]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -11971,7 +11971,7 @@ func (s *Server) handleV1betaResourceStateUpdateRequest(args [2]string, argsEsca
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    V1betaResourceStateUpdateOperation,
-			OperationSummary: "Updates the resource state of GCP 1P resources.",
+			OperationSummary: "Updates the resource state of GCP resources.",
 			OperationID:      "v1beta_resourceStateUpdate",
 			Body:             request,
 			Params: middleware.Parameters{
@@ -12494,7 +12494,7 @@ func (s *Server) handleV1betaStartProjectEventRequest(args [2]string, argsEscape
 		}
 
 		type (
-			Request  = *ProjectStateUpdateV1beta
+			Request  = *StateUpdateV1beta
 			Params   = V1betaStartProjectEventParams
 			Response = V1betaStartProjectEventRes
 		)

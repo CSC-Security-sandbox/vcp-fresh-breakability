@@ -42,6 +42,7 @@ data:
   CRR_ENABLED: "{{ index .Values "crrEnabled" }}"
   REFRESH_ADMIN_JOB_SPECS: "{{ index .Values "refreshAdminJobSpecs" }}"
   AUTO_TIERING_ENABLED: "{{ index .Values "autoTieringEnabled" }}"
+  IS_PRE_AGA: "{{ index .Values "isPreAga" }}"
   REGIONAL_SUPPORT_ENABLED: "{{ index .Values "regionalSupportEnabled" }}"
   FILES_PROTOCOL_SUPPORT: "{{ index .Values "filesProtocolSupport" }}"
   FILE_PROTOCOL_ALLOWLISTED_ACCOUNTS: "{{ index .Values "fileProtocolAllowlistedAccounts" }}"

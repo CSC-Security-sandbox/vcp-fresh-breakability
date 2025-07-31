@@ -1491,6 +1491,65 @@ func (_c *MockOrchestratorFactory_DescribePool_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// GetAccount provides a mock function with given fields: ctx, accountName
+func (_m *MockOrchestratorFactory) GetAccount(ctx context.Context, accountName string) (*datamodel.Account, error) {
+	ret := _m.Called(ctx, accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAccount")
+	}
+
+	var r0 *datamodel.Account
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Account, error)); ok {
+		return rf(ctx, accountName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Account); ok {
+		r0 = rf(ctx, accountName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Account)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, accountName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAccount'
+type MockOrchestratorFactory_GetAccount_Call struct {
+	*mock.Call
+}
+
+// GetAccount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountName string
+func (_e *MockOrchestratorFactory_Expecter) GetAccount(ctx interface{}, accountName interface{}) *MockOrchestratorFactory_GetAccount_Call {
+	return &MockOrchestratorFactory_GetAccount_Call{Call: _e.mock.On("GetAccount", ctx, accountName)}
+}
+
+func (_c *MockOrchestratorFactory_GetAccount_Call) Run(run func(ctx context.Context, accountName string)) *MockOrchestratorFactory_GetAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetAccount_Call) Return(_a0 *datamodel.Account, _a1 error) *MockOrchestratorFactory_GetAccount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetAccount_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Account, error)) *MockOrchestratorFactory_GetAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackup provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) GetBackup(ctx context.Context, params *common.GetBackupParams) (*datamodel.Backup, error) {
 	ret := _m.Called(ctx, params)
@@ -4504,6 +4563,63 @@ func (_c *MockOrchestratorFactory_UpdateReplication_Call) Return(_a0 *models.Vol
 }
 
 func (_c *MockOrchestratorFactory_UpdateReplication_Call) RunAndReturn(run func(context.Context, *common.UpdateReplicationParams) (*models.VolumeReplication, string, error)) *MockOrchestratorFactory_UpdateReplication_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateResourceState provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) UpdateResourceState(ctx context.Context, params *common.UpdateResourceStateParams) (string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateResourceState")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateResourceStateParams) (string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateResourceStateParams) string); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.UpdateResourceStateParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_UpdateResourceState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateResourceState'
+type MockOrchestratorFactory_UpdateResourceState_Call struct {
+	*mock.Call
+}
+
+// UpdateResourceState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.UpdateResourceStateParams
+func (_e *MockOrchestratorFactory_Expecter) UpdateResourceState(ctx interface{}, params interface{}) *MockOrchestratorFactory_UpdateResourceState_Call {
+	return &MockOrchestratorFactory_UpdateResourceState_Call{Call: _e.mock.On("UpdateResourceState", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateResourceState_Call) Run(run func(ctx context.Context, params *common.UpdateResourceStateParams)) *MockOrchestratorFactory_UpdateResourceState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.UpdateResourceStateParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateResourceState_Call) Return(_a0 string, _a1 error) *MockOrchestratorFactory_UpdateResourceState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateResourceState_Call) RunAndReturn(run func(context.Context, *common.UpdateResourceStateParams) (string, error)) *MockOrchestratorFactory_UpdateResourceState_Call {
 	_c.Call.Return(run)
 	return _c
 }

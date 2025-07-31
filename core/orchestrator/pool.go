@@ -621,3 +621,15 @@ func convertJSONBToMap(jsonb *datamodel.JSONB) map[string]string {
 	}
 	return result
 }
+
+func (o *Orchestrator) GetAccount(ctx context.Context, accountName string) (*datamodel.Account, error) {
+	se := o.storage
+	account, err := getAccountWithName(ctx, se, accountName)
+	if err != nil {
+		return nil, err
+	}
+	if account.DeletedAt != nil || account.State == models.AccountStateDisabled {
+		return nil, customerrors.NewNotFoundErr("account not found or disabled", nil)
+	}
+	return account, nil
+}

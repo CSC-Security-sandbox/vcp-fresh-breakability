@@ -220,7 +220,7 @@ type Handler interface {
 	// Finishes the project state for a 1P account based on the path parameter and project state value.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/finishProjectEvent
-	V1betaFinishProjectEvent(ctx context.Context, req *ProjectStateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error)
+	V1betaFinishProjectEvent(ctx context.Context, req *StateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error)
 	// V1betaGetMultipleActiveDirectories implements v1beta_getMultipleActiveDirectories operation.
 	//
 	// Returns descriptions of Active Directory credentials that is listed in request body.
@@ -449,7 +449,7 @@ type Handler interface {
 	V1betaListVolumes(ctx context.Context, params V1betaListVolumesParams) (V1betaListVolumesRes, error)
 	// V1betaResourceStateUpdate implements v1beta_resourceStateUpdate operation.
 	//
-	// Updates the resource state of GCP 1P resources based on the path and body parameters.
+	// Updates the resource state of GCP resources based on the path and body parameters.
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent
 	V1betaResourceStateUpdate(ctx context.Context, req *ResourceStateUpdateV1beta, params V1betaResourceStateUpdateParams) (V1betaResourceStateUpdateRes, error)
@@ -470,7 +470,7 @@ type Handler interface {
 	// Updates the project state for a 1P account based on the path parameter and project state value.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent
-	V1betaStartProjectEvent(ctx context.Context, req *ProjectStateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error)
+	V1betaStartProjectEvent(ctx context.Context, req *StateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error)
 	// V1betaStopReplication implements v1beta_stopReplication operation.
 	//
 	// Stops a replication.

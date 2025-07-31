@@ -158,6 +158,27 @@ type CreateSnapshotParams struct {
 	IsAppConsistent bool
 }
 
+type UpdateResourceStateParams struct {
+	Description      string
+	State            string
+	ProjectNumber    string
+	LocationId       string
+	XCorrelationID   string
+	ResourceType     string
+	ResourceId       string
+	IsCommonResource bool
+	ParentResourceID string
+}
+
+type HandleResourceCVPResponse struct {
+	Name string
+	Done bool
+}
+
+type StateUpdateParam struct {
+	State string
+}
+
 type GetSnapshotParams struct {
 	SnapshotBaseParams
 	SnapshotUUID string

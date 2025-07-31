@@ -324,7 +324,7 @@ func (UnimplementedHandler) V1betaEncryptVolumes(ctx context.Context, params V1b
 // Finishes the project state for a 1P account based on the path parameter and project state value.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/finishProjectEvent
-func (UnimplementedHandler) V1betaFinishProjectEvent(ctx context.Context, req *ProjectStateUpdateV1beta, params V1betaFinishProjectEventParams) (r V1betaFinishProjectEventRes, _ error) {
+func (UnimplementedHandler) V1betaFinishProjectEvent(ctx context.Context, req *StateUpdateV1beta, params V1betaFinishProjectEventParams) (r V1betaFinishProjectEventRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -667,7 +667,7 @@ func (UnimplementedHandler) V1betaListVolumes(ctx context.Context, params V1beta
 
 // V1betaResourceStateUpdate implements v1beta_resourceStateUpdate operation.
 //
-// Updates the resource state of GCP 1P resources based on the path and body parameters.
+// Updates the resource state of GCP resources based on the path and body parameters.
 //
 // PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent
 func (UnimplementedHandler) V1betaResourceStateUpdate(ctx context.Context, req *ResourceStateUpdateV1beta, params V1betaResourceStateUpdateParams) (r V1betaResourceStateUpdateRes, _ error) {
@@ -697,7 +697,7 @@ func (UnimplementedHandler) V1betaReverseAndResumeReplication(ctx context.Contex
 // Updates the project state for a 1P account based on the path parameter and project state value.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent
-func (UnimplementedHandler) V1betaStartProjectEvent(ctx context.Context, req *ProjectStateUpdateV1beta, params V1betaStartProjectEventParams) (r V1betaStartProjectEventRes, _ error) {
+func (UnimplementedHandler) V1betaStartProjectEvent(ctx context.Context, req *StateUpdateV1beta, params V1betaStartProjectEventParams) (r V1betaStartProjectEventRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

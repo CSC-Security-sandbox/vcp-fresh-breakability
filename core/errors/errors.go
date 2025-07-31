@@ -146,6 +146,7 @@ const (
 	ErrorEmptyUpdateReplicationPayload                               = 6070
 	ErrorReplicationScheduleUnspecified                              = 6071
 	ErrDescribingVolume                                              = 6072
+	ErrCVPClientHandleResourceEventError                             = 6073
 )
 
 type Error interface {
