@@ -94,6 +94,8 @@ spec:
               value: {{ .Values.database.type | default "postgres" | quote }}
             - name: LOCAL_REGION
               value: {{ .Values.global.coreConfig.localRegion | default "" | quote }}
+            - name: REGION_NUMBER_MAP
+              value: {{ .Values.global.coreConfig.regionNumberMap | toJson | quote }}
 
           resources:
             limits:

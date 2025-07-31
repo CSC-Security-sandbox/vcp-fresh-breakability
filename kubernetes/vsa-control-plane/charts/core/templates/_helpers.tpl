@@ -51,9 +51,17 @@ Helper function to get the final URL of the image to be used in the deployment.
 {{- if hasKey $globalConfig $hyperscaler }}
 {{- range $key, $value := index $globalConfig $hyperscaler }}
 {{- if or (not (hasKey $overrideConfig $hyperscaler)) (not (hasKey (index $overrideConfig $hyperscaler) $key)) (eq (index (index $overrideConfig $hyperscaler) $key) "") }}
+{{- if eq $key "regionNumberMap" }}
+{{ include "toCapitalUnderscore" $key }}: {{ $value | toJson | quote }}
+{{- else }}
 {{ include "toCapitalUnderscore" $key }}: {{ $value | quote }}
+{{- end }}
+{{- else }}
+{{- if eq $key "regionNumberMap" }}
+{{ include "toCapitalUnderscore" $key }}: {{ index (index $overrideConfig $hyperscaler) $key | toJson | quote }}
 {{- else }}
 {{ include "toCapitalUnderscore" $key }}: {{ index (index $overrideConfig $hyperscaler) $key | quote }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
@@ -61,9 +69,17 @@ Helper function to get the final URL of the image to be used in the deployment.
 {{- range $key, $value := $globalConfig }}
 {{- if not (eq $key $hyperscaler) }}
 {{- if or (not (hasKey $overrideConfig $key)) (eq (index $overrideConfig $key) "") }}
+{{- if eq $key "regionNumberMap" }}
+{{ include "toCapitalUnderscore" $key }}: {{ $value | toJson | quote }}
+{{- else }}
 {{ include "toCapitalUnderscore" $key }}: {{ $value | quote }}
+{{- end }}
+{{- else }}
+{{- if eq $key "regionNumberMap" }}
+{{ include "toCapitalUnderscore" $key }}: {{ index $overrideConfig $key | toJson | quote }}
 {{- else }}
 {{ include "toCapitalUnderscore" $key }}: {{ index $overrideConfig $key | quote }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
