@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.app.name }}-service
+  namespace: vcp
+  labels:
+    app: {{ .Values.app.name }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: metrics
+      port: {{ .Values.workerConfig.metricsPort | quote }}
+      targetPort: {{ .Values.workerConfig.metricsPort | quote }}
+  selector:
+    app: {{ .Values.app.name }}
