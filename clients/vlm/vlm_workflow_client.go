@@ -21,7 +21,8 @@ var NewVSAClientWorkflowManager = _newVSAClientWorkflowManager
 
 var (
 	VSALifecycleManagerQueuePrefix = env.GetString("VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX", "vsa-lifecycle-manager")
-	VSALifecycleManagerQueue       = fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, env.GetString("ONTAP_VERSION", "9.17.1"))
+	OntapVersion                   = env.GetString("ONTAP_VERSION", "9.17.1")
+	VSALifecycleManagerQueue       = fmt.Sprintf("%s-%s", VSALifecycleManagerQueuePrefix, OntapVersion)
 
 	VlmWorkflowStartToCloseTimeout = env.GetString("VLMWORKFLOW_START_TO_CLOSE_WORKFLOW_TIMEOUT", "20m")
 	VlmWorkflowRetryInterval       = env.GetString("VLMWORKFLOW_RETRY_INTERVAL", "1m")
@@ -53,7 +54,7 @@ func _newVSAClientWorkflowManager() *VSAClientWorkflowManager {
 }
 
 func getVLMWorkerQueue(logger log.Logger, account string) string {
-	ontapVersion := env.GetString("ONTAP_VERSION", "9.17.1")
+	ontapVersion := OntapVersion
 	if utils.IsFileProtocolSupported(account) {
 		// not made it has configurable as this will be removed after AGA
 		ontapVersion = "9.18.1" // file protocol is supported in 9.18.1 and later
@@ -69,6 +70,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 	if err != nil {
 		return nil, err
 	}
+
 	accountId := createVSAClusterDeploymentRequest.VLMConfig.Deployment.Labels["account_id"]
 
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
@@ -86,7 +88,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 
 	createVSAClusterDeploymentResponse := &CreateVSAClusterDeploymentResponse{}
 
-	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, CreateVSAClusterDeploymentWorkflowName, createVSAClusterDeploymentRequest).Get(ctx, &createVSAClusterDeploymentResponse)
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, CreateVSAClusterDeploymentWorkflowName, createVSAClusterDeploymentRequest).Get(childWorkflowContxt, &createVSAClusterDeploymentResponse)
 
 	if err != nil {
 		logger.Error("Failed to create VSA cluster", "error", err)
@@ -103,7 +105,9 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 	if err != nil {
 		return nil, err
 	}
+
 	accountId := createSVMRequest.VLMConfig.Deployment.Labels["account_id"]
+
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		TaskQueue:             getVLMWorkerQueue(logger, accountId),
 		WaitForCancellation:   true,
@@ -118,7 +122,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 
 	createSVMResponse := &CreateSVMResponse{}
 
-	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, CreateVSASVMWorkflowName, createSVMRequest).Get(ctx, &createSVMResponse)
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, CreateVSASVMWorkflowName, createSVMRequest).Get(childWorkflowContxt, &createSVMResponse)
 	if err != nil {
 		logger.Error("Failed to create SVM", "error", err)
 		if strings.Contains(err.Error(), "already exists and is in use by a different VM") {
@@ -154,7 +158,7 @@ func (vlmManager *VSAClientWorkflowManager) DeleteVSAClusterDeployment(ctx workf
 		},
 	})
 
-	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, DeleteVSAClusterDeploymentWorkflowName, deleteVSAClusterDeploymentRequest).Get(ctx, nil)
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, DeleteVSAClusterDeploymentWorkflowName, deleteVSAClusterDeploymentRequest).Get(childWorkflowContxt, nil)
 	if err != nil {
 		logger.Error("Failed to delete VSA cluster", "error", err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -185,7 +189,7 @@ func (vlmManager *VSAClientWorkflowManager) UpdateVSAClusterDeployment(ctx workf
 
 	updateVSAClusterDeploymentResponse := &UpdateVSAClusterDeploymentResponse{}
 
-	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, UpdateVSAClusterDeploymentWorkflowName, updateVSAClusterDeploymentRequest).Get(ctx, &updateVSAClusterDeploymentResponse)
+	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, UpdateVSAClusterDeploymentWorkflowName, updateVSAClusterDeploymentRequest).Get(childWorkflowContxt, &updateVSAClusterDeploymentResponse)
 
 	if err != nil {
 		logger.Error("Failed to update VSA cluster", "error", err)
