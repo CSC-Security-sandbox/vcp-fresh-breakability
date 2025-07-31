@@ -563,7 +563,7 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 		}
 	}
 
-	return &models.Pool{
+	poolRes := &models.Pool{
 		BaseModel: models.BaseModel{
 			UUID:      pool.UUID,
 			CreatedAt: pool.CreatedAt,
@@ -595,6 +595,29 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 			Iops:       pool.PoolAttributes.Iops,
 		},
 	}
+
+	if pool.KmsConfig != nil {
+		poolRes.KmsConfig = &models.KmsConfig{
+			BaseModel: models.BaseModel{
+				UUID:      pool.KmsConfig.UUID,
+				CreatedAt: pool.KmsConfig.CreatedAt,
+				UpdatedAt: pool.KmsConfig.UpdatedAt,
+				DeletedAt: DeletedAtOrNil(pool.KmsConfig.DeletedAt),
+			},
+			Name:              pool.KmsConfig.Name,
+			Description:       pool.KmsConfig.Description,
+			State:             pool.KmsConfig.State,
+			StateDetails:      pool.KmsConfig.StateDetails,
+			KeyRing:           pool.KmsConfig.KeyRing,
+			KeyRingLocation:   pool.KmsConfig.KeyRingLocation,
+			KeyName:           pool.KmsConfig.KeyName,
+			AccountID:         pool.KmsConfig.AccountID,
+			CustomerProjectID: pool.KmsConfig.CustomerProjectID,
+			KeyProjectID:      pool.KmsConfig.KeyProjectID,
+			ResourceID:        pool.KmsConfig.ResourceID,
+		}
+	}
+	return poolRes
 }
 
 func DeletedAtOrNil(deletedAt *gorm.DeletedAt) *time.Time {

@@ -599,6 +599,11 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		Zone:               gcpgenserver.NewOptString(volume.Zone),
 		UsedBytes:          gcpgenserver.NewOptNilFloat64(float64(volume.UsedBytes)), // default value for now
 	}
+	if volume.KmsConfig != nil {
+		res.KmsConfigId = gcpgenserver.NewOptNilString(volume.KmsConfig.UUID)
+		res.KmsConfigResourceId = gcpgenserver.NewOptNilString(utils.ParsedKeyFullPathResource{ProjectID: volume.KmsConfig.KeyProjectID,
+			KeyRing: volume.KmsConfig.KeyRing, Location: volume.KmsConfig.KeyRingLocation, CryptoKey: volume.KmsConfig.KeyName}.String())
+	}
 	if volume.DeletedAt != nil {
 		res.Deleted = gcpgenserver.NewOptNilDateTime(*volume.DeletedAt)
 	}

@@ -564,7 +564,7 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		}
 	}
 
-	return &gcpgenserver.PoolV1beta{
+	poolV1beta := &gcpgenserver.PoolV1beta{
 		PoolId:                   gcpgenserver.NewOptString(pool.UUID),
 		CreatedAt:                gcpgenserver.NewOptDateTime(pool.CreatedAt),
 		UpdatedAt:                gcpgenserver.NewOptDateTime(pool.UpdatedAt),
@@ -589,11 +589,21 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		EnableHotTierAutoResize: gcpgenserver.NewOptNilBool(getEnableHotTierAutoResize(pool.AutoTieringConfig)),
 		AllocatedBytes:          gcpgenserver.NewOptNilFloat64(pool.PoolAttributes.AllocatedBytes),
 		NumberOfVolumes:         gcpgenserver.NewOptNilInt32(int32(pool.PoolAttributes.NumberOfVolumes)),
-		EncryptionType:          gcpgenserver.NewOptPoolV1betaEncryptionType(gcpgenserver.PoolV1betaEncryptionType(utils.GetEncryptionType(nil))), // pass pool.KmsConfigID
 		Zone:                    gcpgenserver.NewOptString(pool.PoolAttributes.PrimaryZone),
 		SecondaryZone:           gcpgenserver.NewOptString(pool.PoolAttributes.SecondaryZone),
 		Labels:                  gcpgenserver.NewOptPoolV1betaLabels(labels),
 	}
+
+	kmsConfigId := ""
+	if pool.KmsConfig != nil {
+		poolV1beta.KmsConfigId = gcpgenserver.NewOptNilString(pool.KmsConfig.UUID)
+		poolV1beta.KmsConfigResourceId = gcpgenserver.NewOptString(utils.ParsedKeyFullPathResource{ProjectID: pool.KmsConfig.KeyProjectID,
+			KeyRing: pool.KmsConfig.KeyRing, Location: pool.KmsConfig.KeyRingLocation, CryptoKey: pool.KmsConfig.KeyName}.String())
+		kmsConfigId = pool.KmsConfig.UUID
+	}
+	poolV1beta.EncryptionType = gcpgenserver.NewOptPoolV1betaEncryptionType(gcpgenserver.PoolV1betaEncryptionType(utils.GetEncryptionType(&kmsConfigId)))
+
+	return poolV1beta
 }
 
 // encodePoolV1 encodes a PoolV1 struct to JSON.

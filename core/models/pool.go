@@ -26,6 +26,7 @@ type Pool struct {
 	SaAccountID             string
 	DeploymentName          string
 	SnHostProject           string
+	KmsConfig               *KmsConfig
 }
 
 // PoolAttributes describes the attributes of a pool model

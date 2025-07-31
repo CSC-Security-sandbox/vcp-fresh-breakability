@@ -30,6 +30,7 @@ type Volume struct {
 	Labels                map[string]string
 	FileProperties        *FileProperties
 	SvmName               string
+	KmsConfig             *KmsConfig
 }
 
 // AutoTieringPolicy describes the auto tiering policy for a volume

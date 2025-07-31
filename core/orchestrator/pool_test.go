@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net"
 	"strings"
@@ -208,6 +209,59 @@ func TestConvertDatastorePoolToModel_InvalidDeletedAt_ReturnsNilDeletedAt(t *tes
 	result := convertDatastorePoolToModel(dbPoolView, accountName)
 
 	assert.Nil(t, result.DeletedAt)
+}
+
+func TestConvertDatastorePoolToModel_WithKms(t *testing.T) {
+	invalidDeletedAt := gorm.DeletedAt{Time: time.Now(), Valid: false}
+	datastorePool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "test-uuid",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			DeletedAt: &invalidDeletedAt,
+		},
+		Name:             "Test Pool",
+		Description:      "Test Description",
+		SizeInBytes:      1024,
+		State:            "active",
+		StateDetails:     "running",
+		AllowAutoTiering: true,
+		Network:          "test-network",
+		ServiceLevel:     "FLEX",
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 64,
+			Iops:            1024,
+			PrimaryZone:     "us-central1-a",
+			SecondaryZone:   "",
+		},
+		KmsConfigID: sql.NullInt64{Valid: true, Int64: 1},
+		KmsConfig: &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{
+				UUID: "kms-config-uuid",
+			},
+			Name:              "Test KMS Config",
+			Description:       "Test KMS Config Description",
+			State:             "active",
+			StateDetails:      "running",
+			KeyRing:           "test-key-ring",
+			KeyRingLocation:   "us-central1",
+			KeyName:           "test-key-name",
+			AccountID:         1,
+			CustomerProjectID: "test-customer-project-id",
+			KeyProjectID:      "test-key-project-id",
+		},
+	}
+	accountName := "test-account"
+	dbPoolView := database.ConvertPoolToPoolView(datastorePool)
+	result := convertDatastorePoolToModel(dbPoolView, accountName)
+
+	assert.Nil(t, result.DeletedAt)
+	assert.Equal(t, result.KmsConfig.KeyRingLocation, datastorePool.KmsConfig.KeyRingLocation)
+	assert.Equal(t, result.KmsConfig.KeyRing, datastorePool.KmsConfig.KeyRing)
+	assert.Equal(t, result.KmsConfig.KeyName, datastorePool.KmsConfig.KeyName)
+	assert.Equal(t, result.KmsConfig.CustomerProjectID, datastorePool.KmsConfig.CustomerProjectID)
+	assert.Equal(t, result.KmsConfig.KeyProjectID, datastorePool.KmsConfig.KeyProjectID)
+	assert.Equal(t, result.KmsConfig.UUID, datastorePool.KmsConfig.UUID)
 }
 
 func TestCreatePool(t *testing.T) {

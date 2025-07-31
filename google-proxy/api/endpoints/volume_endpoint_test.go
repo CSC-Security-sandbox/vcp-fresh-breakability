@@ -28,7 +28,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 	origBackupEnabled := backupEnabled
 	defer func() { backupEnabled = origBackupEnabled }()
 	backupEnabled = true
-	
+
 	// Setup file protocol support for NFS tests
 	utils.SetFileProtocolSupportedForTesting(true)
 	utils.SetFileProtocolAllowlistedAccountsForTesting("test-project")
@@ -36,7 +36,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		utils.SetFileProtocolSupportedForTesting(false)
 		utils.SetFileProtocolAllowlistedAccountsForTesting("")
 	}()
-	
+
 	t.Run("ValidInputWithBlockProperties", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
@@ -2518,13 +2518,40 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.Equal(t, "LINUX", string(out.BlockProperties.Value.OsType.Value))
 		assert.Equal(t, "ISCSI", string(out.Protocols[0]))
 	})
+	t.Run("AllFieldsWithKms", func(t *testing.T) {
+		vol := &models.Volume{
+			CreationToken:   "token",
+			PoolID:          "pool",
+			QuotaInBytes:    1234,
+			BlockProperties: &models.BlockProperties{OSType: "LINUX"},
+			ProtocolTypes:   []string{"ISCSI"},
+			LifeCycleState:  "READY",
+			IPAddress:       "10.72.177.17",
+			KmsConfig: &models.KmsConfig{
+				BaseModel: models.BaseModel{
+					UUID: "kms-uuid",
+				},
+				KeyRingLocation: "location-id",
+				KeyRing:         "key-ring-name",
+				KeyName:         "key-name",
+				KeyProjectID:    "proj-1",
+			},
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+		assert.Equal(t, "token", out.CreationToken.Value)
+		assert.Equal(t, "LINUX", string(out.BlockProperties.Value.OsType.Value))
+		assert.Equal(t, "ISCSI", string(out.Protocols[0]))
+		assert.Equal(t, "kms-uuid", out.KmsConfigId.Value)
+		assert.Equal(t, "projects/proj-1/locations/location-id/keyRings/key-ring-name/cryptoKeys/key-name", out.KmsConfigResourceId.Value)
+	})
 
 	t.Run("WithFilePropertiesAndExportRules", func(t *testing.T) {
 		vol := &models.Volume{
-			CreationToken: "file-token",
-			PoolID:        "file-pool",
-			QuotaInBytes:  2048,
-			ProtocolTypes: []string{"NFSV3"},
+			CreationToken:  "file-token",
+			PoolID:         "file-pool",
+			QuotaInBytes:   2048,
+			ProtocolTypes:  []string{"NFSV3"},
 			LifeCycleState: "READY",
 			FileProperties: &models.FileProperties{
 				ExportPolicy: &models.ExportPolicy{
@@ -2552,19 +2579,19 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.NotNil(t, out)
 		assert.Equal(t, "file-token", out.CreationToken.Value)
 		assert.Equal(t, "NFSV3", string(out.Protocols[0]))
-		
+
 		// Verify ExportPolicy is properly converted
 		assert.True(t, out.ExportPolicy.IsSet())
 		exportPolicy := out.ExportPolicy.Value
 		assert.Len(t, exportPolicy.Rules, 2)
-		
+
 		// Verify first rule
 		rule1 := exportPolicy.Rules[0]
 		assert.Equal(t, "192.168.1.0/24", rule1.AllowedClients)
 		assert.Equal(t, gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADWRITE, rule1.AccessType)
 		assert.True(t, rule1.Nfsv3.Value)
 		assert.False(t, rule1.Nfsv4.Value)
-		
+
 		// Verify second rule
 		rule2 := exportPolicy.Rules[1]
 		assert.Equal(t, "10.0.0.0/8", rule2.AllowedClients)

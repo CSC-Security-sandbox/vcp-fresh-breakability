@@ -186,7 +186,7 @@ func (d *DataStoreRepository) ListVolumes(ctx context.Context, conditions [][]in
 
 func _listVolumesWithDetails(db *gorm.DB) ([]*datamodel.Volume, error) {
 	var volumes []*datamodel.Volume
-	err := db.Preload("Account").Preload("Pool").Preload("Svm").Find(&volumes).Error
+	err := db.Preload("Account").Preload("Pool").Preload("Svm").Preload("Pool.KmsConfig").Find(&volumes).Error
 	if err != nil {
 		return nil, errors.NewVCPError(errors.ErrDatabaseDataReadError, err)
 	}
@@ -195,7 +195,7 @@ func _listVolumesWithDetails(db *gorm.DB) ([]*datamodel.Volume, error) {
 
 func getVolumeWithDetails(db *gorm.DB, query *datamodel.Volume) (*datamodel.Volume, error) {
 	volume := &datamodel.Volume{}
-	err := db.Preload("Account").Preload("Pool").Preload("Svm").First(&volume, query).Error
+	err := db.Preload("Account").Preload("Pool").Preload("Svm").Preload("Pool.KmsConfig").First(&volume, query).Error
 	if err != nil {
 		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "volume", nil)
 	}
@@ -204,7 +204,7 @@ func getVolumeWithDetails(db *gorm.DB, query *datamodel.Volume) (*datamodel.Volu
 
 func (d *DataStoreRepository) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
 	var volumes []*datamodel.Volume
-	err := d.db.GORM().WithContext(ctx).Preload("Account").Preload("Pool").Preload("Svm").Where("pool_id = ?", poolID).Find(&volumes).Error
+	err := d.db.GORM().WithContext(ctx).Preload("Account").Preload("Pool").Preload("Svm").Preload("Pool.KmsConfig").Where("pool_id = ?", poolID).Find(&volumes).Error
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +226,7 @@ func (d *DataStoreRepository) GetMultipleVolumes(ctx context.Context, conditions
 
 func _getMultipleVolumes(db *gorm.DB) ([]*datamodel.Volume, error) {
 	var volumes []*datamodel.Volume
-	err := db.Preload("Account").Preload("Pool").Preload("Svm").Find(&volumes).Error
+	err := db.Preload("Account").Preload("Pool").Preload("Svm").Preload("Pool.KmsConfig").Find(&volumes).Error
 	if err != nil {
 		return nil, err
 	}

@@ -306,7 +306,7 @@ func _getPoolByName(db *gorm.DB) (*datamodel.PoolView, error) {
 
 func _listPoolWithDetails(db *gorm.DB) ([]*datamodel.PoolView, error) {
 	var pools []*datamodel.PoolView
-	err := db.Preload("Account").Find(&pools).Error
+	err := db.Preload("Account").Preload("KmsConfig").Find(&pools).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}

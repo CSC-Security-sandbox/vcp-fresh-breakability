@@ -598,7 +598,6 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 		IsDataProtection:      volume.VolumeAttributes.IsDataProtection,
 		Zone:                  volume.Pool.PoolAttributes.PrimaryZone,
 		UsedBytes:             volume.UsedBytes,
-		EncryptionType:        utils.GetEncryptionType(nil), // pass volume.Pool.KmsConfigID when association is implemented
 		SnapReserve:           volume.VolumeAttributes.SnapReserve,
 	}
 	attributes := volume.VolumeAttributes
@@ -609,6 +608,30 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 	if volume.Svm != nil {
 		res.SvmName = volume.Svm.Name
 	}
+	var kmsConfigUUID string
+	if volume.Pool.KmsConfig != nil {
+		res.KmsConfig = &models.KmsConfig{
+			BaseModel: models.BaseModel{
+				UUID:      volume.Pool.KmsConfig.UUID,
+				CreatedAt: volume.Pool.KmsConfig.CreatedAt,
+				UpdatedAt: volume.Pool.KmsConfig.UpdatedAt,
+				DeletedAt: DeletedAtOrNil(volume.Pool.KmsConfig.DeletedAt),
+			},
+			Name:              volume.Pool.KmsConfig.Name,
+			Description:       volume.Pool.KmsConfig.Description,
+			State:             volume.Pool.KmsConfig.State,
+			StateDetails:      volume.Pool.KmsConfig.StateDetails,
+			KeyRing:           volume.Pool.KmsConfig.KeyRing,
+			KeyRingLocation:   volume.Pool.KmsConfig.KeyRingLocation,
+			KeyName:           volume.Pool.KmsConfig.KeyName,
+			AccountID:         volume.Pool.KmsConfig.AccountID,
+			CustomerProjectID: volume.Pool.KmsConfig.CustomerProjectID,
+			KeyProjectID:      volume.Pool.KmsConfig.KeyProjectID,
+			ResourceID:        volume.Pool.KmsConfig.ResourceID,
+		}
+		kmsConfigUUID = volume.Pool.KmsConfig.UUID
+	}
+	res.EncryptionType = utils.GetEncryptionType(&kmsConfigUUID)
 	if attributes.BlockProperties != nil {
 		res.BlockProperties = &models.BlockProperties{
 			OSType:          attributes.BlockProperties.OSType,

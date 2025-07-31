@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"database/sql"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -7102,6 +7103,51 @@ func TestConvertDatastoreVolumeToModelFileProperties(t *testing.T) {
 
 		assert.NotNil(tt, result)
 		assert.Nil(tt, result.FileProperties)
+	})
+
+	t.Run("ConvertVolumeWithKms", func(tt *testing.T) {
+		ipAddress := "192.168.1.100"
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+			KmsConfigID: sql.NullInt64{Valid: true, Int64: 1},
+			KmsConfig: &datamodel.KmsConfig{
+				BaseModel: datamodel.BaseModel{UUID: "test-kms-uuid"},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-volume-uuid",
+			},
+			Name:        "test-volume",
+			Description: "test description",
+			SizeInBytes: 107374182400,
+			Account:     account,
+			Pool:        pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "test-token",
+				Protocols:     []string{utils.ProtocolISCSI},
+				// No FileProperties
+			},
+		}
+
+		// Test conversion without file properties
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+
+		assert.NotNil(tt, result)
+		assert.Nil(tt, result.FileProperties)
+		assert.Equal(tt, result.EncryptionType, "CLOUD_KMS")
+		assert.Equal(tt, result.KmsConfig.UUID, "test-kms-uuid")
 	})
 }
 

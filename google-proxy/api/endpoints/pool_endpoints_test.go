@@ -2248,3 +2248,58 @@ func TestValidateCreatePoolParams_AutoTieringValidation(t *testing.T) {
 		})
 	})
 }
+
+func TestConvertToPoolV1Beta(t *testing.T) {
+	t.Run("WhenPoolHasAllFields", func(tt *testing.T) {
+		createdAt := time.Now()
+		deletedAt := time.Now().Add(1 * time.Hour)
+
+		pool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID:      "test-pool-uuid",
+				CreatedAt: createdAt,
+				DeletedAt: &deletedAt,
+			},
+			Description:  "Test pool description",
+			VendorID:     "/projects/123/locations/us-east4/pools/test-pool",
+			Region:       "us-east4",
+			SizeInBytes:  1099511627776, // 1 TiB
+			ServiceLevel: "premium",
+			State:        models.LifeCycleStateAvailable,
+			QosType:      "auto",
+			AutoTieringConfig: &models.AutoTieringConfig{
+				HotTierSizeInBytes:      549755813888, // 512 GiB
+				EnableHotTierAutoResize: true,
+			},
+			CustomPerformanceParams: &models.CustomPerformanceParams{
+				Enabled:    true,
+				Throughput: 1024,
+				Iops:       2048,
+			},
+			KmsConfig: &models.KmsConfig{
+				BaseModel: models.BaseModel{
+					UUID: "test-kms-config-id",
+				},
+				KeyName:         "test-kms-config",
+				KeyProjectID:    "test-kms-project-id",
+				KeyRingLocation: "us-east4",
+				KeyRing:         "test-kms-keyring",
+			},
+			PoolAttributes: &models.PoolAttributes{},
+		}
+
+		result := convertToPoolV1Beta(pool)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "test-pool-uuid", result.PoolId.Value)
+		assert.Equal(tt, "Test pool description", result.Description.Value)
+		assert.Equal(tt, float64(1099511627776), result.SizeInBytes)
+		assert.Equal(tt, "auto", result.QosType.Value)
+		assert.True(tt, result.CreatedAt.IsSet())
+		assert.True(tt, result.DeletedAt.IsSet())
+		assert.Equal(tt, float64(1024), result.TotalThroughputMibps.Value)
+		assert.Equal(tt, float64(2048), result.TotalIops.Value)
+		assert.Equal(tt, "test-kms-config-id", result.KmsConfigId.Value)
+		assert.Equal(tt, "projects/test-kms-project-id/locations/us-east4/keyRings/test-kms-keyring/cryptoKeys/test-kms-config", result.KmsConfigResourceId.Value)
+	})
+}
