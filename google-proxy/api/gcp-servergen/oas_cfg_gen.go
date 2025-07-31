@@ -27,6 +27,7 @@ var regexMap = map[string]ogenregex.Regexp{
 	"^[a-zA-Z][a-zA-Z0-9\\-_]{0,79}$":                                                                 ogenregex.MustCompile("^[a-zA-Z][a-zA-Z0-9\\-_]{0,79}$"),
 	"^[a-zA-Z][a-zA-Z0-9_]{0,62}$":                                                                    ogenregex.MustCompile("^[a-zA-Z][a-zA-Z0-9_]{0,62}$"),
 	"^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$":                                                               ogenregex.MustCompile("^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"),
+	"^[a-z]([a-z0-9._-]{0,61}[a-z0-9])?$":                                                             ogenregex.MustCompile("^[a-z]([a-z0-9._-]{0,61}[a-z0-9])?$"),
 	"^projects\\/([^\\/]+)\\/locations\\/([^\\/]+)\\/storagePools|pools\\/([^\\/]+)$":                 ogenregex.MustCompile("^projects\\/([^\\/]+)\\/locations\\/([^\\/]+)\\/storagePools|pools\\/([^\\/]+)$"),
 	"^projects\\/([^\\/]+)\\/locations\\/([^\\/]+)\\/volumes\\/([^\\/]+)\\/replications\\/([^\\/]+)$": ogenregex.MustCompile("^projects\\/([^\\/]+)\\/locations\\/([^\\/]+)\\/volumes\\/([^\\/]+)\\/replications\\/([^\\/]+)$"),
 	"^projects\\/\\d+\\/global\\/networks\\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$":              ogenregex.MustCompile("^projects\\/\\d+\\/global\\/networks\\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$"),

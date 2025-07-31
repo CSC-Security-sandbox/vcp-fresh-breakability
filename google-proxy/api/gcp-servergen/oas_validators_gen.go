@@ -7024,7 +7024,7 @@ func (s *SnapshotV1beta) Validate() error {
 			MaxLengthSet: true,
 			Email:        false,
 			Hostname:     false,
-			Regex:        regexMap["^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"],
+			Regex:        regexMap["^[a-z]([a-z0-9._-]{0,61}[a-z0-9])?$"],
 		}).Validate(string(s.ResourceId)); err != nil {
 			return errors.Wrap(err, "string")
 		}
