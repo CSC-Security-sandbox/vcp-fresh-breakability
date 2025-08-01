@@ -90,8 +90,8 @@ data:
   MGMT_NETWORK_IP_RANGE: {{ .Values.workerConfig.mgmtNetworkIpRange | quote }}
   RSM_NETWORK_IP_RANGE: {{ .Values.workerConfig.rsmNetworkIpRange | quote }}
   IC_NETWORK_IP_RANGE: {{ .Values.workerConfig.icNetworkIpRange | quote }}
-  MGMT_FIREWALL_PORT_RULES: {{ .Values.workerConfig.mgmtFirewallPortRules | quote }} "tcp,udp,icmp"
-  RSM_FIREWALL_PORT_RULES: {{ .Values.workerConfig.rsmFirewallPortRules | quote }}"tcp,udp"
-  IC_FIREWALL_PORT_RULES: {{ .Values.workerConfig.icFirewallPortRules | quote }} "tcp,udp"
-  ISCSI_FIREWALL_PORT_RULES: {{ .Values.workerConfig.iscsiFirewallPortRules | quote }} "tcp,udp"
+  MGMT_FIREWALL_PORT_RULES: {{ .Values.workerConfig.mgmtFirewallPortRules | quote }}
+  RSM_FIREWALL_PORT_RULES: {{ .Values.workerConfig.rsmFirewallPortRules | quote }}
+  IC_FIREWALL_PORT_RULES: {{ .Values.workerConfig.icFirewallPortRules | quote }}
+  ISCSI_FIREWALL_PORT_RULES: {{ .Values.workerConfig.iscsiFirewallPortRules | quote }}
   WAIT_TIME_FOR_GCP_OPERATION_IN_SEC: {{ .Values.workerConfig.waitTimeForGcpOperationInSec | quote }}
