@@ -77,6 +77,9 @@ global:
     vsaNodePassword: ""
     vsaNodeUsername: ""
     writeTimeout: "60s"
+    finishProjectCvpMaxRetries: "10"
+    finishProjectCvpRetryInterval: "30s"
+    finishProjectBackoffCoefficient: "1.0"
     localRegion: ""
     # Make sure to update the regionNumberMap if new regions are added. In both Google proxy and vcp-worker-chart
     regionNumberMap:

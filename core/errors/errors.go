@@ -147,6 +147,7 @@ const (
 	ErrorReplicationScheduleUnspecified                              = 6071
 	ErrDescribingVolume                                              = 6072
 	ErrCVPClientHandleResourceEventError                             = 6073
+	ErrCVPClientFinishProjectEventError                              = 6074
 
 	ErrDeleteSnapshot                   = 7001
 	ErrVolumeNotOnlineForSnapshotDelete = 7002

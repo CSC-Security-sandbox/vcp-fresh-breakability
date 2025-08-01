@@ -56,6 +56,9 @@ data:
   ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: "{{ index .Values "enableUniqueSerialNumberGeneration" }}"
   CLUSTER_SERIAL_NUMBER_PREFIX: "{{ index .Values "clusterSerialNumberPrefix" }}"
   REGION_NUMBER_MAP: {{ .Values.global.coreConfig.regionNumberMap | toJson | quote }}
+  FINISH_PROJECT_CVP_CLIENT_RETRY_MAX_ATTEMPTS: "{{ index .Values "finishProjectCvpMaxRetries" }}"
+  FINISH_PROJECT_CVP_CLIENT_RETRY_INTERVAL: "{{ index .Values "finishProjectCvpRetryInterval" }}"
+  FINISH_PROJECT_CVP_CLIENT_BACKOFF_COEFFICIENT: "{{ index .Values "finishProjectBackoffCoefficient" }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_NAME: {{ index .Values "database" "name"  }}

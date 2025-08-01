@@ -164,3 +164,69 @@ func _updateResourceState(ctx context.Context, se database.Storage, temporal cli
 
 	return createdJob.UUID, nil
 }
+
+func (o *Orchestrator) CreateOrGetFinishProjectEventJob(ctx context.Context,
+	params *commonparams.FinishProjectEventParams) (string, error) {
+	return _createOrGetFinishProjectEventJob(ctx, o.storage, o.temporal, params)
+}
+
+func _createOrGetFinishProjectEventJob(ctx context.Context, se database.Storage, temporal client.Client,
+	params *commonparams.FinishProjectEventParams) (string, error) {
+	logger := util.GetLogger(ctx)
+	account, err := getOrCreateAccount(ctx, se, params.ProjectNumber)
+	if err != nil {
+		logger.Error("Failed to get or create account", "error", err)
+		return "", err
+	}
+
+	jobTransitioningStates := []string{string(models.JobsStateNEW), string(models.JobsStatePROCESSING)}
+	jobType := models.JobTypeFinishProjectEventDeleteState
+
+	wf := workflows.FinishProjectEventDeleteStateWorkflow
+
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("account_id", "=", account.ID),
+		utils2.NewFilterCondition("type", "=", string(jobType)),
+		utils2.NewFilterCondition("state", "in", jobTransitioningStates),
+	)
+	jobs, err := se.GetJobsWithCondition(ctx, *filter)
+	if err != nil && !errors.IsNotFoundErr(err) {
+		logger.Errorf("Failed to get jobs with conditions: %v. Error: %v", filter.ToGORMQuery(), err)
+		return "", err
+	}
+
+	if (len(jobs)) > 0 {
+		job := jobs[0]
+		logger.Infof("Found New/Ongoing finishProjectEvent job for account %s with Job UUID: %s",
+			params.ProjectNumber, job.UUID)
+		return job.UUID, nil
+	}
+
+	job := datamodel.Job{
+		Type:          string(jobType),
+		State:         string(models.JobsStateNEW),
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err := se.CreateJob(ctx, &job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return "", err
+	}
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		wf,
+		params,
+	)
+	if err != nil {
+		logger.Error("Failed to execute workflow for finish project delete event", "error", err)
+		return "", err
+	}
+	return createdJob.UUID, nil
+}

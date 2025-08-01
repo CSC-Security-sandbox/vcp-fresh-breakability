@@ -8925,6 +8925,52 @@ func (o OptPoolInternalV1betaStoragePoolState) Or(d PoolInternalV1betaStoragePoo
 	return d
 }
 
+// NewOptPoolInternalV1betaType returns new OptPoolInternalV1betaType with value set to v.
+func NewOptPoolInternalV1betaType(v PoolInternalV1betaType) OptPoolInternalV1betaType {
+	return OptPoolInternalV1betaType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPoolInternalV1betaType is optional PoolInternalV1betaType.
+type OptPoolInternalV1betaType struct {
+	Value PoolInternalV1betaType
+	Set   bool
+}
+
+// IsSet returns true if OptPoolInternalV1betaType was set.
+func (o OptPoolInternalV1betaType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPoolInternalV1betaType) Reset() {
+	var v PoolInternalV1betaType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPoolInternalV1betaType) SetTo(v PoolInternalV1betaType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPoolInternalV1betaType) Get() (v PoolInternalV1betaType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPoolInternalV1betaType) Or(d PoolInternalV1betaType) PoolInternalV1betaType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptPoolUpdateV1betaLabels returns new OptPoolUpdateV1betaLabels with value set to v.
 func NewOptPoolUpdateV1betaLabels(v PoolUpdateV1betaLabels) OptPoolUpdateV1betaLabels {
 	return OptPoolUpdateV1betaLabels{
@@ -9103,6 +9149,52 @@ func (o OptPoolV1betaStoragePoolState) Get() (v PoolV1betaStoragePoolState, ok b
 
 // Or returns value if set, or given parameter if does not.
 func (o OptPoolV1betaStoragePoolState) Or(d PoolV1betaStoragePoolState) PoolV1betaStoragePoolState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptPoolV1betaType returns new OptPoolV1betaType with value set to v.
+func NewOptPoolV1betaType(v PoolV1betaType) OptPoolV1betaType {
+	return OptPoolV1betaType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptPoolV1betaType is optional PoolV1betaType.
+type OptPoolV1betaType struct {
+	Value PoolV1betaType
+	Set   bool
+}
+
+// IsSet returns true if OptPoolV1betaType was set.
+func (o OptPoolV1betaType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptPoolV1betaType) Reset() {
+	var v PoolV1betaType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptPoolV1betaType) SetTo(v PoolV1betaType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptPoolV1betaType) Get() (v PoolV1betaType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptPoolV1betaType) Or(d PoolV1betaType) PoolV1betaType {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -11180,9 +11272,13 @@ type PoolInternalV1beta struct {
 	CustomPerformanceEnabled OptBool `json:"customPerformanceEnabled"`
 	// The total iops set for a pool.
 	TotalIops OptNilFloat64 `json:"totalIops"`
-	// Indicates if the pool type is unified.
+	// The type of storage pool. STORAGE_POOL_TYPE_UNSPECIFIED is the default value and should not be
+	// used. STANDARD represents the classic/legacy storage pool. UNIFIED represents the VSA-based
+	// storage pool.
+	Type OptPoolInternalV1betaType `json:"type"`
+	// Indicates if the pool type is unified (deprecated, use 'type' field instead).
 	Unified OptBool `json:"unified"`
-	// Indicates if the pool type is unified.
+	// Indicates if the pool type is unified (deprecated, use 'type' field instead).
 	UnifiedPool OptBool `json:"unifiedPool"`
 	// The name of the cluster.
 	ClusterName OptString `json:"clusterName"`
@@ -11373,6 +11469,11 @@ func (s *PoolInternalV1beta) GetCustomPerformanceEnabled() OptBool {
 // GetTotalIops returns the value of TotalIops.
 func (s *PoolInternalV1beta) GetTotalIops() OptNilFloat64 {
 	return s.TotalIops
+}
+
+// GetType returns the value of Type.
+func (s *PoolInternalV1beta) GetType() OptPoolInternalV1betaType {
+	return s.Type
 }
 
 // GetUnified returns the value of Unified.
@@ -11578,6 +11679,11 @@ func (s *PoolInternalV1beta) SetCustomPerformanceEnabled(val OptBool) {
 // SetTotalIops sets the value of TotalIops.
 func (s *PoolInternalV1beta) SetTotalIops(val OptNilFloat64) {
 	s.TotalIops = val
+}
+
+// SetType sets the value of Type.
+func (s *PoolInternalV1beta) SetType(val OptPoolInternalV1betaType) {
+	s.Type = val
 }
 
 // SetUnified sets the value of Unified.
@@ -11818,6 +11924,57 @@ func (s *PoolInternalV1betaStoragePoolState) UnmarshalText(data []byte) error {
 		return nil
 	case PoolInternalV1betaStoragePoolStateERROR:
 		*s = PoolInternalV1betaStoragePoolStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The type of storage pool. STORAGE_POOL_TYPE_UNSPECIFIED is the default value and should not be
+// used. STANDARD represents the classic/legacy storage pool. UNIFIED represents the VSA-based
+// storage pool.
+type PoolInternalV1betaType string
+
+const (
+	PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED PoolInternalV1betaType = "STORAGE_POOL_TYPE_UNSPECIFIED"
+	PoolInternalV1betaTypeSTANDARD                   PoolInternalV1betaType = "STANDARD"
+	PoolInternalV1betaTypeUNIFIED                    PoolInternalV1betaType = "UNIFIED"
+)
+
+// AllValues returns all PoolInternalV1betaType values.
+func (PoolInternalV1betaType) AllValues() []PoolInternalV1betaType {
+	return []PoolInternalV1betaType{
+		PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED,
+		PoolInternalV1betaTypeSTANDARD,
+		PoolInternalV1betaTypeUNIFIED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PoolInternalV1betaType) MarshalText() ([]byte, error) {
+	switch s {
+	case PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case PoolInternalV1betaTypeSTANDARD:
+		return []byte(s), nil
+	case PoolInternalV1betaTypeUNIFIED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PoolInternalV1betaType) UnmarshalText(data []byte) error {
+	switch PoolInternalV1betaType(data) {
+	case PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
+		*s = PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
+		return nil
+	case PoolInternalV1betaTypeSTANDARD:
+		*s = PoolInternalV1betaTypeSTANDARD
+		return nil
+	case PoolInternalV1betaTypeUNIFIED:
+		*s = PoolInternalV1betaTypeUNIFIED
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -12074,9 +12231,13 @@ type PoolV1beta struct {
 	CustomPerformanceEnabled OptBool `json:"customPerformanceEnabled"`
 	// The total iops set for a pool.
 	TotalIops OptNilFloat64 `json:"totalIops"`
-	// Indicates if the pool type is unified.
+	// The type of storage pool. STORAGE_POOL_TYPE_UNSPECIFIED is the default value and should not be
+	// used. STANDARD represents the classic/legacy storage pool. UNIFIED represents the VSA-based
+	// storage pool.
+	Type OptPoolV1betaType `json:"type"`
+	// Indicates if the pool type is unified (deprecated, use 'type' field instead).
 	Unified OptBool `json:"unified"`
-	// Indicates if the pool type is unified.
+	// Indicates if the pool type is unified (deprecated, use 'type' field instead).
 	UnifiedPool OptBool `json:"unifiedPool"`
 }
 
@@ -12263,6 +12424,11 @@ func (s *PoolV1beta) GetCustomPerformanceEnabled() OptBool {
 // GetTotalIops returns the value of TotalIops.
 func (s *PoolV1beta) GetTotalIops() OptNilFloat64 {
 	return s.TotalIops
+}
+
+// GetType returns the value of Type.
+func (s *PoolV1beta) GetType() OptPoolV1betaType {
+	return s.Type
 }
 
 // GetUnified returns the value of Unified.
@@ -12458,6 +12624,11 @@ func (s *PoolV1beta) SetCustomPerformanceEnabled(val OptBool) {
 // SetTotalIops sets the value of TotalIops.
 func (s *PoolV1beta) SetTotalIops(val OptNilFloat64) {
 	s.TotalIops = val
+}
+
+// SetType sets the value of Type.
+func (s *PoolV1beta) SetType(val OptPoolV1betaType) {
+	s.Type = val
 }
 
 // SetUnified sets the value of Unified.
@@ -12688,6 +12859,57 @@ func (s *PoolV1betaStoragePoolState) UnmarshalText(data []byte) error {
 		return nil
 	case PoolV1betaStoragePoolStateERROR:
 		*s = PoolV1betaStoragePoolStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The type of storage pool. STORAGE_POOL_TYPE_UNSPECIFIED is the default value and should not be
+// used. STANDARD represents the classic/legacy storage pool. UNIFIED represents the VSA-based
+// storage pool.
+type PoolV1betaType string
+
+const (
+	PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED PoolV1betaType = "STORAGE_POOL_TYPE_UNSPECIFIED"
+	PoolV1betaTypeSTANDARD                   PoolV1betaType = "STANDARD"
+	PoolV1betaTypeUNIFIED                    PoolV1betaType = "UNIFIED"
+)
+
+// AllValues returns all PoolV1betaType values.
+func (PoolV1betaType) AllValues() []PoolV1betaType {
+	return []PoolV1betaType{
+		PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED,
+		PoolV1betaTypeSTANDARD,
+		PoolV1betaTypeUNIFIED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PoolV1betaType) MarshalText() ([]byte, error) {
+	switch s {
+	case PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case PoolV1betaTypeSTANDARD:
+		return []byte(s), nil
+	case PoolV1betaTypeUNIFIED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PoolV1betaType) UnmarshalText(data []byte) error {
+	switch PoolV1betaType(data) {
+	case PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
+		*s = PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
+		return nil
+	case PoolV1betaTypeSTANDARD:
+		*s = PoolV1betaTypeSTANDARD
+		return nil
+	case PoolV1betaTypeUNIFIED:
+		*s = PoolV1betaTypeUNIFIED
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

@@ -53,18 +53,6 @@ func (s *ActiveDirectoryV1beta) setDefaults() {
 // setDefaults set default value of fields.
 func (s *BackupPolicyCreateV1beta) setDefaults() {
 	{
-		val := int(0)
-		s.DailyBackupLimit.SetTo(val)
-	}
-	{
-		val := int(0)
-		s.WeeklyBackupLimit.SetTo(val)
-	}
-	{
-		val := int(0)
-		s.MonthlyBackupLimit.SetTo(val)
-	}
-	{
 		val := bool(true)
 		s.Enabled.SetTo(val)
 	}
@@ -80,22 +68,6 @@ func (s *BackupPolicyDetailsV1beta) setDefaults() {
 		val := int(0)
 		s.VolumeCount.SetTo(val)
 	}
-	{
-		val := int(0)
-		s.DailyBackupLimit.SetTo(val)
-	}
-	{
-		val := int(0)
-		s.WeeklyBackupLimit.SetTo(val)
-	}
-	{
-		val := int(0)
-		s.MonthlyBackupLimit.SetTo(val)
-	}
-}
-
-// setDefaults set default value of fields.
-func (s *BackupPolicyUpdateV1beta) setDefaults() {
 	{
 		val := int(0)
 		s.DailyBackupLimit.SetTo(val)

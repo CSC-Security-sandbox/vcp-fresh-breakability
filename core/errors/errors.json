@@ -311,6 +311,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "6074": {
+    "description": "FinishProjectEvent failure",
+    "message": "Client Error during FinishProjectEvent",
+    "retriable": true,
+    "http_code": 500
+  },
   "7001": {
     "description": "Snapshot Deletion Error",
     "message": "Cannot delete snapshot while snapshot is in use",

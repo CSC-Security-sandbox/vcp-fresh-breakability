@@ -4,6 +4,8 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,11 +16,15 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
+var (
+	_parseAndValidateRegionAndZone = parseAndValidateRegionAndZone
+)
+
 func TestResourceEventsEndpoints(t *testing.T) {
 	t.Run("TestV1betaStartProjectEvent_StateDELETE", func(tt *testing.T) {
 		ctx := context.Background()
-		req := &gcpgenserver.StateUpdateV1beta{
-			State: gcpgenserver.StateUpdateV1betaStateDELETE,
+		req := &gcpgenserver.ProjectStateUpdateV1beta{
+			State: gcpgenserver.ProjectStateUpdateV1betaStateDELETE,
 		}
 		params := gcpgenserver.V1betaStartProjectEventParams{
 			ProjectNumber: "12345",
@@ -41,7 +47,7 @@ func TestResourceEventsEndpoints(t *testing.T) {
 	t.Run("TestV1betaStartProjectEvent_ErrorWhenLocationValidationFails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
-		req := &gcpgenserver.StateUpdateV1beta{}
+		req := &gcpgenserver.ProjectStateUpdateV1beta{}
 		params := gcpgenserver.V1betaStartProjectEventParams{
 			ProjectNumber: "12345",
 			LocationId:    "us-central1",
@@ -68,7 +74,7 @@ func TestResourceEventsEndpoints(t *testing.T) {
 	t.Run("TestV1betaStartProjectEvent_ErrorWhenCreateOrGetStartProjectEventJob", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
-		req := &gcpgenserver.StateUpdateV1beta{}
+		req := &gcpgenserver.ProjectStateUpdateV1beta{}
 		params := gcpgenserver.V1betaStartProjectEventParams{
 			ProjectNumber: "12345",
 			LocationId:    "us-central1",
@@ -92,8 +98,8 @@ func TestResourceEventsEndpoints(t *testing.T) {
 	t.Run("TestV1betaStartProjectEvent_Success", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
-		req := &gcpgenserver.StateUpdateV1beta{
-			State: gcpgenserver.StateUpdateV1betaStateON,
+		req := &gcpgenserver.ProjectStateUpdateV1beta{
+			State: gcpgenserver.ProjectStateUpdateV1betaStateON,
 		}
 		params := gcpgenserver.V1betaStartProjectEventParams{
 			ProjectNumber: "12345",
@@ -105,6 +111,10 @@ func TestResourceEventsEndpoints(t *testing.T) {
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "", "", nil
 		}
+
+		defer func() {
+			parseAndValidateRegionAndZone = _parseAndValidateRegionAndZone
+		}()
 		jobID := "jobID"
 		mockOrchestrator.EXPECT().CreateOrGetStartProjectEventJob(mock.Anything, mock.Anything).Return(jobID, nil)
 		operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobID
@@ -115,6 +125,163 @@ func TestResourceEventsEndpoints(t *testing.T) {
 		assert.Equal(tt, gcpgenserver.NewOptString(operationID), res.(*gcpgenserver.V1betaStartProjectEventAccepted).Name)
 		assert.Equal(tt, gcpgenserver.NewOptBool(false), res.(*gcpgenserver.V1betaStartProjectEventAccepted).Done)
 	})
+}
+
+func RemoveItemFromSlice(slice []string, item string) []string {
+	var newSlice []string
+	for _, v := range slice {
+		if v == item {
+			continue
+		} else {
+			newSlice = append(newSlice, v)
+		}
+	}
+	return newSlice
+}
+
+func GetConfiguredRegion() string {
+	configuredRegion := env.GetString("LOCAL_REGION", "local")
+	return configuredRegion
+}
+
+func GetValidOtherRegion() string {
+	validLocations := []string{"us-central1", "us-east4", "australia-southeast1"}
+	configuredRegion := GetConfiguredRegion()
+	otherValidLocation := RemoveItemFromSlice(validLocations, configuredRegion)[0]
+	return otherValidLocation
+}
+
+func TestV1betaFinishProjectEvent(t *testing.T) {
+	tests := []struct {
+		name           string
+		locationID     string
+		state          gcpgenserver.ProjectStateUpdateV1betaState
+		mockSetup      func(m *orchestrator.MockOrchestratorFactory)
+		expectedResult gcpgenserver.V1betaFinishProjectEventRes
+		expectError    bool
+	}{
+		{
+			name:       "Invalid location ID",
+			locationID: "invalid-location",
+			state:      gcpgenserver.ProjectStateUpdateV1betaStateDELETE,
+			mockSetup:  func(m *orchestrator.MockOrchestratorFactory) {},
+			expectedResult: &gcpgenserver.V1betaFinishProjectEventBadRequest{
+				Code:    400,
+				Message: "LocationID represents neither a region nor a zone",
+			},
+			expectError: false,
+		},
+		{
+			name:       "Valid location which is not configured in the environment",
+			locationID: GetValidOtherRegion(),
+			state:      gcpgenserver.ProjectStateUpdateV1betaStateDELETE,
+			mockSetup:  func(m *orchestrator.MockOrchestratorFactory) {},
+			expectedResult: &gcpgenserver.V1betaFinishProjectEventBadRequest{
+				Code:    400,
+				Message: fmt.Sprintf("Invalid region. Region can only be %s", GetConfiguredRegion()),
+			},
+			expectError: false,
+		},
+		{
+			name:       "ON state not implemented",
+			locationID: GetValidOtherRegion(),
+			state:      gcpgenserver.ProjectStateUpdateV1betaStateON,
+			mockSetup: func(m *orchestrator.MockOrchestratorFactory) {
+				parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+					return "", "", nil
+				}
+			},
+			expectedResult: &gcpgenserver.V1betaFinishProjectEventNotImplemented{
+				Code:    models.NotImplementedErrorCode,
+				Message: "Finish Project Event for ON is not Implemented",
+			},
+			expectError: false,
+		},
+		{
+			name:       "OFF state not implemented",
+			locationID: GetConfiguredRegion(),
+			state:      gcpgenserver.ProjectStateUpdateV1betaStateOFF,
+			mockSetup: func(m *orchestrator.MockOrchestratorFactory) {
+				parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+					return "", "", nil
+				}
+			},
+			expectedResult: &gcpgenserver.V1betaFinishProjectEventNotImplemented{
+				Code:    models.NotImplementedErrorCode,
+				Message: "Finish Project Event for OFF is not Implemented",
+			},
+			expectError: false,
+		},
+		{
+			name:       "Successful DELETE state",
+			locationID: GetConfiguredRegion(),
+			state:      gcpgenserver.ProjectStateUpdateV1betaStateDELETE,
+			mockSetup: func(m *orchestrator.MockOrchestratorFactory) {
+				parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+					return "", "", nil
+				}
+				m.EXPECT().CreateOrGetFinishProjectEventJob(mock.Anything, mock.Anything).Return("job-uuid", nil)
+			},
+			expectedResult: &gcpgenserver.V1betaFinishProjectEventAccepted{
+				Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/test-project/locations/%s/operations/job-uuid", GetConfiguredRegion())),
+				Done: gcpgenserver.NewOptBool(false),
+			},
+			expectError: false,
+		},
+		{
+			name:       "Orchestrator error",
+			locationID: GetConfiguredRegion(),
+			state:      gcpgenserver.ProjectStateUpdateV1betaStateDELETE,
+			mockSetup: func(m *orchestrator.MockOrchestratorFactory) {
+				parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+					return "", "", nil
+				}
+				m.EXPECT().CreateOrGetFinishProjectEventJob(mock.Anything, mock.Anything).Return("", errors.New("orchestrator error"))
+			},
+			expectedResult: &gcpgenserver.V1betaFinishProjectEventInternalServerError{
+				Code:    500,
+				Message: "orchestrator error",
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup
+			mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+			tt.mockSetup(mockOrchestrator)
+
+			handler := Handler{
+				Orchestrator: mockOrchestrator,
+			}
+
+			// Create request and params
+			req := &gcpgenserver.ProjectStateUpdateV1beta{
+				State: tt.state,
+			}
+			params := gcpgenserver.V1betaFinishProjectEventParams{
+				LocationId:     tt.locationID,
+				ProjectNumber:  "test-project",
+				XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+			}
+			defer func() {
+				parseAndValidateRegionAndZone = _parseAndValidateRegionAndZone
+			}()
+			// Execute
+			result, err := handler.V1betaFinishProjectEvent(context.Background(), req, params)
+
+			// Assert
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedResult, result)
+			}
+
+			mockOrchestrator.AssertExpectations(t)
+		})
+	}
 }
 
 func TestHandleResourceEventsEndpoints(t *testing.T) {

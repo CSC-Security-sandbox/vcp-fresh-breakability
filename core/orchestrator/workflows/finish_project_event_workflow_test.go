@@ -1,0 +1,283 @@
+package workflows
+
+import (
+	"errors"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	commonpb "go.temporal.io/api/common/v1"
+	"go.temporal.io/sdk/converter"
+	"go.temporal.io/sdk/testsuite"
+	"go.temporal.io/sdk/workflow"
+)
+
+type FinishProjectEventDeleteStateTestSuite struct {
+	suite.Suite
+	testsuite.WorkflowTestSuite
+
+	env *testsuite.TestWorkflowEnvironment
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) SetupTest() {
+	s.env = s.NewTestWorkflowEnvironment()
+	s.env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	s.env.SetHeader(mockHeader)
+
+	// Register workflow
+	s.env.RegisterWorkflow(FinishProjectEventDeleteStateWorkflow)
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) AfterTest() {
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_Success() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+
+	// Mock finish project event activity
+	finishResult := &commonparams.FinishProjectEventResult{
+		Done: nillable.GetBoolPtr(false),
+		Name: nillable.GetStringPtr("operations/test-operation-123"),
+	}
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Execute workflow
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_SuccessWhenCVPHostIsEmpty() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	// Execute workflow
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_UpdateJobFailsAfterWorkflowExecution() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed updating job"))
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+
+	// Mock finish project event activity
+	finishResult := &commonparams.FinishProjectEventResult{
+		Done: nillable.GetBoolPtr(false),
+		Name: nillable.GetStringPtr("operations/test-operation-123"),
+	}
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+
+	// Execute workflow
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow completed but with an update job error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_FirstUpdateJobFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed updating job"))
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+
+	// Mock activities
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to fetch job details from SDE"))
+
+	// Execute workflow
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 10)
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_FinishProjectEventForSDEActivityFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "ERROR", mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+
+	// Mock finish project event activity to fail
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, errors.New("failed to start SDE Activity"))
+
+	// Execute workflow
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "workflow execution error")
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteStateWorkflow_PollFinishProjectEventSDEOperationActivityFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
+	cvp.CVP_HOST = "someHost"
+	defer func() {
+		cvp.CVP_HOST = ""
+	}()
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "PROCESSING", mock.Anything, mock.Anything).Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, "ERROR", mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity)
+	s.env.RegisterActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity)
+
+	// Mock finish project event activity
+	finishResult := &commonparams.FinishProjectEventResult{
+		Done: nillable.GetBoolPtr(false),
+		Name: nillable.GetStringPtr("operations/test-operation-123"),
+	}
+	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(finishResult, nil).Once()
+	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to Poll SDE Activity"))
+
+	// Execute workflow
+	params := &commonparams.FinishProjectEventParams{
+		State:          models.StateDelete,
+		LocationId:     "test-location-id",
+		ProjectNumber:  "test-project-number",
+		XCorrelationID: "test-correlation-id",
+	}
+	s.env.ExecuteWorkflow(FinishProjectEventDeleteStateWorkflow, params)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func TestFinishProjectEventDeleteStateWorkflow(t *testing.T) {
+	suite.Run(t, new(FinishProjectEventDeleteStateTestSuite))
+}

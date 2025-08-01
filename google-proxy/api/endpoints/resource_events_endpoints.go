@@ -11,9 +11,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-func (h Handler) V1betaStartProjectEvent(ctx context.Context, req *gcpgenserver.StateUpdateV1beta, params gcpgenserver.V1betaStartProjectEventParams) (gcpgenserver.V1betaStartProjectEventRes, error) {
-	// Check state [ON, OFF, DELETE}
-	// Do nothing if the state is delete
+func (h Handler) V1betaStartProjectEvent(ctx context.Context, req *gcpgenserver.ProjectStateUpdateV1beta, params gcpgenserver.V1betaStartProjectEventParams) (gcpgenserver.V1betaStartProjectEventRes, error) {
+	// Check state [ON, OFF, DELETE]
+	// Do nothing if the state is DELETE
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
@@ -24,7 +24,7 @@ func (h Handler) V1betaStartProjectEvent(ctx context.Context, req *gcpgenserver.
 		}, nil
 	}
 
-	if req.State == gcpgenserver.StateUpdateV1betaStateDELETE {
+	if req.State == gcpgenserver.ProjectStateUpdateV1betaStateDELETE {
 		msg := "Start Project Event for " + models.StateDelete + " is not Implemented"
 		return &gcpgenserver.V1betaStartProjectEventNotImplemented{
 			Code:    models.NotImplementedErrorCode,
@@ -33,7 +33,7 @@ func (h Handler) V1betaStartProjectEvent(ctx context.Context, req *gcpgenserver.
 	}
 
 	reqParams := &commonparams.StartProjectEventParams{
-		LocationID:     params.LocationId,
+		LocationId:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
 		XCorrelationID: params.XCorrelationID.Value,
 		State:          string(req.State),
@@ -47,6 +47,52 @@ func (h Handler) V1betaStartProjectEvent(ctx context.Context, req *gcpgenserver.
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + job
 	return &gcpgenserver.V1betaStartProjectEventAccepted{
+		Name: gcpgenserver.NewOptString(operationID),
+		Done: gcpgenserver.NewOptBool(false),
+	}, nil
+}
+
+func (h Handler) V1betaFinishProjectEvent(ctx context.Context, req *gcpgenserver.ProjectStateUpdateV1beta,
+	params gcpgenserver.V1betaFinishProjectEventParams) (gcpgenserver.V1betaFinishProjectEventRes, error) {
+	// Check state [ON, OFF, DELETE]
+	// Only act on DELETE. ON and OFF are not implemented
+
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaFinishProjectEventBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	// ON and OFF not implemented
+	if req.State == gcpgenserver.ProjectStateUpdateV1betaStateON || req.State == gcpgenserver.ProjectStateUpdateV1betaStateOFF {
+		msg := "Finish Project Event for " + string(req.State) + " is not Implemented"
+		return &gcpgenserver.V1betaFinishProjectEventNotImplemented{
+			Code:    models.NotImplementedErrorCode,
+			Message: msg,
+		}, nil
+	}
+
+	reqParams := &commonparams.FinishProjectEventParams{
+		LocationId:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: params.XCorrelationID.Value,
+		State:          string(req.State),
+	}
+
+	jobUUID, err := h.Orchestrator.CreateOrGetFinishProjectEventJob(ctx, reqParams)
+	if err != nil {
+		logger.Error("Failed to create finish project event", "error", err.Error())
+		return &gcpgenserver.V1betaFinishProjectEventInternalServerError{Code: 500, Message: err.Error()}, nil
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+
+	return &gcpgenserver.V1betaFinishProjectEventAccepted{
 		Name: gcpgenserver.NewOptString(operationID),
 		Done: gcpgenserver.NewOptBool(false),
 	}, nil

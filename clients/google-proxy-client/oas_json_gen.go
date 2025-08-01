@@ -2198,7 +2198,6 @@ func (s *BackupPolicyUpdateV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode BackupPolicyUpdateV1beta to nil")
 	}
-	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -12627,6 +12626,39 @@ func (s *OptPoolInternalV1betaStoragePoolState) UnmarshalJSON(data []byte) error
 	return s.Decode(d)
 }
 
+// Encode encodes PoolInternalV1betaType as json.
+func (o OptPoolInternalV1betaType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes PoolInternalV1betaType from json.
+func (o *OptPoolInternalV1betaType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptPoolInternalV1betaType to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptPoolInternalV1betaType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptPoolInternalV1betaType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes PoolUpdateV1betaLabels as json.
 func (o OptPoolUpdateV1betaLabels) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -12757,6 +12789,39 @@ func (s OptPoolV1betaStoragePoolState) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptPoolV1betaStoragePoolState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes PoolV1betaType as json.
+func (o OptPoolV1betaType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes PoolV1betaType from json.
+func (o *OptPoolV1betaType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptPoolV1betaType to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptPoolV1betaType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptPoolV1betaType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -14489,6 +14554,12 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.Type.Set {
+			e.FieldStart("type")
+			s.Type.Encode(e)
+		}
+	}
+	{
 		if s.Unified.Set {
 			e.FieldStart("unified")
 			s.Unified.Encode(e)
@@ -14518,7 +14589,7 @@ func (s *PoolInternalV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfPoolInternalV1beta = [41]string{
+var jsonFieldsNameOfPoolInternalV1beta = [42]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -14556,10 +14627,11 @@ var jsonFieldsNameOfPoolInternalV1beta = [41]string{
 	34: "assetLocationMetadata",
 	35: "customPerformanceEnabled",
 	36: "totalIops",
-	37: "unified",
-	38: "unifiedPool",
-	39: "clusterName",
-	40: "interclusterLifs",
+	37: "type",
+	38: "unified",
+	39: "unifiedPool",
+	40: "clusterName",
+	41: "interclusterLifs",
 }
 
 // Decode decodes PoolInternalV1beta from json.
@@ -14948,6 +15020,16 @@ func (s *PoolInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"totalIops\"")
 			}
+		case "type":
+			if err := func() error {
+				s.Type.Reset()
+				if err := s.Type.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"type\"")
+			}
 		case "unified":
 			if err := func() error {
 				s.Unified.Reset()
@@ -15313,6 +15395,48 @@ func (s PoolInternalV1betaStoragePoolState) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *PoolInternalV1betaStoragePoolState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes PoolInternalV1betaType as json.
+func (s PoolInternalV1betaType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes PoolInternalV1betaType from json.
+func (s *PoolInternalV1betaType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PoolInternalV1betaType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch PoolInternalV1betaType(v) {
+	case PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
+		*s = PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
+	case PoolInternalV1betaTypeSTANDARD:
+		*s = PoolInternalV1betaTypeSTANDARD
+	case PoolInternalV1betaTypeUNIFIED:
+		*s = PoolInternalV1betaTypeUNIFIED
+	default:
+		*s = PoolInternalV1betaType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s PoolInternalV1betaType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PoolInternalV1betaType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -15865,6 +15989,12 @@ func (s *PoolV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.Type.Set {
+			e.FieldStart("type")
+			s.Type.Encode(e)
+		}
+	}
+	{
 		if s.Unified.Set {
 			e.FieldStart("unified")
 			s.Unified.Encode(e)
@@ -15878,7 +16008,7 @@ func (s *PoolV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfPoolV1beta = [39]string{
+var jsonFieldsNameOfPoolV1beta = [40]string{
 	0:  "activeDirectoryConfigId",
 	1:  "activeDirectoryResourceId",
 	2:  "kmsConfigId",
@@ -15916,8 +16046,9 @@ var jsonFieldsNameOfPoolV1beta = [39]string{
 	34: "assetLocationMetadata",
 	35: "customPerformanceEnabled",
 	36: "totalIops",
-	37: "unified",
-	38: "unifiedPool",
+	37: "type",
+	38: "unified",
+	39: "unifiedPool",
 }
 
 // Decode decodes PoolV1beta from json.
@@ -16306,6 +16437,16 @@ func (s *PoolV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"totalIops\"")
 			}
+		case "type":
+			if err := func() error {
+				s.Type.Reset()
+				if err := s.Type.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"type\"")
+			}
 		case "unified":
 			if err := func() error {
 				s.Unified.Reset()
@@ -16641,6 +16782,48 @@ func (s PoolV1betaStoragePoolState) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *PoolV1betaStoragePoolState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes PoolV1betaType as json.
+func (s PoolV1betaType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes PoolV1betaType from json.
+func (s *PoolV1betaType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PoolV1betaType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch PoolV1betaType(v) {
+	case PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
+		*s = PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
+	case PoolV1betaTypeSTANDARD:
+		*s = PoolV1betaTypeSTANDARD
+	case PoolV1betaTypeUNIFIED:
+		*s = PoolV1betaTypeUNIFIED
+	default:
+		*s = PoolV1betaType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s PoolV1betaType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PoolV1betaType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

@@ -66,7 +66,7 @@ type OrchestratorFactory interface {
 	StopReplication(ctx context.Context, params *commonparams.StopReplicationParams) (*models.VolumeReplication, string, error)
 	DeleteReplication(ctx context.Context, params *commonparams.DeleteReplicationParams) (*models.VolumeReplication, string, error)
 	SyncReplication(ctx context.Context, params *commonparams.ResumeReplicationParams) (*models.VolumeReplication, string, error)
-	
+
 	// KMS Config related methods
 	KmsConfigInterface
 
@@ -89,7 +89,9 @@ type OrchestratorFactory interface {
 	ListBackups(ctx context.Context, backupVaultID, ownerID string, filters [][]interface{}) ([]*datamodel.Backup, error)
 	UpdateBackup(ctx context.Context, params *commonparams.UpdateBackupParams) (*models.Backup, string, error)
 	GetBackupsUnderBackupVault(ctx context.Context, backupVaultID, ownerID string, backupUUIDs []string) ([]*datamodel.Backup, error)
+
 	CreateOrGetStartProjectEventJob(ctx context.Context, params *commonparams.StartProjectEventParams) (string, error)
+	CreateOrGetFinishProjectEventJob(ctx context.Context, params *commonparams.FinishProjectEventParams) (string, error)
 }
 
 type Orchestrator struct {

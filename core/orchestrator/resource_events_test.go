@@ -12,6 +12,7 @@ import (
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflow_engine_mock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
@@ -29,7 +30,7 @@ func TestCreateOrGetStartProjectEventJobl(t *testing.T) {
 			return nil, errors.New("panic")
 		}
 		params := &commonparams.StartProjectEventParams{
-			LocationID:     "us-central1",
+			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
 			State:          models.StateOn,
@@ -51,7 +52,7 @@ func TestCreateOrGetStartProjectEventJobl(t *testing.T) {
 		mockStorage.On("GetJobsWithCondition", mock.Anything, mock.Anything).Return(nil, errors.New("panic"))
 
 		params := &commonparams.StartProjectEventParams{
-			LocationID:     "us-central1",
+			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
 			State:          models.StateOn,
@@ -78,7 +79,7 @@ func TestCreateOrGetStartProjectEventJobl(t *testing.T) {
 		mockStorage.On("GetJobsWithCondition", ctx, *filter).Return([]*datamodel.Job{{BaseModel: datamodel.BaseModel{UUID: "jobUUID"}}}, nil)
 
 		params := &commonparams.StartProjectEventParams{
-			LocationID:     "us-central1",
+			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
 			State:          models.StateOn,
@@ -108,7 +109,7 @@ func TestCreateOrGetStartProjectEventJobl(t *testing.T) {
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("panic"))
 
 		params := &commonparams.StartProjectEventParams{
-			LocationID:     "us-central1",
+			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
 			State:          models.StateOff,
@@ -138,7 +139,7 @@ func TestCreateOrGetStartProjectEventJobl(t *testing.T) {
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to execute workflow"))
 
 		params := &commonparams.StartProjectEventParams{
-			LocationID:     "us-central1",
+			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
 			State:          models.StateOff,
@@ -168,7 +169,7 @@ func TestCreateOrGetStartProjectEventJobl(t *testing.T) {
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		params := &commonparams.StartProjectEventParams{
-			LocationID:     "us-central1",
+			LocationId:     "us-central1",
 			ProjectNumber:  "12345",
 			XCorrelationID: "test-correlation-id",
 			State:          models.StateOff,
@@ -290,4 +291,213 @@ func TestUpdateResourceStateJob(t *testing.T) {
 		assert.NotNil(tt, res)
 		assert.Equal(tt, "jobUUID", res)
 	})
+}
+
+func TestCreateOrGetFinishProjectEventJob(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupMocks    func(*database.MockStorage, *workflow_engine_mock.MockTemporalTestClient)
+		params        *commonparams.FinishProjectEventParams
+		expectedJobID string
+		expectedError string
+	}{
+		{
+			name: "Error getting account",
+			setupMocks: func(storage *database.MockStorage, _ *workflow_engine_mock.MockTemporalTestClient) {
+				getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+					return nil, errors.New("failed to get account")
+				}
+			},
+			params: &commonparams.FinishProjectEventParams{
+				ProjectNumber: "test-project",
+				LocationId:    "test-location",
+				State:         "DELETE",
+			},
+			expectedError: "failed to get account",
+		},
+		{
+			name: "Existing job found",
+			setupMocks: func(storage *database.MockStorage, _ *workflow_engine_mock.MockTemporalTestClient) {
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						ID: 123,
+					},
+				}
+				getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+					return account, nil
+				}
+				storage.EXPECT().GetJobsWithCondition(mock.Anything, mock.Anything).Return(
+					[]*datamodel.Job{{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}}}, nil)
+			},
+			params: &commonparams.FinishProjectEventParams{
+				ProjectNumber: "test-project",
+				LocationId:    "test-location",
+				State:         "DELETE",
+			},
+			expectedJobID: "job-uuid",
+		},
+		{
+			name: "Error getting jobs",
+			setupMocks: func(storage *database.MockStorage, _ *workflow_engine_mock.MockTemporalTestClient) {
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						ID: 123,
+					},
+				}
+				getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+					return account, nil
+				}
+				storage.EXPECT().GetJobsWithCondition(mock.Anything, mock.Anything).Return(
+					nil, errors.New("failed to fetch jobs"))
+			},
+			params: &commonparams.FinishProjectEventParams{
+				ProjectNumber: "test-project",
+				LocationId:    "test-location",
+				State:         "DELETE",
+			},
+			expectedError: "failed to fetch jobs",
+		},
+		{
+			name: "In case of Not Found job, job should get created and workflow should get triggered.",
+			setupMocks: func(storage *database.MockStorage, temporalClient *workflow_engine_mock.MockTemporalTestClient) {
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						ID: 123,
+					},
+				}
+				getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+					return account, nil
+				}
+				storage.EXPECT().GetJobsWithCondition(mock.Anything, mock.Anything).Return(
+					nil, customerrors.NewNotFoundErr("not found", nil))
+
+				createdJob := &datamodel.Job{
+					BaseModel: datamodel.BaseModel{
+						UUID: "new-job-uuid",
+					},
+					WorkflowID: "workflow-id",
+				}
+				storage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+
+				temporalClient.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+			},
+			params: &commonparams.FinishProjectEventParams{
+				ProjectNumber: "test-project",
+				LocationId:    "test-location",
+				State:         "DELETE",
+			},
+			expectedJobID: "new-job-uuid",
+		},
+		{
+			name: "Error creating new job",
+			setupMocks: func(storage *database.MockStorage, _ *workflow_engine_mock.MockTemporalTestClient) {
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						ID: 123,
+					},
+				}
+				getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+					return account, nil
+				}
+				storage.EXPECT().GetJobsWithCondition(mock.Anything, mock.Anything).Return([]*datamodel.Job{}, nil)
+				storage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(nil, errors.New("create job error"))
+			},
+			params: &commonparams.FinishProjectEventParams{
+				ProjectNumber: "test-project",
+				LocationId:    "test-location",
+				State:         "DELETE",
+			},
+			expectedError: "create job error",
+		},
+		{
+			name: "Error executing workflow",
+			setupMocks: func(storage *database.MockStorage, temporalClient *workflow_engine_mock.MockTemporalTestClient) {
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						ID: 123,
+					},
+				}
+				getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+					return account, nil
+				}
+				storage.EXPECT().GetJobsWithCondition(mock.Anything, mock.Anything).Return([]*datamodel.Job{}, nil)
+
+				createdJob := &datamodel.Job{
+					BaseModel: datamodel.BaseModel{
+						UUID: "new-job-uuid",
+					},
+					WorkflowID: "workflow-id",
+				}
+				storage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+
+				temporalClient.EXPECT().ExecuteWorkflow(
+					mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+					nil, errors.New("failed to execute workflow"))
+			},
+			params: &commonparams.FinishProjectEventParams{
+				ProjectNumber: "test-project",
+				LocationId:    "test-location",
+				State:         "DELETE",
+			},
+			expectedError: "failed to execute workflow",
+		},
+		{
+			name: "Success - new job created and workflow started",
+			setupMocks: func(storage *database.MockStorage, temporalClient *workflow_engine_mock.MockTemporalTestClient) {
+				account := &datamodel.Account{
+					BaseModel: datamodel.BaseModel{
+						ID: 123,
+					},
+				}
+				getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+					return account, nil
+				}
+				storage.EXPECT().GetJobsWithCondition(mock.Anything, mock.Anything).Return([]*datamodel.Job{}, nil)
+
+				createdJob := &datamodel.Job{
+					BaseModel: datamodel.BaseModel{
+						UUID: "new-job-uuid",
+					},
+					WorkflowID: "workflow-id",
+				}
+				storage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+				temporalClient.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+			},
+			params: &commonparams.FinishProjectEventParams{
+				ProjectNumber: "test-project",
+				LocationId:    "test-location",
+				State:         "DELETE",
+			},
+			expectedJobID: "new-job-uuid",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup
+			mockStorage := &database.MockStorage{}
+			mockTemporalClient := &workflow_engine_mock.MockTemporalTestClient{}
+			tt.setupMocks(mockStorage, mockTemporalClient)
+
+			orchestrator := &Orchestrator{
+				storage:  mockStorage,
+				temporal: mockTemporalClient,
+			}
+
+			// Execute
+			jobID, err := orchestrator.CreateOrGetFinishProjectEventJob(context.Background(), tt.params)
+
+			// Assert
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedJobID, jobID)
+			}
+
+			mockStorage.AssertExpectations(t)
+			mockTemporalClient.AssertExpectations(t)
+		})
+	}
 }

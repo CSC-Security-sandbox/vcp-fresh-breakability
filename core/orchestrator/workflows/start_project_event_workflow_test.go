@@ -68,7 +68,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	params := &commonparams.StartProjectEventParams{
-		LocationID:    "locationID",
+		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
 		State:         models.StateOff,
 	}
@@ -95,7 +95,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 	params := &commonparams.StartProjectEventParams{
-		LocationID:    "locationID",
+		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
 		State:         models.StateOff,
 	}
@@ -139,7 +139,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
-		LocationID:    "locationID",
+		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
 		State:         models.StateOn,
 	}
@@ -176,7 +176,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
-		LocationID:    "locationID",
+		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
 		State:         models.StateOn,
 	}
@@ -213,7 +213,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
-		LocationID:    "locationID",
+		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
 		State:         models.StateOn,
 	}
@@ -256,7 +256,7 @@ func (s *StartProjectEventOffStateTestSuite) Test_StartProjectEventOffStateWorkf
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
-		LocationID:    "locationID",
+		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
 		State:         models.StateOn,
 	}
@@ -321,7 +321,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.OnActivity(startProjectEventActivity.PollStartProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	params := &commonparams.StartProjectEventParams{
-		LocationID:    "locationID",
+		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
 		State:         models.StateOn,
 	}
@@ -348,7 +348,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 	params := &commonparams.StartProjectEventParams{
-		LocationID:    "locationID",
+		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
 		State:         models.StateOn,
 	}
@@ -392,7 +392,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
-		LocationID:    "locationID",
+		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
 		State:         models.StateOn,
 	}
@@ -429,7 +429,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
-		LocationID:    "locationID",
+		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
 		State:         models.StateOn,
 	}
@@ -466,7 +466,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
-		LocationID:    "locationID",
+		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
 		State:         models.StateOn,
 	}
@@ -509,7 +509,7 @@ func (s *StartProjectEventOnStateTestSuite) Test_StartProjectEventOnStateWorkflo
 
 	// Execute workflow
 	params := &commonparams.StartProjectEventParams{
-		LocationID:    "locationID",
+		LocationId:    "locationID",
 		ProjectNumber: "ProjectNumber",
 		State:         models.StateOn,
 	}

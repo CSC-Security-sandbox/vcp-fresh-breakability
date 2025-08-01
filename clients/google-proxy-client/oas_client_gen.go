@@ -462,7 +462,7 @@ type Invoker interface {
 	V1betaListVolumes(ctx context.Context, params V1betaListVolumesParams) (V1betaListVolumesRes, error)
 	// V1betaResourceStateUpdate invokes v1beta_resourceStateUpdate operation.
 	//
-	// Updates the resource state of GCP 1P resources based on the path and body parameters.
+	// Updates the resource state of GCP resources based on the path and body parameters.
 	//
 	// PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent
 	V1betaResourceStateUpdate(ctx context.Context, request *ResourceStateUpdateV1beta, params V1betaResourceStateUpdateParams) (V1betaResourceStateUpdateRes, error)
@@ -8533,7 +8533,7 @@ func (c *Client) sendV1betaListVolumes(ctx context.Context, params V1betaListVol
 
 // V1betaResourceStateUpdate invokes v1beta_resourceStateUpdate operation.
 //
-// Updates the resource state of GCP 1P resources based on the path and body parameters.
+// Updates the resource state of GCP resources based on the path and body parameters.
 //
 // PUT /v1beta/projects/{projectNumber}/locations/{locationId}/handleResourceEvent
 func (c *Client) V1betaResourceStateUpdate(ctx context.Context, request *ResourceStateUpdateV1beta, params V1betaResourceStateUpdateParams) (V1betaResourceStateUpdateRes, error) {
