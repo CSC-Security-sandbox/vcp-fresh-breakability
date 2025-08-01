@@ -372,6 +372,30 @@ func TestDeleteVolume_Error_getOntapClientFuncError(t *testing.T) {
 	assert.Equal(t, "getOntapClientFunc error", err.Error())
 }
 
+func TestDeleteVolume_ErrorWhenVolumeHasClones(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalgetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	volumeUUID := "testUUID"
+	volumeName := "testVolume"
+
+	mockStorage.On("VolumeDelete", mock.Anything).Return(errors.New("Cannot delete volume because it has one or more clones"))
+
+	err := rc.DeleteVolume(volumeUUID, volumeName)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Cannot delete a volume that is being actively used in a Volume Replication relationship or a file clone split triggered by Snapshot RestoreFiles operation or used as a reference snapshot for a backup")
+}
+
 func TestGetVolume_WhenVolumeIsFound_ThenReturnVolumeResponse(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)

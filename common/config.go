@@ -86,7 +86,7 @@ func LoadConfig() *Config {
 	dbAdminUser := env.GetString("DB_ADMIN_USER", "")
 	dbAdminPassword := env.GetString("DB_ADMIN_PASSWORD", "")
 	dbMSIUser := env.GetString("DB_MSI_USER", "")
-	refreshAdminJobSpecs := env.GetBool("REFRESH_ADMIN_JOB_SPECS", false)
+	refreshAdminJobSpecs := env.GetBool("REFRESH_ADMIN_JOB_SPECS", true)
 
 	location, err := time.LoadLocation(dbTimeZone)
 	if err != nil {

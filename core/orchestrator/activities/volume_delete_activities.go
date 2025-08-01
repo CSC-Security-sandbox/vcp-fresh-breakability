@@ -25,7 +25,7 @@ func (va VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volumeEx
 	}
 	err = provider.DeleteVolume(volumeExternalUUID, volumeName)
 	if err != nil {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Debugf("Volume %s deleted successfully from the vsa cluster", volumeName)
 
@@ -41,7 +41,7 @@ func (va VolumeDeleteActivity) DeleteVolume(ctx context.Context, volume *datamod
 		if errors.IsNotFoundErr(err) {
 			return nil
 		}
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Debugf("Volume:%s marked deleted successfully in the db", volume.Name)
 
@@ -62,7 +62,7 @@ func (va VolumeDeleteActivity) DeleteSnapshotPolicyInONTAP(ctx context.Context, 
 		err = vsa.RetryOnErrors(op, []string{"Policy is in use by at least one volume"})
 		if err != nil {
 			logger.Errorf("failed to delete snapshot policy: %v", err)
-			return err
+			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 	}
 	return nil
@@ -140,7 +140,7 @@ func (va VolumeDeleteActivity) DeleteVolumeAssociatedSnapshots(ctx context.Conte
 			return nil // No snapshots to delete
 		}
 		logger.Errorf("failed to get snapshot by volumeID: %v", err)
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	for _, snapshot := range snapshots {

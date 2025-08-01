@@ -89,6 +89,9 @@ func (rc *OntapRestProvider) DeleteVolume(volumeUUID, volumeName string) error {
 	})
 
 	if err != nil {
+		if strings.Contains(err.Error(), "because it has one or more clones") {
+			return vsaerrors.NewVCPError(vsaerrors.ErrDeleteVolumeWhenInSplitState, errors.New("Cannot delete a volume that is being actively used in a Volume Replication relationship or a file clone split triggered by Snapshot RestoreFiles operation or used as a reference snapshot for a backup"))
+		}
 		return err
 	}
 

@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -70,6 +71,26 @@ func (wf *snapshotDeleteWorkflow) Setup(ctx workflow.Context, input interface{})
 	})
 }
 
+// shouldUpdateSnapshotStateToError checks if the error should trigger updating the snapshot state to error
+// Some errors are legitimate business logic errors that should not mark the snapshot as having a deletion error
+func shouldUpdateSnapshotStateToError(err error) bool {
+	// Check for specific VCP errors that should not update snapshot state to error
+	var customError *vsaerrors.CustomError
+	if vsaerrors.As(err, &customError) {
+		// ErrDeleteSnapshot (7001) - snapshot has owners/clones/replication, legitimate business error
+		if customError.TrackingID == vsaerrors.ErrDeleteSnapshot {
+			return false
+		}
+		// ErrVolumeNotOnlineForSnapshotDelete (7002) - volume is not online, legitimate business error
+		if customError.TrackingID == vsaerrors.ErrVolumeNotOnlineForSnapshotDelete {
+			return false
+		}
+	}
+
+	// For all other errors, update the snapshot state to error
+	return true
+}
+
 func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
 	logger := util.GetLogger(ctx)
 	snapshot := args[0].(*datamodel.Snapshot)
@@ -95,8 +116,13 @@ func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{})
 	var dbNodes []*datamodel.Node
 	defer func() {
 		if err != nil {
-			dbSnapshot.State = models.LifeCycleStateError
-			dbSnapshot.StateDetails = models.LifeCycleStateDeletionErrorDetails
+			if shouldUpdateSnapshotStateToError(err) {
+				dbSnapshot.State = models.LifeCycleStateError
+				dbSnapshot.StateDetails = models.LifeCycleStateDeletionErrorDetails
+			} else {
+				dbSnapshot.State = models.LifeCycleStateREADY
+				dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
+			}
 			workflow.ExecuteActivity(ctx, deleteActivity.UpdateDeleteSnapshotDetails, &dbSnapshot)
 		}
 	}()

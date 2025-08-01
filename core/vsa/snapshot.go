@@ -83,10 +83,10 @@ func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*Snaps
 	}
 	// Validate the Snapshot response to avoid nil pointer dereferences
 	if snapshot == nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapInconsistentResourceError, errors.NewBadRequestErr("invalid Snapshot create response from API: snapshot is nil"))
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, errors.NewBadRequestErr("invalid Snapshot create response from API: snapshot is nil"))
 	}
 	if snapshot.Name == nil || snapshot.UUID == nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapInconsistentResourceError, errors.NewBadRequestErr("invalid Snapshot create response from API: missing required fields"))
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, errors.NewBadRequestErr("invalid Snapshot create response from API: missing required fields"))
 	}
 
 	// Return the created SVM
@@ -104,7 +104,7 @@ func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*Snaps
 func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID string) error {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 	sc := client.Storage()
 	snapshot, err := sc.SnapshotGet(&ontapRest.SnapshotGetParams{
@@ -114,7 +114,7 @@ func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID stri
 	})
 	if err != nil {
 		if !errors.IsNotFoundErr(err) {
-			return err
+			return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}
 
 		var volume *ontapRest.Volume
@@ -126,11 +126,11 @@ func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID stri
 			if errors.IsNotFoundErr(err) {
 				return nil
 			}
-			return err
+			return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}
 
 		if *volume.State != "online" {
-			return errors.NewConflictErr("Cannot delete snapshot because volume is not online")
+			return vsaerrors.NewVCPError(vsaerrors.ErrVolumeNotOnlineForSnapshotDelete, errors.NewConflictErr("Cannot delete snapshot because volume is not online"))
 		}
 		rc.Logger.With(log.Fields{
 			"snapshotUUID":       snapshotUUID,
@@ -148,7 +148,7 @@ func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID stri
 	}
 
 	if len(snapshot.Owners) != 0 {
-		return errors.NewConflictErrWithTrackingID("Cannot delete a snapshot that is being actively used in a Volume Replication relationship or a file clone split triggered by Snapshot RestoreFiles operation or used a reference snapshot for a backup.", errors.CannotDeleteSnapshotInUse)
+		return vsaerrors.NewVCPError(vsaerrors.ErrDeleteSnapshot, errors.New("Cannot delete a snapshot that is being actively used in a Volume Replication relationship or a file clone split triggered by Snapshot RestoreFiles operation or used as a reference snapshot for a backup"))
 	}
 
 	_, accepted, err := client.Storage().SnapshotDelete(&ontapRest.SnapshotDeleteParams{
@@ -161,13 +161,13 @@ func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID stri
 			"volumeExternalUUID": volumeUUID,
 			"error":              err,
 		}).Error("Failed to delete snapshot")
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 
 	if accepted != nil {
 		if err = client.Poll(accepted.JobUUID); err != nil {
 			if !errors.IsNotFoundErr(err) && !strings.Contains(err.Error(), "entry doesn't exist") {
-				return err
+				return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 			}
 		}
 	}
@@ -226,7 +226,7 @@ func (rc *OntapRestProvider) GetSnapshots(volumeUUID string) ([]*Snapshot, error
 	var resultSnapshots []*Snapshot
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 	// TODO: CVS fetches "afs-used" attribute of the snapshot and uses it to identify if the snapshot is updated or not.
 	//  VSA's ONTAP REST API does not support this attribute. We need to check if this attribute is necessary for VSA's snapshot management.
@@ -268,13 +268,13 @@ func (rc *OntapRestProvider) GetSnapshots(volumeUUID string) ([]*Snapshot, error
 func (rc *OntapRestProvider) CreateSnapshotPolicy(sp *SnapshotPolicy) error {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 	if len(sp.Schedules) == 0 {
-		return errors.New("must have at least one snapshot policy schedule when creating")
+		return vsaerrors.NewVCPError(vsaerrors.ErrSnapshotPolicyScheduleRequired, errors.New("must have at least one snapshot policy schedule when creating"))
 	}
 	if len(sp.Schedules) > 4 {
-		return errors.New("too many snapshot policy schedules specified")
+		return vsaerrors.NewVCPError(vsaerrors.ErrSnapshotPolicyScheduleTooMany, errors.New("too many snapshot policy schedules specified"))
 	}
 
 	schedules := make([]*ontapRest.SnapshotPolicySchedule, len(sp.Schedules))
@@ -322,7 +322,7 @@ func (rc *OntapRestProvider) CreateSnapshotPolicy(sp *SnapshotPolicy) error {
 				if err != nil {
 					if !strings.Contains(err.Error(), "exists") &&
 						!strings.Contains(err.Error(), "duplicate entry") {
-						return err
+						return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 					}
 				}
 			}
@@ -336,7 +336,7 @@ func (rc *OntapRestProvider) CreateSnapshotPolicy(sp *SnapshotPolicy) error {
 		}
 
 		if !strings.Contains(err.Error(), "exists") {
-			return err
+			return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}
 	}
 	return nil
@@ -346,7 +346,7 @@ func (rc *OntapRestProvider) CreateSnapshotPolicy(sp *SnapshotPolicy) error {
 func (rc *OntapRestProvider) DeleteSnapshotPolicy(snapshotPolicyName string) error {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 	err = client.Storage().SnapshotPolicyDelete(&ontapRest.SnapshotPolicyDeleteParams{
 		Name: snapshotPolicyName,
@@ -376,7 +376,7 @@ func generateNameForSchedule(schedule *Schedule) string {
 func (rc *OntapRestProvider) UpdateSnapshotPolicy(ctx context.Context, params *UpdateSnapshotPolicyParams) error {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 
 	return updateSnapshotPolicy(ctx, client, params)
@@ -556,13 +556,13 @@ func _updateSnapshotPolicy(ctx context.Context, api ontapRest.RESTClient, params
 		},
 	})
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 
 	if params.UpdatingSnapshotPolicy.IsEnabled != params.CurrentSnapshotPolicy.IsEnabled {
 		err := api.Storage().SnapshotPolicyModify(&ontapRest.SnapshotPolicyModifyParams{UUID: *sp.UUID, Enabled: &params.UpdatingSnapshotPolicy.IsEnabled})
 		if err != nil {
-			return err
+			return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}
 	}
 
@@ -631,7 +631,7 @@ func _addSnapshotPolicySchedule(ctx context.Context, api ontapRest.RESTClient, p
 			if err != nil {
 				if !strings.Contains(err.Error(), "exists") &&
 					!strings.Contains(err.Error(), "duplicate entry") {
-					return "", err
+					return "", vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 				}
 			}
 
@@ -644,7 +644,7 @@ func _addSnapshotPolicySchedule(ctx context.Context, api ontapRest.RESTClient, p
 		}
 
 		if !strings.Contains(err.Error(), "exists") {
-			return "", err
+			return "", vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}
 	}
 
@@ -664,7 +664,7 @@ func _modifySnapshotPolicySchedule(ctx context.Context, api ontapRest.RESTClient
 	if err != nil {
 		if !strings.Contains(err.Error(), "not found") &&
 			!strings.Contains(err.Error(), "does not exist") {
-			return err
+			return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}
 		logger.Debugf("Snapshot policy schedule %s not found, hence skipping", scheduleUUID)
 	}
@@ -680,7 +680,7 @@ func _removeSnapshotPolicySchedule(ctx context.Context, api ontapRest.RESTClient
 	if err != nil {
 		if !strings.Contains(err.Error(), "not found") &&
 			!strings.Contains(err.Error(), "does not exist") {
-			return err
+			return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}
 		logger.Debugf("Snapshot policy schedule %s not found, hence skipping", scheduleUUID)
 	}

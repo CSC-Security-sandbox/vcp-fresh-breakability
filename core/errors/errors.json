@@ -173,6 +173,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "5006": {
+    "description": "Ontap Rest Error",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
   "6020": {
     "description": "IAM client Not Found",
     "message": "IAM client Not Found",
@@ -304,5 +310,35 @@
     "message": "Client error during HandleResouceEvent",
     "retriable": false,
     "http_code": 500
+  },
+  "7001": {
+    "description": "Snapshot Deletion Error",
+    "message": "Cannot delete snapshot while snapshot is in use",
+    "retriable": false,
+    "http_code": 400
+  },
+  "7002": {
+    "description": "Snapshot Deletion Error",
+    "message": "Cannot delete snapshot because volume is not online",
+    "retriable": false,
+    "http_code": 400
+  },
+  "7003": {
+    "description": "Snapshot Policy Validation Error",
+    "message": "At least one snapshot policy schedule is required",
+    "retriable": false,
+    "http_code": 400
+  },
+  "7004": {
+    "description": "SnapshotPolicy Creation Error",
+    "message": "Cannot create too many snapshot policies",
+    "retriable": false,
+    "http_code": 400
+  },
+  "7005": {
+    "description": "Volume Deletion Error",
+    "message": "Cannot delete volume while volume is in use",
+    "retriable": false,
+    "http_code": 400
   }
 }

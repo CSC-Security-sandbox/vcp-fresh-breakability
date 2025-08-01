@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -132,4 +133,23 @@ func (s *SnapshotDeleteTestSuite) Test_DeleteSnapshotWorkflow_Failure() {
 
 func TestSnapshotDeleteTestSuite(t *testing.T) {
 	suite.Run(t, new(SnapshotDeleteTestSuite))
+}
+
+func (s *SnapshotDeleteTestSuite) TestShouldUpdateSnapshotStateToError() {
+	// Returns false for legitimate business errors
+	err := &vsaerrors.CustomError{TrackingID: vsaerrors.ErrDeleteSnapshot}
+	assert.False(s.T(), shouldUpdateSnapshotStateToError(err))
+
+	err = &vsaerrors.CustomError{TrackingID: vsaerrors.ErrVolumeNotOnlineForSnapshotDelete}
+	assert.False(s.T(), shouldUpdateSnapshotStateToError(err))
+
+	// Returns true for other errors
+	err = &vsaerrors.CustomError{TrackingID: 999}
+	assert.True(s.T(), shouldUpdateSnapshotStateToError(err))
+
+	err = &vsaerrors.CustomError{TrackingID: 1000}
+	assert.True(s.T(), shouldUpdateSnapshotStateToError(err))
+
+	// Returns true for nil error
+	assert.True(s.T(), shouldUpdateSnapshotStateToError(nil))
 }

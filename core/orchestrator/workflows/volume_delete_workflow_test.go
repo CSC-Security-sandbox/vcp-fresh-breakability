@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -545,4 +546,20 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateJobStatusErrorDe
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), errorDetailsUpdateError.Error())
+}
+
+func (s *SnapshotDeleteTestSuite) TestShouldUpdateVolumeStateToError() {
+	// Returns false for legitimate business errors
+	err := &vsaerrors.CustomError{TrackingID: vsaerrors.ErrDeleteVolumeWhenInSplitState}
+	assert.False(s.T(), shouldUpdateVolumeStateToError(err))
+
+	// Returns true for other errors
+	err = &vsaerrors.CustomError{TrackingID: 999}
+	assert.True(s.T(), shouldUpdateVolumeStateToError(err))
+
+	err = &vsaerrors.CustomError{TrackingID: 1000}
+	assert.True(s.T(), shouldUpdateVolumeStateToError(err))
+
+	// Returns true for nil error
+	assert.True(s.T(), shouldUpdateVolumeStateToError(nil))
 }

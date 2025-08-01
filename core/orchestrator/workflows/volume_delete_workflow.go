@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -77,6 +78,22 @@ func (wf *volumeDeleteWorkflow) Setup(ctx workflow.Context, input interface{}) e
 	})
 }
 
+// shouldUpdateVolumeStateToError checks if the error should trigger updating the volume state to error
+// Some errors are legitimate business logic errors that should not mark the volume as having a deletion error
+func shouldUpdateVolumeStateToError(err error) bool {
+	// Check for specific VCP errors that should not update volume state to error
+	var customError *vsaerrors.CustomError
+	if vsaerrors.As(err, &customError) {
+		// ErrDeleteVolumeWhenInSplitState (7005) - volume has clones/replication
+		if customError.TrackingID == vsaerrors.ErrDeleteVolumeWhenInSplitState {
+			return false
+		}
+	}
+
+	// For all other errors, update the volume state to error
+	return true
+}
+
 func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
 	log := util.GetLogger(ctx)
 	volume := args[0].(*datamodel.Volume)
@@ -98,9 +115,16 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	rollbackManager := common.NewRollbackManager()
 	defer func() {
 		if err != nil {
-			err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Get(ctx, nil)
-			if err2 != nil {
-				log.Errorf("Failed to update volume state in DB to error: %v", err2)
+			if shouldUpdateVolumeStateToError(err) {
+				err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Get(ctx, nil)
+				if err2 != nil {
+					log.Errorf("Failed to update volume state in DB to error: %v", err2)
+				}
+			} else {
+				err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
+				if err2 != nil {
+					log.Errorf("Failed to update volume state in DB to error: %v", err2)
+				}
 			}
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
 			rollbackManager.ExecuteRollback(disconnectedCtx, err)

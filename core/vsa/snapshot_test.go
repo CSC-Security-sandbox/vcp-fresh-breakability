@@ -635,6 +635,35 @@ func TestDeleteSnapshot(t *testing.T) {
 		mockClient.AssertExpectations(t)
 	})
 
+	t.Run("DeleteSnapshotSnapshotHasOwners", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		snapshotUUID := "testSnapshotUUID"
+		volumeUUID := "testVolumeUUID"
+
+		mockSnapshot := &ontaprest.Snapshot{
+			Snapshot: models.Snapshot{
+				UUID:   nillable.ToPointer(snapshotUUID),
+				Owners: []*string{nillable.ToPointer("owner1"), nillable.ToPointer("owner2")}},
+		}
+
+		mockStorage.On("SnapshotGet", mock.Anything).Return(mockSnapshot, nil)
+
+		err := rc.DeleteSnapshot(snapshotUUID, volumeUUID)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Cannot delete a snapshot that is being actively used")
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+	
 	t.Run("DeleteSnapshotErrorOnPoll", func(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockStorage := new(ontaprest.MockStorageClient)
@@ -645,13 +674,11 @@ func TestDeleteSnapshot(t *testing.T) {
 		}
 		rc := &OntapRestProvider{}
 
-		snapshotName := "testSnapshot"
 		snapshotUUID := "testSnapshotUUID"
 		volumeUUID := "testVolumeUUID"
 
 		mockSnapshot := &ontaprest.Snapshot{
 			Snapshot: models.Snapshot{
-				Name: nillable.ToPointer(snapshotName),
 				UUID: nillable.ToPointer(snapshotUUID),
 			},
 		}
@@ -666,7 +693,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		err := rc.DeleteSnapshot(snapshotUUID, volumeUUID)
 
 		assert.Error(t, err)
-
+		assert.Contains(t, err.Error(), "polling error")
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
 	})

@@ -1099,7 +1099,7 @@ func TestCreateVolume(t *testing.T) {
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := createVolume(ctx, store, temporal, params)
 		assert.Nil(tt, volume, "Expected nil volume")
-		assert.EqualError(tt, err, "snapshot not found for the given pool ID 'test-snapshot-id' not found")
+		assert.ErrorContains(tt, err, "Restore snapshots across pool is not supported")
 	})
 	t.Run("WhenCreateVolumeSuccessWithBP", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})

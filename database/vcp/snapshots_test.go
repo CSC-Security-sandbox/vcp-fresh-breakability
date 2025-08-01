@@ -76,7 +76,7 @@ func TestCreatingSnapshot(t *testing.T) {
 		}
 
 		_, err = store.CreatingSnapshot(context.Background(), snapshot)
-		assert.ErrorContains(t, err, "snapshot already exists", "Expected error 'snapshot already exists', got %v", err)
+		assert.ErrorContains(t, err, "Snapshot already exists", "Expected error 'Snapshot already exists', got %v", err)
 	})
 }
 
@@ -400,7 +400,7 @@ func TestGetSnapshotByPoolID(t *testing.T) {
 		retrievedSnapshot, err := store.GetSnapshotByPoolID(ctx, snapshot.UUID, account.ID, 999, false)
 		assert.Error(tt, err, "Expected error when pool ID does not match")
 		assert.Nil(tt, retrievedSnapshot, "Expected nil snapshot")
-		assert.ErrorContains(tt, err, "snapshot not found for the given pool ID", "Expected error 'snapshot not found for the given pool ID', got %v", err)
+		assert.ErrorContains(tt, err, "Restore snapshots across pool is not supported", "Expected error 'snapshot not found for the given pool ID', got %v", err)
 	})
 
 	t.Run("WhenSnapshotDoesNotExist", func(tt *testing.T) {

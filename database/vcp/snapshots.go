@@ -35,7 +35,7 @@ func (d *DataStoreRepository) CreatingSnapshot(ctx context.Context, snapshot *da
 
 	if snapshotEntry.ID != 0 {
 		logger.Warnf("Snapshot with name %s already exists", snapshot.Name)
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, customerrors.NewConflictErr("snapshot already exists"))
+		return nil, customerrors.NewConflictErr("Snapshot already exists")
 	}
 	if dbError != nil && !errors.Is(dbError, gorm.ErrRecordNotFound) {
 		logger.Errorf("Snapshot create operation failed with error: %v", dbError)
@@ -133,7 +133,7 @@ func (d *DataStoreRepository) GetSnapshotByPoolID(ctx context.Context, uuid stri
 		return snapshot, nil
 	}
 
-	return nil, customerrors.NewNotFoundErr("snapshot not found for the given pool ID", &uuid)
+	return nil, customerrors.NewBadRequestErr("Restore snapshots across pool is not supported")
 }
 
 func (d *DataStoreRepository) GetSnapshotsWithCondition(ctx context.Context, filter utils2.Filter) ([]*datamodel.Snapshot, error) {

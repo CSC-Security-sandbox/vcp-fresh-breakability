@@ -202,7 +202,7 @@ func TestReturnsBadRequestForJobStateError(t *testing.T) {
 	}
 	result, err := handler.V1betaDescribeOperation(ctx, params)
 	assert.NoError(t, err)
-	assert.IsType(t, &gcpgenserver.V1betaDescribeOperationBadRequest{}, result)
+	assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
 }
 func TestReturnsOperationForJobStateNew(t *testing.T) {
 	ctx := context.Background()

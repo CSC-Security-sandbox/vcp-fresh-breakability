@@ -147,6 +147,12 @@ const (
 	ErrorReplicationScheduleUnspecified                              = 6071
 	ErrDescribingVolume                                              = 6072
 	ErrCVPClientHandleResourceEventError                             = 6073
+
+	ErrDeleteSnapshot                   = 7001
+	ErrVolumeNotOnlineForSnapshotDelete = 7002
+	ErrSnapshotPolicyScheduleRequired   = 7003
+	ErrSnapshotPolicyScheduleTooMany    = 7004
+	ErrDeleteVolumeWhenInSplitState     = 7005
 )
 
 type Error interface {
