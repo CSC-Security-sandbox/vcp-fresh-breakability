@@ -2680,6 +2680,15 @@ func (s *OptPoolInternalV1betaStoragePoolState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptPoolInternalV1betaType) SetFake() {
+	var elem PoolInternalV1betaType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptPoolUpdateV1betaLabels) SetFake() {
 	var elem PoolUpdateV1betaLabels
 	{
@@ -2709,6 +2718,15 @@ func (s *OptPoolV1betaLabels) SetFake() {
 // SetFake set fake values.
 func (s *OptPoolV1betaStoragePoolState) SetFake() {
 	var elem PoolV1betaStoragePoolState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptPoolV1betaType) SetFake() {
+	var elem PoolV1betaType
 	{
 		elem.SetFake()
 	}
@@ -3298,6 +3316,11 @@ func (s *PoolInternalV1beta) SetFake() {
 	}
 	{
 		{
+			s.Type.SetFake()
+		}
+	}
+	{
+		{
 			s.Unified.SetFake()
 		}
 	}
@@ -3358,6 +3381,11 @@ func (s *PoolInternalV1betaServiceLevel) SetFake() {
 // SetFake set fake values.
 func (s *PoolInternalV1betaStoragePoolState) SetFake() {
 	*s = PoolInternalV1betaStoragePoolStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *PoolInternalV1betaType) SetFake() {
+	*s = PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
 }
 
 // SetFake set fake values.
@@ -3629,6 +3657,11 @@ func (s *PoolV1beta) SetFake() {
 	}
 	{
 		{
+			s.Type.SetFake()
+		}
+	}
+	{
+		{
 			s.Unified.SetFake()
 		}
 	}
@@ -3672,6 +3705,11 @@ func (s *PoolV1betaServiceLevel) SetFake() {
 // SetFake set fake values.
 func (s *PoolV1betaStoragePoolState) SetFake() {
 	*s = PoolV1betaStoragePoolStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *PoolV1betaType) SetFake() {
+	*s = PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
 }
 
 // SetFake set fake values.

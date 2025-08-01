@@ -6814,15 +6814,25 @@ components:
           format: double
           nullable: true
           example: 1600.0
+        type:
+          title: type
+          type: string
+          description: "The type of storage pool. STORAGE_POOL_TYPE_UNSPECIFIED is the default value and should not be used. STANDARD represents the classic/legacy storage pool. UNIFIED represents the VSA-based storage pool."
+          example: UNIFIED
+          enum:
+            - STORAGE_POOL_TYPE_UNSPECIFIED
+            - STANDARD
+            - UNIFIED
         unified:
           type: boolean
-          description: Indicates if the pool type is unified
+          description: Indicates if the pool type is unified (deprecated, use 'type' field instead)
           example: false
+          x-deprecated-message: "Use 'type' field with value 'UNIFIED' instead. This field will be removed in a future version."
         unifiedPool:
           type: boolean
-          description: Indicates if the pool type is unified
+          description: Indicates if the pool type is unified (deprecated, use 'type' field instead)
           example: false
-          x-deprecated-message: "Use 'unified' field instead. This field will be removed in a future version."
+          x-deprecated-message: "Use 'type' field with value 'UNIFIED' instead. This field will be removed in a future version."
     Volume_v1beta:
       title: Volume v1beta model definition
       required:

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
@@ -635,7 +636,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
-		assert.Equal(tt, "unified (or unifiedPool) must be set to true", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+		assert.Equal(tt, "type must be set to UNIFIED, or unified/unifiedPool must be set to true (for backward compatibility)", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenUnifiedPoolIsNotSetToTrue", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -663,7 +664,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
-		assert.Equal(tt, "unified (or unifiedPool) must be set to true", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+		assert.Equal(tt, "type must be set to UNIFIED, or unified/unifiedPool must be set to true (for backward compatibility)", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenRegionAndZoneParsingFails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -1168,6 +1169,234 @@ func TestV1betaCreatePool(t *testing.T) {
 		// Verify that when auto-tiering is disabled, hotTierSizeInBytes is set to SizeInBytes (pool size)
 		assert.NotNil(tt, capturedParams, "CreatePool should have been called")
 		assert.Equal(tt, uint64(poolSize), capturedParams.HotTierSizeInBytes, "HotTierSizeInBytes should be set to pool size when auto-tiering is disabled")
+	})
+
+	// Test cases for the new Type enum field
+	t.Run("WhenTypeIsSetToUnified", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			Type:          gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeUNIFIED),
+			ResourceId:    "test-pool",
+			ServiceLevel:  gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:   1099511627776,
+			Network:       "test-network",
+			Zone:          gcpgenserver.NewOptString("us-east4-a"),
+			SecondaryZone: gcpgenserver.NewOptString("us-east4-b"),
+		}
+
+		// Mock that pool doesn't exist
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel:      models.BaseModel{UUID: "new-pool-uuid"},
+			PoolAttributes: &models.PoolAttributes{},
+		}, "operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Should pass validation since Type is set to UNIFIED
+		assert.IsType(tt, &gcpgenserver.OperationV1beta{}, result)
+	})
+
+	t.Run("WhenTypeIsSetToStandard", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			Type: gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeSTANDARD),
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
+		assert.Equal(tt, "type must be set to UNIFIED, or unified/unifiedPool must be set to true (for backward compatibility)", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+	})
+
+	t.Run("WhenTypeIsSetToUnspecified", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			Type: gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED),
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
+		assert.Equal(tt, "type field cannot be STORAGE_POOL_TYPE_UNSPECIFIED", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+	})
+
+	t.Run("WhenTypeIsNotSetAndUnifiedFieldsAreNotSet", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			ResourceId:   "test-pool",
+			ServiceLevel: gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:  1099511627776,
+			Network:      "test-network",
+		}
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreatePoolBadRequest).Code)
+		assert.Equal(tt, "type must be set to UNIFIED, or unified/unifiedPool must be set to true (for backward compatibility)", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
+	})
+
+	t.Run("WhenTypeIsSetToUnifiedAndUnifiedFieldIsAlsoSet", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			Type:          gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeUNIFIED),
+			Unified:       gcpgenserver.NewOptBool(true), // Both Type and unified are set
+			ResourceId:    "test-pool",
+			ServiceLevel:  gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:   1099511627776,
+			Network:       "test-network",
+			Zone:          gcpgenserver.NewOptString("us-east4-a"),
+			SecondaryZone: gcpgenserver.NewOptString("us-east4-b"),
+		}
+
+		// Mock that pool doesn't exist
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel:      models.BaseModel{UUID: "new-pool-uuid"},
+			PoolAttributes: &models.PoolAttributes{},
+		}, "operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Should pass validation since Type is set to UNIFIED (Type takes precedence)
+		assert.IsType(tt, &gcpgenserver.OperationV1beta{}, result)
+	})
+
+	t.Run("WhenTypeIsSetToUnifiedAndUnifiedPoolFieldIsAlsoSet", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		originalRegionalPoolEnabled := regionalPoolEnabled
+		regionalPoolEnabled = true
+		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
+		params := gcpgenserver.V1betaCreatePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		req := &gcpgenserver.PoolV1beta{
+			Type:          gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeUNIFIED),
+			UnifiedPool:   gcpgenserver.NewOptBool(true), // Both Type and unifiedPool are set
+			ResourceId:    "test-pool",
+			ServiceLevel:  gcpgenserver.PoolV1betaServiceLevelFLEX,
+			SizeInBytes:   1099511627776,
+			Network:       "test-network",
+			Zone:          gcpgenserver.NewOptString("us-east4-a"),
+			SecondaryZone: gcpgenserver.NewOptString("us-east4-b"),
+		}
+
+		// Mock that pool doesn't exist
+		mockOrchestrator.EXPECT().GetPoolByVendorID(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("not found", nil))
+		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(&models.Pool{
+			BaseModel:      models.BaseModel{UUID: "new-pool-uuid"},
+			PoolAttributes: &models.PoolAttributes{},
+		}, "operation-id", nil)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaCreatePool(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Should pass validation since Type is set to UNIFIED (Type takes precedence)
+		assert.IsType(tt, &gcpgenserver.OperationV1beta{}, result)
 	})
 }
 func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
@@ -2301,5 +2530,49 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 		assert.Equal(tt, float64(2048), result.TotalIops.Value)
 		assert.Equal(tt, "test-kms-config-id", result.KmsConfigId.Value)
 		assert.Equal(tt, "projects/test-kms-project-id/locations/us-east4/keyRings/test-kms-keyring/cryptoKeys/test-kms-config", result.KmsConfigResourceId.Value)
+		assert.Equal(tt, gcpgenserver.PoolV1betaTypeUNIFIED, result.Type.Value, "Type should be set to UNIFIED for VSA pools")
+		assert.True(tt, result.Unified.Value, "Unified should be true for VSA pools")
+		assert.True(tt, result.UnifiedPool.Value, "UnifiedPool should be true for VSA pools")
+	})
+
+	t.Run("WhenPoolIsFromCVP", func(tt *testing.T) {
+		createdAt := time.Now()
+		deletedAt := time.Now().Add(1 * time.Hour)
+
+		pool := &cvpmodels.PoolV1beta{
+			PoolID:    "test-pool-uuid",
+			CreatedAt: strfmt.DateTime(createdAt),
+			DeletedAt: func() *strfmt.DateTime {
+				dt := strfmt.DateTime(deletedAt)
+				return &dt
+			}(),
+			ResourceID: func() *string {
+				s := "test-pool"
+				return &s
+			}(),
+			Network: func() *string {
+				s := "test-network"
+				return &s
+			}(),
+			SizeInBytes: func() *float64 {
+				s := 1099511627776.0
+				return &s
+			}(),
+			ServiceLevel: func() *string {
+				s := "premium"
+				return &s
+			}(),
+			StoragePoolState:         "available",
+			CustomPerformanceEnabled: true,
+		}
+
+		result := convertToPoolV1beta(pool)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "test-pool-uuid", result.PoolId.Value)
+		assert.Equal(tt, float64(1099511627776), result.SizeInBytes)
+		assert.Equal(tt, gcpgenserver.PoolV1betaTypeSTANDARD, result.Type.Value, "Type should be set to STANDARD for CVP pools")
+		assert.False(tt, result.Unified.Value, "Unified should be false for CVP pools")
+		assert.False(tt, result.UnifiedPool.Value, "UnifiedPool should be false for CVP pools")
 	})
 }

@@ -581,6 +581,7 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		QosType:                  gcpgenserver.NewOptNilString(pool.QosType),
 		CustomPerformanceEnabled: gcpgenserver.NewOptBool(customPerformanceEnabled),
 		// Unified Pool is set true & StorageClass is to software for VSA pools
+		Type:                    gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeUNIFIED),
 		UnifiedPool:             gcpgenserver.NewOptBool(true),
 		Unified:                 gcpgenserver.NewOptBool(true),
 		StorageClass:            gcpgenserver.NewOptStorageClassV1beta("SOFTWARE"),
@@ -680,6 +681,7 @@ func convertToPoolV1beta(pool *cvpmodels.PoolV1beta) *gcpgenserver.PoolV1beta {
 		SatisfiesPzs:              utils.SafeBool(pool.SatisfiesPzs),
 		AssetLocationMetadata:     gcpgenserver.NewOptNilPoolV1betaAssetLocationMetadata(assetLocationMetadata),
 		// Unified Pool is set false for SDE pools
+		Type:        gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeSTANDARD),
 		UnifiedPool: gcpgenserver.NewOptBool(false),
 		Unified:     gcpgenserver.NewOptBool(false),
 	}
@@ -703,17 +705,36 @@ func getEnableHotTierAutoResize(config *models.AutoTieringConfig) bool {
 // validateCreatePoolParams validates the parameters for creating a pool.
 // It ensures that the provided parameters meet the requirements for a Unified Flex Storage Pool.
 func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgenserver.Error {
-	// Check both unified and unifiedPool fields (for backward compatibility)
-	unifiedValue := false
-	if req.Unified.IsSet() {
-		unifiedValue = req.Unified.Value
-	} else if req.UnifiedPool.IsSet() {
-		unifiedValue = req.UnifiedPool.Value
+	// Check the new Type field first, then fall back to unified/unifiedPool fields for backward compatibility
+	isUnified := false
+
+	// Check the new Type field
+	if req.Type.IsSet() {
+		switch req.Type.Value {
+		case gcpgenserver.PoolV1betaTypeUNIFIED:
+			isUnified = true
+		case gcpgenserver.PoolV1betaTypeSTANDARD:
+			isUnified = false
+		case gcpgenserver.PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
+			// Default value, should not be used
+			return &gcpgenserver.Error{
+				Code:    http.StatusBadRequest,
+				Message: "type field cannot be STORAGE_POOL_TYPE_UNSPECIFIED",
+			}
+		}
+	} else {
+		// Fall back to legacy fields for backward compatibility
+		if req.Unified.IsSet() {
+			isUnified = req.Unified.Value
+		} else if req.UnifiedPool.IsSet() {
+			isUnified = req.UnifiedPool.Value
+		}
 	}
-	if !unifiedValue {
+
+	if !isUnified {
 		return &gcpgenserver.Error{
 			Code:    http.StatusBadRequest,
-			Message: "unified (or unifiedPool) must be set to true",
+			Message: "type must be set to UNIFIED, or unified/unifiedPool must be set to true (for backward compatibility)",
 		}
 	}
 

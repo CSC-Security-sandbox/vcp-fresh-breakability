@@ -5160,6 +5160,24 @@ func (s *PoolInternalV1beta) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.Type.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "type",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -5243,6 +5261,19 @@ func (s PoolInternalV1betaStoragePoolState) Validate() error {
 	case "DELETING":
 		return nil
 	case "ERROR":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s PoolInternalV1betaType) Validate() error {
+	switch s {
+	case "STORAGE_POOL_TYPE_UNSPECIFIED":
+		return nil
+	case "STANDARD":
+		return nil
+	case "UNIFIED":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -5752,6 +5783,24 @@ func (s *PoolV1beta) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.Type.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "type",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -5835,6 +5884,19 @@ func (s PoolV1betaStoragePoolState) Validate() error {
 	case "DELETING":
 		return nil
 	case "ERROR":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s PoolV1betaType) Validate() error {
+	switch s {
+	case "STORAGE_POOL_TYPE_UNSPECIFIED":
+		return nil
+	case "STANDARD":
+		return nil
+	case "UNIFIED":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
