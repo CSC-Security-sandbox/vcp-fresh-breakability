@@ -104,6 +104,19 @@ workerConfig:
   clusterSerialNumberPrefix: "935"
 
   workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
+  mgmtFirewallSourceRanges: "198.18.0.0/15"
+  rsmFirewallSourceRanges: "198.18.0.0/15"
+  icFirewallSourceRanges: "198.18.0.0/15"
+  iscsiFirewallSourceRanges: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+  mgmtRegionalNatIp: "34.0.0.0/8,35.0.0.0/8,202.3.112.0/20"
+  mgmtNetworkIpRange: "198.18.0.0/20"
+  rsmNetworkIpRange: "198.18.16.0/20"
+  icNetworkIpRange: "198.18.32.0/20"
+  mgmtFirewallPortRules: "tcp,udp,icmp"
+  rsmFirewallPortRules: "tcp,udp"
+  icFirewallPortRules: "tcp,udp"
+  iscsiFirewallPortRules: "tcp,3260"
+  waitTimeForGcpOperationInSec: "10"
 
   # Database configuration
   database:

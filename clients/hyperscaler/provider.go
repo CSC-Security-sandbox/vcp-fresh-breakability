@@ -15,16 +15,16 @@ type Services interface {
 	GetLogger() log.Logger
 	GetContext() context.Context
 
-	CreateVPC(vpcNetwork *models.VPCNetwork) error
+	CreateVPC(vpcNetwork *models.VPCNetwork) (string, error)
 	GetVPCNetwork(projectName, vpcNetworkName string) (*models.VPCNetwork, error)
 
-	CreateSubnetwork(request *models.Subnet) error
+	CreateSubnetwork(request *models.Subnet) (string, error)
 	GetSubnetwork(projectName, region, subnetName string) (*models.Subnet, error)
 	ReleaseSubnetwork(region, projectNumber, subnetwork string) error
 	ListSubnetworks(projectName, region string) (*[]models.Subnet, error)
 
-	InsertFirewall(firewallRule *models.Firewall) error
-	UpdateFirewall(firewallRule *models.Firewall) error
+	InsertFirewall(firewallRule *models.Firewall) (string, error)
+	UpdateFirewall(firewallRule *models.Firewall) (string, error)
 	GetFirewall(projectName string, firewallName string) (*models.Firewall, error)
 
 	CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string) error
@@ -67,4 +67,6 @@ type GoogleServices interface {
 
 	CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName string) (*string, error)
 	GetServiceNetOpStatus(operationName string) (*models.ComputeOperation, error)
+	GetComputeGlobalOpStatus(tenantProject, operationName string) (*models.ComputeOperation, error)
+	GetComputeRegionalOpStatus(projectNumber, region, operationName string) (*models.ComputeOperation, error)
 }

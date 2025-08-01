@@ -29,6 +29,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -2134,7 +2135,7 @@ func Test_InsertFirewall(t *testing.T) {
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetFirewall", projectName, firewallName).Return(existingFirewall, nil)
 
-		err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, firewallSourceRanges, firewallAllowedPortRules)
+		_, err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, firewallSourceRanges, firewallAllowedPortRules)
 		assert.NoError(tt, err)
 		mgs.AssertExpectations(tt)
 	})
@@ -2151,7 +2152,7 @@ func Test_InsertFirewall(t *testing.T) {
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetFirewall", projectName, firewallName).Return(nil, errors.New(errString))
 
-		err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, firewallSourceRanges, firewallAllowedPortRules)
+		_, err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, firewallSourceRanges, firewallAllowedPortRules)
 
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
@@ -2181,9 +2182,9 @@ func Test_InsertFirewall(t *testing.T) {
 			Direction:        direction,
 			SourceRanges:     firewallSourceRanges,
 			AllowedPortRules: firewallAllowedPortRules,
-		}).Return(errors.New(errString))
+		}).Return("", errors.New(errString))
 
-		err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, firewallSourceRanges, firewallAllowedPortRules)
+		_, err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, firewallSourceRanges, firewallAllowedPortRules)
 		assert.EqualError(tt, err, errString)
 		mgs.AssertExpectations(tt)
 	})
@@ -2198,9 +2199,9 @@ func Test_InsertFirewall(t *testing.T) {
 		}()
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetFirewall", projectName, firewallName).Return(nil, nil)
-		mgs.On("InsertFirewall", mock.Anything).Return(nil)
+		mgs.On("InsertFirewall", mock.Anything).Return("", nil)
 
-		err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, firewallSourceRanges, firewallAllowedPortRules)
+		_, err := activities.InsertFirewall(mgs, projectName, firewallName, vpcName, priority, direction, firewallSourceRanges, firewallAllowedPortRules)
 		assert.NoError(tt, err)
 		mgs.AssertExpectations(tt)
 	})
@@ -2222,7 +2223,7 @@ func Test_CreateVPC(t *testing.T) {
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetVPCNetwork", projectName, vpcName).Return(&hyperscaler_models.VPCNetwork{}, nil)
 
-		err := activities.CreateVPC(mgs, projectName, vpcName)
+		_, err := activities.CreateVPC(mgs, projectName, vpcName)
 		assert.NoError(tt, err)
 		mgs.AssertExpectations(tt)
 	})
@@ -2238,7 +2239,7 @@ func Test_CreateVPC(t *testing.T) {
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, errors.New(errString))
 
-		err := activities.CreateVPC(mgs, projectName, vpcName)
+		_, err := activities.CreateVPC(mgs, projectName, vpcName)
 
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
@@ -2259,9 +2260,9 @@ func Test_CreateVPC(t *testing.T) {
 		errString := "not found"
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, errors.New(errString))
-		mgs.On("CreateVPC", &hyperscaler_models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(nil)
+		mgs.On("CreateVPC", &hyperscaler_models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return("", nil)
 
-		err := activities.CreateVPC(mgs, projectName, vpcName)
+		_, err := activities.CreateVPC(mgs, projectName, vpcName)
 		assert.Nil(tt, err)
 		mgs.AssertExpectations(tt)
 	})
@@ -2275,16 +2276,11 @@ func Test_CreateVPC(t *testing.T) {
 		errString := "failed to create VPC"
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, nil)
-		mgs.On("CreateVPC", &hyperscaler_models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(errors.New(errString))
+		mgs.On("CreateVPC", &hyperscaler_models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return("", errors.New(errString))
 
-		err := activities.CreateVPC(mgs, projectName, vpcName)
+		_, err := activities.CreateVPC(mgs, projectName, vpcName)
 
-		var customErr *vsaerrors.CustomError
-		if vsaerrors.As(err, &customErr) {
-			assert.EqualError(tt, customErr.Unwrap(), fmt.Sprintf("Error creating vpc for project: %s and vpc name: %s. Error : %s", projectName, vpcName, errString))
-		} else {
-			tt.Fatalf("Expected a CustomError, got: %T", err)
-		}
+		assert.Contains(tt, err.Error(), "failed to create VPC")
 		mgs.AssertExpectations(tt)
 	})
 
@@ -2299,7 +2295,7 @@ func Test_CreateVPC(t *testing.T) {
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, errors.New(errString))
 
-		err := activities.CreateVPC(mgs, projectName, vpcName)
+		_, err := activities.CreateVPC(mgs, projectName, vpcName)
 
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
@@ -2319,9 +2315,9 @@ func Test_CreateVPC(t *testing.T) {
 		}()
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, nil).Once()
-		mgs.On("CreateVPC", &hyperscaler_models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return(nil)
+		mgs.On("CreateVPC", &hyperscaler_models.VPCNetwork{Name: vpcName, ProjectName: projectName}).Return("", nil)
 
-		err := activities.CreateVPC(mgs, projectName, vpcName)
+		_, err := activities.CreateVPC(mgs, projectName, vpcName)
 		assert.NoError(tt, err)
 		mgs.AssertExpectations(tt)
 	})
@@ -2346,7 +2342,7 @@ func Test_InsertSubnet(t *testing.T) {
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(&hyperscaler_models.Subnet{}, nil)
 
-		err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
+		_, err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
 		assert.NoError(tt, err)
 		mgs.AssertExpectations(tt)
 	})
@@ -2362,7 +2358,7 @@ func Test_InsertSubnet(t *testing.T) {
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(nil, errors.New(errString))
 
-		err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
+		_, err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
 
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
@@ -2383,9 +2379,9 @@ func Test_InsertSubnet(t *testing.T) {
 		errString := "failed to create subnetwork"
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(nil, nil)
-		mgs.On("CreateSubnetwork", mock.Anything).Return(errors.New(errString))
+		mgs.On("CreateSubnetwork", mock.Anything).Return("", errors.New(errString))
 
-		err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
+		_, err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
 		assert.EqualError(tt, err, errString)
 		mgs.AssertExpectations(tt)
 	})
@@ -2399,9 +2395,9 @@ func Test_InsertSubnet(t *testing.T) {
 		}()
 		mgs.On("GetLogger").Return(logger)
 		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(nil, nil)
-		mgs.On("CreateSubnetwork", mock.Anything).Return(nil)
+		mgs.On("CreateSubnetwork", mock.Anything).Return("", nil)
 
-		err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
+		_, err := activities.InsertSubnet(mgs, projectName, &region, subnetName, vpcName, ipCidrRange)
 		assert.NoError(tt, err)
 		mgs.AssertExpectations(tt)
 	})
@@ -2472,227 +2468,36 @@ func Test_setupNetworkFirewallsForIscsi(t *testing.T) {
 	ctx := context.TODO()
 	logger := util.GetLogger(ctx)
 	t.Run("WhenSetupNetworkFirewallsForIscsiSucceeds", func(tt *testing.T) {
+		defer func() {
+			activities.IscsiFirewallSourceRanges = "" // Reset the InsertFirewall function to nil after the test
+		}()
+		activities.IscsiFirewallSourceRanges = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 		mockService.On("GetLogger").Return(logger)
-		activities.InsertFirewall = func(service hyperscaler.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) error {
+		activities.InsertFirewall = func(service hyperscaler.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) (string, error) {
 			assert.Equal(t, snHostProject, project)
-			assert.Equal(t, "data-iscsi-ingress", name)
+			assert.Equal(t, "ingress-data-iscsi", name)
 			assert.Equal(t, network, network)
 			assert.Equal(t, firewallPriority, priority)
 			assert.Equal(t, ingressTrafficDirection, direction)
 			assert.ElementsMatch(t, []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}, sourceRanges)
 			assert.ElementsMatch(t, []string{"tcp", "3260"}, allowedPorts)
-			return nil
+			return "op", nil
 		}
-		err := activities.SetupNetworkFirewallsForIscsi(mockService, snHostProject, network)
+		op, err := activities.SetupNetworkFirewallsForIscsi(mockService, snHostProject, network)
 		assert.NoError(t, err)
+		assert.Equal(t, op, "op")
 	})
 	t.Run("WhenSetupNetworkFirewallsForIscsiFails", func(tt *testing.T) {
-		activities.InsertFirewall = func(service hyperscaler.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) error {
-			return errors.New("firewall error")
+		defer func() {
+			activities.IscsiFirewallSourceRanges = "" // Reset the InsertFirewall function to nil after the test
+		}()
+		activities.IscsiFirewallSourceRanges = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+		activities.InsertFirewall = func(service hyperscaler.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) (string, error) {
+			return "", errors.New("firewall error")
 		}
-		err := activities.SetupNetworkFirewallsForIscsi(mockService, snHostProject, network)
+		_, err := activities.SetupNetworkFirewallsForIscsi(mockService, snHostProject, network)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "firewall error")
-	})
-}
-
-// Unit test for SetupNetwork in core/orchestrator/activities/pool_activities.go
-func TestPoolActivity_SetupNetwork(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	activity := activities.PoolActivity{SE: mockStorage}
-	var ts testsuite.WorkflowTestSuite
-	env := ts.NewTestActivityEnvironment()
-	env.RegisterActivity(activity.SetupNetwork)
-
-	region := "us-central1"
-	project := "test-project"
-	snHostProject := "test-sn-host-project"
-	network := "test-network"
-	t.Run("WhenSetupNetworkSucceeds", func(tt *testing.T) {
-		originalGetGCPService := activities.GetGCPService
-		originalSetupNetworkWithFirewall := activities.SetupNetworkWithFirewall
-		originalSetupNetworkFirewallsForIscsi := activities.SetupNetworkFirewallsForIscsi
-		vpcCreate := activities.CreateVPC
-		subnetCreate := activities.InsertSubnet
-		InsertFirewall := activities.InsertFirewall
-		defer func() {
-			activities.GetGCPService = originalGetGCPService
-			activities.SetupNetworkWithFirewall = originalSetupNetworkWithFirewall
-			activities.SetupNetworkFirewallsForIscsi = originalSetupNetworkFirewallsForIscsi
-			activities.CreateVPC = vpcCreate
-			activities.InsertSubnet = subnetCreate
-			activities.InsertFirewall = InsertFirewall
-		}()
-
-		mockService := new(google.GcpServices)
-		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockService, nil
-		}
-
-		activities.CreateVPC = func(service hyperscaler.GoogleServices, projectName, vpcName string) error {
-			return nil
-		}
-		activities.InsertSubnet = func(service hyperscaler.GoogleServices, projectName string, region *string, subnetName string, vpcName string, ipCidrRange string) error {
-			return nil
-		}
-		activities.InsertFirewall = func(service hyperscaler.GoogleServices, projectName, firewallName, vpcName string, priority int64, trafficDirection string, firewallSourceRanges, firewallAllowedPortRules []string) error {
-			return nil
-		}
-		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler.GoogleServices, snHostProject, network string) error {
-			return nil
-		}
-		_, err := env.ExecuteActivity(activity.SetupNetwork, region, project, snHostProject, network)
-		assert.NoError(t, err)
-	})
-	t.Run("WhenSetupNetwork_CreateVPCFails", func(tt *testing.T) {
-		originalGetGCPService := activities.GetGCPService
-		originalSetupNetworkWithFirewall := activities.SetupNetworkWithFirewall
-		originalSetupNetworkFirewallsForIscsi := activities.SetupNetworkFirewallsForIscsi
-		vpcCreate := activities.CreateVPC
-		defer func() {
-			activities.GetGCPService = originalGetGCPService
-			activities.SetupNetworkWithFirewall = originalSetupNetworkWithFirewall
-			activities.SetupNetworkFirewallsForIscsi = originalSetupNetworkFirewallsForIscsi
-			activities.CreateVPC = vpcCreate
-		}()
-
-		mockService := new(google.GcpServices)
-		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockService, nil
-		}
-
-		activities.CreateVPC = func(service hyperscaler.GoogleServices, projectName, vpcName string) error {
-			return errors.New("failed to create VPC")
-		}
-		_, err := env.ExecuteActivity(activity.SetupNetwork, region, project, snHostProject, network)
-		assert.Error(t, err)
-	})
-	t.Run("WhenSetupNetwork_InsertSubnetFails", func(tt *testing.T) {
-		originalGetGCPService := activities.GetGCPService
-		originalSetupNetworkWithFirewall := activities.SetupNetworkWithFirewall
-		originalSetupNetworkFirewallsForIscsi := activities.SetupNetworkFirewallsForIscsi
-		vpcCreate := activities.CreateVPC
-		subnetCreate := activities.InsertSubnet
-		defer func() {
-			activities.GetGCPService = originalGetGCPService
-			activities.SetupNetworkWithFirewall = originalSetupNetworkWithFirewall
-			activities.SetupNetworkFirewallsForIscsi = originalSetupNetworkFirewallsForIscsi
-			activities.CreateVPC = vpcCreate
-			activities.InsertSubnet = subnetCreate
-		}()
-
-		mockService := new(google.GcpServices)
-		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockService, nil
-		}
-
-		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return &google.GcpServices{}, nil
-		}
-		activities.CreateVPC = func(service hyperscaler.GoogleServices, projectName, vpcName string) error {
-			return nil
-		}
-		activities.InsertSubnet = func(service hyperscaler.GoogleServices, projectName string, region *string, subnetName string, vpcName string, ipCidrRange string) error {
-			return errors.New("failed to insert subnet")
-		}
-		_, err := env.ExecuteActivity(activity.SetupNetwork, region, project, snHostProject, network)
-		assert.Error(t, err)
-	})
-	t.Run("WhenSetupNetwork_InsertFirewallFails", func(tt *testing.T) {
-		originalGetGCPService := activities.GetGCPService
-		originalSetupNetworkWithFirewall := activities.SetupNetworkWithFirewall
-		originalSetupNetworkFirewallsForIscsi := activities.SetupNetworkFirewallsForIscsi
-		vpcCreate := activities.CreateVPC
-		subnetCreate := activities.InsertSubnet
-		InsertFirewall := activities.InsertFirewall
-		defer func() {
-			activities.GetGCPService = originalGetGCPService
-			activities.SetupNetworkWithFirewall = originalSetupNetworkWithFirewall
-			activities.SetupNetworkFirewallsForIscsi = originalSetupNetworkFirewallsForIscsi
-			activities.CreateVPC = vpcCreate
-			activities.InsertSubnet = subnetCreate
-			activities.InsertFirewall = InsertFirewall
-		}()
-
-		mockService := new(google.GcpServices)
-		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockService, nil
-		}
-
-		activities.CreateVPC = func(service hyperscaler.GoogleServices, projectName, vpcName string) error {
-			return nil
-		}
-		activities.InsertSubnet = func(service hyperscaler.GoogleServices, projectName string, region *string, subnetName string, vpcName string, ipCidrRange string) error {
-			return nil
-		}
-		activities.InsertFirewall = func(service hyperscaler.GoogleServices, projectName, firewallName, vpcName string, priority int64, trafficDirection string, firewallSourceRanges, firewallAllowedPortRules []string) error {
-			return errors.New("failed to insert firewall")
-		}
-		_, err := env.ExecuteActivity(activity.SetupNetwork, region, project, snHostProject, network)
-		assert.Error(t, err)
-	})
-	t.Run("WhenGetGCPServiceFails", func(tt *testing.T) {
-		originalGetGCPService := activities.GetGCPService
-		defer func() {
-			activities.GetGCPService = originalGetGCPService
-		}()
-
-		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return nil, errors.New("failed to get GCP service")
-		}
-		_, err := env.ExecuteActivity(activity.SetupNetwork, region, project, snHostProject, network)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get GCP service")
-	})
-
-	t.Run("WhenSetupNetworkWithFirewallFails", func(tt *testing.T) {
-		originalGetGCPService := activities.GetGCPService
-		originalSetupNetworkWithFirewall := activities.SetupNetworkWithFirewall
-		defer func() {
-			activities.GetGCPService = originalGetGCPService
-			activities.SetupNetworkWithFirewall = originalSetupNetworkWithFirewall
-		}()
-
-		mockService := new(google.GcpServices)
-		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockService, nil
-		}
-		callCount := 0
-		activities.SetupNetworkWithFirewall = func(ctx context.Context, project, vpcName string, region *string, subnetName, ipCidrRange string, firewallPriority int64, direction string, sourceRanges, allowedPortRules []string) error {
-			callCount++
-			if callCount == 2 {
-				return errors.New("failed to setup network with firewall")
-			}
-			return nil
-		}
-		_, err := env.ExecuteActivity(activity.SetupNetwork, region, project, snHostProject, network)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to setup network with firewall")
-	})
-
-	t.Run("WhenSetupNetworkFirewallsForIscsiFails", func(tt *testing.T) {
-		originalGetGCPService := activities.GetGCPService
-		originalSetupNetworkWithFirewall := activities.SetupNetworkWithFirewall
-		originalSetupNetworkFirewallsForIscsi := activities.SetupNetworkFirewallsForIscsi
-		defer func() {
-			activities.GetGCPService = originalGetGCPService
-			activities.SetupNetworkWithFirewall = originalSetupNetworkWithFirewall
-			activities.SetupNetworkFirewallsForIscsi = originalSetupNetworkFirewallsForIscsi
-		}()
-		mockService := new(google.GcpServices)
-
-		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return mockService, nil
-		}
-		activities.SetupNetworkWithFirewall = func(ctx context.Context, project, vpcName string, region *string, subnetName, ipCidrRange string, firewallPriority int64, direction string, sourceRanges, allowedPortRules []string) error {
-			return nil
-		}
-		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler.GoogleServices, snHostProject, network string) error {
-			return errors.New("failed to setup iscsi firewall")
-		}
-		_, err := env.ExecuteActivity(activity.SetupNetwork, region, project, snHostProject, network)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to setup iscsi firewall")
 	})
 }
 
@@ -5405,7 +5210,7 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 			SourceRanges: sourceRanges1,
 		}
 		mgs.On("GetLogger").Return(log.NewLogger())
-		err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		_, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
 		assert.NoError(t, err)
 		mgs.AssertExpectations(t)
 	})
@@ -5418,8 +5223,8 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 			SourceRanges: sourceRanges2,
 		}
 		mgs.On("GetLogger").Return(log.NewLogger())
-		mgs.On("UpdateFirewall", firewallRequest).Return(nil)
-		err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		mgs.On("UpdateFirewall", firewallRequest).Return("", nil)
+		_, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
 		assert.NoError(t, err)
 		mgs.AssertExpectations(t)
 	})
@@ -5431,9 +5236,9 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges4,
 		}
-		mgs.On("UpdateFirewall", firewallRequest).Return(nil)
+		mgs.On("UpdateFirewall", firewallRequest).Return("", nil)
 		mgs.On("GetLogger").Return(log.NewLogger())
-		err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		_, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
 		assert.NoError(t, err)
 		mgs.AssertExpectations(t)
 	})
@@ -5445,9 +5250,9 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges3,
 		}
-		mgs.On("UpdateFirewall", firewallRequest).Return(nil)
+		mgs.On("UpdateFirewall", firewallRequest).Return("", nil)
 		mgs.On("GetLogger").Return(log.NewLogger())
-		err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		_, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
 		assert.NoError(t, err)
 		mgs.AssertExpectations(t)
 	})
@@ -5459,9 +5264,9 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges4,
 		}
-		mgs.On("UpdateFirewall", firewallRequest).Return(nil)
+		mgs.On("UpdateFirewall", firewallRequest).Return("", nil)
 		mgs.On("GetLogger").Return(log.NewLogger())
-		err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		_, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
 		assert.NoError(t, err)
 		mgs.AssertExpectations(t)
 	})
@@ -5473,9 +5278,9 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 		firewallRequest := &hyperscaler_models.Firewall{
 			SourceRanges: sourceRanges5,
 		}
-		mgs.On("UpdateFirewall", firewallRequest).Return(errors.New("update error"))
+		mgs.On("UpdateFirewall", firewallRequest).Return("", errors.New("update error"))
 		mgs.On("GetLogger").Return(log.NewLogger())
-		err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		_, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
 		assert.Error(t, err, "update error")
 		mgs.AssertExpectations(t)
 	})
@@ -5489,7 +5294,7 @@ func Test_checkAndUpdateFirewall(t *testing.T) {
 		}
 		mgs.On("GetLogger").Return(log.NewLogger())
 		// No update should be needed when only order is different
-		err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
+		_, err := activities.CheckAndUpdateFirewall(mgs, existingFirewall, firewallRequest)
 		assert.NoError(t, err, "should not error when only order is different")
 		mgs.AssertExpectations(t)
 	})
@@ -6579,5 +6384,878 @@ func Test_AllocateClusterSerialNumber(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, vlmConfig)
 		assert.Contains(t, err.Error(), "error fetching serial number")
+	})
+}
+
+func TestPoolActivity_CreateVPCs(t *testing.T) {
+	mgmtVpcName := "mgmt-e0a-vpc-01"
+	icVpcName := "ic-e0b-vpc-01"
+	rsmVpcName := "rsm-e0c-vpc-01"
+
+	project := "test-project"
+
+	originalGetGCPService := activities.GetGCPService
+	originalCreateVPC := activities.CreateVPC
+	defer func() {
+		activities.GetGCPService = originalGetGCPService
+		activities.CreateVPC = originalCreateVPC
+	}()
+
+	t.Run("Success_AllVPCsCreated", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		activities.CreateVPC = func(service hyperscaler.GoogleServices, project, vpcName string) (string, error) {
+			return "operation-" + vpcName, nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateVPCs, project)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		// Get the actual result from the activity execution
+		var operations *map[string]bool
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.NotNil(t, operations)
+		assert.Len(t, *operations, 3) // Should have 3 operations for mgmt, cluster-ic, and rsm VPCs
+
+		expectedOperations := []string{
+			"operation-mgmt-e0a-vpc-01",
+			"operation-ic-e0b-vpc-01",
+			"operation-rsm-e0c-vpc-01",
+		}
+
+		for _, expectedOp := range expectedOperations {
+			value, exists := (*operations)[expectedOp]
+			assert.True(t, exists, "Operation %s should exist in result", expectedOp)
+			assert.False(t, value, "Operation %s should be set to false", expectedOp)
+		}
+	})
+
+	t.Run("Success_SomeVPCsAlreadyExist", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		callCount := 0
+		activities.CreateVPC = func(service hyperscaler.GoogleServices, project, vpcName string) (string, error) {
+			callCount++
+			if callCount == 1 {
+				return "operation-" + vpcName, nil // First VPC needs creation
+			}
+			return "", nil // Other VPCs already exist
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateVPCs, project)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		var operations *map[string]bool
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.NotNil(t, operations)
+		assert.Len(t, *operations, 1) // Only one operation should be in the result
+
+		// Should contain exactly one operation that starts with "operation-"
+		operationFound := false
+		for opName := range *operations {
+			if strings.HasPrefix(opName, "operation-") {
+				operationFound = true
+				break
+			}
+		}
+		assert.True(t, operationFound, "Should have exactly one operation starting with 'operation-'")
+	})
+
+	t.Run("GetGCPService_Fails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("failed to get GCP service")
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateVPCs, project)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to get GCP service")
+	})
+
+	t.Run("CreateVPC_Fails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		activities.CreateVPC = func(service hyperscaler.GoogleServices, project, vpcName string) (string, error) {
+			return "", errors.New("failed to create VPC")
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateVPCs, project)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to create VPC")
+	})
+
+	t.Run("EmptyProject", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		activities.CreateVPC = func(service hyperscaler.GoogleServices, project, vpcName string) (string, error) {
+			if project == "" {
+				return "", errors.New("project cannot be empty")
+			}
+			return "operation-" + vpcName, nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateVPCs, "")
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "project cannot be empty")
+	})
+
+	t.Run("AllVPCs_AlreadyExist", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		activities.CreateVPC = func(service hyperscaler.GoogleServices, project, vpcName string) (string, error) {
+			return "", nil // All VPCs already exist
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateVPCs, project)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		var operations *map[string]bool
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.NotNil(t, operations)
+		assert.Len(t, *operations, 0) // No operations should be in the result
+	})
+
+	t.Run("PartialFailure_FirstVPCFails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		activities.CreateVPC = func(service hyperscaler.GoogleServices, project, vpcName string) (string, error) {
+			if vpcName == mgmtVpcName {
+				return "", errors.New("failed to create management VPC")
+			}
+			return "operation-" + vpcName, nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateVPCs, project)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to create management VPC")
+	})
+
+	t.Run("MixedResults_SomeCreatedSomeExist", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		vpcCallOrder := []string{}
+		activities.CreateVPC = func(service hyperscaler.GoogleServices, project, vpcName string) (string, error) {
+			vpcCallOrder = append(vpcCallOrder, vpcName)
+			switch vpcName {
+			case mgmtVpcName:
+				return "operation-mgmt", nil
+			case icVpcName:
+				return "", nil // Already exists
+			case rsmVpcName:
+				return "operation-rsm", nil
+			default:
+				return "", errors.New("unexpected VPC name")
+			}
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateVPCs, project)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		var operations *map[string]bool
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.NotNil(t, operations)
+		assert.Len(t, *operations, 2)  // Two operations
+		assert.Len(t, vpcCallOrder, 3) // All three VPCs should be processed
+
+		assert.Contains(t, *operations, "operation-mgmt")
+		assert.Contains(t, *operations, "operation-rsm")
+		assert.NotContains(t, *operations, "operation-cluster-ic")
+	})
+}
+
+func TestPoolActivity_CreateSubnets(t *testing.T) {
+	project := "test-project"
+	originalGetGCPService := activities.GetGCPService
+	originalInsertSubnet := activities.InsertSubnet
+	defer func() {
+		activities.GetGCPService = originalGetGCPService
+		activities.InsertSubnet = originalInsertSubnet
+	}()
+
+	t.Run("Success_AllSubnetsCreated", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		mockService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockService, nil
+		}
+
+		callCount := 0
+		activities.InsertSubnet = func(service hyperscaler.GoogleServices, project string, region *string, subnetName, vpcName, ipCidrRange string) (string, error) {
+			callCount++
+			return fmt.Sprintf("operation-%d", callCount), nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateSubnets, project)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		var operations *map[string]bool
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.NotNil(t, operations)
+		assert.Equal(t, 3, len(*operations))
+		assert.Equal(t, 3, callCount)
+
+		// Check that all operations are marked as not complete
+		for _, complete := range *operations {
+			assert.False(t, complete)
+		}
+	})
+
+	t.Run("Success_SomeSubnetsAlreadyExist", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		mockService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockService, nil
+		}
+
+		callCount := 0
+		activities.InsertSubnet = func(service hyperscaler.GoogleServices, project string, region *string, subnetName, vpcName, ipCidrRange string) (string, error) {
+			callCount++
+			if callCount == 2 {
+				return "", nil // Subnet already exists
+			}
+			return fmt.Sprintf("operation-%d", callCount), nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateSubnets, project)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		var operations *map[string]bool
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.NotNil(t, operations)
+		assert.Equal(t, 2, len(*operations)) // Only operations with non-empty names are added
+		assert.Equal(t, 3, callCount)
+	})
+
+	t.Run("GetGCPService_Fails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("failed to get GCP service")
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateSubnets, project)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to get GCP service")
+	})
+
+	t.Run("InsertSubnet_Fails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		mockService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockService, nil
+		}
+
+		activities.InsertSubnet = func(service hyperscaler.GoogleServices, project string, region *string, subnetName, vpcName, ipCidrRange string) (string, error) {
+			return "", errors.New("failed to create subnet")
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateSubnets, project)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to create subnet")
+	})
+
+	t.Run("EmptyProject", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		mockService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockService, nil
+		}
+
+		callCount := 0
+		activities.InsertSubnet = func(service hyperscaler.GoogleServices, project string, region *string, subnetName, vpcName, ipCidrRange string) (string, error) {
+			callCount++
+			assert.Equal(t, "", project)
+			return fmt.Sprintf("operation-%d", callCount), nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateSubnets, "")
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		var operations *map[string]bool
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.Equal(t, 3, callCount)
+	})
+
+	t.Run("AllSubnets_AlreadyExist", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		mockService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockService, nil
+		}
+
+		callCount := 0
+		activities.InsertSubnet = func(service hyperscaler.GoogleServices, project string, region *string, subnetName, vpcName, ipCidrRange string) (string, error) {
+			callCount++
+			return "", nil // All subnets already exist
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateSubnets, project)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		var operations *map[string]bool
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.NotNil(t, operations)
+		assert.Equal(t, 0, len(*operations)) // No operations to track
+		assert.Equal(t, 3, callCount)
+	})
+
+	t.Run("PartialFailure_FirstSubnetFails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		mockService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockService, nil
+		}
+
+		callCount := 0
+		activities.InsertSubnet = func(service hyperscaler.GoogleServices, project string, region *string, subnetName, vpcName, ipCidrRange string) (string, error) {
+			callCount++
+			if callCount == 1 {
+				return "", errors.New("first subnet creation failed")
+			}
+			return fmt.Sprintf("operation-%d", callCount), nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateSubnets, project)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "first subnet creation failed")
+		assert.Equal(t, 1, callCount) // Should stop after first failure
+		_ = result                    // result unused in error case
+		assert.Contains(t, err.Error(), "first subnet creation failed")
+		assert.Equal(t, 1, callCount) // Should stop after first failure
+	})
+
+	t.Run("MixedResults_SomeCreatedSomeExist", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := &activities.PoolActivity{}
+		env.RegisterActivity(activity)
+
+		mockService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockService, nil
+		}
+
+		callCount := 0
+		activities.InsertSubnet = func(service hyperscaler.GoogleServices, project string, region *string, subnetName, vpcName, ipCidrRange string) (string, error) {
+			callCount++
+			if callCount%2 == 0 {
+				return "", nil // Even calls return empty (already exists)
+			}
+			return fmt.Sprintf("operation-%d", callCount), nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateSubnets, project)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		var operations *map[string]bool
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.NotNil(t, operations)
+		assert.Equal(t, 2, len(*operations)) // Only operations 1 and 3 should be tracked
+		assert.Equal(t, 3, callCount)
+
+		// Verify specific operation names are present
+		operationNames := make([]string, 0, len(*operations))
+		for opName := range *operations {
+			operationNames = append(operationNames, opName)
+		}
+		assert.Contains(t, operationNames, "operation-1")
+		assert.Contains(t, operationNames, "operation-3")
+	})
+}
+
+func TestPoolActivity_CreateFirewalls(t *testing.T) {
+	project := "test-project"
+	snHostProject := "test-sn-host-project"
+	network := "test-network"
+
+	originalGetGCPService := activities.GetGCPService
+	originalInsertFirewall := activities.InsertFirewall
+	originalSetupNetworkFirewallsForIscsi := activities.SetupNetworkFirewallsForIscsi
+	defer func() {
+		activities.GetGCPService = originalGetGCPService
+		activities.InsertFirewall = originalInsertFirewall
+		activities.SetupNetworkFirewallsForIscsi = originalSetupNetworkFirewallsForIscsi
+	}()
+
+	t.Run("Success_AllFirewallsCreated", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		// Mock InsertFirewall to return operation names for all VPC firewalls
+		callCount := 0
+		activities.InsertFirewall = func(service hyperscaler.GoogleServices, project, firewallName, vpcName string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			callCount++
+			return fmt.Sprintf("operation-firewall-%d", callCount), nil
+		}
+
+		// Mock SetupNetworkFirewallsForIscsi to return operation name
+		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-iscsi-firewall", nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		var operations *map[string]bool
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.NotNil(t, operations)
+		assert.Len(t, *operations, 4) // 3 VPC firewalls + 1 iSCSI firewall
+		assert.Contains(t, *operations, "operation-firewall-1")
+		assert.Contains(t, *operations, "operation-firewall-2")
+		assert.Contains(t, *operations, "operation-firewall-3")
+		assert.Contains(t, *operations, "operation-iscsi-firewall")
+		for _, created := range *operations {
+			assert.False(t, created)
+		}
+	})
+
+	t.Run("Success_SomeFirewallsAlreadyExist", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		// Mock InsertFirewall to return empty string for some (already exist) and operation names for others
+		callCount := 0
+		activities.InsertFirewall = func(service hyperscaler.GoogleServices, project, firewallName, vpcName string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			callCount++
+			if callCount == 2 {
+				return "", nil // Second firewall already exists
+			}
+			return fmt.Sprintf("operation-firewall-%d", callCount), nil
+		}
+
+		// Mock SetupNetworkFirewallsForIscsi to return empty (already exists)
+		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		var operations *map[string]bool
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.NotNil(t, operations)
+		assert.Len(t, *operations, 2) // Only operations that were created
+		assert.Contains(t, *operations, "operation-firewall-1")
+		assert.Contains(t, *operations, "operation-firewall-3")
+	})
+
+	t.Run("GetGCPService_Fails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity)
+
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("failed to get GCP service")
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get GCP service")
+		_ = result // result unused in error case
+	})
+
+	t.Run("InsertFirewall_Fails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		activities.InsertFirewall = func(service hyperscaler.GoogleServices, project, firewallName, vpcName string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			return "", errors.New("failed to create firewall")
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create firewall")
+		_ = result // result unused in error case
+	})
+
+	t.Run("SetupNetworkFirewallsForIscsi_Fails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		// Mock InsertFirewall to succeed for all VPC firewalls
+		activities.InsertFirewall = func(service hyperscaler.GoogleServices, project, firewallName, vpcName string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			return "operation-firewall", nil
+		}
+
+		// Mock SetupNetworkFirewallsForIscsi to fail
+		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler.GoogleServices, snHostProject, network string) (string, error) {
+			return "", errors.New("failed to setup iSCSI firewalls")
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to setup iSCSI firewalls")
+		_ = result // result unused in error case
+	})
+
+	t.Run("EmptyProject", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		activities.InsertFirewall = func(service hyperscaler.GoogleServices, project, firewallName, vpcName string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			return "operation-firewall", nil
+		}
+
+		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-iscsi-firewall", nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, "", snHostProject, network)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		// Should still work with empty project as the mock doesn't validate project
+	})
+
+	t.Run("AllFirewalls_AlreadyExist", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		// Mock all firewalls to already exist (return empty strings)
+		activities.InsertFirewall = func(service hyperscaler.GoogleServices, project, firewallName, vpcName string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			return "", nil
+		}
+
+		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler.GoogleServices, snHostProject, network string) (string, error) {
+			return "", nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		var operations *map[string]bool
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.NotNil(t, operations)
+		assert.Len(t, *operations, 0) // No operations returned since all already exist
+	})
+
+	t.Run("PartialFailure_FirstFirewallFails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		// Mock first firewall to fail
+		callCount := 0
+		activities.InsertFirewall = func(service hyperscaler.GoogleServices, project, firewallName, vpcName string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			callCount++
+			if callCount == 1 {
+				return "", errors.New("first firewall creation failed")
+			}
+			return fmt.Sprintf("operation-firewall-%d", callCount), nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "first firewall creation failed")
+		_ = result // result unused in error case
+	})
+
+	t.Run("MixedResults_SomeCreatedSomeExist", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		mockSE := database.NewMockStorage(t)
+		activity := &activities.PoolActivity{SE: mockSE}
+		env.RegisterActivity(activity)
+
+		mockGCPService := &google.GcpServices{}
+		activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return mockGCPService, nil
+		}
+
+		// Mock mixed results: some created, some already exist
+		callCount := 0
+		activities.InsertFirewall = func(service hyperscaler.GoogleServices, project, firewallName, vpcName string, priority int64, direction string, sourceRanges, portRules []string) (string, error) {
+			callCount++
+			if callCount%2 == 0 {
+				return "", nil // Even calls return empty (already exist)
+			}
+			return fmt.Sprintf("operation-firewall-%d", callCount), nil
+		}
+
+		// Mock iSCSI firewall to be created
+		activities.SetupNetworkFirewallsForIscsi = func(service hyperscaler.GoogleServices, snHostProject, network string) (string, error) {
+			return "operation-iscsi-firewall", nil
+		}
+
+		result, err := env.ExecuteActivity(activity.CreateFirewalls, project, snHostProject, network)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		var operations *map[string]bool
+		err = result.Get(&operations)
+		assert.NoError(t, err)
+		assert.NotNil(t, operations)
+		assert.Len(t, *operations, 3) // 2 VPC firewalls created + 1 iSCSI firewall
+		assert.Contains(t, *operations, "operation-firewall-1")
+		assert.Contains(t, *operations, "operation-firewall-3")
+		assert.Contains(t, *operations, "operation-iscsi-firewall")
+	})
+}
+
+func Test_getComputeOpStatus(t *testing.T) {
+	project := "test-project"
+	operation := "test-operation"
+
+	t.Run("Global_Operation_Success", func(t *testing.T) {
+		mockGCPService := hyperscaler.NewMockGoogleServices(t)
+		expectedOp := &hyperscaler_models.ComputeOperation{
+			Name:   operation,
+			Status: "DONE",
+		}
+
+		mockGCPService.On("GetComputeGlobalOpStatus", project, operation).Return(expectedOp, nil)
+
+		result, err := activities.GetComputeOpStatus(mockGCPService, project, false, operation)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedOp, result)
+		mockGCPService.AssertExpectations(t)
+	})
+
+	t.Run("Regional_Operation_Success", func(t *testing.T) {
+		mockGCPService := hyperscaler.NewMockGoogleServices(t)
+		expectedOp := &hyperscaler_models.ComputeOperation{
+			Name:   operation,
+			Status: "RUNNING",
+		}
+		defer func() {
+			activities.Region = env.GetString("LOCAL_REGION", "")
+		}()
+		activities.Region = "us-central1"
+		mockGCPService.On("GetComputeRegionalOpStatus", project, activities.Region, operation).Return(expectedOp, nil)
+
+		result, err := activities.GetComputeOpStatus(mockGCPService, project, true, operation)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedOp, result)
+		mockGCPService.AssertExpectations(t)
+	})
+
+	t.Run("Global_Operation_Error", func(t *testing.T) {
+		mockGCPService := hyperscaler.NewMockGoogleServices(t)
+		expectedError := errors.New("failed to get global operation status")
+		mockGCPService.On("GetComputeGlobalOpStatus", project, operation).Return(nil, expectedError)
+
+		result, err := activities.GetComputeOpStatus(mockGCPService, project, false, operation)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, expectedError, err)
+		mockGCPService.AssertExpectations(t)
+	})
+
+	t.Run("Regional_Operation_Error", func(t *testing.T) {
+		mockGCPService := hyperscaler.NewMockGoogleServices(t)
+		expectedError := errors.New("failed to get regional operation status")
+		defer func() {
+			activities.Region = env.GetString("LOCAL_REGION", "")
+		}()
+		activities.Region = "us-central1"
+		mockGCPService.On("GetComputeRegionalOpStatus", project, activities.Region, operation).Return(nil, expectedError)
+
+		result, err := activities.GetComputeOpStatus(mockGCPService, project, true, operation)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Equal(t, expectedError, err)
+		mockGCPService.AssertExpectations(t)
 	})
 }

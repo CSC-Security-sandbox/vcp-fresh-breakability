@@ -377,7 +377,7 @@ func (a *VolumeCreateActivity) GetVolumesByPoolID(ctx context.Context, poolID in
 func _findTenancy(gcpService hyperscaler.GoogleServices, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*common.TenancyInfo, error) {
 	// need to pass tenantProjectRegion only in case of CBR where region != the regional region as set from env variable
 	if tenantProjectRegion == nil {
-		tenantProjectRegion = &localRegion
+		tenantProjectRegion = &Region
 	}
 
 	tenantProjectNumber, err := gcpService.GetTenantProject(consumerVPC, customerProjectNumber, *tenantProjectRegion)

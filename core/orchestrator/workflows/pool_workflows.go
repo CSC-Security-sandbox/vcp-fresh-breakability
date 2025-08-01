@@ -36,32 +36,37 @@ import (
 )
 
 var (
-	_                                    WorkflowInterface = &createPoolWorkflow{} // Enforcing the WorkflowInterface on createPoolWorkflow
-	setupNwHeartbeatTimeout                                = env.GetUint64("SETUP_NW_HEARTBEAT_TIMEOUT_SEC", 300)
-	vmrsConfigPath                                         = env.GetString("VMRS_CONFIG_PATH", "config/vmrs_gcp.yaml")
-	maxNodesPerGroup                                       = env.GetInt("MAX_NODES_PER_GROUP", 200)
-	enableMetrics                                          = env.GetBool("ENABLE_METRICS", false)
-	enableUniqueSerialNumberGeneration                     = env.GetBool("ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION", false)
-	configureKmsConfigForSvmActivity                       = _configureKmsConfigForSvmActivity
-	getSignedJwtToken                                      = auth.GetSignedJwtToken
-	isProberProject                                        = utils.IsProberProject
-	GetNewVSAClientWorkflowManager                         = _getNewVSAClientWorkflowManager
-	ExtractOntapVersion                                    = _extractOntapVersion
-	WaitForServiceNetworkOperationStatus                   = _waitForServiceNetworkOperationStatus
+	configureKmsConfigForSvmActivity     = _configureKmsConfigForSvmActivity
+	getSignedJwtToken                    = auth.GetSignedJwtToken
+	isProberProject                      = utils.IsProberProject
+	GetNewVSAClientWorkflowManager       = _getNewVSAClientWorkflowManager
+	ExtractOntapVersion                  = _extractOntapVersion
+	WaitForServiceNetworkOperationStatus = _waitForServiceNetworkOperationStatus
+	WaitForGCPNetworkOperationStatus     = _waitForGCPNetworkOperationStatus
+)
 
-	vsaImageName      = env.GetString("VSA_IMAGE_NAME", "r9-17-1xn-250710-0000-gcnv")
-	vsaFilesImageName = env.GetString("VSA_FILES_IMAGE_NAME", "r9-18-1xn-250722-0000")
-	mediatorImage     = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "r9-17-1xn-250704-0000-mediator-debian-12")
+var (
+	_                                  WorkflowInterface = &createPoolWorkflow{} // Enforcing the WorkflowInterface on createPoolWorkflow
+	setupNwHeartbeatTimeout                              = env.GetUint64("SETUP_NW_HEARTBEAT_TIMEOUT_SEC", 300)
+	vmrsConfigPath                                       = env.GetString("VMRS_CONFIG_PATH", "config/vmrs_gcp.yaml")
+	maxNodesPerGroup                                     = env.GetInt("MAX_NODES_PER_GROUP", 200)
+	enableMetrics                                        = env.GetBool("ENABLE_METRICS", false)
+	enableUniqueSerialNumberGeneration                   = env.GetBool("ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION", false)
+
+	vsaImageName                 = env.GetString("VSA_IMAGE_NAME", "r9-17-1xn-250710-0000-gcnv")
+	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "r9-18-1xn-250722-0000")
+	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "r9-17-1xn-250704-0000-mediator-debian-12")
+	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
 )
 
 const (
 	DefaultSvmName   = "gcnv"
 	VLMCloudProvider = "gcp"
-)
 
-const (
-	TimestampLayout = "20060102150405"
-	SAIDPrefix      = "vsa-sa-"
+	TimestampLayout   = "20060102150405"
+	SaIdPrefix        = "vsa-sa-"
+	statusDone        = "DONE"
+	operationProgress = int64(100)
 )
 
 type createPoolWorkflow struct {
@@ -192,14 +197,14 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	rollbackManager.AddActivity(poolActivity.ReleaseSubnet, dbPool)
 	setupNwCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(setupNwHeartbeatTimeout)*time.Second)
-	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.SetupNetwork, params.Region, tenancyDetails.RegionalTenantProject, tenancyDetails.SnHostProject, tenancyDetails.Network).Get(setupNwCtx, nil)
+	err = workflow.ExecuteChildWorkflow(setupNwCtx, ConfigureNetworkWorkflow, tenancyDetails).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	serviceAccount := &iam.ServiceAccount{}
 	saTimestamp := workflow.Now(ctx).Format(TimestampLayout)
-	serviceAccountID := fmt.Sprintf("%s%s", SAIDPrefix, saTimestamp)
+	serviceAccountID := fmt.Sprintf("%s%s", SaIdPrefix, saTimestamp)
 	dbPool.ServiceAccountId = serviceAccountID
 
 	rollbackManager.AddActivity(poolActivity.DeleteServiceAccount, tenancyDetails.RegionalTenantProject, serviceAccountID)
@@ -1153,14 +1158,14 @@ func _waitForServiceNetworkOperationStatus(ctx workflow.Context, poolActivity *a
 	for {
 		// Check if the timeout has been reached.
 		if workflow.Now(ctx).Sub(startTime) > timeout {
-			return nil, fmt.Errorf("timeout while confirming compute network google components: %v", timeout)
+			return nil, vsaerror.Errorf("timeout while confirming compute network google components: %v", timeout)
 		}
 
 		// Get the status of the GCP Operation.
 		operation := &hyperscalermodels.ComputeOperation{}
 		err := workflow.ExecuteActivity(ctx, poolActivity.GetServiceNetOpStatus, op).Get(ctx, &operation)
 		if err != nil && !vsaerror.IsNotReadyErr(err) && !vsaerror.IsNotFoundErr(err) {
-			return nil, fmt.Errorf("failed to get GCP Operation %s: %w", op, err)
+			return nil, vsaerror.Errorf("failed to get GCP Operation %s: %w", op, err)
 		}
 
 		// check the state of the operation
@@ -1169,9 +1174,103 @@ func _waitForServiceNetworkOperationStatus(ctx workflow.Context, poolActivity *a
 		}
 
 		// Sleep for a some duration before checking again.
-		err = workflow.Sleep(ctx, pollDBJobWaitTimeSecond*time.Second)
+		err = workflow.Sleep(ctx, time.Second*time.Duration(waitTimeForGCPOperationInSec))
 		if err != nil {
-			return nil, fmt.Errorf("failed to sleep while waiting for GCP Operation %s: %w", op, err)
+			return nil, vsaerror.Errorf("failed to sleep while waiting for GCP Operation %s: %w", op, err)
+		}
+	}
+}
+
+func ConfigureNetworkWorkflow(ctx workflow.Context, tenancyDetails *common.TenancyInfo) (interface{}, error) {
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+	}
+	poolActivity := &activities.PoolActivity{}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	rollbackManager := common.NewRollbackManager()
+
+	defer func() {
+		if err != nil {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
+	setupNwCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(setupNwHeartbeatTimeout)*time.Second)
+	vpcOperations := make(map[string]bool)
+	tenantProjectNumber := tenancyDetails.RegionalTenantProject
+	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateVPCs, tenantProjectNumber).Get(setupNwCtx, &vpcOperations)
+	if err != nil {
+		return nil, err
+	}
+	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, tenantProjectNumber, false, &vpcOperations, retryPolicy.StartToCloseTimeout)
+	if err != nil {
+		return nil, vsaerror.Errorf("failed to create VPC for tenant project while waiting to get operation status: %s: %w", tenantProjectNumber, err)
+	}
+
+	subnetOperations := make(map[string]bool)
+	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateSubnets, tenantProjectNumber).Get(setupNwCtx, &subnetOperations)
+	if err != nil {
+		return nil, err
+	}
+	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, tenantProjectNumber, true, &subnetOperations, retryPolicy.StartToCloseTimeout)
+	if err != nil {
+		return nil, vsaerror.Errorf("failed to create subnet for tenant project while waiting to get operation status: %s: %w", tenantProjectNumber, err)
+	}
+
+	firewallOperations := make(map[string]bool)
+	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateFirewalls, tenantProjectNumber, tenancyDetails.SnHostProject, tenancyDetails.Network).Get(setupNwCtx, &firewallOperations)
+	if err != nil {
+		return nil, err
+	}
+	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, tenantProjectNumber, false, &firewallOperations, retryPolicy.StartToCloseTimeout)
+	if err != nil {
+		return nil, vsaerror.Errorf("failed to create firewall for tenant project while waiting to get operation status: %s: %w", tenantProjectNumber, err)
+	}
+	return nil, nil
+}
+
+func _waitForGCPNetworkOperationStatus(ctx workflow.Context, poolActivity *activities.PoolActivity, project string, isRegionalResource bool, operationNames *map[string]bool, timeout time.Duration) error {
+	startTime := workflow.Now(ctx)
+	var err error
+	var operationsDone int
+	operation := &hyperscalermodels.ComputeOperation{}
+	for {
+		operationsDone = 0
+		for op := range *operationNames {
+			if !(*operationNames)[op] {
+				// Check if the timeout has been reached.
+				if workflow.Now(ctx).Sub(startTime) > timeout {
+					return vsaerror.Errorf("timeout while confirming compute network google components: %v", timeout)
+				}
+
+				// Get the status of the GCP Operation.
+				err = workflow.ExecuteActivity(ctx, poolActivity.GetComputeOpStatus, project, isRegionalResource, op).Get(ctx, &operation)
+				if err != nil && !vsaerror.IsNotReadyErr(err) && !vsaerror.IsNotFoundErr(err) {
+					return vsaerror.Errorf("failed to get GCP Operation %s: %w", op, err)
+				}
+			}
+			if (operation.Status == statusDone && operation.Progress == operationProgress) || (*operationNames)[op] {
+				operationsDone++
+				(*operationNames)[op] = true
+			}
+		}
+		if operationsDone == len(*operationNames) {
+			return nil
+		}
+		err = workflow.Sleep(ctx, time.Second*time.Duration(waitTimeForGCPOperationInSec))
+		if err != nil {
+			return vsaerror.Errorf("failed to sleep while waiting for GCP Operation %s: %w", operation.Name, err)
 		}
 	}
 }

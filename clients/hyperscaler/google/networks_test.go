@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
@@ -27,9 +28,6 @@ func testReset(t *testing.T) {
 	newClient = _newClient
 
 	CreateTPSubnetOp = _createTPSubnetOp
-	createSubnetwork = _createSubnetwork
-	createVPC = _createVPC
-	insertFirewall = _insertFirewall
 	AddSecretVersion = _addSecretVersion
 	GetSecretVersion = _getSecretVersion
 }
@@ -393,17 +391,15 @@ func Test_CreateVPC(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 
-		op, err := createVPC(gService, vpcNetwork)
+		op, err := gService.CreateVPC(vpcNetwork)
 		if err == nil {
 			tt.Error("Expected an error but got none")
 		}
-		if op != nil {
+		if op != "" {
 			tt.Errorf("Expected nil operation but got: %+v", op)
 		}
-		createVPC = _createVPC
 	})
 
 	t.Run("WhenCreateVPCSucceeds", func(tt *testing.T) {
@@ -431,17 +427,15 @@ func Test_CreateVPC(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 
-		op, err := createVPC(gcpService, vpcNetwork)
+		op, err := gcpService.CreateVPC(vpcNetwork)
 		if err != nil {
 			tt.Errorf("Unexpected error: %v", err)
 		}
-		if op == nil || op.Name != operationName {
+		if op != operationName {
 			tt.Errorf("Unexpected operation: %+v", op)
 		}
-		createVPC = _createVPC
 	})
 }
 
@@ -479,17 +473,15 @@ func Test_CreateSubnetwork(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 
-		op, err := createSubnetwork(gService, subnetworkRequest)
+		op, err := gService.CreateSubnetwork(subnetworkRequest)
 		if err == nil {
 			tt.Error("Expected an error but got none")
 		}
-		if op != nil {
+		if op != "" {
 			tt.Errorf("Expected nil operation but got: %+v", op)
 		}
-		createSubnetwork = _createSubnetwork
 	})
 
 	t.Run("WhenCreateSubnetworkSucceeds", func(tt *testing.T) {
@@ -519,17 +511,15 @@ func Test_CreateSubnetwork(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 
-		op, err := createSubnetwork(gService, subnetworkRequest)
+		op, err := gService.CreateSubnetwork(subnetworkRequest)
 		if err != nil {
 			tt.Errorf("Unexpected error: %v", err)
 		}
-		if op == nil || op.Name != operationName {
+		if op != operationName {
 			tt.Errorf("Unexpected operation: %+v", op)
 		}
-		createSubnetwork = _createSubnetwork
 	})
 }
 
@@ -559,7 +549,6 @@ func Test_GetSubnetwork(t *testing.T) {
 				computeService: computeSvc,
 			},
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 		_, err = gService.GetSubnetwork(projectName, region, subnetName)
 		if err == nil {
@@ -578,14 +567,8 @@ func Test_GetSubnetwork(t *testing.T) {
 		subnetName := "vpc1-subnet"
 		region := "US-East-4"
 		url := fmt.Sprintf("/projects/%s/regions/%s/subnetworks/%s", projectName, region, subnetName)
-		counter := 0
 		resp := &compute.Subnetwork{Name: subnetName}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-				rw.WriteHeader(http.StatusInternalServerError)
-				return
-			}
 			if req.URL.Path == url {
 				response, err := json.Marshal(resp)
 				if err != nil {
@@ -609,7 +592,6 @@ func Test_GetSubnetwork(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 		out, err := gService.GetSubnetwork(projectName, region, subnetName)
 		if err != nil {
@@ -621,9 +603,6 @@ func Test_GetSubnetwork(t *testing.T) {
 				if out.Name != subnetName {
 					tt.Errorf("Unexpected subnetwork name %s", out.Name)
 				}
-			}
-			if gService.Retry.GetRetryCount() != 0 {
-				tt.Errorf("RetryStrategy was not reset %d", gService.Retry.GetRetryCount())
 			}
 		}
 	})
@@ -654,7 +633,6 @@ func Test_GetVPCNetwork(t *testing.T) {
 				computeService: computeSvc,
 			},
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 		_, err = gService.GetVPCNetwork(projectName, vpcName)
 		if err == nil {
@@ -669,15 +647,8 @@ func Test_GetVPCNetwork(t *testing.T) {
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		defer testReset(tt)
 		ctx := context.Background()
-		counter := 0
 		resp := &compute.Network{Name: vpcName}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-
-				rw.WriteHeader(http.StatusInternalServerError)
-				return
-			}
 			if req.URL.Path == url {
 				response, err := json.Marshal(resp)
 				if err != nil {
@@ -701,7 +672,6 @@ func Test_GetVPCNetwork(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 		out, err := gService.GetVPCNetwork(projectName, vpcName)
 		if err != nil {
@@ -713,9 +683,6 @@ func Test_GetVPCNetwork(t *testing.T) {
 				if out.Name != vpcName {
 					tt.Errorf("Unexpected subnetwork name %s", out.Name)
 				}
-			}
-			if gService.Retry.GetRetryCount() != 0 {
-				tt.Errorf("RetryStrategy was not reset %d", gService.Retry.GetRetryCount())
 			}
 		}
 	})
@@ -747,7 +714,6 @@ func Test_GetFirewall(t *testing.T) {
 				computeService: computeSvc,
 			},
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 		_, err = gService.GetFirewall(projectName, firewallRuleName)
 		if err == nil {
@@ -762,14 +728,8 @@ func Test_GetFirewall(t *testing.T) {
 	t.Run("WhenGetFirewallSuccess", func(tt *testing.T) {
 		defer testReset(tt)
 		ctx := context.Background()
-		counter := 0
 		resp := &compute.Firewall{Name: firewallRuleName}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-				rw.WriteHeader(http.StatusInternalServerError)
-				return
-			}
 			if req.URL.Path == url {
 				response, err := json.Marshal(resp)
 				if err != nil {
@@ -793,7 +753,6 @@ func Test_GetFirewall(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 		out, err := gService.GetFirewall(projectName, firewallRuleName)
 		if err != nil {
@@ -805,9 +764,6 @@ func Test_GetFirewall(t *testing.T) {
 				if out.Name != firewallRuleName {
 					tt.Errorf("Unexpected firewall name %s", out.Name)
 				}
-			}
-			if gService.Retry.GetRetryCount() != 0 {
-				tt.Errorf("RetryStrategy was not reset %d", gService.Retry.GetRetryCount())
 			}
 		}
 	})
@@ -854,7 +810,7 @@ func Test_InsertFirewall(t *testing.T) {
 			serviceNetworkingEndpoint:         serviceNetworkingEndpoint,
 			Retry:                             NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
-		_, err = insertFirewall(gService, firewallRule)
+		_, err = gService.InsertFirewall(firewallRule)
 		if err == nil {
 			tt.Error("Expected an error but got nothing")
 		} else {
@@ -862,21 +818,13 @@ func Test_InsertFirewall(t *testing.T) {
 				tt.Errorf("Unexpected error: %s", err.Error())
 			}
 		}
-		insertFirewall = _insertFirewall
 	})
 
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		defer testReset(tt)
-		counter := 0
 		operationName := "random-operation-name"
 		resp := &compute.Operation{Name: operationName}
 		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-
-				rw.WriteHeader(http.StatusInternalServerError)
-				return
-			}
 			if req.URL.Path == url {
 				response, err := json.Marshal(resp)
 				if err != nil {
@@ -901,24 +849,15 @@ func Test_InsertFirewall(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
-		out, err := insertFirewall(gService, firewallRule)
+		out, err := gService.InsertFirewall(firewallRule)
 		if err != nil {
 			tt.Errorf("Unexpected error: %s", err.Error())
 		} else {
-			if out == nil {
-				tt.Errorf("Output unexpectedly nil")
-			} else {
-				if out.Name != operationName {
-					tt.Errorf("Unexpected subnetwork name %s", out.Name)
-				}
-			}
-			if gService.Retry.GetRetryCount() != 0 {
-				tt.Errorf("RetryStrategy was not reset %d", gService.Retry.GetRetryCount())
+			if out != operationName {
+				tt.Errorf("Unexpected operation name %s", out)
 			}
 		}
-		insertFirewall = _insertFirewall
 	})
 }
 
@@ -966,293 +905,6 @@ func Test_CreateTPSubnetOp(t *testing.T) {
 		}
 		if string(*resp) != "op-1" {
 			tt.Errorf("Expected response 'success', got: %s", string(*resp))
-		}
-	})
-}
-
-func Test_InsertFirewallWithGetOperation(t *testing.T) {
-	projectName := "test-project"
-	firewallName := "test-firewall"
-	firewallRule := &models.Firewall{
-		Name:        firewallName,
-		ProjectName: projectName,
-	}
-	ctx := context.Background()
-	t.Run("WhenInsertFirewallFails", func(tt *testing.T) {
-		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
-		origInsert := insertFirewall
-		insertFirewall = func(_ *GcpServices, _ *models.Firewall) (*models.ComputeOperation, error) {
-			return nil, fmt.Errorf("insert error")
-		}
-		defer func() { insertFirewall = origInsert }()
-		err := gService.InsertFirewall(firewallRule)
-		if err == nil || !strings.Contains(err.Error(), "insert error") {
-			tt.Errorf("Expected insert error, got: %v", err)
-		}
-	})
-
-	t.Run("WhenWaitForComputeNetGlobalOpStatusFails", func(tt *testing.T) {
-		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
-		origInsert := insertFirewall
-		insertFirewall = func(_ *GcpServices, _ *models.Firewall) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Name: "op-1"}, nil
-		}
-		defer func() { insertFirewall = origInsert }()
-		origWait := waitForComputeNetGlobalOpStatus
-		waitForComputeNetGlobalOpStatus = func(_ *GcpServices, _ string, _ string) (*models.ComputeOperation, error) {
-			return nil, fmt.Errorf("wait error")
-		}
-		defer func() { waitForComputeNetGlobalOpStatus = origWait }()
-		err := gService.InsertFirewall(firewallRule)
-		if err == nil || !strings.Contains(err.Error(), "wait error") {
-			tt.Errorf("Expected wait error, got: %v", err)
-		}
-	})
-
-	t.Run("WhenSuccess", func(tt *testing.T) {
-		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
-		origInsert := insertFirewall
-		insertFirewall = func(_ *GcpServices, _ *models.Firewall) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Name: "op-1"}, nil
-		}
-		defer func() { insertFirewall = origInsert }()
-		origWait := waitForComputeNetGlobalOpStatus
-		waitForComputeNetGlobalOpStatus = func(_ *GcpServices, _ string, _ string) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Name: "op-1"}, nil
-		}
-		defer func() { waitForComputeNetGlobalOpStatus = origWait }()
-		err := gService.InsertFirewall(firewallRule)
-		if err != nil {
-			tt.Errorf("Unexpected error: %v", err)
-		}
-	})
-}
-
-// Unit tests for CreateSubnetwork
-func Test_CreateSubnetworkWithOperation(t *testing.T) {
-	projectName := "test-project"
-	region := "us-central1"
-	subnetworkRequest := &models.Subnet{
-		Name:        "test-subnetwork",
-		Network:     "test-vpc-network",
-		Region:      &region,
-		ProjectName: projectName,
-	}
-	ctx := context.Background()
-	t.Run("WhenCreateSubnetworkFails", func(tt *testing.T) {
-		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
-		origCreate := createSubnetwork
-		createSubnetwork = func(_ *GcpServices, _ *models.Subnet) (*models.ComputeOperation, error) {
-			return nil, fmt.Errorf("create error")
-		}
-		defer func() { createSubnetwork = origCreate }()
-		err := gService.CreateSubnetwork(subnetworkRequest)
-		if err == nil || !strings.Contains(err.Error(), "create error") {
-			tt.Errorf("Expected create error, got: %v", err)
-		}
-	})
-
-	t.Run("WhenWaitForComputeRegionalOperationFails", func(tt *testing.T) {
-		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
-		origCreate := createSubnetwork
-		createSubnetwork = func(_ *GcpServices, _ *models.Subnet) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Name: "op-1"}, nil
-		}
-		defer func() { createSubnetwork = origCreate }()
-		origWait := waitForComputeRegionalOperation
-		waitForComputeRegionalOperation = func(_ *GcpServices, _, _, _ string) (*models.ComputeOperation, error) {
-			return nil, fmt.Errorf("wait error")
-		}
-		defer func() { waitForComputeRegionalOperation = origWait }()
-		err := gService.CreateSubnetwork(subnetworkRequest)
-		if err == nil || !strings.Contains(err.Error(), "wait error") {
-			tt.Errorf("Expected wait error, got: %v", err)
-		}
-	})
-
-	t.Run("WhenSuccess", func(tt *testing.T) {
-		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
-		origCreate := createSubnetwork
-		createSubnetwork = func(_ *GcpServices, _ *models.Subnet) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Name: "op-1"}, nil
-		}
-		defer func() { createSubnetwork = origCreate }()
-		origWait := waitForComputeRegionalOperation
-		waitForComputeRegionalOperation = func(_ *GcpServices, _, _, _ string) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Name: "op-1"}, nil
-		}
-		defer func() { waitForComputeRegionalOperation = origWait }()
-		err := gService.CreateSubnetwork(subnetworkRequest)
-		if err != nil {
-			tt.Errorf("Unexpected error: %v", err)
-		}
-	})
-}
-
-// Unit tests for CreateVPC
-func Test_CreateVPCWithOperation(t *testing.T) {
-	projectName := "test-project"
-	vpcNetwork := &models.VPCNetwork{
-		Name:        "test-vpc-network",
-		ProjectName: projectName,
-	}
-	ctx := context.Background()
-	t.Run("WhenCreateVPCFails", func(tt *testing.T) {
-		gService := &GcpServices{
-			Ctx:    ctx,
-			Logger: util.GetLogger(ctx),
-		}
-		origCreate := createVPC
-		createVPC = func(_ *GcpServices, _ *models.VPCNetwork) (*models.ComputeOperation, error) {
-			return nil, fmt.Errorf("create error")
-		}
-		defer func() { createVPC = origCreate }()
-		err := gService.CreateVPC(vpcNetwork)
-		if err == nil || !strings.Contains(err.Error(), "create error") {
-			tt.Errorf("Expected create error, got: %v", err)
-		}
-	})
-
-	t.Run("WhenWaitForComputeNetGlobalOpStatusFails", func(tt *testing.T) {
-		gService := &GcpServices{
-			Ctx:    ctx,
-			Logger: util.GetLogger(ctx),
-		}
-		origCreate := createVPC
-		createVPC = func(_ *GcpServices, _ *models.VPCNetwork) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Name: "op-1"}, nil
-		}
-		defer func() { createVPC = origCreate }()
-		origWait := waitForComputeNetGlobalOpStatus
-		waitForComputeNetGlobalOpStatus = func(_ *GcpServices, _, _ string) (*models.ComputeOperation, error) {
-			return nil, fmt.Errorf("wait error")
-		}
-		defer func() { waitForComputeNetGlobalOpStatus = origWait }()
-		err := gService.CreateVPC(vpcNetwork)
-		if err == nil || !strings.Contains(err.Error(), "wait error") {
-			tt.Errorf("Expected wait error, got: %v", err)
-		}
-	})
-
-	t.Run("WhenSuccess", func(tt *testing.T) {
-		gService := &GcpServices{
-			Ctx:    ctx,
-			Logger: util.GetLogger(ctx),
-		}
-		origCreate := createVPC
-		createVPC = func(_ *GcpServices, _ *models.VPCNetwork) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Name: "op-1"}, nil
-		}
-		defer func() { createVPC = origCreate }()
-		origWait := waitForComputeNetGlobalOpStatus
-		waitForComputeNetGlobalOpStatus = func(_ *GcpServices, _, _ string) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Name: "op-1"}, nil
-		}
-		defer func() { waitForComputeNetGlobalOpStatus = origWait }()
-		err := gService.CreateVPC(vpcNetwork)
-		if err != nil {
-			tt.Errorf("Unexpected error: %v", err)
-		}
-	})
-}
-
-func Test_insertFirewall(t *testing.T) {
-	projectName := "1079058383248"
-	vpcName := "vpc1"
-	firewallRuleName := "ingress-" + vpcName
-	url := "/projects/" + projectName + "/global/firewalls"
-	firewallRequest := &models.Firewall{
-		Name:             firewallRuleName,
-		ProjectName:      projectName,
-		VPCNetworkName:   vpcName,
-		AllowedPortRules: []string{"tcp", "udp", "icmp"},
-		SourceRanges:     []string{"10.0.0.0/8", "172.16.0.0/12"},
-		Direction:        "INGRESS",
-		Priority:         1000,
-	}
-	t.Run("WhenG_insertFirewallFails", func(tt *testing.T) {
-		defer testReset(tt)
-		ctx := context.Background()
-		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if req.URL.Path == url {
-				rw.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			rw.WriteHeader(http.StatusBadRequest)
-		}))
-		computeSvc, err := compute.NewService(
-			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
-		if err != nil {
-			t.Errorf("Error getting service up: '%s'", err.Error())
-		}
-
-		gService := &GcpServices{
-			AdminGCPService: &AdminGCPService{
-				computeService: computeSvc,
-			},
-			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
-		}
-		_, err = _insertFirewall(gService, firewallRequest)
-		if err == nil {
-			tt.Error("Expected an error but got nothing")
-		} else {
-			if !strings.Contains(err.Error(), "googleapi: got HTTP response code 500 with body") {
-				tt.Errorf("Unexpected error: %s", err.Error())
-			}
-		}
-	})
-
-	t.Run("WhenGetFirewallSuccess", func(tt *testing.T) {
-		defer testReset(tt)
-		ctx := context.Background()
-		counter := 0
-		resp := &compute.Firewall{Name: firewallRuleName}
-		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			if counter == 0 {
-				counter = 1
-				rw.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			if req.URL.Path == url {
-				response, err := json.Marshal(resp)
-				if err != nil {
-					rw.WriteHeader(http.StatusBadRequest)
-					return
-				}
-				_, _ = rw.Write(response)
-				return
-			}
-			rw.WriteHeader(http.StatusBadRequest)
-		}))
-		computeSvc, err := compute.NewService(
-			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
-		if err != nil {
-			t.Errorf("Error getting service up: '%s'", err.Error())
-		}
-
-		gService := &GcpServices{
-			AdminGCPService: &AdminGCPService{
-				computeService: computeSvc,
-			},
-			Ctx:    ctx,
-			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
-		}
-		out, err := _insertFirewall(gService, firewallRequest)
-		if err != nil {
-			tt.Errorf("Unexpected error: %s", err.Error())
-		} else {
-			if out == nil {
-				tt.Errorf("Output unexpectedly nil")
-			} else {
-				if out.Name != firewallRuleName {
-					tt.Errorf("Unexpected firewall name %s", out.Name)
-				}
-			}
-			if gService.Retry.GetRetryCount() != 0 {
-				tt.Errorf("RetryStrategy was not reset %d", gService.Retry.GetRetryCount())
-			}
 		}
 	})
 }
@@ -1503,7 +1155,6 @@ func Test_GetSnHost(t *testing.T) {
 				computeService: computeSvc,
 			},
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 		_, err = gService.GetSnHost(projectName)
 		if err == nil {
@@ -1690,63 +1341,6 @@ func TestGcpServices_GetContext(t *testing.T) {
 	})
 }
 
-func TestGcpServices_UpdateFirewall(t *testing.T) {
-	ctx := context.Background()
-	projectName := "test-project"
-	firewallName := "test-firewall"
-	firewallRule := &models.Firewall{
-		Name:        firewallName,
-		ProjectName: projectName,
-	}
-	gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
-
-	t.Run("WhenUpdateFirewallFails", func(t *testing.T) {
-		origUpdate := updateFirewall
-		updateFirewall = func(_ *GcpServices, _ *models.Firewall) (*models.ComputeOperation, error) {
-			return nil, fmt.Errorf("update error")
-		}
-		defer func() { updateFirewall = origUpdate }()
-		err := gService.UpdateFirewall(firewallRule)
-		if err == nil || !strings.Contains(err.Error(), "update error") {
-			t.Errorf("expected update error, got %v", err)
-		}
-	})
-
-	t.Run("WhenWaitForComputeNetGlobalOpStatusFails", func(t *testing.T) {
-		origUpdate := updateFirewall
-		updateFirewall = func(_ *GcpServices, _ *models.Firewall) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Name: "op-1"}, nil
-		}
-		defer func() { updateFirewall = origUpdate }()
-		origWait := waitForComputeNetGlobalOpStatus
-		waitForComputeNetGlobalOpStatus = func(_ *GcpServices, _, _ string) (*models.ComputeOperation, error) {
-			return nil, fmt.Errorf("wait error")
-		}
-		defer func() { waitForComputeNetGlobalOpStatus = origWait }()
-		err := gService.UpdateFirewall(firewallRule)
-		if err == nil || !strings.Contains(err.Error(), "wait error") {
-			t.Errorf("expected wait error, got %v", err)
-		}
-	})
-
-	t.Run("WhenSuccess", func(t *testing.T) {
-		origUpdate := updateFirewall
-		updateFirewall = func(_ *GcpServices, _ *models.Firewall) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Name: "op-1"}, nil
-		}
-		defer func() { updateFirewall = origUpdate }()
-		origWait := waitForComputeNetGlobalOpStatus
-		waitForComputeNetGlobalOpStatus = func(_ *GcpServices, _, _ string) (*models.ComputeOperation, error) {
-			return &models.ComputeOperation{Name: "op-1"}, nil
-		}
-		defer func() { waitForComputeNetGlobalOpStatus = origWait }()
-		err := gService.UpdateFirewall(firewallRule)
-		if err != nil {
-			t.Errorf("expected no error, got %v", err)
-		}
-	})
-}
-
 func Test_updateFirewall(t *testing.T) {
 	projectName := "1079058383248"
 	vpcName := "vpc1"
@@ -1786,9 +1380,8 @@ func Test_updateFirewall(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
-		_, err = updateFirewall(gService, firewallRule)
+		_, err = gService.UpdateFirewall(firewallRule)
 		if err == nil {
 			tt.Error("Expected an error but got nothing")
 		} else {
@@ -1796,7 +1389,6 @@ func Test_updateFirewall(t *testing.T) {
 				tt.Errorf("Unexpected error: %s", err.Error())
 			}
 		}
-		updateFirewall = _updateFirewall
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		defer testReset(tt)
@@ -1827,24 +1419,13 @@ func Test_updateFirewall(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
-		out, err := updateFirewall(gService, firewallRule)
+		out, err := gService.UpdateFirewall(firewallRule)
 		if err != nil {
 			tt.Errorf("Unexpected error: %s", err.Error())
-		} else {
-			if out == nil {
-				tt.Errorf("Output unexpectedly nil")
-			} else {
-				if out.Name != operationName {
-					tt.Errorf("Unexpected subnetwork name %s", out.Name)
-				}
-			}
-			if gService.Retry.GetRetryCount() != 0 {
-				tt.Errorf("RetryStrategy was not reset %d", gService.Retry.GetRetryCount())
-			}
+		} else if out != operationName {
+			tt.Errorf("Unexpected subnetwork name %s", out)
 		}
-		updateFirewall = _updateFirewall
 	})
 }
 
@@ -1882,7 +1463,6 @@ func Test_GetServiceNetOpStatus(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 
 		result, err := gcpService.GetServiceNetOpStatus(operationName)
@@ -1927,7 +1507,6 @@ func Test_GetServiceNetOpStatus(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 
 		result, err := gcpService.GetServiceNetOpStatus(operationName)
@@ -1958,7 +1537,6 @@ func Test_GetServiceNetOpStatus(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 
 		result, err := gcpService.GetServiceNetOpStatus(operationName)
@@ -2002,7 +1580,6 @@ func Test_GetZones(t *testing.T) {
 			},
 			Ctx:    ctx,
 			Logger: util.GetLogger(ctx),
-			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
 		}
 
 		// Mock getProjectIDFromNumber
@@ -2055,7 +1632,7 @@ func Test_GetZones(t *testing.T) {
 	})
 }
 
-func Test__getProjectIDFromNumber(t *testing.T) {
+func Test_getProjectIDFromNumber(t *testing.T) {
 	ctx := context.Background()
 	projectNumber := "123456789"
 	projectName := "test-project"
@@ -2223,6 +1800,241 @@ func Test_IsMachineTypeAvailable(t *testing.T) {
 		}
 		if available {
 			tt.Error("expected false when error occurs")
+		}
+	})
+}
+
+func Test_getComputeRegionalOpStatus(t *testing.T) {
+	url := "/projects/1079058383248/regions/us-central1/operations/op"
+	projectNumber := "1079058383248"
+	region := "us-central1"
+	operationName := "op"
+
+	t.Run("When_getComputeRegionalOpStatus", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+		svc, err := compute.NewService(
+			context.TODO(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gService := &GcpServices{
+			serviceNetworkingEndpoint: "endpoint.goog",
+			AdminGCPService:           &adminService,
+			Logger:                    log.NewLogger(),
+		}
+		out, err := gService.GetComputeRegionalOpStatus(projectNumber, region, operationName)
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if out != nil {
+				tt.Errorf("Unexpected output: %+v\n", out)
+			}
+			if !strings.Contains(err.Error(), "response code 500 with body") {
+				tt.Errorf("Unexpected error: %s", err.Error())
+			}
+		}
+	})
+	t.Run("WhenOperationErrored", func(tt *testing.T) {
+		resp := &compute.Operation{Error: &compute.OperationError{Errors: []*compute.OperationErrorErrors{{Message: "operation not found"}}}}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := compute.NewService(
+			context.TODO(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gService := &GcpServices{
+			serviceNetworkingEndpoint: "endpoint.goog",
+			AdminGCPService:           &adminService,
+			Logger:                    log.NewLogger(),
+		}
+		out, err := gService.GetComputeRegionalOpStatus(projectNumber, region, operationName)
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if out != nil {
+				tt.Errorf("Unexpected output: %+v\n", out)
+			}
+			if !strings.Contains(err.Error(), "operation not found") {
+				tt.Errorf("Unexpected error: %s", err.Error())
+			}
+		}
+	})
+	t.Run("WhenOK", func(tt *testing.T) {
+		resp := &compute.Operation{Name: "op1"}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := compute.NewService(
+			context.TODO(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gService := &GcpServices{
+			serviceNetworkingEndpoint: "endpoint.goog",
+			AdminGCPService:           &adminService,
+			Logger:                    log.NewLogger(),
+		}
+		out, err := gService.GetComputeRegionalOpStatus(projectNumber, region, operationName)
+		if err != nil {
+			tt.Errorf("Unexpected error: %s", err.Error())
+		} else {
+			if out == nil {
+				tt.Errorf("Output unexpectedly nil")
+			} else {
+				if out.Name != "op1" {
+					tt.Errorf("Unexpected operation name %s", out.Name)
+				}
+			}
+		}
+	})
+}
+
+func TestGetComputeGlobalOpStatus(t *testing.T) {
+	projectNumber := "1079058383248"
+	operationName := "op"
+	url := fmt.Sprintf("/projects/%s/global/operations/%s", projectNumber, operationName)
+
+	t.Run("WhenGetComputeGlobalOpStatus", func(tt *testing.T) {
+		ctx := context.Background()
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+		svc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gService := &GcpServices{
+			Ctx:             ctx,
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+		out, err := gService.GetComputeGlobalOpStatus(projectNumber, operationName)
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if out != nil {
+				tt.Errorf("Unexpected output: %+v\n", out)
+			}
+			if !strings.Contains(err.Error(), "response code 500 with body") {
+				tt.Errorf("Unexpected error: %s", err.Error())
+			}
+		}
+	})
+	t.Run("WhenOperationErrored", func(tt *testing.T) {
+		resp := &compute.Operation{Error: &compute.OperationError{Errors: []*compute.OperationErrorErrors{{Message: "operation not found"}}}}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := compute.NewService(
+			context.TODO(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gService := &GcpServices{
+			serviceNetworkingEndpoint: "endpoint.goog",
+			AdminGCPService:           &adminService,
+			Logger:                    log.NewLogger(),
+		}
+		out, err := gService.GetComputeGlobalOpStatus(projectNumber, operationName)
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if out != nil {
+				tt.Errorf("Unexpected output: %+v\n", out)
+			}
+			if !strings.Contains(err.Error(), "operation not found") {
+				tt.Errorf("Unexpected error: %s", err.Error())
+			}
+		}
+	})
+	t.Run("WhenOK", func(tt *testing.T) {
+		resp := &compute.Operation{Name: "op1"}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := compute.NewService(
+			context.TODO(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		adminService := AdminGCPService{computeService: svc}
+
+		gService := &GcpServices{
+			AdminGCPService: &adminService,
+			Logger:          log.NewLogger(),
+		}
+		out, err := gService.GetComputeGlobalOpStatus(projectNumber, operationName)
+		if err != nil {
+			tt.Errorf("Unexpected error: %s", err.Error())
+		} else {
+			if out == nil {
+				tt.Errorf("Output unexpectedly nil")
+			} else {
+				if out.Name != "op1" {
+					tt.Errorf("Unexpected operation name %s", out.Name)
+				}
+			}
 		}
 	})
 }

@@ -54,7 +54,6 @@ var (
 	CreateVPC                         = _createVPC
 	InsertSubnet                      = _insertSubnet
 	InsertFirewall                    = _insertFirewall
-	SetupNetworkWithFirewall          = setupNetworkWithFirewall
 	GetTenantProject                  = _getTenantProject
 	GetCreateDataSubnetworkOp         = _getCreateDataSubnetworkOp
 	GetSubnetToBeUsed                 = getSubnetToBeUsed
@@ -73,6 +72,7 @@ var (
 	CheckAndUpdateFirewall            = _checkAndUpdateFirewall
 	LoadVlmConfigFromFile             = loadVlmConfigFromFile
 	GetServiceNetOpStatus             = _getServiceNetOpStatus
+	GetComputeOpStatus                = _getComputeOpStatus
 	GetSubnetFromOperation            = _getSubnetFromOperation
 	GetGatewayFromIpCidrRange         = _getGatewayFromIpCidrRange
 	ResolveZonesForCluster            = _resolveZonesForCluster
@@ -100,6 +100,21 @@ type PoolActivity struct {
 	SE database.Storage
 }
 
+type controlPlaneNetworks struct {
+	vpcName      string
+	subnetName   string
+	ipCidrRange  string
+	sourceRanges string
+	portRules    string
+	firewallName string
+}
+
+var internalVSANetworks = map[string]controlPlaneNetworks{
+	mgmtVpcName: controlPlaneNetworks{vpcName: mgmtVpcName, subnetName: mgmtSubnetName, ipCidrRange: MgmtNetworkIpRange, firewallName: mgmtFirewallName, sourceRanges: getFirewallSourceRangesForMgmt(), portRules: MgmtFirewallPortRules},
+	icVpcName:   controlPlaneNetworks{vpcName: icVpcName, subnetName: icSubnet, ipCidrRange: IcNetworkIpRange, firewallName: icFirewallName, sourceRanges: IcFirewallSourceRanges, portRules: IcFirewallPortRules},
+	rsmVpcName:  controlPlaneNetworks{vpcName: rsmVpcName, subnetName: rsmSubnetName, ipCidrRange: RsmNetworkIpRange, firewallName: rsmFirewallName, sourceRanges: RsmFirewallSourceRanges, portRules: RSMFirewallPortRules},
+}
+
 const (
 	aggregateName  = "aggr1"
 	DefaultSvmName = "gcnv"
@@ -113,12 +128,19 @@ const (
 	keyEncipherment   = 0x20
 	keyManagerBootarg = "bootarg.keymanager.ekmip.svm_context=false"
 
-	mgmtVpcName      = "mgmt-vpc"
-	mgmtSubnetName   = "mgmt-subnet"
-	clusterICVpcName = "cluster-ic-vpc"
-	clusterICSubnet  = "cluster-ic-subnet"
-	rsmVpcName       = "rsm-vpc"
-	rsmSubnetName    = "rsm-subnet"
+	mgmtVpcName      = "mgmt-e0a-vpc-01"
+	mgmtSubnetName   = "mgmt-e0a-subnet-01"
+	mgmtFirewallName = "ingress-" + mgmtVpcName
+
+	icVpcName      = "ic-e0b-vpc-01"
+	icSubnet       = "ic-e0b-subnet-01"
+	icFirewallName = "ingress-" + icVpcName
+
+	rsmVpcName      = "rsm-e0c-vpc-01"
+	rsmSubnetName   = "rsm-e0c-subnet-01"
+	rsmFirewallName = "ingress-" + rsmVpcName
+
+	iscsiDataFirewallName = "ingress-data-iscsi"
 
 	DefaultDataFiles = "default-data-files"
 )
@@ -132,15 +154,30 @@ const (
 
 var (
 	maxRetries                = env.GetInt("GOOGLE_API_MAX_RETRIES", 6)
-	localRegion               = env.GetString("LOCAL_REGION", "")
-	firewallSourceRanges      = env.GetString("FIREWALL_SOURCE_RANGES", "")
 	totalIPPerHAPair          = env.GetInt("TOTAL_IP_PER_HA_PAIR", 6)
 	mediatorVmInstanceType    = env.GetString("VSA_MEDIATOR_INSTANCE_TYPE", "n2-standard-4")
 	mediatorVmDiskType        = env.GetString("VSA_MEDIATOR_DISK_TYPE", "pd-ssd")
 	clusterSerialNumberPrefix = env.GetString("CLUSTER_SERIAL_NUMBER_PREFIX", "935")
-	region                    = env.GetString("LOCAL_REGION", "")
+	Region                    = env.GetString("LOCAL_REGION", "")
 	regionMapJson             = env.GetString("REGION_NUMBER_MAP", `{"africa-south1": "01","asia-east1": "02","asia-east2": "03","asia-northeast1": "04","asia-northeast2": "05","asia-northeast3": "06","asia-south1": "07","asia-south2": "08","asia-southeast1": "09","asia-southeast2": "10","australia-southeast1": "11","australia-southeast2": "12","europe-central2": "13","europe-north1": "14","europe-north2": "15","europe-southwest1": "16","europe-west1": "17","europe-west10": "18","europe-west12": "19","europe-west2": "20","europe-west3": "21","europe-west4": "22","europe-west6": "23","europe-west8": "24","europe-west9": "25","me-central1": "26","me-central2": "27","me-west1": "28","northamerica-northeast1": "29","northamerica-northeast2": "30","northamerica-south1": "31","southamerica-east1": "32","southamerica-west1": "33","us-central1": "34","us-east1": "35","us-east4": "36","us-east5": "37","us-south1": "38","us-west1": "39","us-west2": "40","us-west3": "41","us-west4": "42"}`)
-	RegionNumber              = getRegionNumber()
+
+	MgmtFirewallSourceRanges  = env.GetString("MGMT_FIREWALL_SOURCE_RANGES", "")
+	RsmFirewallSourceRanges   = env.GetString("RSM_FIREWALL_SOURCE_RANGES", "")
+	IcFirewallSourceRanges    = env.GetString("IC_FIREWALL_SOURCE_RANGES", "")
+	IscsiFirewallSourceRanges = env.GetString("ISCSI_FIREWALL_SOURCE_RANGES", "")
+
+	MgmtRegionalNatIP = env.GetString("MGMT_REGIONAL_NAT_IP", "")
+
+	MgmtNetworkIpRange = env.GetString("MGMT_NETWORK_IP_RANGE", "198.18.0.0/20")
+	RsmNetworkIpRange  = env.GetString("RSM_NETWORK_IP_RANGE", "198.18.16.0/20")
+	IcNetworkIpRange   = env.GetString("IC_NETWORK_IP_RANGE", "198.18.32.0/20")
+
+	MgmtFirewallPortRules = env.GetString("MGMT_FIREWALL_PORT_RULES", "tcp,udp,icmp")
+	RSMFirewallPortRules  = env.GetString("RSM_FIREWALL_PORT_RULES", "tcp,udp")
+	IcFirewallPortRules   = env.GetString("IC_FIREWALL_PORT_RULES", "tcp,udp")
+
+	IscsiFirewallPortRules = env.GetString("ISCSI_FIREWALL_PORT_RULES", "tcp,3260")
+	RegionNumber           = getRegionNumber()
 )
 
 func (j *PoolActivity) CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
@@ -257,7 +294,7 @@ func _getTenantProject(service hyperscaler.GoogleServices, params commonparams.C
 		service.GetLogger().Errorf("Error finding tenancy unit. Project: %s vpc: %s Error: %v", params.AccountName, params.VendorSubNetID, err)
 		return "", err
 	}
-	service.GetLogger().Debug(fmt.Sprintf("Found tenancy: tenantProjectNumber :  %s for consumer project : %s", tenantProjectNumber, params.AccountName))
+	service.GetLogger().Debugf("Found tenancy: tenantProjectNumber: %s for consumer project: %s", tenantProjectNumber, params.AccountName)
 	return tenantProjectNumber, nil
 }
 
@@ -286,7 +323,7 @@ func _checkReusableSubnet(se database.Storage, service hyperscaler.GoogleService
 		// if snHost is found, check if the subnetwork already exists in the SN host project and reuse it if applicable
 		subnet, err = GetSubnetToBeUsed(service, se, customerProjectNumber, tenantProjectNumber, snHostProject, tenantProjectRegion)
 		if err != nil {
-			logger.Errorf("Error getting data subnet for tenant project: %s, SN host : %s, region %s. Error : %s", tenantProjectNumber, snHostProject, tenantProjectRegion, err.Error())
+			logger.Errorf("Error getting data subnet for tenant project: %s, SN host : %s, Region %s. Error : %s", tenantProjectNumber, snHostProject, tenantProjectRegion, err.Error())
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 		}
 	}
@@ -309,7 +346,7 @@ func _getCreateDataSubnetworkOp(service hyperscaler.GoogleServices, params commo
 	// if snHost is not found or subnet found cannot be used, create a new subnetwork for the tenant project
 	operationName, err := GetCreateSubnetworkOperation(service, tenantProjectNumber, consumerVPC, &tenantProjectRegion)
 	if err != nil {
-		logger.Errorf("Error creating subnetwork for tenant project: %s, region %s. Error : %s", tenantProjectNumber, tenantProjectRegion, err.Error())
+		logger.Errorf("Error creating subnetwork for tenant project: %s, Region %s. Error : %s", tenantProjectNumber, tenantProjectRegion, err.Error())
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 	return operationName, err
@@ -352,47 +389,84 @@ func _getCreateSubnetworkOperation(service hyperscaler.GoogleServices, tenantPro
 	return operationName, err
 }
 
-// SetupNetwork TODO : need to add all network setup as part of network activity
-// SetupNetwork sets up a VPC network, subnet, and firewall rules for 1st pool in GCP
-func (j *PoolActivity) SetupNetwork(ctx context.Context, region, project, snHostProject, network string) error {
-	mgmtVpcName := "mgmt-vpc"
-	vpcSubnetMap := map[string]string{
-		mgmtVpcName:        "mgmt-subnet",
-		"cluster-ic-vpc":   "cluster-ic-subnet",
-		"interconnect-vpc": "interconnect-subnet",
-		"rsm-vpc":          "rsm-subnet",
-	}
-
+func (j *PoolActivity) CreateVPCs(ctx context.Context, project string) (*map[string]bool, error) {
 	serviceStruct, err := GetGCPService(ctx)
 	if err != nil {
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	service := hyperscaler.GoogleServices(serviceStruct)
 
 	// Record heartbeat to indicate progress to temporal server
-	activity.RecordHeartbeat(ctx, "Setting up network for VSA pool")
-
-	i := 1
-	for vpcName, subnetName := range vpcSubnetMap {
-		firewallPortRules := []string{"tcp", "udp"}
-		if vpcName == mgmtVpcName {
-			firewallPortRules = []string{"tcp", "udp", "icmp"}
-		}
-		err = SetupNetworkWithFirewall(ctx, project, vpcName, &region, subnetName, fmt.Sprintf("198.18.%d.0/27", i*3), firewallPriority, ingressTrafficDirection, strings.Split(firewallSourceRanges, ","), firewallPortRules)
+	activity.RecordHeartbeat(ctx, "Setting up VPC's for VSA pool")
+	operations := make(map[string]bool)
+	op := ""
+	for _, values := range internalVSANetworks {
+		// Create VPCs for management, cluster interconnect, and RSM
+		op, err = CreateVPC(service, project, values.vpcName)
 		if err != nil {
-			return vsaerrors.WrapAsTemporalApplicationError(err)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
-		i++
+		if op != "" {
+			operations[op] = false
+		}
+	}
+	return &operations, nil
+}
+
+func (j *PoolActivity) CreateSubnets(ctx context.Context, project string) (*map[string]bool, error) {
+	serviceStruct, err := GetGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	service := hyperscaler.GoogleServices(serviceStruct)
+
+	// Record heartbeat to indicate progress to temporal server
+	activity.RecordHeartbeat(ctx, "Setting up Subnets for VSA pool")
+	operations := make(map[string]bool)
+	op := ""
+	for _, values := range internalVSANetworks {
+		op, err = InsertSubnet(service, project, &Region, values.subnetName, values.vpcName, values.ipCidrRange)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		if op != "" {
+			operations[op] = false
+		}
+	}
+	return &operations, nil
+}
+
+func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProject, network string) (*map[string]bool, error) {
+	serviceStruct, err := GetGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	service := hyperscaler.GoogleServices(serviceStruct)
+	// Record heartbeat to indicate progress to temporal server
+	activity.RecordHeartbeat(ctx, "Setting up Firewall for VSA pool")
+	operations := make(map[string]bool)
+	op := ""
+	for _, values := range internalVSANetworks {
+		op, err = InsertFirewall(service, project, values.firewallName, values.vpcName, firewallPriority, ingressTrafficDirection, strings.Split(values.sourceRanges, ","), strings.Split(values.portRules, ","))
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		if op != "" {
+			operations[op] = false
+		}
 	}
 
 	// Record heartbeat to indicate progress to temporal server
 	activity.RecordHeartbeat(ctx, "Setting up network firewalls for iSCSI")
 
-	err = SetupNetworkFirewallsForIscsi(service, snHostProject, network)
+	op, err = SetupNetworkFirewallsForIscsi(service, snHostProject, network)
 	if err != nil {
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return nil
+	if op != "" {
+		operations[op] = false
+	}
+	return &operations, nil
 }
 
 func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamodel.Pool, region, clusterName string) (*vlm.OntapCredentials, error) {
@@ -519,13 +593,8 @@ func _revokeCertificateAndDeleteFromCacheAndSecretManager(gcpService hyperscaler
 }
 
 // setupNetworkFirewallsForIscsi sets up a firewall for iSCSI traffic in GCP
-func setupNetworkFirewallsForIscsi(service hyperscaler.GoogleServices, snHostProject, network string) error {
-	err := InsertFirewall(service, snHostProject, "data-iscsi-ingress", network, firewallPriority, ingressTrafficDirection, []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}, []string{"tcp", "3260"})
-	if err != nil {
-		service.GetLogger().Error(fmt.Sprintf("Failed to setup network firewalls for iSCSI with error: %s", err.Error()))
-		return err
-	}
-	return nil
+func setupNetworkFirewallsForIscsi(service hyperscaler.GoogleServices, snHostProject, network string) (string, error) {
+	return InsertFirewall(service, snHostProject, iscsiDataFirewallName, network, firewallPriority, ingressTrafficDirection, strings.Split(IscsiFirewallSourceRanges, ","), strings.Split(IscsiFirewallPortRules, ","))
 }
 
 func (j *PoolActivity) DeployDeploymentManager(ctx context.Context, deploymentName, region, zone, network, subnet, projectId, snHostProject string, size int) (*[]map[string]string, error) {
@@ -899,7 +968,7 @@ func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZo
 		SubnetProjectID string
 	}{
 		vlm.LIFTypeNodeMgmt: {mgmtVpcName, mgmtSubnetName, regionalTenantProjectID},
-		vlm.LIFTypeIC:       {clusterICVpcName, clusterICSubnet, regionalTenantProjectID},
+		vlm.LIFTypeIC:       {icVpcName, icSubnet, regionalTenantProjectID},
 		vlm.LIFTypeRSM:      {rsmVpcName, rsmSubnetName, regionalTenantProjectID},
 	}
 
@@ -1191,7 +1260,7 @@ func (j *PoolActivity) ReleaseSubnet(ctx context.Context, pool *datamodel.Pool) 
 }
 
 func _releaseSubnet(service hyperscaler.GoogleServices, snHost, subnetName string) error {
-	err := service.ReleaseSubnetwork(localRegion, snHost, subnetName)
+	err := service.ReleaseSubnetwork(Region, snHost, subnetName)
 	return err
 }
 
@@ -1325,7 +1394,7 @@ func (j *PoolActivity) DeleteServiceAccount(ctx context.Context, projectID strin
 func getRegionNumber() string {
 	var regionMap map[string]string
 	_ = json.Unmarshal([]byte(regionMapJson), &regionMap)
-	return regionMap[region]
+	return regionMap[Region]
 }
 
 // assignUniqueSerialNumber assigns a unique serial number to the VLMConfig based on the region.
@@ -1548,39 +1617,6 @@ func _failedNodes(ctx context.Context, se database.Storage, pool *datamodel.Pool
 	return nil
 }
 
-// setupNetworkWithFirewall sets up a VPC network, subnet, and firewall rules in GCP
-func setupNetworkWithFirewall(ctx context.Context, projectName string, vpcName string, region *string, subnetName, subnetIpCidrRange string, firewallPriority int64, trafficDirection string, firewallSourceRanges []string, firewallAllowedPortRules []string) error {
-	var service hyperscaler.GoogleServices
-	service, err := GetGCPService(ctx)
-	if err != nil {
-		return err
-	}
-	err = CreateVPC(service, projectName, vpcName)
-	if err != nil {
-		return err
-	}
-
-	// Record heartbeat to indicate progress to temporal server
-	activity.RecordHeartbeat(ctx, "VPC created, name: "+vpcName)
-
-	err = InsertSubnet(service, projectName, region, subnetName, vpcName, subnetIpCidrRange)
-	if err != nil {
-		return err
-	}
-
-	// Record heartbeat to indicate progress to temporal server
-	activity.RecordHeartbeat(ctx, "Subnet inserted, name: "+subnetName)
-
-	err = InsertFirewall(service, projectName, fmt.Sprintf("ingress-%s", vpcName), vpcName, firewallPriority, trafficDirection, firewallSourceRanges, firewallAllowedPortRules)
-	if err != nil {
-		return err
-	}
-
-	// Record heartbeat to indicate progress to temporal server
-	activity.RecordHeartbeat(ctx, "Firewall inserted, name: "+fmt.Sprintf("ingress-%s", vpcName))
-	return nil
-}
-
 func resourceNotFoundCheck(errorString string, projectName, vpcName, subnetName, firewall string) (bool, error) {
 	if !strings.Contains(errorString, "not found") {
 		errorMessage := fmt.Sprintf("Error getting vpc for project: %s and vpc name: %s. Error : %s", projectName, vpcName, errorString)
@@ -1596,67 +1632,54 @@ func resourceNotFoundCheck(errorString string, projectName, vpcName, subnetName,
 }
 
 // _createVPC invokes create VPC call from orchestrator. It is used for creating a VPC network in GCP for a project with the specified vpc name
-func _createVPC(gService hyperscaler.GoogleServices, projectName, vpcName string) error {
+func _createVPC(gService hyperscaler.GoogleServices, projectName, vpcName string) (string, error) {
 	logger := gService.GetLogger()
-	logger.Info(fmt.Sprintf("Checking if VPC already exists before creating VPC for project : %s network name : %s", projectName, vpcName))
+	logger.Debugf("Checking if VPC already exists before creating VPC for project : %s network name : %s", projectName, vpcName)
 	vpcNetworkReceived, err := gService.GetVPCNetwork(projectName, vpcName)
 	if err != nil {
 		resourceNotFound, errReceived := resourceNotFoundCheck(err.Error(), projectName, vpcName, "", "")
 		if !resourceNotFound {
-			return errReceived
+			return "", errReceived
 		}
 	}
 	if vpcNetworkReceived != nil {
-		logger.Debug(fmt.Sprintf("VPC already exists. Skipping creation. project name : %s , vpc name : %s", projectName, vpcName))
-		return nil
+		logger.Infof("VPC already exists. Skipping creation. project name : %s , vpc name : %s", projectName, vpcName)
+		return "", nil
 	}
 	vpcNetwork := &hyperscaler_models.VPCNetwork{Name: vpcName, ProjectName: projectName}
-	err = gService.CreateVPC(vpcNetwork)
-	if err != nil {
-		errorString := fmt.Sprintf("Error creating vpc for project: %s and vpc name: %s. Error : %v", projectName, vpcName, err)
-		logger.Errorf(errorString)
-		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, errors.New(errorString))
-	}
-	logger.Info(fmt.Sprintf("vpc creation successful for project name : %s , vpc name : %s", projectName, vpcName))
-	return nil
+
+	logger.Infof("Creating VPC for project name : %s , vpc name : %s", projectName, vpcName)
+	return gService.CreateVPC(vpcNetwork)
 }
 
 // _insertSubnet invokes create subnetwork call from orchestrator. It is used for creating a subnetwork in GCP for a project with the specified subnet name
-func _insertSubnet(gService hyperscaler.GoogleServices, projectName string, region *string, subnetName string, vpcName string, ipCidrRange string) error {
-	if region == nil {
-		region = &localRegion
-	}
+func _insertSubnet(gService hyperscaler.GoogleServices, projectName string, Region *string, subnetName string, vpcName string, ipCidrRange string) (string, error) {
 	logger := gService.GetLogger()
-	logger.Info(fmt.Sprintf("Checking if subnet already exists before creating subnet for project : %s  network name : %s firewall name : %s", projectName, vpcName, subnetName))
-	subnetReceived, err := gService.GetSubnetwork(projectName, *region, subnetName)
+	logger.Debugf("Checking if subnet already exists before creating subnet for project : %s  network name : %s firewall name : %s", projectName, vpcName, subnetName)
+	subnetReceived, err := gService.GetSubnetwork(projectName, *Region, subnetName)
 	if err != nil {
 		resourceNotFound, errReceived := resourceNotFoundCheck(err.Error(), projectName, vpcName, subnetName, "")
 		if !resourceNotFound {
-			return errReceived
+			return "", errReceived
 		}
 	}
 	if subnetReceived != nil {
-		logger.Debug(fmt.Sprintf("Subnet already exists. Skipping creation. project name : %s , vpc name : %s, subnet name : %s", projectName, vpcName, subnetName))
-		return nil
+		logger.Infof("Subnet already exists. Skipping creation. project name : %s , vpc name : %s, subnet name : %s", projectName, vpcName, subnetName)
+		return "", nil
 	}
 	subnetRequest := &hyperscaler_models.Subnet{
 		Name:        subnetName,
 		Network:     fmt.Sprintf("projects/%s/global/networks/%s", projectName, vpcName),
 		IpCidrRange: ipCidrRange,
-		Region:      region,
+		Region:      Region,
 		ProjectName: projectName,
 	}
-	err = gService.CreateSubnetwork(subnetRequest)
-	if err != nil {
-		logger.Errorf("Error adding subnetwork: %v", err)
-		return err
-	}
-	logger.Info(fmt.Sprintf("Successfully created subnet name : %s, vpc: %s, project name : %s", subnetName, vpcName, projectName))
-	return nil
+	logger.Infof("Creating Subnet for project name : %s , vpc name : %s, subnet name : %s", projectName, vpcName, subnetName)
+	return gService.CreateSubnetwork(subnetRequest)
 }
 
 // _insertFirewall invokes create firewall call from orchestrator. It is used for creating a firewall in GCP for a project with the specified firewall name
-func _insertFirewall(gService hyperscaler.GoogleServices, projectName, firewallName, vpcName string, priority int64, direction string, firewallSourceRanges, firewallAllowedPortRules []string) error {
+func _insertFirewall(gService hyperscaler.GoogleServices, projectName, firewallName, vpcName string, priority int64, direction string, firewallSourceRanges, firewallAllowedPortRules []string) (string, error) {
 	firewallRequest := &hyperscaler_models.Firewall{
 		Name:             firewallName,
 		AllowedPortRules: firewallAllowedPortRules,
@@ -1667,54 +1690,48 @@ func _insertFirewall(gService hyperscaler.GoogleServices, projectName, firewallN
 		Direction:        direction, // can be INGRESS or EGRESS
 	}
 	logger := gService.GetLogger()
-	logger.Info(fmt.Sprintf("Checking if firewall already exists before creating firewall for project : %s  network name : %s firewall name : %s", projectName, vpcName, firewallName))
+	logger.Debugf("Checking if firewall already exists before creating firewall for project : %s  network name : %s firewall name : %s", projectName, vpcName, firewallName)
 	existingFirewall, err := gService.GetFirewall(projectName, firewallName)
 	if err != nil {
-		logger.Debug(fmt.Sprintf("Error getting firewall for project : %s and network name : %s firewall name : %s . Error : %v", projectName, vpcName, firewallName, err))
+		logger.Debugf("Error getting firewall for project : %s and network name : %s firewall name : %s . Error : %v", projectName, vpcName, firewallName, err)
 		resourceNotFound, errReceived := resourceNotFoundCheck(err.Error(), projectName, vpcName, "", firewallName)
-		logger.Debug(fmt.Sprintf("Error getting firewall for project : %s and network name : %s firewall name : %s . Error : %v resourceNotFound : %t", projectName, vpcName, firewallName, err, resourceNotFound))
+		logger.Debugf("Error getting firewall for project : %s and network name : %s firewall name : %s . Error : %v resourceNotFound : %t", projectName, vpcName, firewallName, err, resourceNotFound)
 		if !resourceNotFound {
-			return errReceived
+			return "", errReceived
 		}
 	}
 	if existingFirewall != nil {
 		return CheckAndUpdateFirewall(gService, existingFirewall, firewallRequest)
 	}
-	logger.Info(fmt.Sprintf("Creating firewall for project : %s and network name : %s ", projectName, vpcName))
 
-	err = gService.InsertFirewall(firewallRequest)
-	if err != nil {
-		logger.Errorf("Error adding firewall for project : %s and network name : %s. Error : %v ", projectName, vpcName, err)
-		return err
-	}
-	logger.Info(fmt.Sprintf("Successfully created firewall for  project : %s and  VPC : %s", projectName, vpcName))
-	return nil
+	logger.Infof("Creating firewall for project : %s and network name : %s ", projectName, vpcName)
+	return gService.InsertFirewall(firewallRequest)
 }
 
 // _checkAndUpdateFirewall check if firewall has been updated by checking if all SourceRanges in firewallReceived exist in firewallRequest.SourceRanges
-func _checkAndUpdateFirewall(gService hyperscaler.GoogleServices, existingFirewall, firewallRequest *hyperscaler_models.Firewall) error {
-	var err error
+func _checkAndUpdateFirewall(gService hyperscaler.GoogleServices, existingFirewall, firewallRequest *hyperscaler_models.Firewall) (string, error) {
 	needsUpdate := false
 
 	needsUpdate = !utils.IsSliceEqual(firewallRequest.SourceRanges, existingFirewall.SourceRanges)
 	if needsUpdate {
-		gService.GetLogger().Info(fmt.Sprintf("Updating firewall for project : %s and network name : %s, firewall name : %s ", firewallRequest.ProjectName, firewallRequest.VPCNetworkName, firewallRequest.Name))
-		err = gService.UpdateFirewall(firewallRequest)
+		gService.GetLogger().Infof("Updating firewall for project : %s and network name : %s, firewall name : %s ", firewallRequest.ProjectName, firewallRequest.VPCNetworkName, firewallRequest.Name)
+		op, err := gService.UpdateFirewall(firewallRequest)
 		if err != nil {
 			gService.GetLogger().Errorf("Error updating firewall for project : %s and network name : %s firewall name : %s. Error : %v ", firewallRequest.ProjectName, firewallRequest.VPCNetworkName, firewallRequest.Name, err)
-			return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, fmt.Errorf("error updating firewall for project: %s and network name: %s firewall name: %s. Error : %v", firewallRequest.ProjectName, firewallRequest.VPCNetworkName, firewallRequest.Name, err))
+			return "", vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, fmt.Errorf("error updating firewall for project: %s and network name: %s firewall name: %s. Error : %v", firewallRequest.ProjectName, firewallRequest.VPCNetworkName, firewallRequest.Name, err))
 		}
+		return op, err
 	}
-	gService.GetLogger().Debug(fmt.Sprintf("Firewall already exists. Skipping creation. project name : %s , vpc name : %s, firewall name : %s", firewallRequest.ProjectName, firewallRequest.VPCNetworkName, firewallRequest.Name))
-	return nil
+	gService.GetLogger().Infof("Firewall already exists. Skipping creation. project name : %s , vpc name : %s, firewall name : %s", firewallRequest.ProjectName, firewallRequest.VPCNetworkName, firewallRequest.Name)
+	return "", nil
 }
 
 // _generateAndCreateCertificateForVSACluster generates a CSR and creates a certificate in GCP Certificate Authority Service.
-func _generateAndCreateCertificateForVSACluster(gcpService hyperscaler.GoogleServices, region, certificateID, clusterName string) (*hyperscaler_models.CustomCertificateResponse, error) {
+func _generateAndCreateCertificateForVSACluster(gcpService hyperscaler.GoogleServices, Region, certificateID, clusterName string) (*hyperscaler_models.CustomCertificateResponse, error) {
 	logger := gcpService.GetLogger()
 	domains := fmt.Sprintf("*.%s.%s", clusterName, commonparams.VsaDeployedDnsName)
 	param := &hyperscaler_models.CustomCertificateParam{
-		Region:           region,
+		Region:           Region,
 		CertificateID:    certificateID,
 		CaPoolName:       commonparams.CaPoolName,
 		CaName:           commonparams.CaName,
@@ -2122,4 +2139,27 @@ func (j *PoolActivity) AllocateSVMName(ctx context.Context, pool *datamodel.Pool
 
 	// Return SVM name with sequence
 	return fmt.Sprintf("%s-svm-%s", pool.DeploymentName, sequenceStr), nil
+}
+
+func getFirewallSourceRangesForMgmt() string {
+	if MgmtRegionalNatIP != "" {
+		return MgmtFirewallSourceRanges + "," + MgmtRegionalNatIP
+	}
+	return MgmtFirewallSourceRanges
+}
+
+// GetComputeOpStatus returns the status (and result) of a Google's compute networking operation for global and regional operations
+func (j *PoolActivity) GetComputeOpStatus(ctx context.Context, project string, isRegionalResource bool, operation string) (*hyperscaler_models.ComputeOperation, error) {
+	gcpService, err := GetGCPService(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return GetComputeOpStatus(gcpService, project, isRegionalResource, operation)
+}
+
+func _getComputeOpStatus(gcpService hyperscaler.GoogleServices, project string, isRegionalResource bool, operation string) (*hyperscaler_models.ComputeOperation, error) {
+	if !isRegionalResource {
+		return gcpService.GetComputeGlobalOpStatus(project, operation)
+	}
+	return gcpService.GetComputeRegionalOpStatus(project, Region, operation)
 }

@@ -54,6 +54,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
@@ -84,11 +85,15 @@ func TestCreatePoolWorkflow(t *testing.T) {
 
 	defer func() {
 		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
 	}()
 	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
 		return nil
 	}
 
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, project string, isRegionalResource bool, operationNames *map[string]bool, timeout time.Duration) error {
+		return nil
+	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
 	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
@@ -103,7 +108,9 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
-	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -175,6 +182,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterWorkflowWithOptions(
@@ -229,7 +237,9 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
-	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -530,6 +540,7 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
@@ -589,7 +600,9 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
-	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -637,6 +650,391 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
 	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+		defer func() {
+			GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+		}()
+
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+		env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
+		env.RegisterActivity(&activities.PoolActivity{})
+
+		// Set up test data
+		params := &common.CreatePoolParams{
+			Name:                    "test-pool",
+			AccountName:             "test-account",
+			SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+			Region:                  "test-region",
+			PrimaryZone:             "test-zone",
+			SecondaryZone:           "test-secondary-zone",
+			AllowAutoTiering:        true,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		}
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+				AuthType: common.USERNAME_PWD,
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+		}
+		svmName := "svmName"
+
+		defer func() {
+			configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+			WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+		}()
+		configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+			return nil
+		}
+
+		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, project string, isRegionalResource bool, operationNames *map[string]bool, timeout time.Duration) error {
+			return nil
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
+			RegionalTenantProject: "test-project",
+			SnHostProject:         "test-host-project",
+			Gateway:               "192.168.1.254",
+		}, nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
+		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
+		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+			PrimaryZone:   "test-zone",
+			SecondaryZone: "test-secondary-zone",
+			Region:        "test-region",
+			MediatorZone:  "test-mediator-zone",
+		}, nil)
+		GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+			return mockVSAClientWorkflowManager
+		}
+
+		oldEnableMetrics := enableMetrics
+		enableMetrics = true
+		defer func() { enableMetrics = oldEnableMetrics }()
+		// Mock child workflow execution
+		env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
+			return input.PoolID == 0 &&
+				input.CustomerProjectID == "test-account" &&
+				input.MaxNodesPerGroup == 200 &&
+				input.TenantProjectID == "test-project" &&
+				input.Pool != nil
+		})).Return(nil)
+
+		env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+
+		// Assert workflow execution
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+	t.Run("CreateVPCs_fails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+		env.RegisterActivity(&activities.PoolActivity{})
+
+		// Set up test data
+		params := &common.CreatePoolParams{
+			Name:                    "test-pool",
+			AccountName:             "test-account",
+			SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+			Region:                  "test-region",
+			PrimaryZone:             "test-zone",
+			SecondaryZone:           "test-secondary-zone",
+			AllowAutoTiering:        true,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		}
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+				AuthType: common.USERNAME_PWD,
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+		}
+
+		defer func() {
+			configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+			WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+		}()
+		configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+			return nil
+		}
+
+		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, project string, isRegionalResource bool, operationNames *map[string]bool, timeout time.Duration) error {
+			return nil
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
+			RegionalTenantProject: "test-project",
+			SnHostProject:         "test-host-project",
+			Gateway:               "192.168.1.254",
+		}, nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, errors.New("failed to create VPCs"))
+		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+
+		// Assert workflow execution
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.Contains(t, env.GetWorkflowError().Error(), "failed to create VPCs")
+		env.AssertExpectations(t)
+	})
+	t.Run("CreateSubnets_fails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+		env.RegisterActivity(&activities.PoolActivity{})
+
+		// Set up test data
+		params := &common.CreatePoolParams{
+			Name:                    "test-pool",
+			AccountName:             "test-account",
+			SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+			Region:                  "test-region",
+			PrimaryZone:             "test-zone",
+			SecondaryZone:           "test-secondary-zone",
+			AllowAutoTiering:        true,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		}
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+				AuthType: common.USERNAME_PWD,
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+		}
+
+		defer func() {
+			configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+			WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+		}()
+		configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+			return nil
+		}
+
+		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, project string, isRegionalResource bool, operationNames *map[string]bool, timeout time.Duration) error {
+			return nil
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
+			RegionalTenantProject: "test-project",
+			SnHostProject:         "test-host-project",
+			Gateway:               "192.168.1.254",
+		}, nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, errors.New("failed to create subnets"))
+		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+
+		// Assert workflow execution
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.Contains(t, env.GetWorkflowError().Error(), "failed to create subnets")
+		env.AssertExpectations(t)
+	})
+	t.Run("CreateFirewalls_fails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+		env.RegisterActivity(&activities.PoolActivity{})
+
+		// Set up test data
+		params := &common.CreatePoolParams{
+			Name:                    "test-pool",
+			AccountName:             "test-account",
+			SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+			Region:                  "test-region",
+			PrimaryZone:             "test-zone",
+			SecondaryZone:           "test-secondary-zone",
+			AllowAutoTiering:        true,
+			CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+		}
+		pool := &datamodel.Pool{
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "test-password",
+				SecretID: "",
+				AuthType: common.USERNAME_PWD,
+			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+		}
+
+		defer func() {
+			configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+			WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+		}()
+		configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+			return nil
+		}
+
+		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, project string, isRegionalResource bool, operationNames *map[string]bool, timeout time.Duration) error {
+			return nil
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+		env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+		mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateDONE),
+		}, nil)
+		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+			Network:               "test-network",
+			SubnetworkNames:       []string{"test-subnet"},
+			RegionalTenantProject: "test-project",
+			SnHostProject:         "test-host-project",
+			Gateway:               "192.168.1.254",
+		}, nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create firewalls"))
+		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		if err != nil {
+			t.Fatalf("Failed to query workflow: %v", err)
+		}
+
+		// Assert workflow execution
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.Contains(t, env.GetWorkflowError().Error(), "failed to create firewalls")
+		env.AssertExpectations(t)
+	})
 }
 
 func TestUpdatePoolWorkflow(t *testing.T) {
@@ -1151,6 +1549,7 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 
@@ -1184,7 +1583,9 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
-	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("Bucket Creation Failed"))
 
@@ -1230,6 +1631,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterWorkflowWithOptions(
@@ -1270,7 +1672,9 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1342,6 +1746,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -1386,7 +1791,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1461,6 +1868,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -1506,7 +1914,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1586,6 +1996,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -1636,7 +2047,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1708,6 +2121,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -1760,7 +2174,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1831,6 +2247,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -1889,7 +2306,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1959,6 +2378,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2009,7 +2429,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2078,6 +2500,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2127,7 +2550,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2195,6 +2620,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2244,7 +2670,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2313,6 +2741,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2363,7 +2792,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2435,6 +2866,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2485,7 +2917,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2557,6 +2991,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2607,7 +3042,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2679,6 +3116,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
+		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2728,7 +3166,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
-		env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2911,6 +3351,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 
@@ -2950,7 +3391,9 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
-	env.OnActivity("SetupNetwork", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -4161,4 +4604,341 @@ func Test_waitForServiceNetworkOperationStatus_OperationNotDoneThenSuccess_Compr
 	err := env.GetWorkflowResult(&result)
 	assert.NoError(t, err)
 	assert.Equal(t, []byte(`{"result": "success"}`), result)
+}
+
+// WfTestWaitForGCPNetworkOperationStatus is a test workflow function for _waitForGCPNetworkOperationStatus
+func WfTestWaitForGCPNetworkOperationStatus(ctx workflow.Context, project string, isRegionalResource bool, operationNames map[string]bool, timeout time.Duration) error {
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: timeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			MaximumAttempts: 3,
+		}})
+	poolActivity := &activities.PoolActivity{}
+	err := _waitForGCPNetworkOperationStatus(ctx, poolActivity, project, isRegionalResource, &operationNames, timeout)
+	if err != nil {
+		return fmt.Errorf("wait for GCP network operation status test failed: %w", err)
+	}
+	return nil
+}
+
+// Comprehensive unit tests for _waitForGCPNetworkOperationStatus
+
+func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T) {
+	t.Run("Success_SingleOperation", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		poolActivity := &activities.PoolActivity{}
+		project := "test-project"
+		operationNames := map[string]bool{"operation-1": false}
+		// Mock successful operation completion
+		operation := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-1",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
+
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operation, nil)
+		env.RegisterActivity(poolActivity.GetComputeOpStatus)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, true, operationNames, 10*time.Second)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+	})
+	t.Run("Success_MultipleOperations", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		poolActivity := &activities.PoolActivity{}
+		project := "test-project"
+		operationNames := map[string]bool{
+			"operation-1": false,
+			"operation-2": false,
+			"operation-3": false,
+		}
+
+		// Mock successful completion for all operations
+		operation1 := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-1",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
+		operation2 := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-2",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
+		operation3 := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-3",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
+
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operation1, nil)
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-2").Return(operation2, nil)
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-3").Return(operation3, nil)
+		env.RegisterActivity(poolActivity.GetComputeOpStatus)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, true, operationNames, 1*time.Minute)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+	})
+	t.Run("Success_OperationProgressThenComplete", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		poolActivity := &activities.PoolActivity{}
+		project := "test-project"
+		operationNames := map[string]bool{"operation-1": false}
+
+		// Mock operation in progress first, then completed
+		operationInProgress := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-1",
+			Status:   "RUNNING",
+			Progress: int64(50),
+		}
+		operationCompleted := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-1",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
+
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationInProgress, nil).Once()
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationCompleted, nil).Once()
+		env.RegisterActivity(poolActivity.GetComputeOpStatus)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, true, operationNames, 1*time.Minute)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+	})
+	t.Run("Success_OperationDoneButIncompleteProgress", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		poolActivity := &activities.PoolActivity{}
+		project := "test-project"
+		operationNames := map[string]bool{"operation-1": false}
+
+		// Mock operation with DONE status but incomplete progress, then fully complete
+		operationDoneIncomplete := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-1",
+			Status:   "DONE",
+			Progress: int64(90), // Not 100, so should continue polling
+		}
+		operationCompleted := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-1",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
+
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationDoneIncomplete, nil).Once()
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationCompleted, nil).Once()
+		env.RegisterActivity(poolActivity.GetComputeOpStatus)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, true, operationNames, 1*time.Minute)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+	})
+	t.Run("Timeout_ComprehensiveTest", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		poolActivity := &activities.PoolActivity{}
+		project := "test-project"
+		operationNames := map[string]bool{"operation-1": false}
+
+		// Mock operation that never completes
+		operationPending := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-1",
+			Status:   "RUNNING",
+			Progress: int64(50),
+		}
+
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationPending, nil)
+		env.RegisterActivity(poolActivity.GetComputeOpStatus)
+
+		// Create a custom test workflow that sets a longer activity timeout but short workflow timeout
+		testWorkflow := func(ctx workflow.Context, project string, isRegionalResource bool, operationNames map[string]bool, timeout time.Duration) error {
+			// Set a longer activity timeout so it doesn't timeout before the workflow logic
+			ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+				StartToCloseTimeout: 30 * time.Second, // Long enough to not interfere with workflow timeout
+			})
+			poolActivity := &activities.PoolActivity{}
+			err := _waitForGCPNetworkOperationStatus(ctx, poolActivity, project, true, &operationNames, timeout)
+			if err != nil {
+				return fmt.Errorf("wait for GCP network operation status test failed: %w", err)
+			}
+			return nil
+		}
+
+		env.ExecuteWorkflow(testWorkflow, project, true, operationNames, 1*time.Millisecond)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		err := env.GetWorkflowError()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "timeout while confirming compute network google components")
+	})
+	t.Run("GetOperationFails_ComprehensiveTest", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		poolActivity := &activities.PoolActivity{}
+		project := "test-project"
+		operationNames := map[string]bool{"operation-1": false}
+
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(nil, assert.AnError)
+		env.RegisterActivity(poolActivity.GetComputeOpStatus)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, true, operationNames, 1*time.Minute)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		err := env.GetWorkflowError()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get GCP Operation operation-1")
+	})
+	t.Run("NotReadyErrorThenSuccess_ComprehensiveTest", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		poolActivity := &activities.PoolActivity{}
+		project := "test-project"
+		operationNames := map[string]bool{"operation-1": false}
+
+		// Mock NotReadyErr first, then successful completion
+		notReadyErr := errors.NewNotReadyErr("operation not ready")
+		operationCompleted := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-1",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
+
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(nil, notReadyErr).Once()
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationCompleted, nil).Once()
+		env.RegisterActivity(poolActivity.GetComputeOpStatus)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, true, operationNames, 1*time.Minute)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+	})
+	t.Run("NotFoundErrorThenSuccess_ComprehensiveTest", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		poolActivity := &activities.PoolActivity{}
+		project := "test-project"
+		operationNames := map[string]bool{"operation-1": false}
+
+		// Mock NotFoundErr first, then successful completion
+		testOperation := "operation-1"
+		notFoundErr := errors.NewNotFoundErr("operation not found", &testOperation)
+		operationCompleted := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-1",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
+
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(nil, notFoundErr).Once()
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationCompleted, nil).Once()
+		env.RegisterActivity(poolActivity.GetComputeOpStatus)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, true, operationNames, 1*time.Minute)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+	})
+	t.Run("OperationNotDoneThenSuccess_ComprehensiveTest", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		poolActivity := &activities.PoolActivity{}
+		project := "test-project"
+		operationNames := map[string]bool{
+			"operation-1": true,  // Already completed
+			"operation-2": false, // Not completed
+			"operation-3": false, // Not completed
+		}
+		env.RegisterActivity(poolActivity.GetComputeOpStatus)
+
+		// Mock operation-2 as initially not done, then done
+		operation2InProgress := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-2",
+			Status:   "RUNNING",
+			Progress: int64(50),
+		}
+		operation2Complete := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-2",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
+		// Mock operation-3 as completed immediately
+		operation3 := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-3",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-2").Return(operation2InProgress, nil).Once()
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-2").Return(operation2Complete, nil).Once()
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-3").Return(operation3, nil)
+
+		testWorkflow := func(ctx workflow.Context, project string, isRegionalResource bool, operationNames map[string]bool, timeout time.Duration) error {
+			ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+				StartToCloseTimeout: 30 * time.Second, // Long enough to not interfere with workflow timeout
+			})
+			poolActivity := &activities.PoolActivity{}
+			err := _waitForGCPNetworkOperationStatus(ctx, poolActivity, project, true, &operationNames, timeout)
+			if err != nil {
+				return fmt.Errorf("wait for GCP network operation status test failed: %w", err)
+			}
+			return nil
+		}
+
+		env.ExecuteWorkflow(testWorkflow, project, true, operationNames, 5*time.Second)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		err := env.GetWorkflowError()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "timeout while confirming compute network google components")
+	})
+	t.Run("MultipleOperations_MixedProgressStates", func(t *testing.T) {
+		// Create custom workflow for timeout testing
+		timeoutTestWorkflow := func(ctx workflow.Context, project string, isRegionalResource bool, operationNames map[string]bool, timeout time.Duration) error {
+			// Set activity options with shorter timeout
+			ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+				StartToCloseTimeout: 5 * time.Second, // Short timeout to trigger timeout error
+				RetryPolicy: &temporal.RetryPolicy{
+					MaximumAttempts: 1, // No retries to fail fast
+				}})
+			poolActivity := &activities.PoolActivity{}
+			return _waitForGCPNetworkOperationStatus(ctx, poolActivity, project, true, &operationNames, timeout)
+		}
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		poolActivity := &activities.PoolActivity{}
+		project := "test-project"
+		operationNames := map[string]bool{
+			"operation-1": false,
+			"operation-2": false,
+		}
+
+		operation1Complete := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-1",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
+
+		// Second operation is in progress
+		operation2InProgress := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-2",
+			Status:   "RUNNING",
+			Progress: int64(75),
+		}
+
+		// Set up activity mocks that may not be called due to timeout
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operation1Complete, nil)
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-2").Return(operation2InProgress, nil)
+		env.RegisterActivity(poolActivity.GetComputeOpStatus)
+
+		// Execute the custom workflow with timeout
+		env.ExecuteWorkflow(timeoutTestWorkflow, project, true, operationNames, 1*time.Minute)
+
+		// The workflow should complete
+		assert.True(t, env.IsWorkflowCompleted())
+		workflowErr := env.GetWorkflowError()
+		if workflowErr == nil {
+			// Test passed - operations completed as expected
+			assert.NoError(t, workflowErr)
+		} else {
+			assert.Contains(t, workflowErr.Error(), "timeout")
+		}
+	})
 }

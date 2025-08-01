@@ -67,7 +67,6 @@ data:
   HARVEST_HOST: {{.Values.workerConfig.harvestHost | quote}}
   ENABLE_METRICS: {{.Values.workerConfig.enableMetrics | quote}}
   HARVEST_REST_PROTOCOL: {{.Values.workerConfig.harvestRestProtocol | quote}}
-  FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.firewallSourceRanges | quote }}
   CVP_HOST: {{ .Values.workerConfig.cvpHost | quote }}
   PROBER_PROJECT_LIST: {{ .Values.workerConfig.proberProjectList | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{ .Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}
@@ -82,3 +81,17 @@ data:
   ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: {{ .Values.workerConfig.enableUniqueSerialNumberGeneration | quote }}
   CLUSTER_SERIAL_NUMBER_PREFIX: {{ .Values.workerConfig.clusterSerialNumberPrefix | quote }}
   REGION_NUMBER_MAP: {{ .Values.regionNumberMap | toJson | quote }}
+
+  MGMT_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.mgmtFirewallSourceRanges | quote }}
+  RSM_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.rsmFirewallSourceRanges | quote }}
+  IC_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.icFirewallSourceRanges | quote }}
+  ISCSI_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.iscsiFirewallSourceRanges | quote }}
+  MGMT_REGIONAL_NAT_IP: {{ .Values.workerConfig.mgmtRegionalNatIp | quote }}
+  MGMT_NETWORK_IP_RANGE: {{ .Values.workerConfig.mgmtNetworkIpRange | quote }}
+  RSM_NETWORK_IP_RANGE: {{ .Values.workerConfig.rsmNetworkIpRange | quote }}
+  IC_NETWORK_IP_RANGE: {{ .Values.workerConfig.icNetworkIpRange | quote }}
+  MGMT_FIREWALL_PORT_RULES: {{ .Values.workerConfig.mgmtFirewallPortRules | quote }} "tcp,udp,icmp"
+  RSM_FIREWALL_PORT_RULES: {{ .Values.workerConfig.rsmFirewallPortRules | quote }}"tcp,udp"
+  IC_FIREWALL_PORT_RULES: {{ .Values.workerConfig.icFirewallPortRules | quote }} "tcp,udp"
+  ISCSI_FIREWALL_PORT_RULES: {{ .Values.workerConfig.iscsiFirewallPortRules | quote }} "tcp,udp"
+  WAIT_TIME_FOR_GCP_OPERATION_IN_SEC: {{ .Values.workerConfig.waitTimeForGcpOperationInSec | quote }}

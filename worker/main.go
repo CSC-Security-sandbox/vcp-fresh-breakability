@@ -196,6 +196,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(workflows.SequenceWorkflow)
 	worker.RegisterWorkflow(workflows.CreatePoolWorkflow)
 	worker.RegisterWorkflow(workflows.PoolDataSubnetWorkFlow)
+	worker.RegisterWorkflow(workflows.ConfigureNetworkWorkflow)
 	worker.RegisterWorkflow(workflows.UpdatePoolWorkflow)
 	worker.RegisterWorkflow(workflows.DeletePoolWorkflow)
 	worker.RegisterWorkflow(workflows.CreateVolumeWorkflow)
