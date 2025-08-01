@@ -42,13 +42,13 @@ func NewLeastCostSingleVMDecisionMaker(config *vmrs.VMRSConfig) *LeastCostSingle
 
 // This implementation of DecisionMaker just loops over the VMRSConfig, looking for the lowest cost VM that satisfies the customer request. It can only ever return one VM identifier.
 func (d *LeastCostSingleVMDecisionMaker) FindOptimalVMs(config *vmrs.VMRSConfig, customerRequest vmrs.CustomerRequestedPerformance, currentConfig *vlm.VLMConfig) (*vmrs.Decision, error) {
-	// Scale up the customer requested performance to account for the various overheads (ontap/workload/hotspotting) specified in the VMRSConfig.
-	// We add a 1.0 to the overall workload headroom to account for the base performance that is always available.
-	scaledCustomerRequest := d.config.ScaleCustomerRequestedPerformance(customerRequest, d.overallWorkloadHeadroom)
-
 	for _, vm := range d.vmsSortedByCost {
-		if scaledCustomerRequest.DesiredIOPS <= vm.OntapLimits.IOPS && scaledCustomerRequest.DesiredThroughputInMiBs <= vm.OntapLimits.ThroughputInMiBs && scaledCustomerRequest.DesiredCapacityInGiB <= vm.OntapLimits.CapacityInGiB {
+		if customerRequest.DesiredIOPS <= vm.OntapLimits.IOPS && customerRequest.DesiredThroughputInMiBs <= vm.OntapLimits.ThroughputInMiBs && customerRequest.DesiredCapacityInGiB <= vm.OntapLimits.CapacityInGiB {
 			// The VM satisfies the customer request limits. When provisioning the VM, we need to upscale the customer requested performance by the overheads specified in the VMRSConfig.
+			// Scale up the customer requested performance to account for the various overheads (ontap/workload/hotspotting) specified in the VMRSConfig.
+			// We add a 1.0 to the overall workload headroom to account for the base performance that is always available.
+			scaledCustomerRequest := d.config.ScaleCustomerRequestedPerformance(customerRequest, d.overallWorkloadHeadroom)
+
 			// But, we also don't want to overprovision by more than what we can actually use.
 			// If the VM supports a max. of V IOPS or MiB/s, we can provision the disk with a maximum of V * MaxOverprovisioningFactor IOPS or MiB/s.
 			//

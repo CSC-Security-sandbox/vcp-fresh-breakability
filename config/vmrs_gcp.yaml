@@ -45,14 +45,14 @@
 #                          qualifying smaller instances at a later point in time.
 vmrs:
   selection_strategy: "least_cost_single_vm"
-  max_num_ha_pairs: 12
+  max_num_ha_pairs: 1 # for preview.
   max_disk_overprovisioning_factors:
     iops: 1.1
     throughput: 1.1
   ontap_overheads:
     amplification_factors:
-      iops: 1
-      throughput: 1
+      iops: 3.3
+      throughput: 2.538
       capacity: 1.2
     workload_headroom:
       - workload: all
@@ -91,47 +91,47 @@ vmrs:
   disk_limits:
     - disk_type: hyperdisk-balanced
       qualified_vms:
-      - vm_type: c3-standard-4
+      - vm_type: c3-standard-4-lssd
         ontap_perf:
-          iops: 25000
-          throughput_in_mibs: 400
-          capacity_in_gib: 257000
+          iops: 8286
+          throughput_in_mibs: 105
+          capacity_in_gib: 213000
         disk_perf:
           iops: 25000
           throughput_in_mibs: 400
           capacity_in_gib: 257000
         relative_cost: 4
-      - vm_type: c3-standard-8
+      - vm_type: c3-standard-8-lssd
         ontap_perf:
-          iops: 50000
-          throughput_in_mibs: 800
-          capacity_in_gib: 257000
+          iops: 19139
+          throughput_in_mibs: 321
+          capacity_in_gib: 213000
         disk_perf:
           iops: 50000
           throughput_in_mibs: 800
           capacity_in_gib: 257000
         relative_cost: 8
-      - vm_type: c3-standard-22
+      - vm_type: c3-standard-22-lssd
         ontap_perf:
-          iops: 120000
-          throughput_in_mibs: 1800
-          capacity_in_gib: 257000
+          iops: 34115
+          throughput_in_mibs: 662
+          capacity_in_gib: 213000
         disk_perf:
           iops: 120000
           throughput_in_mibs: 1800
           capacity_in_gib: 257000
         relative_cost: 22
-      - vm_type: c4-standard-44
+      - vm_type: c4-standard-44-lssd
         ontap_perf:
-          iops: 160000
-          throughput_in_mibs: 2400
-          capacity_in_gib: 512000
+          iops: 64768
+          throughput_in_mibs: 1111
+          capacity_in_gib: 426000
         disk_perf:
           iops: 160000
           throughput_in_mibs: 2400
           capacity_in_gib: 512000
         relative_cost: 44
-      - vm_type: c4-standard-88
+      - vm_type: c4-standard-88-lssd
         ontap_perf:
           # We don't want to derate the largest instance type.
           # One way to do that would be to add more conditional code in the VMRS go module.
@@ -144,7 +144,7 @@ vmrs:
           # Throughput: 5120 (what we want to allow over the entire cluster made up of large VMs) / 0.7 = 7314.xy
           iops: 230000
           throughput_in_mibs: 7500
-          capacity_in_gib: 512000
+          capacity_in_gib: 426000
         disk_perf:
           iops: 160000
           throughput_in_mibs: 4800

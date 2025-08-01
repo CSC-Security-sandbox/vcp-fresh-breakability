@@ -24,7 +24,7 @@ The rest of the document provides details on how our implementation supports thi
 1. Perf team will quantify ONTAP performance on various GCP instance types, and provide a [sample data table like so](https://confluence.ngage.netapp.com/pages/viewpage.action?pageId=1163288632#GCNVBlockandUnifiedProductPositioningandVMRS-SampleVMRStablefordevtesting). These are raw numbers ($V_c$, $V_i$, $V_t$ without accounting for any overheads/headroom for a sizing workload that is identified by the Perf team.
 1. Perf team will also quantify ONTAP amplification factors ($A_c$, $A_i$, $A_t$ for capacity, IOPs, throughput respectively), workload headrooms ($W_j$ for each workload $j$), and hot spotting prevention factors ($H_i$, $H_t$ for IOPs and throughput respectively). These numbers MUST be configurable in the application.
 
-This information (from the perf team and from the hyperscaler) is captured in a yaml file, [like so](https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/main/config/vmrs_gcp.yaml). The values in this file (as of June 24, 2025) are all dummy values. They've been chosen to match the max. values allowed by the hyperscaler (GCP) disk (hyperdisk-balanced).
+This information (from the perf team and from the hyperscaler) is captured in a yaml file, [like so](https://github.com/VCP-VSA-control-Plane/vsa-control-plane/blob/main/config/vmrs_gcp.yaml).
 
 ## Logic.
 
