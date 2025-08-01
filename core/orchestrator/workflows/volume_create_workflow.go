@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -22,7 +23,8 @@ type volumeCreateWorkflow struct {
 }
 
 var (
-	runningEnv = env.GetString("ENV", "")
+	runningEnv    = env.GetString("ENV", "")
+	workflowSleep = workflow.Sleep
 )
 
 // Volume provisioning phases
@@ -399,6 +401,12 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 					return nil, fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err)
 				}
 			case activities.SmStatusSuccess:
+				// temporary fix to allow the volume to be available as RW in ONTAP to perform LunUpdate()
+				err := workflowSleep(ctx, 10*time.Second) // permanent fix in progress VSCP-1493
+				if err != nil {
+					return nil, fmt.Errorf("failed to sleep during snapmirror transfer polling: %w", err)
+				}
+				log.Debugf("Snapmirror transfer completed successfully")
 				done = true
 			case activities.SmStatusFailed:
 				return nil, fmt.Errorf("snapmirror transfer failed for restore with status: %s", status)
