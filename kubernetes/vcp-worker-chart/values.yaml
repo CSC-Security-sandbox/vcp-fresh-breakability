@@ -92,7 +92,7 @@ workerConfig:
   serviceName: "autopush-netapp.sandbox.googleapis.com"
   datacenter: "us-west-1"
   leaseNameSpace: "vcp"
-  harvestHost: "harvest-farm-service.vcp.svc.cluster.local:3000"
+  harvestHost: "vsa-harvest-farm-service.vcp.svc.cluster.local"
   enableMetrics: "false"
   harvestRestProtocol: "http"
   harvestPortStart: 13001

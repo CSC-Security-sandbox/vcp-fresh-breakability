@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_node_node_group_maps_node_id;

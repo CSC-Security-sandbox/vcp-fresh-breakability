@@ -171,15 +171,15 @@ func (j JSONB) Value() (driver.Value, error) {
 }
 
 type VolumeAttributes struct {
-	CreationToken    string           `json:"creation_token"`
-	Protocols        []string         `json:"protocols"`
-	VendorSubnetID   string           `json:"vendor_subnet_id"`
-	ExternalUUID     string           `json:"external_uuid"`
-	BlockProperties  *BlockProperties `json:"block_properties"`
-	FileProperties   *FileProperties  `json:"file_properties"`
-	IsDataProtection bool             `json:"is_data_protection"`
-	SnapReserve      int64            `json:"snap_reserve"`
-	Labels           *JSONB           `json:"labels"`
+	CreationToken      string           `json:"creation_token"`
+	Protocols          []string         `json:"protocols"`
+	VendorSubnetID     string           `json:"vendor_subnet_id"`
+	ExternalUUID       string           `json:"external_uuid"`
+	BlockProperties    *BlockProperties `json:"block_properties"`
+	FileProperties     *FileProperties  `json:"file_properties"`
+	IsDataProtection   bool             `json:"is_data_protection"`
+	SnapReserve        int64            `json:"snap_reserve"`
+	Labels             *JSONB           `json:"labels"`
 	RestoredBackupID   string           `json:"restored_backup_id"`
 	RestoredBackupPath string           `json:"restored_backup_path"`
 }
@@ -660,7 +660,7 @@ type HarvestConfig struct {
 // TableName: node_nodegroup_map
 type NodeNodeGroupMap struct {
 	BaseModel
-	NodeID        int64          `gorm:"not null;uniqueIndex;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;foreignKey:NodeID;references:ID"`
+	NodeID        int64          `gorm:"not null;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;foreignKey:NodeID;references:ID"`
 	NodeGroupID   int64          `gorm:"not null;index;column:node_group_id;type:bigint"`
 	NodeGroup     *NodeGroup     `gorm:"ForeignKey:NodeGroupID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
 	HarvestConfig *HarvestConfig `gorm:"column:harvest_config;type:jsonb"`

@@ -14,6 +14,14 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 )
 
+func prepareNodeNodeGroupMap() *datamodel.NodeNodeGroupMap {
+	mapping := &datamodel.NodeNodeGroupMap{
+		NodeID: 1, NodeGroupID: 2, HarvestConfig: &datamodel.HarvestConfig{},
+		NodeGroup: &datamodel.NodeGroup{
+			BaseModel: datamodel.BaseModel{ID: 2, UUID: uuid.New().String()}, Name: "test-node-group", LeaseName: "test-lease-name"},
+	}
+	return mapping
+}
 func setupNodeNodeGroupMapTestRepo(t *testing.T) (*DataStoreRepository, *datamodel.NodeNodeGroupMap) {
 	db, err := SetupTestDB()
 	assert.NoError(t, err)
@@ -21,11 +29,7 @@ func setupNodeNodeGroupMapTestRepo(t *testing.T) (*DataStoreRepository, *datamod
 	repo := &DataStoreRepository{db: wrapper}
 	err = ClearInMemoryDB(db)
 	assert.NoError(t, err)
-	mapping := &datamodel.NodeNodeGroupMap{
-		NodeID: 1, NodeGroupID: 2, HarvestConfig: &datamodel.HarvestConfig{},
-		NodeGroup: &datamodel.NodeGroup{
-			BaseModel: datamodel.BaseModel{ID: 2, UUID: uuid.New().String()}, Name: "test-node-group", LeaseName: "test-lease-name"},
-	}
+	mapping := prepareNodeNodeGroupMap()
 	return repo, mapping
 }
 
@@ -558,7 +562,7 @@ func TestAssignTwoNodesToTwoGroups_IdempotentPartialAssignment(t *testing.T) {
 	assert.Equal(t, node2Mapping.ID, node2Mapping2.ID)
 }
 
-func TestCreateNodeNodeGroupMap_RejectsDuplicateMapping(t *testing.T) {
+func TestCreateNodeNodeGroupMap_AcceptDuplicateMapping(t *testing.T) {
 	repo, _ := setupNodeNodeGroupMapTestRepo(t)
 	ctx := context.Background()
 
@@ -579,6 +583,8 @@ func TestCreateNodeNodeGroupMap_RejectsDuplicateMapping(t *testing.T) {
 	created1, err := repo.CreateNodeNodeGroupMap(ctx, mapping1)
 	assert.NoError(t, err)
 	assert.NotNil(t, created1)
+	assert.Equal(t, created1.UUID, mapping1.UUID)
+	assert.Equal(t, created1.NodeID, mapping1.NodeID)
 
 	// Create another group for second mapping attempt
 	group2, err := repo.CreateNodeGroup(ctx, &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, Name: "g2-duplicate-test"})
@@ -589,18 +595,14 @@ func TestCreateNodeNodeGroupMap_RejectsDuplicateMapping(t *testing.T) {
 		BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
 		NodeID:        node.ID,   // Same node as first mapping
 		NodeGroupID:   group2.ID, // Different group
-		NodeGroup:     group2,
+		NodeGroup:     group,
 		HarvestConfig: &datamodel.HarvestConfig{},
 	}
 	created2, err := repo.CreateNodeNodeGroupMap(ctx, mapping2)
-	assert.Error(t, err)
-	assert.Nil(t, created2)
-	var ce *vsaerrors.CustomError
-	if errors.As(err, &ce) && ce.OriginalErr != nil {
-		assert.Contains(t, ce.OriginalErr.Error(), "node is already assigned to a group")
-	} else {
-		assert.Contains(t, err.Error(), "node is already assigned to a group")
-	}
+	assert.Equal(t, created2.UUID, mapping2.UUID)
+	assert.Equal(t, created2.NodeID, mapping2.NodeID)
+	assert.NoError(t, err)
+	assert.NotNil(t, created2)
 }
 
 func TestAssignTwoNodesToTwoGroups_HandlesExistingConstraint(t *testing.T) {
@@ -1013,6 +1015,29 @@ func TestGetNodeNodeGroupMapByNodeID_UnScoped(t *testing.T) {
 	assert.Equal(t, result.NodeGroupID, dbRecord.NodeGroupID)
 	assert.Equal(t, result.NodeID, dbRecord.NodeID)
 	assert.NotNil(t, result.DeletedAt)
+}
+
+// Below test case will check the order of records returned. we might encounter a scenario like node
+// got re-registered and got deleted, from DB we need to get the record which got created latest
+func TestGetNodeNodeGroupMapByNodeID_ReUnRegister(t *testing.T) {
+	repo, mapping := setupNodeNodeGroupMapTestRepo(t)
+	dbRecord, err := repo.CreateNodeNodeGroupMap(context.Background(), mapping)
+	assert.NoError(t, err)
+	assert.NotNil(t, dbRecord)
+	err = repo.DeleteNodeNodeGroupMap(context.Background(), dbRecord.ID)
+	assert.Nil(t, err)
+	newMapping := prepareNodeNodeGroupMap()
+	newMapping.UUID = uuid.NewString()
+	secondRecord, err := repo.CreateNodeNodeGroupMap(context.Background(), newMapping)
+	assert.NotNil(t, secondRecord)
+	assert.Nil(t, err)
+	result, err := repo.GetNodeNodeGroupMapByNodeID(context.Background(), dbRecord.NodeID)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, result.ID, secondRecord.ID)
+	assert.Equal(t, result.NodeGroupID, secondRecord.NodeGroupID)
+	assert.Equal(t, result.NodeID, secondRecord.NodeID)
+	assert.Nil(t, result.DeletedAt)
 }
 
 func TestGetNodeNodeGroupMapByNodeID_Error(t *testing.T) {

@@ -12,6 +12,9 @@ gke-gcsfuse/volumes: 'true'
 {{- end -}}
 
 {{- define "harvest.serviceaccount.annotations" -}}
+iam.gke.io/gcp-service-account: {{ .Values.serviceAccount.gcpServiceAccount }}
+helm.sh/hook: pre-install,pre-upgrade
+helm.sh/hook-weight: "-5"
 {{- end -}}
 
 {{- define "harvest.helmchart.annotations" -}}

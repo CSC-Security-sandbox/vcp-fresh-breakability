@@ -18,7 +18,7 @@ horizontalPodAutoscaling:
 images:
   pm2:
     name: vcp-container-images-us/harvest-multi
-    tag: 25.07.21-1
+    tag: 25.08.04-1
     digest: ""
     secondary: false
     primary: true
@@ -85,8 +85,7 @@ imagePullPolicy: IfNotPresent
 serviceAccount:
   create: true
   automount: true
-  annotations:
-    iam.gke.io/gcp-service-account: otel-collector-sa@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com
+  gcpServiceAccount: otel-collector-sa@netapp-au-se1-autopush-sde-tst.iam.gserviceaccount.com
   name: "gcnv-harvest-sa"
 
 stackdriverAdapter:
@@ -135,5 +134,6 @@ resources:
 service:
   name: vsa-harvest-farm-service
   type: ClusterIP
-  port: 3000
+  port: 80
+  targetPort: 3000
   protocol: TCP

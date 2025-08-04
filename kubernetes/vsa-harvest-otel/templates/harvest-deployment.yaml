@@ -39,7 +39,7 @@ spec:
               memory: {{ $.Values.resources.limits.memory }}
           ports:
           - name: http
-            containerPort: {{ $.Values.service.port }}
+            containerPort: {{ $.Values.service.targetPort }}
           volumeMounts:
           - mountPath: /configs/harvest
             name: harvest-data
