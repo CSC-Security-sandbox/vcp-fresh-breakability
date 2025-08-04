@@ -16,6 +16,7 @@ import (
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	workflow_engine_mock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 )
 
 func TestGetBackupPolicyByNameAndOwnerID(tt *testing.T) {
@@ -236,6 +237,328 @@ func TestListBackupPoliciesAndVolumeCount(tt *testing.T) {
 		assert.Nil(tt, volumeCount)
 		assert.Nil(tt, policyMap)
 		assert.Equal(tt, "account not found", err.Error())
+	})
+}
+
+func TestDeleteBackupPolicy(tt *testing.T) {
+	tt.Run("DeleteBackupPolicySucceeds", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupPolicy := datamodel.BackupPolicy{
+			BaseModel:             datamodel.BaseModel{ID: 1, UUID: "test-backup-policy-uuid"},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		updatedBackupPolicy := backupPolicy
+		updatedBackupPolicy.LifeCycleState = models.LifeCycleStateDeleting
+		updatedBackupPolicy.LifeCycleStateDetails = models.LifeCycleStateDeletingDetails
+
+		job := &datamodel.Job{BaseModel: datamodel.BaseModel{ID: 1, UUID: "job-uuid"}}
+
+		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicy.UUID, int64(1)).Return(&backupPolicy, nil)
+		mockStorage.On("GetVolumeCountByBackupPolicyID", ctx, backupPolicy.UUID).Return(int64(0), nil)
+		mockStorage.On("UpdateBackupPolicy", ctx, backupPolicy.UUID, mock.Anything).Return(&updatedBackupPolicy, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		mockTemporal.On("ExecuteWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		deletingBackupPolicy, _, err := o.DeleteBackupPolicy(ctx, &commonparams.DeleteBackupPolicyParams{
+			Name:           backupPolicy.Name,
+			OwnerID:        account.UUID,
+			BackupPolicyID: backupPolicy.UUID,
+			LocationID:     "test-location",
+		})
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, deletingBackupPolicy)
+		assert.Equal(tt, deletingBackupPolicy.State, models.LifeCycleStateDeleting)
+	})
+	tt.Run("DeleteBackupPolicyFailsWhenAccountDoesNotExist", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+		ctx := context.Background()
+
+		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(nil, errors.New("account not found"))
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		deletingBackupPolicy, _, err := o.DeleteBackupPolicy(ctx, &commonparams.DeleteBackupPolicyParams{
+			Name:           "test-backup-policy",
+			OwnerID:        "owner-uuid",
+			BackupPolicyID: "test-backup-policy-uuid",
+			LocationID:     "test-location",
+		})
+
+		assert.Error(tt, err)
+		assert.Nil(tt, deletingBackupPolicy)
+		assert.Equal(tt, "account not found", err.Error())
+	})
+	tt.Run("DeleteBackupPolicyFailsWhenBackupPolicyDoesNotExist", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupPolicyID := "test-backup-policy-uuid"
+
+		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyID, int64(1)).Return(nil, errors.New("backup policy not found"))
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		deletingBackupPolicy, _, err := o.DeleteBackupPolicy(ctx, &commonparams.DeleteBackupPolicyParams{
+			Name:           "test-backup-policy",
+			OwnerID:        account.UUID,
+			BackupPolicyID: backupPolicyID,
+			LocationID:     "test-location",
+		})
+
+		assert.Error(tt, err)
+		assert.Nil(tt, deletingBackupPolicy)
+		assert.Equal(tt, "backup policy not found", err.Error())
+	})
+	tt.Run("DeleteBackupPolicyFailsWhenBackupPolicyIsNotInReadyState", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupPolicy := datamodel.BackupPolicy{
+			BaseModel:             datamodel.BaseModel{ID: 1, UUID: "test-backup-policy-uuid"},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateUpdating,
+			LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+		}
+
+		// mockStorage.On("GetAccountWithName", ctx, "owner-uuid").Return(account, nil)
+
+		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicy.UUID, int64(1)).Return(&backupPolicy, nil)
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		deletingBackupPolicy, _, err := o.DeleteBackupPolicy(ctx, &commonparams.DeleteBackupPolicyParams{
+			Name:           backupPolicy.Name,
+			OwnerID:        account.UUID,
+			BackupPolicyID: backupPolicy.UUID,
+			LocationID:     "test-location",
+		})
+
+		assert.Error(tt, err)
+		assert.Nil(tt, deletingBackupPolicy)
+		assert.Equal(tt, "backup policy is not in ready state, please check the backup policy and try again", err.Error())
+	})
+	tt.Run("DeleteBackupPolicyFailsWhenGetVolumeCountFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupPolicy := datamodel.BackupPolicy{
+			BaseModel:             datamodel.BaseModel{ID: 1, UUID: "test-backup-policy-uuid"},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+
+		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicy.UUID, int64(1)).Return(&backupPolicy, nil)
+		mockStorage.On("GetVolumeCountByBackupPolicyID", ctx, backupPolicy.UUID).Return(int64(0), errors.New("failed to get volume count"))
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		deletingBackupPolicy, _, err := o.DeleteBackupPolicy(ctx, &commonparams.DeleteBackupPolicyParams{
+			Name:           backupPolicy.Name,
+			OwnerID:        account.UUID,
+			BackupPolicyID: backupPolicy.UUID,
+			LocationID:     "test-location",
+		})
+
+		assert.Error(tt, err)
+		assert.Nil(tt, deletingBackupPolicy)
+		assert.Equal(tt, "failed to get volume count", err.Error())
+	})
+	tt.Run("DeleteBackupPolicyFailsWhenBackupPolicyHasVolumesAttached", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupPolicy := datamodel.BackupPolicy{
+			BaseModel:             datamodel.BaseModel{ID: 1, UUID: "test-backup-policy-uuid"},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+
+		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicy.UUID, int64(1)).Return(&backupPolicy, nil)
+		mockStorage.On("GetVolumeCountByBackupPolicyID", ctx, backupPolicy.UUID).Return(int64(2), nil)
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		deletingBackupPolicy, _, err := o.DeleteBackupPolicy(ctx, &commonparams.DeleteBackupPolicyParams{
+			Name:           backupPolicy.Name,
+			OwnerID:        account.UUID,
+			BackupPolicyID: backupPolicy.UUID,
+			LocationID:     "test-location",
+		})
+
+		assert.Error(tt, err)
+		assert.Nil(tt, deletingBackupPolicy)
+		assert.Equal(tt, "backup policy has volumes attached, please detach backup policy from volumes before deleting backup policy", err.Error())
+	})
+	tt.Run("DeleteBackupPolicyFailsWhenUpdatingBackupPolicy", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupPolicy := datamodel.BackupPolicy{
+			BaseModel:             datamodel.BaseModel{ID: 1, UUID: "test-backup-policy-uuid"},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+
+		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicy.UUID, int64(1)).Return(&backupPolicy, nil)
+		mockStorage.On("GetVolumeCountByBackupPolicyID", ctx, backupPolicy.UUID).Return(int64(0), nil)
+		mockStorage.On("UpdateBackupPolicy", ctx, backupPolicy.UUID, mock.Anything).Return(nil, errors.New("failed to update backup policy"))
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		deletingBackupPolicy, _, err := o.DeleteBackupPolicy(ctx, &commonparams.DeleteBackupPolicyParams{
+			Name:           backupPolicy.Name,
+			OwnerID:        account.UUID,
+			BackupPolicyID: backupPolicy.UUID,
+			LocationID:     "test-location",
+		})
+
+		assert.Error(tt, err)
+		assert.Nil(tt, deletingBackupPolicy)
+		assert.Equal(tt, "failed to update backup policy", err.Error())
+	})
+	tt.Run("DeleteBackupPolicyFailsWhenCreatingJob", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupPolicy := datamodel.BackupPolicy{
+			BaseModel:             datamodel.BaseModel{ID: 1, UUID: "test-backup-policy-uuid"},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		updatedBackupPolicy := backupPolicy
+		updatedBackupPolicy.LifeCycleState = models.LifeCycleStateDeleting
+		updatedBackupPolicy.LifeCycleStateDetails = models.LifeCycleStateDeletingDetails
+
+		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicy.UUID, int64(1)).Return(&backupPolicy, nil)
+		mockStorage.On("GetVolumeCountByBackupPolicyID", ctx, backupPolicy.UUID).Return(int64(0), nil)
+		mockStorage.On("UpdateBackupPolicy", ctx, backupPolicy.UUID, mock.Anything).Return(&updatedBackupPolicy, nil).Times(2)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("failed to create job"))
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		deletingBackupPolicy, _, err := o.DeleteBackupPolicy(ctx, &commonparams.DeleteBackupPolicyParams{
+			Name:           backupPolicy.Name,
+			OwnerID:        account.UUID,
+			BackupPolicyID: backupPolicy.UUID,
+			LocationID:     "test-location",
+		})
+
+		assert.Error(tt, err)
+		assert.Nil(tt, deletingBackupPolicy)
+		assert.Equal(tt, "failed to create job", err.Error())
+	})
+	tt.Run("DeleteBackupPolicyFailsWhenExecutingWorkflow", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		backupPolicy := datamodel.BackupPolicy{
+			BaseModel:             datamodel.BaseModel{ID: 1, UUID: "test-backup-policy-uuid"},
+			Name:                  "test-backup-policy",
+			Account:               account,
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test backup policy"),
+			PolicyEnabled:         true,
+			DailyBackupsToKeep:    7,
+			WeeklyBackupsToKeep:   4,
+			MonthlyBackupsToKeep:  2,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		updatedBackupPolicy := backupPolicy
+		updatedBackupPolicy.LifeCycleState = models.LifeCycleStateDeleting
+		updatedBackupPolicy.LifeCycleStateDetails = models.LifeCycleStateDeletingDetails
+
+		job := &datamodel.Job{BaseModel: datamodel.BaseModel{ID: 1, UUID: "job-uuid"}}
+		temporalError := errors.New("failed to execute workflow")
+
+		mockStorage.On("GetAccount", ctx, "owner-uuid").Return(account, nil)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicy.UUID, int64(1)).Return(&backupPolicy, nil)
+		mockStorage.On("GetVolumeCountByBackupPolicyID", ctx, backupPolicy.UUID).Return(int64(0), nil)
+		mockStorage.On("UpdateBackupPolicy", ctx, backupPolicy.UUID, mock.Anything).Return(&updatedBackupPolicy, nil).Times(2)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		mockTemporal.On("ExecuteWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, temporalError)
+		mockStorage.On("UpdateJob", ctx, job.UUID, mock.Anything, job.TrackingID, temporalError.Error()).Return(nil, nil)
+
+		o := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		deletingBackupPolicy, _, err := o.DeleteBackupPolicy(ctx, &commonparams.DeleteBackupPolicyParams{
+			Name:           backupPolicy.Name,
+			OwnerID:        account.UUID,
+			BackupPolicyID: backupPolicy.UUID,
+			LocationID:     "test-location",
+		})
+
+		assert.Error(tt, err)
+		assert.Nil(tt, deletingBackupPolicy)
+		assert.Equal(tt, "failed to execute workflow", err.Error())
 	})
 }
 

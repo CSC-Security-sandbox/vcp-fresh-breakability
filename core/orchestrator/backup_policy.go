@@ -180,6 +180,92 @@ func validateBackupLimits(ctx context.Context, se database.Storage, params *comm
 	return nil
 }
 
+func (o *Orchestrator) DeleteBackupPolicy(ctx context.Context, params *commonparams.DeleteBackupPolicyParams) (*models.BackupPolicy, string, error) {
+	se := o.storage
+	logger := util.GetLogger(ctx)
+
+	account, err := se.GetAccount(ctx, params.OwnerID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	dbBackupPolicy, err := se.GetBackupPolicyByUUIDAndOwnerID(ctx, params.BackupPolicyID, account.ID)
+	if err != nil {
+		return nil, "", err
+	}
+	if dbBackupPolicy.LifeCycleState != models.LifeCycleStateREADY {
+		return nil, "", customerrors.NewUserInputValidationErr("backup policy is not in ready state, please check the backup policy and try again")
+	}
+
+	volumes, err := se.GetVolumeCountByBackupPolicyID(ctx, params.BackupPolicyID)
+	if err != nil {
+		return nil, "", err
+	}
+	if volumes > 0 {
+		return nil, "", customerrors.NewUserInputValidationErr("backup policy has volumes attached, please detach backup policy from volumes before deleting backup policy")
+	}
+
+	updates := map[string]interface{}{
+		"life_cycle_state":         models.LifeCycleStateDeleting,
+		"life_cycle_state_details": models.LifeCycleStateDeletingDetails,
+	}
+	updatedBackupPolicy, err := se.UpdateBackupPolicy(ctx, dbBackupPolicy.UUID, updates)
+	if err != nil {
+		return nil, "", err
+	}
+	var createdJob *datamodel.Job
+	defer func() {
+		if err != nil {
+			// If there is an error, revert the state to READY
+			_, revertErr := se.UpdateBackupPolicy(ctx, dbBackupPolicy.UUID, map[string]interface{}{
+				"life_cycle_state":         models.LifeCycleStateREADY,
+				"life_cycle_state_details": models.LifeCycleStateAvailableDetails,
+			})
+			if revertErr != nil {
+				logger.Error("Failed to revert backup policy state after delete failure", "error", revertErr)
+			}
+		}
+		if createdJob != nil && err != nil {
+			// If a job was created, update its state to ERROR if there was an error
+			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error())
+			if updateErr != nil {
+				logger.Error("Failed to update job state", "error", updateErr, "jobUUID", createdJob.UUID)
+			}
+		}
+	}()
+
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeDeleteBackupPolicy),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err = se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+
+	_, err = o.temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		workflows.DeleteBackupPolicyWorkflow,
+		params,
+		updatedBackupPolicy,
+	)
+	if err != nil {
+		logger.Error("Failed to start delete backup policy workflow", "error", err)
+		return nil, "", err
+	}
+	return convertDatastoreBackupPolicyToModel(updatedBackupPolicy), createdJob.UUID, nil
+}
+
 func _getBackupPolicyByNameAndOwnerID(ctx context.Context, se database.Storage, backupPolicyName, ownerID string) (*datamodel.BackupPolicy, error) {
 	account, err := getAccountWithName(ctx, se, ownerID)
 	if err != nil {

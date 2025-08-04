@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/go-openapi/strfmt"
@@ -17,6 +18,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
 )
 
 var (
@@ -143,6 +145,99 @@ func updateBackupPolicyInSDE(ctx context.Context, params *common.UpdateBackupPol
 		return nil, err
 	}
 	return &data, nil
+}
+
+func (j *BackupPolicyActivity) DeleteBackupPolicyInSDE(ctx context.Context, params *common.DeleteBackupPolicyParams) error {
+	logger := util.GetLogger(ctx)
+	GetSignedJwtToken := utils.GetAuthTokenFromContext(ctx)
+	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
+	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
+
+	res, _, err := cvpClient.BackupPolicy.V1betaDeleteBackupPolicy(&backup_policy.V1betaDeleteBackupPolicyParams{
+		LocationID:     params.LocationID,
+		ProjectNumber:  params.OwnerID,
+		BackupPolicyID: params.BackupPolicyID,
+		XCorrelationID: &xCorrelationID,
+	})
+	if err != nil {
+		logger.Errorf("Error deleting backup policy : %v", err)
+		switch e := err.(type) {
+		case *backup_policy.V1betaDeleteBackupPolicyBadRequest:
+			return temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Bad request deleting backup policy %s: %s", params.BackupPolicyID, e.Error()),
+				"V1betaDeleteBackupPolicyBadRequest",
+				err,
+			)
+
+		case *backup_policy.V1betaDeleteBackupPolicyUnauthorized:
+			return temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Unauthorized to delete backup policy %s: %s", params.BackupPolicyID, e.Error()),
+				"V1betaDeleteBackupPolicyUnauthorized",
+				err,
+			)
+
+		case *backup_policy.V1betaDeleteBackupPolicyForbidden:
+			return temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Forbidden to delete backup policy %s: %s", params.BackupPolicyID, e.Error()),
+				"V1betaDeleteBackupPolicyForbidden",
+				err,
+			)
+
+		case *backup_policy.V1betaDeleteBackupPolicyNotFound:
+			return temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Backup policy %s not found: %s", params.BackupPolicyID, e.Error()),
+				"V1betaDeleteBackupPolicyNotFound",
+				err,
+			)
+
+		case *backup_policy.V1betaDeleteBackupPolicyConflict:
+			return temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Conflict deleting backup policy %s: %s", params.BackupPolicyID, e.Error()),
+				"V1betaDeleteBackupPolicyConflict",
+				err,
+			)
+
+		case *backup_policy.V1betaDeleteBackupPolicyInternalServerError:
+			return temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Internal server error deleting backup policy %s: %s", params.BackupPolicyID, e.Error()),
+				"V1betaDeleteBackupPolicyInternalServerError",
+				err,
+			)
+
+		case *backup_policy.V1betaDeleteBackupPolicyNotImplemented:
+			return temporal.NewNonRetryableApplicationError(
+				fmt.Sprintf("Not implemented delete backup policy %s: %s", params.BackupPolicyID, e.Error()),
+				"V1betaDeleteBackupPolicyNotImplemented",
+				err,
+			)
+
+		default:
+			logger.Warnf("Unknown error type for backup policy deletion %s: %T - %s", params.BackupPolicyID, err, err.Error())
+			return err
+		}
+	}
+	if res == nil || res.Payload == nil || res.Payload.Done == nil || !*res.Payload.Done {
+		return errors.New("unknown error during delete backup policy in SDE")
+	}
+	return nil
+}
+
+func (j *BackupPolicyActivity) DeleteBackupPolicySchedule(ctx context.Context, backupPolicyID string) error {
+	temporalScheduler := j.Scheduler
+	_, err := temporalScheduler.Delete(ctx, scheduler.DeleteScheduleParams{ScheduleParams: scheduler.ScheduleParams{ScheduleID: backupPolicyID}})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (j *BackupPolicyActivity) DeleteBackupPolicyInVCP(ctx context.Context, backupPolicyID string) (*datamodel.BackupPolicy, error) {
+	se := j.SE
+	backupPolicy, err := se.DeleteBackupPolicy(ctx, backupPolicyID)
+	if err != nil {
+		return nil, err
+	}
+	return backupPolicy, nil
 }
 
 func _convertToBackupPolicyDataModel(backupPolicy *cvpmodels.BackupPolicyDetailsV1beta) *datamodel.BackupPolicy {

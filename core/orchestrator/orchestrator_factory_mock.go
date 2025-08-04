@@ -907,6 +907,72 @@ func (_c *MockOrchestratorFactory_DeleteBackup_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// DeleteBackupPolicy provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) DeleteBackupPolicy(ctx context.Context, params *common.DeleteBackupPolicyParams) (*models.BackupPolicy, string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteBackupPolicy")
+	}
+
+	var r0 *models.BackupPolicy
+	var r1 string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteBackupPolicyParams) (*models.BackupPolicy, string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteBackupPolicyParams) *models.BackupPolicy); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.BackupPolicy)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.DeleteBackupPolicyParams) string); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, *common.DeleteBackupPolicyParams) error); ok {
+		r2 = rf(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockOrchestratorFactory_DeleteBackupPolicy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteBackupPolicy'
+type MockOrchestratorFactory_DeleteBackupPolicy_Call struct {
+	*mock.Call
+}
+
+// DeleteBackupPolicy is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.DeleteBackupPolicyParams
+func (_e *MockOrchestratorFactory_Expecter) DeleteBackupPolicy(ctx interface{}, params interface{}) *MockOrchestratorFactory_DeleteBackupPolicy_Call {
+	return &MockOrchestratorFactory_DeleteBackupPolicy_Call{Call: _e.mock.On("DeleteBackupPolicy", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_DeleteBackupPolicy_Call) Run(run func(ctx context.Context, params *common.DeleteBackupPolicyParams)) *MockOrchestratorFactory_DeleteBackupPolicy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.DeleteBackupPolicyParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteBackupPolicy_Call) Return(_a0 *models.BackupPolicy, _a1 string, _a2 error) *MockOrchestratorFactory_DeleteBackupPolicy_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteBackupPolicy_Call) RunAndReturn(run func(context.Context, *common.DeleteBackupPolicyParams) (*models.BackupPolicy, string, error)) *MockOrchestratorFactory_DeleteBackupPolicy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteBackupVault provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) DeleteBackupVault(ctx context.Context, params *common.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
 	ret := _m.Called(ctx, params)

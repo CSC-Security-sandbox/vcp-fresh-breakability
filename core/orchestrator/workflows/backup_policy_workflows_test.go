@@ -31,6 +31,7 @@ func (s *BackupPolicyWorkflowsTestSuite) SetupTest() {
 	s.env = s.NewTestWorkflowEnvironment()
 	s.env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 	s.env.RegisterWorkflow(UpdateBackupPolicyWorkflow)
+	s.env.RegisterWorkflow(DeleteBackupPolicyWorkflow)
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) AfterTest() {
@@ -432,4 +433,213 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 	s.env.AssertActivityCalled(s.T(), "UnpauseBackupPolicySchedule", mock.Anything, mock.Anything)
 	s.env.AssertActivityCalled(s.T(), "RevertBackupPolicyUpdateInSDE", mock.Anything, mock.Anything, mock.Anything)
 	s.env.AssertActivityCalled(s.T(), "RevertBackupPolicyUpdateInVCP", mock.Anything, mock.Anything)
+}
+
+func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_Success() {
+	mockStorage := database.NewMockStorage(s.T())
+	mockScheduler := scheduler.NewMockScheduler(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInSDE)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
+	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupPolicy{}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	dbBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel:             datamodel.BaseModel{ID: int64(1), UUID: "backup-policy-uuid-1"},
+		Name:                  "backup-policy-1",
+		Account:               &datamodel.Account{BaseModel: datamodel.BaseModel{ID: int64(1)}, Name: "account-1"},
+		AccountID:             int64(1),
+		Description:           nil,
+		DailyBackupsToKeep:    2,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  2,
+		PolicyEnabled:         false,
+		LifeCycleState:        models.LifeCycleStateDeleting,
+		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+	}
+	params := &common.DeleteBackupPolicyParams{
+		Name:           dbBackupPolicy.Name,
+		OwnerID:        dbBackupPolicy.Account.Name,
+		BackupPolicyID: dbBackupPolicy.UUID,
+		LocationID:     "us-west1",
+	}
+	s.env.ExecuteWorkflow(DeleteBackupPolicyWorkflow, params, dbBackupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_GetAuthJWTTokenFailure() {
+	mockStorage := database.NewMockStorage(s.T())
+	mockScheduler := scheduler.NewMockScheduler(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInSDE)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", errors.New("failed to get auth JWT token"))
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	dbBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel:             datamodel.BaseModel{ID: int64(1), UUID: "backup-policy-uuid-1"},
+		Name:                  "backup-policy-1",
+		Account:               &datamodel.Account{BaseModel: datamodel.BaseModel{ID: int64(1)}, Name: "account-1"},
+		AccountID:             int64(1),
+		Description:           nil,
+		DailyBackupsToKeep:    2,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  2,
+		PolicyEnabled:         false,
+		LifeCycleState:        models.LifeCycleStateDeleting,
+		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+	}
+	params := &common.DeleteBackupPolicyParams{
+		Name:           dbBackupPolicy.Name,
+		OwnerID:        dbBackupPolicy.Account.Name,
+		BackupPolicyID: dbBackupPolicy.UUID,
+		LocationID:     "us-west1",
+	}
+	s.env.ExecuteWorkflow(DeleteBackupPolicyWorkflow, params, dbBackupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBackupPolicyInSDEFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	mockScheduler := scheduler.NewMockScheduler(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInSDE)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
+	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(errors.New("failed to delete backup policy in SDE"))
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	dbBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel:             datamodel.BaseModel{ID: int64(1), UUID: "backup-policy-uuid-1"},
+		Name:                  "backup-policy-1",
+		Account:               &datamodel.Account{BaseModel: datamodel.BaseModel{ID: int64(1)}, Name: "account-1"},
+		AccountID:             int64(1),
+		Description:           nil,
+		DailyBackupsToKeep:    2,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  2,
+		PolicyEnabled:         false,
+		LifeCycleState:        models.LifeCycleStateDeleting,
+		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+	}
+	params := &common.DeleteBackupPolicyParams{
+		Name:           dbBackupPolicy.Name,
+		OwnerID:        dbBackupPolicy.Account.Name,
+		BackupPolicyID: dbBackupPolicy.UUID,
+		LocationID:     "us-west1",
+	}
+	s.env.ExecuteWorkflow(DeleteBackupPolicyWorkflow, params, dbBackupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBackupPolicyScheduleFailure() {
+	mockStorage := database.NewMockStorage(s.T())
+	mockScheduler := scheduler.NewMockScheduler(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInSDE)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
+	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicySchedule, mock.Anything, mock.Anything).Return(errors.New("failed to delete backup policy schedule"))
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	dbBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel:             datamodel.BaseModel{ID: int64(1), UUID: "backup-policy-uuid-1"},
+		Name:                  "backup-policy-1",
+		Account:               &datamodel.Account{BaseModel: datamodel.BaseModel{ID: int64(1)}, Name: "account-1"},
+		AccountID:             int64(1),
+		Description:           nil,
+		DailyBackupsToKeep:    2,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  2,
+		PolicyEnabled:         false,
+		LifeCycleState:        models.LifeCycleStateDeleting,
+		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+	}
+	params := &common.DeleteBackupPolicyParams{
+		Name:           dbBackupPolicy.Name,
+		OwnerID:        dbBackupPolicy.Account.Name,
+		BackupPolicyID: dbBackupPolicy.UUID,
+		LocationID:     "us-west1",
+	}
+	s.env.ExecuteWorkflow(DeleteBackupPolicyWorkflow, params, dbBackupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_DeleteBackupPolicyInVCPFailure() {
+	mockStorage := database.NewMockStorage(s.T())
+	mockScheduler := scheduler.NewMockScheduler(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInSDE)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicySchedule)
+	s.env.RegisterActivity(backupPolicyActivity.DeleteBackupPolicyInVCP)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
+	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInSDE, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInVCP, mock.Anything, mock.Anything).Return(nil, errors.New("failed to delete backup policy in VCP"))
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	dbBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel:             datamodel.BaseModel{ID: int64(1), UUID: "backup-policy-uuid-1"},
+		Name:                  "backup-policy-1",
+		Account:               &datamodel.Account{BaseModel: datamodel.BaseModel{ID: int64(1)}, Name: "account-1"},
+		AccountID:             int64(1),
+		Description:           nil,
+		DailyBackupsToKeep:    2,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  2,
+		PolicyEnabled:         false,
+		LifeCycleState:        models.LifeCycleStateDeleting,
+		LifeCycleStateDetails: models.LifeCycleStateDeletingDetails,
+	}
+	params := &common.DeleteBackupPolicyParams{
+		Name:           dbBackupPolicy.Name,
+		OwnerID:        dbBackupPolicy.Account.Name,
+		BackupPolicyID: dbBackupPolicy.UUID,
+		LocationID:     "us-west1",
+	}
+	s.env.ExecuteWorkflow(DeleteBackupPolicyWorkflow, params, dbBackupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
 }

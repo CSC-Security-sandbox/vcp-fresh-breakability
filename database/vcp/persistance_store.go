@@ -908,6 +908,10 @@ func (s *PersistenceStore) GetBackupPolicyByNameAndOwnerID(ctx context.Context, 
 	return s.dataStore.GetBackupPolicyByNameAndOwnerID(ctx, backupPolicyName, accountID)
 }
 
+func (s *PersistenceStore) GetVolumeCountByBackupPolicyID(ctx context.Context, backupPolicyUUID string) (int64, error) {
+	return s.dataStore.GetVolumeCountByBackupPolicyID(ctx, backupPolicyUUID)
+}
+
 func (s *PersistenceStore) ListBackupPolicyVolumeCount(ctx context.Context, conditions [][]interface{}) (map[string]int64, error) {
 	return s.dataStore.ListBackupPolicyVolumeCount(ctx, conditions)
 }
@@ -918,6 +922,10 @@ func (s *PersistenceStore) ListBackupPolicies(ctx context.Context, conditions []
 
 func (s *PersistenceStore) CreateBackupPolicyEntryInVCP(ctx context.Context, backupPolicy *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {
 	return s.dataStore.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
+}
+
+func (s *PersistenceStore) DeleteBackupPolicy(ctx context.Context, backupPolicyUUID string) (*datamodel.BackupPolicy, error) {
+	return s.dataStore.DeleteBackupPolicy(ctx, backupPolicyUUID)
 }
 
 func (s *PersistenceStore) FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) ([]*datamodel.Backup, error) {

@@ -700,17 +700,74 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 
 // V1betaDeleteBackupPolicy unittests
 func TestV1betaDeleteBackupPolicy(t *testing.T) {
-	t.Run("WhenDeleteBackupPolicySuccess", func(t *testing.T) {
-		// Define request
+	origBackupEnabled := backupEnabled
+	backupEnabled = true
+	defer func() { backupEnabled = origBackupEnabled }()
+
+	params := gcpgenserver.V1betaDeleteBackupPolicyParams{
+		ProjectNumber:  "1234567890",
+		LocationId:     "us-central1",
+		BackupPolicyId: "test-backup-policy-id",
+	}
+
+	t.Run("ReturnsBadRequestWhenBackupFeatureDisabled", func(t *testing.T) {
+		oldBackupEnabled := backupEnabled
+		backupEnabled = false
+		defer func() { backupEnabled = oldBackupEnabled }()
+
+		handler := Handler{}
+		result, err := handler.V1betaDeleteBackupPolicy(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaDeleteBackupPolicyBadRequest{}, result)
+		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaDeleteBackupPolicyBadRequest).Code)
+		assert.Equal(t, "Backup feature is currently not enabled.", result.(*gcpgenserver.V1betaDeleteBackupPolicyBadRequest).Message)
+	})
+
+	t.Run("ReturnsBadRequestWhenRegionParsingFails", func(t *testing.T) {
+		origParse := parseAndValidateRegionAndZone
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", &gcpgenserver.Error{Code: 400, Message: "LocationID represents neither a region nor a zone"}
+		}
+		defer func() { parseAndValidateRegionAndZone = origParse }()
+
+		handler := Handler{}
+		result, err := handler.V1betaDeleteBackupPolicy(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaDeleteBackupPolicyBadRequest{}, result)
+		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaDeleteBackupPolicyBadRequest).Code)
+		assert.Equal(t, "LocationID represents neither a region nor a zone", result.(*gcpgenserver.V1betaDeleteBackupPolicyBadRequest).Message)
+	})
+
+	t.Run("ReturnsInternalServerErrorWhenGetBackupPolicyFails", func(t *testing.T) {
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.EXPECT().
+			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
+			Return(nil, errors.New("unexpected error"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaDeleteBackupPolicy(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaDeleteBackupPolicyInternalServerError{}, result)
+		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaDeleteBackupPolicyInternalServerError).Code)
+	})
+
+	t.Run("WhenDeleteBackupPolicySucceedsNotFoundInVCP", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_policy.NewMockClientService(t)
 
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupPolicyParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupPolicyId: "bp-1",
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
 		}
 		// Define mock response
 		mockResponse := &backup_policy.V1betaDeleteBackupPolicyAccepted{
@@ -719,46 +776,42 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 				Done: nillable.GetBoolPtr(true),
 			},
 		}
-
-		// Set up the mock client behavior
 		mockClient.EXPECT().
 			V1betaDeleteBackupPolicy(mock.Anything).
 			Return(mockResponse, nil, nil)
+
+		// Set up the mock client behavior
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 
-		originalBackupEnabled := backupEnabled
 		originalCreateClient := createClient
-		defer func() {
-			backupEnabled = originalBackupEnabled
-			createClient = originalCreateClient
-		}()
-		backupEnabled = true
+		defer func() { createClient = originalCreateClient }()
+
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
-		// Call the method under test
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.EXPECT().
+			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
+			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
+		handler := Handler{Orchestrator: mockOrchestrator}
+
 		result, err := handler.V1betaDeleteBackupPolicy(context.Background(), params)
 
-		// Assertions
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		// Check if the operation name is as expected
 		assert.Equal(t, "operation-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
-		// Check if the operation done value is as expected
 		assert.Equal(t, true, result.(*gcpgenserver.OperationV1beta).Done.Value)
 	})
 
-	t.Run("WhenDeleteBackupPolicyFailsWithBadRequest", func(t *testing.T) {
+	t.Run("WhenDeleteBackupPolicyFailsWithBadRequestNotFoundInVCP", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_policy.NewMockClientService(t)
 
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupPolicyParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupPolicyId: "ad-1",
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
 		}
 		// Define mock error
 		errorCode := float64(400)
@@ -769,26 +822,28 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
-		// Set up the mock client behavior
 		mockClient.EXPECT().
 			V1betaDeleteBackupPolicy(mock.Anything).
 			Return(nil, nil, mockError)
+
+		// Set up the mock client behavior
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 
-		originalBackupEnabled := backupEnabled
 		originalCreateClient := createClient
-		defer func() {
-			backupEnabled = originalBackupEnabled
-			createClient = originalCreateClient
-		}()
-		backupEnabled = true
+		defer func() { createClient = originalCreateClient }()
+
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
-		// Call the method under test
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.EXPECT().
+			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
+			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
+		handler := Handler{Orchestrator: mockOrchestrator}
+
 		result, err := handler.V1betaDeleteBackupPolicy(context.Background(), params)
-		// Assertions
+
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		// Check if the code is as expected
@@ -796,64 +851,14 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteBackupPolicyBadRequest).Message)
 	})
 
-	t.Run("WhenDeleteBackupPolicyFailsWithConflict", func(t *testing.T) {
+	t.Run("WhenDeleteBackupPolicyFailsWithUnauthorizedNotFoundInVCP", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_policy.NewMockClientService(t)
 
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupPolicyParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupPolicyId: "ad-1",
-		}
-		// Define mock error
-		errorMessage := "Conflict error"
-		errorCode := float64(409)
-		mockError := &backup_policy.V1betaDeleteBackupPolicyConflict{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
-		mockClient.EXPECT().
-			V1betaDeleteBackupPolicy(mock.Anything).
-			Return(nil, nil, mockError)
-		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
-
-		originalBackupEnabled := backupEnabled
-		originalCreateClient := createClient
-		defer func() {
-			backupEnabled = originalBackupEnabled
-			createClient = originalCreateClient
-		}()
-		backupEnabled = true
-		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-		handler := Handler{}
-		// Call the method under test
-		result, err := handler.V1betaDeleteBackupPolicy(context.Background(), params)
-
-		// Assertions
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		// Check if the code is as expected
-		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteBackupPolicyConflict).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteBackupPolicyConflict).Message)
-	})
-
-	t.Run("WhenDeleteBackupPolicyFailsWithUnauthorized", func(t *testing.T) {
-		// Create a mock client
-		mockClient := backup_policy.NewMockClientService(t)
-
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupPolicyParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupPolicyId: "ad-1",
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
 		}
 		// Define mock error
 		errorMessage := "Unauthorized error"
@@ -864,27 +869,28 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
-		// Set up the mock client behavior
 		mockClient.EXPECT().
 			V1betaDeleteBackupPolicy(mock.Anything).
 			Return(nil, nil, mockError)
+
+		// Set up the mock client behavior
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 
-		originalBackupEnabled := backupEnabled
 		originalCreateClient := createClient
-		defer func() {
-			backupEnabled = originalBackupEnabled
-			createClient = originalCreateClient
-		}()
-		backupEnabled = true
+		defer func() { createClient = originalCreateClient }()
+
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
-		// Call the method under test
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.EXPECT().
+			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
+			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
+		handler := Handler{Orchestrator: mockOrchestrator}
+
 		result, err := handler.V1betaDeleteBackupPolicy(context.Background(), params)
 
-		// Assertions
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		// Check if the code is as expected
@@ -892,16 +898,14 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteBackupPolicyUnauthorized).Message)
 	})
 
-	t.Run("WhenDeleteBackupPolicyFailsWithForbidden", func(t *testing.T) {
+	t.Run("WhenDeleteBackupPolicyFailsWithForbiddenNotFoundInVCP", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_policy.NewMockClientService(t)
 
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupPolicyParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupPolicyId: "ad-1",
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
 		}
 		// Define mock error
 		errorMessage := "Forbidden error"
@@ -912,27 +916,28 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
-		// Set up the mock client behavior
 		mockClient.EXPECT().
 			V1betaDeleteBackupPolicy(mock.Anything).
 			Return(nil, nil, mockError)
+
+		// Set up the mock client behavior
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 
-		originalBackupEnabled := backupEnabled
 		originalCreateClient := createClient
-		defer func() {
-			backupEnabled = originalBackupEnabled
-			createClient = originalCreateClient
-		}()
-		backupEnabled = true
+		defer func() { createClient = originalCreateClient }()
+
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
-		// Call the method under test
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.EXPECT().
+			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
+			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
+		handler := Handler{Orchestrator: mockOrchestrator}
+
 		result, err := handler.V1betaDeleteBackupPolicy(context.Background(), params)
 
-		// Assertions
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		// Check if the code is as expected
@@ -940,19 +945,17 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteBackupPolicyForbidden).Message)
 	})
 
-	t.Run("WhenDeleteBackupPolicyFailsWithDefault", func(t *testing.T) {
+	t.Run("WhenDeleteBackupPolicyFailsWithInternalServerErrorNotFoundInVCP", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_policy.NewMockClientService(t)
 
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupPolicyParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupPolicyId: "ad-1",
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
 		}
 		// Define mock error
-		errorMessage := "default error"
+		errorMessage := "Internal server error"
 		errorCode := float64(500)
 		mockError := &backup_policy.V1betaDeleteBackupPolicyDefault{
 			Payload: &models.Error{
@@ -960,78 +963,138 @@ func TestV1betaDeleteBackupPolicy(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
-		// Set up the mock client behavior
 		mockClient.EXPECT().
 			V1betaDeleteBackupPolicy(mock.Anything).
 			Return(nil, nil, mockError)
+
+		// Set up the mock client behavior
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 
-		originalBackupEnabled := backupEnabled
 		originalCreateClient := createClient
-		defer func() {
-			createClient = originalCreateClient
-			backupEnabled = originalBackupEnabled
-		}()
-		backupEnabled = true
+		defer func() { createClient = originalCreateClient }()
+
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
-		// Call the method under test
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.EXPECT().
+			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
+			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
+		handler := Handler{Orchestrator: mockOrchestrator}
+
 		result, err := handler.V1betaDeleteBackupPolicy(context.Background(), params)
 
-		// Assertions
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteBackupPolicyInternalServerError).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteBackupPolicyInternalServerError).Message)
 	})
 
-	t.Run("WhenDeleteBackupPolicyFailsWithUnknownError", func(t *testing.T) {
+	t.Run("WhenDeleteBackupPolicyFailsWithUnknownErrorNotFoundInVCP", func(t *testing.T) {
 		// Create a mock client
 		mockClient := backup_policy.NewMockClientService(t)
 
-		// Define input parameters
-		params := gcpgenserver.V1betaDeleteBackupPolicyParams{
-			LocationId:     "test-location",
-			ProjectNumber:  "12345",
-			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupPolicyId: "ad-1",
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
 		}
 		// Define mock error
 		errorMessage := "unknown error during the delete backup policy"
 		errorCode := float64(500)
-		mockError := &backup_policy.V1betaDeleteBackupPolicyDefault{
-			Payload: &models.Error{
-				Code:    errorCode,
-				Message: errorMessage,
-			},
-		}
-		// Set up the mock client behavior
+
 		mockClient.EXPECT().
 			V1betaDeleteBackupPolicy(mock.Anything).
-			Return(nil, nil, mockError)
+			Return(nil, nil, nil)
+
+		// Set up the mock client behavior
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 
-		originalBackupEnabled := backupEnabled
 		originalCreateClient := createClient
-		defer func() {
-			backupEnabled = originalBackupEnabled
-			createClient = originalCreateClient
-		}()
-		backupEnabled = true
+		defer func() { createClient = originalCreateClient }()
+
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		handler := Handler{}
-		// Call the method under test
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator.EXPECT().
+			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
+			Return(nil, utilerrors.NewNotFoundErr("backup policy", &params.BackupPolicyId))
+		handler := Handler{Orchestrator: mockOrchestrator}
+
 		result, err := handler.V1betaDeleteBackupPolicy(context.Background(), params)
 
-		// Assertions
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDeleteBackupPolicyInternalServerError).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDeleteBackupPolicyInternalServerError).Message)
+	})
+
+	t.Run("WhenDeleteBackupPolicySucceedsFoundInVCP", func(t *testing.T) {
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		backupPolicy := &coremodels.BackupPolicy{
+			ResourceID:       "test-resource",
+			BackupPolicyUUID: "test-backup-policy-id",
+		}
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		mockOrchestrator.EXPECT().
+			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
+			Return(backupPolicy, nil)
+
+		mockOrchestrator.EXPECT().
+			DeleteBackupPolicy(mock.Anything, mock.Anything).
+			Return(backupPolicy, "operation-123", nil)
+
+		res, err := handler.V1betaDeleteBackupPolicy(context.Background(), params)
+
+		assert.NoError(t, err)
+		op, ok := res.(*gcpgenserver.OperationV1beta)
+		assert.True(t, ok)
+		assert.Contains(t, op.Name.Value, "operation-123")
+		assert.False(t, op.Done.Value)
+		assert.NotNil(t, op.Response)
+	})
+
+	t.Run("WhenDeleteBackupPolicyFailsWithUnknownErrorFoundInVCP", func(t *testing.T) {
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		backupPolicy := &coremodels.BackupPolicy{
+			ResourceID:       "test-resource",
+			BackupPolicyUUID: "test-backup-policy-id",
+		}
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		mockOrchestrator.EXPECT().
+			GetBackupPolicyByUUIDAndOwnerID(mock.Anything, params.BackupPolicyId, params.ProjectNumber).
+			Return(backupPolicy, nil)
+
+		mockOrchestrator.EXPECT().
+			DeleteBackupPolicy(mock.Anything, mock.Anything).
+			Return(nil, "", errors.New("unknown error"))
+
+		res, err := handler.V1betaDeleteBackupPolicy(context.Background(), params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+		assert.IsType(t, &gcpgenserver.V1betaDeleteBackupPolicyInternalServerError{}, res)
+		assert.Equal(t, float64(500), res.(*gcpgenserver.V1betaDeleteBackupPolicyInternalServerError).Code)
+		assert.Equal(t, "Failed to delete backup policy", res.(*gcpgenserver.V1betaDeleteBackupPolicyInternalServerError).Message)
 	})
 
 	t.Run("ReturnsBadRequestWhenBackupFeatureIsDisabled", func(tt *testing.T) {

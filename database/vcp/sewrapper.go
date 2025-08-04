@@ -2450,6 +2450,26 @@ func (re *retryEngine) GetBackupPolicyByNameAndOwnerID(ctx context.Context, back
 	return var0, err
 }
 
+func (re *retryEngine) GetVolumeCountByBackupPolicyID(ctx context.Context, backupPolicyUUID string) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetVolumeCountByBackupPolicyID(ctx, backupPolicyUUID)
+		if err != nil {
+			re.logError("GetVolumeCountByBackupPolicyID", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) ListBackupPolicyVolumeCount(ctx context.Context, conditions [][]interface{}) (map[string]int64, error) {
 	var var0 map[string]int64
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -2517,6 +2537,26 @@ func (re *retryEngine) UpdateBackupPolicy(ctx context.Context, uuid string, upda
 		var0, err = re.dataStore.UpdateBackupPolicy(ctx, uuid, updates)
 		if err != nil {
 			re.logError("UpdateBackupPolicy", err)
+			if !isTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if isTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) DeleteBackupPolicy(ctx context.Context, backupPolicyUUID string) (*datamodel.BackupPolicy, error) {
+	var var0 *datamodel.BackupPolicy
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.DeleteBackupPolicy(ctx, backupPolicyUUID)
+		if err != nil {
+			re.logError("DeleteBackupPolicy", err)
 			if !isTransientErr(err) {
 				return false, err
 			}

@@ -19,7 +19,222 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/temporal"
 )
+
+func TestDeleteBackupPolicyInSDE(t *testing.T) {
+	t.Run("DeleteBackupPolicyInSDE", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		mockClient := backup_policy.NewMockClientService(tt)
+		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+
+		originalCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		mockClient.On("V1betaDeleteBackupPolicy", mock.Anything).Return(
+			&backup_policy.V1betaDeleteBackupPolicyAccepted{
+				Payload: &cvpmodels.OperationV1beta{
+					Done: nillable.ToPointer(true),
+				},
+			}, nil, nil)
+
+		params := &common.DeleteBackupPolicyParams{
+			Name:           "test-backup-policy",
+			OwnerID:        "test-owner-id",
+			BackupPolicyID: "test-backup-policy-uuid",
+			LocationID:     "test-location",
+		}
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := backupPolicyActivity.DeleteBackupPolicyInSDE(context.Background(), params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		mockScheduler.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+	t.Run("DeleteBackupPolicyInSDEFailsWhenSDEThrowsError", func(tt *testing.T) {
+		params := &common.DeleteBackupPolicyParams{
+			Name:           "test-backup-policy",
+			OwnerID:        "test-owner-id",
+			BackupPolicyID: "test-backup-policy-uuid",
+			LocationID:     "test-location",
+		}
+
+		errorCases := []struct {
+			name     string
+			err      error
+			wantType string
+			wantMsg  string
+		}{
+			{
+				name:     "BadRequest",
+				err:      &backup_policy.V1betaDeleteBackupPolicyBadRequest{},
+				wantType: "V1betaDeleteBackupPolicyBadRequest",
+				wantMsg:  "Bad request deleting backup policy",
+			},
+			{
+				name:     "Unauthorized",
+				err:      &backup_policy.V1betaDeleteBackupPolicyUnauthorized{},
+				wantType: "V1betaDeleteBackupPolicyUnauthorized",
+				wantMsg:  "Unauthorized to delete backup policy",
+			},
+			{
+				name:     "Forbidden",
+				err:      &backup_policy.V1betaDeleteBackupPolicyForbidden{},
+				wantType: "V1betaDeleteBackupPolicyForbidden",
+				wantMsg:  "Forbidden to delete backup policy",
+			},
+			{
+				name:     "NotFound",
+				err:      &backup_policy.V1betaDeleteBackupPolicyNotFound{},
+				wantType: "V1betaDeleteBackupPolicyNotFound",
+				wantMsg:  "Backup policy test-backup-policy-uuid not found",
+			},
+			{
+				name:     "Conflict",
+				err:      &backup_policy.V1betaDeleteBackupPolicyConflict{},
+				wantType: "V1betaDeleteBackupPolicyConflict",
+				wantMsg:  "Conflict deleting backup policy",
+			},
+			{
+				name:     "InternalServerError",
+				err:      &backup_policy.V1betaDeleteBackupPolicyInternalServerError{},
+				wantType: "V1betaDeleteBackupPolicyInternalServerError",
+				wantMsg:  "Internal server error deleting backup policy",
+			},
+			{
+				name:     "NotImplemented",
+				err:      &backup_policy.V1betaDeleteBackupPolicyNotImplemented{},
+				wantType: "V1betaDeleteBackupPolicyNotImplemented",
+				wantMsg:  "Not implemented delete backup policy",
+			},
+			{
+				name:     "UnknownError",
+				err:      errors.New("some unknown error"),
+				wantType: "",
+				wantMsg:  "some unknown error",
+			},
+		}
+
+		for _, tc := range errorCases {
+			t.Run(tc.name, func(t *testing.T) {
+				mockStorage := database.NewMockStorage(t)
+				mockScheduler := scheduler.NewMockScheduler(t)
+				mockClient := backup_policy.NewMockClientService(t)
+				cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+				originalCreateClient := cvpCreateClient
+				defer func() { cvpCreateClient = originalCreateClient }()
+				cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+					return *cvpClient
+				}
+				mockClient.On("V1betaDeleteBackupPolicy", mock.Anything).Return(nil, nil, tc.err)
+
+				backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+				err := backupPolicyActivity.DeleteBackupPolicyInSDE(context.Background(), params)
+				if tc.wantType == "" {
+					assert.Error(t, err)
+					assert.Equal(t, tc.wantMsg, err.Error())
+				} else {
+					appErr, ok := err.(*temporal.ApplicationError)
+					assert.True(t, ok)
+					assert.Contains(t, appErr.Error(), tc.wantMsg)
+					assert.Equal(t, tc.wantType, appErr.Type())
+				}
+				mockClient.AssertExpectations(t)
+			})
+		}
+	})
+	t.Run("DeleteBackupPolicyInSDEFailsOnInvalidResponse", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+		mockClient := backup_policy.NewMockClientService(tt)
+		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
+
+		originalCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		mockClient.On("V1betaDeleteBackupPolicy", mock.Anything).Return(
+			&backup_policy.V1betaDeleteBackupPolicyAccepted{
+				Payload: &cvpmodels.OperationV1beta{},
+			}, nil, nil)
+
+		params := &common.DeleteBackupPolicyParams{
+			Name:           "test-backup-policy",
+			OwnerID:        "test-owner-id",
+			BackupPolicyID: "test-backup-policy-uuid",
+			LocationID:     "test-location",
+		}
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		err := backupPolicyActivity.DeleteBackupPolicyInSDE(context.Background(), params)
+		assert.Error(tt, err)
+		assert.Equal(tt, "unknown error during delete backup policy in SDE", err.Error())
+		mockStorage.AssertExpectations(tt)
+		mockScheduler.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+}
+
+func TestDeleteBackupPolicySchedule(t *testing.T) {
+	t.Run("DeleteBackupPolicySchedule", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		mockScheduler.On("Delete", mock.Anything, mock.Anything).Return(&scheduler.ScheduleResponse{}, nil)
+
+		err := backupPolicyActivity.DeleteBackupPolicySchedule(context.Background(), "test-backup-policy-uuid")
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		mockScheduler.AssertExpectations(tt)
+	})
+	t.Run("DeleteBackupPolicyScheduleFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockScheduler := scheduler.NewMockScheduler(tt)
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+		mockScheduler.On("Delete", mock.Anything, mock.Anything).Return(nil, errors.New("scheduler error"))
+
+		err := backupPolicyActivity.DeleteBackupPolicySchedule(context.Background(), "test-backup-policy-uuid")
+		assert.Error(tt, err)
+		assert.Equal(tt, "scheduler error", err.Error())
+		mockStorage.AssertExpectations(tt)
+		mockScheduler.AssertExpectations(tt)
+	})
+}
+
+func TestDeleteBackupPolicyInVCP(t *testing.T) {
+	t.Run("DeleteBackupPolicyInVCP", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage}
+		mockStorage.On("DeleteBackupPolicy", mock.Anything, "test-backup-policy-uuid").Return(&datamodel.BackupPolicy{}, nil)
+
+		res, err := backupPolicyActivity.DeleteBackupPolicyInVCP(context.Background(), "test-backup-policy-uuid")
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("DeleteBackupPolicyInVCPFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		backupPolicyActivity := BackupPolicyActivity{SE: mockStorage}
+		mockStorage.On("DeleteBackupPolicy", mock.Anything, "test-backup-policy-uuid").Return(nil, errors.New("internal server error"))
+
+		res, err := backupPolicyActivity.DeleteBackupPolicyInVCP(context.Background(), "test-backup-policy-uuid")
+		assert.Error(tt, err)
+		assert.Nil(tt, res)
+		assert.Equal(tt, "internal server error", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+}
 
 func TestConvertsValidBackupPolicyV1betaToDataModel(tt *testing.T) {
 	tt.Run("ConvertsValidBackupPolicyV1betaToDataModel", func(t *testing.T) {

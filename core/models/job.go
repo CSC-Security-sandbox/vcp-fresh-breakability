@@ -67,6 +67,7 @@ const (
 	JobTypeRefreshVolumeFields               JobType = "REFRESH_VOLUME_FIELDS"
 	JobTypeUpdateBackup                      JobType = "UPDATE_BACKUP"
 	JobTypeUpdateBackupPolicy                JobType = "UPDATE_BACKUP_POLICY"
+	JobTypeDeleteBackupPolicy                JobType = "DELETE_BACKUP_POLICY"
 )
 
 // Job describes a job DB model

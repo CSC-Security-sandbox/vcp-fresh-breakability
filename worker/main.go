@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -247,6 +247,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(workflows.UpdateResourceStateCommonResourceONWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateResourceStateCommonResourceOFFWorkflow)
 	worker.RegisterWorkflow(workflows.FinishProjectEventDeleteStateWorkflow)
+	worker.RegisterWorkflow(workflows.DeleteBackupPolicyWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})

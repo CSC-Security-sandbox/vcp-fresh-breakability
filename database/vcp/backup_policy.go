@@ -7,6 +7,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
@@ -39,6 +40,18 @@ func (d *DataStoreRepository) GetBackupPolicyByUUIDAndOwnerID(ctx context.Contex
 		return nil, err
 	}
 	return dbBackupPolicy, nil
+}
+
+func (d *DataStoreRepository) GetVolumeCountByBackupPolicyID(ctx context.Context, backupPolicyUUID string) (int64, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var volumeCount int64
+	err := db.Model(&datamodel.Volume{}).
+		Where("data_protection->>'backup_policy_id' = ?", backupPolicyUUID).
+		Count(&volumeCount).Error
+	if err != nil {
+		return 0, err
+	}
+	return volumeCount, nil
 }
 
 func (d *DataStoreRepository) ListBackupPolicyVolumeCount(ctx context.Context, conditions [][]interface{}) (map[string]int64, error) {
@@ -125,6 +138,32 @@ func (d *DataStoreRepository) UpdateBackupPolicy(ctx context.Context, uuid strin
 		return nil, err
 	}
 	return &updated, nil
+}
+
+func (d *DataStoreRepository) DeleteBackupPolicy(ctx context.Context, backupPolicyUUID string) (*datamodel.BackupPolicy, error) {
+	db := d.db.GORM().WithContext(ctx)
+	logger := util.GetLogger(ctx)
+
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	dbBackupPolicy, err := getBackupPolicyWithDetails(tx, &datamodel.BackupPolicy{BaseModel: datamodel.BaseModel{UUID: backupPolicyUUID}})
+	if err != nil {
+		return nil, err
+	}
+
+	dbBackupPolicy.DeletedAt = &gorm.DeletedAt{Time: time.Now(), Valid: true}
+	dbBackupPolicy.LifeCycleState = models.LifeCycleStateDeleted
+	dbBackupPolicy.LifeCycleStateDetails = models.LifeCycleStateDeletedDetails
+	err = tx.Save(dbBackupPolicy).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return dbBackupPolicy, nil
 }
 
 func _getBackupPolicyWithDetails(db *gorm.DB, query *datamodel.BackupPolicy) (*datamodel.BackupPolicy, error) {

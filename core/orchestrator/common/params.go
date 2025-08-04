@@ -310,6 +310,13 @@ type BackupRetentionPolicyParams struct {
 	IsAdhocBackupImmutable                 *bool
 }
 
+type DeleteBackupPolicyParams struct {
+	Name           string
+	OwnerID        string
+	LocationID     string
+	BackupPolicyID string
+}
+
 type BucketDetails struct {
 	BucketName          string
 	ServiceAccountName  string

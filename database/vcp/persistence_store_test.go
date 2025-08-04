@@ -1501,3 +1501,50 @@ func TestListBackupPolicies_Persistence_Store(t *testing.T) {
 	assert.Len(t, policies, 1)
 	assert.Equal(t, "policy1", policies[0].Name)
 }
+
+func TestGetVolumeCountByBackupPolicyID_Persistence_Store(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a backup policy
+	policy := &datamodel.BackupPolicy{Name: "test-policy"}
+	createdPolicy, err := store.CreateBackupPolicyEntryInVCP(ctx, policy)
+	assert.NoError(t, err)
+
+	// Create volumes associated with the backup policy
+	vol1 := &datamodel.Volume{DataProtection: &datamodel.DataProtection{BackupPolicyID: createdPolicy.UUID}, Name: "volume1"}
+	vol2 := &datamodel.Volume{DataProtection: &datamodel.DataProtection{BackupPolicyID: createdPolicy.UUID}, Name: "volume2"}
+	_, err = store.CreateVolume(ctx, vol1)
+	assert.NoError(t, err)
+	_, err = store.CreateVolume(ctx, vol2)
+	assert.NoError(t, err)
+
+	// Call the method under test
+	count, err := store.GetVolumeCountByBackupPolicyID(ctx, createdPolicy.UUID)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), count)
+}
+
+func TestDeleteBackupPolicy_Persistence_Store(t *testing.T) {
+	logger := &log.MockLogger{}
+	store, _ := NewTestStorage(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	// Create a backup policy
+	policy := &datamodel.BackupPolicy{Name: "test-policy"}
+	createdPolicy, err := store.CreateBackupPolicyEntryInVCP(ctx, policy)
+	assert.NoError(t, err)
+
+	// Delete the backup policy
+	deletedPolicy, err := store.DeleteBackupPolicy(ctx, createdPolicy.UUID)
+	assert.NoError(t, err)
+	assert.NotNil(t, deletedPolicy)
+	assert.Equal(t, createdPolicy.UUID, deletedPolicy.UUID)
+
+	// Attempt to delete a non-existent policy
+	_, err = store.DeleteBackupPolicy(ctx, "non-existent-uuid")
+	assert.Error(t, err)
+}

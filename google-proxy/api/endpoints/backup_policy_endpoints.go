@@ -19,6 +19,7 @@ import (
 
 var (
 	updateBackupPolicyInSDE = _updateBackupPolicyInSDE
+	deleteBackupPolicyInSDE = _deleteBackupPolicyInSDE
 )
 
 func (h Handler) V1betaCreateBackupPolicy(ctx context.Context, req *gcpgenserver.BackupPolicyCreateV1beta, params gcpgenserver.V1betaCreateBackupPolicyParams) (gcpgenserver.V1betaCreateBackupPolicyRes, error) {
@@ -136,63 +137,60 @@ func (h Handler) V1betaDeleteBackupPolicy(ctx context.Context, params gcpgenserv
 			Message: "Backup feature is currently not enabled.",
 		}, nil
 	}
-	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := createClient(logger, jwtToken)
-	deleteBackupPolicyParams := &backup_policy.V1betaDeleteBackupPolicyParams{
-		BackupPolicyID: params.BackupPolicyId,
-		LocationID:     params.LocationId,
-		ProjectNumber:  params.ProjectNumber,
-		XCorrelationID: &params.XCorrelationID.Value,
-	}
-	res, _, err := cvpClient.BackupPolicy.V1betaDeleteBackupPolicy(deleteBackupPolicyParams)
-	if err != nil {
-		switch e := err.(type) {
-		case *backup_policy.V1betaDeleteBackupPolicyConflict:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteBackupPolicyConflict{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *backup_policy.V1betaDeleteBackupPolicyBadRequest:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteBackupPolicyBadRequest{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *backup_policy.V1betaDeleteBackupPolicyUnauthorized:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteBackupPolicyUnauthorized{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *backup_policy.V1betaDeleteBackupPolicyForbidden:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteBackupPolicyForbidden{
-				Code:    code,
-				Message: msg,
-			}, nil
-		case *backup_policy.V1betaDeleteBackupPolicyDefault:
-			msg := nillable.GetString(&e.Payload.Message, "")
-			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteBackupPolicyInternalServerError{
-				Code:    code,
-				Message: msg,
-			}, nil
-		}
-	}
-	if res == nil || res.Payload == nil {
-		return &gcpgenserver.V1betaDeleteBackupPolicyInternalServerError{
-			Code:    500,
-			Message: "unknown error during the delete backup policy",
+
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaDeleteBackupPolicyBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
 		}, nil
 	}
-	return convertToOperationV1betaBackupPolicy(res.Payload), nil
+
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	backupPolicy, err := h.Orchestrator.GetBackupPolicyByUUIDAndOwnerID(ctx, params.BackupPolicyId, params.ProjectNumber)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return deleteBackupPolicyInSDE(ctx, params), nil
+		}
+		logger.Errorf("Failed to get backup policy by UUID: %s, error: %v", params.BackupPolicyId, err)
+		return &gcpgenserver.V1betaDeleteBackupPolicyInternalServerError{
+			Code:    500,
+			Message: "Failed to get backup policy",
+		}, nil
+	}
+
+	param := &commonparams.DeleteBackupPolicyParams{
+		Name:           backupPolicy.ResourceID,
+		OwnerID:        params.ProjectNumber,
+		LocationID:     params.LocationId,
+		BackupPolicyID: backupPolicy.BackupPolicyUUID,
+	}
+
+	updated, operationID, err := h.Orchestrator.DeleteBackupPolicy(ctx, param)
+	if err != nil {
+		logger.Errorf("Failed to delete backup policy in VCP: %v", err.Error())
+		return &gcpgenserver.V1betaDeleteBackupPolicyInternalServerError{
+			Code:    500,
+			Message: "Failed to delete backup policy",
+		}, nil
+	}
+	bpJSON, err := json.Marshal(updated)
+	if err != nil {
+		logger.Error("Failed to marshal backup policy", err.Error())
+		return &gcpgenserver.V1betaDeleteBackupPolicyInternalServerError{
+			Code:    500,
+			Message: "Failed to marshal backup policy",
+		}, nil
+	}
+	if operationID != "" {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, operationID)),
+			Response: bpJSON,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{}, nil
 }
 
 func (h Handler) V1betaDescribeBackupPolicy(ctx context.Context, params gcpgenserver.V1betaDescribeBackupPolicyParams) (gcpgenserver.V1betaDescribeBackupPolicyRes, error) {
@@ -622,6 +620,67 @@ func _updateBackupPolicyInSDE(ctx context.Context, req *gcpgenserver.BackupPolic
 	return convertOperationToOperationV1Beta(op.Payload)
 }
 
+func _deleteBackupPolicyInSDE(ctx context.Context, params gcpgenserver.V1betaDeleteBackupPolicyParams) gcpgenserver.V1betaDeleteBackupPolicyRes {
+	logger := util.GetLogger(ctx)
+	token := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := createClient(logger, token)
+	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
+
+	res, _, err := cvpClient.BackupPolicy.V1betaDeleteBackupPolicy(&backup_policy.V1betaDeleteBackupPolicyParams{
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		BackupPolicyID: params.BackupPolicyId,
+		XCorrelationID: &xCorrelationID,
+	})
+
+	if err != nil {
+		switch e := err.(type) {
+		case *backup_policy.V1betaDeleteBackupPolicyBadRequest:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupPolicyBadRequest{
+				Code:    code,
+				Message: msg,
+			}
+		case *backup_policy.V1betaDeleteBackupPolicyUnauthorized:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupPolicyUnauthorized{
+				Code:    code,
+				Message: msg,
+			}
+		case *backup_policy.V1betaDeleteBackupPolicyForbidden:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupPolicyForbidden{
+				Code:    code,
+				Message: msg,
+			}
+		case *backup_policy.V1betaDeleteBackupPolicyNotFound:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupPolicyNotFound{
+				Code:    code,
+				Message: msg,
+			}
+		default:
+			logger.Errorf("Failed to delete backup policy in SDE: %s", err.Error())
+			return &gcpgenserver.V1betaDeleteBackupPolicyInternalServerError{
+				Code:    500,
+				Message: "Internal server error",
+			}
+		}
+	}
+	if res == nil || res.Payload == nil {
+		logger.Error("Delete backup policy response is nil or payload is nil")
+		return &gcpgenserver.V1betaDeleteBackupPolicyInternalServerError{
+			Code:    500,
+			Message: "unknown error during the delete backup policy",
+		}
+	}
+	return convertOperationToOperationV1Beta(res.Payload)
+}
+
 func convertBackupPolicyToCvpModelForUpdate(req *gcpgenserver.BackupPolicyUpdateV1beta) *models.BackupPolicyUpdateV1beta {
 	body := &models.BackupPolicyUpdateV1beta{}
 	if req.Description.IsSet() {
@@ -687,13 +746,6 @@ func createBackupPolicyParams(req *gcpgenserver.BackupPolicyCreateV1beta, params
 			},
 			Enabled: &enabled,
 		},
-	}
-}
-
-func convertToOperationV1betaBackupPolicy(res *models.OperationV1beta) *gcpgenserver.OperationV1beta {
-	return &gcpgenserver.OperationV1beta{
-		Name: gcpgenserver.NewOptString(res.Name),
-		Done: gcpgenserver.NewOptBool(*res.Done),
 	}
 }
 
