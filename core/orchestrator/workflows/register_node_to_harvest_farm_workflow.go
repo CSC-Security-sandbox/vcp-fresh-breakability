@@ -3,7 +3,6 @@ package workflows
 import (
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -15,10 +14,11 @@ import (
 // RegisterNodeToHarvestFarmWorkflowInput holds input parameters for the workflow
 type RegisterNodeToHarvestFarmWorkflowInput struct {
 	PoolID            int64
-	Pool              *datamodel.Pool
 	MaxNodesPerGroup  int
 	CustomerProjectID string
 	TenantProjectID   string
+	PoolUUID          string
+	AccountID         int64
 }
 
 type registerNodeToHarvestFarmWorkflow struct {
@@ -106,22 +106,12 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 		return nil, err
 	}
 
-	poolActivity := &activities.PoolActivity{}
-	credentials := &vlm.OntapCredentials{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentials, input.Pool).Get(ctx, &credentials)
-	if err != nil {
-		return nil, err
-	}
-
-	if credentials == nil {
-		return nil, fmt.Errorf("failed to get credentials for pool %d", input.Pool.ID)
-	}
-
 	// Render and upload a Harvest template for each node mapping (sequentially)
 	uploadInput := activities.UploadHarvestTemplateInput{
 		NodeMappings: updatedNodeMappings,
 		UploadURL:    uploadURL,
-		Credentials:  credentials,
+		PoolUUID:     input.PoolUUID,
+		AccountID:    input.AccountID,
 	}
 
 	uploadActivity := &activities.UploadHarvestTemplateActivity{}

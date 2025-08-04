@@ -10,9 +10,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"go.temporal.io/sdk/temporal"
 	"gorm.io/gorm"
 )
 
@@ -99,17 +99,68 @@ func TestUploadHarvestTemplate_Success(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
-
+	mockSE := new(database.MockStorage)
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: 3,
+			Password: "password",
+		},
+		AccountID: 1,
+	}
+	poolView := &datamodel.PoolView{
+		Pool: *pool,
+	}
 	input := UploadHarvestTemplateInput{
 		NodeMappings: []*datamodel.NodeNodeGroupMap{{HarvestConfig: &datamodel.HarvestConfig{}, NodeGroup: &datamodel.NodeGroup{LeaseName: "lease-1"}}},
 		UploadURL:    ts.URL,
+		PoolUUID:     pool.UUID,
+		AccountID:    pool.AccountID,
 	}
+	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
 	activity := &UploadHarvestTemplateActivity{
+		SE:                        mockSE,
 		LoadHarvestTemplateFunc:   func() (string, error) { return "template: {{.Fake}}", nil },
 		RenderHarvestTemplateFunc: func(cfg *datamodel.HarvestConfig) (string, error) { return "fake-yaml", nil },
 	}
 	ctx := context.Background()
 	assert.NoError(t, activity.UploadHarvestTemplate(ctx, input))
+}
+
+func TestUploadHarvestTemplate_PoolNotFound_ReturnsNonRetryableError(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	input := UploadHarvestTemplateInput{
+		NodeMappings: []*datamodel.NodeNodeGroupMap{{HarvestConfig: &datamodel.HarvestConfig{}, NodeGroup: &datamodel.NodeGroup{LeaseName: "lease-1"}}},
+		UploadURL:    "http://localhost",
+		PoolUUID:     "missing-uuid",
+		AccountID:    123,
+	}
+	mockSE.On("GetPool", mock.Anything, input.PoolUUID, input.AccountID).Return(nil, gorm.ErrRecordNotFound)
+	activity := &UploadHarvestTemplateActivity{SE: mockSE}
+	ctx := context.Background()
+	err := activity.UploadHarvestTemplate(ctx, input)
+	assert.Error(t, err)
+	appErr, ok := err.(*temporal.ApplicationError)
+	assert.True(t, ok)
+	assert.True(t, appErr.NonRetryable())
+	assert.Contains(t, appErr.Error(), "Pool Record not found")
+}
+
+func TestUploadHarvestTemplate_PoolFetchOtherError_ReturnsError(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	input := UploadHarvestTemplateInput{
+		NodeMappings: []*datamodel.NodeNodeGroupMap{{HarvestConfig: &datamodel.HarvestConfig{}, NodeGroup: &datamodel.NodeGroup{LeaseName: "lease-1"}}},
+		UploadURL:    "http://localhost",
+		PoolUUID:     "uuid",
+		AccountID:    123,
+	}
+	mockSE.On("GetPool", mock.Anything, input.PoolUUID, input.AccountID).Return(nil, errors.New("db down"))
+	activity := &UploadHarvestTemplateActivity{SE: mockSE}
+	ctx := context.Background()
+	err := activity.UploadHarvestTemplate(ctx, input)
+	assert.Error(t, err)
+	assert.NotContains(t, err.Error(), "Pool Record not found")
+	assert.Contains(t, err.Error(), "db down")
 }
 
 func TestUploadHarvestTemplate_WithCredentials(t *testing.T) {
@@ -130,32 +181,63 @@ func TestUploadHarvestTemplate_WithCredentials(t *testing.T) {
 	defer ts.Close()
 
 	harvestConfig := &datamodel.HarvestConfig{}
+	mockSE := new(database.MockStorage)
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: 3,
+			Password: "test-password",
+		},
+		AccountID: 1,
+	}
+	poolView := &datamodel.PoolView{
+		Pool: *pool,
+	}
 	input := UploadHarvestTemplateInput{
 		NodeMappings: []*datamodel.NodeNodeGroupMap{{HarvestConfig: harvestConfig, NodeGroup: &datamodel.NodeGroup{LeaseName: "lease-1"}}},
 		UploadURL:    ts.URL,
-		Credentials:  &vlm.OntapCredentials{AdminPassword: "test-password"},
+		PoolUUID:     pool.UUID,
+		AccountID:    pool.AccountID,
 	}
+	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
 	activity := &UploadHarvestTemplateActivity{
-		LoadHarvestTemplateFunc:   func() (string, error) { return "template: {{.Fake}}", nil },
-		RenderHarvestTemplateFunc: func(cfg *datamodel.HarvestConfig) (string, error) { 
+		SE:                      mockSE,
+		LoadHarvestTemplateFunc: func() (string, error) { return "template: {{.Fake}}", nil },
+		RenderHarvestTemplateFunc: func(cfg *datamodel.HarvestConfig) (string, error) {
 			// Verify that the password was set from credentials
 			assert.Equal(t, "test-password", cfg.PASSWORD)
-			return "fake-yaml", nil 
+			return "fake-yaml", nil
 		},
 	}
 	ctx := context.Background()
 	assert.NoError(t, activity.UploadHarvestTemplate(ctx, input))
-	
+
 	// Verify that the password was actually set in the HarvestConfig
 	assert.Equal(t, "test-password", harvestConfig.PASSWORD)
 }
 
 func TestUploadHarvestTemplate_RenderError(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: 3,
+			Password: "test-password",
+		},
+		AccountID: 1,
+	}
+	poolView := &datamodel.PoolView{
+		Pool: *pool,
+	}
 	input := UploadHarvestTemplateInput{
 		NodeMappings: []*datamodel.NodeNodeGroupMap{{HarvestConfig: &datamodel.HarvestConfig{}}},
 		UploadURL:    "http://localhost",
+		PoolUUID:     pool.UUID,
+		AccountID:    pool.AccountID,
 	}
+	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
 	activity := &UploadHarvestTemplateActivity{
+		SE:                        mockSE,
 		LoadHarvestTemplateFunc:   func() (string, error) { return "template", nil },
 		RenderHarvestTemplateFunc: func(cfg *datamodel.HarvestConfig) (string, error) { return "", errors.New("render error") },
 	}
@@ -164,11 +246,27 @@ func TestUploadHarvestTemplate_RenderError(t *testing.T) {
 }
 
 func TestUploadHarvestTemplate_LoadTemplateError(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: 3,
+			Password: "test-password",
+		},
+		AccountID: 1,
+	}
+	poolView := &datamodel.PoolView{
+		Pool: *pool,
+	}
 	input := UploadHarvestTemplateInput{
 		NodeMappings: []*datamodel.NodeNodeGroupMap{{HarvestConfig: &datamodel.HarvestConfig{}, NodeGroup: &datamodel.NodeGroup{LeaseName: "lease-1"}}},
 		UploadURL:    "http://localhost",
+		PoolUUID:     pool.UUID,
+		AccountID:    pool.AccountID,
 	}
+	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
 	activity := &UploadHarvestTemplateActivity{
+		SE:                      mockSE,
 		LoadHarvestTemplateFunc: func() (string, error) { return "", errors.New("load error") },
 	}
 	ctx := context.Background()
@@ -176,11 +274,27 @@ func TestUploadHarvestTemplate_LoadTemplateError(t *testing.T) {
 }
 
 func TestUploadHarvestTemplate_HTTPError(t *testing.T) {
+	mockSE := new(database.MockStorage)
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: 3,
+			Password: "test-password",
+		},
+		AccountID: 1,
+	}
+	poolView := &datamodel.PoolView{
+		Pool: *pool,
+	}
 	input := UploadHarvestTemplateInput{
 		NodeMappings: []*datamodel.NodeNodeGroupMap{{HarvestConfig: &datamodel.HarvestConfig{}, NodeGroup: &datamodel.NodeGroup{LeaseName: "lease-1"}}},
 		UploadURL:    "http://localhost:0", // invalid port
+		PoolUUID:     pool.UUID,
+		AccountID:    pool.AccountID,
 	}
+	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
 	activity := &UploadHarvestTemplateActivity{
+		SE:                        mockSE,
 		LoadHarvestTemplateFunc:   func() (string, error) { return "template", nil },
 		RenderHarvestTemplateFunc: func(cfg *datamodel.HarvestConfig) (string, error) { return "fake-yaml", nil },
 	}
@@ -429,11 +543,27 @@ func TestUploadHarvestTemplate_HTTPNon2xx(t *testing.T) {
 	}))
 	defer ts.Close()
 
+	mockSE := new(database.MockStorage)
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: 3,
+			Password: "test-password",
+		},
+		AccountID: 1,
+	}
+	poolView := &datamodel.PoolView{
+		Pool: *pool,
+	}
 	input := UploadHarvestTemplateInput{
 		NodeMappings: []*datamodel.NodeNodeGroupMap{{HarvestConfig: &datamodel.HarvestConfig{}, NodeGroup: &datamodel.NodeGroup{LeaseName: "lease-1"}, NodeID: 1}},
 		UploadURL:    ts.URL,
+		PoolUUID:     pool.UUID,
+		AccountID:    pool.AccountID,
 	}
+	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
 	activity := &UploadHarvestTemplateActivity{
+		SE:                        mockSE,
 		RenderHarvestTemplateFunc: func(cfg *datamodel.HarvestConfig) (string, error) { return "fake-yaml", nil },
 	}
 	ctx := context.Background()

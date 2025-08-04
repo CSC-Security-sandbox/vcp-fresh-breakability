@@ -376,7 +376,8 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			MaxNodesPerGroup:  maxNodesPerGroup,
 			CustomerProjectID: params.AccountName,
 			TenantProjectID:   *tenantProjectNumber,
-			Pool:              pool,
+			PoolUUID:          dbPool.UUID,
+			AccountID:         dbPool.AccountID,
 		}
 
 		ctx = workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{

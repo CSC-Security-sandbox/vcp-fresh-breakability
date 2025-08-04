@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,8 +15,7 @@ import (
 )
 
 func TestRegisterNodeToHarvestFarmWorkflowInput(t *testing.T) {
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 123}}
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 123, Pool: pool, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 123, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 	assert.Equal(t, int64(123), input.PoolID)
 	assert.Equal(t, 5, input.MaxNodesPerGroup)
 }
@@ -30,8 +30,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_ExecutesSuccessfully(t *testing.T) {
 	ts := &testsuite.WorkflowTestSuite{}
 	env := ts.NewTestWorkflowEnvironment()
 
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, Pool: pool, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 
 	mockStorage := &database.MockStorage{}
 	activity := newTestActivityWithMockStorage(mockStorage)
@@ -39,7 +38,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_ExecutesSuccessfully(t *testing.T) {
 
 	// Mock the UploadHarvestTemplate activity to return success
 	uploadActivity := &activities.UploadHarvestTemplateActivity{}
-	env.OnActivity(uploadActivity.UploadHarvestTemplate, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(uploadActivity.UploadHarvestTemplate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Mock the PoolActivity.GetOnTapCredentials activity
 	poolActivity := &activities.PoolActivity{}
@@ -71,8 +70,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_ActivityFails(t *testing.T) {
 	ts := &testsuite.WorkflowTestSuite{}
 	env := ts.NewTestWorkflowEnvironment()
 
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, Pool: pool, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 
 	mockStorage := &database.MockStorage{}
 	activity := newTestActivityWithMockStorage(mockStorage)
@@ -93,8 +91,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_InvalidInput(t *testing.T) {
 	ts := &testsuite.WorkflowTestSuite{}
 	env := ts.NewTestWorkflowEnvironment()
 
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, Pool: pool, MaxNodesPerGroup: 0, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 0, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 
 	mockStorage := &database.MockStorage{}
 	activity := newTestActivityWithMockStorage(mockStorage)
@@ -124,8 +121,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_SameNodeIDs(t *testing.T) {
 	ts := &testsuite.WorkflowTestSuite{}
 	env := ts.NewTestWorkflowEnvironment()
 
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, Pool: pool, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 
 	mockStorage := &database.MockStorage{}
 	activity := newTestActivityWithMockStorage(mockStorage)
@@ -154,8 +150,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_LargeGroupSize(t *testing.T) {
 	env := ts.NewTestWorkflowEnvironment()
 
 	// Test with a large group size
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, Pool: pool, MaxNodesPerGroup: 1000, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 1000, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 
 	mockStorage := &database.MockStorage{}
 	activity := newTestActivityWithMockStorage(mockStorage)
@@ -163,7 +158,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_LargeGroupSize(t *testing.T) {
 
 	// Mock the UploadHarvestTemplate activity to return success
 	uploadActivity := &activities.UploadHarvestTemplateActivity{}
-	env.OnActivity(uploadActivity.UploadHarvestTemplate, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(uploadActivity.UploadHarvestTemplate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Mock the PoolActivity.GetOnTapCredentials activity
 	poolActivity := &activities.PoolActivity{}
@@ -193,8 +188,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_LeaseCreateFailure(t *testing.T) {
 	ts := &testsuite.WorkflowTestSuite{}
 	env := ts.NewTestWorkflowEnvironment()
 
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, Pool: pool, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 
 	mockStorage := &database.MockStorage{}
 	activity := newTestActivityWithMockStorage(mockStorage)
@@ -224,8 +218,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_UpdateNodeNodeGroupMapFails(t *testin
 	ts := &testsuite.WorkflowTestSuite{}
 	env := ts.NewTestWorkflowEnvironment()
 
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
-	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, Pool: pool, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
+	input := RegisterNodeToHarvestFarmWorkflowInput{PoolID: 1, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"}
 
 	mockStorage := &database.MockStorage{}
 	activity := newTestActivityWithMockStorage(mockStorage)
@@ -233,7 +226,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_UpdateNodeNodeGroupMapFails(t *testin
 
 	// Mock the UploadHarvestTemplate activity
 	uploadActivity := &activities.UploadHarvestTemplateActivity{}
-	env.OnActivity(uploadActivity.UploadHarvestTemplate, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(uploadActivity.UploadHarvestTemplate, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Mock the PoolActivity.GetOnTapCredentials activity
 	poolActivity := &activities.PoolActivity{}
@@ -273,10 +266,8 @@ func TestRegisterNodeToHarvestFarmWorkflow_UploadHarvestTemplateFails(t *testing
 	ts := &testsuite.WorkflowTestSuite{}
 	env := ts.NewTestWorkflowEnvironment()
 
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 	input := RegisterNodeToHarvestFarmWorkflowInput{
 		PoolID:            1,
-		Pool:              pool,
 		MaxNodesPerGroup:  5,
 		CustomerProjectID: "customer-project",
 		TenantProjectID:   "tenant-project",
@@ -287,7 +278,7 @@ func TestRegisterNodeToHarvestFarmWorkflow_UploadHarvestTemplateFails(t *testing
 	env.RegisterActivity(activity)
 
 	uploadActivity := &activities.UploadHarvestTemplateActivity{}
-	env.OnActivity(uploadActivity.UploadHarvestTemplate, mock.Anything, mock.Anything).Return(assert.AnError)
+	env.OnActivity(uploadActivity.UploadHarvestTemplate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 
 	// Mock the PoolActivity.GetOnTapCredentials activity
 	poolActivity := &activities.PoolActivity{}
@@ -322,10 +313,8 @@ func TestRegisterNodeToHarvestFarmWorkflow_GetCredentialsReturnsNil(t *testing.T
 	ts := &testsuite.WorkflowTestSuite{}
 	env := ts.NewTestWorkflowEnvironment()
 
-	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
 	input := RegisterNodeToHarvestFarmWorkflowInput{
 		PoolID:            1,
-		Pool:              pool,
 		MaxNodesPerGroup:  5,
 		CustomerProjectID: "customer-project",
 		TenantProjectID:   "tenant-project",
@@ -337,7 +326,8 @@ func TestRegisterNodeToHarvestFarmWorkflow_GetCredentialsReturnsNil(t *testing.T
 
 	// Mock the UploadHarvestTemplate activity (in case it gets called)
 	uploadActivity := &activities.UploadHarvestTemplateActivity{}
-	env.OnActivity(uploadActivity.UploadHarvestTemplate, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(uploadActivity.UploadHarvestTemplate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(fmt.Errorf("failed to get credentials for pool %d", input.PoolID))
 
 	// Mock the PoolActivity.GetOnTapCredentials activity to return nil credentials
 	poolActivity := &activities.PoolActivity{}

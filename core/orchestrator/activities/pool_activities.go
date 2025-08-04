@@ -525,26 +525,9 @@ func (j *PoolActivity) DeleteOnTapCredentials(ctx context.Context, pool *datamod
 }
 
 func (j *PoolActivity) GetOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
-	credentials := &vlm.OntapCredentials{}
-	switch pool.PoolCredentials.AuthType {
-	case commonparams.USER_CERTIFICATE:
-		certificate, err := GetCertificateFromCacheOrSecretManager(ctx, pool.PoolCredentials.CertificateID)
-		if err != nil {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-		}
-		credentials.Certificate.CommonName = certificate.CommonName
-		credentials.Certificate.Certificate = certificate.SignedCertificate
-		credentials.Certificate.PrivateKey = certificate.PrivateKey
-		credentials.Certificate.InterMediateCertificate = certificate.InterMediateCertificates
-		fallthrough
-	case commonparams.USERNAME_PWD_SEC_MGR:
-		secret, err := GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
-		if err != nil {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-		}
-		credentials.AdminPassword = secret
-	default:
-		credentials.AdminPassword = pool.PoolCredentials.Password
+	credentials, err := fetchOnTapCredentials(ctx, pool)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return credentials, nil
 }
@@ -2162,4 +2145,29 @@ func _getComputeOpStatus(gcpService hyperscaler.GoogleServices, project string, 
 		return gcpService.GetComputeGlobalOpStatus(project, operation)
 	}
 	return gcpService.GetComputeRegionalOpStatus(project, Region, operation)
+}
+
+func fetchOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.OntapCredentials, error) {
+	credentials := &vlm.OntapCredentials{}
+	switch pool.PoolCredentials.AuthType {
+	case commonparams.USER_CERTIFICATE:
+		certificate, err := GetCertificateFromCacheOrSecretManager(ctx, pool.PoolCredentials.CertificateID)
+		if err != nil {
+			return nil, err
+		}
+		credentials.Certificate.CommonName = certificate.CommonName
+		credentials.Certificate.Certificate = certificate.SignedCertificate
+		credentials.Certificate.PrivateKey = certificate.PrivateKey
+		credentials.Certificate.InterMediateCertificate = certificate.InterMediateCertificates
+		fallthrough
+	case commonparams.USERNAME_PWD_SEC_MGR:
+		secret, err := GetPasswordFromCacheOrSecretManager(ctx, pool.PoolCredentials.SecretID)
+		if err != nil {
+			return nil, err
+		}
+		credentials.AdminPassword = secret
+	default:
+		credentials.AdminPassword = pool.PoolCredentials.Password
+	}
+	return credentials, nil
 }

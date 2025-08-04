@@ -145,8 +145,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		return input.PoolID == 0 &&
 			input.CustomerProjectID == "test-account" &&
 			input.MaxNodesPerGroup == 200 &&
-			input.TenantProjectID == "test-project" &&
-			input.Pool != nil
+			input.TenantProjectID == "test-project"
 	})).Return(nil)
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
@@ -286,8 +285,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 		return input.PoolID == 0 &&
 			input.CustomerProjectID == "test-account" &&
 			input.MaxNodesPerGroup == 200 &&
-			input.TenantProjectID == "test-project" &&
-			input.Pool != nil
+			input.TenantProjectID == "test-project"
 	})).Return(errors.New("failed to register node"))
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
@@ -764,8 +762,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			return input.PoolID == 0 &&
 				input.CustomerProjectID == "test-account" &&
 				input.MaxNodesPerGroup == 200 &&
-				input.TenantProjectID == "test-project" &&
-				input.Pool != nil
+				input.TenantProjectID == "test-project"
 		})).Return(nil)
 
 		env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
@@ -1830,8 +1827,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			return input.PoolID == 0 &&
 				input.CustomerProjectID == "test-account" &&
 				input.MaxNodesPerGroup == 200 &&
-				input.TenantProjectID == "test-project" &&
-				input.Pool != nil
+				input.TenantProjectID == "test-project"
 		})).Return(nil)
 
 		// Execute workflow
@@ -1958,8 +1954,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			return input.PoolID == 0 &&
 				input.CustomerProjectID == "test-account" &&
 				input.MaxNodesPerGroup == 200 &&
-				input.TenantProjectID == "test-project" &&
-				input.Pool != nil
+				input.TenantProjectID == "test-project"
 		})).Return(nil)
 
 		// Execute workflow
@@ -3428,8 +3423,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 		return input.PoolID == 0 &&
 			input.CustomerProjectID == "test-account" &&
 			input.MaxNodesPerGroup == 200 &&
-			input.TenantProjectID == "test-project" &&
-			input.Pool != nil
+			input.TenantProjectID == "test-project"
 	})).Return(nil)
 
 	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)

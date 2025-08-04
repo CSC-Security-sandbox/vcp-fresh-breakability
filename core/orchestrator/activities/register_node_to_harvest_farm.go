@@ -5,11 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.temporal.io/sdk/temporal"
+	"gorm.io/gorm"
 	"io"
 	"mime/multipart"
 	"net/http"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -191,6 +192,7 @@ func (a *RegisterNodeToHarvestFarmActivity) updateDatabaseRecords(ctx context.Co
 // UploadHarvestTemplateActivity handles uploading the rendered template as YAML via REST
 // Now supports dependency injection for template functions
 type UploadHarvestTemplateActivity struct {
+	SE                        database.Storage
 	LoadHarvestTemplateFunc   func() (string, error)
 	RenderHarvestTemplateFunc func(*datamodel.HarvestConfig) (string, error)
 }
@@ -199,7 +201,8 @@ type UploadHarvestTemplateActivity struct {
 type UploadHarvestTemplateInput struct {
 	NodeMappings []*datamodel.NodeNodeGroupMap
 	UploadURL    string
-	Credentials  *vlm.OntapCredentials
+	PoolUUID     string
+	AccountID    int64
 }
 
 // UploadYAMLFileInput is the input struct for uploadYAMLFile
@@ -221,7 +224,6 @@ func uploadYAMLFile(ctx context.Context, input UploadYAMLFileInput) (*http.Respo
 		return nil, errors.New("failed to create form file: " + err.Error())
 	}
 	_, err = part.Write([]byte(input.YAML))
-	logger.Debugf("Uploading YAML content %s", input.YAML)
 	if err != nil {
 		return nil, errors.New("failed to write YAML content: " + err.Error())
 	}
@@ -253,7 +255,24 @@ func uploadYAMLFile(ctx context.Context, input UploadYAMLFileInput) (*http.Respo
 // UploadHarvestTemplate uploads the rendered template as a YAML file via REST call for each node mapping
 func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Context, input UploadHarvestTemplateInput) error {
 	logger := util.GetLogger(ctx)
-
+	poolView, err := a.SE.GetPool(ctx, input.PoolUUID, input.AccountID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.Errorf("Pool not found for UUID %s and AccountID %d", input.PoolUUID, input.AccountID)
+			return temporal.NewNonRetryableApplicationError(err.Error(), "Pool Record not found", err)
+		}
+		logger.Errorf("Failed to fetch pool for UUID %s and AccountID %d: %v", input.PoolUUID, input.AccountID, err)
+		return err
+	}
+	pool := database.ConvertPoolViewToPool(poolView)
+	credentials, err := fetchOnTapCredentials(ctx, pool)
+	if err != nil {
+		return err
+	}
+	if credentials == nil {
+		logger.Errorf("Failed to get credentials for pool %d", pool.ID)
+		return fmt.Errorf("failed to get credentials for pool %d", pool.ID)
+	}
 	renderFunc := a.RenderHarvestTemplateFunc
 	if renderFunc == nil {
 		renderFunc = utils.RenderHarvestTemplate
@@ -275,9 +294,7 @@ func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Contex
 		}
 
 		// Set password if credentials are provided
-		if input.Credentials != nil {
-			mapping.HarvestConfig.PASSWORD = input.Credentials.AdminPassword
-		}
+		mapping.HarvestConfig.PASSWORD = credentials.AdminPassword
 
 		tmplStr, err := renderFunc(mapping.HarvestConfig)
 		if err != nil {

@@ -274,7 +274,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&resource_events_activities.StartProjectEventActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationRowDeleteActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.RegisterNodeToHarvestFarmActivity{SE: dbcon})
-	worker.RegisterActivity(&activities.UploadHarvestTemplateActivity{})
+	worker.RegisterActivity(&activities.UploadHarvestTemplateActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationDeleteActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationUpdateActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.BackupVaultActivity{SE: dbcon})

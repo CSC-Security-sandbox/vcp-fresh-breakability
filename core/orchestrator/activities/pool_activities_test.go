@@ -7259,3 +7259,159 @@ func Test_getComputeOpStatus(t *testing.T) {
 		mockGCPService.AssertExpectations(t)
 	})
 }
+
+func TestFetchOnTapCredentials_WithUserCertificate_Success(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType:      commonparams.USER_CERTIFICATE,
+			CertificateID: "cert-id",
+			SecretID:      "secret-id",
+		},
+	}
+	originalGetCertificate := activities.GetCertificateFromCacheOrSecretManager
+	originalGetPassword := activities.GetPasswordFromCacheOrSecretManager
+	defer func() {
+		activities.GetCertificateFromCacheOrSecretManager = originalGetCertificate
+		activities.GetPasswordFromCacheOrSecretManager = originalGetPassword
+	}()
+	activities.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certificateID string) (*coremodel.Certificate, error) {
+		return &coremodel.Certificate{
+			CommonName:               "CN",
+			SignedCertificate:        "cert",
+			PrivateKey:               "key",
+			InterMediateCertificates: []string{"intermediate"},
+		}, nil
+	}
+	activities.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		return "admin-password", nil
+	}
+
+	creds, err := activity.GetOnTapCredentials(ctx, pool)
+	assert.NoError(t, err)
+	assert.Equal(t, "CN", creds.Certificate.CommonName)
+	assert.Equal(t, "cert", creds.Certificate.Certificate)
+	assert.Equal(t, "key", creds.Certificate.PrivateKey)
+	assert.Equal(t, []string{"intermediate"}, creds.Certificate.InterMediateCertificate)
+	assert.Equal(t, "admin-password", creds.AdminPassword)
+}
+
+func TestFetchOnTapCredentials_WithUserCertificate_CertificateError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType:      commonparams.USER_CERTIFICATE,
+			CertificateID: "cert-id",
+			SecretID:      "secret-id",
+		},
+	}
+	originalGetCertificate := activities.GetCertificateFromCacheOrSecretManager
+	defer func() { activities.GetCertificateFromCacheOrSecretManager = originalGetCertificate }()
+	activities.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certificateID string) (*coremodel.Certificate, error) {
+		return nil, errors.New("certificate error")
+	}
+
+	creds, err := activity.GetOnTapCredentials(ctx, pool)
+	assert.Error(t, err)
+	assert.Nil(t, creds)
+	assert.Contains(t, err.Error(), "certificate error")
+}
+
+func TestFetchOnTapCredentials_WithUserCertificate_SecretError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType:      commonparams.USER_CERTIFICATE,
+			SecretID:      "secret-id",
+			CertificateID: "cert-id",
+		},
+	}
+	originalGetCertificate := activities.GetCertificateFromCacheOrSecretManager
+	originalGetPassword := activities.GetPasswordFromCacheOrSecretManager
+	defer func() {
+		activities.GetCertificateFromCacheOrSecretManager = originalGetCertificate
+		activities.GetPasswordFromCacheOrSecretManager = originalGetPassword
+	}()
+	activities.GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certificateID string) (*coremodel.Certificate, error) {
+		return &coremodel.Certificate{
+			CommonName:               "CN",
+			SignedCertificate:        "cert",
+			PrivateKey:               "key",
+			InterMediateCertificates: []string{"intermediate"},
+		}, nil
+	}
+	activities.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		return "", errors.New("Invalid resource field value")
+	}
+
+	creds, err := activity.GetOnTapCredentials(ctx, pool)
+	assert.Error(t, err)
+	assert.Nil(t, creds)
+	assert.Contains(t, err.Error(), "Invalid resource field value")
+}
+
+func TestFetchOnTapCredentials_WithUsernamePwdSecMgr_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: commonparams.USERNAME_PWD_SEC_MGR,
+			SecretID: "secret-id",
+		},
+	}
+	originalGetPassword := activities.GetPasswordFromCacheOrSecretManager
+	defer func() { activities.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
+	activities.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		return "admin-password", nil
+	}
+
+	creds, err := activity.GetOnTapCredentials(ctx, pool)
+	assert.NoError(t, err)
+	assert.NotNil(t, creds)
+	assert.Equal(t, "admin-password", creds.AdminPassword)
+}
+
+func TestFetchOnTapCredentials_WithUsernamePwdSecMgr_SecretError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: commonparams.USERNAME_PWD_SEC_MGR,
+			SecretID: "secret-id",
+		},
+	}
+	originalGetPassword := activities.GetPasswordFromCacheOrSecretManager
+	defer func() { activities.GetPasswordFromCacheOrSecretManager = originalGetPassword }()
+	activities.GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
+		return "", errors.New("Invalid resource field value")
+	}
+
+	creds, err := activity.GetOnTapCredentials(ctx, pool)
+	assert.Error(t, err)
+	assert.Nil(t, creds)
+	assert.Contains(t, err.Error(), "Invalid resource field value")
+}
+
+func TestFetchOnTapCredentials_WithDefaultAuthType_ReturnsPassword(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: commonparams.USERNAME_PWD, // Assume this is a default type
+			Password: "plain-password",
+		},
+	}
+
+	creds, err := activity.GetOnTapCredentials(ctx, pool)
+	assert.NoError(t, err)
+	assert.Equal(t, "plain-password", creds.AdminPassword)
+}
