@@ -36,6 +36,7 @@ var (
 	getPoolsBySubnetwork = _getPoolsBySubnetwork
 	getIPsInSubnet       = _getIPsInSubnet
 	getSignedJwtToken    = auth.GetSignedJwtToken
+	GetCloudService      = _getCloudService
 )
 
 func (ca CommonActivities) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
@@ -173,6 +174,15 @@ func (j CommonActivities) GetAuthJWTToken(ctx context.Context, accountName strin
 		return "", errors.New("failed to get token")
 	}
 	return jwtToken, nil
+}
+
+// _getCloudService initializes and returns a GcpServices instance.
+func _getCloudService(ctx context.Context) (hyperscaler.Services, error) {
+	gcpService, err := _getGCPService(ctx)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, errors.New("initialisation of Google GCP service failed"))
+	}
+	return gcpService, nil
 }
 
 // _getGCPService initializes and returns a GcpServices instance.

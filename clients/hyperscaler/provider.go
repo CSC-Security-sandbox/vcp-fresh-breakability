@@ -34,7 +34,9 @@ type Services interface {
 	CreateServiceAccount(createRequest *iam.CreateServiceAccountRequest, projectNumber, email string) (account *iam.ServiceAccount, err error)
 	IsServiceAccountCreated(email string) (account *iam.ServiceAccount, isSACreated bool, err error)
 	AttachOrUpdateRolesForServiceAccounts(roles []string, serviceAccountEmail, projectID string) error
+	RemoveRolesFromServiceAccounts(roles []string, serviceAccountEmail, projectID string) error
 	DeleteServiceAccount(email string) error
+	GetServiceAccountByEmail(email string) (*iam.ServiceAccount, error)
 
 	CreateHmacKey(projectID string, serviceAccount string) (accessKey *string, secretKey *string, err error)
 	DeleteHmacKey(projectID string, accessKey string, ServiceAccount string) error
@@ -56,6 +58,12 @@ type Services interface {
 	CreateResourceRecordSet(projectID, managedZone, ipAddress, recordName string) (*models.CustomCloudDNSRecord, error)
 	GetResourceRecordSet(projectID, managedZone, recordName string) (*models.CustomCloudDNSRecord, error)
 	DeleteResourceRecordSet(projectID, managedZone, recordName string) error
+
+	CreateCloudRunService(ctx context.Context, config *models.CloudRunServiceConfig) (*models.CloudRunOperationResponse, error)
+	CheckOperationStatus(ctx context.Context, operationName string) (bool, error)
+	GetCloudRunServiceURL(ctx context.Context, projectID, locationID, serviceName string) (string, error)
+	DeleteCloudRunService(ctx context.Context, projectID, locationID, serviceName string) (*models.CloudRunOperationResponse, error)
+	GetIdentityToken() (string, error)
 }
 
 type GoogleServices interface {

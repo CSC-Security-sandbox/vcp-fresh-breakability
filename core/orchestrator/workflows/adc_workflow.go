@@ -1,0 +1,398 @@
+package workflows
+
+import (
+	"fmt"
+	"net/http"
+	"time"
+
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/workflow"
+	"google.golang.org/api/iam/v1"
+)
+
+var (
+	adcPort        = 443
+	adcImage       = env.GetString("ADC_IMAGE", "")
+	adcRegion      = env.GetString("ADC_REGION", "")
+	adcProjectID   = env.GetString("ADC_PROJECT", "")
+	adcProvideType = env.GetString("ADC_PROVIDE_TYPE", "GoogleCloud")
+	adcStorageURL  = env.GetString("ADC_STORAGE_URL", "storage.googleapis.com")
+
+	// Polling configuration
+	adcRedirectURLTriggerInterval = 10 * time.Second
+	adcMaxPollingAttempts         = 60
+	adcMaxCloudRunAttempts        = 20
+)
+
+type adcWorkflow struct {
+	BaseWorkflow
+}
+
+// Enforcing the WorkflowInterface on adcWorkflow
+var _ WorkflowInterface = &adcWorkflow{}
+
+// ADCWorkflow processes ADC (Application Data Controller) related requests from a customer.
+func ADCWorkflow(ctx workflow.Context, params *common.DeleteBackupParams, backupVault *datamodel.BackupVault, backup *datamodel.Backup, account *datamodel.Account) error {
+	adcWf := new(adcWorkflow)
+	// Create a wrapper struct to pass both arguments through the interface
+	err := adcWf.Setup(ctx, params)
+	if err != nil {
+		return err
+	}
+	adcWf.Status = WorkflowStatusRunning
+	_, err = adcWf.Run(ctx, backupVault, backup, account)
+	if err != nil {
+		adcWf.Status = WorkflowStatusFailed
+		return err
+	}
+	adcWf.Status = WorkflowStatusCompleted
+	return err
+}
+
+func (wf *adcWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+	// Extract backupVault and backup from the input struct
+	params := input.(*common.DeleteBackupParams)
+	info := workflow.GetInfo(ctx)
+	wf.ID = info.WorkflowExecution.ID
+	wf.CustomerID = params.AccountName
+	wf.Status = WorkflowStatusCreated
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{"workflowID": wf.ID, "customerID": wf.CustomerID})
+	logger := util.GetLogger(ctx)
+	wf.Logger = logger
+
+	return workflow.SetQueryHandler(ctx, "status", func() (*WorkflowStatus, error) {
+		return &WorkflowStatus{
+			ID:         wf.ID,
+			Status:     wf.Status,
+			CustomerID: wf.CustomerID,
+		}, nil
+	})
+}
+
+func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	log := util.GetLogger(ctx)
+
+	// Extract arguments
+	backupVault := args[0].(*datamodel.BackupVault)
+	backup := args[1].(*datamodel.Backup)
+	account := args[2].(*datamodel.Account)
+	backupVault.Account = account
+
+	adcActivity := &activities.ADCActivity{}
+
+	// Define roles that will be attached to service account
+	roles := []string{
+		"roles/storage.hmacKeyAdmin",
+		"roles/storage.objectAdmin",
+		"roles/storage.admin",
+		"roles/iam.serviceAccountAdmin",
+	}
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	rollbackManager := common.NewRollbackManager()
+	defer func() {
+		if err != nil {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
+
+	// Generate deterministic timestamp for resource naming
+	var saTimestamp string
+	err = workflow.ExecuteActivity(ctx, adcActivity.GenerateResourceTimestamp).Get(ctx, &saTimestamp)
+	if err != nil {
+		log.Errorf("Failed to generate resource timestamp: %v", err)
+		return nil, err
+	}
+
+	// Get bucket details for HMAC key creation
+	bucketDetails, err := getBucketDetailsForBucket(backupVault, backup.Attributes.BucketName)
+	if err != nil {
+		log.Errorf("Failed to get bucket details: %v", err)
+		return nil, err
+	}
+
+	// Step 1: Create service account for ADC operations
+	// Generate a short service account ID to comply with Google's 30-character limit
+	serviceAccountID := fmt.Sprintf("adc-sa-%s", saTimestamp)
+	serviceAccountDisplayName := fmt.Sprintf("ADC Service Account for %s", backup.UUID)
+
+	var serviceAccount *iam.ServiceAccount
+	err = workflow.ExecuteActivity(ctx, adcActivity.CreateServiceAccount,
+		bucketDetails.TenantProjectNumber, serviceAccountID, serviceAccountDisplayName).Get(ctx, &serviceAccount)
+	if err != nil {
+		log.Errorf("Failed to create service account: %v", err)
+		return nil, err
+	}
+	rollbackManager.AddActivity(adcActivity.DeleteSA, bucketDetails.TenantProjectNumber, serviceAccountID)
+
+	// Step 2: Check if service account is created
+	var isCreated bool
+	err = workflow.ExecuteActivity(ctx, adcActivity.IsServiceAccountCreated, serviceAccount.Email).Get(ctx, &isCreated)
+	if err != nil {
+		log.Errorf("Failed to check if service account is created: %v", err)
+		return nil, err
+	}
+
+	if !isCreated {
+		log.Errorf("Service account is not created")
+		return nil, fmt.Errorf("service account is not created")
+	}
+
+	// Step 2: Attach roles to service account
+	err = workflow.ExecuteActivity(ctx, adcActivity.AttachRolesToServiceAccount,
+		bucketDetails.TenantProjectNumber, serviceAccount.Email, roles).Get(ctx, nil)
+	if err != nil {
+		log.Errorf("Failed to attach roles to service account: %v", err)
+		return nil, err
+	}
+	rollbackManager.AddActivity(adcActivity.RemoveRolesFromServiceAccount, bucketDetails.TenantProjectNumber, serviceAccountID, roles)
+
+	// Step 2: Create HMAC keys for ADC operations
+	var encodedHmacKeys *common.HmacKeys
+	err = workflow.ExecuteActivity(ctx, adcActivity.CreateHmacKeys, &common.HmacKeyCreateParams{
+		ServiceAccount: serviceAccount.Email,
+		ProjectNumber:  bucketDetails.TenantProjectNumber,
+	}).Get(ctx, &encodedHmacKeys)
+	if err != nil {
+		log.Errorf("Failed to create HMAC keys: %v", err)
+		return nil, err
+	}
+
+	// Step 3: Deploy ADC Cloud Run service
+	cloudRunConfig := &hyperscalermodels.CloudRunServiceConfig{
+		ProjectID:   adcProjectID,
+		LocationID:  adcRegion,
+		ServiceName: fmt.Sprintf("adc-svc-%s", saTimestamp),
+		Image:       adcImage,
+		Description: fmt.Sprintf("ADC Cloud Run service for %s", backup.UUID),
+		Labels: map[string]string{
+			"app":        "adc",
+			"component":  "backup",
+			"managed-by": "vsa-control-plane",
+		},
+		Annotations: map[string]string{
+			"description": "ADC service for backup and restore operations",
+		},
+		EnvVars: map[string]string{
+			"RUN_REST":           "1",
+			"REST_PORT":          "80",
+			"PROVIDER":           "GoogleCloud",
+			"LOG_LEVEL":          "2",
+			"DISABLE_VERIFY_SSL": "0",
+			"ENABLE_COPY":        "1",
+			"LOG_TO_CONSOLE":     "1",
+			"CA_FILE":            "adc-cert.crt",
+			"CERT_PATH":          "/home/ADC/cert/",
+		},
+		VolumeMounts: []hyperscalermodels.VolumeMount{
+			{
+				Name:      "adc-cert",
+				MountPath: "/home/ADC/cert",
+			},
+		},
+		Volumes: []hyperscalermodels.Volume{
+			{
+				Name:       "adc-cert",
+				VolumeType: "secret",
+				Source: hyperscalermodels.VolumeSource{
+					SecretName: "adc-cert",
+					Items: []hyperscalermodels.SecretItem{
+						{
+							Path:    "adc-cert.crt",
+							Version: "latest",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var cloudRunResponse *hyperscalermodels.CloudRunOperationResponse
+	err = workflow.ExecuteActivity(ctx, adcActivity.DeployADCCloudRunService, cloudRunConfig).Get(ctx, &cloudRunResponse)
+	if err != nil {
+		log.Errorf("Failed to deploy ADC Cloud Run service: %v", err)
+		return nil, err
+	}
+	rollbackManager.AddActivity(adcActivity.CleanupADCCloudRunService, adcProjectID, adcRegion, cloudRunConfig.ServiceName)
+
+	// Step 4: Wait for Cloud Run service to be ready
+	var isReady bool
+	attempts := 0
+	for !isReady && attempts < adcMaxCloudRunAttempts {
+		err = workflow.ExecuteActivity(ctx, adcActivity.CheckOperationStatus, cloudRunResponse.OperationName).Get(ctx, &isReady)
+		if err != nil {
+			log.Errorf("Failed to check Cloud Run operation status: %v", err)
+			return nil, err
+		}
+		if !isReady {
+			attempts++
+			err = workflow.Sleep(ctx, time.Second*10)
+			if err != nil {
+				return nil, fmt.Errorf("failed to sleep during Cloud Run deployment: %w", err)
+			}
+		}
+	}
+
+	if !isReady {
+		return nil, fmt.Errorf("cloud run service deployment timed out after %d attempts", adcMaxCloudRunAttempts)
+	}
+
+	// Step 5: Get Cloud Run service URL
+	var serviceURL string
+	err = workflow.ExecuteActivity(ctx, adcActivity.GetADCServiceURL, adcProjectID, adcRegion, cloudRunConfig.ServiceName).Get(ctx, &serviceURL)
+	if err != nil {
+		log.Errorf("Failed to get ADC service URL: %v", err)
+		return nil, err
+	}
+
+	// wait for service account and HMAC keys to be ready
+	err = workflow.Sleep(ctx, time.Second*60)
+	if err != nil {
+		log.Errorf("Failed to sleep after ADC service deployment: %v", err)
+	}
+
+	adcParams := &common.ADCParams{
+		ADCName:          backup.Name,
+		DestEndpointUUID: backup.Attributes.EndpointUUID,
+		SnapshotUUID:     backup.Attributes.SnapshotID,
+		BucketName:       backup.Attributes.BucketName,
+		AccessKey:        encodedHmacKeys.AccessKey,
+		SecretKey:        encodedHmacKeys.SecretKey,
+		ProvideType:      adcProvideType,
+		ServerURL:        adcStorageURL,
+		AccountName:      backupVault.Account.Name,
+		Port:             int64(adcPort),
+	}
+
+	// Step 8: Process ADC delete request
+	var adcResponse *common.ADCResponse
+	err = workflow.ExecuteActivity(ctx, adcActivity.InitialDeleteRequestWithCloudRun, adcParams, serviceURL).Get(ctx, &adcResponse)
+	if err != nil {
+		log.Errorf("Failed to initiate ADC delete request: %v", err)
+		return nil, err
+	}
+
+	switch adcResponse.StatusCode {
+	case http.StatusTemporaryRedirect:
+		currentRedirectURL := adcResponse.RedirectURL
+		pollingAttempts := 0
+		pollingCompleted := false
+
+		for pollingAttempts < adcMaxPollingAttempts && !pollingCompleted {
+			var statusResponse common.ADCResponse
+			err = workflow.ExecuteActivity(ctx, adcActivity.CheckDeleteStatusWithCloudRun, adcParams, serviceURL, currentRedirectURL).Get(ctx, &statusResponse)
+			if err != nil {
+				wf.Logger.Error("CheckDeleteStatus failed", "error", err)
+				return nil, err
+			}
+			switch statusResponse.StatusCode {
+			case http.StatusOK:
+				wf.Logger.Info("Backup deletion completed successfully")
+				pollingCompleted = true
+			case http.StatusNotFound:
+				wf.Logger.Info("Backup not found")
+				pollingCompleted = true
+			case http.StatusTemporaryRedirect:
+				if statusResponse.RedirectURL == "" {
+					wf.Logger.Error("Received 307 redirect but no redirect URL provided")
+					return nil, fmt.Errorf("received 307 redirect but no redirect URL provided")
+				}
+				currentRedirectURL = statusResponse.RedirectURL
+				wf.Logger.Debug("Following redirect", "redirectURL", currentRedirectURL)
+			case http.StatusInternalServerError, http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden:
+				wf.Logger.Error("ADC delete operation failed", "statusCode", statusResponse.StatusCode)
+				return nil, fmt.Errorf("ADC delete operation failed with status code: %d", statusResponse.StatusCode)
+			default:
+				wf.Logger.Warn("Unexpected status code", "statusCode", statusResponse.StatusCode)
+				// For any other status code, treat as error
+				return nil, fmt.Errorf("ADC delete operation failed with unexpected status code: %d", statusResponse.StatusCode)
+			}
+			if !pollingCompleted {
+				// Sleep for a period before checking the status again.
+				err = workflow.Sleep(ctx, adcRedirectURLTriggerInterval)
+				if err != nil {
+					wf.Logger.Error("Sleep failed", "error", err)
+					return nil, err
+				}
+				pollingAttempts++
+			}
+		}
+		if !pollingCompleted {
+			return nil, fmt.Errorf("ADC delete operation timed out after %d polling attempts", adcMaxPollingAttempts)
+		}
+	case http.StatusOK:
+		wf.Logger.Info("Backup deletion completed immediately")
+	case http.StatusNotFound:
+		wf.Logger.Info("Backup not found")
+	default:
+		return nil, fmt.Errorf("ADC delete request failed with status code: %d", adcResponse.StatusCode)
+	}
+
+	// Step 9: Cleanup Cloud Run service
+	var cleanupResponse *hyperscalermodels.CloudRunOperationResponse
+	err = workflow.ExecuteActivity(ctx, adcActivity.CleanupADCCloudRunService, adcProjectID, adcRegion, cloudRunConfig.ServiceName).Get(ctx, &cleanupResponse)
+	if err != nil {
+		log.Errorf("Failed to cleanup ADC Cloud Run service: %v", err)
+		return nil, err
+	}
+
+	// Wait for Cloud Run service cleanup to complete
+	var isCleanupReady bool
+	cleanupAttempts := 0
+	for !isCleanupReady && cleanupAttempts < adcMaxCloudRunAttempts {
+		err = workflow.ExecuteActivity(ctx, adcActivity.CheckOperationStatus, cleanupResponse.OperationName).Get(ctx, &isCleanupReady)
+		if err != nil {
+			log.Errorf("Failed to check Cloud Run cleanup operation status: %v", err)
+			return nil, err
+		}
+		if !isCleanupReady {
+			cleanupAttempts++
+			err := workflow.Sleep(ctx, time.Second*10)
+			if err != nil {
+				return nil, fmt.Errorf("failed to sleep during Cloud Run cleanup: %w", err)
+			}
+		}
+	}
+
+	if !isCleanupReady {
+		log.Warnf("Cloud Run service cleanup timed out after %d attempts, but continuing with workflow", adcMaxCloudRunAttempts)
+	}
+
+	// Step 10: Remove roles from service account
+	err = workflow.ExecuteActivity(ctx, adcActivity.RemoveRolesFromServiceAccount, bucketDetails.TenantProjectNumber, serviceAccountID, roles).Get(ctx, nil)
+	if err != nil {
+		log.Errorf("Failed to remove roles from service account: %v", err)
+		return nil, err
+	}
+
+	// Step 11: Cleanup service account
+	err = workflow.ExecuteActivity(ctx, adcActivity.DeleteSA, bucketDetails.TenantProjectNumber, serviceAccountID).Get(ctx, nil)
+	if err != nil {
+		log.Errorf("Failed to cleanup service account: %v", err)
+		return nil, err
+	}
+
+	log.Infof("ADC workflow completed successfully for %s", backup.Name)
+	return nil, nil
+}

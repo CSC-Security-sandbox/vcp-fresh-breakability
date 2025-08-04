@@ -2811,3 +2811,44 @@ func TestFinishBackupActivity_FinishBackupFailure(t *testing.T) {
 	assert.Contains(t, err.Error(), "finish backup failed")
 	mockStorage.AssertExpectations(t)
 }
+
+func TestGetAccountByName_Error(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	accountName := "test-account"
+
+	mockStorage.On("GetAccount", ctx, accountName).Return(nil, errors.New("account not found"))
+
+	// Act
+	result, err := activity.GetAccountByName(ctx, accountName)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "account not found")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetAccountByName_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	accountName := "test-account"
+	expectedAccount := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+		Name:      accountName,
+	}
+
+	mockStorage.On("GetAccount", ctx, accountName).Return(expectedAccount, nil)
+
+	// Act
+	result, err := activity.GetAccountByName(ctx, accountName)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, expectedAccount, result)
+	mockStorage.AssertExpectations(t)
+}

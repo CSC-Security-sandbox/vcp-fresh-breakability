@@ -22,6 +22,7 @@ import (
 	"google.golang.org/api/impersonate"
 	"google.golang.org/api/option"
 	"google.golang.org/api/privateca/v1"
+	cloudrun "google.golang.org/api/run/v2"
 	"google.golang.org/api/secretmanager/v1"
 	"google.golang.org/api/serviceconsumermanagement/v1"
 	"google.golang.org/api/servicenetworking/v1"
@@ -51,6 +52,7 @@ var (
 	initializePrivateCaService     = _initializePrivateCaService
 	initializeSecretManagerService = _initializeSecretManagerService
 	initializeCloudDnsService      = _initializeCloudDnsService
+	initializeCloudRunService      = _initializeCloudRunService
 )
 
 type GcpServices struct {
@@ -74,6 +76,7 @@ type AdminGCPService struct {
 	secretManagerService *secretmanager.Service
 	cloudProjectsService *projectsManagement.Service
 	cloudDnsService      *dns.Service
+	cloudRunService      *cloudrun.Service
 }
 
 // _newClient redirects to third party library HTTP NewClient for networking, while it helps to mock the function for init_test
@@ -174,6 +177,13 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		return nil, err
 	}
 
+	log.Debug("Calling initializeCloudRunService")
+	cloudRunService, err := initializeCloudRunService(ctx)
+	if err != nil {
+		log.Errorf("error initializing CloudRun Service: %s", err.Error())
+		return nil, err
+	}
+
 	log.Debug("Calling initializeCloudDnsService")
 	cloudDnsService, err := initializeCloudDnsService(ctx)
 	if err != nil {
@@ -189,6 +199,7 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 		iamService:           iamService,
 		secretManagerService: secretManagerService,
 		cloudProjectsService: cloudProjectService,
+		cloudRunService:      cloudRunService,
 		privateCaService:     privateCaService,
 		cloudDnsService:      cloudDnsService,
 	}
@@ -444,6 +455,26 @@ func _initializeStorageService(ctx context.Context) (*storage.Client, error) {
 	return storage.NewClient(ctx, option.WithHTTPClient(client))
 }
 
+// _initializeCloudRunService initializes the Cloud Run API service in GCP
+func _initializeCloudRunService(ctx context.Context) (*cloudrun.Service, error) {
+	// Use the correct Cloud Run scope
+	scopesOption := option.WithScopes("https://www.googleapis.com/auth/cloud-platform")
+	opts := []option.ClientOption{scopesOption}
+
+	if MockMetaDataHost != "" {
+		opts = append(opts, option.WithTokenSource(
+			google.ComputeTokenSource("", "https://www.googleapis.com/auth/cloud-platform"),
+		))
+	}
+
+	client, err := cloudrun.NewService(ctx, opts...)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err)
+	}
+
+	return client, nil
+}
+
 func (gcpService *GcpServices) CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string) error {
 	logger := util.GetLogger(ctx)
 	err := gcpService.AdminGCPService.storageService.Bucket(bucketName).Create(ctx, projectID, &storage.BucketAttrs{
@@ -523,6 +554,48 @@ func (gcpService *GcpServices) AttachOrUpdateRolesForServiceAccounts(roles []str
 	projectIAMPolicyBindings = gcpService.addMissingRoles(projectIAMPolicyBindings, requiredRolesMap, currentSvcAccountMember)
 
 	return gcpService.setProjectIamPolicy(projectID, policy.Etag, projectIAMPolicyBindings)
+}
+
+// RemoveRolesFromServiceAccounts removes specified roles from a service account
+func (gcpService *GcpServices) RemoveRolesFromServiceAccounts(roles []string, serviceAccountEmail, projectID string) error {
+	policy, err := gcpService.getProjectIamPolicy(projectID)
+	if err != nil {
+		return err
+	}
+
+	currentSvcAccountMember := "serviceAccount:" + serviceAccountEmail
+	rolesToRemove := make(map[string]bool)
+	for _, role := range roles {
+		rolesToRemove[role] = true
+	}
+
+	// Remove the service account from the specified roles
+	var updatedBindings []*projectsManagement.Binding
+	for _, binding := range policy.Bindings {
+		if rolesToRemove[binding.Role] {
+			// Remove the service account from this role's members
+			var updatedMembers []string
+			for _, member := range binding.Members {
+				if !strings.EqualFold(strings.ToLower(member), strings.ToLower(currentSvcAccountMember)) {
+					updatedMembers = append(updatedMembers, member)
+				}
+			}
+
+			// Only keep the binding if there are still members
+			if len(updatedMembers) > 0 {
+				updatedBindings = append(updatedBindings, &projectsManagement.Binding{
+					Role:    binding.Role,
+					Members: updatedMembers,
+				})
+			}
+			// If no members left, we don't add the binding (effectively removing the role)
+		} else {
+			// Keep other bindings unchanged
+			updatedBindings = append(updatedBindings, binding)
+		}
+	}
+
+	return gcpService.setProjectIamPolicy(projectID, policy.Etag, updatedBindings)
 }
 
 func (gcpService *GcpServices) getProjectIamPolicy(projectID string) (*projectsManagement.Policy, error) {

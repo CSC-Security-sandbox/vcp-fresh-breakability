@@ -40,10 +40,7 @@ var (
 )
 
 const (
-	ObjStoreProviderType = "GoogleCloud"
-	ObjStoreServer       = "storage.googleapis.com"
-	BackupComment        = "VCP-Backup"
-	adcPort              = 443
+	BackupComment = "VCP-Backup"
 )
 
 // CreateBackupWorkflow  process backup related requests from a customer.
@@ -331,12 +328,20 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
+	// fetch account by name
+	account := &datamodel.Account{}
+	err = workflow.ExecuteActivity(ctx, backupActivity.GetAccountByName, deleteBackupParams.AccountName).Get(ctx, account)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get account by name %s: %w", deleteBackupParams.AccountName, err)
+	}
+
 	// check if backup Vault is present in VSA
 	dbBackupVault := &datamodel.BackupVault{}
 	err = workflow.ExecuteActivity(ctx, backupActivity.GetBackupVault, deleteBackupParams.BackupVaultUUID).Get(ctx, &dbBackupVault)
 	if err != nil {
 		return nil, err
 	}
+	dbBackupVault.Account = account
 
 	dbBackup := &datamodel.Backup{}
 	err = workflow.ExecuteActivity(ctx, backupActivity.GetBackup, deleteBackupParams.BackupVaultUUID, deleteBackupParams.BackupUUID, deleteBackupParams.AccountName).Get(ctx, &dbBackup)
@@ -356,35 +361,11 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	if isVolumeDeleted {
-		// var hmacKeys commonparams.HmacKeys
-		// err = workflow.ExecuteActivity(ctx, backupActivity.CreateHmacKeys, &commonparams.HmacKeyCreateParams{
-		//	ServiceAccount: bucketDetails.ServiceAccountName,
-		//	ProjectNumber:  bucketDetails.TenantProjectNumber,
-		// }).Get(ctx, &hmacKeys)
-		// if err != nil {
-		//	return nil, err
-		// }
-		//
-		// defer func() {
-		//	// Delete HMAC keys after workflow execution
-		//	if err = workflow.ExecuteActivity(ctx, backupActivity.DeleteHmacKeys, dbBackupVault.BucketDetails[0].TenantProjectNumber, hmacKeys.AccessKey, bucketDetails.ServiceAccountName).Get(ctx, nil); err != nil {
-		//		util.GetLogger(ctx).Errorf("Failed to delete HMAC keys: %v", err)
-		//	}
-		// }()
-
-		// Call ADC Workflow
-		// adcParams := &commonparams.ADCParams{
-		//	AccountName:      deleteBackupParams.AccountName,
-		//	DestEndpointUUID: dbBackup.Attributes.EndpointUUID,
-		//	SnapshotUUID:     dbBackup.Attributes.SnapshotID,
-		//	BucketName:       dbBackup.Attributes.BucketName,
-		//	AccessKey:        hmacKeys.AccessKey,
-		//	SecretKey:        hmacKeys.SecretKey,
-		//	ProvideType:      ObjStoreProviderType,
-		//	ServerURL:        ObjStoreServer,
-		//	Port:             adcPort,
-		// }
-		// TODO : Not Removing above code as we need to handle delete orphan backup
+		// if volume is deleted then we need to delete the backup with adc
+		err = workflow.ExecuteChildWorkflow(ctx, ADCWorkflow, deleteBackupParams, dbBackupVault, dbBackup, account).Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		var backupCount int64
 		err = workflow.ExecuteActivity(ctx, backupActivity.GetBackupCountByVolumeUUID, dbBackup.VolumeUUID).Get(ctx, &backupCount)

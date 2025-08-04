@@ -456,6 +456,15 @@ func (a BackupActivity) GetVolume(ctx context.Context, volumeUUID string) (*data
 	return volume, nil
 }
 
+func (a BackupActivity) GetAccountByName(ctx context.Context, accountName string) (*datamodel.Account, error) {
+	se := a.SE
+	account, err := se.GetAccount(ctx, accountName)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return account, nil
+}
+
 func (a BackupActivity) GetBackupVault(ctx context.Context, backupVaultUUID string) (*datamodel.BackupVault, error) {
 	se := a.SE
 	return se.GetBackupVault(ctx, backupVaultUUID)
@@ -540,42 +549,6 @@ func getSmDestinationPath(backupVault *datamodel.BackupVault, volume *datamodel.
 	}
 	return fmt.Sprintf("%s:/objstore/%s", objStoreName, volume.UUID), nil
 }
-
-// func (a BackupActivity) CreateHmacKeys(ctx context.Context, params *commonparams.HmacKeyCreateParams, gcpService hyperscaler.GoogleServices) (hmacKeys *commonparams.HmacKeys, err error) {
-//	err = gcpService.InitializeClients()
-//	if err != nil || !gcpService.IsAdminClientInitialized() {
-//		gcpService.GetLogger().Debug("Initialisation of service failed")
-//		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, errors.New("initialisation of Google GCP service failed"))
-//	}
-//
-//	accessKey, secretKey, err := gcpService.CreateHmacKey(params.ProjectNumber, params.ServiceAccount)
-//	if err != nil {
-//		return nil, err
-//	}
-//	if accessKey == nil || secretKey == nil {
-//		return nil, errors.New("accessKey or secretKey is nil")
-//	}
-//	return &commonparams.HmacKeys{
-//		AccessKey: *accessKey,
-//		SecretKey: *secretKey,
-//	}, nil
-// }
-//
-// func (a BackupActivity) DeleteHmacKeys(ctx context.Context, projectNumber, accessKey, ServiceAccount string, gcpService hyperscaler.GoogleServices) error {
-//	err := gcpService.InitializeClients()
-//	if err != nil || !gcpService.IsAdminClientInitialized() {
-//		gcpService.GetLogger().Debug("Initialisation of service failed")
-//		return vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, errors.New("initialisation of Google GCP service failed"))
-//	}
-//
-//	err = gcpService.InitializeClients()
-//	if err != nil || !gcpService.IsAdminClientInitialized() {
-//		gcpService.GetLogger().Debug("Initialisation of service failed")
-//		return vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, errors.New("initialisation of Google GCP service failed"))
-//	}
-//
-//	return gcpService.DeleteHmacKey(projectNumber, accessKey, ServiceAccount)
-// }
 
 func GetSmSourcePath(volume *datamodel.Volume) string {
 	return fmt.Sprintf("%s:%s", volume.Svm.Name, volume.Name)

@@ -499,11 +499,13 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 			BackupUUID:      "backup-uuid",
 			AccountName:     "test-account",
 		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "account-uuid"}}
 		backupVault := &datamodel.BackupVault{
 			Name: "test-backup-vault",
 			BucketDetails: datamodel.BucketDetailsArray{
 				&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"},
 			},
+			Account: account,
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-vol"},
@@ -531,6 +533,7 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses
+		env.OnActivity("GetAccountByName", mock.Anything, params.AccountName).Return(account, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetBackupVault", mock.Anything, params.BackupVaultUUID).Return(backupVault, nil)
 		env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
@@ -570,12 +573,18 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterWorkflow(ADCWorkflow)
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
 			BackupVaultUUID: "vault-uuid",
 			BackupUUID:      "backup-uuid",
 			AccountName:     "test-account",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
 		}
 		backupVault := &datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -592,12 +601,13 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses for volume deleted scenario
+		env.OnActivity("GetAccountByName", mock.Anything, params.AccountName).Return(account, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetBackupVault", mock.Anything, params.BackupVaultUUID).Return(backupVault, nil)
 		env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
 		env.OnActivity("IsVolumeDeleted", mock.Anything, backup.VolumeUUID).Return(true, nil) // Volume is deleted
+		env.OnWorkflow("ADCWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID).Return(nil, nil)
-
 		// Execute workflow
 		env.ExecuteWorkflow(DeleteBackupWorkflow, params)
 
@@ -626,6 +636,10 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 			BackupVaultUUID: "vault-uuid",
 			BackupUUID:      "backup-uuid",
 			AccountName:     "test-account",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
 		}
 		backupVault := &datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -659,6 +673,7 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses for multiple backups scenario with shared snapshot
+		env.OnActivity("GetAccountByName", mock.Anything, params.AccountName).Return(account, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetBackupVault", mock.Anything, params.BackupVaultUUID).Return(backupVault, nil)
 		env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
@@ -692,12 +707,17 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterWorkflow(ADCWorkflow)
 
 		// Set up test data
 		params := &common.DeleteBackupParams{
 			BackupVaultUUID: "vault-uuid",
 			BackupUUID:      "backup-uuid",
 			AccountName:     "test-account",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
 		}
 		backupVault := &datamodel.BackupVault{
 			Name: "test-backup-vault",
@@ -731,6 +751,7 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		}
 
 		// Mock activity responses for multiple backups scenario with non-shared snapshot
+		env.OnActivity("GetAccountByName", mock.Anything, params.AccountName).Return(account, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetBackupVault", mock.Anything, params.BackupVaultUUID).Return(backupVault, nil)
 		env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
@@ -766,6 +787,8 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterWorkflow(ADCWorkflow)
 		// Set up test data
 		params := &common.DeleteBackupParams{
 			BackupVaultUUID: "vault-uuid",
@@ -845,7 +868,13 @@ func TestDeleteBackupWorkflowHandleError(t *testing.T) {
 		Attributes: &datamodel.BackupAttributes{BucketName: "test-bucket"},
 	}
 
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+
 	// Mock activity responses for HandleError function
+	env.OnActivity("GetAccountByName", mock.Anything, params.AccountName).Return(account, nil)
 	env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
 	env.OnActivity("UpdateBackupError", mock.Anything, backup, mock.Anything).Return(nil)
 
@@ -883,8 +912,14 @@ func TestDeleteBackupWorkflowHandleErrorFailure(t *testing.T) {
 		AccountName:     "test-account",
 	}
 
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+
 	// Mock activity responses for HandleError function failure scenarios
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetAccountByName", mock.Anything, params.AccountName).Return(account, nil)
 	env.OnActivity("GetBackupVault", mock.Anything, params.BackupVaultUUID).Return(nil, errors.New("failed to get backup vault"))
 	env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(nil, errors.New("failed to get backup"))
 
@@ -986,7 +1021,13 @@ func TestDeleteBackupWorkflowAdditionalErrorCases(t *testing.T) {
 			AccountName:     "test-account",
 		}
 
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+
 		// Mock activity responses for GetBackupVault failure
+		env.OnActivity("GetAccountByName", mock.Anything, params.AccountName).Return(account, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetBackupVault", mock.Anything, params.BackupVaultUUID).Return(nil, errors.New("failed to get backup vault"))
 
@@ -1019,6 +1060,10 @@ func TestDeleteBackupWorkflowAdditionalErrorCases(t *testing.T) {
 			BackupUUID:      "backup-uuid",
 			AccountName:     "test-account",
 		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		}
 		backupVault := &datamodel.BackupVault{
 			Name: "test-backup-vault",
 			BucketDetails: datamodel.BucketDetailsArray{
@@ -1027,6 +1072,7 @@ func TestDeleteBackupWorkflowAdditionalErrorCases(t *testing.T) {
 		}
 
 		// Mock activity responses for GetBackup failure
+		env.OnActivity("GetAccountByName", mock.Anything, params.AccountName).Return(account, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetBackupVault", mock.Anything, params.BackupVaultUUID).Return(backupVault, nil)
 		env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(nil, errors.New("failed to get backup"))

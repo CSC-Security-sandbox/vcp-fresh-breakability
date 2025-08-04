@@ -73,6 +73,63 @@ func (_c *MockGoogleServices_AttachOrUpdateRolesForServiceAccounts_Call) RunAndR
 	return _c
 }
 
+// CheckOperationStatus provides a mock function with given fields: ctx, operationName
+func (_m *MockGoogleServices) CheckOperationStatus(ctx context.Context, operationName string) (bool, error) {
+	ret := _m.Called(ctx, operationName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CheckOperationStatus")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (bool, error)); ok {
+		return rf(ctx, operationName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) bool); ok {
+		r0 = rf(ctx, operationName)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, operationName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_CheckOperationStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CheckOperationStatus'
+type MockGoogleServices_CheckOperationStatus_Call struct {
+	*mock.Call
+}
+
+// CheckOperationStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - operationName string
+func (_e *MockGoogleServices_Expecter) CheckOperationStatus(ctx interface{}, operationName interface{}) *MockGoogleServices_CheckOperationStatus_Call {
+	return &MockGoogleServices_CheckOperationStatus_Call{Call: _e.mock.On("CheckOperationStatus", ctx, operationName)}
+}
+
+func (_c *MockGoogleServices_CheckOperationStatus_Call) Run(run func(ctx context.Context, operationName string)) *MockGoogleServices_CheckOperationStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_CheckOperationStatus_Call) Return(_a0 bool, _a1 error) *MockGoogleServices_CheckOperationStatus_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_CheckOperationStatus_Call) RunAndReturn(run func(context.Context, string) (bool, error)) *MockGoogleServices_CheckOperationStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateBucketIfNotExists provides a mock function with given fields: ctx, projectID, bucketName, region
 func (_m *MockGoogleServices) CreateBucketIfNotExists(ctx context.Context, projectID string, bucketName string, region string) error {
 	ret := _m.Called(ctx, projectID, bucketName, region)
@@ -176,6 +233,65 @@ func (_c *MockGoogleServices_CreateCertificate_Call) Return(_a0 *models.CustomCe
 }
 
 func (_c *MockGoogleServices_CreateCertificate_Call) RunAndReturn(run func(*models.CustomCertificate) (*models.CustomCertificate, error)) *MockGoogleServices_CreateCertificate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateCloudRunService provides a mock function with given fields: ctx, config
+func (_m *MockGoogleServices) CreateCloudRunService(ctx context.Context, config *models.CloudRunServiceConfig) (*models.CloudRunOperationResponse, error) {
+	ret := _m.Called(ctx, config)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateCloudRunService")
+	}
+
+	var r0 *models.CloudRunOperationResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *models.CloudRunServiceConfig) (*models.CloudRunOperationResponse, error)); ok {
+		return rf(ctx, config)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *models.CloudRunServiceConfig) *models.CloudRunOperationResponse); ok {
+		r0 = rf(ctx, config)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.CloudRunOperationResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *models.CloudRunServiceConfig) error); ok {
+		r1 = rf(ctx, config)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_CreateCloudRunService_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateCloudRunService'
+type MockGoogleServices_CreateCloudRunService_Call struct {
+	*mock.Call
+}
+
+// CreateCloudRunService is a helper method to define mock.On call
+//   - ctx context.Context
+//   - config *models.CloudRunServiceConfig
+func (_e *MockGoogleServices_Expecter) CreateCloudRunService(ctx interface{}, config interface{}) *MockGoogleServices_CreateCloudRunService_Call {
+	return &MockGoogleServices_CreateCloudRunService_Call{Call: _e.mock.On("CreateCloudRunService", ctx, config)}
+}
+
+func (_c *MockGoogleServices_CreateCloudRunService_Call) Run(run func(ctx context.Context, config *models.CloudRunServiceConfig)) *MockGoogleServices_CreateCloudRunService_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*models.CloudRunServiceConfig))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateCloudRunService_Call) Return(_a0 *models.CloudRunOperationResponse, _a1 error) *MockGoogleServices_CreateCloudRunService_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateCloudRunService_Call) RunAndReturn(run func(context.Context, *models.CloudRunServiceConfig) (*models.CloudRunOperationResponse, error)) *MockGoogleServices_CreateCloudRunService_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -756,6 +872,67 @@ func (_c *MockGoogleServices_DeleteBucket_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
+// DeleteCloudRunService provides a mock function with given fields: ctx, projectID, locationID, serviceName
+func (_m *MockGoogleServices) DeleteCloudRunService(ctx context.Context, projectID string, locationID string, serviceName string) (*models.CloudRunOperationResponse, error) {
+	ret := _m.Called(ctx, projectID, locationID, serviceName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteCloudRunService")
+	}
+
+	var r0 *models.CloudRunOperationResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (*models.CloudRunOperationResponse, error)); ok {
+		return rf(ctx, projectID, locationID, serviceName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) *models.CloudRunOperationResponse); ok {
+		r0 = rf(ctx, projectID, locationID, serviceName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.CloudRunOperationResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, projectID, locationID, serviceName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_DeleteCloudRunService_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCloudRunService'
+type MockGoogleServices_DeleteCloudRunService_Call struct {
+	*mock.Call
+}
+
+// DeleteCloudRunService is a helper method to define mock.On call
+//   - ctx context.Context
+//   - projectID string
+//   - locationID string
+//   - serviceName string
+func (_e *MockGoogleServices_Expecter) DeleteCloudRunService(ctx interface{}, projectID interface{}, locationID interface{}, serviceName interface{}) *MockGoogleServices_DeleteCloudRunService_Call {
+	return &MockGoogleServices_DeleteCloudRunService_Call{Call: _e.mock.On("DeleteCloudRunService", ctx, projectID, locationID, serviceName)}
+}
+
+func (_c *MockGoogleServices_DeleteCloudRunService_Call) Run(run func(ctx context.Context, projectID string, locationID string, serviceName string)) *MockGoogleServices_DeleteCloudRunService_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteCloudRunService_Call) Return(_a0 *models.CloudRunOperationResponse, _a1 error) *MockGoogleServices_DeleteCloudRunService_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteCloudRunService_Call) RunAndReturn(run func(context.Context, string, string, string) (*models.CloudRunOperationResponse, error)) *MockGoogleServices_DeleteCloudRunService_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteHmacKey provides a mock function with given fields: projectID, accessKey, ServiceAccount
 func (_m *MockGoogleServices) DeleteHmacKey(projectID string, accessKey string, ServiceAccount string) error {
 	ret := _m.Called(projectID, accessKey, ServiceAccount)
@@ -1006,6 +1183,65 @@ func (_c *MockGoogleServices_GetCertificate_Call) RunAndReturn(run func(string, 
 	return _c
 }
 
+// GetCloudRunServiceURL provides a mock function with given fields: ctx, projectID, locationID, serviceName
+func (_m *MockGoogleServices) GetCloudRunServiceURL(ctx context.Context, projectID string, locationID string, serviceName string) (string, error) {
+	ret := _m.Called(ctx, projectID, locationID, serviceName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCloudRunServiceURL")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (string, error)); ok {
+		return rf(ctx, projectID, locationID, serviceName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) string); ok {
+		r0 = rf(ctx, projectID, locationID, serviceName)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, projectID, locationID, serviceName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetCloudRunServiceURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCloudRunServiceURL'
+type MockGoogleServices_GetCloudRunServiceURL_Call struct {
+	*mock.Call
+}
+
+// GetCloudRunServiceURL is a helper method to define mock.On call
+//   - ctx context.Context
+//   - projectID string
+//   - locationID string
+//   - serviceName string
+func (_e *MockGoogleServices_Expecter) GetCloudRunServiceURL(ctx interface{}, projectID interface{}, locationID interface{}, serviceName interface{}) *MockGoogleServices_GetCloudRunServiceURL_Call {
+	return &MockGoogleServices_GetCloudRunServiceURL_Call{Call: _e.mock.On("GetCloudRunServiceURL", ctx, projectID, locationID, serviceName)}
+}
+
+func (_c *MockGoogleServices_GetCloudRunServiceURL_Call) Run(run func(ctx context.Context, projectID string, locationID string, serviceName string)) *MockGoogleServices_GetCloudRunServiceURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetCloudRunServiceURL_Call) Return(_a0 string, _a1 error) *MockGoogleServices_GetCloudRunServiceURL_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetCloudRunServiceURL_Call) RunAndReturn(run func(context.Context, string, string, string) (string, error)) *MockGoogleServices_GetCloudRunServiceURL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetComputeGlobalOpStatus provides a mock function with given fields: tenantProject, operationName
 func (_m *MockGoogleServices) GetComputeGlobalOpStatus(tenantProject string, operationName string) (*models.ComputeOperation, error) {
 	ret := _m.Called(tenantProject, operationName)
@@ -1227,6 +1463,61 @@ func (_c *MockGoogleServices_GetFirewall_Call) Return(_a0 *models.Firewall, _a1 
 }
 
 func (_c *MockGoogleServices_GetFirewall_Call) RunAndReturn(run func(string, string) (*models.Firewall, error)) *MockGoogleServices_GetFirewall_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetIdentityToken provides a mock function with no fields
+func (_m *MockGoogleServices) GetIdentityToken() (string, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetIdentityToken")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (string, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetIdentityToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetIdentityToken'
+type MockGoogleServices_GetIdentityToken_Call struct {
+	*mock.Call
+}
+
+// GetIdentityToken is a helper method to define mock.On call
+func (_e *MockGoogleServices_Expecter) GetIdentityToken() *MockGoogleServices_GetIdentityToken_Call {
+	return &MockGoogleServices_GetIdentityToken_Call{Call: _e.mock.On("GetIdentityToken")}
+}
+
+func (_c *MockGoogleServices_GetIdentityToken_Call) Run(run func()) *MockGoogleServices_GetIdentityToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetIdentityToken_Call) Return(_a0 string, _a1 error) *MockGoogleServices_GetIdentityToken_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetIdentityToken_Call) RunAndReturn(run func() (string, error)) *MockGoogleServices_GetIdentityToken_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1512,6 +1803,64 @@ func (_c *MockGoogleServices_GetServiceAccount_Call) Return(_a0 *iam.ServiceAcco
 }
 
 func (_c *MockGoogleServices_GetServiceAccount_Call) RunAndReturn(run func(string, string) (*iam.ServiceAccount, error)) *MockGoogleServices_GetServiceAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetServiceAccountByEmail provides a mock function with given fields: email
+func (_m *MockGoogleServices) GetServiceAccountByEmail(email string) (*iam.ServiceAccount, error) {
+	ret := _m.Called(email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetServiceAccountByEmail")
+	}
+
+	var r0 *iam.ServiceAccount
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (*iam.ServiceAccount, error)); ok {
+		return rf(email)
+	}
+	if rf, ok := ret.Get(0).(func(string) *iam.ServiceAccount); ok {
+		r0 = rf(email)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*iam.ServiceAccount)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(email)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetServiceAccountByEmail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetServiceAccountByEmail'
+type MockGoogleServices_GetServiceAccountByEmail_Call struct {
+	*mock.Call
+}
+
+// GetServiceAccountByEmail is a helper method to define mock.On call
+//   - email string
+func (_e *MockGoogleServices_Expecter) GetServiceAccountByEmail(email interface{}) *MockGoogleServices_GetServiceAccountByEmail_Call {
+	return &MockGoogleServices_GetServiceAccountByEmail_Call{Call: _e.mock.On("GetServiceAccountByEmail", email)}
+}
+
+func (_c *MockGoogleServices_GetServiceAccountByEmail_Call) Run(run func(email string)) *MockGoogleServices_GetServiceAccountByEmail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetServiceAccountByEmail_Call) Return(_a0 *iam.ServiceAccount, _a1 error) *MockGoogleServices_GetServiceAccountByEmail_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetServiceAccountByEmail_Call) RunAndReturn(run func(string) (*iam.ServiceAccount, error)) *MockGoogleServices_GetServiceAccountByEmail_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2238,6 +2587,54 @@ func (_c *MockGoogleServices_ReleaseSubnetwork_Call) Return(_a0 error) *MockGoog
 }
 
 func (_c *MockGoogleServices_ReleaseSubnetwork_Call) RunAndReturn(run func(string, string, string) error) *MockGoogleServices_ReleaseSubnetwork_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RemoveRolesFromServiceAccounts provides a mock function with given fields: roles, serviceAccountEmail, projectID
+func (_m *MockGoogleServices) RemoveRolesFromServiceAccounts(roles []string, serviceAccountEmail string, projectID string) error {
+	ret := _m.Called(roles, serviceAccountEmail, projectID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveRolesFromServiceAccounts")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func([]string, string, string) error); ok {
+		r0 = rf(roles, serviceAccountEmail, projectID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockGoogleServices_RemoveRolesFromServiceAccounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveRolesFromServiceAccounts'
+type MockGoogleServices_RemoveRolesFromServiceAccounts_Call struct {
+	*mock.Call
+}
+
+// RemoveRolesFromServiceAccounts is a helper method to define mock.On call
+//   - roles []string
+//   - serviceAccountEmail string
+//   - projectID string
+func (_e *MockGoogleServices_Expecter) RemoveRolesFromServiceAccounts(roles interface{}, serviceAccountEmail interface{}, projectID interface{}) *MockGoogleServices_RemoveRolesFromServiceAccounts_Call {
+	return &MockGoogleServices_RemoveRolesFromServiceAccounts_Call{Call: _e.mock.On("RemoveRolesFromServiceAccounts", roles, serviceAccountEmail, projectID)}
+}
+
+func (_c *MockGoogleServices_RemoveRolesFromServiceAccounts_Call) Run(run func(roles []string, serviceAccountEmail string, projectID string)) *MockGoogleServices_RemoveRolesFromServiceAccounts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].([]string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_RemoveRolesFromServiceAccounts_Call) Return(_a0 error) *MockGoogleServices_RemoveRolesFromServiceAccounts_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockGoogleServices_RemoveRolesFromServiceAccounts_Call) RunAndReturn(run func([]string, string, string) error) *MockGoogleServices_RemoveRolesFromServiceAccounts_Call {
 	_c.Call.Return(run)
 	return _c
 }

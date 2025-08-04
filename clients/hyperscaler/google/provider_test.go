@@ -23,6 +23,7 @@ import (
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 	"google.golang.org/api/privateca/v1"
+	cloudrun "google.golang.org/api/run/v2"
 	"google.golang.org/api/secretmanager/v1"
 	"google.golang.org/api/serviceconsumermanagement/v1"
 	"google.golang.org/api/servicenetworking/v1"
@@ -379,6 +380,7 @@ func TestNewGoogleClient(t *testing.T) {
 		}
 		initializeSecretManagerService = func(ctx context.Context) (*secretmanager.Service, error) { return nil, nil }
 		initializeIamService = func(ctx context.Context) (*iam.Service, error) { return nil, nil }
+		initializeCloudRunService = func(ctx context.Context) (*cloudrun.Service, error) { return nil, nil }
 		initializeCloudDnsService = func(ctx context.Context) (*dns.Service, error) {
 			return nil, errors.New("initializeCloudDnsService failed")
 		}
@@ -401,6 +403,51 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeSecretManagerService = _initializeSecretManagerService
 		initializeCloudDnsService = _initializeCloudDnsService
 		initializeIamService = _initializeIamService
+		initializeCloudRunService = _initializeCloudRunService
+	})
+	t.Run("initializeCloudRunServiceFails", func(t *testing.T) {
+		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
+			return &serviceconsumermanagement.APIService{
+				BasePath: "",
+			}, nil
+		}
+		initializeNetworkingService = func(ctx context.Context) (*servicenetworking.APIService, error) {
+			return nil, nil
+		}
+		initializeComputeService = func(ctx context.Context) (*compute.Service, error) {
+			return nil, nil
+		}
+		initializeStorageService = func(ctx context.Context) (*storage.Client, error) {
+			return nil, nil
+		}
+		initializeCloudProjectsService = func(ctx context.Context) (*cloudresourcemanager.Service, error) { return nil, nil }
+		initializePrivateCaService = func(ctx context.Context) (*privateca.Service, error) {
+			return nil, nil
+		}
+		initializeSecretManagerService = func(ctx context.Context) (*secretmanager.Service, error) { return nil, nil }
+		initializeIamService = func(ctx context.Context) (*iam.Service, error) { return nil, nil }
+		initializeCloudRunService = func(ctx context.Context) (*cloudrun.Service, error) {
+			return nil, errors.New("error initializing CloudRun Service")
+		}
+		res, err := _newGoogleClient(context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{}))
+		if res != nil {
+			t.Error("unexpected result returned")
+		}
+		if err == nil {
+			t.Error("error was expected")
+		}
+		if err.Error() != "error initializing CloudRun Service" {
+			t.Error("Incorrect error response")
+		}
+		initializeManagementService = _initializeManagementService
+		initializeNetworkingService = _initializeNetworkingService
+		initializeComputeService = _initializeComputeService
+		initializeStorageService = _initializeStorageService
+		initializeCloudProjectsService = _initializeCloudProjectsService
+		initializePrivateCaService = _initializePrivateCaService
+		initializeSecretManagerService = _initializeSecretManagerService
+		initializeIamService = _initializeIamService
+		initializeCloudRunService = _initializeCloudRunService
 	})
 	t.Run("WhenOK", func(t *testing.T) {
 		initializeManagementService = func(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
@@ -434,6 +481,12 @@ func TestNewGoogleClient(t *testing.T) {
 			}, nil
 		}
 
+		initializeCloudRunService = func(ctx context.Context) (*cloudrun.Service, error) {
+			return &cloudrun.Service{
+				BasePath: "",
+			}, nil
+		}
+
 		initializeIamService = func(ctx context.Context) (*iam.Service, error) {
 			return &iam.Service{
 				BasePath: "",
@@ -463,6 +516,7 @@ func TestNewGoogleClient(t *testing.T) {
 		initializeIamService = _initializeIamService
 		initializeCloudProjectsService = _initializeCloudProjectsService
 		initializeCloudDnsService = _initializeCloudDnsService
+		initializeCloudRunService = _initializeCloudRunService
 	})
 }
 
@@ -2273,6 +2327,590 @@ func TestAttachOrUpdateRolesForServiceAccounts(t *testing.T) {
 
 		roles := []string{}
 		err = gService.AttachOrUpdateRolesForServiceAccounts(roles, serviceAccountEmail, projectID)
+		assert.Nil(tt, err)
+		assert.Equal(tt, 2, callCount, "Expected 2 API calls (getIamPolicy and setIamPolicy)")
+	})
+}
+
+func TestRemoveRolesFromServiceAccounts(t *testing.T) {
+	projectID := "test-project"
+	serviceAccountEmail := "test-sa@test-project.iam.gserviceaccount.com"
+
+	t.Run("WhenRemoveRolesFromServiceAccountsSuccess", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock policy response for getIamPolicy
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.admin",
+					Members: []string{
+						"serviceAccount:" + serviceAccountEmail,
+						"serviceAccount:other@test.com",
+					},
+				},
+				{
+					Role: "roles/storage.objectAdmin",
+					Members: []string{
+						"serviceAccount:" + serviceAccountEmail,
+					},
+				},
+				{
+					Role: "roles/storage.viewer",
+					Members: []string{
+						"serviceAccount:other@test.com",
+					},
+				},
+			},
+		}
+
+		// Mock policy response for setIamPolicy
+		setPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "new-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.admin",
+					Members: []string{
+						"serviceAccount:other@test.com",
+					},
+				},
+				{
+					Role: "roles/storage.viewer",
+					Members: []string{
+						"serviceAccount:other@test.com",
+					},
+				},
+			},
+		}
+
+		callCount := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			callCount++
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, err := json.Marshal(getPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":setIamPolicy") {
+				response, err := json.Marshal(setPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles := []string{"roles/storage.admin", "roles/storage.objectAdmin"}
+		err = gService.RemoveRolesFromServiceAccounts(roles, serviceAccountEmail, projectID)
+		assert.Nil(tt, err)
+		assert.Equal(tt, 2, callCount, "Expected 2 API calls (getIamPolicy and setIamPolicy)")
+	})
+
+	t.Run("WhenGetProjectIamPolicyFails", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles := []string{"roles/storage.admin"}
+		err = gService.RemoveRolesFromServiceAccounts(roles, serviceAccountEmail, projectID)
+		assert.NotNil(tt, err)
+		assert.Contains(tt, err.Error(), "Projects.GetIamPolicy")
+	})
+
+	t.Run("WhenSetProjectIamPolicyFails", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.admin",
+					Members: []string{
+						"serviceAccount:" + serviceAccountEmail,
+						"serviceAccount:other@test.com",
+					},
+				},
+			},
+		}
+
+		callCount := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			callCount++
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, err := json.Marshal(getPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":setIamPolicy") {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles := []string{"roles/storage.admin"}
+		err = gService.RemoveRolesFromServiceAccounts(roles, serviceAccountEmail, projectID)
+		assert.NotNil(tt, err)
+		assert.Contains(tt, err.Error(), "Projects.SetIamPolicy")
+	})
+
+	t.Run("WhenServiceAccountNotInRole", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.admin",
+					Members: []string{
+						"serviceAccount:other@test.com",
+					},
+				},
+			},
+		}
+
+		setPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "new-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.admin",
+					Members: []string{
+						"serviceAccount:other@test.com",
+					},
+				},
+			},
+		}
+
+		callCount := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			callCount++
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, err := json.Marshal(getPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":setIamPolicy") {
+				response, err := json.Marshal(setPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles := []string{"roles/storage.admin"}
+		err = gService.RemoveRolesFromServiceAccounts(roles, serviceAccountEmail, projectID)
+		assert.Nil(tt, err)
+		assert.Equal(tt, 2, callCount, "Expected 2 API calls (getIamPolicy and setIamPolicy)")
+	})
+
+	t.Run("WhenCaseInsensitiveMatching", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.admin",
+					Members: []string{
+						"serviceAccount:test-sa@test-project.iam.gserviceaccount.com", // Lower case
+						"serviceAccount:other@test.com",
+					},
+				},
+			},
+		}
+
+		setPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "new-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.admin",
+					Members: []string{
+						"serviceAccount:other@test.com",
+					},
+				},
+			},
+		}
+
+		callCount := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			callCount++
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, err := json.Marshal(getPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":setIamPolicy") {
+				response, err := json.Marshal(setPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		// Use different case for service account email
+		differentCaseEmail := "TEST-SA@TEST-PROJECT.IAM.GSERVICEACCOUNT.COM"
+		roles := []string{"roles/storage.admin"}
+		err = gService.RemoveRolesFromServiceAccounts(roles, differentCaseEmail, projectID)
+		assert.Nil(tt, err)
+		assert.Equal(tt, 2, callCount, "Expected 2 API calls (getIamPolicy and setIamPolicy)")
+	})
+
+	t.Run("WhenEmptyRolesList", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.admin",
+					Members: []string{
+						"serviceAccount:" + serviceAccountEmail,
+						"serviceAccount:other@test.com",
+					},
+				},
+			},
+		}
+
+		setPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "new-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.admin",
+					Members: []string{
+						"serviceAccount:" + serviceAccountEmail,
+						"serviceAccount:other@test.com",
+					},
+				},
+			},
+		}
+
+		callCount := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			callCount++
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, err := json.Marshal(getPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":setIamPolicy") {
+				response, err := json.Marshal(setPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles := []string{} // Empty roles list
+		err = gService.RemoveRolesFromServiceAccounts(roles, serviceAccountEmail, projectID)
+		assert.Nil(tt, err)
+		assert.Equal(tt, 2, callCount, "Expected 2 API calls (getIamPolicy and setIamPolicy)")
+	})
+
+	t.Run("WhenRemoveAllMembersFromRole", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.admin",
+					Members: []string{
+						"serviceAccount:" + serviceAccountEmail, // Only member
+					},
+				},
+			},
+		}
+
+		setPolicyResp := &cloudresourcemanager.Policy{
+			Etag:     "new-etag",
+			Bindings: []*cloudresourcemanager.Binding{}, // Empty bindings since role was completely removed
+		}
+
+		callCount := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			callCount++
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, err := json.Marshal(getPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":setIamPolicy") {
+				response, err := json.Marshal(setPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles := []string{"roles/storage.admin"}
+		err = gService.RemoveRolesFromServiceAccounts(roles, serviceAccountEmail, projectID)
+		assert.Nil(tt, err)
+		assert.Equal(tt, 2, callCount, "Expected 2 API calls (getIamPolicy and setIamPolicy)")
+	})
+
+	t.Run("WhenMultipleRolesWithMixedMembers", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		getPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "test-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.admin",
+					Members: []string{
+						"serviceAccount:" + serviceAccountEmail,
+						"serviceAccount:other@test.com",
+					},
+				},
+				{
+					Role: "roles/storage.objectAdmin",
+					Members: []string{
+						"serviceAccount:" + serviceAccountEmail,
+					},
+				},
+				{
+					Role: "roles/storage.viewer",
+					Members: []string{
+						"serviceAccount:other@test.com",
+					},
+				},
+				{
+					Role: "roles/compute.admin",
+					Members: []string{
+						"serviceAccount:" + serviceAccountEmail,
+						"serviceAccount:another@test.com",
+					},
+				},
+			},
+		}
+
+		setPolicyResp := &cloudresourcemanager.Policy{
+			Etag: "new-etag",
+			Bindings: []*cloudresourcemanager.Binding{
+				{
+					Role: "roles/storage.admin",
+					Members: []string{
+						"serviceAccount:other@test.com",
+					},
+				},
+				{
+					Role: "roles/storage.viewer",
+					Members: []string{
+						"serviceAccount:other@test.com",
+					},
+				},
+				{
+					Role: "roles/compute.admin",
+					Members: []string{
+						"serviceAccount:another@test.com",
+					},
+				},
+			},
+		}
+
+		callCount := 0
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			callCount++
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":getIamPolicy") {
+				response, err := json.Marshal(getPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			if req.Method == http.MethodPost && strings.Contains(req.URL.Path, ":setIamPolicy") {
+				response, err := json.Marshal(setPolicyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		pjSvc, err := cloudresourcemanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				cloudProjectsService: pjSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		roles := []string{"roles/storage.admin", "roles/storage.objectAdmin", "roles/compute.admin"}
+		err = gService.RemoveRolesFromServiceAccounts(roles, serviceAccountEmail, projectID)
 		assert.Nil(tt, err)
 		assert.Equal(tt, 2, callCount, "Expected 2 API calls (getIamPolicy and setIamPolicy)")
 	})

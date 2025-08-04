@@ -2,8 +2,12 @@ module github.com/vcp-vsa-control-Plane/vsa-control-plane
 
 go 1.24.1
 
+toolchain go1.24.4
+
 require (
 	cloud.google.com/go/iam v1.5.2
+	cloud.google.com/go/longrunning v0.6.7
+	cloud.google.com/go/run v1.9.3
 	cloud.google.com/go/storage v1.54.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.27.0
 	github.com/go-chi/chi/v5 v5.2.1
