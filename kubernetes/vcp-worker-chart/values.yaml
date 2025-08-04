@@ -97,7 +97,6 @@ workerConfig:
   harvestRestProtocol: "http"
   harvestPortStart: 13001
   harvestPortEnd: 13500
-  firewallSourceRanges: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,34.0.0.0/8,46.149.16.0/20,52.94.203.152/29,52.94.203.160/29,185.35.244.0/22,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20,198.18.0.0/15"
   cvpHost: ""
   proberProjectList: ""
   enableUniqueSerialNumberGeneration: false
@@ -108,7 +107,7 @@ workerConfig:
   rsmFirewallSourceRanges: "198.18.0.0/15"
   icFirewallSourceRanges: "198.18.0.0/15"
   iscsiFirewallSourceRanges: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
-  mgmtRegionalNatIp: "34.0.0.0/8,35.0.0.0/8,202.3.112.0/20"
+  mgmtRegionalNatIp: "34.0.0.0/8,35.0.0.0/8,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20"
   mgmtNetworkIpRange: "198.18.0.0/20"
   rsmNetworkIpRange: "198.18.16.0/20"
   icNetworkIpRange: "198.18.32.0/20"

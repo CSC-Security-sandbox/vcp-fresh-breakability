@@ -2124,7 +2124,6 @@ func Test_InsertFirewall(t *testing.T) {
 	logger := util.GetLogger(ctx)
 	t.Run("WhenFirewallAlreadyExists", func(tt *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(tt)
-		t.Setenv("FIREWALL_SOURCE_RANGES", "10.0.0.0/8,192.168.0.0/16")
 		InsertFirewall := activities.InsertFirewall
 		defer func() {
 			activities.InsertFirewall = InsertFirewall
@@ -2142,7 +2141,6 @@ func Test_InsertFirewall(t *testing.T) {
 
 	t.Run("WhenGetFirewallFailsWithNonNotFoundError", func(tt *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(tt)
-		t.Setenv("FIREWALL_SOURCE_RANGES", "10.0.0.0/8,192.168.0.0/16")
 
 		InsertFirewall := activities.InsertFirewall
 		defer func() {
@@ -2165,7 +2163,6 @@ func Test_InsertFirewall(t *testing.T) {
 
 	t.Run("WhenInsertFirewallFails", func(tt *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(tt)
-		t.Setenv("FIREWALL_SOURCE_RANGES", "10.0.0.0/8,192.168.0.0/16")
 
 		InsertFirewall := activities.InsertFirewall
 		defer func() {
@@ -2191,7 +2188,6 @@ func Test_InsertFirewall(t *testing.T) {
 
 	t.Run("WhenInsertFirewallSucceeds", func(tt *testing.T) {
 		mgs := hyperscaler.NewMockGoogleServices(tt)
-		t.Setenv("FIREWALL_SOURCE_RANGES", "10.0.0.0/8,192.168.0.0/16")
 
 		InsertFirewall := activities.InsertFirewall
 		defer func() {
