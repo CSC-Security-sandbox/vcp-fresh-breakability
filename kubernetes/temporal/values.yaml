@@ -16,6 +16,14 @@ serviceAccount:
   extraAnnotations:
 additionalAnnotations: {}
 additionalLabels: {}
+
+secretManagerEnabled: false
+externalSecrets:
+  defaultStore:
+    temporalDBPassword: ""
+  visibilityStore:
+    temporalDBPassword: ""
+
 server:
   enabled: true
   image:
