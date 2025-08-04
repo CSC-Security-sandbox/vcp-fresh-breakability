@@ -140,6 +140,14 @@ spec:
               value: "300"
             - name: METRICS_PORT
               value: "9090"
+            - name: ADC_IMAGE
+              value: "adc-image:latest"  # Replace with actual ADC image
+            - name: ADC_PROJECT
+              value: "adc-project"  # Replace with actual ADC project
+            - name: ADC_REGION
+              value: "adc-region"  # Replace with actual ADC region
+            - name: ADC_CERT_SECRET_NAME
+              value: "adc-cert-secret"  # Replace with actual ADC cert secret name
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1

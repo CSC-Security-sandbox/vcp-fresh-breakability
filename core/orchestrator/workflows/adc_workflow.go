@@ -23,6 +23,7 @@ var (
 	adcProjectID   = env.GetString("ADC_PROJECT", "")
 	adcProvideType = env.GetString("ADC_PROVIDE_TYPE", "GoogleCloud")
 	adcStorageURL  = env.GetString("ADC_STORAGE_URL", "storage.googleapis.com")
+	adcCertSecret  = env.GetString("ADC_CERT_SECRET_NAME", "adc-cert")
 
 	// Polling configuration
 	adcRedirectURLTriggerInterval = 10 * time.Second
@@ -216,7 +217,7 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 				Name:       "adc-cert",
 				VolumeType: "secret",
 				Source: hyperscalermodels.VolumeSource{
-					SecretName: "adc-cert",
+					SecretName: adcCertSecret,
 					Items: []hyperscalermodels.SecretItem{
 						{
 							Path:    "adc-cert.crt",
