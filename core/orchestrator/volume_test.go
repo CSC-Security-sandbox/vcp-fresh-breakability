@@ -675,7 +675,7 @@ func TestGetVolume(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, volumeId, result.UUID)
-		assert.Equal(tt, "1.1.1.1", result.IPAddress)
+		assert.Equal(tt, []string{"1.1.1.1"}, result.IPAddresses)
 		mockStorage.AssertExpectations(tt)
 	})
 }
@@ -2852,8 +2852,8 @@ func TestGetMultipleVolumes(t *testing.T) {
 			storage: store,
 		}
 
-		getIPAddressForVolume = func(ctx context.Context, se database.Storage, volume *datamodel.Volume) (string, error) {
-			return "", errors.New("some error")
+		getIPAddressForVolume = func(ctx context.Context, se database.Storage, volume *datamodel.Volume) ([]string, error) {
+			return nil, errors.New("some error")
 		}
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return account, nil
@@ -6510,6 +6510,30 @@ func TestGetIPAddressForVolume(t *testing.T) {
 			tt.Fatalf("Failed to create lif: %v", err)
 		}
 
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid2"},
+			Name:            "test_node",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.13",
+			PoolID:          pool.ID,
+		}
+		err = store.DB().Create(node2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node: %v", err)
+		}
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid2"},
+			Name:      "test_lif",
+			NodeID:    node2.ID,
+			AccountID: account.ID,
+			IPAddress: "192.168.1.201",
+		}
+		err = store.DB().Create(lif2).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif: %v", err)
+		}
+
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
@@ -6523,7 +6547,7 @@ func TestGetIPAddressForVolume(t *testing.T) {
 		// Test getting IP address for block protocol (this doesn't use GetLifForFilesNode)
 		ipAddress, err := _getIPAddressForVolume(ctx, store, volume)
 		assert.NoError(tt, err)
-		assert.Equal(tt, "192.168.1.200", ipAddress)
+		assert.Equal(tt, []string{"192.168.1.200", "192.168.1.201"}, ipAddress)
 	})
 
 	t.Run("GetIPAddressForBlockProtocol", func(tt *testing.T) {
@@ -6601,7 +6625,157 @@ func TestGetIPAddressForVolume(t *testing.T) {
 		// Test getting IP address for block protocol
 		ipAddress, err := _getIPAddressForVolume(ctx, store, volume)
 		assert.NoError(tt, err)
-		assert.Equal(tt, "192.168.1.101", ipAddress)
+		assert.Equal(tt, []string{"192.168.1.101"}, ipAddress)
+	})
+	t.Run("GetIPAddressForFileProtocolFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		node := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid"},
+			Name:            "test_node",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+		}
+		err = store.DB().Create(node).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node: %v", err)
+		}
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid"},
+			Name:      "test_lif",
+			NodeID:    node.ID,
+			AccountID: account.ID,
+			IPAddress: "192.168.1.101",
+		}
+		err = store.DB().Create(lif).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID, // Set the pool ID
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:      []string{utils.ProtocolNFSv3},
+				FileProperties: &datamodel.FileProperties{},
+			},
+		}
+
+		// Test getting IP address for block protocol
+		ipAddress, err := _getIPAddressForVolume(ctx, store, volume)
+		assert.Error(tt, err)
+		assert.Len(tt, ipAddress, 0)
+	})
+	t.Run("GetIPAddressForFileProtocolSuccess", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		node := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-node-uuid"},
+			Name:            "test_node",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+		}
+		err = store.DB().Create(node).Error
+		if err != nil {
+			tt.Fatalf("Failed to create node: %v", err)
+		}
+
+		lif := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-lif-uuid"},
+			Name:      "test_lif",
+			NodeID:    node.ID,
+			AccountID: account.ID,
+			IPAddress: "192.168.1.101",
+		}
+		err = store.DB().Create(lif).Error
+		if err != nil {
+			tt.Fatalf("Failed to create lif: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID, // Set the pool ID
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols:      []string{utils.ProtocolNFSv3},
+				FileProperties: &datamodel.FileProperties{},
+			},
+		}
+
+		// Test getting IP address for block protocol
+		ipAddress, err := _getIPAddressForVolume(ctx, store, volume)
+		assert.Error(tt, err)
+		assert.Len(tt, ipAddress, 0)
 	})
 }
 
@@ -7004,7 +7178,7 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 
 func TestConvertDatastoreVolumeToModelFileProperties(t *testing.T) {
 	t.Run("ConvertVolumeWithFileProperties", func(tt *testing.T) {
-		ipAddress := "192.168.1.100"
+		ipAddress := []string{"192.168.1.100"}
 
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
@@ -7067,7 +7241,7 @@ func TestConvertDatastoreVolumeToModelFileProperties(t *testing.T) {
 	})
 
 	t.Run("ConvertVolumeWithoutFileProperties", func(tt *testing.T) {
-		ipAddress := "192.168.1.100"
+		ipAddress := []string{"192.168.1.100"}
 
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
@@ -7106,7 +7280,7 @@ func TestConvertDatastoreVolumeToModelFileProperties(t *testing.T) {
 	})
 
 	t.Run("ConvertVolumeWithKms", func(tt *testing.T) {
-		ipAddress := "192.168.1.100"
+		ipAddress := []string{"192.168.1.100"}
 
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},

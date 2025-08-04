@@ -84,20 +84,6 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		params.Snapshot = dbSnapshot
 	}
 
-	job := &datamodel.Job{
-		Type:          string(models.JobTypeCreateVolume),
-		State:         string(models.JobsStateNEW),
-		ResourceName:  params.Name,
-		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
-		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
-		RequestID:     utils.GetRequestIDFromContext(ctx),
-	}
-	createdJob, err := se.CreateJob(ctx, job)
-	if err != nil {
-		logger.Error("Failed to create job in database", "error", err)
-		return nil, "", err
-	}
-
 	dbPool := database.ConvertPoolViewToPool(pool)
 	volumeObj := &datamodel.Volume{
 		Name:        params.Name,
@@ -234,6 +220,20 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeCreateVolume),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", err
+	}
+
 	// controlWorkflowID defines the workflow ID for the control workflow
 	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSnapshotDeleteSeq, dbVolume.Account.ID, location, dbVolume.Pool.Name)
 	err = workflows.ExecuteWorkflowSequentially(
@@ -271,14 +271,14 @@ func (o *Orchestrator) GetVolume(ctx context.Context, volumeId string, refreshVo
 		return nil, err
 	}
 
-	ipAddress, err := getIPAddressForVolume(ctx, se, volume)
+	ipAddresses, err := getIPAddressForVolume(ctx, se, volume)
 	if err != nil {
 		return nil, err
 	}
 
 	// return early if we don't need to update volume metrics or if the volume is not in ready state
 	if !refreshVolumeFields || volume.State != models.LifeCycleStateREADY {
-		return convertDatastoreVolumeToModel(volume, &ipAddress), nil
+		return convertDatastoreVolumeToModel(volume, &ipAddresses), nil
 	}
 
 	dbJobs, err := getExistingRefreshVolumeFieldsJob(ctx, volume, se)
@@ -289,7 +289,7 @@ func (o *Orchestrator) GetVolume(ctx context.Context, volumeId string, refreshVo
 
 	if len(dbJobs) > 0 {
 		log.Info("JobTypeRefreshVolumeFields already exists for this volume, skipping creation")
-		return convertDatastoreVolumeToModel(volume, &ipAddress), nil
+		return convertDatastoreVolumeToModel(volume, &ipAddresses), nil
 	}
 
 	job := &datamodel.Job{
@@ -324,7 +324,7 @@ func (o *Orchestrator) GetVolume(ctx context.Context, volumeId string, refreshVo
 		return nil, err
 	}
 
-	return convertDatastoreVolumeToModel(volume, &ipAddress), nil
+	return convertDatastoreVolumeToModel(volume, &ipAddresses), nil
 }
 
 func getExistingRefreshVolumeFieldsJob(ctx context.Context, volume *datamodel.Volume, se database.Storage) ([]*datamodel.Job, error) {
@@ -379,30 +379,32 @@ func convertDatastoreVolumesToModel(volumes []*datamodel.Volume) []*models.Volum
 	return volumesList
 }
 
-func _getIPAddressForVolume(ctx context.Context, se database.Storage, volume *datamodel.Volume) (string, error) {
+func _getIPAddressForVolume(ctx context.Context, se database.Storage, volume *datamodel.Volume) ([]string, error) {
+	ipAddresses := make([]string, 0)
 	nodes, err := se.GetNodesByPoolID(ctx, volume.PoolID)
 	if err != nil {
-		return "", err
+		return ipAddresses, err
 	}
 
-	ipAddress := ""
 	if volume.VolumeAttributes.FileProperties != nil {
 		protocol := volume.VolumeAttributes.Protocols[0]
 		pType := utils.GetProtocolType(protocol)
 		lif, err := se.GetLifForFilesNode(ctx, nodes[0].ID, volume.AccountID, string(pType))
 		if err != nil {
-			return "", err
+			return ipAddresses, err
 		}
-		ipAddress = lif.IPAddress
+		ipAddresses = append(ipAddresses, lif.IPAddress)
 	} else {
-		lif, err := se.GetLifForNode(ctx, nodes[0].ID, volume.AccountID)
-		if err != nil {
-			return "", err
+		for _, node := range nodes {
+			lif, err := se.GetLifForNode(ctx, node.ID, volume.AccountID)
+			if err != nil {
+				return ipAddresses, err
+			}
+			ipAddresses = append(ipAddresses, lif.IPAddress)
 		}
-		ipAddress = lif.IPAddress
 	}
 
-	return ipAddress, nil
+	return ipAddresses, nil
 }
 
 // VolumeTypeProcessor defines protocol-specific validation for volume creation
@@ -579,7 +581,7 @@ func _validateDeleteVolumeParams(ctx context.Context, se database.Storage, volum
 	return nil
 }
 
-func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) *models.Volume {
+func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]string) *models.Volume {
 	res := &models.Volume{
 		BaseModel: models.BaseModel{
 			UUID:      volume.UUID,
@@ -655,7 +657,7 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *string) 
 	}
 
 	if ipAddress != nil {
-		res.IPAddress = *ipAddress
+		res.IPAddresses = *ipAddress
 	}
 
 	if volume.SnapshotPolicy != nil {
@@ -823,11 +825,11 @@ func (o *Orchestrator) GetMultipleVolumes(ctx context.Context, volumeIds []strin
 
 	var result []*models.Volume
 	for _, volume := range volumes {
-		ipAddress, err := getIPAddressForVolume(ctx, se, volume)
+		ipAddresses, err := getIPAddressForVolume(ctx, se, volume)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, convertDatastoreVolumeToModel(volume, &ipAddress))
+		result = append(result, convertDatastoreVolumeToModel(volume, &ipAddresses))
 	}
 	return result, nil
 }

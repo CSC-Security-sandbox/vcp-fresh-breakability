@@ -2510,7 +2510,7 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 			BlockProperties: &models.BlockProperties{OSType: "LINUX"},
 			ProtocolTypes:   []string{"ISCSI"},
 			LifeCycleState:  "READY",
-			IPAddress:       "10.72.177.17",
+			IPAddresses:     []string{"10.72.177.17"},
 		}
 		out := convertModelToVCPVolume(vol)
 		assert.NotNil(t, out)
@@ -2526,7 +2526,7 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 			BlockProperties: &models.BlockProperties{OSType: "LINUX"},
 			ProtocolTypes:   []string{"ISCSI"},
 			LifeCycleState:  "READY",
-			IPAddress:       "10.72.177.17",
+			IPAddresses:     []string{"10.72.177.17"},
 			KmsConfig: &models.KmsConfig{
 				BaseModel: models.BaseModel{
 					UUID: "kms-uuid",
@@ -2955,7 +2955,7 @@ func TestConvertModelToVCPVolume_MountPoints(t *testing.T) {
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			DisplayName:    "test-volume",
 			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateREADY),
-			IPAddress:      "10.72.177.17",
+			IPAddresses:    []string{"10.72.177.17"},
 			BlockProperties: &models.BlockProperties{
 				OSType:  "LINUX",
 				LunName: "lun-123",
@@ -2981,7 +2981,7 @@ func TestConvertModelToVCPVolume_MountPoints(t *testing.T) {
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			DisplayName:    "test-volume",
 			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateCREATING), // Not READY
-			IPAddress:      "10.72.177.17",
+			IPAddresses:    []string{"10.72.177.17"},
 			BlockProperties: &models.BlockProperties{
 				OSType:  "LINUX",
 				LunName: "lun-123", // Has LUN name
@@ -3002,7 +3002,7 @@ func TestConvertModelToVCPVolume_MountPoints(t *testing.T) {
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			DisplayName:    "test-volume",
 			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateREADY), // READY
-			IPAddress:      "10.72.177.17",
+			IPAddresses:    []string{"10.72.177.17"},
 			BlockProperties: &models.BlockProperties{
 				OSType:  "LINUX",
 				LunName: "", // Empty LUN name
@@ -3023,7 +3023,7 @@ func TestConvertModelToVCPVolume_MountPoints(t *testing.T) {
 			BaseModel:       models.BaseModel{UUID: "vol-1"},
 			DisplayName:     "test-volume",
 			LifeCycleState:  string(gcpgenserver.VolumeV1betaVolumeStateREADY), // READY
-			IPAddress:       "10.72.177.17",
+			IPAddresses:     []string{"10.72.177.17"},
 			BlockProperties: nil, // No BlockProperties
 			ProtocolTypes:   []string{"ISCSI"},
 		}

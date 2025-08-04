@@ -20,7 +20,7 @@ type Volume struct {
 	IsDataProtection      bool
 	BlockProperties       *BlockProperties
 	SnapshotPolicy        *SnapshotPolicy
-	IPAddress             string
+	IPAddresses           []string
 	DataProtection        *DataProtection
 	Zone                  string
 	UsedBytes             uint64

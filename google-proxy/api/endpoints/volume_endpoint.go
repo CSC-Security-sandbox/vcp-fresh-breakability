@@ -642,10 +642,14 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 			})
 		if volume.LifeCycleState == string(gcpgenserver.VolumeV1betaVolumeStateREADY) {
 			res.MountPoints = make([]gcpgenserver.MountPointV1beta, 0)
+			ipAddress := ""
+			if len(volume.IPAddresses) > 0 {
+				ipAddress = volume.IPAddresses[0]
+			}
 			res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
-				IpAddress:    gcpgenserver.NewOptString(volume.IPAddress),
+				IpAddress:    gcpgenserver.NewOptString(strings.Join(volume.IPAddresses, ",")),
 				Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1betaNFSV3),
-				Instructions: getFilesMountInstructions(volume.IPAddress, volume.FileProperties.JunctionPath, "/"+volume.DisplayName),
+				Instructions: getFilesMountInstructions(ipAddress, volume.FileProperties.JunctionPath, "/"+volume.DisplayName),
 			})
 		}
 	}
@@ -666,10 +670,14 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		// Only show mount points if volume is ready and has valid LUN name
 		if volume.LifeCycleState == string(gcpgenserver.VolumeV1betaVolumeStateREADY) && volume.BlockProperties.LunName != "" {
 			res.MountPoints = make([]gcpgenserver.MountPointV1beta, 0)
+			ipAddress := ""
+			if len(volume.IPAddresses) > 0 {
+				ipAddress = volume.IPAddresses[0]
+			}
 			res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
-				IpAddress:    gcpgenserver.NewOptString(volume.IPAddress),
+				IpAddress:    gcpgenserver.NewOptString(strings.Join(volume.IPAddresses, ",")),
 				Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1betaISCSI),
-				Instructions: getMountInstructions(volume.BlockProperties.OSType, volume.IPAddress, volume.BlockProperties.LunName),
+				Instructions: getMountInstructions(volume.BlockProperties.OSType, ipAddress, volume.BlockProperties.LunName),
 			})
 		}
 	}
