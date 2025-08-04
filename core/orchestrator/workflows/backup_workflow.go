@@ -95,9 +95,14 @@ func (wf *BackupCreateWorkflow) Setup(ctx workflow.Context, input interface{}) e
 }
 
 func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
-	dbBackup := args[0].(*datamodel.Backup)
-	backupVault := args[1].(*datamodel.BackupVault)
-	volume := args[2].(*datamodel.Volume)
+	// Initialize backupActivitiesContext with input arguments
+	backupActivitiesContext := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      args[0].(*datamodel.Backup),
+			BackupVault: args[1].(*datamodel.BackupVault),
+			Volume:      args[2].(*datamodel.Volume),
+		},
+	}
 
 	backupActivity := &activities.BackupActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
@@ -113,81 +118,76 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
 		},
 	}
-	// TODO: Once all the operation which are using these workflows are done, Need to investigate
-	// That Can we pass the dbBackup object into each activity and let the activity enrich it with information as it progresses.
-	// Or just have a common object which contains everything and pass it in and out of the activities
-
 	ctx = workflow.WithActivityOptions(ctx, ao)
-	var dbNodes []*datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.PoolID).Get(ctx, &dbNodes)
-	if err != nil {
-		return nil, err
-	}
-	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType})
-	objStore := &commonparams.CloudTarget{}
-	var objStoreName string
-	err = workflow.ExecuteActivity(ctx, backupActivity.GetObjStoreNameActivity, backupVault, volume).Get(ctx, &objStoreName)
-	if err != nil {
-		return nil, err
-	}
-	var bucketDetails *datamodel.BucketDetails
-	err = workflow.ExecuteActivity(ctx, backupActivity.GetBucketDetailsActivity, backupVault, volume).Get(ctx, &bucketDetails)
-	if err != nil {
-		return nil, err
-	}
-	bucketName := bucketDetails.BucketName
-	err = workflow.ExecuteActivity(ctx, backupActivity.GetOrCreateObjectStore, node, objStoreName, bucketName).Get(ctx, &objStore)
-	if err != nil {
-		return nil, err
-	}
-	dbBackup.Attributes.BucketName = bucketName
-	dbBackup.Attributes.ServiceAccountName = bucketDetails.ServiceAccountName
-	var smDestinationPath string
-	err = workflow.ExecuteActivity(ctx, backupActivity.GetSmDestinationPathActivity, backupVault, volume).Get(ctx, &smDestinationPath)
-	if err != nil {
-		return nil, err
-	}
-	var smSourcePath string
-	err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathActivity, volume).Get(ctx, &smSourcePath)
-	if err != nil {
-		return nil, err
-	}
-	snapmirrorRelationship := &commonparams.SnapmirrorRelationship{}
-	SnapmirrorRelationshipParams := &commonparams.SnapmirrorRelationshipParams{
-		SourcePath:      smSourcePath,
-		DestinationPath: smDestinationPath,
-		SourceUUID:      nil,
-		IsRestore:       false,
-	}
-	err = workflow.ExecuteActivity(ctx, backupActivity.SnapmirrorGetorCreate, node, &SnapmirrorRelationshipParams).Get(ctx, &snapmirrorRelationship)
-	if err != nil {
-		return nil, err
-	}
-	if snapmirrorRelationship != nil && snapmirrorRelationship.DestinationUUID != nil {
-		dbBackup.Attributes.EndpointUUID = *snapmirrorRelationship.DestinationUUID
-	}
-	snapshotName := getSnapshotName(dbBackup)
-	snapshotResponse := &vsa.SnapshotProviderResponse{}
-	err = workflow.ExecuteActivity(ctx, backupActivity.SnapshotCreate, node, volume.VolumeAttributes.ExternalUUID, snapshotName, BackupComment).Get(ctx, &snapshotResponse)
-	if err != nil {
-		return nil, err
-	}
-	dbBackup.Attributes.SnapshotName = snapshotName
-	dbBackup.Attributes.SnapshotID = snapshotResponse.ExternalUUID
-	dbBackup.Attributes.SnapshotCreationTime = time.Now().String()
 
-	err = workflow.ExecuteActivity(ctx, backupActivity.SnapmirrorTransfer, node, snapmirrorRelationship.UUID, snapshotName).Get(ctx, nil)
+	var dbNodes []*datamodel.Node
+	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, backupActivitiesContext.BackupWorkflowInit.Volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
 		return nil, err
 	}
+
+	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: dbNodes, Password: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.Password, SecretID: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.SecretID, DeploymentName: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.DeploymentName, CertificateID: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.CertificateID, AuthType: backupActivitiesContext.BackupWorkflowInit.Volume.Pool.PoolCredentials.AuthType})
+	backupActivitiesContext.Node = node
+
+	// Prepare object store details
+	err = workflow.ExecuteActivity(ctx, backupActivity.PrepareObjectStoreActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get or create object store
+	err = workflow.ExecuteActivity(ctx, backupActivity.GetOrCreateObjectStoreActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	if err != nil {
+		return nil, err
+	}
+
+	// Prepare snapmirror paths
+	err = workflow.ExecuteActivity(ctx, backupActivity.PrepareSnapmirrorActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create snapmirror relationship
+	err = workflow.ExecuteActivity(ctx, backupActivity.CreateSnapmirrorRelationshipActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	if err != nil {
+		return nil, err
+	}
+
+	// Creating snapshot in DB
+	err = workflow.ExecuteActivity(ctx, backupActivity.CreatingSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		// Update snapshot details in DB
+		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+		if err != nil {
+			util.GetLogger(ctx).Errorf("Failed to Update Snapshot State: %v", err)
+		}
+	}()
+
+	// Create snapshot
+	err = workflow.ExecuteActivity(ctx, backupActivity.CreateSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	if err != nil {
+		return nil, err
+	}
+
+	// Transfer snapshot
+	err = workflow.ExecuteActivity(ctx, backupActivity.TransferSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	if err != nil {
+		return nil, err
+	}
+
+	// Poll for transfer completion
 	done := false
-	var status string
 	for !done {
-		err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirrorTransferStatus, node, snapmirrorRelationship.UUID, snapshotName).Get(ctx, &status)
+		err = workflow.ExecuteActivity(ctx, backupActivity.CheckTransferStatusActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 		if err != nil {
 			return nil, err
 		}
-		switch status {
+
+		switch backupActivitiesContext.TransferStatus {
 		case activities.SmStatusTransferring:
 			err := workflow.Sleep(ctx, Wait) // Wait before polling again
 			if err != nil {
@@ -196,19 +196,24 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		case activities.SmStatusSuccess:
 			done = true
 		case activities.SmStatusFailed:
-			return nil, fmt.Errorf("snapmirror transfer failed for snapshot %s with status: %s", snapshotName, status)
+			return nil, fmt.Errorf("snapmirror transfer failed for snapshot %s with status: %s", backupActivitiesContext.SnapshotName, backupActivitiesContext.TransferStatus)
 		}
 	}
-	// TODO:  VSCP-615 - Delete older snapshots after backup is completed
-	// err = workflow.ExecuteActivity(ctx, backupActivity.DeleteSnapshot, node, snapshotResponse.ExternalUUID, volume.VolumeAttributes.ExternalUUID).Get(ctx, nil)
+
+	// need to add later MR #711
+	// Get snapshot from object store
+	// err = workflow.ExecuteActivity(ctx, backupActivity.GetObjectStoreSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 	// if err != nil {
 	//	return nil, err
 	// }
-	err = workflow.ExecuteActivity(ctx, backupActivity.FinishBackup, &dbBackup).Get(ctx, nil)
+
+	// Finish backup
+	err = workflow.ExecuteActivity(ctx, backupActivity.FinishBackupActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 	if err != nil {
 		return nil, err
 	}
-	return nil, err
+
+	return backupActivitiesContext, nil
 }
 
 func (wf *BackupCreateWorkflow) Revert(ctx workflow.Context, backup *datamodel.Backup, volume *datamodel.Volume, errString string) error {
@@ -229,7 +234,7 @@ func (wf *BackupCreateWorkflow) Revert(ctx workflow.Context, backup *datamodel.B
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
-	// updating the backup state to error
+	// updating the backup backupActivitiesContext to error
 	err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupError, &backup, errString).Get(ctx, nil)
 	if err != nil {
 		return err
@@ -248,10 +253,6 @@ func (wf *BackupCreateWorkflow) Revert(ctx workflow.Context, backup *datamodel.B
 		}
 	}
 	return nil
-}
-
-func getSnapshotName(backup *datamodel.Backup) string {
-	return fmt.Sprintf("vcp-ad-%s", backup.Name)
 }
 
 func getBucketDetailsForBucket(backupVault *datamodel.BackupVault, bucketName string) (*datamodel.BucketDetails, error) {
@@ -276,7 +277,7 @@ func DeleteBackupWorkflow(ctx workflow.Context, params *commonparams.DeleteBacku
 	}
 	_, err = backupWf.Run(ctx, params)
 	if err != nil {
-		// backup state to error
+		// backup backupActivitiesContext to error
 		err = backupWf.HandleError(ctx, params, err.Error())
 		if err != nil {
 			// If revert fails, log the error but do not return it
@@ -575,10 +576,10 @@ func (wf *backupUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	defer func() {
 		if err != nil {
-			// If an error occurs, update the backup state to ERROR
+			// If an error occurs, update the backup backupActivitiesContext to ERROR
 			errorActivity := workflow.ExecuteActivity(ctx, backupUpdateActivity.UpdateBackupError, backup, err.Error())
 			if errorActivity.Get(ctx, nil) != nil {
-				util.GetLogger(ctx).Errorf("Failed to update backup state to ERROR: %v", err)
+				util.GetLogger(ctx).Errorf("Failed to update backup backupActivitiesContext to ERROR: %v", err)
 			}
 			return
 		}

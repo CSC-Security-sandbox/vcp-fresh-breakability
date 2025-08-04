@@ -53,7 +53,7 @@ func (s *ScheduledBackupsTestSuite) registerCreateScheduledBackupActivities(comm
 	s.env.RegisterActivity(backupActivity.GetBucketDetailsActivity)
 	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
 	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
-	s.env.RegisterActivity(backupActivity.SnapmirrorGetorCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
 	s.env.RegisterActivity(backupActivity.SnapshotCreate)
 	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
 	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
@@ -258,7 +258,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success() 
 		}, nil)
 
 	destinationUUID := "test-destination-uuid-1"
-	s.env.OnActivity(backupActivity.SnapmirrorGetorCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.SnapmirrorRelationship{
 			UUID:            "test-uuid-1",
 			DestinationUUID: &destinationUUID,
@@ -363,7 +363,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success_Jo
 		}, nil)
 
 	destinationUUID := "test-destination-uuid-1"
-	s.env.OnActivity(backupActivity.SnapmirrorGetorCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.SnapmirrorRelationship{
 			UUID:            "test-uuid-1",
 			DestinationUUID: &destinationUUID,
@@ -1286,7 +1286,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 			Name: "vsa-backup-bucket",
 		}, nil)
 
-	s.env.OnActivity(backupActivity.SnapmirrorGetorCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, errors.New("could not get or create snapmirror relationship"))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1383,7 +1383,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotCr
 		}, nil)
 
 	destinationUUID := "test-destination-uuid-1"
-	s.env.OnActivity(backupActivity.SnapmirrorGetorCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.SnapmirrorRelationship{
 			UUID:            "test-uuid-1",
 			DestinationUUID: &destinationUUID,
@@ -1485,7 +1485,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 		}, nil)
 
 	destinationUUID := "test-destination-uuid-1"
-	s.env.OnActivity(backupActivity.SnapmirrorGetorCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.SnapmirrorRelationship{
 			UUID:            "test-uuid-1",
 			DestinationUUID: &destinationUUID,
@@ -1592,7 +1592,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSnapmir
 		}, nil)
 
 	destinationUUID := "test-destination-uuid-1"
-	s.env.OnActivity(backupActivity.SnapmirrorGetorCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.SnapmirrorRelationship{
 			UUID:            "test-uuid-1",
 			DestinationUUID: &destinationUUID,
@@ -1700,7 +1700,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_FinishBack
 		}, nil)
 
 	destinationUUID := "test-destination-uuid-1"
-	s.env.OnActivity(backupActivity.SnapmirrorGetorCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.SnapmirrorRelationship{
 			UUID:            "test-uuid-1",
 			DestinationUUID: &destinationUUID,
@@ -1809,7 +1809,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_HydrateBac
 		}, nil)
 
 	destinationUUID := "test-destination-uuid-1"
-	s.env.OnActivity(backupActivity.SnapmirrorGetorCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.SnapmirrorRelationship{
 			UUID:            "test-uuid-1",
 			DestinationUUID: &destinationUUID,
@@ -1919,7 +1919,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_ErrorLaunc
 		}, nil)
 
 	destinationUUID := "test-destination-uuid-1"
-	s.env.OnActivity(backupActivity.SnapmirrorGetorCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&common.SnapmirrorRelationship{
 			UUID:            "test-uuid-1",
 			DestinationUUID: &destinationUUID,

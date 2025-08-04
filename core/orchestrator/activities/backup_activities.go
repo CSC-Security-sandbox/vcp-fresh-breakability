@@ -3,6 +3,7 @@ package activities
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -13,9 +14,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"gorm.io/gorm"
 )
 
-var (
+const (
+	BackupComment        = "VCP-Backup"
 	SmStatusTransferring = "transferring"
 	SmStatusSuccess      = "success"
 	SmStatusFailed       = "failed"
@@ -23,6 +26,32 @@ var (
 
 type BackupActivity struct {
 	SE database.Storage
+}
+
+type BackupWorkflowInput struct {
+	Backup      *datamodel.Backup
+	BackupVault *datamodel.BackupVault
+	Volume      *datamodel.Volume
+}
+type BackupActivitiesContext struct {
+	// Initial inputs
+	BackupWorkflowInit *BackupWorkflowInput
+
+	// Workflow state
+	Node                   *models.Node
+	ObjStoreName           string
+	BucketDetails          *datamodel.BucketDetails
+	BucketName             string
+	ObjStore               *commonparams.CloudTarget
+	SmSourcePath           string
+	SmDestinationPath      string
+	SnapmirrorRelationship *commonparams.SnapmirrorRelationship
+	SnapshotName           string
+	SnapshotResponse       *vsa.SnapshotProviderResponse
+	TransferStatus         string
+	DbSnapshot             *datamodel.Snapshot
+	// need to add later MR #711
+	// ObjStoreSnapshot       *vsa.SmObjectStoreEndpointSnapshot
 }
 
 func (a BackupActivity) CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
@@ -54,6 +83,187 @@ func (a BackupActivity) UpdateBackupError(ctx context.Context, backup *datamodel
 	return err
 }
 
+// PrepareObjectStoreActivity prepares object store details
+func (b *BackupActivity) PrepareObjectStoreActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	objStoreName, err := getObjStoreName(backupActivitiesContext.BackupWorkflowInit.BackupVault, backupActivitiesContext.BackupWorkflowInit.Volume)
+	if err != nil {
+		return nil, err
+	}
+	backupActivitiesContext.ObjStoreName = objStoreName
+
+	bucketDetails, err := getBucketDetails(backupActivitiesContext.BackupWorkflowInit.BackupVault, backupActivitiesContext.BackupWorkflowInit.Volume)
+	if err != nil {
+		return nil, err
+	}
+	backupActivitiesContext.BucketDetails = bucketDetails
+	backupActivitiesContext.BucketName = bucketDetails.BucketName
+
+	return backupActivitiesContext, nil
+}
+
+// GetOrCreateObjectStoreActivity gets or creates object store
+func (b *BackupActivity) GetOrCreateObjectStoreActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	objStore, err := b.GetOrCreateObjectStore(ctx, backupActivitiesContext.Node, backupActivitiesContext.ObjStoreName, backupActivitiesContext.BucketName)
+	if err != nil {
+		return nil, err
+	}
+	backupActivitiesContext.ObjStore = objStore
+	backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.BucketName = backupActivitiesContext.BucketName
+	backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.ServiceAccountName = backupActivitiesContext.BucketDetails.ServiceAccountName
+
+	return backupActivitiesContext, nil
+}
+
+// PrepareSnapmirrorActivity prepares snapmirror paths
+func (b *BackupActivity) PrepareSnapmirrorActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	smDestinationPath, err := getSmDestinationPath(backupActivitiesContext.BackupWorkflowInit.BackupVault, backupActivitiesContext.BackupWorkflowInit.Volume)
+	if err != nil {
+		return nil, err
+	}
+	backupActivitiesContext.SmDestinationPath = smDestinationPath
+	backupActivitiesContext.SmSourcePath = getSmSourcePath(backupActivitiesContext.BackupWorkflowInit.Volume)
+
+	return backupActivitiesContext, nil
+}
+
+// CreateSnapmirrorRelationshipActivity creates snapmirror relationship
+func (b *BackupActivity) CreateSnapmirrorRelationshipActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	snapmirrorParams := &commonparams.SnapmirrorRelationshipParams{
+		SourcePath:      backupActivitiesContext.SmSourcePath,
+		DestinationPath: backupActivitiesContext.SmDestinationPath,
+		SourceUUID:      nil,
+		IsRestore:       false,
+	}
+
+	snapmirrorRelationship, err := b.SnapmirrorGetOrCreate(ctx, backupActivitiesContext.Node, snapmirrorParams)
+	if err != nil {
+		return nil, err
+	}
+
+	backupActivitiesContext.SnapmirrorRelationship = snapmirrorRelationship
+	if snapmirrorRelationship != nil && snapmirrorRelationship.DestinationUUID != nil {
+		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.EndpointUUID = *snapmirrorRelationship.DestinationUUID
+	}
+
+	return backupActivitiesContext, nil
+}
+
+// CreatingSnapshotActivity creates snapshot in database
+func (b *BackupActivity) CreatingSnapshotActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	logger := util.GetLogger(ctx)
+	backupActivitiesContext.SnapshotName = backupActivitiesContext.BackupWorkflowInit.Backup.Name
+	snapshot := &datamodel.Snapshot{
+		Name:               backupActivitiesContext.SnapshotName,
+		Description:        BackupComment,
+		VolumeID:           backupActivitiesContext.BackupWorkflowInit.Volume.ID,
+		AccountID:          backupActivitiesContext.BackupWorkflowInit.Volume.AccountID,
+		Volume:             backupActivitiesContext.BackupWorkflowInit.Volume,
+		Account:            backupActivitiesContext.BackupWorkflowInit.Volume.Account,
+		IsAppConsistent:    false,
+		Type:               SnapshotTypeBackupAdhoc,
+		SnapshotAttributes: &datamodel.SnapshotAttributes{},
+	}
+	dbSnapshot, err := b.SE.CreatingSnapshot(ctx, snapshot)
+	if err != nil {
+		logger.Errorf("Failed to create snapshot in database. Error: %v", err)
+		return backupActivitiesContext, err
+	}
+	backupActivitiesContext.DbSnapshot = dbSnapshot
+	return backupActivitiesContext, nil
+}
+
+// UpdateSnapshotActivity updates snapshot in database
+func (b *BackupActivity) UpdateSnapshotActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	logger := util.GetLogger(ctx)
+	if backupActivitiesContext.DbSnapshot == nil {
+		return nil, errors.New("database snapshot is nil")
+	}
+
+	// Update the snapshot in the database
+	if backupActivitiesContext.SnapshotResponse != nil {
+		backupActivitiesContext.DbSnapshot.State = models.LifeCycleStateREADY
+		backupActivitiesContext.DbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
+		backupActivitiesContext.DbSnapshot.SnapshotAttributes.SizeInBytes = backupActivitiesContext.SnapshotResponse.SizeInBytes
+		backupActivitiesContext.DbSnapshot.SnapshotAttributes.ExternalUUID = backupActivitiesContext.SnapshotResponse.ExternalUUID
+		backupActivitiesContext.DbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes = backupActivitiesContext.SnapshotResponse.LogicalSizeInBytes
+	} else {
+		now := time.Now()
+		backupActivitiesContext.DbSnapshot.DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
+		backupActivitiesContext.DbSnapshot.State = models.LifeCycleStateError
+		backupActivitiesContext.DbSnapshot.StateDetails = models.LifeCycleStateCreationErrorDetails
+	}
+	_, err := b.SE.UpdateSnapshot(ctx, backupActivitiesContext.DbSnapshot)
+	if err != nil {
+		logger.Errorf("Failed to update snapshot details in database. Error: %v", err)
+		return nil, err
+	}
+
+	// Update the backupActivitiesContext with snapshot response
+	if backupActivitiesContext.BackupWorkflowInit != nil && backupActivitiesContext.BackupWorkflowInit.Backup != nil && backupActivitiesContext.BackupWorkflowInit.Backup.Attributes != nil {
+		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName = backupActivitiesContext.SnapshotName
+		if backupActivitiesContext.SnapshotResponse != nil {
+			backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID = backupActivitiesContext.SnapshotResponse.ExternalUUID
+		}
+		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime = time.Now().String()
+	}
+	return backupActivitiesContext, nil
+}
+
+// CreateSnapshotActivity creates snapshot in Ontap
+func (b *BackupActivity) CreateSnapshotActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	logger := util.GetLogger(ctx)
+
+	snapshotResponse, err := b.SnapshotCreate(ctx, backupActivitiesContext.Node, backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID, backupActivitiesContext.SnapshotName, BackupComment)
+	if err != nil {
+		logger.Errorf("Failed to create snapshot in Ontap. Error: %v", err)
+		return nil, err
+	}
+
+	// Update the backupActivitiesContext with snapshot response
+	backupActivitiesContext.SnapshotResponse = snapshotResponse
+	return backupActivitiesContext, nil
+}
+
+// TransferSnapshotActivity initiates snapshot transfer
+func (b *BackupActivity) TransferSnapshotActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	err := b.SnapmirrorTransfer(ctx, backupActivitiesContext.Node, backupActivitiesContext.SnapmirrorRelationship.UUID, backupActivitiesContext.SnapshotName)
+	if err != nil {
+		return nil, err
+	}
+	return backupActivitiesContext, nil
+}
+
+// CheckTransferStatusActivity checks transfer status
+func (b *BackupActivity) CheckTransferStatusActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	status, err := b.GetSnapmirrorTransferStatus(ctx, backupActivitiesContext.Node, backupActivitiesContext.SnapmirrorRelationship.UUID, backupActivitiesContext.SnapshotName)
+	if err != nil {
+		return nil, err
+	}
+	backupActivitiesContext.TransferStatus = status
+	return backupActivitiesContext, nil
+}
+
+// need to add later MR #711
+//  GetObjectStoreSnapshotActivity gets snapshot from object store
+// func (b *BackupActivity) GetObjectStoreSnapshotActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+//	objStoreSnapshot, err := b.GetSnapshotFromObjectStore(ctx, backupActivitiesContext.Backup)
+//	if err != nil {
+//		return nil, err
+//	}
+//	backupActivitiesContext.ObjStoreSnapshot = objStoreSnapshot
+//	backupActivitiesContext.Backup.SizeInBytes = *objStoreSnapshot.LogicalSize
+//	return backupActivitiesContext, nil
+// }
+
+// FinishBackupActivity finishes the backup
+func (b *BackupActivity) FinishBackupActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	err := b.FinishBackup(ctx, backupActivitiesContext.BackupWorkflowInit.Backup)
+	if err != nil {
+		return nil, err
+	}
+	return backupActivitiesContext, nil
+}
+
 func (a BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *models.Node, name, containerName string) (*commonparams.CloudTarget, error) {
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
@@ -75,7 +285,7 @@ func (a BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *models
 	return nil, errors.New("failed to get or create object store")
 }
 
-func (a BackupActivity) SnapmirrorGetorCreate(ctx context.Context, node *models.Node, params *commonparams.SnapmirrorRelationshipParams) (*commonparams.SnapmirrorRelationship, error) {
+func (a BackupActivity) SnapmirrorGetOrCreate(ctx context.Context, node *models.Node, params *commonparams.SnapmirrorRelationshipParams) (*commonparams.SnapmirrorRelationship, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := GetProviderByNode(ctx, node)
 	if err != nil {
@@ -195,7 +405,7 @@ func (a BackupActivity) GetSnapmirrorTransferStatus(ctx context.Context, node *m
 	rsp, err := provider.SnapmirrorRelationshipTransferGet(snapmirrorUUID, snapshotName)
 	if err != nil {
 		if rsp != nil && rsp.State != nil {
-			logger.Errorf("Snapmirror transfer failed with state: %s, error: %v", *rsp.State, err)
+			logger.Errorf("Snapmirror transfer failed with backupActivitiesContext: %s, error: %v", *rsp.State, err)
 		}
 		return SmStatusFailed, err
 	}
@@ -204,7 +414,7 @@ func (a BackupActivity) GetSnapmirrorTransferStatus(ctx context.Context, node *m
 	}
 	if rsp.State != nil {
 		if *rsp.State == SmStatusFailed {
-			return SmStatusFailed, errors.New("Snapmirror transfer failed with state: " + SmStatusFailed)
+			return SmStatusFailed, errors.New("Snapmirror transfer failed with backupActivitiesContext: " + SmStatusFailed)
 		}
 		if *rsp.State == SmStatusSuccess {
 			return SmStatusSuccess, err
@@ -213,7 +423,7 @@ func (a BackupActivity) GetSnapmirrorTransferStatus(ctx context.Context, node *m
 			return SmStatusTransferring, nil
 		}
 	}
-	return SmStatusFailed, errors.New("Snapmirror transfer failed with state: " + *rsp.State)
+	return SmStatusFailed, errors.New("Snapmirror transfer failed with backupActivitiesContext: " + *rsp.State)
 }
 
 func (a BackupActivity) DeleteBackupSnapshot(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {
@@ -300,6 +510,35 @@ func (a *BackupActivity) UpdateBackup(ctx context.Context, backup *datamodel.Bac
 		return err
 	}
 	return nil
+}
+
+func getObjStoreName(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (string, error) {
+	bucketDetails, err := getBucketDetails(backupVault, vol)
+	if err != nil {
+		return "", err
+	}
+	return bucketDetails.BucketName, nil
+}
+
+func getBucketDetails(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (*datamodel.BucketDetails, error) {
+	for _, bucketDetail := range backupVault.BucketDetails {
+		if bucketDetail.VendorSubnetID == vol.VolumeAttributes.VendorSubnetID && bucketDetail.BucketName != "" {
+			return bucketDetail, nil
+		}
+	}
+	return nil, fmt.Errorf("no matching bucket details found for volume %s in backup vault %s", vol.Name, backupVault.Name)
+}
+
+func getSmSourcePath(volume *datamodel.Volume) string {
+	return fmt.Sprintf("%s:%s", volume.Svm.Name, volume.Name)
+}
+
+func getSmDestinationPath(backupVault *datamodel.BackupVault, volume *datamodel.Volume) (string, error) {
+	objStoreName, err := getObjStoreName(backupVault, volume)
+	if err != nil {
+		return "", fmt.Errorf("failed to get object store name: %w", err)
+	}
+	return fmt.Sprintf("%s:/objstore/%s", objStoreName, volume.UUID), nil
 }
 
 // func (a BackupActivity) CreateHmacKeys(ctx context.Context, params *commonparams.HmacKeyCreateParams, gcpService hyperscaler.GoogleServices) (hmacKeys *commonparams.HmacKeys, err error) {

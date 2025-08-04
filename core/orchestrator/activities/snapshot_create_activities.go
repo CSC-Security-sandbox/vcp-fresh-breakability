@@ -14,6 +14,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const SnapshotTypeBackupAdhoc = "backup-adhoc"
+
 type SnapshotCreateActivity struct {
 	SE database.Storage
 }
