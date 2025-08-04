@@ -4,20 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	ontaprestmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -1271,73 +1267,6 @@ func TestGetPoolByName(t *testing.T) {
 		_, err := GetPoolByName(ctx, mockStorage, "test-pool", "test-account", queryDepthOne)
 		assert.EqualError(tt, err, "pool not found")
 	})
-	t.Run("WhenGetNodesByPoolIDFails", func(tt *testing.T) {
-		ctx := context.Background()
-		mockStorage := new(database.MockStorage)
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-			return &datamodel.Account{Name: "test-account"}, nil
-		}
-		poolResp := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
-			Name:      "test-pool",
-		}
-		poolView := database.ConvertPoolToPoolView(poolResp)
-		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolView, nil)
-		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nil, errors.New("node not found"))
-		_, err := GetPoolByName(ctx, mockStorage, "test-pool", "test-account", queryDepthOne)
-		assert.EqualError(tt, err, "node not found")
-	})
-	t.Run("WhenGetNodeReturnsEmpty", func(tt *testing.T) {
-		ctx := context.Background()
-		mockStorage := new(database.MockStorage)
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-			return &datamodel.Account{Name: "test-account"}, nil
-		}
-		poolResp := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
-			Name:      "test-pool",
-		}
-		poolView := database.ConvertPoolToPoolView(poolResp)
-		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolView, nil)
-		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nil, nil)
-		_, err := GetPoolByName(ctx, mockStorage, "test-pool", "test-account", queryDepthZero)
-		assert.EqualError(tt, err, "node not found")
-	})
-	t.Run("WhenGetInterclusterLifsError", func(tt *testing.T) {
-		ctx := context.Background()
-		mockStorage := new(database.MockStorage)
-		mockLogger := log.NewLogger()
-		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
-
-		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-			return &datamodel.Account{Name: "test-account"}, nil
-		}
-		poolResp := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid", ID: 1},
-			Name:      "test-pool",
-		}
-		nodeResp := []*datamodel.Node{{
-			BaseModel: datamodel.BaseModel{UUID: "test-node-uuid", ID: 1},
-			Name:      "test-node",
-		},
-		}
-		poolView := database.ConvertPoolToPoolView(poolResp)
-		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolView, nil)
-		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodeResp, nil)
-
-		getInterClusterLifsFromONTAP = func(ctx context.Context, node []*datamodel.Node, pools *datamodel.PoolView) ([]*vsa.InterclusterLif, error) {
-			return nil, errors.New("lif not found")
-		}
-
-		_, err := GetPoolByName(ctx, mockStorage, "test-pool", "test-account", queryDepthOne)
-		assert.EqualError(tt, err, "lif not found")
-	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		ctx := context.Background()
 		mockStorage := new(database.MockStorage)
@@ -1356,28 +1285,8 @@ func TestGetPoolByName(t *testing.T) {
 				PrimaryZone:     "us-central1-a",
 			},
 		}
-		nodeResp := []*datamodel.Node{{
-			BaseModel: datamodel.BaseModel{UUID: "test-node-uuid", ID: 1},
-			Name:      "test-node",
-		},
-		}
 		poolView := database.ConvertPoolToPoolView(poolResp)
 		mockStorage.On("GetPoolByName", ctx, mock.Anything).Return(poolView, nil)
-		mockStorage.On("GetNodesByPoolID", ctx, mock.Anything).Return(nodeResp, nil)
-		interClusterLifResp := []*vsa.InterclusterLif{
-			{
-				Name:    "test-intercluster-lif",
-				Address: ontaprestmodel.IPAddress(net.ParseIP("10.0.0.1")),
-			},
-			{
-				Name:    "test-intercluster-lif-2",
-				Address: ontaprestmodel.IPAddress(net.ParseIP("10.0.0.2")),
-			},
-		}
-
-		getInterClusterLifsFromONTAP = func(ctx context.Context, node []*datamodel.Node, pools *datamodel.PoolView) ([]*vsa.InterclusterLif, error) {
-			return interClusterLifResp, nil
-		}
 
 		_, err := GetPoolByName(ctx, mockStorage, "test-pool", "test-account", queryDepthOne)
 		assert.NoError(tt, err)
@@ -1486,68 +1395,6 @@ func TestConvertDatastorePoolsToModelWithoutAccountNameParam_ReturnsCorrectModel
 	assert.Len(t, result, 1)
 	assert.Equal(t, "mock-pool", result[0].Name)
 	assert.Equal(t, "mock-account", result[0].AccountName)
-}
-
-func Test_getInterClusterLifsFromONTAP(t *testing.T) {
-	// Prepare test data
-	nodes := []*datamodel.Node{
-		{
-			Name:           "node1",
-			NodeAttributes: &datamodel.NodeDetails{},
-		},
-	}
-	poolView := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "pass",
-				SecretID:      "secret",
-				CertificateID: "cert",
-			},
-		},
-	}
-
-	t.Run("success", func(t *testing.T) {
-		origGetProviderByNode := activities.GetProviderByNode
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
-
-		mockProvider := new(vsa.MockProvider)
-		expectedLifs := []*vsa.InterclusterLif{{Address: "1.2.3.4"}}
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-			return mockProvider, nil
-		}
-		mockProvider.On("GetInterclusterLIFs", "default-intercluster").Return(expectedLifs, nil)
-
-		lifs, err := _getInterClusterLifsFromONTAP(context.Background(), nodes, poolView)
-		assert.NoError(t, err)
-		assert.Equal(t, expectedLifs, lifs)
-	})
-
-	t.Run("provider error", func(t *testing.T) {
-		origGetProviderByNode := activities.GetProviderByNode
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
-
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-			return nil, fmt.Errorf("provider error")
-		}
-		lifs, err := _getInterClusterLifsFromONTAP(context.Background(), nodes, poolView)
-		assert.Error(t, err)
-		assert.Nil(t, lifs)
-	})
-
-	t.Run("GetInterclusterLIFs error", func(t *testing.T) {
-		origGetProviderByNode := activities.GetProviderByNode
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
-
-		mockProvider := new(vsa.MockProvider)
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-			return mockProvider, nil
-		}
-		mockProvider.On("GetInterclusterLIFs", "default-intercluster").Return(nil, fmt.Errorf("lif error"))
-
-		lifs, err := _getInterClusterLifsFromONTAP(context.Background(), nodes, poolView)
-		assert.Error(t, err)
-		assert.Nil(t, lifs)
-	})
 }
 
 func TestValidateUpdatePoolParams_AutoTieringDisabled(t *testing.T) {

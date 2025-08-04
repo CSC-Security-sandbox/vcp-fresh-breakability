@@ -318,9 +318,17 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, err
 	}
 
+	// Get intercluster LIF IPs from VLM config
+	var interclusterLifIPs []string
+	err = workflow.ExecuteActivity(ctx, poolActivity.GetInterClusterLifsFromVLMConfig, createVSAClusterDeploymentResponse.VLMConfig).Get(ctx, &interclusterLifIPs)
+	if err != nil {
+		return nil, err
+	}
+
 	clusterDetails := &datamodel.ClusterDetails{
 		ExternalName:          createVSAClusterDeploymentResponse.VLMConfig.VsaCluster.ClusterName,
 		OntapVersion:          ontapVersion,
+		InterclusterLifIPs:    interclusterLifIPs,
 		RegionalTenantProject: tenancyDetails.RegionalTenantProject,
 		SnHostProject:         tenancyDetails.SnHostProject,
 		Network:               tenancyDetails.Network,

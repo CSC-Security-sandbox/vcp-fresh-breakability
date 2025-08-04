@@ -7411,3 +7411,146 @@ func TestFetchOnTapCredentials_WithDefaultAuthType_ReturnsPassword(t *testing.T)
 	assert.NoError(t, err)
 	assert.Equal(t, "plain-password", creds.AdminPassword)
 }
+
+func TestGetInterClusterLifsFromVLMConfig(t *testing.T) {
+	tests := []struct {
+		name      string
+		vlmConfig vlm.VLMConfig
+		expected  []string
+		wantErr   bool
+	}{
+		{
+			name: "Success - Single HA Pair with InterCluster LIFs",
+			vlmConfig: vlm.VLMConfig{
+				Cloud: vlm.CloudConfig{
+					HAPairs: []vlm.HAPair{
+						{
+							VM1: vlm.VMConfig{
+								SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{
+									vlm.LIFTypeInterCluster: {IP: "192.168.1.1"},
+									vlm.LIFTypeNodeMgmt:     {IP: "192.168.1.10"},
+								},
+							},
+							VM2: vlm.VMConfig{
+								SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{
+									vlm.LIFTypeInterCluster: {IP: "192.168.1.2"},
+									vlm.LIFTypeNodeMgmt:     {IP: "192.168.1.20"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{"192.168.1.1", "192.168.1.2"},
+			wantErr:  false,
+		},
+		{
+			name: "Success - Multiple HA Pairs with InterCluster LIFs",
+			vlmConfig: vlm.VLMConfig{
+				Cloud: vlm.CloudConfig{
+					HAPairs: []vlm.HAPair{
+						{
+							VM1: vlm.VMConfig{
+								SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{
+									vlm.LIFTypeInterCluster: {IP: "192.168.1.1"},
+								},
+							},
+							VM2: vlm.VMConfig{
+								SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{
+									vlm.LIFTypeInterCluster: {IP: "192.168.1.2"},
+								},
+							},
+						},
+						{
+							VM1: vlm.VMConfig{
+								SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{
+									vlm.LIFTypeInterCluster: {IP: "192.168.2.1"},
+								},
+							},
+							VM2: vlm.VMConfig{
+								SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{
+									vlm.LIFTypeInterCluster: {IP: "192.168.2.2"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{"192.168.1.1", "192.168.1.2", "192.168.2.1", "192.168.2.2"},
+			wantErr:  false,
+		},
+		{
+			name: "Success - Partial InterCluster LIFs",
+			vlmConfig: vlm.VLMConfig{
+				Cloud: vlm.CloudConfig{
+					HAPairs: []vlm.HAPair{
+						{
+							VM1: vlm.VMConfig{
+								SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{
+									vlm.LIFTypeInterCluster: {IP: "192.168.1.1"},
+									vlm.LIFTypeNodeMgmt:     {IP: "192.168.1.10"},
+								},
+							},
+							VM2: vlm.VMConfig{
+								SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{
+									vlm.LIFTypeNodeMgmt: {IP: "192.168.1.20"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{"192.168.1.1"},
+			wantErr:  false,
+		},
+		{
+			name: "Success - No InterCluster LIFs",
+			vlmConfig: vlm.VLMConfig{
+				Cloud: vlm.CloudConfig{
+					HAPairs: []vlm.HAPair{
+						{
+							VM1: vlm.VMConfig{
+								SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{
+									vlm.LIFTypeNodeMgmt: {IP: "192.168.1.10"},
+								},
+							},
+							VM2: vlm.VMConfig{
+								SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{
+									vlm.LIFTypeNodeMgmt: {IP: "192.168.1.20"},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: nil, // Changed from []string{} to nil
+			wantErr:  false,
+		},
+		{
+			name: "Success - Empty HA Pairs",
+			vlmConfig: vlm.VLMConfig{
+				Cloud: vlm.CloudConfig{
+					HAPairs: []vlm.HAPair{},
+				},
+			},
+			expected: nil, // Changed from []string{} to nil
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			activity := &activities.PoolActivity{}
+
+			result, err := activity.GetInterClusterLifsFromVLMConfig(ctx, &tt.vlmConfig)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, result)
+			}
+		})
+	}
+}

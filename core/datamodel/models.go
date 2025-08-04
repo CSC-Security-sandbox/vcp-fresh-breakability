@@ -57,6 +57,7 @@ type ClusterDetails struct {
 	SnHostProject         string   `json:"sn_host_project"`
 	Network               string   `json:"network"`
 	SubnetNames           []string `json:"subnet_names"`
+	InterclusterLifIPs    []string `json:"intercluster_lifs,omitempty"`
 }
 
 type PoolAttributes struct {

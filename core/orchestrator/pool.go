@@ -8,12 +8,9 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -27,19 +24,18 @@ import (
 )
 
 var (
-	minQuotaInBytesPool          = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 2*TibInBytes)   // 2TiB
-	maxQuotaInBytesPool          = env.GetUint64("MAX_QUOTA_IN_BYTES_POOL", 500*TibInBytes) // 500TiB
-	minCustomThroughput          = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)               // 64 MiBps
-	minCustomIops                = env.GetUint64("MIN_CUSTOM_IOPS", 1024)
-	minSizeGranularity           = env.GetUint64("MIN_SIZE_GRANULARITY", GibInBytes) // 1 GiB
-	createPool                   = _createPool
-	updatePool                   = _updatePool
-	ValidateCreatePoolParams     = _validateCreatePoolParams
-	ValidateUpdatePoolParams     = _validateUpdatePoolParams
-	deletePool                   = _deletePool
-	getInterClusterLifsFromONTAP = _getInterClusterLifsFromONTAP
-	GetPoolByName                = _getPoolByName
-	autoTieringEnabled           = env.GetBool("AUTO_TIERING_ENABLED", false)
+	minQuotaInBytesPool      = env.GetUint64("MIN_QUOTA_IN_BYTES_POOL", 2*TibInBytes)   // 2TiB
+	maxQuotaInBytesPool      = env.GetUint64("MAX_QUOTA_IN_BYTES_POOL", 500*TibInBytes) // 500TiB
+	minCustomThroughput      = env.GetUint64("MIN_CUSTOM_THROUGHPUT", 64)               // 64 MiBps
+	minCustomIops            = env.GetUint64("MIN_CUSTOM_IOPS", 1024)
+	minSizeGranularity       = env.GetUint64("MIN_SIZE_GRANULARITY", GibInBytes) // 1 GiB
+	createPool               = _createPool
+	updatePool               = _updatePool
+	ValidateCreatePoolParams = _validateCreatePoolParams
+	ValidateUpdatePoolParams = _validateUpdatePoolParams
+	deletePool               = _deletePool
+	GetPoolByName            = _getPoolByName
+	autoTieringEnabled       = env.GetBool("AUTO_TIERING_ENABLED", false)
 )
 
 const (
@@ -453,7 +449,6 @@ func (o *Orchestrator) GetPoolByName(ctx context.Context, poolName string, accou
 }
 
 func _getPoolByName(ctx context.Context, se database.Storage, poolName string, accountName string, queryDepth int) (*models.Pool, error) {
-	logger := util.GetLogger(ctx)
 	account, err := getAccountWithName(ctx, se, accountName)
 	if err != nil {
 		return nil, err
@@ -466,57 +461,18 @@ func _getPoolByName(ctx context.Context, se database.Storage, poolName string, a
 		return nil, err
 	}
 
-	nodes, err := se.GetNodesByPoolID(ctx, pools.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(nodes) == 0 {
-		return nil, customerrors.NewNotFoundErr("node", nil)
-	}
-
 	if queryDepth > 0 {
-		interClusterLifs, err := getInterClusterLifsFromONTAP(ctx, nodes, pools)
-		if err != nil {
-			logger.Error("Failed to get interCluster lifs", "error", err)
-			return nil, err
-		}
-
-		return convertDatastorePoolToModelWithIClifdetails(pools, interClusterLifs, accountName), nil
+		return convertDatastorePoolToModelWithClusterDetails(pools, accountName), nil
 	}
 
-	return convertDatastorePoolToModel(pools, pools.Name), nil
+	return convertDatastorePoolToModel(pools, accountName), nil
 }
 
-// getInterClusterLifFromONTAP retrieves inter-cluster LIFs from ONTAP.
-func _getInterClusterLifsFromONTAP(ctx context.Context, nodes []*datamodel.Node, pools *datamodel.PoolView) ([]*vsa.InterclusterLif, error) {
-	logger := util.GetLogger(ctx)
-
-	pool := &pools.Pool
-	node := commonparams.CreateNodeForProvider(commonparams.NodeProviderInput{Nodes: nodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID, AuthType: pool.PoolCredentials.AuthType})
-	provider, err := activities.GetProviderByNode(ctx, node)
-	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
-	interClusterLifs, err := provider.GetInterclusterLIFs("default-intercluster")
-	if err != nil {
-		logger.Error("Failed to get interCluster lifs", "error", err)
-		return nil, err
-	}
-	return interClusterLifs, nil
-}
-
-func convertDatastorePoolToModelWithIClifdetails(pools *datamodel.PoolView, interClusterLifs []*vsa.InterclusterLif, accountName string) *models.Pool {
+func convertDatastorePoolToModelWithClusterDetails(pools *datamodel.PoolView, accountName string) *models.Pool {
 	pool := convertDatastorePoolToModel(pools, accountName)
 
-	var icLifs []string
-	for _, icLif := range interClusterLifs {
-		icLifs = append(icLifs, string(icLif.Address))
-	}
-
 	pool.ClusterAttributes = &models.ClusterAttributes{
-		InterClusterLifs: icLifs,
+		InterClusterLifs: pools.ClusterDetails.InterclusterLifIPs,
 		ExternalName:     pools.ClusterDetails.ExternalName,
 	}
 

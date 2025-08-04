@@ -2171,3 +2171,35 @@ func fetchOnTapCredentials(ctx context.Context, pool *datamodel.Pool) (*vlm.Onta
 	}
 	return credentials, nil
 }
+
+// GetInterClusterLifsFromVLMConfig retrieves intercluster LIF IP addresses from VLM config
+func (j *PoolActivity) GetInterClusterLifsFromVLMConfig(ctx context.Context, vlmConfig *vlm.VLMConfig) ([]string, error) {
+	logger := util.GetLogger(ctx)
+
+	logger.Info("Getting intercluster LIFs from VLM config")
+
+	// Extract intercluster LIF IP addresses from VLM config's systemLifs
+	var lifIPs []string
+
+	// Iterate through all HA pairs to find intercluster LIFs
+	if vlmConfig != nil && len(vlmConfig.Cloud.HAPairs) > 0 {
+		for _, haPair := range vlmConfig.Cloud.HAPairs {
+			// Check VM1 for intercluster LIFs
+			if vm1Lif, exists := haPair.VM1.SystemLIFs[vlm.LIFTypeInterCluster]; exists {
+				lifIPs = append(lifIPs, vm1Lif.IP)
+				logger.Debug("Found intercluster LIF on VM1", "vmName", haPair.VM1.Name, "ipAddress", vm1Lif.IP)
+			}
+
+			// Check VM2 for intercluster LIFs
+			if vm2Lif, exists := haPair.VM2.SystemLIFs[vlm.LIFTypeInterCluster]; exists {
+				lifIPs = append(lifIPs, vm2Lif.IP)
+				logger.Debug("Found intercluster LIF on VM2", "vmName", haPair.VM2.Name, "ipAddress", vm2Lif.IP)
+			}
+		}
+	}
+
+	logger.Info("Extracted intercluster LIF IPs from VLM config", "lifCount", len(lifIPs))
+	return lifIPs, nil
+}
+
+

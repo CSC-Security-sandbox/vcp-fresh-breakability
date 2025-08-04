@@ -73,9 +73,11 @@ func (wf *createVolumeReplicationWorkflow) Setup(ctx workflow.Context, input int
 }
 
 func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+	log := util.GetLogger(ctx)
 	volumeReplication := args[0].(*datamodel.VolumeReplication)
 	event := args[1].(*replication.CreateReplicationEvent)
 	replicationActivity := &replicationActivities.VolumeReplicationCreateActivity{}
+
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, err
@@ -102,6 +104,19 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		Event:            event,
 		DbVolReplication: dbVolumeRep,
 	}
+
+	// Defer function to mark the database entry in error state if any error occurs
+	defer func() {
+		if err != nil {
+			// On panic, mark volume replication in error state
+			volumeReplication.State = models.LifeCycleStateError
+			volumeReplication.StateDetails = models.LifeCycleStateCreationErrorDetails
+			err2 := workflow.ExecuteActivity(ctx, replicationActivity.UpdateReplicationState, *volumeReplication).Get(ctx, nil)
+			if err2 != nil {
+				log.Errorf("Failed to update volume state in DB to error: %v", err2)
+			}
+		}
+	}()
 
 	var dbNodes []*datamodel.Node
 
