@@ -21,7 +21,7 @@ var createClient = cvp.CreateClient
 
 func UpdateSDEKmsConfiguration(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpgenserver.V1betaUpdateKmsConfigurationRes, error) {
 	logger := util.GetLogger(ctx)
-	jwtToken := utils.GetAuthTokenFromContext(ctx)
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 
 	body := &models.KmsConfigUpdateV1beta{}
