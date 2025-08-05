@@ -645,40 +645,32 @@ func (h Handler) V1betaUpdateKmsConfiguration(ctx context.Context, req *gcpgense
 		param.KeyUri = req.KeyFullPath.Value
 	}
 
-	kmsConfig, jobUUID, err := h.Orchestrator.UpdateKmsConfig(ctx, param)
+	kmsConfig, err := h.Orchestrator.UpdateKmsConfig(ctx, param)
 	if err != nil {
-		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+		if errors.IsUserInputValidationErr(err) {
 			return &gcpgenserver.V1betaUpdateKmsConfigurationBadRequest{
-				Code:    400,
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			}, nil
+		}
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaUpdateKmsConfigurationNotFound{
+				Code:    http.StatusNotFound,
+				Message: err.Error(),
+			}, nil
+		}
+		if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaUpdateKmsConfigurationConflict{
+				Code:    http.StatusConflict,
 				Message: err.Error(),
 			}, nil
 		}
 
 		logger.Error("Failed to update kms configuration", err.Error())
-		return &gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError{Code: http.StatusInternalServerError, Message: err.Error()}, err
+		return &gcpgenserver.V1betaUpdateKmsConfigurationInternalServerError{Code: http.StatusInternalServerError, Message: err.Error()}, nil
 	}
 
-	var resp jx.Raw
-	if kmsConfig != nil {
-		resp, err = encodeKmsConfigV1(convertVcpKmsConfigToKmsConfigV1beta(kmsConfig))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if kmsConfig != nil && kmsConfig.State == coremodel.LifeCycleStateUpdating {
-		return &gcpgenserver.OperationV1beta{
-			Name:     gcpgenserver.NewOptString(operationID),
-			Response: resp,
-			Done:     gcpgenserver.NewOptBool(false),
-		}, nil
-	}
-	return &gcpgenserver.OperationV1beta{
-		Name:     gcpgenserver.NewOptString(operationID),
-		Response: resp,
-		Done:     gcpgenserver.NewOptBool(true),
-	}, nil
+	return convertModelToKmsConfigV1Beta(kmsConfig), nil
 }
 
 func (h Handler) V1betaGetMultipleKmsConfigs(ctx context.Context, req *gcpgenserver.KmsConfigIdListV1beta, params gcpgenserver.V1betaGetMultipleKmsConfigsParams) (gcpgenserver.V1betaGetMultipleKmsConfigsRes, error) {

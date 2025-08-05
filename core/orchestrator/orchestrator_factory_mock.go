@@ -4493,7 +4493,7 @@ func (_c *MockOrchestratorFactory_UpdateHostGroup_Call) RunAndReturn(run func(co
 }
 
 // UpdateKmsConfig provides a mock function with given fields: ctx, params
-func (_m *MockOrchestratorFactory) UpdateKmsConfig(ctx context.Context, params *common.UpdateKmsConfigParams) (*models.KmsConfig, string, error) {
+func (_m *MockOrchestratorFactory) UpdateKmsConfig(ctx context.Context, params *common.UpdateKmsConfigParams) (*models.KmsConfig, error) {
 	ret := _m.Called(ctx, params)
 
 	if len(ret) == 0 {
@@ -4501,9 +4501,8 @@ func (_m *MockOrchestratorFactory) UpdateKmsConfig(ctx context.Context, params *
 	}
 
 	var r0 *models.KmsConfig
-	var r1 string
-	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateKmsConfigParams) (*models.KmsConfig, string, error)); ok {
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateKmsConfigParams) (*models.KmsConfig, error)); ok {
 		return rf(ctx, params)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, *common.UpdateKmsConfigParams) *models.KmsConfig); ok {
@@ -4514,19 +4513,13 @@ func (_m *MockOrchestratorFactory) UpdateKmsConfig(ctx context.Context, params *
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *common.UpdateKmsConfigParams) string); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *common.UpdateKmsConfigParams) error); ok {
 		r1 = rf(ctx, params)
 	} else {
-		r1 = ret.Get(1).(string)
+		r1 = ret.Error(1)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, *common.UpdateKmsConfigParams) error); ok {
-		r2 = rf(ctx, params)
-	} else {
-		r2 = ret.Error(2)
-	}
-
-	return r0, r1, r2
+	return r0, r1
 }
 
 // MockOrchestratorFactory_UpdateKmsConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateKmsConfig'
@@ -4548,12 +4541,12 @@ func (_c *MockOrchestratorFactory_UpdateKmsConfig_Call) Run(run func(ctx context
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_UpdateKmsConfig_Call) Return(_a0 *models.KmsConfig, _a1 string, _a2 error) *MockOrchestratorFactory_UpdateKmsConfig_Call {
-	_c.Call.Return(_a0, _a1, _a2)
+func (_c *MockOrchestratorFactory_UpdateKmsConfig_Call) Return(_a0 *models.KmsConfig, _a1 error) *MockOrchestratorFactory_UpdateKmsConfig_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_UpdateKmsConfig_Call) RunAndReturn(run func(context.Context, *common.UpdateKmsConfigParams) (*models.KmsConfig, string, error)) *MockOrchestratorFactory_UpdateKmsConfig_Call {
+func (_c *MockOrchestratorFactory_UpdateKmsConfig_Call) RunAndReturn(run func(context.Context, *common.UpdateKmsConfigParams) (*models.KmsConfig, error)) *MockOrchestratorFactory_UpdateKmsConfig_Call {
 	_c.Call.Return(run)
 	return _c
 }

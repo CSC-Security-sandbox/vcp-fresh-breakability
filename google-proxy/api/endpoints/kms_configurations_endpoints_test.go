@@ -24,7 +24,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
-	"go.temporal.io/sdk/client"
 )
 
 // V1betaCreateKmsConfiguration unittests
@@ -1540,21 +1539,30 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 			ResourceId:  gcpgenserver.NewOptString("test-resource-id"),
 		}
 
-		resourceId := "kms1"
+		resourceId := "test-resource-id"
 		kms := &vsaCoreModels.KmsConfig{
-			Name:    resourceId,
-			KeyName: "key1",
-			State:   vsaCoreModels.LifeCycleStateCreating,
+			BaseModel: vsaCoreModels.BaseModel{
+				UUID: "kms-config-id-1",
+			},
+			Name:            resourceId,
+			KeyName:         "keyName",
+			KeyRing:         "keyRing",
+			KeyProjectID:    "projectID",
+			KeyRingLocation: "us",
+			ResourceID:      resourceId,
+			Description:     "test-description",
+			State:           vsaCoreModels.LifeCycleStateAvailable,
+			KmsAttributes:   &vsaCoreModels.KmsAttributes{},
 		}
 
-		orchestrator.UpdateKmsConfig = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateKmsConfigParams) (*vsaCoreModels.KmsConfig, string, error) {
-			return kms, "test-uuid", nil
-		}
+		mockOrch := &orchestrator.MockOrchestratorFactory{}
+		mockOrch.On("UpdateKmsConfig", mock.Anything, mock.Anything).Return(kms, nil)
+
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "region", "zone", nil
 		}
 		handler := Handler{
-			Orchestrator: orchestrator.NewOrchestrator(nil, nil),
+			Orchestrator: mockOrch,
 		}
 		// Call the method under test
 		result, err := handler.V1betaUpdateKmsConfiguration(context.Background(), req, params)
@@ -1562,8 +1570,12 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 		// Assertions
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		// Check if the uuid value is as expected
-		assert.Equal(t, "/v1beta/projects/12345/locations/test-location/operations/test-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
+		// Check if the result is a KmsConfigV1beta
+		kmsConfigResult, ok := result.(*gcpgenserver.KmsConfigV1beta)
+		assert.True(t, ok)
+		assert.Equal(t, "kms-config-id-1", kmsConfigResult.UUID.Value)
+		assert.Equal(t, "test-description", kmsConfigResult.Description.Value)
+		assert.Equal(t, "test-resource-id", kmsConfigResult.ResourceId.Value)
 	})
 	t.Run("WhenFailure", func(t *testing.T) {
 		// Define input parameters
@@ -1579,21 +1591,51 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 			ResourceId:  gcpgenserver.NewOptString("test-resource-id"),
 		}
 
-		orchestrator.UpdateKmsConfig = func(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateKmsConfigParams) (*vsaCoreModels.KmsConfig, string, error) {
-			return nil, "", errors.NewNotFoundErr("kms", nil)
-		}
+		mockOrch := &orchestrator.MockOrchestratorFactory{}
+		mockOrch.On("UpdateKmsConfig", mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("kms", nil))
+
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "region", "zone", nil
 		}
 		handler := Handler{
-			Orchestrator: orchestrator.NewOrchestrator(nil, nil),
+			Orchestrator: mockOrch,
 		}
 		// Call the method under test
 		result, err := handler.V1betaUpdateKmsConfiguration(context.Background(), req, params)
 
 		// Assertions
 		assert.NoError(t, err)
-		assert.Equal(t, result, &gcpgenserver.V1betaUpdateKmsConfigurationBadRequest{Code: 400, Message: "kms not found"})
+		assert.Equal(t, result, &gcpgenserver.V1betaUpdateKmsConfigurationNotFound{Code: 404, Message: "kms not found"})
+	})
+	t.Run("WhenConflictErro", func(t *testing.T) {
+		// Define input parameters
+		params := gcpgenserver.V1betaUpdateKmsConfigurationParams{
+			KmsConfigId:    "kms-config-id-1",
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		req := &gcpgenserver.KmsConfigUpdateV1beta{
+			KeyFullPath: gcpgenserver.NewOptString("projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName"),
+			Description: gcpgenserver.NewOptString("test-description"),
+			ResourceId:  gcpgenserver.NewOptString("test-resource-id"),
+		}
+
+		mockOrch := &orchestrator.MockOrchestratorFactory{}
+		mockOrch.On("UpdateKmsConfig", mock.Anything, mock.Anything).Return(nil, errors.NewConflictErr("kms"))
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "region", "zone", nil
+		}
+		handler := Handler{
+			Orchestrator: mockOrch,
+		}
+		// Call the method under test
+		result, err := handler.V1betaUpdateKmsConfiguration(context.Background(), req, params)
+
+		// Assertions
+		assert.NoError(t, err)
+		assert.Equal(t, result, &gcpgenserver.V1betaUpdateKmsConfigurationConflict{Code: 409, Message: "kms"})
 	})
 }
 

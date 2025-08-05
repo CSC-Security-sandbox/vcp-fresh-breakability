@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -364,6 +365,9 @@ func TestUpdateKmsConfig(t *testing.T) {
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
 			State:          models.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeKmsConfigUUID: "test-sde-kms-config-id",
+			},
 		}
 		// Mock storage behavior
 		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
@@ -371,17 +375,23 @@ func TestUpdateKmsConfig(t *testing.T) {
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
 		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
-		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		}, nil)
 
-		// Mock Temporal client behavior
-		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, nil)
+		// Mock SDE call to succeed
+		originalUpdateSDE := updateSDEKmsConfiguration
+		updateSDEKmsConfiguration = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpserver.V1betaUpdateKmsConfigurationRes, error) {
+			return nil, nil // Success
+		}
+		defer func() {
+			updateSDEKmsConfiguration = originalUpdateSDE
+		}()
 
-		kmsConfig, jobUUID, err := orchestrator.UpdateKmsConfig(ctx, params)
+		// Mock database update for successful completion
+		mockStorage.On("UpdateKmsConfig", ctx, dbKmsConfig.UUID, mock.Anything).Return(nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
 
 		assert.NoError(tt, err)
-		assert.Equal(tt, "test-job-uuid", jobUUID)
 		assert.NotNil(tt, kmsConfig)
 		assert.Equal(tt, "test-kms-config-id", kmsConfig.UUID)
 	})
@@ -402,26 +412,91 @@ func TestUpdateKmsConfig(t *testing.T) {
 		}
 
 		account := &datamodel.Account{Name: "test-account"}
-		dbKmsConfig := &datamodel.KmsConfig{
-			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
-			State:          models.LifeCycleStateAvailable,
-			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
-		}
 		// Mock storage behavior
 		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(nil, errors.NewNotFoundErr("kms config", nil))
-		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		}, nil)
 
-		// Mock Temporal client behavior
-		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: dbKmsConfig.UUID}}, params).Return(nil, nil)
+		// Mock SDE call to succeed
+		originalUpdateSDE := updateSDEKmsConfiguration
+		updateSDEKmsConfiguration = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpserver.V1betaUpdateKmsConfigurationRes, error) {
+			// Return a proper KmsConfigV1beta response
+			kmsConfigResponse := &gcpserver.KmsConfigV1beta{
+				UUID:            gcpserver.NewOptString("test-kms-config-id"),
+				ResourceId:      gcpserver.NewOptString("updated-kms-config"),
+				KmsState:        gcpserver.NewOptKmsConfigV1betaKmsState(gcpserver.KmsConfigV1betaKmsStateREADY),
+				KmsStateDetails: gcpserver.NewOptString("Updated successfully"),
+			}
+			return kmsConfigResponse, nil
+		}
+		defer func() {
+			updateSDEKmsConfiguration = originalUpdateSDE
+		}()
 
-		kmsConfig, jobUUID, err := orchestrator.UpdateKmsConfig(ctx, params)
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
 
 		assert.NoError(tt, err)
-		assert.Equal(tt, "test-job-uuid", jobUUID)
-		assert.Nil(tt, kmsConfig)
+		assert.NotNil(tt, kmsConfig) // Should return the converted SDE response
+		assert.Equal(tt, "test-kms-config-id", kmsConfig.UUID)
+	})
+
+	t.Run("KmsConfigNotInDbButPresentInSDE", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID:     "sde-only-kms-config-id",
+			AccountName:     "test-account",
+			ResourceID:      "updated-sde-kms-config",
+			Description:     &[]string{"Updated KMS config from SDE"}[0],
+			KeyName:         "updated-key",
+			KeyRing:         "updated-keyring",
+			KeyRingLocation: "us-west1",
+			KeyProjectID:    "updated-project",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		// Mock storage behavior - KMS config not found in database
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "sde-only-kms-config-id").Return(nil, errors.NewNotFoundErr("kms config", nil))
+
+		// Mock SDE call to succeed with comprehensive response
+		originalUpdateSDE := updateSDEKmsConfiguration
+		updateSDEKmsConfiguration = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpserver.V1betaUpdateKmsConfigurationRes, error) {
+			// Verify that the kmsConfig passed has the correct SdeKmsConfigUUID
+			assert.Equal(tt, "sde-only-kms-config-id", kmsConfig.KmsAttributes.SdeKmsConfigUUID)
+			
+			// Return a comprehensive KmsConfigV1beta response using KeyFullPath
+			kmsConfigResponse := &gcpserver.KmsConfigV1beta{
+				UUID:            gcpserver.NewOptString("sde-only-kms-config-id"),
+				ResourceId:      gcpserver.NewOptString("updated-sde-kms-config"),
+				Description:     gcpserver.NewOptString("Updated KMS config from SDE"),
+				KeyFullPath:     "projects/updated-project/locations/us-west1/keyRings/updated-keyring/cryptoKeys/updated-key",
+				KmsState:        gcpserver.NewOptKmsConfigV1betaKmsState(gcpserver.KmsConfigV1betaKmsStateREADY),
+				KmsStateDetails: gcpserver.NewOptString("Successfully updated in SDE"),
+			}
+			return kmsConfigResponse, nil
+		}
+		defer func() {
+			updateSDEKmsConfiguration = originalUpdateSDE
+		}()
+
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, kmsConfig)
+		assert.Equal(tt, "sde-only-kms-config-id", kmsConfig.UUID)
+		assert.Equal(tt, "updated-sde-kms-config", kmsConfig.ResourceID)
+		assert.Equal(tt, "Updated KMS config from SDE", kmsConfig.Description)
+		assert.Equal(tt, "updated-key", kmsConfig.KeyName)
+		assert.Equal(tt, "updated-keyring", kmsConfig.KeyRing)
+		assert.Equal(tt, "us-west1", kmsConfig.KeyRingLocation)
+		assert.Equal(tt, "updated-project", kmsConfig.KeyProjectID)
+		assert.Equal(tt, models.LifeCycleStateREADY, kmsConfig.State)
 	})
 
 	t.Run("ValidationError", func(tt *testing.T) {
@@ -456,12 +531,11 @@ func TestUpdateKmsConfig(t *testing.T) {
 		// Mock Temporal client behavior
 		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, nil)
 
-		kmsConfig, jobUUID, err := orchestrator.UpdateKmsConfig(ctx, params)
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "can not update key details while kms config is in use")
 		assert.Nil(tt, kmsConfig)
-		assert.Empty(tt, jobUUID)
 	})
 
 	t.Run("WhenSvmNotFound", func(tt *testing.T) {
@@ -495,12 +569,11 @@ func TestUpdateKmsConfig(t *testing.T) {
 		// Mock Temporal client behavior
 		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, nil)
 
-		kmsConfig, jobUUID, err := orchestrator.UpdateKmsConfig(ctx, params)
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "error")
 		assert.Nil(tt, kmsConfig)
-		assert.Empty(tt, jobUUID)
 	})
 
 	t.Run("WhenKmsConfigInCreatingState", func(tt *testing.T) {
@@ -534,15 +607,117 @@ func TestUpdateKmsConfig(t *testing.T) {
 		// Mock Temporal client behavior
 		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, nil)
 
-		kmsConfig, jobUUID, err := orchestrator.UpdateKmsConfig(ctx, params)
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "can not update a gcpKmsConfig which is in creating or error state.")
 		assert.Nil(tt, kmsConfig)
-		assert.Empty(tt, jobUUID)
 	})
 
-	t.Run("WorkflowExecutionFailure", func(tt *testing.T) {
+	t.Run("WhenGetKmsConfigFailsWithNonNotFoundError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			ResourceID:  "updated-kms-config",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(nil, errors.New("database connection failed"))
+
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database connection failed")
+		assert.Nil(tt, kmsConfig)
+	})
+
+	t.Run("WhenSDEUpdateFailsWithInvalidResponse", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			ResourceID:  "updated-kms-config",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(nil, errors.NewNotFoundErr("kms config", nil))
+
+		// Mock SDE call to return invalid response type
+		originalUpdateSDE := updateSDEKmsConfiguration
+		updateSDEKmsConfiguration = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpserver.V1betaUpdateKmsConfigurationRes, error) {
+			// Return an OperationV1beta instead of KmsConfigV1beta (wrong type but valid interface implementation)
+			operationResponse := &gcpserver.OperationV1beta{
+				Name: gcpserver.NewOptString("operation-id"),
+			}
+			return operationResponse, nil
+		}
+		defer func() {
+			updateSDEKmsConfiguration = originalUpdateSDE
+		}()
+
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to update KMS configuration in SDE")
+		assert.Nil(tt, kmsConfig)
+	})
+
+	t.Run("WhenSDEUpdateReturnsNilResponse", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			ResourceID:  "updated-kms-config",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(nil, errors.NewNotFoundErr("kms config", nil))
+
+		// Mock SDE call to return nil
+		originalUpdateSDE := updateSDEKmsConfiguration
+		updateSDEKmsConfiguration = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpserver.V1betaUpdateKmsConfigurationRes, error) {
+			return nil, nil
+		}
+		defer func() {
+			updateSDEKmsConfiguration = originalUpdateSDE
+		}()
+
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to update KMS configuration in SDE")
+		assert.Nil(tt, kmsConfig)
+	})
+
+	t.Run("WhenErrorStateUpdateFails", func(tt *testing.T) {
 		mockStorage := new(database.MockStorage)
 		mockTemporal := new(workflow_engine.MockTemporalTestClient)
 
@@ -562,26 +737,257 @@ func TestUpdateKmsConfig(t *testing.T) {
 			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
 			State:          models.LifeCycleStateAvailable,
 			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeKmsConfigUUID: "test-sde-kms-config-id",
+			},
 		}
+
 		// Mock storage behavior
 		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
 		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
 		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
 		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
 		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
-		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
-			BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
-		}, nil)
 
-		// Mock Temporal client behavior
-		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, errors.New("workflow execution failed"))
+		// Mock error state update to fail
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateError, mock.AnythingOfType("string")).Return(nil, errors.New("error state update failed"))
 
-		kmsConfig, jobUUID, err := orchestrator.UpdateKmsConfig(ctx, params)
+		// Mock SDE call to fail
+		originalUpdateSDE := updateSDEKmsConfiguration
+		updateSDEKmsConfiguration = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpserver.V1betaUpdateKmsConfigurationRes, error) {
+			return nil, errors.New("SDE update failed")
+		}
+		defer func() {
+			updateSDEKmsConfiguration = originalUpdateSDE
+		}()
+
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
 
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "workflow execution failed")
+		assert.Contains(tt, err.Error(), "SDE update failed") // Should return original error, not the state update error
 		assert.Nil(tt, kmsConfig)
-		assert.Empty(tt, jobUUID)
+	})
+
+	t.Run("WhenKeyUriParsingSucceeds", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			ResourceID:  "updated-kms-config",
+			KeyUri:      "projects/test-project/locations/us-central1/keyRings/test-ring/cryptoKeys/test-key",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeKmsConfigUUID: "test-sde-kms-config-id",
+			},
+		}
+
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
+
+		// Mock SDE call to succeed
+		originalUpdateSDE := updateSDEKmsConfiguration
+		updateSDEKmsConfiguration = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpserver.V1betaUpdateKmsConfigurationRes, error) {
+			return nil, nil // Success
+		}
+		defer func() {
+			updateSDEKmsConfiguration = originalUpdateSDE
+		}()
+
+		// Mock database update for successful completion with parsed KeyUri
+		mockStorage.On("UpdateKmsConfig", ctx, dbKmsConfig.UUID, mock.MatchedBy(func(updateFields map[string]interface{}) bool {
+			// Verify that KeyUri was parsed correctly and included in update fields
+			expectedFields := []string{"key_name", "key_ring", "key_ring_location", "key_project_id", "resource_id", "state"}
+			for _, field := range expectedFields {
+				if _, exists := updateFields[field]; !exists {
+					return false
+				}
+			}
+			return updateFields["key_name"] == "test-key" &&
+				updateFields["key_ring_location"] == "us-central1" &&
+				updateFields["key_ring"] == "test-ring" &&
+				updateFields["key_project_id"] == "test-project" &&
+				updateFields["state"] == models.LifeCycleStateCreated
+		})).Return(nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, kmsConfig)
+		assert.Equal(tt, "test-kms-config-id", kmsConfig.UUID)
+
+		// Verify that the parsed KeyUri fields were set in params
+		assert.Equal(tt, "test-key", params.KeyName)
+		assert.Equal(tt, "us-central1", params.KeyRingLocation)
+		assert.Equal(tt, "test-ring", params.KeyRing)
+		assert.Equal(tt, "test-project", params.KeyProjectID)
+	})
+
+	t.Run("WhenKmsActivitiesUpdateFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			ResourceID:  "updated-kms-config",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeKmsConfigUUID: "test-sde-kms-config-id",
+			},
+		}
+
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
+
+		// Mock SDE call to succeed
+		originalUpdateSDE := updateSDEKmsConfiguration
+		updateSDEKmsConfiguration = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpserver.V1betaUpdateKmsConfigurationRes, error) {
+			return nil, nil // Success
+		}
+		defer func() {
+			updateSDEKmsConfiguration = originalUpdateSDE
+		}()
+
+		// Mock database update to fail
+		mockStorage.On("UpdateKmsConfig", ctx, dbKmsConfig.UUID, mock.Anything).Return(errors.New("database update failed"))
+
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database update failed")
+		assert.Nil(tt, kmsConfig)
+	})
+
+	t.Run("WhenFinalGetKmsConfigFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			ResourceID:  "updated-kms-config",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:          models.LifeCycleStateAvailable,
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "test-sa-id"}},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeKmsConfigUUID: "test-sde-kms-config-id",
+			},
+		}
+
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil).Once()
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
+
+		// Mock SDE call to succeed
+		originalUpdateSDE := updateSDEKmsConfiguration
+		updateSDEKmsConfiguration = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpserver.V1betaUpdateKmsConfigurationRes, error) {
+			return nil, nil // Success
+		}
+		defer func() {
+			updateSDEKmsConfiguration = originalUpdateSDE
+		}()
+
+		// Mock database update to succeed but final GetKmsConfig to fail
+		mockStorage.On("UpdateKmsConfig", ctx, dbKmsConfig.UUID, mock.Anything).Return(nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(nil, errors.New("final get failed")).Once()
+
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "final get failed")
+		assert.Nil(tt, kmsConfig)
+	})
+
+	t.Run("WhenKmsConfigUUIDIsEmpty", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			ResourceID:  "updated-kms-config",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel:      datamodel.BaseModel{UUID: ""}, // Empty UUID
+			State:          models.LifeCycleStateAvailable,
+			KmsAttributes:  &datamodel.KmsAttributes{},
+			ServiceAccount: &datamodel.ServiceAccount{},
+		}
+
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails).Return(dbKmsConfig, nil)
+
+		// Mock SDE call to succeed
+		originalUpdateSDE := updateSDEKmsConfiguration
+		updateSDEKmsConfiguration = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpserver.V1betaUpdateKmsConfigurationRes, error) {
+			return nil, nil // Success
+		}
+		defer func() {
+			updateSDEKmsConfiguration = originalUpdateSDE
+		}()
+
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, kmsConfig) // Should return nil when UUID is empty
+
+		// Verify that database update operations were NOT called since UUID is empty
+		mockStorage.AssertNotCalled(tt, "UpdateKmsConfig")
 	})
 }
 
@@ -1147,7 +1553,7 @@ func TestDeleteKmsConfig(t *testing.T) {
 		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
 
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "can not delete a gcpKmsConfig which is in creating state.")
+		assert.Contains(tt, err.Error(), "can not delete a gcpKmsConfig which is in creating or error state.")
 		assert.Nil(tt, kmsConfig)
 		assert.Empty(tt, jobUUID)
 	})
@@ -1192,6 +1598,137 @@ func TestDeleteKmsConfig(t *testing.T) {
 		assert.Contains(tt, err.Error(), "workflow execution failed")
 		assert.Nil(tt, kmsConfig)
 		assert.Empty(tt, jobUUID)
+	})
+
+	t.Run("WhenKmsConfigAlreadyDeletingWithActiveJob", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.DeleteKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:     models.LifeCycleStateDeleting, // Already in deleting state
+		}
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "existing-job-uuid"},
+			Type:      string(models.JobTypeDeleteKmsConfig),
+			State:     string(models.JobsStateNEW), // Not done yet
+		}
+
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id").Return(existingJob, nil)
+
+		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "existing-job-uuid", jobUUID) // Should return existing job UUID
+		assert.NotNil(tt, kmsConfig)
+		assert.Equal(tt, "test-kms-config-id", kmsConfig.UUID)
+
+		// Verify that no new job was created and no workflow was started
+		mockStorage.AssertNotCalled(tt, "CreateJob")
+		mockTemporal.AssertNotCalled(tt, "ExecuteWorkflow")
+	})
+
+	t.Run("WhenKmsConfigAlreadyDeletingWithDoneJob", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.DeleteKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:     models.LifeCycleStateDeleting, // Already in deleting state
+		}
+		existingJob := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "existing-job-uuid"},
+			Type:      string(models.JobTypeDeleteKmsConfig),
+			State:     string(models.JobsStateDONE), // Already done
+		}
+
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id").Return(existingJob, nil)
+		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
+		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "new-job-uuid"},
+		}, nil)
+
+		// Mock Temporal client behavior
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, nil)
+
+		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "new-job-uuid", jobUUID) // Should create new job since existing is done
+		assert.NotNil(tt, kmsConfig)
+		assert.Equal(tt, "test-kms-config-id", kmsConfig.UUID)
+	})
+
+	t.Run("WhenKmsConfigAlreadyDeletingButJobLookupFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.DeleteKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+		}
+
+		orchestrator := Orchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:     models.LifeCycleStateDeleting, // Already in deleting state
+		}
+
+		// Mock storage behavior
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("GetJobByResourceUUID", ctx, "test-kms-config-id").Return(nil, errors.New("job not found"))
+		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
+		mockStorage.On("ListOngoingPoolJobsWithKmsConfigId", ctx, dbKmsConfig.ID, dbKmsConfig.AccountID).Return(make([]*datamodel.Job, 0), nil)
+		mockStorage.On("UpdateKmsConfigState", ctx, dbKmsConfig.UUID, models.LifeCycleStateDeleting, models.LifeCycleStateDeletingDetails).Return(dbKmsConfig, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "new-job-uuid"},
+		}, nil)
+
+		// Mock Temporal client behavior
+		mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, dbKmsConfig, params).Return(nil, nil)
+
+		kmsConfig, jobUUID, err := orchestrator.DeleteKmsConfig(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "new-job-uuid", jobUUID) // Should create new job since lookup failed
+		assert.NotNil(tt, kmsConfig)
+		assert.Equal(tt, "test-kms-config-id", kmsConfig.UUID)
 	})
 }
 

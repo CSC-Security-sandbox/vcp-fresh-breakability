@@ -12,7 +12,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/sde"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -26,11 +28,12 @@ var (
 	createKmsConfig               = _createKmsConfig
 	getKmsConfig                  = _getKmsConfig
 	parseKeyFullPathResource      = utils.ParseKeyFullPathResource
-	UpdateKmsConfig               = _updateKmsConfig
+	updateKmsConfig               = _updateKmsConfig
 	validateUpdateKmsConfigParams = _validateUpdateKmsConfigParams
 	getKmsConfigByKeyFullPath     = _getKmsConfigByKeyFullPath
 	validateDeleteKmsConfigParams = _validateDeleteKmsConfigParams
 	ConvertKmsConfigStateV1beta   = convertKmsConfigStateV1beta
+	updateSDEKmsConfiguration     = sde.UpdateSDEKmsConfiguration
 )
 
 type KmsConfigInterface interface {
@@ -38,7 +41,7 @@ type KmsConfigInterface interface {
 	GetKmsConfig(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error)
 	GetKmsConfigByKeyFullPath(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error)
 	GetMultipleKMSConfigs(ctx context.Context, kmsConfigIDList []string) ([]*models.KmsConfig, error)
-	UpdateKmsConfig(ctx context.Context, params *common.UpdateKmsConfigParams) (*models.KmsConfig, string, error)
+	UpdateKmsConfig(ctx context.Context, params *common.UpdateKmsConfigParams) (*models.KmsConfig, error)
 	CheckAndUpdateKmsConfigHealth(ctx context.Context, params *models.KmsConfigCheck) (*models.KmsConfig, error)
 	AccessCryptoKeyWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error
 	DeleteKmsConfig(ctx context.Context, params *common.DeleteKmsConfigParams) (*models.KmsConfig, string, error)
@@ -151,74 +154,87 @@ func (o *Orchestrator) GetMultipleKMSConfigs(ctx context.Context, kmsConfigUUIDL
 }
 
 // UpdateKmsConfig updates the specified kms configuration.
-func (o *Orchestrator) UpdateKmsConfig(ctx context.Context, params *common.UpdateKmsConfigParams) (*models.KmsConfig, string, error) {
-	return UpdateKmsConfig(ctx, o.storage, o.temporal, params)
+func (o *Orchestrator) UpdateKmsConfig(ctx context.Context, params *common.UpdateKmsConfigParams) (*models.KmsConfig, error) {
+	return updateKmsConfig(ctx, o.storage, params)
 }
 
-func _updateKmsConfig(ctx context.Context, se database.Storage, temporal client.Client, params *common.UpdateKmsConfigParams) (*models.KmsConfig, string, error) {
+func _updateKmsConfig(ctx context.Context, se database.Storage, params *common.UpdateKmsConfigParams) (*models.KmsConfig, error) {
 	logger := util.GetLogger(ctx)
 
-	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	_, err := getAccountWithName(ctx, se, params.AccountName)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	kmsConfig, err := se.GetKmsConfig(ctx, params.KmsConfigID)
-	if err == nil {
-		err = validateUpdateKmsConfigParams(ctx, se, kmsConfig, params)
-		if err != nil {
-			return nil, "", err
-		}
-
-		kmsConfig, err = se.UpdateKmsConfigState(ctx, kmsConfig.UUID, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
-		if err != nil {
-			return nil, "", err
-		}
-	} else {
+	if err != nil {
 		if !errors.IsNotFoundErr(err) {
-			return nil, "", err
+			return nil, err
 		}
 		logger.Error("Failed to get kms config from database", "error", err)
+
+		// For KmsConfig not found, directly call SDE & return
 		kmsConfig = &datamodel.KmsConfig{
 			KmsAttributes: &datamodel.KmsAttributes{
 				SdeKmsConfigUUID: params.KmsConfigID,
 			},
 		}
+
+		sdeRes, err := updateSDEKmsConfiguration(ctx, kmsConfig, params)
+		if err != nil {
+			logger.Error("Failed to update KMS configuration in SDE", "error", err)
+			return nil, err
+		}
+
+		sdeKmsConfig, ok := sdeRes.(*gcpserver.KmsConfigV1beta)
+		if ok && sdeKmsConfig != nil {
+			return convertSDEResponseToKmsConfig(sdeKmsConfig), nil
+		}
+
+		return nil, errors.New("Failed to update KMS configuration in SDE")
 	}
 
-	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateKmsConfig),
-		State:         string(models.JobsStateNEW),
-		ResourceName:  params.ResourceID,
-		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
-		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
-		RequestID:     utils.GetRequestIDFromContext(ctx),
-	}
-	createdJob, err := se.CreateJob(ctx, job)
+	err = validateUpdateKmsConfigParams(ctx, se, kmsConfig, params)
 	if err != nil {
-		logger.Error("Failed to create job in database", "error", err)
-		return nil, "", err
+		return nil, err
 	}
 
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
-		kms_workflows.UpdateKmsConfigWorkflow,
-		kmsConfig,
-		params,
-	)
+	_, err = updateSDEKmsConfiguration(ctx, kmsConfig, params)
 	if err != nil {
-		logger.Error("Failed to start update kms config workflow: ", "error", err)
-		return nil, "", err
+		logger.Error("Failed to update KMS configuration in SDE", "error", err)
+		return nil, err
 	}
 
-	kmsConfig.State = models.LifeCycleStateUpdating
-	kmsConfig.StateDetails = models.LifeCycleStateUpdatingDetails
-	return convertDataStoreKmsConfigToModel(kmsConfig), createdJob.UUID, nil
+	// Update the database with success state
+	if kmsConfig.UUID != "" {
+		// Parse KeyUri if provided to set individual key components
+		if params.KeyUri != "" {
+			parsedKeyFullPath, parseErr := parseKeyFullPathResource(params.KeyUri)
+			if parseErr == nil {
+				params.KeyName = parsedKeyFullPath.CryptoKey
+				params.KeyRingLocation = parsedKeyFullPath.Location
+				params.KeyRing = parsedKeyFullPath.KeyRing
+				params.KeyProjectID = parsedKeyFullPath.ProjectID
+			}
+		}
+
+		// Use the activity function to update the KMS config in database
+		err = kms_activities.UpdateKmsConfig(se, ctx, kmsConfig, params)
+		if err != nil {
+			logger.Error("Failed to update KMS config in database", "error", err)
+			return nil, err
+		}
+
+		// Get the updated config from database
+		updatedKmsConfig, err := se.GetKmsConfig(ctx, params.KmsConfigID)
+		if err != nil {
+			logger.Error("Failed to get updated KMS config from database", "error", err)
+			return nil, err
+		}
+		return convertDataStoreKmsConfigToModel(updatedKmsConfig), nil
+	}
+
+	return convertDataStoreKmsConfigToModel(kmsConfig), nil
 }
 
 // DeleteKmsConfig updates the specified kms configuration.
@@ -236,6 +252,17 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 
 	kmsConfig, err := se.GetKmsConfig(ctx, params.KmsConfigID)
 	if err == nil {
+		// If KMS config is already in DELETING state, check for existing delete job
+		if kmsConfig.State == models.LifeCycleStateDeleting {
+			existingJob, jobErr := se.GetJobByResourceUUID(ctx, params.KmsConfigID)
+			if jobErr == nil && existingJob != nil {
+				// Check if it's a delete job that's not done
+				if existingJob.Type == string(models.JobTypeDeleteKmsConfig) && existingJob.State != string(models.JobsStateDONE) {
+					return convertDataStoreKmsConfigToModel(kmsConfig), existingJob.UUID, nil
+				}
+			}
+		}
+
 		err = validateDeleteKmsConfigParams(ctx, se, kmsConfig, params)
 		if err != nil {
 			return nil, "", err
@@ -399,8 +426,7 @@ func convertDataStoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.Km
 }
 
 func _validateUpdateKmsConfigParams(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) error {
-	if kmsConfig.State == models.LifeCycleStateCreating ||
-		kmsConfig.State == models.LifeCycleStateError {
+	if kmsConfig.State == models.LifeCycleStateCreating || kmsConfig.State == models.LifeCycleStateError {
 		return errors.NewConflictErr("can not update a gcpKmsConfig which is in creating or error state.")
 	}
 
@@ -416,8 +442,8 @@ func _validateUpdateKmsConfigParams(ctx context.Context, se database.Storage, km
 }
 
 func _validateDeleteKmsConfigParams(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig, params *common.DeleteKmsConfigParams) error {
-	if kmsConfig.State == models.LifeCycleStateCreating {
-		return errors.NewConflictErr("can not delete a gcpKmsConfig which is in creating state.")
+	if kmsConfig.State == models.LifeCycleStateCreating || kmsConfig.State == models.LifeCycleStateError {
+		return errors.NewConflictErr("can not delete a gcpKmsConfig which is in creating or error state.")
 	}
 
 	isConfigInUse, err := se.IsKmsConfigInUse(ctx, kmsConfig.UUID)
@@ -568,4 +594,76 @@ func convertKmsConfigStateV1beta(status, stateDetails string) (state, details st
 		}
 		return status, ""
 	}
+}
+
+// convertSDEResponseToKmsConfig converts SDE response to models.KmsConfig
+func convertSDEResponseToKmsConfig(kmsConfig *gcpserver.KmsConfigV1beta) *models.KmsConfig {
+	modelKmsConfig := &models.KmsConfig{
+		BaseModel: models.BaseModel{
+			UUID: kmsConfig.UUID.Value,
+		},
+	}
+
+	if kmsConfig.Description.IsSet() {
+		modelKmsConfig.Description = kmsConfig.Description.Value
+	}
+
+	if kmsConfig.ResourceId.IsSet() {
+		modelKmsConfig.ResourceID = kmsConfig.ResourceId.Value
+	}
+
+	if kmsConfig.KeyFullPath != "" {
+		// Parse key full path to extract individual components
+		if parsedKey, err := utils.ParseKeyFullPathResource(kmsConfig.KeyFullPath); err == nil {
+			modelKmsConfig.KeyName = parsedKey.CryptoKey
+			modelKmsConfig.KeyRing = parsedKey.KeyRing
+			modelKmsConfig.KeyRingLocation = parsedKey.Location
+			modelKmsConfig.KeyProjectID = parsedKey.ProjectID
+		}
+	}
+
+	if kmsConfig.KmsState.IsSet() {
+		// Convert SDE state to internal state
+		switch kmsConfig.KmsState.Value {
+		case gcpserver.KmsConfigV1betaKmsStateREADY:
+			modelKmsConfig.State = models.LifeCycleStateREADY
+		case gcpserver.KmsConfigV1betaKmsStateUPDATING:
+			modelKmsConfig.State = models.LifeCycleStateUpdating
+		case gcpserver.KmsConfigV1betaKmsStateINUSE:
+			modelKmsConfig.State = models.LifeCycleStateInUse
+		case gcpserver.KmsConfigV1betaKmsStateERROR:
+			modelKmsConfig.State = models.LifeCycleStateError
+		default:
+			modelKmsConfig.State = models.LifeCycleStateAvailable
+		}
+	} else {
+		modelKmsConfig.State = models.LifeCycleStateAvailable
+	}
+
+	if kmsConfig.KmsStateDetails.IsSet() {
+		modelKmsConfig.StateDetails = kmsConfig.KmsStateDetails.Value
+	} else {
+		modelKmsConfig.StateDetails = "Updated successfully"
+	}
+
+	if kmsConfig.ServiceAccountEmail.IsSet() {
+		modelKmsConfig.KmsAttributes = &models.KmsAttributes{
+			SdeKmsConfigUUID:       kmsConfig.UUID.Value,
+			SdeServiceAccountEmail: kmsConfig.ServiceAccountEmail.Value,
+		}
+	} else {
+		modelKmsConfig.KmsAttributes = &models.KmsAttributes{
+			SdeKmsConfigUUID: kmsConfig.UUID.Value,
+		}
+	}
+
+	if kmsConfig.CreatedTime.IsSet() {
+		modelKmsConfig.CreatedAt = kmsConfig.CreatedTime.Value
+	}
+
+	if kmsConfig.UpdatedTime.IsSet() {
+		modelKmsConfig.UpdatedAt = kmsConfig.UpdatedTime.Value
+	}
+
+	return modelKmsConfig
 }
