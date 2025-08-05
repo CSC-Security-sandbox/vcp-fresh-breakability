@@ -7,7 +7,6 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -16,12 +15,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/client"
-	"google.golang.org/api/iam/v1"
 )
 
 const (
@@ -59,7 +59,7 @@ func (a VolumeCreateActivity) CreateVolume(ctx context.Context, volume *datamode
 
 func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node, snapshot *datamodel.Snapshot, backup *datamodel.Backup) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
-	provider, err := GetProviderByNode(ctx, node)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -122,7 +122,7 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 
 func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64) (*vsa.LunResponse, error) {
 	logger := util.GetLogger(ctx)
-	provider, err := GetProviderByNode(ctx, node)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -161,7 +161,7 @@ func (a VolumeCreateActivity) CreateExportPolicyInOntap(ctx context.Context, vol
 		logger.Info("Skipping export policy creation for non-file volume")
 		return nil
 	}
-	provider, err := GetProviderByNode(ctx, node)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -215,7 +215,7 @@ func HandleVolumeCreateConflict(volume *datamodel.Volume, provider vsa.Provider)
 
 func (a VolumeCreateActivity) CreateIgroup(ctx context.Context, volume *datamodel.Volume, hostParams []*common.HostParams, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider, err := GetProviderByNode(ctx, node)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -249,7 +249,7 @@ func (a VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.V
 		logger.Info("Skipping lun creation for data protection volume")
 		return &vsa.LunResponse{}, nil
 	}
-	provider, err := GetProviderByNode(ctx, node)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -309,7 +309,7 @@ func (a VolumeCreateActivity) CreateLunMap(ctx context.Context, volume *datamode
 		logger.Info("Skipping CreateLunMap for data protection volume")
 		return nil
 	}
-	provider, err := GetProviderByNode(ctx, node)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -392,7 +392,7 @@ func _findTenancy(gcpService hyperscaler.GoogleServices, consumerVPC string, cus
 }
 
 func (a VolumeCreateActivity) FindTenancy(ctx context.Context, consumerVPC string, customerProjectNumber string, tenantProjectRegion *string) (*common.TenancyInfo, error) {
-	gcpService, err := GetGCPService(ctx)
+	gcpService, err := hyperscaler.GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -555,7 +555,7 @@ func (a *VolumeCreateActivity) CreateBucket(ctx context.Context, resourceName *c
 }
 
 func _createBucket(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string) (*common.BucketDetails, error) {
-	gcpService, err := GetGCPService(ctx)
+	gcpService, err := hyperscaler.GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -592,16 +592,16 @@ func UpdateBackupVaultWithBucketDetails(se database.Storage, ctx context.Context
 	return nil
 }
 
-func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType string) (*iam.ServiceAccount, []*common.BucketDetails, error) {
-	var account *iam.ServiceAccount
+func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, serviceAccountId, projectNumber, email, bucketName, tenantProjectRegion, locationType string) (*hyperscalermodels.ServiceAccount, []*common.BucketDetails, error) {
+	var account *hyperscalermodels.ServiceAccount
 	var bucketDetailsArr []*common.BucketDetails
 	var err error
 
 	account, err = gcpServices.GetServiceAccount(projectNumber, email)
 	if err != nil {
-		request := &iam.CreateServiceAccountRequest{
+		request := &hyperscalermodels.CreateServiceAccountRequest{
 			AccountId: serviceAccountId,
-			ServiceAccount: &iam.ServiceAccount{
+			ServiceAccount: &hyperscalermodels.ServiceAccount{
 				DisplayName: bucketName,
 			},
 		}
@@ -652,7 +652,7 @@ func _getResourceNamesForBackup(gcpRegion, region, tenantProjectNumber, bvID str
 func (a VolumeCreateActivity) CreateSnapshotPolicyInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
 	if node != nil && volume != nil && volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
 		logger := util.GetLogger(ctx)
-		provider, err := GetProviderByNode(ctx, node)
+		provider, err := hyperscaler.GetProviderByNode(ctx, node)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -675,7 +675,7 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 		return nil
 	}
 	logger := util.GetLogger(ctx)
-	provider, err := GetProviderByNode(ctx, node)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}

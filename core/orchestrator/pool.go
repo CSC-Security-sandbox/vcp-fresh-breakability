@@ -105,27 +105,27 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 	}
 	poolObj.DeploymentName = utils.GenerateDeterministicDeploymentName(poolObj.AccountID, poolObj.UUID, params.Region)
 	logger.Infof("generated deployment name: %s", poolObj.DeploymentName)
-	switch commonparams.AuthType {
-	case commonparams.USER_CERTIFICATE:
+	switch env.AuthType {
+	case env.USER_CERTIFICATE:
 		poolObj.PoolCredentials = &datamodel.PoolCredentials{
 			SecretID:      fmt.Sprintf("%s-secret", poolObj.DeploymentName),
 			CertificateID: fmt.Sprintf("%s-cert", poolObj.DeploymentName),
 			Password:      "",
-			AuthType:      commonparams.USER_CERTIFICATE,
+			AuthType:      env.USER_CERTIFICATE,
 		}
-	case commonparams.USERNAME_PWD_SEC_MGR:
+	case env.USERNAME_PWD_SEC_MGR:
 		poolObj.PoolCredentials = &datamodel.PoolCredentials{
 			SecretID:      fmt.Sprintf("%s-secret", poolObj.DeploymentName),
 			CertificateID: "",
 			Password:      "",
-			AuthType:      commonparams.USERNAME_PWD_SEC_MGR,
+			AuthType:      env.USERNAME_PWD_SEC_MGR,
 		}
 	default:
 		poolObj.PoolCredentials = &datamodel.PoolCredentials{
 			SecretID:      "",
 			CertificateID: "",
-			Password:      commonparams.NodePassword,
-			AuthType:      commonparams.USERNAME_PWD,
+			Password:      env.NodePassword,
+			AuthType:      env.USERNAME_PWD,
 		}
 	}
 

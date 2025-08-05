@@ -3,8 +3,8 @@ package google
 import (
 	"fmt"
 
-	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"google.golang.org/api/dns/v1"
 )
 
@@ -19,7 +19,7 @@ func (gcpService *GcpServices) CreateResourceRecordSet(projectID, managedZone, i
 	rrs := &dns.ResourceRecordSet{
 		Name:    recordName,
 		Type:    recordType,
-		Ttl:     common.CloudDNSCacheTTL,
+		Ttl:     env.CloudDNSCacheTTL,
 		Rrdatas: []string{ipAddress},
 	}
 	resp, err := gcpService.AdminGCPService.cloudDnsService.ResourceRecordSets.Create(projectID, managedZone, rrs).Context(gcpService.Ctx).Do()
@@ -28,7 +28,7 @@ func (gcpService *GcpServices) CreateResourceRecordSet(projectID, managedZone, i
 		return nil, err
 	}
 	gcpService.Logger.Debugf("Resource record set created successfully: %s", resp.Name)
-	return common.ValidateAndConvertToCustomCloudDNSRecord(resp, managedZone)
+	return ValidateAndConvertToCustomCloudDNSRecord(resp, managedZone)
 }
 
 // GetResourceRecordSet retrieves a DNS resource record set by its name and type in the specified managed zone. Reference : https://cloud.google.com/dns/docs/reference/rest/v1/resourceRecordSets/get
@@ -45,7 +45,7 @@ func (gcpService *GcpServices) GetResourceRecordSet(projectID, managedZone, reco
 	}
 	gcpService.Logger.Debugf("Resource record set got successfully: %v", resp.Rrsets[0])
 
-	return common.ValidateAndConvertToCustomCloudDNSRecord(resp.Rrsets[0], managedZone)
+	return ValidateAndConvertToCustomCloudDNSRecord(resp.Rrsets[0], managedZone)
 }
 
 // DeleteResourceRecordSet deletes a DNS resource record set by its name and type in the specified managed zone. Reference : https://cloud.google.com/dns/docs/reference/rest/v1/resourceRecordSets/delete

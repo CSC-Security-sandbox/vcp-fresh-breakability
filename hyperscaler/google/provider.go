@@ -9,6 +9,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	logger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -527,14 +528,14 @@ func (gcpService *GcpServices) GetServiceConsumerManagementEndpoint() string {
 	return gcpService.serviceConsumerManagementEndpoint
 }
 
-func (gcpService *GcpServices) GetServiceAccount(projectID, email string) (*iam.ServiceAccount, error) {
+func (gcpService *GcpServices) GetServiceAccount(projectID, email string) (*hyperscalermodels.ServiceAccount, error) {
 	response, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.List("projects/" + projectID).Do()
 	if err != nil {
 		return nil, fmt.Errorf("Projects.ServiceAccounts.List: %v", err)
 	}
 	for _, account := range response.Accounts {
 		if account.Email == email {
-			return account, nil
+			return convertServiceAccountToHyperscalerServiceAccount(account), nil
 		}
 	}
 	return nil, fmt.Errorf("service account not found")
@@ -667,27 +668,47 @@ func (gcpService *GcpServices) setProjectIamPolicy(projectID string, etag string
 	return err
 }
 
-func (gcpService *GcpServices) CreateServiceAccount(createRequest *iam.CreateServiceAccountRequest, projectNumber, email string) (account *iam.ServiceAccount, err error) {
-	account, err = gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Create("projects/"+projectNumber, createRequest).Do()
-	if gerr, ok := err.(*googleapi.Error); ok {
+func convertServiceAccounttoGcpServiceAccount(sa *hyperscalermodels.ServiceAccount) *iam.ServiceAccount {
+	return &iam.ServiceAccount{
+		Name:        sa.Name,
+		Description: sa.Description,
+		Email:       sa.Email,
+		ProjectId:   sa.ProjectId,
+		UniqueId:    sa.UniqueId,
+		Disabled:    sa.Disabled,
+		DisplayName: sa.DisplayName,
+	}
+}
+
+func convertCreateServiceAccountRequestToGcpCreateRequest(createRequest *hyperscalermodels.CreateServiceAccountRequest) *iam.CreateServiceAccountRequest {
+	return &iam.CreateServiceAccountRequest{
+		AccountId:      createRequest.AccountId,
+		ServiceAccount: convertServiceAccounttoGcpServiceAccount(createRequest.ServiceAccount),
+	}
+}
+
+func (gcpService *GcpServices) CreateServiceAccount(createRequest *hyperscalermodels.CreateServiceAccountRequest, projectNumber, email string) (*hyperscalermodels.ServiceAccount, error) {
+	account, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Create("projects/"+projectNumber, convertCreateServiceAccountRequestToGcpCreateRequest(createRequest)).Do()
+	var gerr *googleapi.Error
+	if errors.As(err, &gerr) {
 		switch gerr.Code {
 		case http.StatusConflict:
 			serviceAccount, isSACreated, err := gcpService.IsServiceAccountCreated(email)
 			if err != nil || !isSACreated {
 				return nil, err
 			}
-			account = serviceAccount
-			return account, err
+			account = convertServiceAccounttoGcpServiceAccount(serviceAccount)
+			return convertServiceAccountToHyperscalerServiceAccount(account), err
 		}
 	}
 
 	if err != nil {
 		return nil, err
 	}
-	return account, nil
+	return convertServiceAccountToHyperscalerServiceAccount(account), nil
 }
 
-func (gcpService *GcpServices) IsServiceAccountCreated(email string) (account *iam.ServiceAccount, isSACreated bool, err error) {
+func (gcpService *GcpServices) IsServiceAccountCreated(email string) (account *hyperscalermodels.ServiceAccount, isSACreated bool, err error) {
 	acc, err := gcpService.GetServiceAccountByEmail(email)
 	if err != nil {
 		return nil, false, fmt.Errorf("Projects.ServiceAccounts.Get: %v", err)
@@ -695,12 +716,23 @@ func (gcpService *GcpServices) IsServiceAccountCreated(email string) (account *i
 	return acc, true, nil
 }
 
-func (gcpService *GcpServices) GetServiceAccountByEmail(email string) (*iam.ServiceAccount, error) {
+func convertServiceAccountToHyperscalerServiceAccount(sa *iam.ServiceAccount) *hyperscalermodels.ServiceAccount {
+	return &hyperscalermodels.ServiceAccount{
+		Name:        sa.Name,
+		Description: sa.Description,
+		Email:       sa.Email,
+		ProjectId:   sa.ProjectId,
+		UniqueId:    sa.UniqueId,
+		Disabled:    sa.Disabled,
+		DisplayName: sa.DisplayName,
+	}
+}
+func (gcpService *GcpServices) GetServiceAccountByEmail(email string) (*hyperscalermodels.ServiceAccount, error) {
 	account, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Get("projects/-/serviceAccounts/" + email).Do()
 	if err != nil {
 		return nil, fmt.Errorf("Projects.ServiceAccounts.Get: %v", err)
 	}
-	return account, nil
+	return convertServiceAccountToHyperscalerServiceAccount(account), nil
 }
 
 func (gcpService *GcpServices) DeleteServiceAccount(saEmail string) error {

@@ -13,6 +13,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/stretchr/testify/assert"
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -1261,8 +1262,8 @@ func TestCreateServiceAccount(t *testing.T) {
 		defer testReset(tt)
 		url := "/v1/projects/test-proj/serviceAccounts"
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		resp := &iam.ServiceAccount{Email: "abc@google.com"}
-		createRequest := &iam.CreateServiceAccountRequest{
+		resp := &models.ServiceAccount{Email: "abc@google.com"}
+		createRequest := &models.CreateServiceAccountRequest{
 			AccountId:      "abc",
 			ServiceAccount: resp,
 		}
@@ -1301,8 +1302,8 @@ func TestCreateServiceAccount(t *testing.T) {
 		defer testReset(tt)
 		url := "/v1/projects/test-proj/serviceAccounts"
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		resp := &iam.ServiceAccount{Email: "abc@google.com"}
-		createRequest := &iam.CreateServiceAccountRequest{
+		resp := &models.ServiceAccount{Email: "abc@google.com"}
+		createRequest := &models.CreateServiceAccountRequest{
 			AccountId:      "abc",
 			ServiceAccount: resp,
 		}

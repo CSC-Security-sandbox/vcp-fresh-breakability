@@ -6,11 +6,11 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	vsamodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -20,7 +20,7 @@ type ReplicationInternalGetMultipleActivity struct {
 }
 
 var (
-	activitiesGetProviderByNode = activities.GetProviderByNode
+	activitiesGetProviderByNode = hyperscaler.GetProviderByNode
 )
 
 // GetReplicationsFromDB retrieves multiple replications from the database based on the ReplicationUUIDs.
@@ -109,7 +109,7 @@ func (r *ReplicationInternalGetMultipleActivity) GetReplicationsFromOntap(ctx co
 			continue // Skip if no replications for this pool
 		}
 		// Prepare node for provider
-		nodeModel := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: []*datamodel.Node{node}, Password: replications[0].Volume.Pool.PoolCredentials.Password, SecretID: replications[0].Volume.Pool.PoolCredentials.SecretID, DeploymentName: replications[0].Volume.Pool.DeploymentName, CertificateID: replications[0].Volume.Pool.PoolCredentials.CertificateID, AuthType: replications[0].Volume.Pool.PoolCredentials.AuthType})
+		nodeModel := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: []*datamodel.Node{node}, Password: replications[0].Volume.Pool.PoolCredentials.Password, SecretID: replications[0].Volume.Pool.PoolCredentials.SecretID, DeploymentName: replications[0].Volume.Pool.DeploymentName, CertificateID: replications[0].Volume.Pool.PoolCredentials.CertificateID, AuthType: replications[0].Volume.Pool.PoolCredentials.AuthType})
 
 		// Get Ontap provider
 		prov, err := activitiesGetProviderByNode(ctx, nodeModel)

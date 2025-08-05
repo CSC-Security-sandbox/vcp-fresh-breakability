@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -25,10 +26,10 @@ import (
 
 func TestUpdateVolumeInONTAP_Success(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := GetProviderByNode
-	defer func() { GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -72,10 +73,10 @@ func TestUpdateVolumeInONTAP_Success(t *testing.T) {
 
 func TestUpdateVolumeInONTAP_Failure(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := GetProviderByNode
-	defer func() { GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -118,10 +119,10 @@ func TestUpdateVolumeInONTAP_Failure(t *testing.T) {
 
 func TestUpdateLun_Success(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := GetProviderByNode
-	defer func() { GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -156,10 +157,10 @@ func TestUpdateLun_Success(t *testing.T) {
 
 func TestUpdateLun_Failure(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := GetProviderByNode
-	defer func() { GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -243,10 +244,10 @@ func TestUpdateVolumeInDB_FailureWithPrepareField(t *testing.T) {
 
 func TestUpdateLun_ConflictError(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := GetProviderByNode
-	defer func() { GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -723,10 +724,10 @@ func TestDeleteLunIGroupMap(t *testing.T) {
 			mockStorage := database.NewMockStorage(t)
 			mockProvider := vsa.NewMockProvider(t)
 
-			originalGetProviderByNode := GetProviderByNode
-			defer func() { GetProviderByNode = originalGetProviderByNode }()
+			originalGetProviderByNode := hyperscaler.GetProviderByNode
+			defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
-			GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 				return mockProvider, nil
 			}
 			tt.mockSetup(mockStorage, mockProvider)
@@ -780,9 +781,10 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
-		defer func() { GetProviderByNode = _getProviderByNode }()
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
 
-		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -815,8 +817,9 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
-		defer func() { GetProviderByNode = _getProviderByNode }()
-		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -846,7 +849,7 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		activity := &VolumeUpdateActivity{
 			SE: mockStorage,
 		}
-		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(nil, errors.New("failed to fetch host groups"))
@@ -860,8 +863,9 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
-		defer func() { GetProviderByNode = _getProviderByNode }()
-		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		activity := &VolumeUpdateActivity{
@@ -880,8 +884,9 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
-		defer func() { GetProviderByNode = _getProviderByNode }()
-		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		activity := &VolumeUpdateActivity{
@@ -905,8 +910,9 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
-		defer func() { GetProviderByNode = _getProviderByNode }()
-		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		activity := &VolumeUpdateActivity{
@@ -930,8 +936,9 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(t)
 		mockProvider := vsa.NewMockProvider(t)
-		defer func() { GetProviderByNode = _getProviderByNode }()
-		GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		activity := &VolumeUpdateActivity{
@@ -968,9 +975,9 @@ func TestGetHostGroup(t *testing.T) {
 
 func TestGetVolumeFromONTAP_Success(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := GetProviderByNode
-	defer func() { GetProviderByNode = originalGetProviderByNode }()
-	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -1000,9 +1007,9 @@ func TestGetVolumeFromONTAP_Success(t *testing.T) {
 
 func TestGetVolumeFromONTAP_Error(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := GetProviderByNode
-	defer func() { GetProviderByNode = originalGetProviderByNode }()
-	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -1033,10 +1040,10 @@ func TestGetVolumeFromONTAP_Error(t *testing.T) {
 
 func TestUpdateSnapshotPolicyInOntap_Success(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := GetProviderByNode
-	defer func() { GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
-	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -1079,9 +1086,9 @@ func TestUpdateSnapshotPolicyInOntap_Success(t *testing.T) {
 
 func TestUpdateSnapshotPolicyInOntap_Error(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
-	originalGetProviderByNode := GetProviderByNode
-	defer func() { GetProviderByNode = originalGetProviderByNode }()
-	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 
@@ -1143,11 +1150,11 @@ func TestGetVolumeFromONTAP_NilVolumeAttributes(t *testing.T) {
 	// Arrange
 	mockProvider := new(vsa.MockProvider)
 	mockStorage := database.NewMockStorage(t)
-	originalGetProviderByNode := GetProviderByNode
-	defer func() { GetProviderByNode = originalGetProviderByNode }()
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
 	// Mock GetProviderByNode to return the mock provider
-	GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
 

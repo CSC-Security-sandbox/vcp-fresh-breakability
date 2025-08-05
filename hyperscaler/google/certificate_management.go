@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
-	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"google.golang.org/api/privateca/v1"
 )
 
@@ -23,7 +23,7 @@ func (gcpService *GcpServices) CreateCertificate(cert *models.CustomCertificate)
 
 	certificate := &privateca.Certificate{
 		PemCsr:                     cert.PemCsr,
-		Lifetime:                   commonparams.CertificateLifetime,
+		Lifetime:                   env.CertificateLifetime,
 		IssuerCertificateAuthority: caResourceName,
 		CreateTime:                 time.Now().UTC().Format(time.RFC3339),
 	}
@@ -34,7 +34,7 @@ func (gcpService *GcpServices) CreateCertificate(cert *models.CustomCertificate)
 		return nil, err
 	}
 
-	customCertificate, err := commonparams.ValidateAndConvertPrivateCACertificateToCustomCertificate(cert.CertificateID, certificate)
+	customCertificate, err := ValidateAndConvertPrivateCACertificateToCustomCertificate(cert.CertificateID, certificate)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (gcpService *GcpServices) GetCertificate(projectID, region, poolName, certi
 	}
 
 	gcpService.Logger.Debug(fmt.Sprintf("GetCertificate success with response :  %s", certificateID))
-	customCertificate, err := commonparams.ValidateAndConvertPrivateCACertificateToCustomCertificate(certificateID, certificate)
+	customCertificate, err := ValidateAndConvertPrivateCACertificateToCustomCertificate(certificateID, certificate)
 	if err != nil {
 		return nil, err
 	}

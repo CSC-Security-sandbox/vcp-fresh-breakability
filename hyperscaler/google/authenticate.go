@@ -1,4 +1,4 @@
-package common
+package google
 
 import (
 	"crypto/rsa"
@@ -7,71 +7,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-openapi/errors"
-	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"google.golang.org/api/dns/v1"
 	"google.golang.org/api/privateca/v1"
 	"google.golang.org/api/secretmanager/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-const (
-	USERNAME_PWD         = 0 // Username/Password authentication
-	USERNAME_PWD_SEC_MGR = 1 // Username/Password authentication with secret manager
-	USER_CERTIFICATE     = 2 // Certificate authentication
-	VCP_ADMIN            = "vcp_admin"
-
-	Admin = "admin" // Default admin username for authentication
-)
-
-var (
-	AuthType                = env.GetInt("VSA_AUTH_TYPE", USERNAME_PWD) // 0 for username/password, 1 for username/password in secret manager and 2 for certificate authentication
-	Region                  = env.GetString("LOCAL_REGION", "")
-	CaName                  = env.GetString("CA_NAME", "")
-	CaPoolName              = env.GetString("CA_POOL_NAME", "")
-	CaPoolDeployedProjectID = env.GetString("CA_POOL_DEPLOYED_PROJECT_ID", "")
-	SecretManagerProjectID  = env.GetString("SECRET_MANAGER_PROJECT_ID", "")
-	VsaDeployedDnsName      = env.GetString("VSA_DEPLOYED_DNS_NAME", "")
-	VsaManagedZone          = env.GetString("VSA_MANAGED_ZONE", "")
-	CertificateLifetime     = env.GetString("CERTIFICATE_LIFETIME", "94608000s") // Default to 3 years
-	NodePassword            = env.GetString("VSA_NODE_PASSWORD", "")
-	CloudDNSCacheTTL        = env.GetInt64("CLOUD_DNS_CACHE_TTL", 300) // Default to 300 seconds
-)
-
-func ValidateEnvironmentVariables() error {
-	if Region == "" {
-		return errors.New(500, "LOCAL_REGION must be set for authentication")
-	}
-	if CaName == "" {
-		return errors.New(500, "CA_NAME must be set for authentication")
-	}
-	if CaPoolName == "" {
-		return errors.New(500, "CA_POOL_NAME must be set for authentication")
-	}
-	if CaPoolDeployedProjectID == "" {
-		return errors.New(500, "CA_POOL_DEPLOYED_PROJECT_ID must be set for authentication")
-	}
-	if SecretManagerProjectID == "" {
-		return errors.New(500, "SECRET_MANAGER_PROJECT_ID must be set for authentication")
-	}
-	if VsaDeployedDnsName == "" {
-		return errors.New(500, "VSA_DEPLOYED_DNS_NAME must be set for authentication")
-	}
-	if VsaManagedZone == "" {
-		return errors.New(500, "VSA_MANAGED_ZONE must be set for authentication")
-	}
-	if CertificateLifetime == "" {
-		return errors.New(500, "CERTIFICATE_LIFETIME must be set for authentication")
-	}
-	if CloudDNSCacheTTL == 0 {
-		return errors.New(500, "CLOUD_DNS_CACHE_TTL must be set for authentication")
-	}
-	if NodePassword == "" {
-		return errors.New(500, "VSA_NODE_PASSWORD must be set for authentication")
-	}
-	return nil
-}
 
 var (
 	ValidateAndConvertCertificateParamsToCustomCertificate    = _validateAndConvertCertificateParamsToCustomCertificate

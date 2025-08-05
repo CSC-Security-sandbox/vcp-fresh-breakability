@@ -7,7 +7,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-openapi/errors"
 	"github.com/goccy/go-yaml"
+)
+
+const (
+	Admin = "admin"
 )
 
 func init() {
@@ -256,4 +261,59 @@ func GetBool(key string, def bool) bool {
 		}
 	}
 	return def
+}
+
+const (
+	USERNAME_PWD         = 0 // Username/Password authentication
+	USERNAME_PWD_SEC_MGR = 1 // Username/Password authentication with secret manager
+	USER_CERTIFICATE     = 2 // Certificate authentication
+	VCP_ADMIN            = "vcp_admin"
+)
+
+var (
+	AuthType                = GetInt("VSA_AUTH_TYPE", USERNAME_PWD) // 0 for username/password, 1 for username/password in secret manager and 2 for certificate authentication
+	Region                  = GetString("LOCAL_REGION", "")
+	CaName                  = GetString("CA_NAME", "")
+	CaPoolName              = GetString("CA_POOL_NAME", "")
+	CaPoolDeployedProjectID = GetString("CA_POOL_DEPLOYED_PROJECT_ID", "")
+	SecretManagerProjectID  = GetString("SECRET_MANAGER_PROJECT_ID", "")
+	VsaDeployedDnsName      = GetString("VSA_DEPLOYED_DNS_NAME", "")
+	VsaManagedZone          = GetString("VSA_MANAGED_ZONE", "")
+	CertificateLifetime     = GetString("CERTIFICATE_LIFETIME", "94608000s") // Default to 3 years
+	NodePassword            = GetString("VSA_NODE_PASSWORD", "")
+	CloudDNSCacheTTL        = GetInt64("CLOUD_DNS_CACHE_TTL", 300) // Default to 300 seconds
+)
+
+func ValidateEnvironmentVariables() error {
+	if Region == "" {
+		return errors.New(500, "LOCAL_REGION must be set for authentication")
+	}
+	if CaName == "" {
+		return errors.New(500, "CA_NAME must be set for authentication")
+	}
+	if CaPoolName == "" {
+		return errors.New(500, "CA_POOL_NAME must be set for authentication")
+	}
+	if CaPoolDeployedProjectID == "" {
+		return errors.New(500, "CA_POOL_DEPLOYED_PROJECT_ID must be set for authentication")
+	}
+	if SecretManagerProjectID == "" {
+		return errors.New(500, "SECRET_MANAGER_PROJECT_ID must be set for authentication")
+	}
+	if VsaDeployedDnsName == "" {
+		return errors.New(500, "VSA_DEPLOYED_DNS_NAME must be set for authentication")
+	}
+	if VsaManagedZone == "" {
+		return errors.New(500, "VSA_MANAGED_ZONE must be set for authentication")
+	}
+	if CertificateLifetime == "" {
+		return errors.New(500, "CERTIFICATE_LIFETIME must be set for authentication")
+	}
+	if CloudDNSCacheTTL == 0 {
+		return errors.New(500, "CLOUD_DNS_CACHE_TTL must be set for authentication")
+	}
+	if NodePassword == "" {
+		return errors.New(500, "VSA_NODE_PASSWORD must be set for authentication")
+	}
+	return nil
 }

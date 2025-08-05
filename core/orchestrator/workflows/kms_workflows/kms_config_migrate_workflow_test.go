@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	env2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -621,10 +622,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
-		origAuthType := common.AuthType
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
-			common.AuthType = origAuthType
+			env2.AuthType = origAuthType
 			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		vsaKmsConfig := datamodel.KmsConfig{State: models.LifeCycleStateREADY}
@@ -680,10 +681,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
-		origAuthType := common.AuthType
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
-			common.AuthType = origAuthType
+			env2.AuthType = origAuthType
 			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
@@ -738,10 +739,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
-		origAuthType := common.AuthType
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
-			common.AuthType = origAuthType
+			env2.AuthType = origAuthType
 			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
@@ -799,10 +800,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
-		origAuthType := common.AuthType
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
-			common.AuthType = origAuthType
+			env2.AuthType = origAuthType
 			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 
@@ -860,10 +861,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
-		origAuthType := common.AuthType
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
-			common.AuthType = origAuthType
+			env2.AuthType = origAuthType
 			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
@@ -921,10 +922,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
-		origAuthType := common.AuthType
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
-			common.AuthType = origAuthType
+			env2.AuthType = origAuthType
 			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
@@ -983,10 +984,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
-		origAuthType := common.AuthType
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
-			common.AuthType = origAuthType
+			env2.AuthType = origAuthType
 			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
@@ -1046,10 +1047,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
-		origAuthType := common.AuthType
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
-			common.AuthType = origAuthType
+			env2.AuthType = origAuthType
 			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
@@ -1110,10 +1111,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
-		origAuthType := common.AuthType
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
-			common.AuthType = origAuthType
+			env2.AuthType = origAuthType
 			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
@@ -1174,10 +1175,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
-		origAuthType := common.AuthType
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
-			common.AuthType = origAuthType
+			env2.AuthType = origAuthType
 			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
@@ -1241,10 +1242,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		getSignedJwtToken = func(projectNumber string) (string, error) {
 			return "test-jwt-token", nil
 		}
-		origAuthType := common.AuthType
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
 		defer func() {
-			common.AuthType = origAuthType
+			env2.AuthType = origAuthType
 			getSignedJwtToken = auth.GetSignedJwtToken
 		}()
 		env.RegisterWorkflow(MigrateKmsConfigWorkflow)

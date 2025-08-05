@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	retry2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/iam/v1"
@@ -23,13 +24,27 @@ var (
 	keyResourceUrlPrefix             = "projects/-/serviceAccounts/"
 )
 
-func (gcpService *GcpServices) CreateServiceAccountKey(ctx context.Context, email string) (*iam.ServiceAccountKey, error) {
+func (gcpService *GcpServices) CreateServiceAccountKey(ctx context.Context, email string) (*models.ServiceAccountKey, error) {
 	return createServiceAccountKey(gcpService, ctx, email)
 }
 
-func _createServiceAccountKey(gcpService *GcpServices, ctx context.Context, serviceAccountEmail string) (*iam.ServiceAccountKey, error) {
+func convertServiceAccountKeyToModel(key *iam.ServiceAccountKey) *models.ServiceAccountKey {
+	return &models.ServiceAccountKey{
+		Name:            key.Name,
+		KeyAlgorithm:    key.KeyAlgorithm,
+		KeyOrigin:       key.KeyOrigin,
+		PrivateKeyType:  key.PrivateKeyType,
+		PrivateKeyData:  key.PrivateKeyData,
+		PublicKeyData:   key.PublicKeyData,
+		ValidAfterTime:  key.ValidAfterTime,
+		ValidBeforeTime: key.ValidBeforeTime,
+	}
+}
+
+func _createServiceAccountKey(gcpService *GcpServices, ctx context.Context, serviceAccountEmail string) (*models.ServiceAccountKey, error) {
 	request := &iam.CreateServiceAccountKeyRequest{}
-	return gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Keys.Create(fmt.Sprintf("projects/-/serviceAccounts/%s", serviceAccountEmail), request).Context(ctx).Do()
+	key, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Keys.Create(fmt.Sprintf("projects/-/serviceAccounts/%s", serviceAccountEmail), request).Context(ctx).Do()
+	return convertServiceAccountKeyToModel(key), err
 }
 
 func _getServiceAccountIamPolicy(ctx context.Context, gcpService *GcpServices, resource string) (*iam.Policy, error) {

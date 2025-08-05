@@ -9,13 +9,12 @@ import (
 	"net/http"
 	"time"
 
-	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"google.golang.org/api/iam/v1"
 	"k8s.io/client-go/rest"
 )
 
@@ -96,15 +95,15 @@ func (a *ADCActivity) CleanupADCCloudRunService(ctx context.Context, projectID, 
 	}, nil
 }
 
-func (a *ADCActivity) CreateServiceAccount(ctx context.Context, projectID string, saAccountID string, saDisplayName string) (*iam.ServiceAccount, error) {
+func (a *ADCActivity) CreateServiceAccount(ctx context.Context, projectID string, saAccountID string, saDisplayName string) (*hyperscalermodels.ServiceAccount, error) {
 	cloudService, err := GetCloudService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	createReq := &iam.CreateServiceAccountRequest{
+	createReq := &hyperscalermodels.CreateServiceAccountRequest{
 		AccountId: saAccountID,
-		ServiceAccount: &iam.ServiceAccount{
+		ServiceAccount: &hyperscalermodels.ServiceAccount{
 			DisplayName: saDisplayName,
 		},
 	}

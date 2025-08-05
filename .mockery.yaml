@@ -49,7 +49,7 @@ packages:
       inpackage: True
     interfaces:
       Scheduler:
-  github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler:
     config:
       dir: "{{.InterfaceDir}}"
       inpackage: True

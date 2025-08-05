@@ -11,11 +11,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -912,7 +912,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := &database.MockStorage{}
 		mockClient := googleproxyclient.NewMockInvoker(t)
-		
+
 		// Setup mock volume response from storage
 		srcVolume := &datamodel.Volume{
 			Svm: &datamodel.Svm{
@@ -920,7 +920,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 			},
 		}
 		mockStorage.On("DescribeVolume", ctx, "test-source-uuid").Return(srcVolume, nil)
-		
+
 		// Setup result with required fields
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
@@ -956,7 +956,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
 		}()
-		
+
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return &googleproxyclient.ProxyClient{
 				Invoker: mockClient,
@@ -981,7 +981,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		assert.NotNil(tt, updatedResult.DstSvm)
 		assert.Equal(tt, "src-svm-name", *updatedResult.SrcSvm)
 		assert.Equal(tt, "dst-svm-name", *updatedResult.DstSvm)
-		
+
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -989,10 +989,10 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		mockStorage := &database.MockStorage{}
-		
+
 		// Setup mock storage to return error
 		mockStorage.On("DescribeVolume", ctx, "test-source-uuid").Return(nil, errors.New("source volume not found"))
-		
+
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
 				SourceVolume: datamodel.Volume{
@@ -1020,7 +1020,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
 		assert.Contains(tt, err.Error(), "source volume not found")
-		
+
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -1029,7 +1029,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := &database.MockStorage{}
 		mockClient := googleproxyclient.NewMockInvoker(t)
-		
+
 		// Setup mock volume response from storage
 		srcVolume := &datamodel.Volume{
 			Svm: &datamodel.Svm{
@@ -1037,7 +1037,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 			},
 		}
 		mockStorage.On("DescribeVolume", ctx, "test-source-uuid").Return(srcVolume, nil)
-		
+
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
 				SourceVolume: datamodel.Volume{
@@ -1067,7 +1067,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
 		}()
-		
+
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return &googleproxyclient.ProxyClient{
 				Invoker: mockClient,
@@ -1090,7 +1090,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
 		assert.Contains(tt, err.Error(), "destination volume not found")
-		
+
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -1098,7 +1098,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		// Arrange
 		mockStorage := database.NewMockStorage(t)
 		mockClient := googleproxyclient.NewMockInvoker(t)
-		
+
 		// Mock DescribeVolume call that happens in GetVolumeSVMNames
 		mockVolume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -1107,13 +1107,13 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 			},
 		}
 		mockStorage.On("DescribeVolume", mock.Anything, "test-source-volume-uuid").Return(mockVolume, nil)
-		
+
 		// Mock the GetGProxyClient function
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
 		}()
-		
+
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return &googleproxyclient.ProxyClient{
 				Invoker: mockClient,
@@ -1124,13 +1124,13 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 			ResourceId: googleproxyclient.NewOptString("test-volume"),
 			SvmName:    googleproxyclient.NewOptNilString("test-dst-svm"),
 		}
-		
+
 		expectedParams := googleproxyclient.V1betaInternalDescribeVolumeParams{
 			ProjectNumber: "123456789",
 			VolumeId:      "test-dst-volume-id",
 		}
 		mockClient.EXPECT().V1betaInternalDescribeVolume(mock.Anything, expectedParams).Return(expectedDstVolume, nil)
-		
+
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
 				SourceVolume: datamodel.Volume{
@@ -1163,7 +1163,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		assert.NotNil(tt, updatedResult.DstSvm)
 		assert.Equal(tt, "test-svm", *updatedResult.SrcSvm)
 		assert.Equal(tt, "test-dst-svm", *updatedResult.DstSvm)
-		
+
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -1200,7 +1200,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 				},
 				DestinationLocationID: dstLocationID,
 			},
-			DstPool: nil,
+			DstPool:          nil,
 			DstBasePath:      &dstBasePath,
 			DstJwtToken:      &dstJwtToken,
 			DstProjectNumber: &dstProjectNumber,
@@ -1329,13 +1329,13 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		mockStorage := &database.MockStorage{}
-		
+
 		// Setup mock volume response from storage with nil SVM
 		srcVolume := &datamodel.Volume{
 			Svm: nil, // SVM is nil
 		}
 		mockStorage.On("DescribeVolume", ctx, "test-source-uuid").Return(srcVolume, nil)
-		
+
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
 				SourceVolume: datamodel.Volume{
@@ -1355,7 +1355,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
 		assert.Contains(tt, err.Error(), "Source volume SVM name not found")
-		
+
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -1363,7 +1363,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		mockStorage := &database.MockStorage{}
-		
+
 		// Setup mock volume response from storage with empty SVM name
 		srcVolume := &datamodel.Volume{
 			Svm: &datamodel.Svm{
@@ -1371,7 +1371,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 			},
 		}
 		mockStorage.On("DescribeVolume", ctx, "test-source-uuid").Return(srcVolume, nil)
-		
+
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
 				SourceVolume: datamodel.Volume{
@@ -1391,7 +1391,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
 		assert.Contains(tt, err.Error(), "Source volume SVM name not found")
-		
+
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -1400,7 +1400,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := &database.MockStorage{}
 		mockClient := googleproxyclient.NewMockInvoker(t)
-		
+
 		// Setup mock volume response from storage
 		srcVolume := &datamodel.Volume{
 			Svm: &datamodel.Svm{
@@ -1408,7 +1408,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 			},
 		}
 		mockStorage.On("DescribeVolume", ctx, "test-source-uuid").Return(srcVolume, nil)
-		
+
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
 				SourceVolume: datamodel.Volume{
@@ -1436,7 +1436,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
 		}()
-		
+
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return &googleproxyclient.ProxyClient{
 				Invoker: mockClient,
@@ -1459,7 +1459,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
 		assert.Contains(tt, err.Error(), "Destination volume SVM name not found")
-		
+
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -1468,7 +1468,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := &database.MockStorage{}
 		mockClient := googleproxyclient.NewMockInvoker(t)
-		
+
 		// Setup mock volume response from storage
 		srcVolume := &datamodel.Volume{
 			Svm: &datamodel.Svm{
@@ -1476,7 +1476,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 			},
 		}
 		mockStorage.On("DescribeVolume", ctx, "test-source-uuid").Return(srcVolume, nil)
-		
+
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
 				SourceVolume: datamodel.Volume{
@@ -1504,7 +1504,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
 		}()
-		
+
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return &googleproxyclient.ProxyClient{
 				Invoker: mockClient,
@@ -1529,7 +1529,7 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		assert.NotNil(tt, updatedResult.DstSvm)
 		assert.Equal(tt, "src-svm-name", *updatedResult.SrcSvm)
 		assert.Equal(tt, "", *updatedResult.DstSvm) // Empty destination SVM name
-		
+
 		mockStorage.AssertExpectations(tt)
 	})
 }
@@ -1539,7 +1539,7 @@ func TestVolumeReplicationCreateActivity_DescribeVolume(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(t)
-		
+
 		dstProjectNumber := "123456789"
 		dstBasePath := "https://test-base-path.com"
 		dstJwtToken := "test-jwt-token"
@@ -1566,7 +1566,7 @@ func TestVolumeReplicationCreateActivity_DescribeVolume(t *testing.T) {
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
 		}()
-		
+
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return &googleproxyclient.ProxyClient{
 				Invoker: mockClient,
@@ -1595,7 +1595,7 @@ func TestVolumeReplicationCreateActivity_DescribeVolume(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(t)
-		
+
 		dstProjectNumber := "123456789"
 		dstBasePath := "https://test-base-path.com"
 		dstJwtToken := "test-jwt-token"
@@ -1616,7 +1616,7 @@ func TestVolumeReplicationCreateActivity_DescribeVolume(t *testing.T) {
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
 		}()
-		
+
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return &googleproxyclient.ProxyClient{
 				Invoker: mockClient,
@@ -1643,7 +1643,7 @@ func TestVolumeReplicationCreateActivity_DescribeVolume(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(t)
-		
+
 		// Provide empty project number but valid other fields to avoid nil pointer dereference
 		emptyProjectNumber := ""
 		dstBasePath := "https://test-base-path.com"
@@ -1665,7 +1665,7 @@ func TestVolumeReplicationCreateActivity_DescribeVolume(t *testing.T) {
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
 		}()
-		
+
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return &googleproxyclient.ProxyClient{
 				Invoker: mockClient,
@@ -1693,7 +1693,7 @@ func TestVolumeReplicationCreateActivity_DescribeVolume(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(t)
-		
+
 		dstProjectNumber := "123456789"
 		dstBasePath := "https://test-base-path.com"
 		dstJwtToken := "test-jwt-token"
@@ -1714,7 +1714,7 @@ func TestVolumeReplicationCreateActivity_DescribeVolume(t *testing.T) {
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
 		}()
-		
+
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return &googleproxyclient.ProxyClient{
 				Invoker: mockClient,
@@ -1742,7 +1742,7 @@ func TestVolumeReplicationCreateActivity_DescribeVolume(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(t)
-		
+
 		dstProjectNumber := "123456789"
 		dstBasePath := "https://test-base-path.com"
 		dstJwtToken := "test-jwt-token"
@@ -1763,7 +1763,7 @@ func TestVolumeReplicationCreateActivity_DescribeVolume(t *testing.T) {
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
 		}()
-		
+
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return &googleproxyclient.ProxyClient{
 				Invoker: mockClient,
@@ -1791,20 +1791,20 @@ func TestVolumeReplicationCreateActivity_DescribeVolume(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		mockClient := googleproxyclient.NewMockInvoker(t)
-		
+
 		// Mock the googleproxyclient.GetGProxyClient to return a client that will cause an error
 		// but after parameter validation, so we can verify parameter construction is correct
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() {
 			googleproxyclient.GetGProxyClient = originalGetGProxyClient
 		}()
-		
+
 		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
 			return &googleproxyclient.ProxyClient{
 				Invoker: mockClient,
 			}
 		}
-		
+
 		dstProjectNumber := "123456789"
 		result := &replication.CreateReplicationResult{
 			Event: &replication.CreateReplicationEvent{
@@ -2053,7 +2053,7 @@ func TestAcceptSvmPeer(t *testing.T) {
 			State:       "peered",
 		}
 		mockProvider.On("GetSVMPeer", result.SrcSvm, result.DstSvm).Return(svmPeer, nil)
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2083,7 +2083,7 @@ func TestAcceptSvmPeer(t *testing.T) {
 		}
 		mockProvider.On("GetSVMPeer", result.SrcSvm, result.DstSvm).Return(svmPeer, nil)
 		mockProvider.On("AcceptSvmPeering", srcSvm, dstSvm).Return(nil)
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2113,7 +2113,7 @@ func TestAcceptSvmPeer(t *testing.T) {
 		}
 		mockProvider.On("GetSVMPeer", &srcSvm, &dstSvm).Return(svmPeer, nil)
 		mockProvider.On("AcceptSvmPeering", srcSvm, dstSvm).Return(errors.New("some-error"))
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2139,7 +2139,7 @@ func TestAcceptSvmPeer(t *testing.T) {
 		}
 
 		mockProvider.On("GetSVMPeer", &srcSvm, &dstSvm).Return(nil, errors.New("some-error"))
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2165,7 +2165,7 @@ func TestAcceptSvmPeer(t *testing.T) {
 			SrcSvm: &srcSvm,
 		}
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider error")
 		}
 
@@ -2201,7 +2201,7 @@ func TestGetSourceInterclusterLifs(t *testing.T) {
 			&vsa.InterclusterLif{Address: "10.1.1.2"},
 		}
 		mockProvider.On("GetInterclusterLIFs", "default-intercluster").Return(interclusterLifs, nil)
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2231,7 +2231,7 @@ func TestGetSourceInterclusterLifs(t *testing.T) {
 		}
 
 		mockProvider.On("GetInterclusterLIFs", "default-intercluster").Return(nil, errors.New("failed to fetch intercluster LIFs"))
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2259,7 +2259,7 @@ func TestGetSourceInterclusterLifs(t *testing.T) {
 			SrcNode: &models.Node{},
 		}
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("failed to fetch intercluster LIFs")
 		}
 
@@ -2385,11 +2385,11 @@ func TestCreateClusterPeer(t *testing.T) {
 	t.Run("TestCreateClusterPeer_Success", func(t *testing.T) {
 		// Arrange
 		mockProvider := new(vsa.MockProvider) // Use the mock provider
-		originalGetProviderByNode := activities.GetProviderByNode
-		defer func() { activities.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
 
 		// Mock GetProviderByNode to return the mock provider
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2421,10 +2421,10 @@ func TestCreateClusterPeer(t *testing.T) {
 	})
 	t.Run("CreateClusterPeerReturnsErrorWhenProviderFails", func(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		originalGetProviderByNode := activities.GetProviderByNode
-		defer func() { activities.GetProviderByNode = originalGetProviderByNode }()
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
 
-		activities.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 

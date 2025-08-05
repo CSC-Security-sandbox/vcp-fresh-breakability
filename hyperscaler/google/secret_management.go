@@ -4,8 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
-	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"google.golang.org/api/secretmanager/v1"
 )
 
@@ -45,7 +44,7 @@ func (gcpService *GcpServices) CreateSecret(projectID, region, secretID, secretV
 		return nil, err
 	}
 
-	customSecret, err := commonparams.ConvertSecretToCustomSecret(secret, version)
+	customSecret, err := ConvertSecretToCustomSecret(secret, version)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +68,7 @@ func (gcpService *GcpServices) GetSecretWithLatestVersion(projectID, secretID st
 		return nil, err
 	}
 	gcpService.Logger.Debug(fmt.Sprintf("GetSecretWithLatestVersion success with response :  %s", name))
-	customSecret, err := commonparams.ConvertSecretToCustomSecret(secret, version)
+	customSecret, err := ConvertSecretToCustomSecret(secret, version)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +91,7 @@ func (gcpService *GcpServices) GetSecretWithCustomVersion(projectID, secretID st
 		return nil, err
 	}
 	gcpService.Logger.Debugf("GetSecretWithCustomVersion success with response :  %s", name)
-	customSecret, err := commonparams.ConvertSecretToCustomSecret(secret, version)
+	customSecret, err := ConvertSecretToCustomSecret(secret, version)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +126,7 @@ func _addSecretVersion(gcpService *GcpServices, projectID, secretName, secretVal
 		return nil, err
 	}
 
-	customSecretVersion, err := commonparams.ConvertSecretVersionToCustomSecretVersion(secretVersion.Name, secretValue)
+	customSecretVersion, err := ConvertSecretVersionToCustomSecretVersion(secretVersion.Name, secretValue)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +153,7 @@ func _getSecretVersion(gcpService *GcpServices, projectID, secretName, versionID
 		gcpService.Logger.Errorf("unable to decode key-data for secret %s with error: %v", secretName, err)
 		return nil, err
 	}
-	customSecretVersion, err := commonparams.ConvertSecretVersionToCustomSecretVersion(secretVersion.Name, string(secretValue))
+	customSecretVersion, err := ConvertSecretVersionToCustomSecretVersion(secretVersion.Name, string(secretValue))
 	if err != nil {
 		return nil, err
 	}

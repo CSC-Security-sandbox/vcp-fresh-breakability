@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -19,7 +20,7 @@ type VolumeDeleteActivity struct {
 
 func (va VolumeDeleteActivity) DeleteVolumeInONTAP(ctx context.Context, volumeExternalUUID, volumeName string, node *models.Node) error {
 	logger := util.GetLogger(ctx)
-	provider, err := GetProviderByNode(ctx, node)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -52,7 +53,7 @@ func (va VolumeDeleteActivity) DeleteVolume(ctx context.Context, volume *datamod
 func (va VolumeDeleteActivity) DeleteSnapshotPolicyInONTAP(ctx context.Context, SnapshotPolicyName string, node *models.Node) error {
 	if node != nil && SnapshotPolicyName != "" {
 		logger := util.GetLogger(ctx)
-		provider, err := GetProviderByNode(ctx, node)
+		provider, err := hyperscaler.GetProviderByNode(ctx, node)
 		if err != nil {
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -71,7 +72,7 @@ func (va VolumeDeleteActivity) DeleteSnapshotPolicyInONTAP(ctx context.Context, 
 func (va VolumeDeleteActivity) DeleteSnapmirrorInONTAP(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.OntapAsyncResponse, error) {
 	logger := util.GetLogger(ctx)
 	if node != nil && volume.UUID != "" {
-		provider, err := GetProviderByNode(ctx, node)
+		provider, err := hyperscaler.GetProviderByNode(ctx, node)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}

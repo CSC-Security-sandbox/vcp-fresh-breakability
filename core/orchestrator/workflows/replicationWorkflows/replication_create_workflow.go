@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -145,7 +146,7 @@ func (wf *createVolumeReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		return nil, err
 	}
 
-	srcNode := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: replicationResult.Event.SourcePool.PoolCredentials.Password, SecretID: replicationResult.Event.SourcePool.PoolCredentials.SecretID, CertificateID: replicationResult.Event.SourcePool.PoolCredentials.CertificateID, DeploymentName: replicationResult.Event.SourcePool.DeploymentName, AuthType: replicationResult.Event.SourcePool.PoolCredentials.AuthType})
+	srcNode := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: replicationResult.Event.SourcePool.PoolCredentials.Password, SecretID: replicationResult.Event.SourcePool.PoolCredentials.SecretID, CertificateID: replicationResult.Event.SourcePool.PoolCredentials.CertificateID, DeploymentName: replicationResult.Event.SourcePool.DeploymentName, AuthType: replicationResult.Event.SourcePool.PoolCredentials.AuthType})
 
 	replicationResult.SrcNode = srcNode
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSourceInterclusterLifs, &replicationResult).Get(ctx, &replicationResult)

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	cloudrun "google.golang.org/api/run/v2"

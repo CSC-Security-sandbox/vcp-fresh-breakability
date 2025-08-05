@@ -10,13 +10,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
-	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"google.golang.org/api/iam/v1"
 )
 
 func TestDeployADCCloudRunService(t *testing.T) {
@@ -265,7 +264,7 @@ func TestCreateServiceAccount(t *testing.T) {
 		saAccountID := "adc-sa-test"
 		saDisplayName := "ADC Service Account"
 
-		expectedSA := &iam.ServiceAccount{
+		expectedSA := &hyperscalermodels.ServiceAccount{
 			Email:       "adc-sa-test@test-project.iam.gserviceaccount.com",
 			DisplayName: saDisplayName,
 		}
@@ -360,7 +359,7 @@ func TestIsServiceAccountCreated(t *testing.T) {
 	t.Run("OnSuccess_AccountExists", func(t *testing.T) {
 		ctx := context.Background()
 		saEmail := "adc-sa@test-project.iam.gserviceaccount.com"
-		expectedSA := &iam.ServiceAccount{Email: saEmail}
+		expectedSA := &hyperscalermodels.ServiceAccount{Email: saEmail}
 
 		mockGCPService := new(hyperscaler.MockGoogleServices)
 		mockGCPService.On("GetServiceAccountByEmail", saEmail).Return(expectedSA, nil)

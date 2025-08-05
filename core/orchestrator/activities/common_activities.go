@@ -8,16 +8,15 @@ import (
 	"time"
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
-	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
+	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -28,8 +27,6 @@ type CommonActivities struct {
 }
 
 var (
-	GetGCPService        = _getGCPService
-	GetProviderByNode    = _getProviderByNode
 	MakeSubnetName       = _makeSubnetName
 	isSubnetReusable     = _isSubnetReusable
 	findEmptySubnet      = _findEmptySubnet
@@ -108,54 +105,8 @@ func (ca CommonActivities) GetNode(ctx context.Context, poolId int64) ([]*datamo
 	return nodes, nil
 }
 
-func _getProviderByNode(ctx context.Context, node *models.Node) (vsa.Provider, error) {
-	if node.AuthType == commonparams.USER_CERTIFICATE {
-		certificate, err := GetCertificateFromCacheOrSecretManager(ctx, node.CertificateID)
-		if err != nil {
-			util.GetLogger(ctx).Errorf("Failed to get certificate for node %s: %v", node.Name, err)
-			return nil, err
-		}
-
-		return vsa.NewProvider(ctx, vsa.ProviderDetails{
-			Hosts: node.EndpointAddressesToHostNameMap,
-			Certificate: &vsa.Certificate{
-				SignedCertificate:        certificate.SignedCertificate,
-				InterMediateCertificates: certificate.InterMediateCertificates,
-				CommonName:               certificate.CommonName,
-				PrivateKey:               certificate.PrivateKey,
-			},
-			InsecureSkipVerify: false,
-		}), nil
-	}
-
-	var password string
-	if node.AuthType == commonparams.USERNAME_PWD_SEC_MGR {
-		secret, err := GetPasswordFromCacheOrSecretManager(ctx, node.SecretID)
-		if err != nil {
-			util.GetLogger(ctx).Errorf("Failed to get password for node %s: %v", node.Name, err)
-			return nil, err
-		}
-		password = secret
-	} else {
-		password = node.Password
-	}
-	// if ipAddress in empty, populate it with the node's endpoint address
-	if len(node.EndpointAddressesToHostNameMap) == 0 {
-		if node.EndpointAddress == "" {
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrVSAClusterNodeIPAddressNotFound, errors.New("node endpoint address is empty"))
-		}
-		node.EndpointAddressesToHostNameMap[node.EndpointAddress] = node.EndpointAddress
-	}
-
-	return vsa.NewProvider(ctx, vsa.ProviderDetails{
-		Hosts:              node.EndpointAddressesToHostNameMap,
-		Password:           password,
-		InsecureSkipVerify: true,
-	}), nil
-}
-
 func (j CommonActivities) GetOntapJob(ctx context.Context, jobUUID string, node *models.Node) (*vsa.OntapJob, error) {
-	provider, err := GetProviderByNode(ctx, node)
+	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
@@ -177,7 +128,7 @@ func (j CommonActivities) GetAuthJWTToken(ctx context.Context, accountName strin
 }
 
 // _getCloudService initializes and returns a GcpServices instance.
-func _getCloudService(ctx context.Context) (hyperscaler.Services, error) {
+func _getCloudService(ctx context.Context) (hyperscaler2.Services, error) {
 	gcpService, err := _getGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, errors.New("initialisation of Google GCP service failed"))
@@ -205,7 +156,7 @@ func _newGcpServices(ctx context.Context) *google.GcpServices {
 	return &google.GcpServices{
 		Ctx:    ctx,
 		Logger: util.GetLogger(ctx),
-		Retry:  google.NewExponentialRetryStrategy(time.Second, uint(maxRetries)),
+		Retry:  google.NewExponentialRetryStrategy(time.Second, uint(hyperscaler2.MaxRetries)),
 	}
 }
 
@@ -216,7 +167,7 @@ func _makeSubnetName(projectNumber string) string {
 }
 
 // getSubnetToBeUsed examines existing subnets or identifies if existing subnet can be used for creation of new pool
-func getSubnetToBeUsed(service hyperscaler.GoogleServices, se database.Storage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion string) (*hyperscaler_models.Subnet, error) {
+func getSubnetToBeUsed(service hyperscaler2.GoogleServices, se database.Storage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion string) (*hyperscaler_models.Subnet, error) {
 	logger := service.GetLogger()
 	subnetsReceived, err := service.ListSubnetworks(snHost, tenantProjectRegion)
 	if err != nil {

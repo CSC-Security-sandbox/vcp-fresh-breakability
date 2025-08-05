@@ -3,9 +3,8 @@ package hyperscaler
 import (
 	"context"
 
-	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"google.golang.org/api/iam/v1"
 )
 
 // Services describes a gcp interface which contains the required methods to create or reuse a data path in a tenant project
@@ -30,13 +29,13 @@ type Services interface {
 	CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string) error
 	DeleteBucket(ctx context.Context, bucketName string) error
 
-	GetServiceAccount(projectID, email string) (*iam.ServiceAccount, error)
-	CreateServiceAccount(createRequest *iam.CreateServiceAccountRequest, projectNumber, email string) (account *iam.ServiceAccount, err error)
-	IsServiceAccountCreated(email string) (account *iam.ServiceAccount, isSACreated bool, err error)
+	GetServiceAccount(projectID, email string) (*models.ServiceAccount, error)
+	CreateServiceAccount(createRequest *models.CreateServiceAccountRequest, projectNumber, email string) (account *models.ServiceAccount, err error)
+	IsServiceAccountCreated(email string) (account *models.ServiceAccount, isSACreated bool, err error)
 	AttachOrUpdateRolesForServiceAccounts(roles []string, serviceAccountEmail, projectID string) error
 	RemoveRolesFromServiceAccounts(roles []string, serviceAccountEmail, projectID string) error
 	DeleteServiceAccount(email string) error
-	GetServiceAccountByEmail(email string) (*iam.ServiceAccount, error)
+	GetServiceAccountByEmail(email string) (*models.ServiceAccount, error)
 
 	CreateHmacKey(projectID string, serviceAccount string) (accessKey *string, secretKey *string, err error)
 	DeleteHmacKey(projectID string, accessKey string, ServiceAccount string) error
@@ -48,7 +47,7 @@ type Services interface {
 	CreateSecret(projectID, region, secretID, secretValue string) (*models.CustomSecret, error)
 	GetSecretWithLatestVersion(projectID, secretID string) (*models.CustomSecret, error)
 	DeleteSecret(projectID, secretID string) error
-	CreateServiceAccountKey(ctx context.Context, email string) (*iam.ServiceAccountKey, error)
+	CreateServiceAccountKey(ctx context.Context, email string) (*models.ServiceAccountKey, error)
 	DeleteAllServiceAccountKeys(ctx context.Context, email string) error
 	GetSecretWithCustomVersion(projectID, secretID string, versionID string) (*models.CustomSecret, error)
 

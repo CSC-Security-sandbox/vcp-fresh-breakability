@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	hyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/option"
 	"google.golang.org/api/privateca/v1"

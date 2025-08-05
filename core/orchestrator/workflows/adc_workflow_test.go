@@ -6,10 +6,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	hyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	hyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -17,7 +17,6 @@ import (
 	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
-	"google.golang.org/api/iam/v1"
 )
 
 func TestADCWorkflow(t *testing.T) {
@@ -72,7 +71,7 @@ func TestADCWorkflow(t *testing.T) {
 
 		// Mock activity responses
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iam.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
@@ -222,7 +221,7 @@ func TestADCWorkflow(t *testing.T) {
 
 		// Mock activity responses - IsServiceAccountCreated fails
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iam.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(false, errors.New("failed to check service account"))
 
 		// Execute workflow
@@ -288,7 +287,7 @@ func TestADCWorkflow(t *testing.T) {
 
 		// Mock activity responses - AttachRolesToServiceAccount fails
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iam.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to attach roles"))
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -356,7 +355,7 @@ func TestADCWorkflow(t *testing.T) {
 
 		// Mock activity responses - CreateHmacKeys fails
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iam.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(nil, errors.New("failed to create HMAC keys"))
@@ -426,7 +425,7 @@ func TestADCWorkflow(t *testing.T) {
 
 		// Mock activity responses - DeployADCCloudRunService fails
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iam.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
@@ -500,7 +499,7 @@ func TestADCWorkflow(t *testing.T) {
 
 		// Mock activity responses - CheckOperationStatus fails
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iam.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
@@ -583,7 +582,7 @@ func TestADCWorkflow(t *testing.T) {
 
 		// Mock activity responses - GetADCServiceURL fails
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iam.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
@@ -666,7 +665,7 @@ func TestADCWorkflow(t *testing.T) {
 
 		// Mock activity responses - InitialDeleteRequestWithCloudRun fails
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iam.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
@@ -812,7 +811,7 @@ func TestADCWorkflow(t *testing.T) {
 
 		// Mock activity responses - all succeed until cleanup
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iam.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
@@ -900,7 +899,7 @@ func TestADCWorkflow(t *testing.T) {
 
 		// Mock activity responses - all succeed until sleep
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iam.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(true, nil)
 		env.OnActivity("AttachRolesToServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateHmacKeys", mock.Anything, mock.Anything).Return(&common.HmacKeys{
@@ -1165,7 +1164,7 @@ func TestADCWorkflow(t *testing.T) {
 
 		// Mock activity responses - IsServiceAccountCreated returns false
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000", nil)
-		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iam.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
 		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).Return(false, nil)
 
 		// Execute workflow

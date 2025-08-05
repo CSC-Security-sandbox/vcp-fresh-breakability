@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
-	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
@@ -34,8 +34,8 @@ func (a *SmcTokenRotationActivity) GetSMCLicenseFromCloud(ctx context.Context) (
 }
 
 func _getSMCLicenseFromCloud(ctx context.Context) (string, error) {
-	var gcpService hyperscaler.GoogleServices
-	gcpService, err := GetGCPService(ctx)
+	var gcpService hyperscaler2.GoogleServices
+	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -48,7 +48,7 @@ func _getSMCLicenseFromCloud(ctx context.Context) (string, error) {
 	return secret.SecretVersion.Value, nil
 }
 
-func _getSecretWithVersion(gcpService hyperscaler.GoogleServices, gcpProjectId, secretID, versionID string) (*hyperscalermodels.CustomSecret, error) {
+func _getSecretWithVersion(gcpService hyperscaler2.GoogleServices, gcpProjectId, secretID, versionID string) (*hyperscalermodels.CustomSecret, error) {
 	secret, err := gcpService.GetSecretWithCustomVersion(gcpProjectId, secretID, versionID)
 	if err != nil || secret == nil || secret.SecretVersion == nil {
 		return nil, fmt.Errorf("failed to get secret for project: %s, secretID: %s, versionName: %s, err: %s", gcpProjectId, secretID, versionID, err)
@@ -57,7 +57,7 @@ func _getSecretWithVersion(gcpService hyperscaler.GoogleServices, gcpProjectId, 
 }
 
 func _generateTokenForNode(ctx context.Context, node *models.Node, clientSecret *string) (*string, error) {
-	provider, err := GetProviderByNode(ctx, node)
+	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}

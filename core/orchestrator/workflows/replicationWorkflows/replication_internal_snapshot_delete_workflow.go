@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -97,7 +98,7 @@ func (wf *internalSnapshotDeleteWorkflow) Run(ctx workflow.Context, args ...inte
 	if err != nil {
 		return nil, err
 	}
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: params.Nodes, Password: params.Volume.Pool.PoolCredentials.Password, SecretID: params.Volume.Pool.PoolCredentials.SecretID, CertificateID: params.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: params.Volume.Pool.DeploymentName, AuthType: params.Volume.Pool.PoolCredentials.AuthType})
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: params.Nodes, Password: params.Volume.Pool.PoolCredentials.Password, SecretID: params.Volume.Pool.PoolCredentials.SecretID, CertificateID: params.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: params.Volume.Pool.DeploymentName, AuthType: params.Volume.Pool.PoolCredentials.AuthType})
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.ListSnapshotInONTAP, &params, &node).Get(ctx, &params)
 	if err != nil {

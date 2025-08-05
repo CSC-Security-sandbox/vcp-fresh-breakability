@@ -17,6 +17,7 @@ import (
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -279,10 +280,10 @@ func TestCreatePool(t *testing.T) {
 				Iops:            1024,
 			},
 		}
-		originalnodePassword := common.NodePassword
-		common.NodePassword = "password"
+		originalnodePassword := env.NodePassword
+		env.NodePassword = "password"
 		defer func() {
-			common.NodePassword = originalnodePassword
+			env.NodePassword = originalnodePassword
 		}()
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return nil, errors.New("account not found")
@@ -316,10 +317,10 @@ func TestCreatePool(t *testing.T) {
 			},
 			Name: "test_account",
 		}
-		originalnodePassword := common.NodePassword
-		common.NodePassword = "password"
+		originalnodePassword := env.NodePassword
+		env.NodePassword = "password"
 		defer func() {
-			common.NodePassword = originalnodePassword
+			env.NodePassword = originalnodePassword
 		}()
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
@@ -395,14 +396,14 @@ func TestCreatePool(t *testing.T) {
 			},
 			Name: "test_account",
 		}
-		originalnodePassword := common.NodePassword
-		common.NodePassword = "password"
+		originalnodePassword := env.NodePassword
+		env.NodePassword = "password"
 
-		authType := common.AuthType
-		common.AuthType = common.USERNAME_PWD
+		authType := env.AuthType
+		env.AuthType = env.USERNAME_PWD
 		defer func() {
-			common.AuthType = authType // Reset to original value after test
-			common.NodePassword = originalnodePassword
+			env.AuthType = authType // Reset to original value after test
+			env.NodePassword = originalnodePassword
 		}()
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
@@ -460,10 +461,10 @@ func TestCreatePool(t *testing.T) {
 			},
 			Name: "test_account",
 		}
-		authType := common.AuthType
-		common.AuthType = common.USER_CERTIFICATE
+		authType := env.AuthType
+		env.AuthType = env.USER_CERTIFICATE
 		defer func() {
-			common.AuthType = authType // Reset to original value after test
+			env.AuthType = authType // Reset to original value after test
 		}()
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil
@@ -520,10 +521,10 @@ func TestCreatePool(t *testing.T) {
 			},
 			Name: "test_account",
 		}
-		authType := common.AuthType
-		common.AuthType = common.USERNAME_PWD_SEC_MGR
+		authType := env.AuthType
+		env.AuthType = env.USERNAME_PWD_SEC_MGR
 		defer func() {
-			common.AuthType = authType // Reset to original value after test
+			env.AuthType = authType // Reset to original value after test
 		}()
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return dbAccount, nil

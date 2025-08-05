@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -28,11 +28,11 @@ func TestConfigureKmsForSvmActivity(t *testing.T) {
 		params := commonparams.CreatePoolParams{KmsConfigId: "kms-uuid"}
 
 		// Patch activities.GetProviderByNode to return nil
-		origGetProviderByNode := activities.GetProviderByNode
-		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) {
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider not found")
 		}
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
 
 		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
 		assert.Error(t, err)
@@ -48,9 +48,9 @@ func TestConfigureKmsForSvmActivity(t *testing.T) {
 		node := &coreModels.Node{}
 		params := commonparams.CreatePoolParams{KmsConfigId: ""}
 		// Patch activities.GetProviderByNode to return a dummy provider
-		origGetProviderByNode := activities.GetProviderByNode
-		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
 		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -64,9 +64,9 @@ func TestConfigureKmsForSvmActivity(t *testing.T) {
 		node := &coreModels.Node{}
 		params := commonparams.CreatePoolParams{KmsConfigId: "kms-uuid"}
 		// Patch activities.GetProviderByNode to return a dummy provider
-		origGetProviderByNode := activities.GetProviderByNode
-		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
 		mockSE.On("GetKmsConfig", mock.Anything, mock.Anything).Return(nil, errors.New("db error")).Once()
 		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
 		assert.Error(t, err)
@@ -87,9 +87,9 @@ func TestConfigureKmsForSvmActivity(t *testing.T) {
 		defer func() { utils.DecryptPassword = origDecryptPassword }()
 		kmsConfig := &datamodel.KmsConfig{ServiceAccount: &datamodel.ServiceAccount{}}
 		mockSE.On("GetKmsConfig", mock.Anything, mock.Anything).Return(kmsConfig, nil).Once()
-		origGetProviderByNode := activities.GetProviderByNode
-		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
 		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -111,9 +111,9 @@ func TestConfigureKmsForSvmActivity(t *testing.T) {
 		}
 		defer func() { utils.DecryptPassword = origDecryptPassword }()
 
-		origGetProviderByNode := activities.GetProviderByNode
-		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
 		kmsConfig := &datamodel.KmsConfig{ServiceAccount: &datamodel.ServiceAccount{}}
 		mockSE.On("GetKmsConfig", mock.Anything, mock.Anything).Return(kmsConfig, nil).Once()
 		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
@@ -138,11 +138,11 @@ func TestConfigureKmsForSvmActivity(t *testing.T) {
 		kmsConfig := &datamodel.KmsConfig{ServiceAccount: &datamodel.ServiceAccount{}, KmsAttributes: &datamodel.KmsAttributes{}}
 		mockSE.On("GetKmsConfig", mock.Anything, mock.Anything).Return(kmsConfig, nil).Once()
 		mockProvider.On("CreateKmsConfig", mock.Anything).Return(nil, errors.New("provider error")).Once()
-		origGetProviderByNode := activities.GetProviderByNode
-		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) {
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
 
 		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
 		assert.Error(t, err)
@@ -170,9 +170,9 @@ func TestConfigureKmsForSvmActivity(t *testing.T) {
 		}
 		defer func() { utils.DecryptPassword = origDecryptPassword }()
 
-		origGetProviderByNode := activities.GetProviderByNode
-		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
 
 		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
 		assert.Error(t, err)
@@ -200,9 +200,9 @@ func TestConfigureKmsForSvmActivity(t *testing.T) {
 		}
 		defer func() { utils.DecryptPassword = origDecryptPassword }()
 
-		origGetProviderByNode := activities.GetProviderByNode
-		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
 
 		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
 		assert.Error(t, err)
@@ -230,9 +230,9 @@ func TestConfigureKmsForSvmActivity(t *testing.T) {
 		}
 		defer func() { utils.DecryptPassword = origDecryptPassword }()
 
-		origGetProviderByNode := activities.GetProviderByNode
-		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
 
 		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
 		assert.NoError(t, err)
@@ -247,11 +247,11 @@ func TestCheckVsaKmsConfigReachableActivity(t *testing.T) {
 		svm := &datamodel.Svm{}
 		node := &coreModels.Node{}
 
-		origGetProviderByNode := activities.GetProviderByNode
-		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) {
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider not found")
 		}
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
 
 		err := mockActivity.CheckVsaKmsConfigReachableActivity(ctx, svm, node)
 		assert.Error(t, err)
@@ -265,9 +265,9 @@ func TestCheckVsaKmsConfigReachableActivity(t *testing.T) {
 		node := &coreModels.Node{}
 
 		mockProvider.On("IsGcpKmsReachable", mock.Anything).Return(true, nil).Once()
-		origGetProviderByNode := activities.GetProviderByNode
-		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
 
 		err := mockActivity.CheckVsaKmsConfigReachableActivity(ctx, svm, node)
 		assert.NoError(t, err)
@@ -280,9 +280,9 @@ func TestCheckVsaKmsConfigReachableActivity(t *testing.T) {
 		node := &coreModels.Node{}
 
 		mockProvider.On("IsGcpKmsReachable", mock.Anything).Return(false, errors.New("permission_denied")).Once()
-		origGetProviderByNode := activities.GetProviderByNode
-		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
 
 		err := mockActivity.CheckVsaKmsConfigReachableActivity(ctx, svm, node)
 		assert.Error(t, err)
@@ -296,9 +296,9 @@ func TestCheckVsaKmsConfigReachableActivity(t *testing.T) {
 		node := &coreModels.Node{}
 
 		mockProvider.On("IsGcpKmsReachable", mock.Anything).Return(false, errors.New("Invalid JWT Signature")).Once()
-		origGetProviderByNode := activities.GetProviderByNode
-		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
 
 		err := mockActivity.CheckVsaKmsConfigReachableActivity(ctx, svm, node)
 		assert.Error(t, err)
@@ -312,9 +312,9 @@ func TestCheckVsaKmsConfigReachableActivity(t *testing.T) {
 		node := &coreModels.Node{}
 
 		mockProvider.On("IsGcpKmsReachable", mock.Anything).Return(false, errors.New("some other error")).Once()
-		origGetProviderByNode := activities.GetProviderByNode
-		activities.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
-		defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
 
 		err := mockActivity.CheckVsaKmsConfigReachableActivity(ctx, svm, node)
 		assert.Error(t, err)

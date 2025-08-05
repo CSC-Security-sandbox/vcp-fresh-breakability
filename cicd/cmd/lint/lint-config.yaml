@@ -6,12 +6,77 @@ linters:
     - ineffassign
     - errcheck
     - importas
+    - depguard
+    # - revive
 
   disable:
     - gocyclo
     - dupl
-    - depguard
     - gosec
+  #    - revive
+  #    - depguard
+
+  settings:
+    staticcheck:
+      checks: ["-S1021"]
+    depguard:
+      rules:
+        hyperscaler-restrictions:
+          files:
+            - "!**/hyperscaler/google/**/*.go"
+            - "!**/hyperscaler/google/*.go"
+            - "!**/hyperscaler/google/*.go"
+            - "!**/tools/**/*.go"
+            - "!**/utils/**/*.go"
+            - "../../../common/resource_deployer.go"
+            - "../../../core/orchestrator/activities/kms_activities/kms_common_activities_test.go"
+            - "../../../core/orchestrator/activities/pool_activities.go"
+            - "../../../core/orchestrator/activities/pool_activities_test.go"
+            - "../../../core/orchestrator/workflows/pool_workflows.go"
+          deny:
+            - pkg: "cloud.google.com/go"
+              desc: "Google Cloud SDK imports are not allowed in hyperscaler folder"
+            - pkg: "google.golang.org/api"
+              desc: "Google Cloud API imports are not allowed in hyperscaler folder"
+            - pkg: "google.golang.org/genproto"
+              desc: "Google Cloud genproto imports are not allowed in hyperscaler folder"
+        core-restrictions:
+          files:
+            - "**/core/**/*.go"
+            - "!../../../common/resource_deployer.go"
+            - "!**/core/orchestrator/activities/kms_activities/kms_common_activities_test.go"
+            - "!**/core/orchestrator/activities/pool_activities.go"
+            - "!**/core/orchestrator/activities/pool_activities_test.go"
+            - "!**/core/orchestrator/workflows/pool_workflows.go"
+          deny:
+            - pkg: "cloud.google.com/go"
+              desc: "Google Cloud SDK imports are not allowed in core folder"
+            - pkg: "google.golang.org/api"
+              desc: "Google Cloud API imports are not allowed in core folder"
+            - pkg: "google.golang.org/genproto"
+              desc: "Google Cloud genproto imports are not allowed in core folder"
+            - pkg: "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
+              desc: "Google Cloud imports are not allowed in core folder"
+    gci:
+      sections:
+        - standard # Standard library imports (e.g., "fmt", "net/http")
+        - default  # All other imports (third-party, local)
+    revive:
+      severity: warning
+      rules:
+        - name: context-as-argument
+
+# formatters:
+#   enable:
+#     - gci
+
+#   settings:
+#     gci:
+#       sections:
+#         - standard # Standard library imports (e.g., "fmt", "net/http")
+#         - default  # All other imports (third-party, local)
+#       skip-generated: true
+#       custom-order: true
 
 run:
   timeout: 5m
@@ -32,6 +97,7 @@ run:
     - database/storage_mock.go
     - core/orchestrator/orchestrator_factory_mock.go
     - clients/hyperscaler/google_services_mock.go
+    - hyperscaler/google_services_mock.go
     - clients/google-proxy-client/oas_json_gen.go
     - clients/google-proxy-client/oas_request_encoders_gen.go
     - clients/google-proxy-client/oas_response_decoders_gen.go

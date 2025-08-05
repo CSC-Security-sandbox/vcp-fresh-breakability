@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -32,7 +33,7 @@ type VolumeReplicationCreateActivity struct {
 func (a *VolumeReplicationCreateActivity) GetSourceInterclusterLifs(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("GetSourcePoolDetails for pool: %s", result.Event.SourcePool.Name)
-	provider, err := activities.GetProviderByNode(ctx, result.SrcNode)
+	provider, err := hyperscaler.GetProviderByNode(ctx, result.SrcNode)
 	if err != nil {
 		return nil, errors.WrapAsTemporalApplicationError(err)
 	}
@@ -274,7 +275,7 @@ func (a *VolumeReplicationCreateActivity) UpdateReplicationDetails(ctx context.C
 
 func (a *VolumeReplicationCreateActivity) AcceptSvmPeer(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
 	logger := util.GetLogger(ctx)
-	provider, err := activities.GetProviderByNode(ctx, result.SrcNode)
+	provider, err := hyperscaler.GetProviderByNode(ctx, result.SrcNode)
 	if err != nil {
 		return nil, errors.WrapAsTemporalApplicationError(err)
 	}

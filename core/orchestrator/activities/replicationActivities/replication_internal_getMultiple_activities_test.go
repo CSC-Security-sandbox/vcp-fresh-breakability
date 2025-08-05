@@ -10,11 +10,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -382,7 +382,7 @@ func TestGetNodesForPools(t *testing.T) {
 
 func TestGetReplicationsFromOntap(t *testing.T) {
 	t.Run("WhenGetProviderByNodeError", func(tt *testing.T) {
-		defer func() { activitiesGetProviderByNode = activities.GetProviderByNode }()
+		defer func() { activitiesGetProviderByNode = hyperscaler.GetProviderByNode }()
 
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("provider error")
@@ -448,7 +448,7 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 	})
 	t.Run("WhenGetGetReplicationDetailsReturnsError", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		defer func() { activitiesGetProviderByNode = activities.GetProviderByNode }()
+		defer func() { activitiesGetProviderByNode = hyperscaler.GetProviderByNode }()
 
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
@@ -515,7 +515,7 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 	})
 	t.Run("WhenOntapReturnsNotFound", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		defer func() { activitiesGetProviderByNode = activities.GetProviderByNode }()
+		defer func() { activitiesGetProviderByNode = hyperscaler.GetProviderByNode }()
 
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
@@ -583,7 +583,7 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		defer func() { activitiesGetProviderByNode = activities.GetProviderByNode }()
+		defer func() { activitiesGetProviderByNode = hyperscaler.GetProviderByNode }()
 
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
@@ -670,7 +670,7 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 	})
 	t.Run("WhenSuccessNoRefresh", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
-		defer func() { activitiesGetProviderByNode = activities.GetProviderByNode }()
+		defer func() { activitiesGetProviderByNode = hyperscaler.GetProviderByNode }()
 
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil

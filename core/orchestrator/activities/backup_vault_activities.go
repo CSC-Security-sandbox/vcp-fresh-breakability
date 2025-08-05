@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -364,7 +365,7 @@ func (j *BackupVaultActivity) DeleteBackupVaultBuckets(ctx context.Context, back
 	logger := util.GetLogger(ctx)
 
 	// Get GCP service for bucket deletion
-	gcpService, err := GetGCPService(ctx)
+	gcpService, err := hyperscaler.GetGCPService(ctx)
 	if err != nil {
 		return errors.WrapAsTemporalApplicationError(err)
 	}

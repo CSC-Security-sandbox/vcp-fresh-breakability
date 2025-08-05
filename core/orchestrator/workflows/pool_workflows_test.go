@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -19,6 +18,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	envs "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -74,7 +74,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
-			AuthType: common.USERNAME_PWD,
+			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
 			Iops:            params.CustomPerformanceParams.Iops,
@@ -207,7 +207,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
-			AuthType: common.USERNAME_PWD,
+			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
 			Iops:            params.CustomPerformanceParams.Iops,
@@ -560,7 +560,7 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
-			AuthType: common.USERNAME_PWD,
+			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
 			Iops:            params.CustomPerformanceParams.Iops,
@@ -694,7 +694,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
-				AuthType: common.USERNAME_PWD,
+				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
 				Iops:            params.CustomPerformanceParams.Iops,
@@ -814,7 +814,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
-				AuthType: common.USERNAME_PWD,
+				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
 				Iops:            params.CustomPerformanceParams.Iops,
@@ -898,7 +898,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
-				AuthType: common.USERNAME_PWD,
+				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
 				Iops:            params.CustomPerformanceParams.Iops,
@@ -983,7 +983,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
-				AuthType: common.USERNAME_PWD,
+				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
 				Iops:            params.CustomPerformanceParams.Iops,
@@ -1078,7 +1078,7 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
-			AuthType: common.USERNAME_PWD,
+			AuthType: envs.USERNAME_PWD,
 		},
 		// Set additional fields if required.
 		ClusterDetails: datamodel.ClusterDetails{
@@ -1183,7 +1183,7 @@ func TestUpdatePoolWorkflowNoVLM(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
-			AuthType: common.USERNAME_PWD,
+			AuthType: envs.USERNAME_PWD,
 		},
 		// Set additional fields if required.
 		ClusterDetails: datamodel.ClusterDetails{
@@ -1272,7 +1272,7 @@ func TestDeletePoolWorkflow(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
-			AuthType: common.USERNAME_PWD,
+			AuthType: envs.USERNAME_PWD,
 		},
 		KmsConfig:   &datamodel.KmsConfig{},
 		KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
@@ -1351,7 +1351,7 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
-			AuthType: common.USERNAME_PWD,
+			AuthType: envs.USERNAME_PWD,
 		},
 	}
 	// Set up test data
@@ -1360,11 +1360,11 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 		AccountName: "test-account",
 	}
 
-	originalProjectID := common.SecretManagerProjectID
-	common.SecretManagerProjectID = "123456789"
+	originalProjectID := envs.SecretManagerProjectID
+	envs.SecretManagerProjectID = "123456789"
 
 	defer func() {
-		common.SecretManagerProjectID = originalProjectID
+		envs.SecretManagerProjectID = originalProjectID
 	}()
 
 	// Mock activity responses
@@ -1446,7 +1446,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
-			AuthType: common.USERNAME_PWD,
+			AuthType: envs.USERNAME_PWD,
 		},
 		KmsConfig:   &datamodel.KmsConfig{},
 		KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
@@ -1497,7 +1497,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
-			AuthType: common.USERNAME_PWD,
+			AuthType: envs.USERNAME_PWD,
 		},
 		KmsConfig:   &datamodel.KmsConfig{},
 		KmsConfigID: sql.NullInt64{Int64: 1, Valid: true},
@@ -1769,7 +1769,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
-				AuthType: common.USERNAME_PWD,
+				AuthType: envs.USERNAME_PWD,
 			},
 			PoolAttributes: &datamodel.PoolAttributes{
 				Iops:            params.CustomPerformanceParams.Iops,

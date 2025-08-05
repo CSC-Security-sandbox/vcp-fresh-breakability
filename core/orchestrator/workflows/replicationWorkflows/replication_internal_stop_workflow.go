@@ -5,10 +5,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+ 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -95,7 +95,7 @@ func (wf *internalVolumeReplicationStopWorkflow) Run(ctx workflow.Context, args 
 		return nil, err
 	}
 
-	node := common.CreateNodeForProvider(common.NodeProviderInput{Nodes: dbNodes, Password: dbReplication.Volume.Pool.PoolCredentials.Password, SecretID: dbReplication.Volume.Pool.PoolCredentials.SecretID, CertificateID: dbReplication.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: dbReplication.Volume.Pool.DeploymentName, AuthType: dbReplication.Volume.Pool.PoolCredentials.AuthType})
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: dbReplication.Volume.Pool.PoolCredentials.Password, SecretID: dbReplication.Volume.Pool.PoolCredentials.SecretID, CertificateID: dbReplication.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: dbReplication.Volume.Pool.DeploymentName, AuthType: dbReplication.Volume.Pool.PoolCredentials.AuthType})
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.AbortVolumeReplication, dbReplication, node, forceStop).Get(ctx, &vsaReplication)
 	if err != nil {

@@ -1,4 +1,4 @@
-package common
+package google
 
 import (
 	"encoding/pem"
@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"google.golang.org/api/dns/v1"
 	"google.golang.org/api/privateca/v1"
 	"google.golang.org/api/secretmanager/v1"
@@ -15,96 +16,96 @@ import (
 )
 
 func TestValidateEnvironmentVariables(t *testing.T) {
-	originalAuthtype := AuthType
-	originalSecretmanagerProjectID := SecretManagerProjectID
-	originalCaDeployedProjectID := CaPoolDeployedProjectID
-	originalCaPoolName := CaPoolName
-	originalCaName := CaName
-	originalVsaDeployedDnsName := VsaDeployedDnsName
-	originalVsaManagedZone := VsaManagedZone
-	originalCertificateLifetime := CertificateLifetime
-	originalRegion := Region
-	originalCloudDNSCacheTTL := CloudDNSCacheTTL
-	orignalNodePassword := NodePassword
+	originalAuthtype := env.AuthType
+	originalSecretmanagerProjectID := env.SecretManagerProjectID
+	originalCaDeployedProjectID := env.CaPoolDeployedProjectID
+	originalCaPoolName := env.CaPoolName
+	originalCaName := env.CaName
+	originalVsaDeployedDnsName := env.VsaDeployedDnsName
+	originalVsaManagedZone := env.VsaManagedZone
+	originalCertificateLifetime := env.CertificateLifetime
+	originalRegion := env.Region
+	originalCloudDNSCacheTTL := env.CloudDNSCacheTTL
+	orignalNodePassword := env.NodePassword
 
-	AuthType = USER_CERTIFICATE // Set AuthType to USER_CERTIFICATE for this test
-	SecretManagerProjectID = ""
-	CaPoolDeployedProjectID = "" // Reset CaPoolDeployedProjectID for this test
-	CaName = ""                  // Reset CaName for this test
-	CaPoolName = ""              // Reset CaPoolName for this test
-	VsaDeployedDnsName = ""      // Reset VsaDeployedDnsName for this test
-	VsaManagedZone = ""          // Reset VsaManagedZone for this test
-	CertificateLifetime = ""     // Reset CertificateLifetime for this test
-	Region = ""
-	CloudDNSCacheTTL = 0
-	NodePassword = ""
+	env.AuthType = env.USER_CERTIFICATE // Set AuthType to USER_CERTIFICATE for this test
+	env.SecretManagerProjectID = ""
+	env.CaPoolDeployedProjectID = "" // Reset CaPoolDeployedProjectID for this test
+	env.CaName = ""                  // Reset CaName for this test
+	env.CaPoolName = ""              // Reset CaPoolName for this test
+	env.VsaDeployedDnsName = ""      // Reset VsaDeployedDnsName for this test
+	env.VsaManagedZone = ""          // Reset VsaManagedZone for this test
+	env.CertificateLifetime = ""     // Reset CertificateLifetime for this test
+	env.Region = ""
+	env.CloudDNSCacheTTL = 0
+	env.NodePassword = ""
 
 	defer func() {
-		AuthType = originalAuthtype                             // Restore original AuthType after test
-		CaPoolDeployedProjectID = originalCaDeployedProjectID   // Restore original CaPoolDeployedProjectID
-		SecretManagerProjectID = originalSecretmanagerProjectID // Restore original SecretManagerProjectID
-		CaPoolName = originalCaPoolName
-		VsaDeployedDnsName = originalVsaDeployedDnsName
-		CaName = originalCaName // Restore original CaName
-		VsaManagedZone = originalVsaManagedZone
-		CertificateLifetime = originalCertificateLifetime
-		Region = originalRegion
-		CloudDNSCacheTTL = originalCloudDNSCacheTTL // Restore original CloudDNSCacheTTL
-		NodePassword = orignalNodePassword
+		env.AuthType = originalAuthtype                             // Restore original AuthType after test
+		env.CaPoolDeployedProjectID = originalCaDeployedProjectID   // Restore original CaPoolDeployedProjectID
+		env.SecretManagerProjectID = originalSecretmanagerProjectID // Restore original SecretManagerProjectID
+		env.CaPoolName = originalCaPoolName
+		env.VsaDeployedDnsName = originalVsaDeployedDnsName
+		env.CaName = originalCaName // Restore original CaName
+		env.VsaManagedZone = originalVsaManagedZone
+		env.CertificateLifetime = originalCertificateLifetime
+		env.Region = originalRegion
+		env.CloudDNSCacheTTL = originalCloudDNSCacheTTL // Restore original CloudDNSCacheTTL
+		env.NodePassword = orignalNodePassword
 	}()
 
-	err := ValidateEnvironmentVariables()
+	err := env.ValidateEnvironmentVariables()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "LOCAL_REGION must be set for authentication")
 
-	Region = "us-central1" // Reset Region for this test
+	env.Region = "us-central1" // Reset Region for this test
 
-	err = ValidateEnvironmentVariables()
+	err = env.ValidateEnvironmentVariables()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "CA_NAME must be set for authentication")
 
-	CaName = "ca-name"
-	err = ValidateEnvironmentVariables()
+	env.CaName = "ca-name"
+	err = env.ValidateEnvironmentVariables()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "CA_POOL_NAME must be set for authentication")
 
-	CaPoolName = "ca-pool-name"
-	err = ValidateEnvironmentVariables()
+	env.CaPoolName = "ca-pool-name"
+	err = env.ValidateEnvironmentVariables()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "CA_POOL_DEPLOYED_PROJECT_ID must be set for authentication")
 
-	CaPoolDeployedProjectID = "ca-pool-deployed-project-id"
-	err = ValidateEnvironmentVariables()
+	env.CaPoolDeployedProjectID = "ca-pool-deployed-project-id"
+	err = env.ValidateEnvironmentVariables()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "SECRET_MANAGER_PROJECT_ID must be set for authentication")
 
-	SecretManagerProjectID = "secret-manager-project-id"
-	err = ValidateEnvironmentVariables()
+	env.SecretManagerProjectID = "secret-manager-project-id"
+	err = env.ValidateEnvironmentVariables()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "VSA_DEPLOYED_DNS_NAME must be set for authentication")
 
-	VsaDeployedDnsName = "vsa-deployed-dns-name"
-	err = ValidateEnvironmentVariables()
+	env.VsaDeployedDnsName = "vsa-deployed-dns-name"
+	err = env.ValidateEnvironmentVariables()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "VSA_MANAGED_ZONE must be set for authentication")
 
-	VsaManagedZone = "vsa-managed-zone"
-	err = ValidateEnvironmentVariables()
+	env.VsaManagedZone = "vsa-managed-zone"
+	err = env.ValidateEnvironmentVariables()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "CERTIFICATE_LIFETIME must be set for authentication")
 
-	CertificateLifetime = "30000s"
-	err = ValidateEnvironmentVariables()
+	env.CertificateLifetime = "30000s"
+	err = env.ValidateEnvironmentVariables()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "CLOUD_DNS_CACHE_TTL must be set for authentication")
 
-	CloudDNSCacheTTL = 300
-	err = ValidateEnvironmentVariables()
+	env.CloudDNSCacheTTL = 300
+	err = env.ValidateEnvironmentVariables()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "VSA_NODE_PASSWORD must be set for authentication")
 
-	NodePassword = "node-password"
-	err = ValidateEnvironmentVariables()
+	env.NodePassword = "node-password"
+	err = env.ValidateEnvironmentVariables()
 	assert.NoError(t, err)
 }
 

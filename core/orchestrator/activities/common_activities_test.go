@@ -8,14 +8,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
-	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -146,134 +145,6 @@ func TestCreateJob_Success(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
-// Unit test for _newGcpServices in core/orchestrator/activities/pool_activities_test.go
-func Test_newGcpServices_ReturnsInitializedGcpServices(t *testing.T) {
-	ctx := context.TODO()
-	services := _newGcpServices(ctx)
-
-	assert.NotNil(t, services)
-	assert.Equal(t, ctx, services.Ctx)
-	assert.NotNil(t, services.Logger)
-	assert.NotNil(t, services.Retry)
-}
-
-func Test_GetProviderByNode(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("USER_CERTIFICATE success", func(t *testing.T) {
-		node := &models2.Node{
-			Name:                           "node1",
-			CertificateID:                  "cert-id",
-			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "1.2.3.4"},
-			AuthType:                       common.USER_CERTIFICATE,
-		}
-
-		origGetCert := GetCertificateFromCacheOrSecretManager
-		defer func() { GetCertificateFromCacheOrSecretManager = origGetCert }()
-		GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certID string) (*models2.Certificate, error) {
-			return &models2.Certificate{
-				SignedCertificate:        "signed",
-				InterMediateCertificates: []string{"intermediate"},
-				CommonName:               "common",
-				PrivateKey:               "key",
-			}, nil
-		}
-
-		provider, err := GetProviderByNode(ctx, node)
-		assert.NoError(t, err)
-		assert.NotNil(t, provider)
-	})
-
-	t.Run("USER_CERTIFICATE error", func(t *testing.T) {
-		node := &models2.Node{
-			Name:                           "node1",
-			CertificateID:                  "cert-id",
-			EndpointAddressesToHostNameMap: map[string]string{"1.2.3.4": "1.2.3.4"},
-			AuthType:                       common.USER_CERTIFICATE,
-		}
-
-		origGetCert := GetCertificateFromCacheOrSecretManager
-		defer func() { GetCertificateFromCacheOrSecretManager = origGetCert }()
-		GetCertificateFromCacheOrSecretManager = func(ctx context.Context, certID string) (*models2.Certificate, error) {
-			return nil, errors.New("error")
-		}
-
-		provider, err := GetProviderByNode(ctx, node)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "error")
-		assert.Nil(t, provider)
-	})
-
-	t.Run("USERNAME_PWD_SEC_MGR success", func(t *testing.T) {
-		node := &models2.Node{
-			Name:                           "node2",
-			SecretID:                       "secret-id",
-			EndpointAddress:                "1.2.3.4",
-			EndpointAddressesToHostNameMap: map[string]string{},
-			AuthType:                       common.USERNAME_PWD_SEC_MGR,
-		}
-
-		origGetPwd := GetPasswordFromCacheOrSecretManager
-		defer func() { GetPasswordFromCacheOrSecretManager = origGetPwd }()
-		GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
-			return "pwd", nil
-		}
-
-		provider, err := GetProviderByNode(ctx, node)
-		assert.NoError(t, err)
-		assert.NotNil(t, provider)
-	})
-
-	t.Run("USERNAME_PWD_SEC_MGR error", func(t *testing.T) {
-		node := &models2.Node{
-			Name:                           "node2",
-			SecretID:                       "secret-id",
-			EndpointAddress:                "1.2.3.4",
-			EndpointAddressesToHostNameMap: map[string]string{},
-			AuthType:                       common.USERNAME_PWD_SEC_MGR,
-		}
-
-		origGetPwd := GetPasswordFromCacheOrSecretManager
-		defer func() { GetPasswordFromCacheOrSecretManager = origGetPwd }()
-		GetPasswordFromCacheOrSecretManager = func(ctx context.Context, secretID string) (string, error) {
-			return "", errors.New("error")
-		}
-
-		provider, err := GetProviderByNode(ctx, node)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "error")
-		assert.Nil(t, provider)
-	})
-
-	t.Run("Password from node, missing endpoint address", func(t *testing.T) {
-		node := &models2.Node{
-			Name:                           "node3",
-			Password:                       "pwd",
-			EndpointAddressesToHostNameMap: map[string]string{},
-			EndpointAddress:                "",
-			AuthType:                       common.USERNAME_PWD,
-		}
-
-		provider, err := GetProviderByNode(ctx, node)
-		assert.Error(t, err)
-		assert.Nil(t, provider)
-	})
-
-	t.Run("Password from node, endpoint address present", func(t *testing.T) {
-		node := &models2.Node{
-			Name:                           "node3",
-			Password:                       "pwd",
-			EndpointAddressesToHostNameMap: map[string]string{},
-			EndpointAddress:                "1.2.3.4",
-			AuthType:                       common.USERNAME_PWD,
-		}
-
-		provider, err := GetProviderByNode(ctx, node)
-		assert.NoError(t, err)
-		assert.NotNil(t, provider)
-	})
-}
-
 // Unit test for GetOntapJob
 func TestCommonActivities_GetOntapJob(t *testing.T) {
 	t.Run("Get Ontap Job", func(t *testing.T) {
@@ -281,8 +152,8 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		defer mockProvider.AssertExpectations(t)
 
 		// Save and restore original GetProviderByNode
-		origGetProviderByNode := GetProviderByNode
-		defer func() { GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
 
 		ctx := context.Background()
 		jobUUID := "test-job-uuid"
@@ -293,7 +164,7 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		expectedJob := &vsa.OntapJob{}
 
 		// Success case
-		GetProviderByNode = func(ctx context.Context, n *models2.Node) (vsa.Provider, error) {
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, n *models2.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		mockProvider.On("JobGet", mock.Anything).Return(expectedJob, nil)
@@ -307,8 +178,8 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		defer mockProvider.AssertExpectations(t)
 
 		// Save and restore original GetProviderByNode
-		origGetProviderByNode := GetProviderByNode
-		defer func() { GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
 
 		ctx := context.Background()
 		jobUUID := "test-job-uuid"
@@ -320,7 +191,7 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		var err error
 
 		// Error from GetProviderByNode
-		GetProviderByNode = func(ctx context.Context, n *models2.Node) (vsa.Provider, error) {
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, n *models2.Node) (vsa.Provider, error) {
 			return nil, errors.New("mock error")
 		}
 		job, err = activity.GetOntapJob(ctx, jobUUID, node)
@@ -333,13 +204,13 @@ func TestCommonActivities_GetOntapJob(t *testing.T) {
 		defer mockProvider.AssertExpectations(t)
 
 		// Save and restore original GetProviderByNode
-		origGetProviderByNode := GetProviderByNode
-		defer func() { GetProviderByNode = origGetProviderByNode }()
+		origGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
 		node := &models2.Node{}
 
 		activity := CommonActivities{}
 
-		GetProviderByNode = func(ctx context.Context, n *models2.Node) (vsa.Provider, error) {
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, n *models2.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 		mockProvider.On("JobGet", mock.Anything).Return(nil, errors.New("jobget error"))
@@ -396,7 +267,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 	}
 
 	t.Run("ListSubnetworks error", func(t *testing.T) {
-		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
 		mockStorage := database.NewMockStorage(t)
 
 		mgs.On("GetLogger").Return(mockLogger)
@@ -410,7 +281,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 	t.Run("No subnets found", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 
-		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
 		mgs.On("GetLogger").Return(mockLogger)
 		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&[]hyperscaler_models.Subnet{}, nil)
 		subnet, err := getSubnetToBeUsed(mgs, mockStorage, customerProjectNumber, tenantProjectNumber, snHost, tenantProjectRegion)
@@ -420,7 +291,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 	})
 
 	t.Run("GetAccount error", func(t *testing.T) {
-		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
 		mockStorage := database.NewMockStorage(t)
 
 		subnets := []hyperscaler_models.Subnet{{Name: "vsa-tenant-456"}}
@@ -436,7 +307,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 	})
 	t.Run("Subnet found and reusable", func(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
-		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
 		subnets := []hyperscaler_models.Subnet{{Name: "vsa-tenant-456"}}
 		mgs.On("GetLogger").Return(mockLogger)
 		mgs.On("ListSubnetworks", snHost, tenantProjectRegion).Return(&subnets, nil)
@@ -457,7 +328,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 	})
 
 	t.Run("Subnet found but not reusable", func(t *testing.T) {
-		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
 		mockStorage := database.NewMockStorage(t)
 		subnets := []hyperscaler_models.Subnet{{Name: "vsa-tenant-456"}}
 		mgs.On("GetLogger").Return(mockLogger)
@@ -479,7 +350,7 @@ func Test_getSubnetToBeUsed(t *testing.T) {
 	})
 
 	t.Run("Subnet found but _isSubnetReusable returns error", func(t *testing.T) {
-		mgs := hyperscaler.NewMockGoogleServices(t)
+		mgs := hyperscaler2.NewMockGoogleServices(t)
 		mockStorage := database.NewMockStorage(t)
 		mgs.On("GetLogger").Return(mockLogger)
 		mgs.On("GetContext").Return(ctx)

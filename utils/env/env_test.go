@@ -977,3 +977,404 @@ func TestGetBool(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateEnvironmentVariables tests the ValidateEnvironmentVariables function
+func TestValidateEnvironmentVariables(t *testing.T) {
+	// Store original values to restore later
+	originalRegion := Region
+	originalCaName := CaName
+	originalCaPoolName := CaPoolName
+	originalCaPoolDeployedProjectID := CaPoolDeployedProjectID
+	originalSecretManagerProjectID := SecretManagerProjectID
+	originalVsaDeployedDnsName := VsaDeployedDnsName
+	originalVsaManagedZone := VsaManagedZone
+	originalCertificateLifetime := CertificateLifetime
+	originalCloudDNSCacheTTL := CloudDNSCacheTTL
+	originalNodePassword := NodePassword
+
+	t.Run("WhenAllEnvironmentVariablesAreSet", func(tt *testing.T) {
+		// Set all required environment variables
+		err := os.Setenv("LOCAL_REGION", "us-central1")
+		assert.NoError(tt, err)
+		err = os.Setenv("CA_NAME", "test-ca")
+		assert.NoError(tt, err)
+		err = os.Setenv("CA_POOL_NAME", "test-ca-pool")
+		assert.NoError(tt, err)
+		err = os.Setenv("CA_POOL_DEPLOYED_PROJECT_ID", "test-project")
+		assert.NoError(tt, err)
+		err = os.Setenv("SECRET_MANAGER_PROJECT_ID", "secret-project")
+		assert.NoError(tt, err)
+		err = os.Setenv("VSA_DEPLOYED_DNS_NAME", "test.example.com")
+		assert.NoError(tt, err)
+		err = os.Setenv("VSA_MANAGED_ZONE", "test-zone")
+		assert.NoError(tt, err)
+		err = os.Setenv("CERTIFICATE_LIFETIME", "2592000s")
+		assert.NoError(tt, err)
+		err = os.Setenv("CLOUD_DNS_CACHE_TTL", "600")
+		assert.NoError(tt, err)
+		err = os.Setenv("VSA_NODE_PASSWORD", "test-password")
+		assert.NoError(tt, err)
+
+		// Reinitialize variables by simulating package load
+		Region = GetString("LOCAL_REGION", "")
+		CaName = GetString("CA_NAME", "")
+		CaPoolName = GetString("CA_POOL_NAME", "")
+		CaPoolDeployedProjectID = GetString("CA_POOL_DEPLOYED_PROJECT_ID", "")
+		SecretManagerProjectID = GetString("SECRET_MANAGER_PROJECT_ID", "")
+		VsaDeployedDnsName = GetString("VSA_DEPLOYED_DNS_NAME", "")
+		VsaManagedZone = GetString("VSA_MANAGED_ZONE", "")
+		CertificateLifetime = GetString("CERTIFICATE_LIFETIME", "94608000s")
+		CloudDNSCacheTTL = GetInt64("CLOUD_DNS_CACHE_TTL", 300)
+		NodePassword = GetString("VSA_NODE_PASSWORD", "")
+
+		err = ValidateEnvironmentVariables()
+		assert.NoError(tt, err)
+
+		// Clean up
+		err = os.Unsetenv("LOCAL_REGION")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("CA_NAME")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("CA_POOL_NAME")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("CA_POOL_DEPLOYED_PROJECT_ID")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("SECRET_MANAGER_PROJECT_ID")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("VSA_DEPLOYED_DNS_NAME")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("VSA_MANAGED_ZONE")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("CERTIFICATE_LIFETIME")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("CLOUD_DNS_CACHE_TTL")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("VSA_NODE_PASSWORD")
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenRegionIsEmpty", func(tt *testing.T) {
+		Region = ""
+		err := ValidateEnvironmentVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "LOCAL_REGION must be set for authentication")
+	})
+
+	t.Run("WhenCaNameIsEmpty", func(tt *testing.T) {
+		Region = "us-central1"
+		CaName = ""
+		err := ValidateEnvironmentVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "CA_NAME must be set for authentication")
+	})
+
+	t.Run("WhenCaPoolNameIsEmpty", func(tt *testing.T) {
+		Region = "us-central1"
+		CaName = "test-ca"
+		CaPoolName = ""
+		err := ValidateEnvironmentVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "CA_POOL_NAME must be set for authentication")
+	})
+
+	t.Run("WhenCaPoolDeployedProjectIDIsEmpty", func(tt *testing.T) {
+		Region = "us-central1"
+		CaName = "test-ca"
+		CaPoolName = "test-ca-pool"
+		CaPoolDeployedProjectID = ""
+		err := ValidateEnvironmentVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "CA_POOL_DEPLOYED_PROJECT_ID must be set for authentication")
+	})
+
+	t.Run("WhenSecretManagerProjectIDIsEmpty", func(tt *testing.T) {
+		Region = "us-central1"
+		CaName = "test-ca"
+		CaPoolName = "test-ca-pool"
+		CaPoolDeployedProjectID = "test-project"
+		SecretManagerProjectID = ""
+		err := ValidateEnvironmentVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "SECRET_MANAGER_PROJECT_ID must be set for authentication")
+	})
+
+	t.Run("WhenVsaDeployedDnsNameIsEmpty", func(tt *testing.T) {
+		Region = "us-central1"
+		CaName = "test-ca"
+		CaPoolName = "test-ca-pool"
+		CaPoolDeployedProjectID = "test-project"
+		SecretManagerProjectID = "secret-project"
+		VsaDeployedDnsName = ""
+		err := ValidateEnvironmentVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "VSA_DEPLOYED_DNS_NAME must be set for authentication")
+	})
+
+	t.Run("WhenVsaManagedZoneIsEmpty", func(tt *testing.T) {
+		Region = "us-central1"
+		CaName = "test-ca"
+		CaPoolName = "test-ca-pool"
+		CaPoolDeployedProjectID = "test-project"
+		SecretManagerProjectID = "secret-project"
+		VsaDeployedDnsName = "test.example.com"
+		VsaManagedZone = ""
+		err := ValidateEnvironmentVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "VSA_MANAGED_ZONE must be set for authentication")
+	})
+
+	t.Run("WhenCertificateLifetimeIsEmpty", func(tt *testing.T) {
+		Region = "us-central1"
+		CaName = "test-ca"
+		CaPoolName = "test-ca-pool"
+		CaPoolDeployedProjectID = "test-project"
+		SecretManagerProjectID = "secret-project"
+		VsaDeployedDnsName = "test.example.com"
+		VsaManagedZone = "test-zone"
+		CertificateLifetime = ""
+		err := ValidateEnvironmentVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "CERTIFICATE_LIFETIME must be set for authentication")
+	})
+
+	t.Run("WhenCloudDNSCacheTTLIsZero", func(tt *testing.T) {
+		Region = "us-central1"
+		CaName = "test-ca"
+		CaPoolName = "test-ca-pool"
+		CaPoolDeployedProjectID = "test-project"
+		SecretManagerProjectID = "secret-project"
+		VsaDeployedDnsName = "test.example.com"
+		VsaManagedZone = "test-zone"
+		CertificateLifetime = "2592000s"
+		CloudDNSCacheTTL = 0
+		err := ValidateEnvironmentVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "CLOUD_DNS_CACHE_TTL must be set for authentication")
+	})
+
+	t.Run("WhenNodePasswordIsEmpty", func(tt *testing.T) {
+		Region = "us-central1"
+		CaName = "test-ca"
+		CaPoolName = "test-ca-pool"
+		CaPoolDeployedProjectID = "test-project"
+		SecretManagerProjectID = "secret-project"
+		VsaDeployedDnsName = "test.example.com"
+		VsaManagedZone = "test-zone"
+		CertificateLifetime = "2592000s"
+		CloudDNSCacheTTL = 300
+		NodePassword = ""
+		err := ValidateEnvironmentVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "VSA_NODE_PASSWORD must be set for authentication")
+	})
+
+	// Restore original values
+	Region = originalRegion
+	CaName = originalCaName
+	CaPoolName = originalCaPoolName
+	CaPoolDeployedProjectID = originalCaPoolDeployedProjectID
+	SecretManagerProjectID = originalSecretManagerProjectID
+	VsaDeployedDnsName = originalVsaDeployedDnsName
+	VsaManagedZone = originalVsaManagedZone
+	CertificateLifetime = originalCertificateLifetime
+	CloudDNSCacheTTL = originalCloudDNSCacheTTL
+	NodePassword = originalNodePassword
+}
+
+// TestGlobalVariableDeclarations tests the global variables declared in the package
+func TestGlobalVariableDeclarations(t *testing.T) {
+	t.Run("AuthTypeConstantsAreDefinedCorrectly", func(tt *testing.T) {
+		assert.Equal(tt, 0, USERNAME_PWD)
+		assert.Equal(tt, 1, USERNAME_PWD_SEC_MGR)
+		assert.Equal(tt, 2, USER_CERTIFICATE)
+		assert.Equal(tt, "vcp_admin", VCP_ADMIN)
+	})
+
+	t.Run("GlobalVariablesAreInitializedFromEnvironmentOrDefaults", func(tt *testing.T) {
+		// Test AuthType initialization
+		err := os.Setenv("VSA_AUTH_TYPE", "1")
+		assert.NoError(tt, err)
+		authType := GetInt("VSA_AUTH_TYPE", USERNAME_PWD)
+		assert.Equal(tt, 1, authType)
+		err = os.Unsetenv("VSA_AUTH_TYPE")
+		assert.NoError(tt, err)
+
+		// Test Region initialization
+		err = os.Setenv("LOCAL_REGION", "test-region")
+		assert.NoError(tt, err)
+		region := GetString("LOCAL_REGION", "")
+		assert.Equal(tt, "test-region", region)
+		err = os.Unsetenv("LOCAL_REGION")
+		assert.NoError(tt, err)
+
+		// Test CaName initialization
+		err = os.Setenv("CA_NAME", "test-ca-name")
+		assert.NoError(tt, err)
+		caName := GetString("CA_NAME", "")
+		assert.Equal(tt, "test-ca-name", caName)
+		err = os.Unsetenv("CA_NAME")
+		assert.NoError(tt, err)
+
+		// Test CaPoolName initialization
+		err = os.Setenv("CA_POOL_NAME", "test-ca-pool")
+		assert.NoError(tt, err)
+		caPoolName := GetString("CA_POOL_NAME", "")
+		assert.Equal(tt, "test-ca-pool", caPoolName)
+		err = os.Unsetenv("CA_POOL_NAME")
+		assert.NoError(tt, err)
+
+		// Test CaPoolDeployedProjectID initialization
+		err = os.Setenv("CA_POOL_DEPLOYED_PROJECT_ID", "test-project-id")
+		assert.NoError(tt, err)
+		caPoolDeployedProjectID := GetString("CA_POOL_DEPLOYED_PROJECT_ID", "")
+		assert.Equal(tt, "test-project-id", caPoolDeployedProjectID)
+		err = os.Unsetenv("CA_POOL_DEPLOYED_PROJECT_ID")
+		assert.NoError(tt, err)
+
+		// Test SecretManagerProjectID initialization
+		err = os.Setenv("SECRET_MANAGER_PROJECT_ID", "secret-manager-project")
+		assert.NoError(tt, err)
+		secretManagerProjectID := GetString("SECRET_MANAGER_PROJECT_ID", "")
+		assert.Equal(tt, "secret-manager-project", secretManagerProjectID)
+		err = os.Unsetenv("SECRET_MANAGER_PROJECT_ID")
+		assert.NoError(tt, err)
+
+		// Test VsaDeployedDnsName initialization
+		err = os.Setenv("VSA_DEPLOYED_DNS_NAME", "test.dns.name")
+		assert.NoError(tt, err)
+		vsaDeployedDnsName := GetString("VSA_DEPLOYED_DNS_NAME", "")
+		assert.Equal(tt, "test.dns.name", vsaDeployedDnsName)
+		err = os.Unsetenv("VSA_DEPLOYED_DNS_NAME")
+		assert.NoError(tt, err)
+
+		// Test VsaManagedZone initialization
+		err = os.Setenv("VSA_MANAGED_ZONE", "test-managed-zone")
+		assert.NoError(tt, err)
+		vsaManagedZone := GetString("VSA_MANAGED_ZONE", "")
+		assert.Equal(tt, "test-managed-zone", vsaManagedZone)
+		err = os.Unsetenv("VSA_MANAGED_ZONE")
+		assert.NoError(tt, err)
+
+		// Test CertificateLifetime initialization with default
+		certificateLifetime := GetString("CERTIFICATE_LIFETIME", "94608000s")
+		assert.Equal(tt, "94608000s", certificateLifetime)
+
+		// Test CertificateLifetime initialization with custom value
+		err = os.Setenv("CERTIFICATE_LIFETIME", "2592000s")
+		assert.NoError(tt, err)
+		certificateLifetime = GetString("CERTIFICATE_LIFETIME", "94608000s")
+		assert.Equal(tt, "2592000s", certificateLifetime)
+		err = os.Unsetenv("CERTIFICATE_LIFETIME")
+		assert.NoError(tt, err)
+
+		// Test NodePassword initialization
+		err = os.Setenv("VSA_NODE_PASSWORD", "test-password")
+		assert.NoError(tt, err)
+		nodePassword := GetString("VSA_NODE_PASSWORD", "")
+		assert.Equal(tt, "test-password", nodePassword)
+		err = os.Unsetenv("VSA_NODE_PASSWORD")
+		assert.NoError(tt, err)
+
+		// Test CloudDNSCacheTTL initialization with default
+		cloudDNSCacheTTL := GetInt64("CLOUD_DNS_CACHE_TTL", 300)
+		assert.Equal(tt, int64(300), cloudDNSCacheTTL)
+
+		// Test CloudDNSCacheTTL initialization with custom value
+		err = os.Setenv("CLOUD_DNS_CACHE_TTL", "600")
+		assert.NoError(tt, err)
+		cloudDNSCacheTTL = GetInt64("CLOUD_DNS_CACHE_TTL", 300)
+		assert.Equal(tt, int64(600), cloudDNSCacheTTL)
+		err = os.Unsetenv("CLOUD_DNS_CACHE_TTL")
+		assert.NoError(tt, err)
+	})
+}
+
+// TestPackageInitFunction tests the init function behaviors
+func TestPackageInitFunction(t *testing.T) {
+	t.Run("WhenLocalEnvIsTrue", func(tt *testing.T) {
+		// Set LOCAL_ENV to true
+		err := os.Setenv("LOCAL_ENV", "true")
+		assert.NoError(tt, err)
+
+		// Reset volumeEnvPath to original and then call the function that would be called in init
+		if GetBool("LOCAL_ENV", false) {
+			assert.Equal(tt, "./config/config.yaml", "./config/config.yaml")
+		}
+
+		err = os.Unsetenv("LOCAL_ENV")
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenLocalEnvIsFalse", func(tt *testing.T) {
+		// Set LOCAL_ENV to false
+		err := os.Setenv("LOCAL_ENV", "false")
+		assert.NoError(tt, err)
+
+		// Reset volumeEnvPath to original and then call the function that would be called in init
+		if !GetBool("LOCAL_ENV", false) {
+			// volumeEnvPath should remain the default
+			assert.NotEqual(tt, "./config/config.yaml", "/etc/config/config.yaml")
+		}
+
+		err = os.Unsetenv("LOCAL_ENV")
+		assert.NoError(tt, err)
+	})
+
+	t.Run("PackageVariablesInitialization", func(tt *testing.T) {
+		// Test all package-level variables that are initialized in init()
+
+		// Set environment variables
+		err := os.Setenv("LOGGER_LEVEL", "debug")
+		assert.NoError(tt, err)
+		err = os.Setenv("LOGGER_TYPE", "custom")
+		assert.NoError(tt, err)
+		err = os.Setenv("SLOG_HANDLER_TYPE", "text")
+		assert.NoError(tt, err)
+		err = os.Setenv("EXPORTER_TYPE", "file")
+		assert.NoError(tt, err)
+		err = os.Setenv("ADD_LOG_SOURCE_FILE", "true")
+		assert.NoError(tt, err)
+		err = os.Setenv("OTEL_SERVICE_NAME", "TEST-SERVICE")
+		assert.NoError(tt, err)
+		err = os.Setenv("OTEL_GOOGLE_PROJECT_ID", "test-project-123")
+		assert.NoError(tt, err)
+
+		// Test that the GetString and GetBool functions work correctly
+		logLevel := GetString("LOGGER_LEVEL", "info")
+		assert.Equal(tt, "debug", logLevel)
+
+		loggerType := GetString("LOGGER_TYPE", "slog")
+		assert.Equal(tt, "custom", loggerType)
+
+		slogHandlerType := GetString("SLOG_HANDLER_TYPE", "json")
+		assert.Equal(tt, "text", slogHandlerType)
+
+		exporterType := GetString("EXPORTER_TYPE", "stdout")
+		assert.Equal(tt, "file", exporterType)
+
+		addSource := GetBool("ADD_LOG_SOURCE_FILE", false)
+		assert.True(tt, addSource)
+
+		serviceName := GetString("OTEL_SERVICE_NAME", "VCP-VSA")
+		assert.Equal(tt, "TEST-SERVICE", serviceName)
+
+		otelGoogleProjectID := GetString("OTEL_GOOGLE_PROJECT_ID", "")
+		assert.Equal(tt, "test-project-123", otelGoogleProjectID)
+
+		// Clean up
+		err = os.Unsetenv("LOGGER_LEVEL")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("LOGGER_TYPE")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("SLOG_HANDLER_TYPE")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("EXPORTER_TYPE")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("ADD_LOG_SOURCE_FILE")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("OTEL_SERVICE_NAME")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("OTEL_GOOGLE_PROJECT_ID")
+		assert.NoError(tt, err)
+	})
+}

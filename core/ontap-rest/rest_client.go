@@ -15,7 +15,6 @@ import (
 	clientPriv "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ottransport "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest/transport"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -133,7 +132,7 @@ func NewClient(params RESTClientParams) (RESTClient, error) {
 		rt.Transport = httpRoundTripperTransport
 		rt.Transport = ottransport.NewLoggingRoundTripper(tryParams.Trace, ontapRestLogVerbose, params.CertificateBasedAuthEnabled, rt.Transport)
 		rt.Transport = ottransport.NewPaginationRoundTripper(rt.Transport)
-		rt.Transport = ottransport.NewAuthenticationRoundTripper(rt.Transport, common.Admin, tryParams.Password, params.CertificateBasedAuthEnabled)
+		rt.Transport = ottransport.NewAuthenticationRoundTripper(rt.Transport, env.Admin, tryParams.Password, params.CertificateBasedAuthEnabled)
 		retryTransport := ottransport.NewRetryTransport(tryParams.Trace, rt)
 		idempotentTransport := ottransport.NewIdempotentTransport(retryTransport, func(operation *runtime.ClientOperation) (interface{}, error) {
 			return resolveRESTClientRouterConflict(tryParams.Trace, rc, operation)

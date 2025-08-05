@@ -1,4 +1,4 @@
-package common
+package hyperscaler
 
 import (
 	"testing"
@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
 func TestPrepareOperationID(t *testing.T) {
@@ -91,7 +93,7 @@ func TestCreateNodeForProvider(t *testing.T) {
 				SecretID:       "secret-id",
 				CertificateID:  "cert-id",
 				DeploymentName: "test-deployment",
-				AuthType:       USER_CERTIFICATE,
+				AuthType:       env.USER_CERTIFICATE,
 			},
 			expectedResult: &models.Node{
 				EndpointAddressesToHostNameMap: map[string]string{
@@ -101,7 +103,7 @@ func TestCreateNodeForProvider(t *testing.T) {
 				DeploymentName: "test-deployment",
 				CertificateID:  "cert-id",
 				SecretID:       "secret-id",
-				AuthType:       USER_CERTIFICATE,
+				AuthType:       env.USER_CERTIFICATE,
 			},
 		},
 		{
@@ -121,7 +123,7 @@ func TestCreateNodeForProvider(t *testing.T) {
 				SecretID:       "secret-id",
 				CertificateID:  "cert-id",
 				DeploymentName: "test-deployment",
-				AuthType:       USER_CERTIFICATE,
+				AuthType:       env.USER_CERTIFICATE,
 			},
 			expectedResult: &models.Node{
 				EndpointAddressesToHostNameMap: map[string]string{
@@ -130,7 +132,7 @@ func TestCreateNodeForProvider(t *testing.T) {
 				DeploymentName: "test-deployment",
 				CertificateID:  "cert-id",
 				SecretID:       "secret-id",
-				AuthType:       USER_CERTIFICATE,
+				AuthType:       env.USER_CERTIFICATE,
 			},
 		},
 		{
@@ -141,14 +143,14 @@ func TestCreateNodeForProvider(t *testing.T) {
 				SecretID:       "secret-id",
 				CertificateID:  "cert-id",
 				DeploymentName: "test-deployment",
-				AuthType:       USER_CERTIFICATE,
+				AuthType:       env.USER_CERTIFICATE,
 			},
 			expectedResult: &models.Node{
 				EndpointAddressesToHostNameMap: map[string]string{},
 				DeploymentName:                 "test-deployment",
 				CertificateID:                  "cert-id",
 				SecretID:                       "secret-id",
-				AuthType:                       USER_CERTIFICATE,
+				AuthType:                       env.USER_CERTIFICATE,
 			},
 		},
 		{
@@ -303,7 +305,7 @@ func TestCreateJunctionPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := CreateJunctionPath(tt.token)
+			result := common.CreateJunctionPath(tt.token)
 			assert.Equal(t, tt.expectedResult, result)
 		})
 	}
@@ -322,7 +324,7 @@ func TestCreateNodeForProviderVariable(t *testing.T) {
 		SecretID:       "secret-id",
 		CertificateID:  "cert-id",
 		DeploymentName: "test-deployment",
-		AuthType:       USER_CERTIFICATE,
+		AuthType:       env.USER_CERTIFICATE,
 	}
 
 	result := CreateNodeForProvider(input)
@@ -334,7 +336,7 @@ func TestCreateNodeForProviderVariable(t *testing.T) {
 		DeploymentName: "test-deployment",
 		CertificateID:  "cert-id",
 		SecretID:       "secret-id",
-		AuthType:       USER_CERTIFICATE,
+		AuthType:       env.USER_CERTIFICATE,
 	}
 
 	assert.Equal(t, expectedResult, result)
@@ -353,7 +355,7 @@ func TestNodeProviderInput_Struct(t *testing.T) {
 		SecretID:       "secret-id",
 		CertificateID:  "cert-id",
 		DeploymentName: "test-deployment",
-		AuthType:       USER_CERTIFICATE,
+		AuthType:       env.USER_CERTIFICATE,
 	}
 
 	assert.NotNil(t, input.Nodes)
@@ -361,5 +363,5 @@ func TestNodeProviderInput_Struct(t *testing.T) {
 	assert.Equal(t, "secret-id", input.SecretID)
 	assert.Equal(t, "cert-id", input.CertificateID)
 	assert.Equal(t, "test-deployment", input.DeploymentName)
-	assert.Equal(t, USER_CERTIFICATE, input.AuthType)
+	assert.Equal(t, env.USER_CERTIFICATE, input.AuthType)
 }

@@ -5,15 +5,14 @@ import (
 	"net/http"
 	"time"
 
-	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
-	"google.golang.org/api/iam/v1"
 )
 
 var (
@@ -138,7 +137,7 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 	serviceAccountID := fmt.Sprintf("adc-sa-%s", saTimestamp)
 	serviceAccountDisplayName := fmt.Sprintf("ADC Service Account for %s", backup.UUID)
 
-	var serviceAccount *iam.ServiceAccount
+	var serviceAccount *hyperscalermodels.ServiceAccount
 	err = workflow.ExecuteActivity(ctx, adcActivity.CreateServiceAccount,
 		bucketDetails.TenantProjectNumber, serviceAccountID, serviceAccountDisplayName).Get(ctx, &serviceAccount)
 	if err != nil {

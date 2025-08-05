@@ -7,19 +7,19 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 func TestNewAuthenticationRoundTripper(t *testing.T) {
 	mrt := NewMockRoundTripper(t)
-	prt := NewAuthenticationRoundTripper(mrt, common.Admin, "password", true)
+	prt := NewAuthenticationRoundTripper(mrt, env.Admin, "password", true)
 
 	assert.IsType(t, &AuthenticationRoundTripper{}, prt)
 	assert.Equal(t, mrt, prt.roundTripper)
 	assert.Equal(t, true, prt.useCert)
-	assert.Equal(t, common.Admin, prt.username)
+	assert.Equal(t, env.Admin, prt.username)
 	assert.Equal(t, "password", string(prt.password))
 }
 

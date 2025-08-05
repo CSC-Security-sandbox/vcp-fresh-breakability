@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/dns/v1"
 	"google.golang.org/api/option"
@@ -48,18 +48,18 @@ func TestCreateResourceRecordSet(t *testing.T) {
 			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
 		}
 
-		ogValidateAndConvertToCustomCloudDNSRecord := common.ValidateAndConvertToCustomCloudDNSRecord
-		common.ValidateAndConvertToCustomCloudDNSRecord = func(resp *dns.ResourceRecordSet, managedZone string) (*models.CustomCloudDNSRecord, error) {
+		ogValidateAndConvertToCustomCloudDNSRecord := ValidateAndConvertToCustomCloudDNSRecord
+		ValidateAndConvertToCustomCloudDNSRecord = func(resp *dns.ResourceRecordSet, managedZone string) (*models.CustomCloudDNSRecord, error) {
 			return &models.CustomCloudDNSRecord{
 				RecordName:  recordName,
 				Type:        "A",
-				TTL:         common.CloudDNSCacheTTL,
+				TTL:         env.CloudDNSCacheTTL,
 				ManagedZone: managedZone,
 				Data:        ipAddress,
 			}, nil
 		}
 		defer func() {
-			common.ValidateAndConvertToCustomCloudDNSRecord = ogValidateAndConvertToCustomCloudDNSRecord
+			ValidateAndConvertToCustomCloudDNSRecord = ogValidateAndConvertToCustomCloudDNSRecord
 		}()
 
 		_, err = gService.CreateResourceRecordSet(projectId, managedZone, ipAddress, recordName)

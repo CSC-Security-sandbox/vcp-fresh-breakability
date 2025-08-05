@@ -81,7 +81,7 @@ spec:
             - name: SERVER_PORT
               value: "7233"
             - name: TASK_QUEUE
-              value: "vsa-lifecycle-manager-9.18.1"
+              value: "vsa-lifecycle-manager-9.17.1"
             - name: DEBUG
               value: "false"
             - name: MAX_CONCURRENT_ACTIVITIES

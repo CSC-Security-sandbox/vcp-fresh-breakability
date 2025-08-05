@@ -97,7 +97,7 @@ spec:
             - name: VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX
               value: "vsa-lifecycle-manager"
             - name: ONTAP_VERSION
-              value: "9.18.1"
+              value: "9.17.1"
             - name: TOTAL_IP_PER_HA_PAIR
               value: "6"
             - name: DATA_SUBNET_CIDR_BLOCK
@@ -146,7 +146,32 @@ spec:
               value: "adc-region"  # Replace with actual ADC region
             - name: ADC_CERT_SECRET_NAME
               value: "adc-cert-secret"  # Replace with actual ADC cert secret name
-
+            - name: MGMT_FIREWALL_SOURCE_RANGES
+              value: "198.18.0.0/15"
+            - name: RSM_FIREWALL_SOURCE_RANGES
+              value: "198.18.0.0/15"
+            - name: IC_FIREWALL_SOURCE_RANGES
+              value: "198.18.0.0/15"
+            - name: ISCSI_FIREWALL_SOURCE_RANGES
+              value: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+            - name: MGMT_REGIONAL_NAT_IP
+              value: "34.0.0.0/8,35.0.0.0/8,202.3.112.0/20"
+            - name: MGMT_NETWORK_IP_RANGE
+              value: "198.18.0.0/20"
+            - name: RSM_NETWORK_IP_RANGE
+              value: "198.18.16.0/20"
+            - name: IC_NETWORK_IP_RANGE
+              value: "198.18.32.0/20"
+            - name: MGMT_FIREWALL_PORT_RULES
+              value: "tcp,udp,icmp"
+            - name: RSM_FIREWALL_PORT_RULES
+              value: "tcp,udp"
+            - name: IC_FIREWALL_PORT_RULES
+              value: "tcp,udp"
+            - name: ISCSI_FIREWALL_PORT_RULES
+              value: "tcp,3260"
+            - name: WAIT_TIME_FOR_GCP_OPERATION_IN_SEC
+              value: "10"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

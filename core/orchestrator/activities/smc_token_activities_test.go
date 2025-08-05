@@ -6,23 +6,23 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/google"
-	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/hyperscaler/models"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
+	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 )
 
 func Test_getSMCLicenseFromCloud_Success(t *testing.T) {
 	ctx := context.Background()
-	origGetGCPService := activities.GetGCPService
+	origGetGCPService := hyperscaler2.GetGCPService
 	originalGetSecret := activities.GetSecretWithVersion
 	mockService := new(google.GcpServices)
-	activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 		return mockService, nil
 	}
-	activities.GetSecretWithVersion = func(gcpService hyperscaler.GoogleServices, gcpProjectId, secretID, versionID string) (*models.CustomSecret, error) {
+	activities.GetSecretWithVersion = func(gcpService hyperscaler2.GoogleServices, gcpProjectId, secretID, versionID string) (*models.CustomSecret, error) {
 		return &models.CustomSecret{
 			SecretVersion: &models.CustomSecretVersion{
 				Value: "test-secret-value",
@@ -30,7 +30,7 @@ func Test_getSMCLicenseFromCloud_Success(t *testing.T) {
 		}, nil
 	}
 	defer func() {
-		activities.GetGCPService = origGetGCPService
+		hyperscaler2.GetGCPService = origGetGCPService
 		activities.GetSecretWithVersion = originalGetSecret
 	}()
 
@@ -43,12 +43,12 @@ func Test_generateTokenForNode_Success(t *testing.T) {
 	tokenValue := "test-token"
 	node := &coremodels.Node{Name: "node1"}
 	clientSecret := "secret"
-	origGetProviderByNode := activities.GetProviderByNode
+	origGetProviderByNode := hyperscaler2.GetProviderByNode
 	mockProvider := new(vsa.MockProvider)
-	activities.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+	defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
 	mockProvider.On("PostClusterLicenseAccessToken", context.Background(), clientSecret).Return(&tokenValue, nil)
 
 	token, err := activities.GenerateTokenForNode(context.Background(), node, &clientSecret)
@@ -60,12 +60,12 @@ func Test_generateTokenForNode_Success(t *testing.T) {
 func Test_generateTokenForNode_NilToken(t *testing.T) {
 	node := &coremodels.Node{Name: "node1"}
 	clientSecret := "secret"
-	origGetProviderByNode := activities.GetProviderByNode
+	origGetProviderByNode := hyperscaler2.GetProviderByNode
 	mockProvider := new(vsa.MockProvider)
-	activities.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+	defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
 	mockProvider.On("PostClusterLicenseAccessToken", context.Background(), clientSecret).Return(nil, nil)
 
 	token, err := activities.GenerateTokenForNode(context.Background(), node, &clientSecret)
@@ -77,12 +77,12 @@ func Test_generateTokenForNode_EmptyToken(t *testing.T) {
 	tokenValue := ""
 	node := &coremodels.Node{Name: "node1"}
 	clientSecret := "secret"
-	origGetProviderByNode := activities.GetProviderByNode
+	origGetProviderByNode := hyperscaler2.GetProviderByNode
 	mockProvider := new(vsa.MockProvider)
-	activities.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+	defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
 	mockProvider.On("PostClusterLicenseAccessToken", context.Background(), clientSecret).Return(&tokenValue, nil)
 
 	token, err := activities.GenerateTokenForNode(context.Background(), node, &clientSecret)
@@ -93,11 +93,11 @@ func Test_generateTokenForNode_EmptyToken(t *testing.T) {
 func Test_generateTokenForNode_GetProviderByNodeError(t *testing.T) {
 	node := &coremodels.Node{Name: "node1"}
 	clientSecret := "secret"
-	origGetProviderByNode := activities.GetProviderByNode
-	activities.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
+	origGetProviderByNode := hyperscaler2.GetProviderByNode
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
 		return nil, fmt.Errorf("getProviderByNode error")
 	}
-	defer func() { activities.GetProviderByNode = origGetProviderByNode }()
+	defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
 
 	token, err := activities.GenerateTokenForNode(context.Background(), node, &clientSecret)
 	assert.Error(t, err)
@@ -108,14 +108,14 @@ func Test_generateTokenForNode_GetProviderByNodeError(t *testing.T) {
 // Test case: GetGCPService returns an error
 func Test_getSMCLicenseFromCloud_GetGCPServiceError(t *testing.T) {
 	ctx := context.Background()
-	origGetGCPService := activities.GetGCPService
+	origGetGCPService := hyperscaler2.GetGCPService
 	originalGetSecret := activities.GetSecretWithVersion
-	activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 		return nil, fmt.Errorf("gcp service error")
 	}
 	activities.GetSecretWithVersion = originalGetSecret
 	defer func() {
-		activities.GetGCPService = origGetGCPService
+		hyperscaler2.GetGCPService = origGetGCPService
 		activities.GetSecretWithVersion = originalGetSecret
 	}()
 
@@ -127,17 +127,17 @@ func Test_getSMCLicenseFromCloud_GetGCPServiceError(t *testing.T) {
 // Test case: GetSecretWithVersion returns an error
 func Test_getSMCLicenseFromCloud_GetSecretWithVersionError(t *testing.T) {
 	ctx := context.Background()
-	origGetGCPService := activities.GetGCPService
+	origGetGCPService := hyperscaler2.GetGCPService
 	originalGetSecret := activities.GetSecretWithVersion
 	mockService := new(google.GcpServices)
-	activities.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 		return mockService, nil
 	}
-	activities.GetSecretWithVersion = func(gcpService hyperscaler.GoogleServices, gcpProjectId, secretID, versionID string) (*models.CustomSecret, error) {
+	activities.GetSecretWithVersion = func(gcpService hyperscaler2.GoogleServices, gcpProjectId, secretID, versionID string) (*models.CustomSecret, error) {
 		return nil, fmt.Errorf("secret fetch error")
 	}
 	defer func() {
-		activities.GetGCPService = origGetGCPService
+		hyperscaler2.GetGCPService = origGetGCPService
 		activities.GetSecretWithVersion = originalGetSecret
 	}()
 
@@ -146,7 +146,7 @@ func Test_getSMCLicenseFromCloud_GetSecretWithVersionError(t *testing.T) {
 	assert.Empty(t, secret)
 }
 func Test_getSecretWithVersion_Success(t *testing.T) {
-	mockService := new(hyperscaler.MockGoogleServices)
+	mockService := new(hyperscaler2.MockGoogleServices)
 	expectedSecret := &models.CustomSecret{
 		SecretVersion: &models.CustomSecretVersion{Value: "my-secret"},
 	}
@@ -158,7 +158,7 @@ func Test_getSecretWithVersion_Success(t *testing.T) {
 }
 
 func Test_getSecretWithVersion_ErrorReturned(t *testing.T) {
-	mockService := new(hyperscaler.MockGoogleServices)
+	mockService := new(hyperscaler2.MockGoogleServices)
 	mockService.On("GetSecretWithCustomVersion", "proj", "sid", "vid").Return(nil, fmt.Errorf("fetch error"))
 
 	secret, err := activities.GetSecretWithVersion(mockService, "proj", "sid", "vid")
@@ -167,7 +167,7 @@ func Test_getSecretWithVersion_ErrorReturned(t *testing.T) {
 }
 
 func Test_getSecretWithVersion_NilSecretReturned(t *testing.T) {
-	mockService := new(hyperscaler.MockGoogleServices)
+	mockService := new(hyperscaler2.MockGoogleServices)
 	mockService.On("GetSecretWithCustomVersion", "proj", "sid", "vid").Return(nil, nil)
 
 	secret, err := activities.GetSecretWithVersion(mockService, "proj", "sid", "vid")
@@ -176,7 +176,7 @@ func Test_getSecretWithVersion_NilSecretReturned(t *testing.T) {
 }
 
 func Test_getSecretWithVersion_NilSecretVersionReturned(t *testing.T) {
-	mockService := new(hyperscaler.MockGoogleServices)
+	mockService := new(hyperscaler2.MockGoogleServices)
 	expectedSecret := &models.CustomSecret{SecretVersion: nil}
 	mockService.On("GetSecretWithCustomVersion", "proj", "sid", "vid").Return(expectedSecret, nil)
 
