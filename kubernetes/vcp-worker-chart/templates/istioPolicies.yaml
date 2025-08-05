@@ -1,0 +1,10 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: vcp-worker-mtls
+  namespace: {{ .Release.Namespace }}
+spec:
+  host: vcp-worker-service.vcp.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
