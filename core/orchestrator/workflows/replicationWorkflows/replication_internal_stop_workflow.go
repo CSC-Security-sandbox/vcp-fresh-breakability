@@ -8,7 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -102,7 +102,7 @@ func (wf *internalVolumeReplicationStopWorkflow) Run(ctx workflow.Context, args 
 		return nil, err
 	}
 
-	err = workflow.ExecuteActivity(ctx, replicationActivity.BreakVolumeReplication, dbReplication, node).Get(ctx, vsaReplication)
+	err = workflow.ExecuteActivity(ctx, replicationActivity.BreakVolumeReplication, dbReplication, node).Get(ctx, &vsaReplication)
 	if err != nil {
 		return nil, err
 	}

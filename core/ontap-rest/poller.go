@@ -4,6 +4,7 @@ import (
 	"context"
 	"go.temporal.io/sdk/activity"
 	"go.temporal.io/sdk/client"
+	t "go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 	"time"
 
@@ -79,46 +80,56 @@ func (p *poller) Poll(UUID string) error {
 
 var workflowSleep = workflow.Sleep
 
+// PollOntapJobActivity is an activity that polls a single ONTAP job
+func PollOntapJobActivity(ctx context.Context, clientParams RESTClientParams, UUID string) (*models.Job, error) {
+	logger := util.GetLogger(ctx)
+	clientParams.Trace = logger
+	api, err := NewOntapRestClient(clientParams)
+	if err != nil {
+		logger.Errorf("Failed to create Ontap REST client, error: %v", err)
+		return nil, errors.NewNonRetryableErr("failed to create ontap-rest client")
+	}
+
+	rsp, err := api.Cluster().GetJob(UUID)
+	if err != nil {
+		logger.Errorf("Failed to poll job for UUID %s, error: %v", UUID, err)
+		return nil, errors.NewNonRetryableErr("failed to poll job")
+	}
+
+	if *rsp.Payload.State == models.JobStateFailure {
+		return nil, errors.NewNonRetryableErr(transport.ConvertFromRESTError(logger, rsp).Error())
+	}
+
+	if *rsp.Payload.State == models.JobStateSuccess {
+		return nil, nil
+	}
+
+	return nil, errors.New("Job is still processing")
+}
+
 // PollOntapJob is a workflow that polls an ONTAP REST job until it is either successful or failed.
 func PollOntapJob(ctx workflow.Context, clientParams RESTClientParams, UUID string) error {
 	logger := util.GetLogger(ctx)
 	// Since logger is not serializable, it becomes nil when sent as workflow param.
 	// Hence, we need to fetch and set it again in the clientParams.
 	clientParams.Trace = logger
-	api, err := NewOntapRestClient(clientParams)
+
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: timeout,
+		RetryPolicy: &t.RetryPolicy{
+			InitialInterval:        wait,
+			BackoffCoefficient:     0,
+			MaximumInterval:        wait,
+			NonRetryableErrorTypes: []string{"NonRetryableErr"},
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	err := workflow.ExecuteActivity(ctx, PollOntapJobActivity, clientParams, UUID).Get(ctx, nil)
 	if err != nil {
-		logger.Errorf("Failed to create Ontap REST client, error: %v", err)
-		return errors.New("failed to create ontap-rest client")
+		logger.Errorf("Failed to poll job for UUID %s, error: %v", UUID, err)
+		return err
 	}
 
-	// Using workflow.Now instead of time.Now to ensure that the time is consistent with the workflow execution.
-	// This ensures that the workflow is deterministic and can be replayed correctly.
-	t2 := workflow.Now(ctx).Add(timeout)
-	for workflow.Now(ctx).Before(t2) {
-		rsp, err := api.Cluster().GetJob(UUID)
-		if err != nil {
-			logger.Errorf("Failed to poll job for UUID %s, error: %v", UUID, err)
-			return err
-		}
-
-		if *rsp.Payload.State == models.JobStateFailure {
-			return transport.ConvertFromRESTError(logger, rsp)
-		}
-
-		if *rsp.Payload.State == models.JobStateSuccess {
-			return nil
-		}
-
-		err = workflowSleep(ctx, wait)
-		if err != nil {
-			return err
-		}
-	}
-
-	logger.With(log.Fields{
-		"ontap-rest job uuid": UUID,
-		"err":                 "job polling timeout",
-	}).Error("ontap-rest error")
-
-	return errors.NewTimeoutErr("polling for ontap-rest job with UUID: '" + UUID + "' timed out")
+	return nil
 }
