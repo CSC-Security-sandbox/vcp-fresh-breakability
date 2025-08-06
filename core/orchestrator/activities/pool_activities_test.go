@@ -5825,7 +5825,7 @@ func TestPoolActivity_CreateVPCs(t *testing.T) {
 		assert.NotNil(t, result)
 
 		// Get the actual result from the activity execution
-		var operations *map[string]bool
+		var operations *[]commonparams.Operations
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
@@ -5837,8 +5837,14 @@ func TestPoolActivity_CreateVPCs(t *testing.T) {
 			"operation-rsm-e0c-vpc-01",
 		}
 
+		// Create a map from the slice for easy lookup
+		actualOperations := make(map[string]bool)
+		for _, op := range *operations {
+			actualOperations[op.OperationName] = op.IsDone
+		}
+
 		for _, expectedOp := range expectedOperations {
-			value, exists := (*operations)[expectedOp]
+			value, exists := actualOperations[expectedOp]
 			assert.True(t, exists, "Operation %s should exist in result", expectedOp)
 			assert.False(t, value, "Operation %s should be set to false", expectedOp)
 		}
@@ -5869,7 +5875,7 @@ func TestPoolActivity_CreateVPCs(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
-		var operations *map[string]bool
+		var operations *[]commonparams.Operations
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
@@ -5877,8 +5883,8 @@ func TestPoolActivity_CreateVPCs(t *testing.T) {
 
 		// Should contain exactly one operation that starts with "operation-"
 		operationFound := false
-		for opName := range *operations {
-			if strings.HasPrefix(opName, "operation-") {
+		for _, op := range *operations {
+			if strings.HasPrefix(op.OperationName, "operation-") {
 				operationFound = true
 				break
 			}
@@ -5970,7 +5976,7 @@ func TestPoolActivity_CreateVPCs(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
-		var operations *map[string]bool
+		var operations *[]commonparams.Operations
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
@@ -6033,16 +6039,20 @@ func TestPoolActivity_CreateVPCs(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
-		var operations *map[string]bool
+		var operations *[]commonparams.Operations
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
-		assert.Len(t, *operations, 2)  // Two operations
+		assert.Equal(t, 2, len(*operations))  // Two operations created
 		assert.Len(t, vpcCallOrder, 3) // All three VPCs should be processed
 
-		assert.Contains(t, *operations, "operation-mgmt")
-		assert.Contains(t, *operations, "operation-rsm")
-		assert.NotContains(t, *operations, "operation-cluster-ic")
+		// Check for specific operation names
+		operationNames := make([]string, len(*operations))
+		for i, op := range *operations {
+			operationNames[i] = op.OperationName
+		}
+		assert.Contains(t, operationNames, "operation-mgmt")
+		assert.Contains(t, operationNames, "operation-rsm")
 	})
 }
 
@@ -6077,16 +6087,17 @@ func TestPoolActivity_CreateSubnets(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
-		var operations *map[string]bool
+		var operations *[]commonparams.Operations
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
 		assert.Equal(t, 3, len(*operations))
 		assert.Equal(t, 3, callCount)
 
-		// Check that all operations are marked as not complete
-		for _, complete := range *operations {
-			assert.False(t, complete)
+		// Check that all operations are present and have correct names
+		for _, op := range *operations {
+			assert.NotEmpty(t, op.OperationName)
+			assert.False(t, op.IsDone)
 		}
 	})
 
@@ -6115,7 +6126,7 @@ func TestPoolActivity_CreateSubnets(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
-		var operations *map[string]bool
+		var operations *[]commonparams.Operations
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
@@ -6185,7 +6196,7 @@ func TestPoolActivity_CreateSubnets(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
-		var operations *map[string]bool
+		var operations *[]commonparams.Operations
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.Equal(t, 3, callCount)
@@ -6213,7 +6224,7 @@ func TestPoolActivity_CreateSubnets(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
-		var operations *map[string]bool
+		var operations *[]commonparams.Operations
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
@@ -6276,7 +6287,7 @@ func TestPoolActivity_CreateSubnets(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
-		var operations *map[string]bool
+		var operations *[]commonparams.Operations
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
@@ -6285,8 +6296,8 @@ func TestPoolActivity_CreateSubnets(t *testing.T) {
 
 		// Verify specific operation names are present
 		operationNames := make([]string, 0, len(*operations))
-		for opName := range *operations {
-			operationNames = append(operationNames, opName)
+		for _, op := range *operations {
+			operationNames = append(operationNames, op.OperationName)
 		}
 		assert.Contains(t, operationNames, "operation-1")
 		assert.Contains(t, operationNames, "operation-3")
@@ -6336,18 +6347,22 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
-		var operations *map[string]bool
+		var operations *[]commonparams.Operations
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
 		assert.Len(t, *operations, 4) // 3 VPC firewalls + 1 iSCSI firewall
-		assert.Contains(t, *operations, "operation-firewall-1")
-		assert.Contains(t, *operations, "operation-firewall-2")
-		assert.Contains(t, *operations, "operation-firewall-3")
-		assert.Contains(t, *operations, "operation-iscsi-firewall")
-		for _, created := range *operations {
-			assert.False(t, created)
+		
+		// Check all operations are present and not done
+		operationNames := make([]string, len(*operations))
+		for i, op := range *operations {
+			operationNames[i] = op.OperationName
+			assert.False(t, op.IsDone)
 		}
+		assert.Contains(t, operationNames, "operation-firewall-1")
+		assert.Contains(t, operationNames, "operation-firewall-2")
+		assert.Contains(t, operationNames, "operation-firewall-3")
+		assert.Contains(t, operationNames, "operation-iscsi-firewall")
 	})
 
 	t.Run("Success_SomeFirewallsAlreadyExist", func(t *testing.T) {
@@ -6382,13 +6397,19 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
-		var operations *map[string]bool
+		var operations *[]commonparams.Operations
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
 		assert.Len(t, *operations, 2) // Only operations that were created
-		assert.Contains(t, *operations, "operation-firewall-1")
-		assert.Contains(t, *operations, "operation-firewall-3")
+		
+		// Check the correct operations are present
+		operationNames := make([]string, len(*operations))
+		for i, op := range *operations {
+			operationNames[i] = op.OperationName
+		}
+		assert.Contains(t, operationNames, "operation-firewall-1")
+		assert.Contains(t, operationNames, "operation-firewall-3")
 	})
 
 	t.Run("GetGCPService_Fails", func(t *testing.T) {
@@ -6514,7 +6535,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
-		var operations *map[string]bool
+		var operations *[]commonparams.Operations
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
@@ -6582,14 +6603,20 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
-		var operations *map[string]bool
+		var operations *[]commonparams.Operations
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
 		assert.Len(t, *operations, 3) // 2 VPC firewalls created + 1 iSCSI firewall
-		assert.Contains(t, *operations, "operation-firewall-1")
-		assert.Contains(t, *operations, "operation-firewall-3")
-		assert.Contains(t, *operations, "operation-iscsi-firewall")
+		
+		// Create a map for easy lookup
+		operationNames := make([]string, len(*operations))
+		for i, op := range *operations {
+			operationNames[i] = op.OperationName
+		}
+		assert.Contains(t, operationNames, "operation-firewall-1")
+		assert.Contains(t, operationNames, "operation-firewall-3")
+		assert.Contains(t, operationNames, "operation-iscsi-firewall")
 	})
 }
 

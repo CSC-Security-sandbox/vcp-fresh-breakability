@@ -363,7 +363,7 @@ func _getCreateSubnetworkOperation(service hyperscaler2.GoogleServices, tenantPr
 	return operationName, err
 }
 
-func (j *PoolActivity) CreateVPCs(ctx context.Context, project string) (*map[string]bool, error) {
+func (j *PoolActivity) CreateVPCs(ctx context.Context, project string) (*[]commonparams.Operations, error) {
 	serviceStruct, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -372,7 +372,7 @@ func (j *PoolActivity) CreateVPCs(ctx context.Context, project string) (*map[str
 
 	// Record heartbeat to indicate progress to temporal server
 	activity.RecordHeartbeat(ctx, "Setting up VPC's for VSA pool")
-	operations := make(map[string]bool)
+	operations := make([]commonparams.Operations, 0)
 	op := ""
 	for _, values := range internalVSANetworks {
 		// Create VPCs for management, cluster interconnect, and RSM
@@ -381,13 +381,19 @@ func (j *PoolActivity) CreateVPCs(ctx context.Context, project string) (*map[str
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		if op != "" {
-			operations[op] = false
+			operations = append(operations, commonparams.Operations{
+				OperationName:      op,
+				OperationType:      "vpc",
+				IsDone:             false,
+				IsRegionalResource: false,
+				Project:            project,
+			})
 		}
 	}
 	return &operations, nil
 }
 
-func (j *PoolActivity) CreateSubnets(ctx context.Context, project string) (*map[string]bool, error) {
+func (j *PoolActivity) CreateSubnets(ctx context.Context, project string) (*[]commonparams.Operations, error) {
 	serviceStruct, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -396,7 +402,7 @@ func (j *PoolActivity) CreateSubnets(ctx context.Context, project string) (*map[
 
 	// Record heartbeat to indicate progress to temporal server
 	activity.RecordHeartbeat(ctx, "Setting up Subnets for VSA pool")
-	operations := make(map[string]bool)
+	operations := make([]commonparams.Operations, 0)
 	op := ""
 	for _, values := range internalVSANetworks {
 		op, err = InsertSubnet(service, project, &Region, values.subnetName, values.vpcName, values.ipCidrRange)
@@ -404,13 +410,19 @@ func (j *PoolActivity) CreateSubnets(ctx context.Context, project string) (*map[
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		if op != "" {
-			operations[op] = false
+			operations = append(operations, commonparams.Operations{
+				OperationName:      op,
+				OperationType:      "subnet",
+				IsDone:             false,
+				IsRegionalResource: true,
+				Project:            project,
+			})
 		}
 	}
 	return &operations, nil
 }
 
-func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProject, network string) (*map[string]bool, error) {
+func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProject, network string) (*[]commonparams.Operations, error) {
 	serviceStruct, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
@@ -418,7 +430,7 @@ func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProje
 	service := hyperscaler2.GoogleServices(serviceStruct)
 	// Record heartbeat to indicate progress to temporal server
 	activity.RecordHeartbeat(ctx, "Setting up Firewall for VSA pool")
-	operations := make(map[string]bool)
+	operations := make([]commonparams.Operations, 0)
 	op := ""
 	for _, values := range internalVSANetworks {
 		op, err = InsertFirewall(service, project, values.firewallName, values.vpcName, firewallPriority, ingressTrafficDirection, strings.Split(values.sourceRanges, ","), strings.Split(values.portRules, ","))
@@ -426,7 +438,13 @@ func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProje
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		if op != "" {
-			operations[op] = false
+			operations = append(operations, commonparams.Operations{
+				OperationName:      op,
+				OperationType:      "firewall",
+				IsDone:             false,
+				IsRegionalResource: false,
+				Project:            project,
+			})
 		}
 	}
 
@@ -438,7 +456,13 @@ func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProje
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	if op != "" {
-		operations[op] = false
+		operations = append(operations, commonparams.Operations{
+			OperationName:      op,
+			OperationType:      "firewall",
+			IsDone:             false,
+			IsRegionalResource: false,
+			Project:            snHostProject,
+		})
 	}
 	return &operations, nil
 }

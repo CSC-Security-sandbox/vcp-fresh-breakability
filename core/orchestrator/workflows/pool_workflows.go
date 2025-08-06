@@ -1217,65 +1217,67 @@ func ConfigureNetworkWorkflow(ctx workflow.Context, tenancyDetails *common.Tenan
 		}
 	}()
 	setupNwCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(setupNwHeartbeatTimeout)*time.Second)
-	vpcOperations := make(map[string]bool)
+	vpcOperations := make([]common.Operations, 0)
 	tenantProjectNumber := tenancyDetails.RegionalTenantProject
 	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateVPCs, tenantProjectNumber).Get(setupNwCtx, &vpcOperations)
 	if err != nil {
 		return nil, err
 	}
-	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, tenantProjectNumber, false, &vpcOperations, retryPolicy.StartToCloseTimeout)
+	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, &vpcOperations, retryPolicy.StartToCloseTimeout)
 	if err != nil {
 		return nil, vsaerror.Errorf("failed to create VPC for tenant project while waiting to get operation status: %s: %w", tenantProjectNumber, err)
 	}
 
-	subnetOperations := make(map[string]bool)
-	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateSubnets, tenantProjectNumber).Get(setupNwCtx, &subnetOperations)
+	subnetFirewallOperations := make([]common.Operations, 0)
+	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateSubnets, tenantProjectNumber).Get(setupNwCtx, &subnetFirewallOperations)
 	if err != nil {
 		return nil, err
 	}
-	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, tenantProjectNumber, true, &subnetOperations, retryPolicy.StartToCloseTimeout)
-	if err != nil {
-		return nil, vsaerror.Errorf("failed to create subnet for tenant project while waiting to get operation status: %s: %w", tenantProjectNumber, err)
-	}
 
-	firewallOperations := make(map[string]bool)
+	firewallOperations := make([]common.Operations, 0)
 	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateFirewalls, tenantProjectNumber, tenancyDetails.SnHostProject, tenancyDetails.Network).Get(setupNwCtx, &firewallOperations)
 	if err != nil {
 		return nil, err
 	}
-	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, tenantProjectNumber, false, &firewallOperations, retryPolicy.StartToCloseTimeout)
+	subnetFirewallOperations = append(subnetFirewallOperations, firewallOperations...)
+	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, &subnetFirewallOperations, retryPolicy.StartToCloseTimeout)
 	if err != nil {
 		return nil, vsaerror.Errorf("failed to create firewall for tenant project while waiting to get operation status: %s: %w", tenantProjectNumber, err)
 	}
 	return nil, nil
 }
 
-func _waitForGCPNetworkOperationStatus(ctx workflow.Context, poolActivity *activities.PoolActivity, project string, isRegionalResource bool, operationNames *map[string]bool, timeout time.Duration) error {
+func _waitForGCPNetworkOperationStatus(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+	if operations == nil {
+		return nil
+	}
 	startTime := workflow.Now(ctx)
 	var err error
 	var operationsDone int
 	operation := &hyperscalermodels.ComputeOperation{}
 	for {
 		operationsDone = 0
-		for op := range *operationNames {
-			if !(*operationNames)[op] {
+		for i := 0; i < len(*operations); i++ {
+			op := &(*operations)[i] // Get a pointer to the original element
+			if !op.IsDone {
 				// Check if the timeout has been reached.
 				if workflow.Now(ctx).Sub(startTime) > timeout {
 					return vsaerror.Errorf("timeout while confirming compute network google components: %v", timeout)
 				}
 
 				// Get the status of the GCP Operation.
-				err = workflow.ExecuteActivity(ctx, poolActivity.GetComputeOpStatus, project, isRegionalResource, op).Get(ctx, &operation)
-				if err != nil && !vsaerror.IsNotReadyErr(err) && !vsaerror.IsNotFoundErr(err) {
-					return vsaerror.Errorf("failed to get GCP Operation %s: %w", op, err)
+				err = workflow.ExecuteActivity(ctx, poolActivity.GetComputeOpStatus, op.Project, op.IsRegionalResource, op.OperationName).Get(ctx, &operation)
+				if err != nil && !vsaerror.IsNotReadyErr(err) {
+					return vsaerror.Errorf("failed to get GCP Operation %s: %w", op.OperationName, err)
 				}
 			}
-			if (operation.Status == statusDone && operation.Progress == operationProgress) || (*operationNames)[op] {
+			if (operation.Status == statusDone && operation.Progress == operationProgress) || op.IsDone {
 				operationsDone++
-				(*operationNames)[op] = true
+				op.IsDone = true // this modifies the original element in the slice
 			}
 		}
-		if operationsDone == len(*operationNames) {
+		// If all operations are done, exit the loop
+		if operationsDone == len(*operations) {
 			return nil
 		}
 		err = workflow.Sleep(ctx, time.Second*time.Duration(waitTimeForGCPOperationInSec))

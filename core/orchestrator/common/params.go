@@ -524,3 +524,11 @@ type DeleteReplicationParams struct {
 	ReplicationResourceId string
 	Zone                  string
 }
+
+type Operations struct {
+	Project            string
+	OperationName      string
+	IsDone             bool
+	IsRegionalResource bool
+	OperationType      string
+}

@@ -158,6 +158,7 @@ func Test_convertVPCToGoogleVPC(t *testing.T) {
 		expected := &compute.Network{
 			Name:                  "test-vpc",
 			AutoCreateSubnetworks: false,
+			Mtu:                   8896,
 			ForceSendFields:       []string{"AutoCreateSubnetworks"},
 		}
 

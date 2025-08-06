@@ -87,6 +87,7 @@ func convertVPCToGoogleVPC(vpc *models.VPCNetwork) *compute.Network {
 	return &compute.Network{
 		Name:                  vpc.Name,
 		AutoCreateSubnetworks: false,
+		Mtu:                   8896,
 		// make sure AutoCreateSubnetworks field is included in request
 		ForceSendFields: []string{"AutoCreateSubnetworks"},
 	}

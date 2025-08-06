@@ -91,7 +91,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		return nil
 	}
 
-	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, project string, isRegionalResource bool, operationNames *map[string]bool, timeout time.Duration) error {
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
 		return nil
 	}
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -711,8 +711,20 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			return nil
 		}
 
-		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, project string, isRegionalResource bool, operationNames *map[string]bool, timeout time.Duration) error {
+		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
 			return nil
+		}
+		tenantProject := "test-project"
+		snHostProject := "test-host-project"
+		subnetOperations := []common.Operations{{OperationName: "operation-1", IsDone: false, IsRegionalResource: true, Project: tenantProject},
+			{OperationName: "operation-2", IsDone: false, IsRegionalResource: true, Project: tenantProject},
+			{OperationName: "operation-3", IsDone: false, IsRegionalResource: true, Project: tenantProject},
+		}
+		firewallOperations := []common.Operations{{
+			OperationName: "operation-4", IsDone: false, IsRegionalResource: false, Project: tenantProject},
+			{OperationName: "operation-5", IsDone: false, IsRegionalResource: false, Project: tenantProject},
+			{OperationName: "operation-6", IsDone: false, IsRegionalResource: false, Project: tenantProject},
+			{OperationName: "operation-7", IsDone: false, IsRegionalResource: false, Project: snHostProject},
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
@@ -724,13 +736,15 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
 			Network:               "test-network",
 			SubnetworkNames:       []string{"test-subnet"},
-			RegionalTenantProject: "test-project",
-			SnHostProject:         "test-host-project",
+			RegionalTenantProject: tenantProject,
+			SnHostProject:         snHostProject,
 			Gateway:               "192.168.1.254",
 		}, nil)
+		subnetFirewallOperations := subnetOperations
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(&subnetFirewallOperations, nil)
+		subnetFirewallOperations = append(subnetFirewallOperations, firewallOperations...)
+		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&subnetFirewallOperations, nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -830,7 +844,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			return nil
 		}
 
-		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, project string, isRegionalResource bool, operationNames *map[string]bool, timeout time.Duration) error {
+		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
 			return nil
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -914,7 +928,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			return nil
 		}
 
-		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, project string, isRegionalResource bool, operationNames *map[string]bool, timeout time.Duration) error {
+		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
 			return nil
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -999,7 +1013,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			return nil
 		}
 
-		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, project string, isRegionalResource bool, operationNames *map[string]bool, timeout time.Duration) error {
+		WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
 			return nil
 		}
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -1036,6 +1050,71 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		assert.Contains(t, env.GetWorkflowError().Error(), "failed to create firewalls")
 		env.AssertExpectations(t)
 	})
+}
+
+func TestConfigureNetworkWorkflow_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestWorkflowEnvironment()
+
+	// Mock activities
+	poolActivity := &activities.PoolActivity{}
+
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	defer func() {
+		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+	}()
+
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+		return nil
+	}
+	// Mock VPC creation
+	vpcOperations := []common.Operations{
+		{OperationName: "vpc-op-1", IsDone: true},
+	}
+	env.OnActivity(poolActivity.CreateVPCs, mock.Anything, "tenant-project").Return(&vpcOperations, nil)
+
+	// Mock subnet creation
+	subnetOperations := []common.Operations{
+		{OperationName: "subnet-op-1", IsDone: true},
+	}
+	env.OnActivity(poolActivity.CreateSubnets, mock.Anything, "tenant-project").Return(&subnetOperations, nil)
+
+	// Mock firewall creation
+	firewallOperations := []common.Operations{
+		{OperationName: "firewall-op-1", IsDone: true},
+	}
+	env.OnActivity(poolActivity.CreateFirewalls, mock.Anything, "tenant-project", "host-project", "network").Return(&firewallOperations, nil)
+
+	// Mock wait operations
+	env.OnWorkflow(WaitForGCPNetworkOperationStatus, mock.Anything, mock.Anything, "tenant-project", &vpcOperations, mock.Anything).Return(nil)
+
+	combinedOps := append(subnetOperations, firewallOperations...)
+	env.OnWorkflow(WaitForGCPNetworkOperationStatus, mock.Anything, mock.Anything, "tenant-project", &combinedOps, mock.Anything).Return(nil)
+
+	tenancyDetails := &common.TenancyInfo{
+		RegionalTenantProject: "tenant-project",
+		SnHostProject:         "host-project",
+		Network:               "network",
+	}
+
+	env.ExecuteWorkflow(ConfigureNetworkWorkflow, tenancyDetails)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
 }
 
 func TestUpdatePoolWorkflow(t *testing.T) {
@@ -4632,6 +4711,8 @@ func Test_waitForServiceNetworkOperationStatus_Timeout_ComprehensiveTest(t *test
 
 	env.OnActivity(poolActivity.GetServiceNetOpStatus, mock.Anything, operationName).Return(operation, nil)
 	env.RegisterActivity(poolActivity.GetServiceNetOpStatus)
+	env.OnActivity(poolActivity.GetServiceNetOpStatus, mock.Anything, operationName).Return(operation, nil)
+	env.RegisterActivity(poolActivity.GetServiceNetOpStatus)
 	env.ExecuteWorkflow(WfTestWaitForServiceNetworkOperationStatus, operationName, 1*time.Millisecond)
 
 	assert.True(t, env.IsWorkflowCompleted())
@@ -4745,14 +4826,14 @@ func Test_waitForServiceNetworkOperationStatus_OperationNotDoneThenSuccess_Compr
 }
 
 // WfTestWaitForGCPNetworkOperationStatus is a test workflow function for _waitForGCPNetworkOperationStatus
-func WfTestWaitForGCPNetworkOperationStatus(ctx workflow.Context, project string, isRegionalResource bool, operationNames map[string]bool, timeout time.Duration) error {
+func WfTestWaitForGCPNetworkOperationStatus(ctx workflow.Context, project string, operations *[]common.Operations, timeout time.Duration) error {
 	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 		StartToCloseTimeout: timeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			MaximumAttempts: 3,
 		}})
 	poolActivity := &activities.PoolActivity{}
-	err := _waitForGCPNetworkOperationStatus(ctx, poolActivity, project, isRegionalResource, &operationNames, timeout)
+	err := _waitForGCPNetworkOperationStatus(ctx, poolActivity, operations, timeout)
 	if err != nil {
 		return fmt.Errorf("wait for GCP network operation status test failed: %w", err)
 	}
@@ -4767,7 +4848,7 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 		env := ts.NewTestWorkflowEnvironment()
 		poolActivity := &activities.PoolActivity{}
 		project := "test-project"
-		operationNames := map[string]bool{"operation-1": false}
+		operations := []common.Operations{{OperationName: "operation-1", IsDone: false, IsRegionalResource: true, Project: project}}
 		// Mock successful operation completion
 		operation := &hyperscalermodels.ComputeOperation{
 			Name:     "operation-1",
@@ -4777,7 +4858,7 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 
 		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operation, nil)
 		env.RegisterActivity(poolActivity.GetComputeOpStatus)
-		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, true, operationNames, 10*time.Second)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, &operations, 10*time.Second)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -4787,11 +4868,9 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 		env := ts.NewTestWorkflowEnvironment()
 		poolActivity := &activities.PoolActivity{}
 		project := "test-project"
-		operationNames := map[string]bool{
-			"operation-1": false,
-			"operation-2": false,
-			"operation-3": false,
-		}
+		operations := []common.Operations{{OperationName: "operation-1", IsDone: true, IsRegionalResource: true, Project: project},
+			{OperationName: "operation-2", IsDone: false, IsRegionalResource: true, Project: project},
+			{OperationName: "operation-3", IsDone: false, IsRegionalResource: true, Project: project}}
 
 		// Mock successful completion for all operations
 		operation1 := &hyperscalermodels.ComputeOperation{
@@ -4814,7 +4893,7 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-2").Return(operation2, nil)
 		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-3").Return(operation3, nil)
 		env.RegisterActivity(poolActivity.GetComputeOpStatus)
-		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, true, operationNames, 1*time.Minute)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, &operations, 1*time.Minute)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -4824,8 +4903,7 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 		env := ts.NewTestWorkflowEnvironment()
 		poolActivity := &activities.PoolActivity{}
 		project := "test-project"
-		operationNames := map[string]bool{"operation-1": false}
-
+		operations := []common.Operations{{OperationName: "operation-1", IsDone: false, IsRegionalResource: true, Project: project}}
 		// Mock operation in progress first, then completed
 		operationInProgress := &hyperscalermodels.ComputeOperation{
 			Name:     "operation-1",
@@ -4840,8 +4918,11 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 
 		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationInProgress, nil).Once()
 		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationCompleted, nil).Once()
+		// Due to workflow bug where op.IsDone = true doesn't update the original slice,
+		// the operation will be checked again in subsequent iterations until timeout
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationCompleted, nil)
 		env.RegisterActivity(poolActivity.GetComputeOpStatus)
-		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, true, operationNames, 1*time.Minute)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, &operations, 1*time.Minute)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -4849,10 +4930,10 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 	t.Run("Success_OperationDoneButIncompleteProgress", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
+		env.SetTestTimeout(time.Second * 5)
 		poolActivity := &activities.PoolActivity{}
 		project := "test-project"
-		operationNames := map[string]bool{"operation-1": false}
-
+		operations := []common.Operations{{OperationName: "operation-1", IsDone: false, IsRegionalResource: true, Project: project}}
 		// Mock operation with DONE status but incomplete progress, then fully complete
 		operationDoneIncomplete := &hyperscalermodels.ComputeOperation{
 			Name:     "operation-1",
@@ -4868,7 +4949,7 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationDoneIncomplete, nil).Once()
 		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationCompleted, nil).Once()
 		env.RegisterActivity(poolActivity.GetComputeOpStatus)
-		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, true, operationNames, 1*time.Minute)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, &operations, 1*time.Minute)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -4876,9 +4957,10 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 	t.Run("Timeout_ComprehensiveTest", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
+		env.SetTestTimeout(time.Second * 5)
 		poolActivity := &activities.PoolActivity{}
 		project := "test-project"
-		operationNames := map[string]bool{"operation-1": false}
+		operations := []common.Operations{{OperationName: "operation-1", IsDone: false, IsRegionalResource: false, Project: project}}
 
 		// Mock operation that never completes
 		operationPending := &hyperscalermodels.ComputeOperation{
@@ -4887,24 +4969,24 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 			Progress: int64(50),
 		}
 
-		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationPending, nil)
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, false, "operation-1").Return(operationPending, nil)
 		env.RegisterActivity(poolActivity.GetComputeOpStatus)
 
 		// Create a custom test workflow that sets a longer activity timeout but short workflow timeout
-		testWorkflow := func(ctx workflow.Context, project string, isRegionalResource bool, operationNames map[string]bool, timeout time.Duration) error {
+		testWorkflow := func(ctx workflow.Context, project string, operations *[]common.Operations, timeout time.Duration) error {
 			// Set a longer activity timeout so it doesn't timeout before the workflow logic
 			ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 				StartToCloseTimeout: 30 * time.Second, // Long enough to not interfere with workflow timeout
 			})
 			poolActivity := &activities.PoolActivity{}
-			err := _waitForGCPNetworkOperationStatus(ctx, poolActivity, project, true, &operationNames, timeout)
+			err := _waitForGCPNetworkOperationStatus(ctx, poolActivity, operations, timeout)
 			if err != nil {
 				return fmt.Errorf("wait for GCP network operation status test failed: %w", err)
 			}
 			return nil
 		}
 
-		env.ExecuteWorkflow(testWorkflow, project, true, operationNames, 1*time.Millisecond)
+		env.ExecuteWorkflow(testWorkflow, project, &operations, 1*time.Millisecond)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		err := env.GetWorkflowError()
@@ -4916,11 +4998,11 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 		env := ts.NewTestWorkflowEnvironment()
 		poolActivity := &activities.PoolActivity{}
 		project := "test-project"
-		operationNames := map[string]bool{"operation-1": false}
+		operations := []common.Operations{{OperationName: "operation-1", IsDone: false, IsRegionalResource: false, Project: project}}
 
-		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(nil, assert.AnError)
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, false, "operation-1").Return(nil, assert.AnError)
 		env.RegisterActivity(poolActivity.GetComputeOpStatus)
-		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, true, operationNames, 1*time.Minute)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, &operations, 1*time.Minute)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		err := env.GetWorkflowError()
@@ -4932,7 +5014,7 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 		env := ts.NewTestWorkflowEnvironment()
 		poolActivity := &activities.PoolActivity{}
 		project := "test-project"
-		operationNames := map[string]bool{"operation-1": false}
+		operations := []common.Operations{{OperationName: "operation-1", IsDone: false, IsRegionalResource: false, Project: project}}
 
 		// Mock NotReadyErr first, then successful completion
 		notReadyErr := errors.NewNotReadyErr("operation not ready")
@@ -4942,10 +5024,10 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 			Progress: int64(100),
 		}
 
-		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(nil, notReadyErr).Once()
-		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationCompleted, nil).Once()
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, false, "operation-1").Return(nil, notReadyErr).Once()
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, false, "operation-1").Return(operationCompleted, nil).Once()
 		env.RegisterActivity(poolActivity.GetComputeOpStatus)
-		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, true, operationNames, 1*time.Minute)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, &operations, 1*time.Minute)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -4955,7 +5037,7 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 		env := ts.NewTestWorkflowEnvironment()
 		poolActivity := &activities.PoolActivity{}
 		project := "test-project"
-		operationNames := map[string]bool{"operation-1": false}
+		operations := []common.Operations{{OperationName: "operation-1", IsDone: false, IsRegionalResource: false, Project: project}}
 
 		// Mock NotFoundErr first, then successful completion
 		testOperation := "operation-1"
@@ -4966,10 +5048,10 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 			Progress: int64(100),
 		}
 
-		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(nil, notFoundErr).Once()
-		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operationCompleted, nil).Once()
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, false, "operation-1").Return(nil, notFoundErr).Once()
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, false, "operation-1").Return(operationCompleted, nil).Once()
 		env.RegisterActivity(poolActivity.GetComputeOpStatus)
-		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, true, operationNames, 1*time.Minute)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, &operations, 1*time.Minute)
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -4979,13 +5061,23 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 		env := ts.NewTestWorkflowEnvironment()
 		poolActivity := &activities.PoolActivity{}
 		project := "test-project"
-		operationNames := map[string]bool{
-			"operation-1": true,  // Already completed
-			"operation-2": false, // Not completed
-			"operation-3": false, // Not completed
-		}
+		operations := []common.Operations{{OperationName: "operation-1", IsDone: false, IsRegionalResource: false, Project: project},
+			{OperationName: "operation-2", IsDone: false, IsRegionalResource: false, Project: project},
+			{OperationName: "operation-3", IsDone: false, IsRegionalResource: false, Project: project}}
+
 		env.RegisterActivity(poolActivity.GetComputeOpStatus)
 
+		// Mock operation-1 as initially not done, then done
+		operation1InProgress := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-1",
+			Status:   "RUNNING",
+			Progress: int64(30),
+		}
+		operation1Complete := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-1",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
 		// Mock operation-2 as initially not done, then done
 		operation2InProgress := &hyperscalermodels.ComputeOperation{
 			Name:     "operation-2",
@@ -5003,32 +5095,35 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 			Status:   "DONE",
 			Progress: int64(100),
 		}
-		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-2").Return(operation2InProgress, nil).Once()
-		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-2").Return(operation2Complete, nil).Once()
-		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-3").Return(operation3, nil)
 
-		testWorkflow := func(ctx workflow.Context, project string, isRegionalResource bool, operationNames map[string]bool, timeout time.Duration) error {
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, false, "operation-1").Return(operation1InProgress, nil).Once()
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, false, "operation-2").Return(operation2InProgress, nil).Once()
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, false, "operation-3").Return(operation3, nil).Once()
+		// Second iteration after sleep - only operation-1 and operation-2 will be checked (operation-3 is now marked as done)
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, false, "operation-1").Return(operation1Complete, nil).Once()
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, false, "operation-2").Return(operation2Complete, nil).Once()
+
+		testWorkflow := func(ctx workflow.Context, project string, operations *[]common.Operations, timeout time.Duration) error {
 			ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 				StartToCloseTimeout: 30 * time.Second, // Long enough to not interfere with workflow timeout
 			})
 			poolActivity := &activities.PoolActivity{}
-			err := _waitForGCPNetworkOperationStatus(ctx, poolActivity, project, true, &operationNames, timeout)
+			err := _waitForGCPNetworkOperationStatus(ctx, poolActivity, operations, timeout)
+
 			if err != nil {
 				return fmt.Errorf("wait for GCP network operation status test failed: %w", err)
 			}
 			return nil
 		}
 
-		env.ExecuteWorkflow(testWorkflow, project, true, operationNames, 5*time.Second)
+		env.ExecuteWorkflow(testWorkflow, project, &operations, 1*time.Minute)
 
 		assert.True(t, env.IsWorkflowCompleted())
-		err := env.GetWorkflowError()
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "timeout while confirming compute network google components")
+		assert.NoError(t, env.GetWorkflowError())
 	})
 	t.Run("MultipleOperations_MixedProgressStates", func(t *testing.T) {
 		// Create custom workflow for timeout testing
-		timeoutTestWorkflow := func(ctx workflow.Context, project string, isRegionalResource bool, operationNames map[string]bool, timeout time.Duration) error {
+		timeoutTestWorkflow := func(ctx workflow.Context, operations *[]common.Operations, timeout time.Duration) error {
 			// Set activity options with shorter timeout
 			ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 				StartToCloseTimeout: 5 * time.Second, // Short timeout to trigger timeout error
@@ -5036,16 +5131,26 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 					MaximumAttempts: 1, // No retries to fail fast
 				}})
 			poolActivity := &activities.PoolActivity{}
-			return _waitForGCPNetworkOperationStatus(ctx, poolActivity, project, true, &operationNames, timeout)
+			return _waitForGCPNetworkOperationStatus(ctx, poolActivity, operations, timeout)
 		}
 
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		poolActivity := &activities.PoolActivity{}
 		project := "test-project"
-		operationNames := map[string]bool{
-			"operation-1": false,
-			"operation-2": false,
+		operations := []common.Operations{
+			{
+				OperationName:      "operation-1",
+				IsDone:             false,
+				IsRegionalResource: false,
+				Project:            project,
+			},
+			{
+				OperationName:      "operation-2",
+				IsDone:             false,
+				IsRegionalResource: false,
+				Project:            project,
+			},
 		}
 
 		operation1Complete := &hyperscalermodels.ComputeOperation{
@@ -5062,12 +5167,12 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 		}
 
 		// Set up activity mocks that may not be called due to timeout
-		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operation1Complete, nil)
-		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-2").Return(operation2InProgress, nil)
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, false, "operation-1").Return(operation1Complete, nil)
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, false, "operation-2").Return(operation2InProgress, nil)
 		env.RegisterActivity(poolActivity.GetComputeOpStatus)
 
 		// Execute the custom workflow with timeout
-		env.ExecuteWorkflow(timeoutTestWorkflow, project, true, operationNames, 1*time.Minute)
+		env.ExecuteWorkflow(timeoutTestWorkflow, &operations, 1*time.Minute)
 
 		// The workflow should complete
 		assert.True(t, env.IsWorkflowCompleted())
@@ -5078,5 +5183,63 @@ func Test_waitForGCPNetworkOperationStatus_Success_SingleOperation(t *testing.T)
 		} else {
 			assert.Contains(t, workflowErr.Error(), "timeout")
 		}
+	})
+	t.Run("Success_ISCSIFirewall", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		poolActivity := &activities.PoolActivity{}
+		project := "test-project"
+		snHostProject := "sn-host-project"
+		operations := []common.Operations{{OperationName: "operation-1", IsDone: true, IsRegionalResource: true, Project: project},
+			{OperationName: "operation-2", IsDone: false, IsRegionalResource: true, Project: project},
+			{OperationName: "operation-3", IsDone: false, IsRegionalResource: true, Project: snHostProject}}
+
+		// Mock successful completion for all operations
+		operation1 := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-1",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
+		operation2 := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-2",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
+		operation3 := &hyperscalermodels.ComputeOperation{
+			Name:     "operation-3",
+			Status:   "DONE",
+			Progress: int64(100),
+		}
+
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-1").Return(operation1, nil)
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, project, true, "operation-2").Return(operation2, nil)
+		env.OnActivity(poolActivity.GetComputeOpStatus, mock.Anything, snHostProject, true, "operation-3").Return(operation3, nil)
+		env.RegisterActivity(poolActivity.GetComputeOpStatus)
+		env.ExecuteWorkflow(WfTestWaitForGCPNetworkOperationStatus, project, &operations, 1*time.Minute)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+	})
+	t.Run("noOperations", func(t *testing.T) {
+		// Create custom workflow for timeout testing
+		timeoutTestWorkflow := func(ctx workflow.Context, operations *[]common.Operations, timeout time.Duration) error {
+			// Set activity options with shorter timeout
+			ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+				StartToCloseTimeout: 5 * time.Second, // Short timeout to trigger timeout error
+				RetryPolicy: &temporal.RetryPolicy{
+					MaximumAttempts: 1, // No retries to fail fast
+				}})
+			poolActivity := &activities.PoolActivity{}
+			return _waitForGCPNetworkOperationStatus(ctx, poolActivity, operations, timeout)
+		}
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.ExecuteWorkflow(timeoutTestWorkflow, nil, 1*time.Minute)
+
+		// The workflow should complete
+		assert.True(t, env.IsWorkflowCompleted())
+		workflowErr := env.GetWorkflowError()
+		assert.NoError(t, workflowErr)
 	})
 }
