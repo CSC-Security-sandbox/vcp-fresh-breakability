@@ -1015,7 +1015,7 @@ func volumeModifyParamsToONTAP(params *VolumeModifyParams) *storage.VolumeModify
 	if params.State != nil {
 		info.State = params.State
 	}
-	if params.SnapshotPolicyName != nil {
+	if params.SnapshotPolicyName != nil && *params.SnapshotPolicyName != "" {
 		info.SnapshotPolicy = &models.VolumeInlineSnapshotPolicy{Name: params.SnapshotPolicyName}
 	}
 	if params.Movement != nil {
