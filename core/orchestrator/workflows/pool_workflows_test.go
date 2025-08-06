@@ -811,7 +811,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 
 		// Set up test data
 		params := &common.CreatePoolParams{
@@ -862,6 +862,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			Gateway:               "192.168.1.254",
 		}, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, errors.New("failed to create VPCs"))
+		mockStorage.EXPECT().SavePoolWithVsaDetails(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -895,7 +896,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 
 		// Set up test data
 		params := &common.CreatePoolParams{
@@ -946,6 +947,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			Gateway:               "192.168.1.254",
 		}, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		mockStorage.EXPECT().SavePoolWithVsaDetails(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, errors.New("failed to create subnets"))
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
@@ -980,7 +982,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 
 		// Set up test data
 		params := &common.CreatePoolParams{
@@ -1031,6 +1033,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			Gateway:               "192.168.1.254",
 		}, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+		mockStorage.EXPECT().SavePoolWithVsaDetails(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create firewalls"))
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
@@ -1625,7 +1628,7 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 
 	// Set up test data
 	params := &common.CreatePoolParams{
@@ -1658,6 +1661,7 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 		Gateway:               "192.168.1.254",
 	}, nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	mockStorage.EXPECT().SavePoolWithVsaDetails(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1707,7 +1711,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 				return nil
@@ -1820,7 +1824,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
-		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 				return nil
@@ -1872,6 +1876,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		mockStorage.EXPECT().SavePoolWithVsaDetails(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, tenancyDetails *common.TenancyInfo) error {
 				return nil

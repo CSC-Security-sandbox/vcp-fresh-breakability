@@ -55,6 +55,7 @@ const (
 	ErrVSAClusterUpdateError           = 4007
 	ErrVLMClientInitializationError    = 4008
 	ErrAllHostGroupsNotFoundError      = 4009
+	ErrMissingRequiredInputError       = 4010
 
 	ErrONTAPVersionFetchError         = 5001
 	ErrCreatingSVM                    = 5002

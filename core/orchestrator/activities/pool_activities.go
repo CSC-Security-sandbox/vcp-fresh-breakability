@@ -1240,11 +1240,16 @@ func (j *PoolActivity) CreateAutoTierBucket(ctx context.Context, autoTierBucketN
 // It initializes a GCP service client and attempts to delete the bucket.
 // Returns an error if the deletion fails or if GCP service initialization fails.
 func (j *PoolActivity) DeleteAutoTierBucket(ctx context.Context, autoTierBucketName string) error {
+	logger := util.GetLogger(ctx)
+	if autoTierBucketName == "" {
+		// If the bucket name is empty, log a warning and return nil
+		logger.Warnf("Skipping autoTiering bucket deletion,cannot delete autoTiering bucket: bucket name is empty")
+		return nil
+	}
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	logger := util.GetLogger(ctx)
 
 	logger.Debugf("Deleting autoTiering bucket %v", autoTierBucketName)
 	err = DeleteGCPBucket(ctx, autoTierBucketName, gcpService)
@@ -1303,6 +1308,12 @@ func (j *PoolActivity) CreateServiceAccountWithStorageRole(ctx context.Context, 
 }
 
 func (j *PoolActivity) DeleteServiceAccount(ctx context.Context, projectID string, saAccountID string) error {
+	logger := util.GetLogger(ctx)
+	if saAccountID == "" || projectID == "" {
+		// If the service account ID or project ID is empty, log a warning and return nil
+		logger.Warnf("Skipping service account deletion,cannot delete service account without service account ID or project ID: saAccountID=%s, projectID=%s", saAccountID, projectID)
+		return nil
+	}
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)

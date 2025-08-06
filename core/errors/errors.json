@@ -155,6 +155,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "4010":{
+    "description": "Cluster deletion error",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
   "5001": {
     "description": "Error fetching ONTAP version",
     "message": "An internal error occurred.",

@@ -197,6 +197,20 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	dbPool.ClusterDetails.SubnetNames = tenancyDetails.SubnetworkNames
 
+	// persist cluster details (tenancy details - as it's required for cleaning up the resources in case of failure)
+	tenancyInfo := &datamodel.ClusterDetails{
+		RegionalTenantProject: tenancyDetails.RegionalTenantProject,
+		SnHostProject:         tenancyDetails.SnHostProject,
+		Network:               tenancyDetails.Network,
+		SubnetNames:           tenancyDetails.SubnetworkNames,
+	}
+	dbPool.SnHostProject = tenancyDetails.SnHostProject
+	dbPool.ClusterDetails = *tenancyInfo
+	err = workflow.ExecuteActivity(ctx, poolActivity.SavePoolWithClusterDetails, dbPool, tenancyInfo).Get(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	rollbackManager.AddActivity(poolActivity.ReleaseSubnet, dbPool)
 	setupNwCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(setupNwHeartbeatTimeout)*time.Second)
 	err = workflow.ExecuteChildWorkflow(setupNwCtx, ConfigureNetworkWorkflow, tenancyDetails).Get(ctx, nil)

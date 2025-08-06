@@ -2729,6 +2729,12 @@ func TestPoolActivity_DeleteAutoTierBucket(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "delete failed")
 	})
+
+	t.Run("empty bucket name", func(t *testing.T) {
+		// Test the case where bucket name is empty - should log warning and return nil
+		err := activity.DeleteAutoTierBucket(ctx, "")
+		assert.NoError(t, err)
+	})
 }
 
 func Test_deleteGCPBucket(t *testing.T) {
@@ -2816,6 +2822,24 @@ func TestPoolActivity_DeleteServiceAccount(t *testing.T) {
 		err := activity.DeleteServiceAccount(ctx, projectID, saAccountID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "delete error")
+	})
+
+	t.Run("empty service account ID", func(t *testing.T) {
+		// Test the case where service account ID is empty - should log warning and return nil
+		err := activity.DeleteServiceAccount(ctx, projectID, "")
+		assert.NoError(t, err)
+	})
+
+	t.Run("empty project ID", func(t *testing.T) {
+		// Test the case where project ID is empty - should log warning and return nil
+		err := activity.DeleteServiceAccount(ctx, "", saAccountID)
+		assert.NoError(t, err)
+	})
+
+	t.Run("both empty", func(t *testing.T) {
+		// Test the case where both project ID and service account ID are empty - should log warning and return nil
+		err := activity.DeleteServiceAccount(ctx, "", "")
+		assert.NoError(t, err)
 	})
 }
 
@@ -5938,8 +5962,8 @@ func TestPoolActivity_CreateVPCs(t *testing.T) {
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
-		assert.Equal(t, 2, len(*operations))  // Two operations created
-		assert.Len(t, vpcCallOrder, 3) // All three VPCs should be processed
+		assert.Equal(t, 2, len(*operations)) // Two operations created
+		assert.Len(t, vpcCallOrder, 3)       // All three VPCs should be processed
 
 		// Check for specific operation names
 		operationNames := make([]string, len(*operations))
@@ -6247,7 +6271,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
 		assert.Len(t, *operations, 4) // 3 VPC firewalls + 1 iSCSI firewall
-		
+
 		// Check all operations are present and not done
 		operationNames := make([]string, len(*operations))
 		for i, op := range *operations {
@@ -6297,7 +6321,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
 		assert.Len(t, *operations, 2) // Only operations that were created
-		
+
 		// Check the correct operations are present
 		operationNames := make([]string, len(*operations))
 		for i, op := range *operations {
@@ -6503,7 +6527,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
 		assert.Len(t, *operations, 3) // 2 VPC firewalls created + 1 iSCSI firewall
-		
+
 		// Create a map for easy lookup
 		operationNames := make([]string, len(*operations))
 		for i, op := range *operations {

@@ -176,7 +176,10 @@ func TestDeleteVSAClusterDeployment(t *testing.T) {
 		workflow.RegisterOptions{Name: DeleteVSAClusterDeploymentWorkflowName},
 	)
 
-	deleteReq := &DeleteVSAClusterDeploymentRequest{DeploymentID: "test-deployment-id"}
+	deleteReq := &DeleteVSAClusterDeploymentRequest{
+		ProjectID:    "test-project-id",
+		DeploymentID: "test-deployment-id",
+	}
 	ontapVersion := "1.0.0"
 	vlmManager := NewVSAClientWorkflowManager()
 
@@ -201,7 +204,10 @@ func TestDeleteVSAClusterDeployment_Error(t *testing.T) {
 		workflow.RegisterOptions{Name: DeleteVSAClusterDeploymentWorkflowName},
 	)
 
-	deleteReq := &DeleteVSAClusterDeploymentRequest{DeploymentID: "test-deployment-id"}
+	deleteReq := &DeleteVSAClusterDeploymentRequest{
+		ProjectID:    "test-project-id",
+		DeploymentID: "test-deployment-id",
+	}
 	ontapVersion := "1.0.0"
 	vlmManager := NewVSAClientWorkflowManager()
 
@@ -219,7 +225,10 @@ func TestDeleteVSAClusterDeployment_EmptyDeploymentID(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 
-	deleteReq := &DeleteVSAClusterDeploymentRequest{DeploymentID: ""}
+	deleteReq := &DeleteVSAClusterDeploymentRequest{
+		ProjectID:    "test-project-id",
+		DeploymentID: "",
+	}
 	ontapVersion := "1.0.0"
 	vlmManager := NewVSAClientWorkflowManager()
 
@@ -232,6 +241,45 @@ func TestDeleteVSAClusterDeployment_EmptyDeploymentID(t *testing.T) {
 	expectedTaskQueue := VSALifecycleManagerQueuePrefix + "-" + ontapVersion
 	assert.Equal(t, "vsa-lifecycle-manager-1.0.0", expectedTaskQueue, "Task queue should contain ONTAP version")
 	assert.Error(t, err)
+}
+
+// Add new test cases for the new ProjectID validation logic
+func TestDeleteVSAClusterDeployment_EmptyProjectID(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	deleteReq := &DeleteVSAClusterDeploymentRequest{
+		ProjectID:    "",
+		DeploymentID: "test-deployment-id",
+	}
+	ontapVersion := "1.0.0"
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.DeleteVSAClusterDeployment(ctx, deleteReq, ontapVersion)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError(), "Should return nil when ProjectID is empty")
+}
+
+func TestDeleteVSAClusterDeployment_BothEmpty(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	deleteReq := &DeleteVSAClusterDeploymentRequest{
+		ProjectID:    "",
+		DeploymentID: "",
+	}
+	ontapVersion := "1.0.0"
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return vlmManager.DeleteVSAClusterDeployment(ctx, deleteReq, ontapVersion)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError(), "Should return nil when ProjectID is empty, regardless of DeploymentID")
 }
 
 func TestPopulateRetryPolicyParams_InvalidStartToCloseTimeout(t *testing.T) {

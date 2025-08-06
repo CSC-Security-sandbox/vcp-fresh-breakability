@@ -137,8 +137,13 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 func (vlmManager *VSAClientWorkflowManager) DeleteVSAClusterDeployment(ctx workflow.Context, deleteVSAClusterDeploymentRequest *DeleteVSAClusterDeploymentRequest, ontapVersion string) error {
 	logger := util.GetLogger(ctx)
 
+	if deleteVSAClusterDeploymentRequest.ProjectID == "" {
+		logger.Warnf("Skipping VSA cluster deployment,cannot delete VSA cluster deployment without project ID")
+		return nil
+	}
+
 	if deleteVSAClusterDeploymentRequest.DeploymentID == "" {
-		return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("pool cannot be deleted with active clusters")))
+		return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrMissingRequiredInputError, errors.New("deployment ID is required to delete pool")))
 	}
 
 	retryPolicy, err := PopulateRetryPolicyParams()
