@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -6365,6 +6366,142 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
 		assert.Error(tt, err)
 	})
+
+	t.Run("WithMatchingBlockDevice_ShouldValidateSuccessfully", func(tt *testing.T) {
+		ctx := context.Background()
+		se := &database.MockStorage{}
+
+		// Setup volume with BlockDevices
+		volumeBlockDevices := []datamodel.BlockDevice{
+			{
+				Name:       "test-lun-1",
+				Identifier: "lun-123",
+				Size:       107374182400,
+				OSType:     "LINUX",
+			},
+			{
+				Name:       "test-lun-2",
+				Identifier: "lun-456",
+				Size:       214748364800,
+				OSType:     "WINDOWS",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:   "READY",
+			Account: &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				BlockDevices: &volumeBlockDevices,
+			},
+		}
+
+		// Setup update params with matching BlockDevice
+		params := &common.UpdateVolumeParams{
+			BlockDevices: []*common.BlockDeviceRequest{
+				{
+					Name:       "test-lun-1", // Matches existing BlockDevice
+					HostGroups: []string{"hg-uuid-1", "hg-uuid-2"},
+				},
+			},
+		}
+
+		// Mock host groups
+		hostGroups := []*datamodel.HostGroup{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "hg-uuid-1"},
+				Name:      "hg1",
+				State:     models.LifeCycleStateREADY,
+				Hosts: datamodel.Hosts{
+					Hosts: []string{"iqn.1998-01.com.vmware:host1"},
+				},
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "hg-uuid-2"},
+				Name:      "hg2",
+				State:     models.LifeCycleStateREADY,
+				Hosts: datamodel.Hosts{
+					Hosts: []string{"iqn.1998-01.com.vmware:host2"},
+				},
+			},
+		}
+
+		se.On("GetMultipleHostGroups", ctx, []string{"hg-uuid-1", "hg-uuid-2"}, int64(1)).Return(hostGroups, nil)
+
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.NoError(tt, err)
+		se.AssertExpectations(tt)
+	})
+
+	t.Run("WithNonMatchingBlockDevice_ShouldReturnError", func(tt *testing.T) {
+		ctx := context.Background()
+		se := &database.MockStorage{}
+
+		// Setup volume with BlockDevices
+		volumeBlockDevices := []datamodel.BlockDevice{
+			{
+				Name:       "test-lun-1",
+				Identifier: "lun-123",
+				Size:       107374182400,
+				OSType:     "LINUX",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			State:   "READY",
+			Account: &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				BlockDevices: &volumeBlockDevices,
+			},
+		}
+
+		// Setup update params with non-matching BlockDevice
+		params := &common.UpdateVolumeParams{
+			BlockDevices: []*common.BlockDeviceRequest{
+				{
+					Name:       "non-matching-lun", // Doesn't match existing BlockDevice
+					HostGroups: []string{"hg-uuid-1"},
+				},
+			},
+		}
+
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "could not find matching BlockDevice")
+	})
+
+	t.Run("WithBlockProperties_ShouldValidateSuccessfully", func(tt *testing.T) {
+		ctx := context.Background()
+		se := &database.MockStorage{}
+
+		volume := &datamodel.Volume{
+			State:   "READY",
+			Account: &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}},
+		}
+
+		params := &common.UpdateVolumeParams{
+			BlockProperties: &common.BlockPropertiesRequest{
+				HostGroupUUIDs: []string{"hg-uuid-1"},
+			},
+		}
+
+		// Mock host groups
+		hostGroups := []*datamodel.HostGroup{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "hg-uuid-1"},
+				Name:      "hg1",
+				State:     models.LifeCycleStateREADY,
+				Hosts: datamodel.Hosts{
+					Hosts: []string{"iqn.1998-01.com.vmware:host1"},
+				},
+			},
+		}
+
+		se.On("GetMultipleHostGroups", ctx, []string{"hg-uuid-1"}, int64(1)).Return(hostGroups, nil)
+
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.NoError(tt, err)
+		se.AssertExpectations(tt)
+	})
 }
 
 func TestBlockVolumeValidator_Validate(t *testing.T) {
@@ -6434,6 +6571,74 @@ func TestBlockVolumeValidator_Validate(t *testing.T) {
 		validator := &BlockVolumeProcessor{}
 		err = validator.Validate(ctx, store, params, account.ID)
 		assert.EqualError(tt, err, "could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
+	})
+	t.Run("WithBlockDevices_ShouldValidateSuccessfully", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"}, Name: "test_account"}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			t.Fatalf("Failed to create account: %v", err)
+		}
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}, Name: "test_pool", AccountID: account.ID, State: models.LifeCycleStateREADY, Account: account}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			t.Fatalf("Failed to create pool: %v", err)
+		}
+		hg := &datamodel.HostGroup{BaseModel: datamodel.BaseModel{UUID: "hg-uuid"}, Name: "hg1", State: models.LifeCycleStateREADY, AccountID: account.ID}
+		err = store.DB().Create(hg).Error
+		if err != nil {
+			t.Fatalf("Failed to create host group: %v", err)
+		}
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			PoolID:       pool.UUID,
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+			BlockDevices: &[]common.BlockDeviceRequest{
+				{
+					Name:       "test-lun",
+					HostGroups: []string{"hg-uuid"},
+					OSType:     "LINUX",
+				},
+			},
+		}
+		validator := &BlockVolumeProcessor{}
+		err = validator.Validate(ctx, store, params, account.ID)
+		assert.Nil(tt, err)
+		assert.Nil(tt, params.FileProperties) // Should be set to nil for block volumes
+	})
+	t.Run("WithNoBlockDevicesOrProperties_ShouldPass", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"}, Name: "test_account"}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			t.Fatalf("Failed to create account: %v", err)
+		}
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+		}
+		validator := &BlockVolumeProcessor{}
+		err = validator.Validate(ctx, store, params, account.ID)
+		assert.Nil(tt, err)
+		assert.Nil(tt, params.FileProperties) // Should be set to nil for block volumes
 	})
 }
 
@@ -7196,6 +7401,207 @@ func TestValidateCreateVolumeParamsFileProperties(t *testing.T) {
 
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.ErrorContains(tt, err, "file protocols are not enabled")
+	})
+}
+
+func TestConvertDatastoreVolumeToModelBlockDevices(t *testing.T) {
+	t.Run("WithBlockDevices_ShouldConvertCorrectly", func(tt *testing.T) {
+		// Setup volume with BlockDevices
+		blockDevices := []datamodel.BlockDevice{
+			{
+				Name:       "test-lun-1",
+				Identifier: "lun-123",
+				Size:       107374182400, // 100 GiB
+				OSType:     "LINUX",
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{
+						HostGroupUUID: "hg-uuid-1",
+						HostQNs:       []string{"iqn.1998-01.com.vmware:host1"},
+					},
+					{
+						HostGroupUUID: "hg-uuid-2",
+						HostQNs:       []string{"iqn.1998-01.com.vmware:host2"},
+					},
+				},
+			},
+			{
+				Name:       "test-lun-2",
+				Identifier: "lun-456",
+				Size:       214748364800, // 200 GiB
+				OSType:     "WINDOWS",
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{
+						HostGroupUUID: "hg-uuid-3",
+						HostQNs:       []string{"iqn.1998-01.com.vmware:host3"},
+					},
+				},
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-volume-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-volume",
+			Description: "Test volume",
+			State:       "READY",
+			SizeInBytes: 107374182400,
+			UsedBytes:   53687091200,
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+				Name:      "test-pool",
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone: "us-west1-a",
+				},
+			},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+				Name:      "test-account",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				BlockDevices:     &blockDevices,
+				IsDataProtection: false,
+				SnapReserve:      10,
+			},
+		}
+
+		ipAddresses := []string{"10.72.177.17", "10.72.177.18"}
+
+		result := convertDatastoreVolumeToModel(volume, &ipAddresses)
+
+		assert.NotNil(tt, result.BlockDevices)
+		assert.Len(tt, *result.BlockDevices, 2)
+
+		// Verify first BlockDevice
+		bd1 := (*result.BlockDevices)[0]
+		assert.Equal(tt, "test-lun-1", bd1.Name)
+		assert.Equal(tt, "lun-123", bd1.Identifier)
+		assert.Equal(tt, uint64(107374182400), bd1.Size)
+		assert.Equal(tt, "LINUX", bd1.OSType)
+		assert.Len(tt, bd1.HostGroupDetail, 2)
+		assert.Equal(tt, "hg-uuid-1", bd1.HostGroupDetail[0].HostGroupID)
+		assert.Equal(tt, []string{"iqn.1998-01.com.vmware:host1"}, bd1.HostGroupDetail[0].Hosts)
+		assert.Equal(tt, "hg-uuid-2", bd1.HostGroupDetail[1].HostGroupID)
+		assert.Equal(tt, []string{"iqn.1998-01.com.vmware:host2"}, bd1.HostGroupDetail[1].Hosts)
+
+		// Verify second BlockDevice
+		bd2 := (*result.BlockDevices)[1]
+		assert.Equal(tt, "test-lun-2", bd2.Name)
+		assert.Equal(tt, "lun-456", bd2.Identifier)
+		assert.Equal(tt, uint64(214748364800), bd2.Size)
+		assert.Equal(tt, "WINDOWS", bd2.OSType)
+		assert.Len(tt, bd2.HostGroupDetail, 1)
+		assert.Equal(tt, "hg-uuid-3", bd2.HostGroupDetail[0].HostGroupID)
+		assert.Equal(tt, []string{"iqn.1998-01.com.vmware:host3"}, bd2.HostGroupDetail[0].Hosts)
+
+		// Verify IP addresses
+		assert.Equal(tt, ipAddresses, result.IPAddresses)
+	})
+
+	t.Run("WithBlockDevicesNoHostGroups_ShouldConvertCorrectly", func(tt *testing.T) {
+		blockDevices := []datamodel.BlockDevice{
+			{
+				Name:             "test-lun-no-hg",
+				Identifier:       "lun-789",
+				Size:             53687091200, // 50 GiB
+				OSType:           "ESXI",
+				HostGroupDetails: []datamodel.HostGroupDetail{}, // Empty host groups
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-volume-uuid-2",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-volume-2",
+			Description: "Test volume 2",
+			State:       "READY",
+			SizeInBytes: 53687091200,
+			UsedBytes:   26843545600,
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-2"},
+				Name:      "test-pool-2",
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone: "us-west1-b",
+				},
+			},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-2"},
+				Name:      "test-account-2",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				BlockDevices:     &blockDevices,
+				IsDataProtection: false,
+				SnapReserve:      5,
+			},
+		}
+
+		ipAddresses := []string{"10.72.177.19"}
+
+		result := convertDatastoreVolumeToModel(volume, &ipAddresses)
+
+		assert.NotNil(tt, result.BlockDevices)
+		assert.Len(tt, *result.BlockDevices, 1)
+
+		bd := (*result.BlockDevices)[0]
+		assert.Equal(tt, "test-lun-no-hg", bd.Name)
+		assert.Equal(tt, "lun-789", bd.Identifier)
+		assert.Equal(tt, uint64(53687091200), bd.Size)
+		assert.Equal(tt, "ESXI", bd.OSType)
+		assert.Empty(tt, bd.HostGroupDetail)
+
+		// Verify IP addresses
+		assert.Equal(tt, ipAddresses, result.IPAddresses)
+	})
+
+	t.Run("WithNilIPAddresses_ShouldHandleGracefully", func(tt *testing.T) {
+		blockDevices := []datamodel.BlockDevice{
+			{
+				Name:       "test-lun",
+				Identifier: "lun-123",
+				Size:       107374182400,
+				OSType:     "LINUX",
+			},
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "test-volume-uuid-3",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+			Name:        "test-volume-3",
+			Description: "Test volume 3",
+			State:       "READY",
+			SizeInBytes: 107374182400,
+			UsedBytes:   53687091200,
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-3"},
+				Name:      "test-pool-3",
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone: "us-west1-c",
+				},
+			},
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-3"},
+				Name:      "test-account-3",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				BlockDevices:     &blockDevices,
+				IsDataProtection: false,
+				SnapReserve:      15,
+			},
+		}
+
+		result := convertDatastoreVolumeToModel(volume, nil)
+
+		assert.NotNil(tt, result.BlockDevices)
+		assert.Len(tt, *result.BlockDevices, 1)
+		assert.Empty(tt, result.IPAddresses) // Should be empty when nil
 	})
 }
 

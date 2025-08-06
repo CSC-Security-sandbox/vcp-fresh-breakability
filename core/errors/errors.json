@@ -149,6 +149,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "4009": {
+    "description": "Pool creation error",
+    "message": "All host groups could not be found.",
+    "retriable": false,
+    "http_code": 400
+  },
   "5001": {
     "description": "Error fetching ONTAP version",
     "message": "An internal error occurred.",

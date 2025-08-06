@@ -5627,7 +5627,7 @@ func (s *Server) handleV1betaFinishProjectEventRequest(args [2]string, argsEscap
 		}
 
 		type (
-			Request  = *ProjectStateUpdateV1beta
+			Request  = *StateUpdateV1beta
 			Params   = V1betaFinishProjectEventParams
 			Response = V1betaFinishProjectEventRes
 		)
@@ -12494,7 +12494,7 @@ func (s *Server) handleV1betaStartProjectEventRequest(args [2]string, argsEscape
 		}
 
 		type (
-			Request  = *ProjectStateUpdateV1beta
+			Request  = *StateUpdateV1beta
 			Params   = V1betaStartProjectEventParams
 			Response = V1betaStartProjectEventRes
 		)

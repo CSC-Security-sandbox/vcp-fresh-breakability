@@ -410,6 +410,8 @@ type SnapshotListResponse struct {
 type LunResponse struct {
 	ProviderResponse
 	SerialNumber string
+	OSType       string
+	Size         int64
 }
 
 type CloudTargetCreateParams struct {

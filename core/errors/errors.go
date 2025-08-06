@@ -54,6 +54,7 @@ const (
 	ErrVSAClusterNodeIPAddressNotFound = 4006
 	ErrVSAClusterUpdateError           = 4007
 	ErrVLMClientInitializationError    = 4008
+	ErrAllHostGroupsNotFoundError      = 4009
 
 	ErrONTAPVersionFetchError         = 5001
 	ErrCreatingSVM                    = 5002

@@ -15,7 +15,7 @@ import (
 	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -347,6 +347,298 @@ func TestUpdateVolumeInDB_Failure(t *testing.T) {
 	err := activity.UpdateVolumeInDB(ctx, volume, params)
 	assert.Error(t, err)
 	assert.EqualError(t, err, expectedErr.Error())
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetUpdatedFieldsFromParams_WithBlockDevices_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					Name:   "existing-lun",
+					OSType: "LINUX",
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{
+							HostGroupUUID: "hg-uuid-1",
+							HostQNs:       []string{"iqn.1998-01.com.vmware:host1"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		BlockDevices: []*common.BlockDeviceRequest{
+			{
+				Name:        "updated-lun",
+				OSType:      "WINDOWS",
+				HostGroups:  []string{"hg-uuid-2", "hg-uuid-3"},
+				SizeInBytes: 107374182400, // 100 GiB
+			},
+		},
+	}
+
+	expectedHostGroups := []*datamodel.HostGroup{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "hg-uuid-2"},
+			Name:      "hg2",
+			State:     "READY",
+			Hosts:     datamodel.Hosts{Hosts: []string{"iqn.1998-01.com.vmware:host2"}},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "hg-uuid-3"},
+			Name:      "hg3",
+			State:     "READY",
+			Hosts:     datamodel.Hosts{Hosts: []string{"iqn.1998-01.com.vmware:host3"}},
+		},
+	}
+
+	mockStorage.On("GetHostGroup", ctx, "hg-uuid-2", int64(1)).Return(expectedHostGroups[0], nil)
+	mockStorage.On("GetHostGroup", ctx, "hg-uuid-3", int64(1)).Return(expectedHostGroups[1], nil)
+
+	// Act
+	result, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Contains(t, result, "volume_attributes")
+
+	// Verify BlockDevices were updated
+	assert.NotNil(t, volume.VolumeAttributes.BlockDevices)
+	assert.Len(t, *volume.VolumeAttributes.BlockDevices, 1)
+
+	blockDevice := (*volume.VolumeAttributes.BlockDevices)[0]
+	assert.Equal(t, "updated-lun", blockDevice.Name)
+	assert.Equal(t, "WINDOWS", blockDevice.OSType)
+	assert.Equal(t, int64(107374182400), blockDevice.Size)
+	assert.Len(t, blockDevice.HostGroupDetails, 2)
+
+	// Verify host group details
+	assert.Equal(t, "hg-uuid-2", blockDevice.HostGroupDetails[0].HostGroupUUID)
+	assert.Equal(t, []string{"iqn.1998-01.com.vmware:host2"}, blockDevice.HostGroupDetails[0].HostQNs)
+	assert.Equal(t, "hg-uuid-3", blockDevice.HostGroupDetails[1].HostGroupUUID)
+	assert.Equal(t, []string{"iqn.1998-01.com.vmware:host3"}, blockDevice.HostGroupDetails[1].HostQNs)
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetUpdatedFieldsFromParams_WithBlockDevices_GetHostGroupError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					Name:   "existing-lun",
+					OSType: "LINUX",
+				},
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		BlockDevices: []*common.BlockDeviceRequest{
+			{
+				Name:        "updated-lun",
+				OSType:      "WINDOWS",
+				HostGroups:  []string{"hg-uuid-2"},
+				SizeInBytes: 107374182400,
+			},
+		},
+	}
+
+	expectedError := errors.New("host group not found")
+
+	mockStorage.On("GetHostGroup", ctx, "hg-uuid-2", int64(1)).Return(nil, expectedError)
+
+	// Act
+	result, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Equal(t, expectedError, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetUpdatedFieldsFromParams_WithBlockDevices_EmptyHostGroups(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					Name:   "existing-lun",
+					OSType: "LINUX",
+				},
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		BlockDevices: []*common.BlockDeviceRequest{
+			{
+				Name:        "updated-lun",
+				OSType:      "WINDOWS",
+				HostGroups:  []string{}, // Empty host groups
+				SizeInBytes: 107374182400,
+			},
+		},
+	}
+
+	// Act
+	result, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Contains(t, result, "volume_attributes")
+
+	// Verify BlockDevices were updated
+	assert.NotNil(t, volume.VolumeAttributes.BlockDevices)
+	assert.Len(t, *volume.VolumeAttributes.BlockDevices, 1)
+
+	blockDevice := (*volume.VolumeAttributes.BlockDevices)[0]
+	assert.Equal(t, "updated-lun", blockDevice.Name)
+	assert.Equal(t, "WINDOWS", blockDevice.OSType)
+	assert.Equal(t, int64(107374182400), blockDevice.Size)
+	assert.Len(t, blockDevice.HostGroupDetails, 0) // Should be empty
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetUpdatedFieldsFromParams_WithBlockProperties_Fallback(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{
+				OSType: "LINUX",
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{
+						HostGroupUUID: "hg-uuid-1",
+						HostQNs:       []string{"iqn.1998-01.com.vmware:host1"},
+					},
+				},
+			},
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		BlockDevices: []*common.BlockDeviceRequest{}, // Empty BlockDevices
+		BlockProperties: &common.BlockPropertiesRequest{
+			OSType:         "WINDOWS",
+			HostGroupUUIDs: []string{"hg-uuid-2", "hg-uuid-3"},
+		},
+	}
+
+	expectedHostGroups := []*datamodel.HostGroup{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "hg-uuid-2"},
+			Name:      "hg2",
+			State:     "READY",
+			Hosts:     datamodel.Hosts{Hosts: []string{"iqn.1998-01.com.vmware:host2"}},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "hg-uuid-3"},
+			Name:      "hg3",
+			State:     "READY",
+			Hosts:     datamodel.Hosts{Hosts: []string{"iqn.1998-01.com.vmware:host3"}},
+		},
+	}
+
+	mockStorage.On("GetHostGroup", ctx, "hg-uuid-2", int64(1)).Return(expectedHostGroups[0], nil)
+	mockStorage.On("GetHostGroup", ctx, "hg-uuid-3", int64(1)).Return(expectedHostGroups[1], nil)
+
+	// Act
+	result, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Contains(t, result, "volume_attributes")
+
+	// Verify BlockProperties were updated (fallback)
+	assert.NotNil(t, volume.VolumeAttributes.BlockProperties)
+	// Note: OSType is not updated in the fallback logic, only HostGroupDetails
+	assert.Len(t, volume.VolumeAttributes.BlockProperties.HostGroupDetails, 2)
+
+	// Verify host group details
+	assert.Equal(t, "hg-uuid-2", volume.VolumeAttributes.BlockProperties.HostGroupDetails[0].HostGroupUUID)
+	assert.Equal(t, []string{"iqn.1998-01.com.vmware:host2"}, volume.VolumeAttributes.BlockProperties.HostGroupDetails[0].HostQNs)
+	assert.Equal(t, "hg-uuid-3", volume.VolumeAttributes.BlockProperties.HostGroupDetails[1].HostGroupUUID)
+	assert.Equal(t, []string{"iqn.1998-01.com.vmware:host3"}, volume.VolumeAttributes.BlockProperties.HostGroupDetails[1].HostQNs)
+
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetUpdatedFieldsFromParams_WithBlockProperties_NilBlockProperties(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: nil, // Nil BlockProperties
+		},
+	}
+
+	params := &common.UpdateVolumeParams{
+		BlockDevices: []*common.BlockDeviceRequest{}, // Empty BlockDevices
+		BlockProperties: &common.BlockPropertiesRequest{
+			OSType:         "WINDOWS",
+			HostGroupUUIDs: []string{"hg-uuid-2"},
+		},
+	}
+
+	expectedHostGroup := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "hg-uuid-2"},
+		Name:      "hg2",
+		State:     "READY",
+		Hosts:     datamodel.Hosts{Hosts: []string{"iqn.1998-01.com.vmware:host2"}},
+	}
+
+	mockStorage.On("GetHostGroup", ctx, "hg-uuid-2", int64(1)).Return(expectedHostGroup, nil)
+
+	// Act
+	result, err := getUpdatedFieldsFromParams(ctx, mockStorage, volume, params)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Contains(t, result, "volume_attributes")
+
+	// Verify BlockProperties were created and updated
+	assert.NotNil(t, volume.VolumeAttributes.BlockProperties)
+	// Note: OSType is not set in the fallback logic when creating new BlockProperties
+	assert.Len(t, volume.VolumeAttributes.BlockProperties.HostGroupDetails, 1)
+
+	// Verify host group details
+	assert.Equal(t, "hg-uuid-2", volume.VolumeAttributes.BlockProperties.HostGroupDetails[0].HostGroupUUID)
+	assert.Equal(t, []string{"iqn.1998-01.com.vmware:host2"}, volume.VolumeAttributes.BlockProperties.HostGroupDetails[0].HostQNs)
+
 	mockStorage.AssertExpectations(t)
 }
 

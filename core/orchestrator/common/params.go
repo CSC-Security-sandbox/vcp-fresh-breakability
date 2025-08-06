@@ -79,6 +79,7 @@ type CreateVolumeParams struct {
 	IsDataProtection  bool
 	Protocols         []string
 	BlockProperties   *BlockPropertiesRequest
+	BlockDevices      *[]BlockDeviceRequest
 	SnapReserve       int64
 	DataProtection    *models.DataProtection
 	SnapshotID        string
@@ -112,6 +113,15 @@ type BlockPropertiesRequest struct {
 	LunSerialNumber string
 }
 
+// BlockDeviceRequest describes parameters for creating a block device
+type BlockDeviceRequest struct {
+	Name            string
+	HostGroups      []string
+	OSType          string
+	LunSerialNumber string // read-only
+	SizeInBytes     int64  // read-only
+}
+
 // UpdateVolumeParams describes parameters supplied to UpdateVolume
 type UpdateVolumeParams struct {
 	AccountName       string
@@ -127,6 +137,7 @@ type UpdateVolumeParams struct {
 	Labels            *datamodel.JSONB
 	SnapReserve       *int64
 	BlockProperties   *BlockPropertiesRequest
+	BlockDevices      []*BlockDeviceRequest
 	SnapshotPolicy    *models.SnapshotPolicy
 	DataProtection    *models.UpdateDataProtection
 	InitiateSplit     bool

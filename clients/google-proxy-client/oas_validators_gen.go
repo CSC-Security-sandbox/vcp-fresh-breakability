@@ -2368,6 +2368,102 @@ func (s BackupVaultV1betaState) Validate() error {
 	}
 }
 
+func (s *BlockDeviceV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.HostGroups {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    0,
+					MaxLengthSet: false,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(elem)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "hostGroups",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.SizeInBytes.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "sizeInBytes",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.OsType.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "osType",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s BlockDeviceV1betaOsType) Validate() error {
+	switch s {
+	case "OS_TYPE_UNSPECIFIED":
+		return nil
+	case "LINUX":
+		return nil
+	case "WINDOWS":
+		return nil
+	case "ESXI":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *BlockPropertiesV1beta) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -3007,6 +3103,9 @@ func (s *FlexCacheV1beta) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if s.PeerIpAddresses == nil {
+			return nil // optional
+		}
 		if err := (validate.Array{
 			MinLength:    1,
 			MinLengthSet: true,
@@ -5900,42 +5999,6 @@ func (s PoolV1betaType) Validate() error {
 	}
 }
 
-func (s *ProjectStateUpdateV1beta) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.State.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "state",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s ProjectStateUpdateV1betaState) Validate() error {
-	switch s {
-	case "ON":
-		return nil
-	case "OFF":
-		return nil
-	case "DELETE":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
 func (s ProtocolsV1beta) Validate() error {
 	switch s {
 	case "PROTOCOL_UNSPECIFIED":
@@ -7266,6 +7329,42 @@ func (s SnapshotV1betaSnapshotState) Validate() error {
 	case "DELETING":
 		return nil
 	case "ERROR":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *StateUpdateV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s StateUpdateV1betaState) Validate() error {
+	switch s {
+	case "ON":
+		return nil
+	case "OFF":
+		return nil
+	case "DELETE":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -15069,6 +15168,31 @@ func (s *VolumeUpdateV1beta) Validate() error {
 	}
 	if err := func() error {
 		var failures []validate.FieldError
+		for i, elem := range s.BlockDevices {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "blockDevices",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
 		for i, elem := range s.Protocols {
 			if err := func() error {
 				if err := elem.Validate(); err != nil {
@@ -15584,6 +15708,31 @@ func (s *VolumeV1beta) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "blockProperties",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.BlockDevices {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "blockDevices",
 			Error: err,
 		})
 	}

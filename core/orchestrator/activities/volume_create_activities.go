@@ -254,12 +254,19 @@ func (a VolumeCreateActivity) CreateLun(ctx context.Context, volume *datamodel.V
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	lunName := utils.GetLunName(volume.Name)
+	osType := ""
+	if volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
+		osType = (*volume.VolumeAttributes.BlockDevices)[0].OSType
+		lunName = (*volume.VolumeAttributes.BlockDevices)[0].Name
+	} else {
+		osType = volume.VolumeAttributes.BlockProperties.OSType
+	}
 
 	lun, err := provider.LunCreate(vsa.LunCreateParams{
 		LunName:    lunName,
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
-		OsType:     volume.VolumeAttributes.BlockProperties.OSType,
+		OsType:     osType,
 		Size:       availableSpace,
 	})
 	if err != nil {
@@ -346,6 +353,21 @@ func (a VolumeCreateActivity) UpdateVolumeDetails(ctx context.Context, volume *d
 func (a VolumeCreateActivity) GetHosts(ctx context.Context, volume *datamodel.Volume) ([]*datamodel.HostGroup, error) {
 	se := a.SE
 
+	if volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
+		blockDevice := (*volume.VolumeAttributes.BlockDevices)[0]
+		uuids := utils.GetHgUUIDs(blockDevice.HostGroupDetails)
+
+		dbHostGroups, err := se.GetMultipleHostGroups(ctx, uuids, volume.AccountID)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+
+		if len(dbHostGroups) != len(uuids) {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrAllHostGroupsNotFoundError, errors.New("all host groups could not be found")))
+		}
+		return dbHostGroups, nil
+	}
+
 	if volume.VolumeAttributes.BlockProperties == nil {
 		return nil, errors.New("block properties not found")
 	}
@@ -358,13 +380,13 @@ func (a VolumeCreateActivity) GetHosts(ctx context.Context, volume *datamodel.Vo
 	}
 
 	if len(dbHostGroups) != len(uuids) {
-		return nil, errors.New("all host groups could not be found")
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrAllHostGroupsNotFoundError, errors.New("all host groups could not be found")))
 	}
 
 	return dbHostGroups, nil
 }
 
-func (a *VolumeCreateActivity) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
+func (a VolumeCreateActivity) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.Volume, error) {
 	se := a.SE
 	volumes, err := se.GetVolumesByPoolID(ctx, poolID)
 	if err != nil {
@@ -490,7 +512,7 @@ func (a VolumeCreateActivity) CheckBackupVaultExistsInVCP(ctx context.Context, v
 	return CheckBackupVaultExistsInVCP(ctx, a.SE, volume, region)
 }
 
-func (a *VolumeCreateActivity) CheckForBucketResourceName(ctx context.Context, volume *datamodel.Volume) (*common.BucketDetails, error) {
+func (a VolumeCreateActivity) CheckForBucketResourceName(ctx context.Context, volume *datamodel.Volume) (*common.BucketDetails, error) {
 	return CheckForBucketResourceName(ctx, a.SE, volume)
 }
 
@@ -531,7 +553,7 @@ func getBackupVaultDetails(se database.Storage, ctx context.Context, bvID string
 	return backupVault, nil
 }
 
-func (a *VolumeCreateActivity) GenerateResourceNames(ctx context.Context, volume *datamodel.Volume, tenancyDetails *common.TenancyInfo, gcpRegion string) (*common.ResourceNames, error) {
+func (a VolumeCreateActivity) GenerateResourceNames(ctx context.Context, volume *datamodel.Volume, tenancyDetails *common.TenancyInfo, gcpRegion string) (*common.ResourceNames, error) {
 	return GenerateResourceNames(ctx, volume, tenancyDetails, gcpRegion)
 }
 
@@ -550,7 +572,7 @@ func _generateResourceNames(ctx context.Context, volume *datamodel.Volume, tenan
 	}, nil
 }
 
-func (a *VolumeCreateActivity) CreateBucket(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string) (*common.BucketDetails, error) {
+func (a VolumeCreateActivity) CreateBucket(ctx context.Context, resourceName *common.ResourceNames, tenancyDetails *common.TenancyInfo, region string) (*common.BucketDetails, error) {
 	return CreateBucket(ctx, resourceName, tenancyDetails, region)
 }
 
@@ -641,7 +663,7 @@ func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, service
 	return account, bucketDetailsArr, nil
 }
 
-func (a *VolumeCreateActivity) UpdateBackupVaultWithBucketDetails(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails) error {
+func (a VolumeCreateActivity) UpdateBackupVaultWithBucketDetails(ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails) error {
 	return UpdateBackupVaultWithBucketDetails(a.SE, ctx, volume, bucketDetails)
 }
 

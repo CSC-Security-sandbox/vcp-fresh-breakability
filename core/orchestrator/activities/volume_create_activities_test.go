@@ -86,10 +86,14 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 			SE: database.NewMockStorage(t),
 		}
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-		volume := &datamodel.Volume{Name: "test-volume", Svm: &datamodel.Svm{Name: "test-svm"},
+		volume := &datamodel.Volume{
+			Name:    "test-volume",
+			Svm:     &datamodel.Svm{Name: "test-svm"},
+			Account: &datamodel.Account{Name: "test-account"},
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
-			}}
+			},
+		}
 		node := &models.Node{}
 		expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
 
@@ -123,6 +127,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		volume := &datamodel.Volume{
 			Name:               "test-volume",
 			Svm:                &datamodel.Svm{Name: "test-svm"},
+			Account:            &datamodel.Account{Name: "test-account"},
 			AutoTieringEnabled: false,
 			VolumeAttributes: &datamodel.VolumeAttributes{
 				IsDataProtection: false,
@@ -164,6 +169,7 @@ func TestCreateVolumeInONTAP_Success(t *testing.T) {
 		volume := &datamodel.Volume{
 			Name:               "test-volume",
 			Svm:                &datamodel.Svm{Name: "test-svm"},
+			Account:            &datamodel.Account{Name: "test-account"},
 			AutoTieringEnabled: true,
 			AutoTieringPolicy: &datamodel.AutoTieringPolicy{
 				TieringPolicy:        "auto",
@@ -453,6 +459,66 @@ func TestCreateIgroup_Failure_IgroupCreate(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Equal(t, "failed to create igroup", err.Error())
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateLun_WithBlockDevices_Success(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := activities.VolumeCreateActivity{
+		SE: database.NewMockStorage(t),
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	blockDevices := []datamodel.BlockDevice{
+		{
+			Name:   "custom-lun-name",
+			OSType: "LINUX",
+			HostGroupDetails: []datamodel.HostGroupDetail{
+				{
+					HostGroupUUID: "hg-uuid-1",
+					HostQNs:       []string{"iqn.1998-01.com.vmware:host1"},
+				},
+			},
+		},
+	}
+
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &blockDevices,
+		},
+	}
+	node := &models.Node{}
+	availableSpace := int64(107374182400) // 100 GiB
+	expectedResponse := &vsa.LunResponse{}
+
+	mockProvider.On("LunCreate", mock.Anything).Return(expectedResponse, nil)
+
+	// Act
+	result, err := activity.CreateLun(ctx, volume, node, availableSpace)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, expectedResponse, result)
+
+	// Verify that the LUN name from BlockDevice was used instead of generated name
+	mockProvider.AssertCalled(t, "LunCreate", vsa.LunCreateParams{
+		LunName:    "custom-lun-name", // Should use BlockDevice.Name
+		VolumeName: "test-volume",
+		SvmName:    "test-svm",
+		OsType:     "LINUX", // Should use BlockDevice.OSType
+		Size:       availableSpace,
+	})
 	mockProvider.AssertExpectations(t)
 }
 
@@ -820,6 +886,159 @@ func TestUpdateVolumeDetails_Failure(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func TestGetHosts_WithBlockDevices_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	blockDevices := []datamodel.BlockDevice{
+		{
+			Name:   "test-lun",
+			OSType: "LINUX",
+			HostGroupDetails: []datamodel.HostGroupDetail{
+				{
+					HostGroupUUID: "hg-uuid-1",
+					HostQNs:       []string{"iqn.1998-01.com.vmware:host1"},
+				},
+				{
+					HostGroupUUID: "hg-uuid-2",
+					HostQNs:       []string{"iqn.1998-01.com.vmware:host2"},
+				},
+			},
+		},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &blockDevices,
+		},
+	}
+
+	expectedHostGroups := []*datamodel.HostGroup{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "hg-uuid-1"},
+			Name:      "hg1",
+			State:     "READY",
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "hg-uuid-2"},
+			Name:      "hg2",
+			State:     "READY",
+		},
+	}
+
+	mockStorage.On("GetMultipleHostGroups", ctx, []string{"hg-uuid-1", "hg-uuid-2"}, int64(1)).Return(expectedHostGroups, nil)
+
+	// Act
+	result, err := activity.GetHosts(ctx, volume)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, expectedHostGroups, result)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetHosts_WithBlockDevices_HostGroupsNotFound(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	blockDevices := []datamodel.BlockDevice{
+		{
+			Name:   "test-lun",
+			OSType: "LINUX",
+			HostGroupDetails: []datamodel.HostGroupDetail{
+				{
+					HostGroupUUID: "hg-uuid-1",
+					HostQNs:       []string{"iqn.1998-01.com.vmware:host1"},
+				},
+				{
+					HostGroupUUID: "hg-uuid-2",
+					HostQNs:       []string{"iqn.1998-01.com.vmware:host2"},
+				},
+			},
+		},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &blockDevices,
+		},
+	}
+
+	// Return fewer host groups than requested
+	expectedHostGroups := []*datamodel.HostGroup{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "hg-uuid-1"},
+			Name:      "hg1",
+			State:     "READY",
+		},
+		// Missing hg-uuid-2
+	}
+	_, err := vsaerrors.NewErrorHandler()
+	if err != nil {
+		t.Fatalf("Failed to create error handler: %v", err)
+	}
+
+	mockStorage.On("GetMultipleHostGroups", ctx, []string{"hg-uuid-1", "hg-uuid-2"}, int64(1)).Return(expectedHostGroups, nil)
+
+	// Act
+	result, err := activity.GetHosts(ctx, volume)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "All host groups could not be found")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetHosts_WithBlockDevices_GetMultipleHostGroupsError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	blockDevices := []datamodel.BlockDevice{
+		{
+			Name:   "test-lun",
+			OSType: "LINUX",
+			HostGroupDetails: []datamodel.HostGroupDetail{
+				{
+					HostGroupUUID: "hg-uuid-1",
+					HostQNs:       []string{"iqn.1998-01.com.vmware:host1"},
+				},
+			},
+		},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &blockDevices,
+		},
+	}
+
+	expectedError := errors.New("database error")
+
+	mockStorage.On("GetMultipleHostGroups", ctx, []string{"hg-uuid-1"}, int64(1)).Return(nil, expectedError)
+
+	// Act
+	result, err := activity.GetHosts(ctx, volume)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Equal(t, expectedError, err)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestGetHosts_Success(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
@@ -896,8 +1115,10 @@ func TestGetHosts_Failure_HostGroupsNotFound(t *testing.T) {
 		},
 		AccountID: 123,
 	}
-	expectedError := errors.New("all host groups could not be found")
-
+	_, err := vsaerrors.NewErrorHandler()
+	if err != nil {
+		t.Fatalf("Failed to create error handler: %v", err)
+	}
 	mockStorage.On("GetMultipleHostGroups", ctx, []string{"uuid1", "uuid2"}, int64(123)).Return([]*datamodel.HostGroup{}, nil)
 
 	// Act
@@ -906,7 +1127,7 @@ func TestGetHosts_Failure_HostGroupsNotFound(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, hostGroups)
-	assert.EqualError(t, err, expectedError.Error())
+	assert.Contains(t, err.Error(), "All host groups could not be found")
 	mockStorage.AssertExpectations(t)
 }
 

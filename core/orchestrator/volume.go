@@ -104,7 +104,32 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		},
 	}
 
-	if params.BlockProperties != nil {
+	// Check BlockDevices first, then fallback to BlockProperties
+	if params.BlockDevices != nil && len(*params.BlockDevices) > 0 {
+		// Process BlockDevices as primary source
+		blockDevices := make([]datamodel.BlockDevice, 0, len(*params.BlockDevices))
+		for _, blockDeviceReq := range *params.BlockDevices {
+			blockDevice := datamodel.BlockDevice{
+				Name:   blockDeviceReq.Name,
+				OSType: blockDeviceReq.OSType,
+			}
+			if len(blockDeviceReq.HostGroups) > 0 {
+				hgs, err := getMultipleHostGroup(ctx, se, blockDeviceReq.HostGroups, account.Name)
+				if err != nil {
+					return nil, "", err
+				}
+				for _, hg := range hgs {
+					blockDevice.HostGroupDetails = append(blockDevice.HostGroupDetails, datamodel.HostGroupDetail{
+						HostGroupUUID: hg.UUID,
+						HostQNs:       hg.Hosts,
+					})
+				}
+			}
+			blockDevices = append(blockDevices, blockDevice)
+		}
+		volumeObj.VolumeAttributes.BlockDevices = &blockDevices
+	} else if params.BlockProperties != nil {
+		// Fallback: Process BlockProperties if BlockDevices are not provided
 		volumeObj.VolumeAttributes.BlockProperties = &datamodel.BlockProperties{
 			OSType: params.BlockProperties.OSType,
 		}
@@ -418,7 +443,15 @@ type FileVolumeProcessor struct{}
 func (v *BlockVolumeProcessor) Validate(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, accountID int64) error {
 	// Block-specific validation: host group checks, block properties, etc.
 	params.FileProperties = nil // Ensure FileProperties is nil for block volumes
-	if params.BlockProperties != nil {
+	// Validate BlockDevices if provided
+	if params.BlockDevices != nil && len(*params.BlockDevices) > 0 {
+		blockDevice := (*params.BlockDevices)[0]
+		hostGroupUUIDs := blockDevice.HostGroups
+		err := validateBlockProperties(ctx, se, hostGroupUUIDs, accountID)
+		if err != nil {
+			return err
+		}
+	} else if params.BlockProperties != nil {
 		hostGroupUUIDs := params.BlockProperties.HostGroupUUIDs
 		err := validateBlockProperties(ctx, se, hostGroupUUIDs, accountID)
 		if err != nil {
@@ -641,6 +674,29 @@ func convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]string
 			LunSerialNumber: attributes.BlockProperties.LunSerialNumber,
 			HostGroupDetail: convertHostGroupDetails(attributes.BlockProperties.HostGroupDetails),
 		}
+	}
+	if attributes.BlockDevices != nil {
+		blockDevices := make([]models.BlockDevice, 0, len(*attributes.BlockDevices))
+		for _, blockDevice := range *attributes.BlockDevices {
+			blockDeviceModel := &models.BlockDevice{
+				Name:       blockDevice.Name,
+				OSType:     blockDevice.OSType,
+				Size:       uint64(blockDevice.Size),
+				Identifier: blockDevice.Identifier,
+			}
+			if len(blockDevice.HostGroupDetails) > 0 {
+				hostGroups := make([]models.HostGroupDetails, 0, len(blockDevice.HostGroupDetails))
+				for _, hg := range blockDevice.HostGroupDetails {
+					hostGroups = append(hostGroups, models.HostGroupDetails{
+						Hosts:       hg.HostQNs,
+						HostGroupID: hg.HostGroupUUID,
+					})
+				}
+				blockDeviceModel.HostGroupDetail = hostGroups
+			}
+			blockDevices = append(blockDevices, *blockDeviceModel)
+		}
+		res.BlockDevices = &blockDevices
 	}
 	labels := make(map[string]string)
 	if attributes.Labels != nil {
@@ -971,7 +1027,40 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		}
 	}
 
-	if params.BlockProperties != nil {
+	if len(params.BlockDevices) > 0 {
+		// Find the corresponding BlockDevice in the volume by LUN name
+		var matchingBlockDevice *common.BlockDeviceRequest
+
+		// Check if volume has BlockDevices
+		if volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
+			// Try to find matching BlockDevice by name
+			for _, paramBlockDevice := range params.BlockDevices {
+				if paramBlockDevice.Name != "" {
+					for _, volBlockDevice := range *volume.VolumeAttributes.BlockDevices {
+						if volBlockDevice.Name == paramBlockDevice.Name {
+							matchingBlockDevice = paramBlockDevice
+							// assign the read-only properties from the volume's BlockDevice
+							matchingBlockDevice.SizeInBytes = volBlockDevice.Size
+							matchingBlockDevice.OSType = volBlockDevice.OSType
+							matchingBlockDevice.LunSerialNumber = volBlockDevice.Identifier
+							break
+						}
+					}
+					if matchingBlockDevice != nil {
+						break
+					}
+				}
+			}
+		}
+		if matchingBlockDevice == nil {
+			return customerrors.NewUserInputValidationErr("could not find matching BlockDevice.")
+		}
+		hostGroupUUIDs := matchingBlockDevice.HostGroups
+		err := validateBlockProperties(ctx, se, hostGroupUUIDs, volume.Account.ID)
+		if err != nil {
+			return err
+		}
+	} else if params.BlockProperties != nil {
 		hostGroupUUIDs := params.BlockProperties.HostGroupUUIDs
 		err := validateBlockProperties(ctx, se, hostGroupUUIDs, volume.Account.ID)
 		if err != nil {

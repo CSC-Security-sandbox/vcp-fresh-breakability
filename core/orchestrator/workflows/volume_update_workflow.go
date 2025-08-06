@@ -175,10 +175,22 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		// No rollback for LUN because we cannot decrease the size of a LUN in ONTAP.
 	}
 
-	if params.BlockProperties != nil {
-		volumeAttachedHG := utils.GetHgUUIDs(volume.VolumeAttributes.BlockProperties.HostGroupDetails)
-		if !utils.IsSliceEqual(params.BlockProperties.HostGroupUUIDs, volumeAttachedHG) {
-			toCreate, toDelete := activities.HostGroupsUpdateDiffForVolume(utils.GetHgUUIDs(volume.VolumeAttributes.BlockProperties.HostGroupDetails), params.BlockProperties.HostGroupUUIDs)
+	// Check BlockDevices first, then fallback to BlockProperties for host group updates
+	if len(params.BlockDevices) > 0 {
+		// Use BlockDevices as primary source for host group updates
+		// For now, we'll use the first BlockDevice's host groups for consistency
+		// In the future, this could be extended to handle multiple BlockDevices
+		primaryBlockDevice := params.BlockDevices[0]
+
+		// Get current host groups from BlockDevices if available, otherwise fallback to BlockProperties
+		var volumeAttachedHG []string
+		if volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
+			primaryVolumeBlockDevice := (*volume.VolumeAttributes.BlockDevices)[0]
+			volumeAttachedHG = utils.GetHgUUIDs(primaryVolumeBlockDevice.HostGroupDetails)
+		}
+
+		if !utils.IsSliceEqual(primaryBlockDevice.HostGroups, volumeAttachedHG) {
+			toCreate, toDelete := activities.HostGroupsUpdateDiffForVolume(volumeAttachedHG, primaryBlockDevice.HostGroups)
 
 			if len(toCreate) > 0 {
 				err = workflow.ExecuteActivity(ctx, updateActivity.EnsureHostGroupsExistsAndMapDisk, &volume, toCreate, &node).Get(ctx, nil)
@@ -187,7 +199,28 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				}
 			}
 
-			// Ensure the lun iGroup maps to delete  created
+			// Ensure the lun iGroup maps to delete created
+			if len(toDelete) > 0 {
+				err = workflow.ExecuteActivity(ctx, updateActivity.UnmapHostGroupFromDisk, &volume, toDelete, &node).Get(ctx, nil)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	} else if params.BlockProperties != nil {
+		// Fallback: Use BlockProperties if BlockDevices are not provided
+		volumeAttachedHG := utils.GetHgUUIDs(volume.VolumeAttributes.BlockProperties.HostGroupDetails)
+		if !utils.IsSliceEqual(params.BlockProperties.HostGroupUUIDs, volumeAttachedHG) {
+			toCreate, toDelete := activities.HostGroupsUpdateDiffForVolume(volumeAttachedHG, params.BlockProperties.HostGroupUUIDs)
+
+			if len(toCreate) > 0 {
+				err = workflow.ExecuteActivity(ctx, updateActivity.EnsureHostGroupsExistsAndMapDisk, &volume, toCreate, &node).Get(ctx, nil)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			// Ensure the lun iGroup maps to delete created
 			if len(toDelete) > 0 {
 				err = workflow.ExecuteActivity(ctx, updateActivity.UnmapHostGroupFromDisk, &volume, toDelete, &node).Get(ctx, nil)
 				if err != nil {

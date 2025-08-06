@@ -3145,6 +3145,245 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_InvalidPhaseFile() {
 	}
 }
 
+func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_WithBlockDevices_Success() {
+	mockStorage := database.NewMockStorage(s.T())
+	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	// Register activities
+	s.env.RegisterActivity(volumeActivity.GetHosts)
+	s.env.RegisterActivity(volumeActivity.CreateIgroup)
+	s.env.RegisterActivity(volumeActivity.UpdateLunName)
+	s.env.RegisterActivity(volumeActivity.CreateLun)
+	s.env.RegisterActivity(volumeActivity.CreateLunMap)
+
+	// Mock activities
+	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{
+		{
+			Name: "host-group-1",
+			Hosts: datamodel.Hosts{
+				Hosts: []string{"iqn.1998-01.com.vmware:host1"},
+			},
+		},
+	}, nil)
+	s.env.OnActivity(volumeActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "/vol/test_volume/lun_test-lun",
+			ExternalUUID: "uuid-123",
+		},
+		SerialNumber: "serial-123",
+		Size:         1000,
+	}, nil)
+	s.env.OnActivity(volumeActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	dbVolume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Svm: &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					Name: "test-lun",
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{
+							HostGroupUUID: "hg-uuid-1",
+							HostQNs:       []string{"iqn.1998-01.com.vmware:host1"},
+						},
+					},
+					OSType: "Linux",
+				},
+			},
+			Protocols: []string{utils.ProtocolISCSI},
+		},
+	}
+	node := &models.Node{
+		EndpointAddress: "127.0.0.1",
+	}
+	volCreateResponse := &vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name: "test_volume",
+		},
+	}
+
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, dbVolume, node, volCreateResponse, false)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+
+	// Verify that BlockDevices were updated with LUN information
+	var result datamodel.Volume
+	err := s.env.GetWorkflowResult(&result)
+	assert.NoError(s.T(), err)
+
+	volume := &result
+	assert.NotNil(s.T(), volume.VolumeAttributes.BlockDevices)
+	assert.Len(s.T(), *volume.VolumeAttributes.BlockDevices, 1)
+
+	blockDevice := (*volume.VolumeAttributes.BlockDevices)[0]
+	assert.Equal(s.T(), "lun_test-lun", blockDevice.Name)
+	assert.Equal(s.T(), "serial-123", blockDevice.Identifier)
+	assert.Equal(s.T(), int64(1000), blockDevice.Size)
+}
+
+func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_WithBlockProperties_Success() {
+	mockStorage := database.NewMockStorage(s.T())
+	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	// Register activities
+	s.env.RegisterActivity(volumeActivity.GetHosts)
+	s.env.RegisterActivity(volumeActivity.CreateIgroup)
+	s.env.RegisterActivity(volumeActivity.UpdateLunName)
+	s.env.RegisterActivity(volumeActivity.CreateLun)
+	s.env.RegisterActivity(volumeActivity.CreateLunMap)
+
+	// Mock activities
+	s.env.OnActivity(volumeActivity.GetHosts, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{
+		{
+			Name: "host-group-1",
+			Hosts: datamodel.Hosts{
+				Hosts: []string{"iqn.1998-01.com.vmware:host1"},
+			},
+		},
+	}, nil)
+	s.env.OnActivity(volumeActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "/vol/test_volume/lun_test-lun",
+			ExternalUUID: "uuid-123",
+		},
+		SerialNumber: "serial-123",
+		Size:         1000,
+	}, nil)
+	s.env.OnActivity(volumeActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	dbVolume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Svm: &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: nil, // No BlockDevices
+			BlockProperties: &datamodel.BlockProperties{
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{
+						HostGroupUUID: "hg-uuid-1",
+						HostQNs:       []string{"iqn.1998-01.com.vmware:host1"},
+					},
+				},
+				OSType: "Linux",
+			},
+			Protocols: []string{utils.ProtocolISCSI},
+		},
+	}
+	node := &models.Node{
+		EndpointAddress: "127.0.0.1",
+	}
+	volCreateResponse := &vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name: "test_volume",
+		},
+	}
+
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, dbVolume, node, volCreateResponse, false)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+
+	// Verify that BlockProperties were updated with LUN information
+	var result datamodel.Volume
+	err := s.env.GetWorkflowResult(&result)
+	assert.NoError(s.T(), err)
+
+	volume := &result
+	assert.NotNil(s.T(), volume.VolumeAttributes.BlockProperties)
+	assert.Equal(s.T(), "lun_test-lun", volume.VolumeAttributes.BlockProperties.LunName)
+	assert.Equal(s.T(), "serial-123", volume.VolumeAttributes.BlockProperties.LunSerialNumber)
+	assert.Equal(s.T(), "uuid-123", volume.VolumeAttributes.BlockProperties.LunUUID)
+}
+
+func (s *UnitTestSuite) Test_CreateHostParamsFromHostGroups_WithBlockDevices() {
+	// Test with BlockDevices present
+	volume := &datamodel.Volume{
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					OSType: "Linux",
+				},
+			},
+		},
+	}
+
+	hostGroups := []*datamodel.HostGroup{
+		{
+			Name: "host-group-1",
+			Hosts: datamodel.Hosts{
+				Hosts: []string{"iqn.1998-01.com.vmware:host1"},
+			},
+		},
+		{
+			Name: "host-group-2",
+			Hosts: datamodel.Hosts{
+				Hosts: []string{"iqn.1998-01.com.vmware:host2"},
+			},
+		},
+	}
+
+	result := createHostParamsFromHostGroups(hostGroups, volume)
+
+	assert.Len(s.T(), result, 2)
+	assert.Equal(s.T(), "host-group-1", result[0].HostName)
+	assert.Equal(s.T(), []string{"iqn.1998-01.com.vmware:host1"}, result[0].HostIQNs)
+	assert.Equal(s.T(), "Linux", result[0].OsType)
+	assert.Equal(s.T(), "host-group-2", result[1].HostName)
+	assert.Equal(s.T(), []string{"iqn.1998-01.com.vmware:host2"}, result[1].HostIQNs)
+	assert.Equal(s.T(), "Linux", result[1].OsType)
+}
+
+func (s *UnitTestSuite) Test_CreateHostParamsFromHostGroups_WithBlockProperties() {
+	// Test with BlockDevices not present, fallback to BlockProperties
+	volume := &datamodel.Volume{
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: nil, // No BlockDevices
+			BlockProperties: &datamodel.BlockProperties{
+				OSType: "Windows",
+			},
+		},
+	}
+
+	hostGroups := []*datamodel.HostGroup{
+		{
+			Name: "host-group-1",
+			Hosts: datamodel.Hosts{
+				Hosts: []string{"iqn.1998-01.com.vmware:host1"},
+			},
+		},
+	}
+
+	result := createHostParamsFromHostGroups(hostGroups, volume)
+
+	assert.Len(s.T(), result, 1)
+	assert.Equal(s.T(), "host-group-1", result[0].HostName)
+	assert.Equal(s.T(), []string{"iqn.1998-01.com.vmware:host1"}, result[0].HostIQNs)
+	assert.Equal(s.T(), "Windows", result[0].OsType)
+}
+
 func (s *UnitTestSuite) Test_CreateHostParamsFromHostGroups() {
 	// Test createHostParamsFromHostGroups function
 	hostGroups := []*datamodel.HostGroup{

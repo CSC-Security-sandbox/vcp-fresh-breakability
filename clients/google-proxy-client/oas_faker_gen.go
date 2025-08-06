@@ -891,6 +891,59 @@ func (s *BackupVaultV1betaState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *BlockDeviceV1beta) SetFake() {
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.HostGroups = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.HostGroups = append(s.HostGroups, elem)
+			}
+		}
+	}
+	{
+		{
+			s.HostGroupDetails = nil
+			for i := 0; i < 0; i++ {
+				var elem HostGroupDetail
+				{
+					elem.SetFake()
+				}
+				s.HostGroupDetails = append(s.HostGroupDetails, elem)
+			}
+		}
+	}
+	{
+		{
+			s.Identifier.SetFake()
+		}
+	}
+	{
+		{
+			s.SizeInBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.OsType.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BlockDeviceV1betaOsType) SetFake() {
+	*s = BlockDeviceV1betaOsTypeOSTYPEUNSPECIFIED
+}
+
+// SetFake set fake values.
 func (s *BlockPropertiesV1beta) SetFake() {
 	{
 		{
@@ -2241,6 +2294,15 @@ func (s *OptBackupVaultV1betaBackupVaultType) SetFake() {
 // SetFake set fake values.
 func (s *OptBackupVaultV1betaState) SetFake() {
 	var elem BackupVaultV1betaState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptBlockDeviceV1betaOsType) SetFake() {
+	var elem BlockDeviceV1betaOsType
 	{
 		elem.SetFake()
 	}
@@ -3713,20 +3775,6 @@ func (s *PoolV1betaType) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *ProjectStateUpdateV1beta) SetFake() {
-	{
-		{
-			s.State.SetFake()
-		}
-	}
-}
-
-// SetFake set fake values.
-func (s *ProjectStateUpdateV1betaState) SetFake() {
-	*s = ProjectStateUpdateV1betaStateON
-}
-
-// SetFake set fake values.
 func (s *ProtocolsV1beta) SetFake() {
 	*s = ProtocolsV1betaPROTOCOLUNSPECIFIED
 }
@@ -4277,6 +4325,20 @@ func (s *SnapshotV1beta) SetFake() {
 // SetFake set fake values.
 func (s *SnapshotV1betaSnapshotState) SetFake() {
 	*s = SnapshotV1betaSnapshotStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *StateUpdateV1beta) SetFake() {
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *StateUpdateV1betaState) SetFake() {
+	*s = StateUpdateV1betaStateON
 }
 
 // SetFake set fake values.
@@ -11263,6 +11325,18 @@ func (s *VolumeUpdateV1beta) SetFake() {
 	}
 	{
 		{
+			s.BlockDevices = nil
+			for i := 0; i < 0; i++ {
+				var elem BlockDeviceV1beta
+				{
+					elem.SetFake()
+				}
+				s.BlockDevices = append(s.BlockDevices, elem)
+			}
+		}
+	}
+	{
+		{
 			s.Protocols = nil
 			for i := 0; i < 0; i++ {
 				var elem ProtocolsV1beta
@@ -11466,6 +11540,18 @@ func (s *VolumeV1beta) SetFake() {
 	{
 		{
 			s.BlockProperties.SetFake()
+		}
+	}
+	{
+		{
+			s.BlockDevices = nil
+			for i := 0; i < 0; i++ {
+				var elem BlockDeviceV1beta
+				{
+					elem.SetFake()
+				}
+				s.BlockDevices = append(s.BlockDevices, elem)
+			}
 		}
 	}
 	{

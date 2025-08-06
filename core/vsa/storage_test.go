@@ -39,6 +39,10 @@ func TestLunCreate_Success(t *testing.T) {
 			Name:            nillable.ToPointer(lunName),
 			UUID:            nillable.ToPointer("testUUID"),
 			SerialNumberHex: nillable.ToPointer("6c5738423724595454686164"),
+			OsType:          nillable.ToPointer("LINUX"),
+			Space: &models.LunInlineSpace{
+				Size: nillable.ToPointer(int64(1024)),
+			},
 		},
 	}
 
@@ -476,6 +480,10 @@ func TestLunGet(t *testing.T) {
 				Name:            nillable.ToPointer("testLun"),
 				UUID:            nillable.ToPointer("uuid-123"),
 				SerialNumberHex: nillable.ToPointer("6c5738423724595454686164"),
+				OsType:          nillable.ToPointer("LINUX"),
+				Space: &models.LunInlineSpace{
+					Size: nillable.ToPointer(int64(1024)),
+				},
 			},
 		}
 

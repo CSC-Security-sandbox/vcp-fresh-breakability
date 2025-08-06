@@ -1831,6 +1831,70 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+	t.Run("WhenBlockDevicesSet_ThenFieldsAreMapped", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			BlockDevices: []gcpgenserver.BlockDeviceV1beta{
+				{
+					Name:       gcpgenserver.NewOptString("test-lun"),
+					HostGroups: []string{"9760acf5-4638-11e7-9bdb-020073ca3333", "9760acf5-4638-11e7-9bdb-020073ca4444"},
+				},
+			},
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(t, err)
+		assert.NotNil(t, out.BlockDevices)
+		assert.Len(t, out.BlockDevices, 1)
+		assert.Equal(t, "test-lun", out.BlockDevices[0].Name)
+		assert.Equal(t, []string{"9760acf5-4638-11e7-9bdb-020073ca3333", "9760acf5-4638-11e7-9bdb-020073ca4444"}, out.BlockDevices[0].HostGroups)
+	})
+
+	t.Run("WhenMultipleBlockDevicesSet_ThenErrorIsReturned", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			BlockDevices: []gcpgenserver.BlockDeviceV1beta{
+				{
+					Name: gcpgenserver.NewOptString("test-lun-1"),
+				},
+				{
+					Name: gcpgenserver.NewOptString("test-lun-2"),
+				},
+			},
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "Only one BlockDevice can be specified for update")
+		assert.Nil(t, out)
+	})
+
+	t.Run("WhenBlockDeviceWithoutName_ThenErrorIsReturned", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			BlockDevices: []gcpgenserver.BlockDeviceV1beta{
+				{
+					HostGroups: []string{"9760acf5-4638-11e7-9bdb-020073ca3333"},
+				},
+			},
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "BlockDevice name is required")
+		assert.Nil(t, out)
+	})
+
+	t.Run("WhenBlockDevicesWithDuplicateHostGroups_ThenHostGroupsAreDeduplicated", func(t *testing.T) {
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			BlockDevices: []gcpgenserver.BlockDeviceV1beta{
+				{
+					Name:       gcpgenserver.NewOptString("test-lun"),
+					HostGroups: []string{"9760acf5-4638-11e7-9bdb-020073ca3333", "9760acf5-4638-11e7-9bdb-020073ca3333"},
+				},
+			},
+		}
+		out, err := _prepareUpdateVolumeParams(req, params, region)
+		assert.NoError(t, err)
+		assert.NotNil(t, out.BlockDevices)
+		assert.Len(t, out.BlockDevices, 1)
+		assert.Equal(t, []string{"9760acf5-4638-11e7-9bdb-020073ca3333"}, out.BlockDevices[0].HostGroups)
+	})
+
 	t.Run("WhenSnapshotPolicySet_ThenFieldsAreMapped", func(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			SnapshotPolicy: gcpgenserver.NewOptSnapshotPolicyV1beta(
@@ -2598,6 +2662,240 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.Equal(t, gcpgenserver.SimpleExportPolicyRuleV1betaAccessTypeREADONLY, rule2.AccessType)
 		assert.False(t, rule2.Nfsv3.Value)
 		assert.True(t, rule2.Nfsv4.Value)
+	})
+
+	t.Run("WithBlockDevices_ShouldConvertToAPIFormat", func(t *testing.T) {
+		blockDevices := []models.BlockDevice{
+			{
+				Name:       "test-lun-1",
+				Identifier: "lun-123",
+				Size:       107374182400, // 100 GiB in bytes
+				OSType:     "LINUX",
+				HostGroupDetail: []models.HostGroupDetails{
+					{
+						HostGroupID: "hg-uuid-1",
+						Hosts:       []string{"iqn.1998-01.com.vmware:host1", "iqn.1998-01.com.vmware:host2"},
+					},
+					{
+						HostGroupID: "hg-uuid-2",
+						Hosts:       []string{"iqn.1998-01.com.vmware:host3"},
+					},
+				},
+			},
+			{
+				Name:       "test-lun-2",
+				Identifier: "lun-456",
+				Size:       214748364800, // 200 GiB in bytes
+				OSType:     "WINDOWS",
+				HostGroupDetail: []models.HostGroupDetails{
+					{
+						HostGroupID: "hg-uuid-3",
+						Hosts:       []string{"iqn.1998-01.com.vmware:host4"},
+					},
+				},
+			},
+		}
+
+		vol := &models.Volume{
+			CreationToken:  "block-token",
+			PoolID:         "block-pool",
+			QuotaInBytes:   322122547200, // 300 GiB
+			ProtocolTypes:  []string{"ISCSI"},
+			LifeCycleState: "READY",
+			IPAddresses:    []string{"10.72.177.17"},
+			BlockDevices:   &blockDevices,
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+
+		// Verify BlockDevices are properly converted
+		assert.NotNil(t, out.BlockDevices)
+		assert.Len(t, out.BlockDevices, 2)
+
+		// Verify first BlockDevice
+		bd1 := out.BlockDevices[0]
+		assert.Equal(t, "test-lun-1", bd1.Name.Value)
+		assert.Equal(t, "lun-123", bd1.Identifier.Value)
+		assert.Equal(t, float64(107374182400), bd1.SizeInBytes.Value)
+		assert.Equal(t, gcpgenserver.BlockDeviceV1betaOsTypeLINUX, bd1.OsType.Value)
+		assert.Len(t, bd1.HostGroups, 2)
+		assert.Equal(t, "hg-uuid-1", bd1.HostGroups[0])
+		assert.Equal(t, "hg-uuid-2", bd1.HostGroups[1])
+		assert.Len(t, bd1.HostGroupDetails, 2)
+		assert.Equal(t, "hg-uuid-1", bd1.HostGroupDetails[0].HostGroupId.Value)
+		assert.Equal(t, []string{"iqn.1998-01.com.vmware:host1", "iqn.1998-01.com.vmware:host2"}, bd1.HostGroupDetails[0].Hosts)
+		assert.Equal(t, "hg-uuid-2", bd1.HostGroupDetails[1].HostGroupId.Value)
+		assert.Equal(t, []string{"iqn.1998-01.com.vmware:host3"}, bd1.HostGroupDetails[1].Hosts)
+
+		// Verify second BlockDevice
+		bd2 := out.BlockDevices[1]
+		assert.Equal(t, "test-lun-2", bd2.Name.Value)
+		assert.Equal(t, "lun-456", bd2.Identifier.Value)
+		assert.Equal(t, float64(214748364800), bd2.SizeInBytes.Value)
+		assert.Equal(t, gcpgenserver.BlockDeviceV1betaOsTypeWINDOWS, bd2.OsType.Value)
+		assert.Len(t, bd2.HostGroups, 1)
+		assert.Equal(t, "hg-uuid-3", bd2.HostGroups[0])
+		assert.Len(t, bd2.HostGroupDetails, 1)
+		assert.Equal(t, "hg-uuid-3", bd2.HostGroupDetails[0].HostGroupId.Value)
+		assert.Equal(t, []string{"iqn.1998-01.com.vmware:host4"}, bd2.HostGroupDetails[0].Hosts)
+
+		// Verify mount points are created for the first BlockDevice (primary)
+		assert.NotNil(t, out.MountPoints)
+		assert.Len(t, out.MountPoints, 1)
+		assert.Equal(t, "10.72.177.17", out.MountPoints[0].IpAddress.Value)
+		assert.Equal(t, gcpgenserver.ProtocolsV1betaISCSI, out.MountPoints[0].Protocol.Value)
+		assert.NotEmpty(t, out.MountPoints[0].Instructions.Value)
+		assert.Contains(t, out.MountPoints[0].Instructions.Value, "lun-123")
+	})
+
+	t.Run("WithBlockDevicesNoHostGroups_ShouldConvertCorrectly", func(t *testing.T) {
+		blockDevices := []models.BlockDevice{
+			{
+				Name:            "test-lun-no-hg",
+				Identifier:      "lun-789",
+				Size:            53687091200, // 50 GiB in bytes
+				OSType:          "ESXI",
+				HostGroupDetail: []models.HostGroupDetails{}, // Empty host groups
+			},
+		}
+
+		vol := &models.Volume{
+			CreationToken:  "block-token-no-hg",
+			PoolID:         "block-pool",
+			QuotaInBytes:   53687091200,
+			ProtocolTypes:  []string{"ISCSI"},
+			LifeCycleState: "READY",
+			IPAddresses:    []string{"10.72.177.18"},
+			BlockDevices:   &blockDevices,
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+
+		// Verify BlockDevice is properly converted
+		assert.NotNil(t, out.BlockDevices)
+		assert.Len(t, out.BlockDevices, 1)
+
+		bd := out.BlockDevices[0]
+		assert.Equal(t, "test-lun-no-hg", bd.Name.Value)
+		assert.Equal(t, "lun-789", bd.Identifier.Value)
+		assert.Equal(t, float64(53687091200), bd.SizeInBytes.Value)
+		assert.Equal(t, gcpgenserver.BlockDeviceV1betaOsTypeESXI, bd.OsType.Value)
+		assert.Empty(t, bd.HostGroups)
+		assert.Empty(t, bd.HostGroupDetails)
+
+		// Verify mount points are created
+		assert.NotNil(t, out.MountPoints)
+		assert.Len(t, out.MountPoints, 1)
+		assert.Equal(t, "10.72.177.18", out.MountPoints[0].IpAddress.Value)
+		assert.Equal(t, gcpgenserver.ProtocolsV1betaISCSI, out.MountPoints[0].Protocol.Value)
+		assert.NotEmpty(t, out.MountPoints[0].Instructions.Value)
+		// ESXI instructions don't include the LUN name in the text
+		assert.Contains(t, out.MountPoints[0].Instructions.Value, "ESXi")
+	})
+
+	t.Run("WithBlockDevicesMissingFields_ShouldHandleGracefully", func(t *testing.T) {
+		blockDevices := []models.BlockDevice{
+			{
+				Name:       "", // Empty name
+				Identifier: "", // Empty identifier
+				Size:       0,  // Zero size
+				OSType:     "", // Empty OS type
+				HostGroupDetail: []models.HostGroupDetails{
+					{
+						HostGroupID: "hg-uuid-4",
+						Hosts:       []string{"iqn.1998-01.com.vmware:host5"},
+					},
+				},
+			},
+		}
+
+		vol := &models.Volume{
+			CreationToken:  "block-token-missing",
+			PoolID:         "block-pool",
+			QuotaInBytes:   107374182400,
+			ProtocolTypes:  []string{"ISCSI"},
+			LifeCycleState: "READY",
+			IPAddresses:    []string{"10.72.177.17"},
+			BlockDevices:   &blockDevices,
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+
+		// Verify BlockDevice is properly converted with empty fields
+		assert.NotNil(t, out.BlockDevices)
+		assert.Len(t, out.BlockDevices, 1)
+
+		bd := out.BlockDevices[0]
+		assert.False(t, bd.Name.IsSet())        // Name should not be set when empty
+		assert.False(t, bd.Identifier.IsSet())  // Identifier should not be set when empty
+		assert.False(t, bd.SizeInBytes.IsSet()) // Size should not be set when zero
+		assert.False(t, bd.OsType.IsSet())      // OS type should not be set when empty
+		assert.Len(t, bd.HostGroups, 1)
+		assert.Equal(t, "hg-uuid-4", bd.HostGroups[0])
+		assert.Len(t, bd.HostGroupDetails, 1)
+		assert.Equal(t, "hg-uuid-4", bd.HostGroupDetails[0].HostGroupId.Value)
+		assert.Equal(t, []string{"iqn.1998-01.com.vmware:host5"}, bd.HostGroupDetails[0].Hosts)
+
+		// Verify mount points are NOT created when identifier is missing
+		assert.Empty(t, out.MountPoints)
+	})
+
+	t.Run("WithBlockDevicesNotReady_ShouldNotCreateMountPoints", func(t *testing.T) {
+		blockDevices := []models.BlockDevice{
+			{
+				Name:       "test-lun-not-ready",
+				Identifier: "lun-999",
+				Size:       107374182400,
+				OSType:     "LINUX",
+				HostGroupDetail: []models.HostGroupDetails{
+					{
+						HostGroupID: "hg-uuid-5",
+						Hosts:       []string{"iqn.1998-01.com.vmware:host6"},
+					},
+				},
+			},
+		}
+
+		vol := &models.Volume{
+			CreationToken:  "block-token-not-ready",
+			PoolID:         "block-pool",
+			QuotaInBytes:   107374182400,
+			ProtocolTypes:  []string{"ISCSI"},
+			LifeCycleState: "CREATING", // Not READY
+			IPAddresses:    []string{"10.72.177.17"},
+			BlockDevices:   &blockDevices,
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+
+		// Verify BlockDevices are converted
+		assert.NotNil(t, out.BlockDevices)
+		assert.Len(t, out.BlockDevices, 1)
+
+		// Verify mount points are NOT created when volume is not ready
+		assert.Empty(t, out.MountPoints)
+	})
+
+	t.Run("WithBlockDevicesEmptyArray_ShouldHandleGracefully", func(t *testing.T) {
+		blockDevices := []models.BlockDevice{} // Empty array
+
+		vol := &models.Volume{
+			CreationToken:  "block-token-empty",
+			PoolID:         "block-pool",
+			QuotaInBytes:   107374182400,
+			ProtocolTypes:  []string{"ISCSI"},
+			LifeCycleState: "READY",
+			IPAddresses:    []string{"10.72.177.17"},
+			BlockDevices:   &blockDevices,
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+
+		// Verify BlockDevices is nil when array is empty (not set in response)
+		assert.Nil(t, out.BlockDevices)
+
+		// Verify mount points are NOT created when no BlockDevices
+		assert.Empty(t, out.MountPoints)
 	})
 }
 

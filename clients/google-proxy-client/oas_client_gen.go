@@ -233,7 +233,7 @@ type Invoker interface {
 	// Finishes the project state for a 1P account based on the path parameter and project state value.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/finishProjectEvent
-	V1betaFinishProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error)
+	V1betaFinishProjectEvent(ctx context.Context, request *StateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error)
 	// V1betaGetMultipleActiveDirectories invokes v1beta_getMultipleActiveDirectories operation.
 	//
 	// Returns descriptions of Active Directory credentials that is listed in request body.
@@ -483,7 +483,7 @@ type Invoker interface {
 	// Updates the project state for a 1P account based on the path parameter and project state value.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent
-	V1betaStartProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error)
+	V1betaStartProjectEvent(ctx context.Context, request *StateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error)
 	// V1betaStopReplication invokes v1beta_stopReplication operation.
 	//
 	// Stops a replication.
@@ -4252,12 +4252,12 @@ func (c *Client) sendV1betaEncryptVolumes(ctx context.Context, params V1betaEncr
 // Finishes the project state for a 1P account based on the path parameter and project state value.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/finishProjectEvent
-func (c *Client) V1betaFinishProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error) {
+func (c *Client) V1betaFinishProjectEvent(ctx context.Context, request *StateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error) {
 	res, err := c.sendV1betaFinishProjectEvent(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendV1betaFinishProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaFinishProjectEventParams) (res V1betaFinishProjectEventRes, err error) {
+func (c *Client) sendV1betaFinishProjectEvent(ctx context.Context, request *StateUpdateV1beta, params V1betaFinishProjectEventParams) (res V1betaFinishProjectEventRes, err error) {
 	// Validate request before sending.
 	if err := func() error {
 		if err := request.Validate(); err != nil {
@@ -8894,12 +8894,12 @@ func (c *Client) sendV1betaReverseAndResumeReplication(ctx context.Context, para
 // Updates the project state for a 1P account based on the path parameter and project state value.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent
-func (c *Client) V1betaStartProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error) {
+func (c *Client) V1betaStartProjectEvent(ctx context.Context, request *StateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error) {
 	res, err := c.sendV1betaStartProjectEvent(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendV1betaStartProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaStartProjectEventParams) (res V1betaStartProjectEventRes, err error) {
+func (c *Client) sendV1betaStartProjectEvent(ctx context.Context, request *StateUpdateV1beta, params V1betaStartProjectEventParams) (res V1betaStartProjectEventRes, err error) {
 	// Validate request before sending.
 	if err := func() error {
 		if err := request.Validate(); err != nil {

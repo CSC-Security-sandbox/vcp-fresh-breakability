@@ -176,6 +176,7 @@ type VolumeAttributes struct {
 	VendorSubnetID     string           `json:"vendor_subnet_id"`
 	ExternalUUID       string           `json:"external_uuid"`
 	BlockProperties    *BlockProperties `json:"block_properties"`
+	BlockDevices       *[]BlockDevice   `json:"block_devices"`
 	FileProperties     *FileProperties  `json:"file_properties"`
 	IsDataProtection   bool             `json:"is_data_protection"`
 	SnapReserve        int64            `json:"snap_reserve"`
@@ -190,6 +191,15 @@ type BlockProperties struct {
 	LunName          string            `json:"lun_name"`
 	LunSerialNumber  string            `json:"serial_number"`
 	LunUUID          string            `json:"lun_uuid"`
+}
+
+// BlockDevice describes a block device within a volume
+type BlockDevice struct {
+	Name             string `json:"name"`
+	HostGroupDetails []HostGroupDetail
+	Identifier       string `json:"identifier"`
+	Size             int64  `json:"size"`
+	OSType           string `json:"os_type"`
 }
 
 type FileProperties struct {

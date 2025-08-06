@@ -152,9 +152,22 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 		return nil, err
 	}
 
-	dbVolume.VolumeAttributes.BlockProperties.LunName = utils.ExtractLunNameFromPath(lun.Name)
-	dbVolume.VolumeAttributes.BlockProperties.LunSerialNumber = lun.SerialNumber
-	dbVolume.VolumeAttributes.BlockProperties.LunUUID = lun.ExternalUUID
+	if dbVolume.VolumeAttributes.BlockDevices != nil && len(*dbVolume.VolumeAttributes.BlockDevices) > 0 {
+		blockDevices := *dbVolume.VolumeAttributes.BlockDevices
+		for i := range blockDevices {
+			blockDevices[i].Name = utils.ExtractLunNameFromPath(lun.Name)
+			blockDevices[i].Identifier = lun.SerialNumber
+			blockDevices[i].Size = lun.Size
+		}
+		// Update the slice back to the volume attributes
+		dbVolume.VolumeAttributes.BlockDevices = &blockDevices
+	}
+	if dbVolume.VolumeAttributes.BlockProperties != nil {
+		dbVolume.VolumeAttributes.BlockProperties.LunName = utils.ExtractLunNameFromPath(lun.Name)
+		dbVolume.VolumeAttributes.BlockProperties.LunSerialNumber = lun.SerialNumber
+		dbVolume.VolumeAttributes.BlockProperties.LunUUID = lun.ExternalUUID
+	}
+
 	return dbVolume, nil
 }
 
@@ -513,12 +526,18 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 func createHostParamsFromHostGroups(hostGroups []*datamodel.HostGroup, volume *datamodel.Volume) []*common.HostParams {
 	var hostParamsArray []*common.HostParams
+	osType := ""
+	if volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
+		osType = (*volume.VolumeAttributes.BlockDevices)[0].OSType
+	} else {
+		osType = volume.VolumeAttributes.BlockProperties.OSType
+	}
 
 	for _, hostGroup := range hostGroups {
 		hostParams := &common.HostParams{
 			HostName: hostGroup.Name,
 			HostIQNs: hostGroup.Hosts.Hosts,
-			OsType:   volume.VolumeAttributes.BlockProperties.OSType,
+			OsType:   osType,
 		}
 		hostParamsArray = append(hostParamsArray, hostParams)
 	}

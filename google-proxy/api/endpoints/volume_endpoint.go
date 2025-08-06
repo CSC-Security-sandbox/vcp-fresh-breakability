@@ -258,8 +258,29 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		}
 		param.FileProperties.ExportPolicy.ExportRules = exportRules
 	}
+	if len(req.Volume.BlockDevices) > 1 {
+		return nil, errors.NewUserInputValidationErr("Only one BlockDevice can be specified for create")
+	}
+	if len(req.Volume.BlockDevices) > 0 {
+		blockDevice := req.Volume.BlockDevices[0]
 
-	if req.Volume.BlockProperties.IsSet() {
+		if blockDevice.OsType.IsSet() {
+			osType := blockDevice.GetOsType()
+			blockDeviceName := "lun_" + param.Name
+			if blockDevice.Name.IsSet() && blockDevice.Name.Value != "" {
+				blockDeviceName = blockDevice.Name.Value
+			}
+			param.BlockDevices = &[]common.BlockDeviceRequest{
+				{
+					Name:       blockDeviceName,
+					OSType:     string(osType.Value),
+					HostGroups: DeduplicateSlice(blockDevice.GetHostGroups()),
+				},
+			}
+		} else {
+			return nil, errors.NewUserInputValidationErr("BlockDevice OS type is required")
+		}
+	} else if req.Volume.BlockProperties.IsSet() {
 		reqBlockProperties, _ := req.Volume.BlockProperties.Get()
 		if reqBlockProperties.OsType.IsSet() {
 			osType := reqBlockProperties.GetOsType()
@@ -408,7 +429,31 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 		param.Protocols = append(param.Protocols, string(protocolStr))
 	}
 
-	if req.BlockProperties.IsSet() {
+	if len(req.BlockDevices) > 1 {
+		return nil, errors.NewUserInputValidationErr("Only one BlockDevice can be specified for update")
+	}
+	// Check BlockDevices first, then fallback to BlockProperties
+	if len(req.BlockDevices) > 0 {
+		blockDevices := make([]*common.BlockDeviceRequest, 0, len(req.BlockDevices))
+		for _, blockDevice := range req.BlockDevices {
+			blockDeviceReq := &common.BlockDeviceRequest{}
+
+			if blockDevice.Name.IsSet() {
+				blockDeviceReq.Name, _ = blockDevice.Name.Get()
+			} else {
+				return nil, errors.NewUserInputValidationErr("BlockDevice name is required")
+			}
+
+			if len(blockDevice.HostGroups) > 0 {
+				blockDeviceReq.HostGroups = DeduplicateSlice(blockDevice.HostGroups)
+			}
+
+			blockDevices = append(blockDevices, blockDeviceReq)
+		}
+
+		param.BlockDevices = blockDevices
+	} else if req.BlockProperties.IsSet() {
+		// Fallback: Use BlockProperties if BlockDevices are not provided
 		reqBlockProperties, _ := req.BlockProperties.Get()
 		param.BlockProperties = &common.BlockPropertiesRequest{
 			HostGroupUUIDs: DeduplicateSlice(reqBlockProperties.HostGroupIds),
@@ -654,7 +699,64 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		}
 	}
 
-	if volume.BlockProperties != nil {
+	// Check BlockDevices first, then fallback to BlockProperties
+	if volume.BlockDevices != nil && len(*volume.BlockDevices) > 0 {
+		// Use BlockDevices as primary source
+		res.BlockDevices = make([]gcpgenserver.BlockDeviceV1beta, 0, len(*volume.BlockDevices))
+		for _, blockDevice := range *volume.BlockDevices {
+			blockDeviceV1beta := gcpgenserver.BlockDeviceV1beta{}
+			// Convert host groups from BlockDevice format to API format
+			if len(blockDevice.HostGroupDetail) > 0 {
+				hostGroups := make([]string, 0, len(blockDevice.HostGroupDetail))
+				for _, hg := range blockDevice.HostGroupDetail {
+					hostGroups = append(hostGroups, hg.HostGroupID)
+					blockDeviceV1beta.HostGroupDetails = append(blockDeviceV1beta.HostGroupDetails, gcpgenserver.HostGroupDetail{
+						Hosts:       hg.Hosts,
+						HostGroupId: gcpgenserver.NewOptString(hg.HostGroupID),
+					})
+				}
+				blockDeviceV1beta.HostGroups = hostGroups
+			}
+			// Set name if present
+			if blockDevice.Name != "" {
+				blockDeviceV1beta.Name = gcpgenserver.NewOptString(blockDevice.Name)
+			}
+
+			// Set identifier if present
+			if blockDevice.Identifier != "" {
+				blockDeviceV1beta.Identifier = gcpgenserver.NewOptString(blockDevice.Identifier)
+			}
+
+			// Set size if present
+			if blockDevice.Size > 0 {
+				blockDeviceV1beta.SizeInBytes = gcpgenserver.NewOptFloat64(float64(blockDevice.Size))
+			}
+
+			// Set OS type if present
+			if blockDevice.OSType != "" {
+				blockDeviceV1beta.OsType = gcpgenserver.NewOptBlockDeviceV1betaOsType(gcpgenserver.BlockDeviceV1betaOsType(blockDevice.OSType))
+			}
+
+			res.BlockDevices = append(res.BlockDevices, blockDeviceV1beta)
+		}
+
+		// Set mount points using BlockDevices data
+		if volume.LifeCycleState == string(gcpgenserver.VolumeV1betaVolumeStateREADY) && len(*volume.BlockDevices) > 0 {
+			primaryDevice := (*volume.BlockDevices)[0]
+			if primaryDevice.OSType != "" && primaryDevice.Identifier != "" {
+				res.MountPoints = make([]gcpgenserver.MountPointV1beta, 0)
+				ipAddress := ""
+				if len(volume.IPAddresses) > 0 {
+					ipAddress = volume.IPAddresses[0]
+				}
+				res.MountPoints = append(res.MountPoints, gcpgenserver.MountPointV1beta{
+					IpAddress:    gcpgenserver.NewOptString(strings.Join(volume.IPAddresses, ",")),
+					Protocol:     gcpgenserver.NewOptProtocolsV1beta(gcpgenserver.ProtocolsV1betaISCSI),
+					Instructions: getMountInstructions(primaryDevice.OSType, ipAddress, primaryDevice.Identifier),
+				})
+			}
+		}
+	} else if volume.BlockProperties != nil {
 		blockPropertiesV1beta := gcpgenserver.BlockPropertiesV1beta{
 			OsType:          gcpgenserver.NewOptBlockPropertiesV1betaOsType(gcpgenserver.BlockPropertiesV1betaOsType(volume.BlockProperties.OSType)),
 			LunSerialNumber: gcpgenserver.NewOptString(volume.BlockProperties.LunSerialNumber),

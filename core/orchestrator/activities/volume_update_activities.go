@@ -2,7 +2,6 @@ package activities
 
 import (
 	"context"
-
 	ontapModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -10,7 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -287,7 +286,34 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 		updates["data_protection"] = volume.DataProtection
 	}
 
-	if params.BlockProperties != nil {
+	// Check BlockDevices first, then fallback to BlockProperties
+	if len(params.BlockDevices) > 0 {
+		// Use BlockDevices as primary source
+		blockDevices := make([]datamodel.BlockDevice, 0, len(params.BlockDevices))
+		for _, blockDeviceReq := range params.BlockDevices {
+			blockDevice := datamodel.BlockDevice{
+				Name:   blockDeviceReq.Name,
+				OSType: blockDeviceReq.OSType,
+				Size:   blockDeviceReq.SizeInBytes,
+			}
+			if len(blockDeviceReq.HostGroups) > 0 {
+				for _, uuid := range blockDeviceReq.HostGroups {
+					hg, err := getHostGroup(se, ctx, uuid, volume.AccountID)
+					if err != nil {
+						return nil, err
+					}
+					hgDetail := datamodel.HostGroupDetail{
+						HostGroupUUID: uuid,
+						HostQNs:       hg.Hosts.Hosts,
+					}
+					blockDevice.HostGroupDetails = append(blockDevice.HostGroupDetails, hgDetail)
+				}
+			}
+			blockDevices = append(blockDevices, blockDevice)
+		}
+		volume.VolumeAttributes.BlockDevices = &blockDevices
+	} else if params.BlockProperties != nil {
+		// Fallback: Use BlockProperties if BlockDevices are not provided
 		if volume.VolumeAttributes.BlockProperties == nil {
 			volume.VolumeAttributes.BlockProperties = &datamodel.BlockProperties{}
 		}

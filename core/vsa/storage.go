@@ -86,6 +86,8 @@ func (rc *OntapRestProvider) LunCreate(params LunCreateParams) (*LunResponse, er
 			ExternalUUID: *lun.UUID,
 		},
 		SerialNumber: *lun.SerialNumberHex,
+		Size:         *lun.Space.Size,
+		OSType:       *lun.OsType,
 	}, nil
 }
 
@@ -120,6 +122,8 @@ func (rc *OntapRestProvider) LunGet(params LunGetParams) (*LunResponse, error) {
 			ExternalUUID: *lun.UUID,
 		},
 		SerialNumber: *lun.SerialNumberHex,
+		Size:         *lun.Space.Size,
+		OSType:       *lun.OsType,
 	}, nil
 }
 

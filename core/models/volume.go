@@ -19,6 +19,7 @@ type Volume struct {
 	QuotaInBytes          uint64
 	IsDataProtection      bool
 	BlockProperties       *BlockProperties
+	BlockDevices          *[]BlockDevice
 	SnapshotPolicy        *SnapshotPolicy
 	IPAddresses           []string
 	DataProtection        *DataProtection
@@ -45,6 +46,15 @@ type BlockProperties struct {
 	HostGroupDetail []HostGroupDetails
 	LunName         string
 	LunSerialNumber string
+}
+
+// BlockDevice describes a block device within a volume
+type BlockDevice struct {
+	Name            string
+	HostGroupDetail []HostGroupDetails
+	Identifier      string
+	Size            uint64
+	OSType          string
 }
 
 type FileProperties struct {

@@ -186,7 +186,7 @@ func encodeV1betaDeleteVolumeRequest(
 }
 
 func encodeV1betaFinishProjectEventRequest(
-	req *ProjectStateUpdateV1beta,
+	req *StateUpdateV1beta,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -438,7 +438,7 @@ func encodeV1betaResourceStateUpdateRequest(
 }
 
 func encodeV1betaStartProjectEventRequest(
-	req *ProjectStateUpdateV1beta,
+	req *StateUpdateV1beta,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

@@ -4183,6 +4183,222 @@ func (s *BackupVaultV1betaState) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *BlockDeviceV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BlockDeviceV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.Name.Set {
+			e.FieldStart("name")
+			s.Name.Encode(e)
+		}
+	}
+	{
+		if s.HostGroups != nil {
+			e.FieldStart("hostGroups")
+			e.ArrStart()
+			for _, elem := range s.HostGroups {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.HostGroupDetails != nil {
+			e.FieldStart("hostGroupDetails")
+			e.ArrStart()
+			for _, elem := range s.HostGroupDetails {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.Identifier.Set {
+			e.FieldStart("identifier")
+			s.Identifier.Encode(e)
+		}
+	}
+	{
+		if s.SizeInBytes.Set {
+			e.FieldStart("sizeInBytes")
+			s.SizeInBytes.Encode(e)
+		}
+	}
+	{
+		if s.OsType.Set {
+			e.FieldStart("osType")
+			s.OsType.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfBlockDeviceV1beta = [6]string{
+	0: "name",
+	1: "hostGroups",
+	2: "hostGroupDetails",
+	3: "identifier",
+	4: "sizeInBytes",
+	5: "osType",
+}
+
+// Decode decodes BlockDeviceV1beta from json.
+func (s *BlockDeviceV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BlockDeviceV1beta to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "name":
+			if err := func() error {
+				s.Name.Reset()
+				if err := s.Name.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "hostGroups":
+			if err := func() error {
+				s.HostGroups = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.HostGroups = append(s.HostGroups, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hostGroups\"")
+			}
+		case "hostGroupDetails":
+			if err := func() error {
+				s.HostGroupDetails = make([]HostGroupDetail, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem HostGroupDetail
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.HostGroupDetails = append(s.HostGroupDetails, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hostGroupDetails\"")
+			}
+		case "identifier":
+			if err := func() error {
+				s.Identifier.Reset()
+				if err := s.Identifier.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"identifier\"")
+			}
+		case "sizeInBytes":
+			if err := func() error {
+				s.SizeInBytes.Reset()
+				if err := s.SizeInBytes.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sizeInBytes\"")
+			}
+		case "osType":
+			if err := func() error {
+				s.OsType.Reset()
+				if err := s.OsType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"osType\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BlockDeviceV1beta")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BlockDeviceV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BlockDeviceV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BlockDeviceV1betaOsType as json.
+func (s BlockDeviceV1betaOsType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes BlockDeviceV1betaOsType from json.
+func (s *BlockDeviceV1betaOsType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BlockDeviceV1betaOsType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch BlockDeviceV1betaOsType(v) {
+	case BlockDeviceV1betaOsTypeOSTYPEUNSPECIFIED:
+		*s = BlockDeviceV1betaOsTypeOSTYPEUNSPECIFIED
+	case BlockDeviceV1betaOsTypeLINUX:
+		*s = BlockDeviceV1betaOsTypeLINUX
+	case BlockDeviceV1betaOsTypeWINDOWS:
+		*s = BlockDeviceV1betaOsTypeWINDOWS
+	case BlockDeviceV1betaOsTypeESXI:
+		*s = BlockDeviceV1betaOsTypeESXI
+	default:
+		*s = BlockDeviceV1betaOsType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s BlockDeviceV1betaOsType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BlockDeviceV1betaOsType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *BlockPropertiesV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -10582,6 +10798,39 @@ func (s *OptBackupVaultV1betaState) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes BlockDeviceV1betaOsType as json.
+func (o OptBlockDeviceV1betaOsType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes BlockDeviceV1betaOsType from json.
+func (o *OptBlockDeviceV1betaOsType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptBlockDeviceV1betaOsType to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptBlockDeviceV1betaOsType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptBlockDeviceV1betaOsType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes BlockPropertiesV1beta as json.
 func (o OptBlockPropertiesV1beta) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -16828,142 +17077,6 @@ func (s *PoolV1betaType) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode implements json.Marshaler.
-func (s *ProjectStateUpdateV1beta) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *ProjectStateUpdateV1beta) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("state")
-		s.State.Encode(e)
-	}
-}
-
-var jsonFieldsNameOfProjectStateUpdateV1beta = [1]string{
-	0: "state",
-}
-
-// Decode decodes ProjectStateUpdateV1beta from json.
-func (s *ProjectStateUpdateV1beta) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ProjectStateUpdateV1beta to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "state":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				if err := s.State.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"state\"")
-			}
-		default:
-			return d.Skip()
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode ProjectStateUpdateV1beta")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00000001,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfProjectStateUpdateV1beta) {
-					name = jsonFieldsNameOfProjectStateUpdateV1beta[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *ProjectStateUpdateV1beta) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ProjectStateUpdateV1beta) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes ProjectStateUpdateV1betaState as json.
-func (s ProjectStateUpdateV1betaState) Encode(e *jx.Encoder) {
-	e.Str(string(s))
-}
-
-// Decode decodes ProjectStateUpdateV1betaState from json.
-func (s *ProjectStateUpdateV1betaState) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode ProjectStateUpdateV1betaState to nil")
-	}
-	v, err := d.StrBytes()
-	if err != nil {
-		return err
-	}
-	// Try to use constant string.
-	switch ProjectStateUpdateV1betaState(v) {
-	case ProjectStateUpdateV1betaStateON:
-		*s = ProjectStateUpdateV1betaStateON
-	case ProjectStateUpdateV1betaStateOFF:
-		*s = ProjectStateUpdateV1betaStateOFF
-	case ProjectStateUpdateV1betaStateDELETE:
-		*s = ProjectStateUpdateV1betaStateDELETE
-	default:
-		*s = ProjectStateUpdateV1betaState(v)
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s ProjectStateUpdateV1betaState) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *ProjectStateUpdateV1betaState) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes ProtocolsV1beta as json.
 func (s ProtocolsV1beta) Encode(e *jx.Encoder) {
 	e.Str(string(s))
@@ -19978,6 +20091,142 @@ func (s SnapshotV1betaSnapshotState) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *SnapshotV1betaSnapshotState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *StateUpdateV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *StateUpdateV1beta) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("state")
+		s.State.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfStateUpdateV1beta = [1]string{
+	0: "state",
+}
+
+// Decode decodes StateUpdateV1beta from json.
+func (s *StateUpdateV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode StateUpdateV1beta to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "state":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode StateUpdateV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfStateUpdateV1beta) {
+					name = jsonFieldsNameOfStateUpdateV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *StateUpdateV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *StateUpdateV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes StateUpdateV1betaState as json.
+func (s StateUpdateV1betaState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes StateUpdateV1betaState from json.
+func (s *StateUpdateV1betaState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode StateUpdateV1betaState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch StateUpdateV1betaState(v) {
+	case StateUpdateV1betaStateON:
+		*s = StateUpdateV1betaStateON
+	case StateUpdateV1betaStateOFF:
+		*s = StateUpdateV1betaStateOFF
+	case StateUpdateV1betaStateDELETE:
+		*s = StateUpdateV1betaStateDELETE
+	default:
+		*s = StateUpdateV1betaState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s StateUpdateV1betaState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *StateUpdateV1betaState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -50111,6 +50360,16 @@ func (s *VolumeUpdateV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.BlockDevices != nil {
+			e.FieldStart("blockDevices")
+			e.ArrStart()
+			for _, elem := range s.BlockDevices {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		if s.Protocols != nil {
 			e.FieldStart("protocols")
 			e.ArrStart()
@@ -50158,7 +50417,7 @@ func (s *VolumeUpdateV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfVolumeUpdateV1beta = [15]string{
+var jsonFieldsNameOfVolumeUpdateV1beta = [16]string{
 	0:  "quotaInBytes",
 	1:  "snapReserve",
 	2:  "snapshotDirectory",
@@ -50167,13 +50426,14 @@ var jsonFieldsNameOfVolumeUpdateV1beta = [15]string{
 	5:  "backupConfig",
 	6:  "tieringPolicy",
 	7:  "blockProperties",
-	8:  "protocols",
-	9:  "restrictedActions",
-	10: "smbSettings",
-	11: "unixPermissions",
-	12: "labels",
-	13: "poolId",
-	14: "description",
+	8:  "blockDevices",
+	9:  "protocols",
+	10: "restrictedActions",
+	11: "smbSettings",
+	12: "unixPermissions",
+	13: "labels",
+	14: "poolId",
+	15: "description",
 }
 
 // Decode decodes VolumeUpdateV1beta from json.
@@ -50263,6 +50523,23 @@ func (s *VolumeUpdateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"blockProperties\"")
+			}
+		case "blockDevices":
+			if err := func() error {
+				s.BlockDevices = make([]BlockDeviceV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem BlockDeviceV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.BlockDevices = append(s.BlockDevices, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"blockDevices\"")
 			}
 		case "protocols":
 			if err := func() error {
@@ -50605,6 +50882,16 @@ func (s *VolumeV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.BlockDevices != nil {
+			e.FieldStart("blockDevices")
+			e.ArrStart()
+			for _, elem := range s.BlockDevices {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("protocols")
 		e.ArrStart()
 		for _, elem := range s.Protocols {
@@ -50714,7 +51001,7 @@ func (s *VolumeV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfVolumeV1beta = [47]string{
+var jsonFieldsNameOfVolumeV1beta = [48]string{
 	0:  "resourceId",
 	1:  "volumeId",
 	2:  "created",
@@ -50745,23 +51032,24 @@ var jsonFieldsNameOfVolumeV1beta = [47]string{
 	27: "backupConfig",
 	28: "tieringPolicy",
 	29: "blockProperties",
-	30: "protocols",
-	31: "restrictedActions",
-	32: "smbSettings",
-	33: "mountPoints",
-	34: "labels",
-	35: "kerberosEnabled",
-	36: "ldapEnabled",
-	37: "unixPermissions",
-	38: "encryptionType",
-	39: "description",
-	40: "zone",
-	41: "multipleEndpoints",
-	42: "largeCapacity",
-	43: "secondaryZone",
-	44: "dedicatedCapacity",
-	45: "largeVolumeConstituentCount",
-	46: "cacheParameters",
+	30: "blockDevices",
+	31: "protocols",
+	32: "restrictedActions",
+	33: "smbSettings",
+	34: "mountPoints",
+	35: "labels",
+	36: "kerberosEnabled",
+	37: "ldapEnabled",
+	38: "unixPermissions",
+	39: "encryptionType",
+	40: "description",
+	41: "zone",
+	42: "multipleEndpoints",
+	43: "largeCapacity",
+	44: "secondaryZone",
+	45: "dedicatedCapacity",
+	46: "largeVolumeConstituentCount",
+	47: "cacheParameters",
 }
 
 // Decode decodes VolumeV1beta from json.
@@ -51076,8 +51364,25 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"blockProperties\"")
 			}
+		case "blockDevices":
+			if err := func() error {
+				s.BlockDevices = make([]BlockDeviceV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem BlockDeviceV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.BlockDevices = append(s.BlockDevices, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"blockDevices\"")
+			}
 		case "protocols":
-			requiredBitSet[3] |= 1 << 6
+			requiredBitSet[3] |= 1 << 7
 			if err := func() error {
 				s.Protocols = make([]ProtocolsV1beta, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -51272,7 +51577,7 @@ func (s *VolumeV1beta) Decode(d *jx.Decoder) error {
 		0b00100001,
 		0b00000000,
 		0b00000000,
-		0b01000000,
+		0b10000000,
 		0b00000000,
 		0b00000000,
 	} {
