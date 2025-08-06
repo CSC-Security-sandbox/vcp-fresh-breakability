@@ -173,9 +173,9 @@ spec:
             - name: WAIT_TIME_FOR_GCP_OPERATION_IN_SEC
               value: "10"
             - name: VSA_IMAGE_PROJECT
-              value: "gcnv-autopush-images"
+              value: ""
             - name: VSA_MEDIATOR_IMAGE_PROJECT
-              value: "gcnv-autopush-images"
+              value: ""
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

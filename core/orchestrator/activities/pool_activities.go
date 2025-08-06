@@ -861,6 +861,13 @@ func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZo
 		return err
 	}
 
+	if vsaImageProject == "" {
+		vsaImageProject = regionalTenantProjectID
+	}
+	if mediatorImageProject == "" {
+		mediatorImageProject = regionalTenantProjectID
+	}
+
 	vlmConfig.Deployment.GCPConfig = vlm.GCPConfig{
 		ProjectID:              regionalTenantProjectID,
 		ImageProjectID:         vsaImageProject,

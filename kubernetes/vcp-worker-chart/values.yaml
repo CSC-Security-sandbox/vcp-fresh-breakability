@@ -79,8 +79,8 @@ workerConfig:
   vsaImageName: "r9-17-1xn-250710-0000-gcnv"
   # this will be removed after AGA
   vsaFilesImageName: "r9-18-1xn-250722-0000"
-  vsaImageProject: "gcnv-autopush-images"
-  vsaMediatorImageProject: "gcnv-autopush-images"
+  vsaImageProject: ""
+  vsaMediatorImageProject: ""
 
   # Mediator VM Configuration
   vsaMediatorInstanceType: "n2-standard-4"
