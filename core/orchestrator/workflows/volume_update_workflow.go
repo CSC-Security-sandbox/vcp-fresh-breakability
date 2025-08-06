@@ -121,7 +121,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType})
 
 	// Update the snapshot policy if it is provided in the params
-	if params.SnapshotPolicy != nil && params.SnapshotPolicy.Name != "" {
+	if params.SnapshotPolicy != nil && params.SnapshotPolicy.Name != "" && !volume.VolumeAttributes.IsDataProtection {
 		updatingPolicy := populateSnapshotPolicyFromParams(params.SnapshotPolicy)
 
 		// If the volume does not have an existing snapshot policy, we need to create a new one using the provided snapshot policy

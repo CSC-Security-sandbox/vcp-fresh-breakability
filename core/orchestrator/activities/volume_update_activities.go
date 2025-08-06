@@ -36,16 +36,21 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	snapshotPolicyName := SnapshotPolicyNone
-	if volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
-		snapshotPolicyName = volume.SnapshotPolicy.Name
-	}
+
 	updateVolumeParams := &vsa.UpdateVolumeParams{
-		UUID:               volume.VolumeAttributes.ExternalUUID,
-		Size:               params.QuotaInBytes,
-		SnapshotPolicyName: snapshotPolicyName,
-		SnapReserve:        params.SnapReserve,
+		UUID:        volume.VolumeAttributes.ExternalUUID,
+		Size:        params.QuotaInBytes,
+		SnapReserve: params.SnapReserve,
 	}
+
+	// Set snapshot policy only if the volume is not a data protection volume.
+	if !volume.VolumeAttributes.IsDataProtection {
+		updateVolumeParams.SnapshotPolicyName = SnapshotPolicyNone
+		if volume.SnapshotPolicy != nil && volume.SnapshotPolicy.Name != "" {
+			updateVolumeParams.SnapshotPolicyName = volume.SnapshotPolicy.Name
+		}
+	}
+
 	if params.AutoTieringPolicy != nil {
 		updateVolumeParams.TieringPolicy = &vsa.TieringPolicy{}
 		if params.AutoTieringPolicy.AutoTieringEnabled {

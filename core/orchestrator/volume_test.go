@@ -6290,6 +6290,29 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		assert.Contains(tt, err.Error(), "Cannot update snapshotReserve on a Data Protection Volume")
 	})
 
+	t.Run("FailsIfSnapshotPolicyUpdatedForDPVol", func(tt *testing.T) {
+		volume := &datamodel.Volume{State: "READY", SizeInBytes: 1000, VolumeAttributes: &datamodel.VolumeAttributes{
+			IsDataProtection: true},
+		}
+		params := &common.UpdateVolumeParams{QuotaInBytes: 1000,
+			SnapshotPolicy: &models.SnapshotPolicy{
+				IsEnabled: true,
+				Schedules: []*models.SnapshotPolicySchedule{
+					{
+						Count: 1,
+						Schedule: &models.Schedule{
+							DaysOfMonth: []int{1},
+							DaysOfWeek:  []int{2},
+						},
+					},
+				},
+			},
+		}
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Cannot update snapshot policy on a Data Protection Volume")
+	})
+
 	t.Run("WhenQuotaInBytesIsZeroSkip", func(tt *testing.T) {
 		// Use a valid quota above minQuotaInBytesVolume
 		volume := &datamodel.Volume{State: "READY", SizeInBytes: 200 * 1024 * 1024 * 1024} // 200 GiB

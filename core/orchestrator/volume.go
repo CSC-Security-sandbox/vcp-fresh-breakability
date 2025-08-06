@@ -1013,6 +1013,9 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		if params.DataProtection != nil && !nillable.IsNilOrEmpty(params.DataProtection.BackupPolicyId) {
 			return customerrors.NewUserInputValidationErr("Cannot update backup policy on a Data Protection Volume. Only manual backups are supported")
 		}
+		if params.SnapshotPolicy != nil && len(params.SnapshotPolicy.Schedules) > 0 {
+			return customerrors.NewUserInputValidationErr("Cannot update snapshot policy on a Data Protection Volume.")
+		}
 	}
 
 	return nil
