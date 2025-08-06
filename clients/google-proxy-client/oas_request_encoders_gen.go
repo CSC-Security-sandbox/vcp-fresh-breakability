@@ -186,7 +186,7 @@ func encodeV1betaDeleteVolumeRequest(
 }
 
 func encodeV1betaFinishProjectEventRequest(
-	req *StateUpdateV1beta,
+	req *ProjectStateUpdateV1beta,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -437,8 +437,22 @@ func encodeV1betaResourceStateUpdateRequest(
 	return nil
 }
 
+func encodeV1betaRevertVolumeRequest(
+	req *VolumeRevertV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeV1betaStartProjectEventRequest(
-	req *StateUpdateV1beta,
+	req *ProjectStateUpdateV1beta,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

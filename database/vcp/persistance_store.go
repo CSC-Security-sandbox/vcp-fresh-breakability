@@ -469,6 +469,10 @@ func (s *PersistenceStore) UpdateVolume(ctx context.Context, volume *datamodel.V
 	return s.dataStore.UpdateVolume(ctx, volume)
 }
 
+func (s *PersistenceStore) RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) error {
+	return s.dataStore.RevertedVolume(ctx, volume, snapshot)
+}
+
 func (s *PersistenceStore) UpdateVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error {
 	return s.dataStore.UpdateVolumeFields(ctx, volumeUUID, updates)
 }

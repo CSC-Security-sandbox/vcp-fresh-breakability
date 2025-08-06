@@ -80,6 +80,7 @@ const (
 	V1betaResourceStateUpdateOperation                    OperationName = "V1betaResourceStateUpdate"
 	V1betaResumeReplicationOperation                      OperationName = "V1betaResumeReplication"
 	V1betaReverseAndResumeReplicationOperation            OperationName = "V1betaReverseAndResumeReplication"
+	V1betaRevertVolumeOperation                           OperationName = "V1betaRevertVolume"
 	V1betaStartProjectEventOperation                      OperationName = "V1betaStartProjectEvent"
 	V1betaStopReplicationOperation                        OperationName = "V1betaStopReplication"
 	V1betaSyncReplicationOperation                        OperationName = "V1betaSyncReplication"

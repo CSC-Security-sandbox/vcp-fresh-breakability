@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -100,6 +101,69 @@ func (d *DataStoreRepository) UpdateVolume(ctx context.Context, volume *datamode
 	}
 
 	return nil
+}
+
+func (d *DataStoreRepository) RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+	dbVolume, err := getVolumeWithDetails(tx, &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volume.UUID}})
+	if err != nil {
+		return err
+	}
+
+	snapshots, err := revertDeleteSnapshots(ctx, tx, volume.ID, snapshot.UUID)
+	if err != nil {
+		return err
+	}
+
+	dbVolume.State = models.LifeCycleStateREADY
+	dbVolume.StateDetails = models.LifeCycleStateAvailableDetails
+	err = tx.Unscoped().Save(dbVolume).Error
+	if err != nil {
+		return err
+	}
+
+	if len(snapshots) > 0 {
+		err = hydrationActivities.HydrateBatchSnapshotstoCCFE(ctx, nil, snapshots)
+		if err != nil {
+			logger.Errorf("Failed to hydrate snapshots to CCFE after volume revert: %v, snapshots: %+v", err, snapshots)
+			return err
+		}
+	}
+	return nil
+}
+
+func revertDeleteSnapshots(ctx context.Context, db *gorm.DB, volumeID int64, snapshotID string) ([]*datamodel.Snapshot, error) {
+	db = db.Preload("Account").Preload("Volume").Preload("Volume.Pool")
+	logger := util.GetLogger(ctx)
+
+	var snapshots []*datamodel.Snapshot
+	err := db.Where(
+		"volume_id = ? and created_at > (select created_at from (select created_at from snapshots where uuid = ?) as ss)",
+		volumeID, snapshotID,
+	).Find(&snapshots).Error
+
+	if err != nil {
+		logger.Warnf("failed to revert delete snapshots: %v", err)
+		return nil, err
+	}
+
+	result := db.Exec(
+		"UPDATE snapshots SET deleted_at = CURRENT_TIMESTAMP, state = ?, state_details = ? "+
+			"WHERE volume_id = ? AND created_at > (SELECT created_at FROM snapshots WHERE uuid = ?)",
+		models.LifeCycleStateDeleted, models.LifeCycleStateDeletedDetails,
+		volumeID, snapshotID,
+	)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return snapshots, nil
 }
 
 func (d *DataStoreRepository) UpdateVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error {

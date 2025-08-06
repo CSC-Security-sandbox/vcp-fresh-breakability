@@ -1395,6 +1395,15 @@ type SnapshotGetParams struct {
 	VolumeUUID string
 }
 
+// RevertVolumeParams describes parameters supplied to Provider.RevertVolume
+type RevertVolumeParams struct {
+	VolumeID        string
+	SnapshotID      string
+	SnapshotName    string
+	SvmName         string
+	PreRevertVolume *Volume
+}
+
 // SnapshotDeleteParams is the input param struct for storageClient.SnapshotDelete
 type SnapshotDeleteParams struct {
 	UUID       string

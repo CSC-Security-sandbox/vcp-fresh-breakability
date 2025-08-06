@@ -1980,7 +1980,7 @@ func (_c *MockInvoker_V1betaEncryptVolumes_Call) RunAndReturn(run func(context.C
 }
 
 // V1betaFinishProjectEvent provides a mock function with given fields: ctx, request, params
-func (_m *MockInvoker) V1betaFinishProjectEvent(ctx context.Context, request *StateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error) {
+func (_m *MockInvoker) V1betaFinishProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error) {
 	ret := _m.Called(ctx, request, params)
 
 	if len(ret) == 0 {
@@ -1989,10 +1989,10 @@ func (_m *MockInvoker) V1betaFinishProjectEvent(ctx context.Context, request *St
 
 	var r0 V1betaFinishProjectEventRes
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *StateUpdateV1beta, V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *ProjectStateUpdateV1beta, V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error)); ok {
 		return rf(ctx, request, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *StateUpdateV1beta, V1betaFinishProjectEventParams) V1betaFinishProjectEventRes); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *ProjectStateUpdateV1beta, V1betaFinishProjectEventParams) V1betaFinishProjectEventRes); ok {
 		r0 = rf(ctx, request, params)
 	} else {
 		if ret.Get(0) != nil {
@@ -2000,7 +2000,7 @@ func (_m *MockInvoker) V1betaFinishProjectEvent(ctx context.Context, request *St
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *StateUpdateV1beta, V1betaFinishProjectEventParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *ProjectStateUpdateV1beta, V1betaFinishProjectEventParams) error); ok {
 		r1 = rf(ctx, request, params)
 	} else {
 		r1 = ret.Error(1)
@@ -2016,15 +2016,15 @@ type MockInvoker_V1betaFinishProjectEvent_Call struct {
 
 // V1betaFinishProjectEvent is a helper method to define mock.On call
 //   - ctx context.Context
-//   - request *StateUpdateV1beta
+//   - request *ProjectStateUpdateV1beta
 //   - params V1betaFinishProjectEventParams
 func (_e *MockInvoker_Expecter) V1betaFinishProjectEvent(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaFinishProjectEvent_Call {
 	return &MockInvoker_V1betaFinishProjectEvent_Call{Call: _e.mock.On("V1betaFinishProjectEvent", ctx, request, params)}
 }
 
-func (_c *MockInvoker_V1betaFinishProjectEvent_Call) Run(run func(ctx context.Context, request *StateUpdateV1beta, params V1betaFinishProjectEventParams)) *MockInvoker_V1betaFinishProjectEvent_Call {
+func (_c *MockInvoker_V1betaFinishProjectEvent_Call) Run(run func(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaFinishProjectEventParams)) *MockInvoker_V1betaFinishProjectEvent_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*StateUpdateV1beta), args[2].(V1betaFinishProjectEventParams))
+		run(args[0].(context.Context), args[1].(*ProjectStateUpdateV1beta), args[2].(V1betaFinishProjectEventParams))
 	})
 	return _c
 }
@@ -2034,7 +2034,7 @@ func (_c *MockInvoker_V1betaFinishProjectEvent_Call) Return(_a0 V1betaFinishProj
 	return _c
 }
 
-func (_c *MockInvoker_V1betaFinishProjectEvent_Call) RunAndReturn(run func(context.Context, *StateUpdateV1beta, V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error)) *MockInvoker_V1betaFinishProjectEvent_Call {
+func (_c *MockInvoker_V1betaFinishProjectEvent_Call) RunAndReturn(run func(context.Context, *ProjectStateUpdateV1beta, V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error)) *MockInvoker_V1betaFinishProjectEvent_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4416,8 +4416,68 @@ func (_c *MockInvoker_V1betaReverseAndResumeReplication_Call) RunAndReturn(run f
 	return _c
 }
 
+// V1betaRevertVolume provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaRevertVolume(ctx context.Context, request *VolumeRevertV1beta, params V1betaRevertVolumeParams) (V1betaRevertVolumeRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaRevertVolume")
+	}
+
+	var r0 V1betaRevertVolumeRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeRevertV1beta, V1betaRevertVolumeParams) (V1betaRevertVolumeRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *VolumeRevertV1beta, V1betaRevertVolumeParams) V1betaRevertVolumeRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaRevertVolumeRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *VolumeRevertV1beta, V1betaRevertVolumeParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaRevertVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaRevertVolume'
+type MockInvoker_V1betaRevertVolume_Call struct {
+	*mock.Call
+}
+
+// V1betaRevertVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *VolumeRevertV1beta
+//   - params V1betaRevertVolumeParams
+func (_e *MockInvoker_Expecter) V1betaRevertVolume(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaRevertVolume_Call {
+	return &MockInvoker_V1betaRevertVolume_Call{Call: _e.mock.On("V1betaRevertVolume", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaRevertVolume_Call) Run(run func(ctx context.Context, request *VolumeRevertV1beta, params V1betaRevertVolumeParams)) *MockInvoker_V1betaRevertVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*VolumeRevertV1beta), args[2].(V1betaRevertVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaRevertVolume_Call) Return(_a0 V1betaRevertVolumeRes, _a1 error) *MockInvoker_V1betaRevertVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaRevertVolume_Call) RunAndReturn(run func(context.Context, *VolumeRevertV1beta, V1betaRevertVolumeParams) (V1betaRevertVolumeRes, error)) *MockInvoker_V1betaRevertVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaStartProjectEvent provides a mock function with given fields: ctx, request, params
-func (_m *MockInvoker) V1betaStartProjectEvent(ctx context.Context, request *StateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error) {
+func (_m *MockInvoker) V1betaStartProjectEvent(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error) {
 	ret := _m.Called(ctx, request, params)
 
 	if len(ret) == 0 {
@@ -4426,10 +4486,10 @@ func (_m *MockInvoker) V1betaStartProjectEvent(ctx context.Context, request *Sta
 
 	var r0 V1betaStartProjectEventRes
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *StateUpdateV1beta, V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *ProjectStateUpdateV1beta, V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error)); ok {
 		return rf(ctx, request, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *StateUpdateV1beta, V1betaStartProjectEventParams) V1betaStartProjectEventRes); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *ProjectStateUpdateV1beta, V1betaStartProjectEventParams) V1betaStartProjectEventRes); ok {
 		r0 = rf(ctx, request, params)
 	} else {
 		if ret.Get(0) != nil {
@@ -4437,7 +4497,7 @@ func (_m *MockInvoker) V1betaStartProjectEvent(ctx context.Context, request *Sta
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *StateUpdateV1beta, V1betaStartProjectEventParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *ProjectStateUpdateV1beta, V1betaStartProjectEventParams) error); ok {
 		r1 = rf(ctx, request, params)
 	} else {
 		r1 = ret.Error(1)
@@ -4453,15 +4513,15 @@ type MockInvoker_V1betaStartProjectEvent_Call struct {
 
 // V1betaStartProjectEvent is a helper method to define mock.On call
 //   - ctx context.Context
-//   - request *StateUpdateV1beta
+//   - request *ProjectStateUpdateV1beta
 //   - params V1betaStartProjectEventParams
 func (_e *MockInvoker_Expecter) V1betaStartProjectEvent(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaStartProjectEvent_Call {
 	return &MockInvoker_V1betaStartProjectEvent_Call{Call: _e.mock.On("V1betaStartProjectEvent", ctx, request, params)}
 }
 
-func (_c *MockInvoker_V1betaStartProjectEvent_Call) Run(run func(ctx context.Context, request *StateUpdateV1beta, params V1betaStartProjectEventParams)) *MockInvoker_V1betaStartProjectEvent_Call {
+func (_c *MockInvoker_V1betaStartProjectEvent_Call) Run(run func(ctx context.Context, request *ProjectStateUpdateV1beta, params V1betaStartProjectEventParams)) *MockInvoker_V1betaStartProjectEvent_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*StateUpdateV1beta), args[2].(V1betaStartProjectEventParams))
+		run(args[0].(context.Context), args[1].(*ProjectStateUpdateV1beta), args[2].(V1betaStartProjectEventParams))
 	})
 	return _c
 }
@@ -4471,7 +4531,7 @@ func (_c *MockInvoker_V1betaStartProjectEvent_Call) Return(_a0 V1betaStartProjec
 	return _c
 }
 
-func (_c *MockInvoker_V1betaStartProjectEvent_Call) RunAndReturn(run func(context.Context, *StateUpdateV1beta, V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error)) *MockInvoker_V1betaStartProjectEvent_Call {
+func (_c *MockInvoker_V1betaStartProjectEvent_Call) RunAndReturn(run func(context.Context, *ProjectStateUpdateV1beta, V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error)) *MockInvoker_V1betaStartProjectEvent_Call {
 	_c.Call.Return(run)
 	return _c
 }

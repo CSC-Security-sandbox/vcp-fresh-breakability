@@ -8106,3 +8106,550 @@ func TestFileVolumeProcessor_Validate(t *testing.T) {
 		assert.EqualError(tt, err, "allowed clients cannot be nil in export rules")
 	})
 }
+
+func TestUpdateVolumeStatus(t *testing.T) {
+	t.Run("WhenUpdateVolumeFieldsFails", func(tt *testing.T) {
+		ctx := context.Background()
+		se := &database.MockStorage{}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test-volume",
+			State:     models.LifeCycleStateREADY,
+		}
+
+		se.On("UpdateVolumeFields", ctx, volume.UUID, mock.Anything).Return(errors.New("database error"))
+		updatedVolume, err := updateVolumeStatus(ctx, se, volume, models.LifeCycleStateReverting, models.LifeCycleStateRevertingDetails)
+		assert.EqualError(tt, err, "database error")
+		assert.Nil(tt, updatedVolume)
+	})
+
+	t.Run("WhenUpdateVolumeRevertStatusSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		se := &database.MockStorage{}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test-volume",
+			State:     models.LifeCycleStateREADY,
+		}
+
+		se.On("UpdateVolumeFields", ctx, volume.UUID, mock.Anything).Return(nil)
+		updatedVolume, err := updateVolumeStatus(ctx, se, volume, models.LifeCycleStateReverting, models.LifeCycleStateRevertingDetails)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updatedVolume)
+		assert.Equal(tt, models.LifeCycleStateReverting, updatedVolume.State)
+		assert.Equal(tt, models.LifeCycleStateRevertingDetails, updatedVolume.StateDetails)
+	})
+}
+
+func TestRevertVolume(t *testing.T) {
+	t.Run("WhenAccountNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.RevertVolumeParams{
+			AccountName: "non-existent-account",
+			VolumeID:    "test-volume-uuid",
+			SnapshotID:  "test-snapshot-uuid",
+		}
+
+		_, _, err = orch.RevertVolume(ctx, params)
+		assert.Contains(tt, err.Error(), "account not found")
+	})
+
+	t.Run("WhenVolumeNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.RevertVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    "non-existent-volume-uuid",
+			SnapshotID:  "test-snapshot-uuid",
+		}
+
+		_, _, err = orch.RevertVolume(ctx, params)
+		assert.EqualError(tt, err, "volume not found")
+	})
+
+	t.Run("WhenVolumeInTransitionState", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test_volume",
+			AccountID:    account.ID,
+			Pool:         pool,
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateDeleting,
+			StateDetails: models.LifeCycleStateDeletingDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.RevertVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+			SnapshotID:  "test-snapshot-uuid",
+		}
+
+		_, _, err = orch.RevertVolume(ctx, params)
+		assert.Contains(tt, err.Error(), "Volume is not in READY state, state: DELETING")
+	})
+
+	t.Run("WhenVolumeIsDataProtection", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: true,
+				SnapReserve:      0,
+			},
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.RevertVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+			SnapshotID:  "test-snapshot-uuid",
+		}
+
+		_, _, err = orch.RevertVolume(ctx, params)
+		assert.EqualError(tt, err, "Cannot revert a Data Protection Volume")
+	})
+
+	t.Run("WhenSnapshotNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+				SnapReserve:      0,
+			},
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.RevertVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+			SnapshotID:  "non-existent-snapshot-uuid",
+		}
+
+		_, _, err = orch.RevertVolume(ctx, params)
+		assert.EqualError(tt, err, "Snapshot not found")
+	})
+
+	t.Run("WhenSnapshotNotInReadyState", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			VolumeID:  volume.ID,
+			AccountID: account.ID,
+			State:     models.LifeCycleStateCreating,
+		}
+		err = store.DB().Create(snapshot).Error
+		assert.NoError(tt, err, "Failed to create snapshot")
+
+		orch := Orchestrator{
+			storage: store,
+		}
+
+		params := &common.RevertVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+			SnapshotID:  snapshot.UUID,
+		}
+
+		_, _, err = orch.RevertVolume(ctx, params)
+		assert.EqualError(tt, err, "Snapshot is not in a valid state for volume revert. Please wait for the snapshot to be ready and retry again.")
+	})
+
+	t.Run("WhenWorkflowExecutionFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		// Mock data setup
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			t.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+			VendorID: "/projects/project123/locations/location123/pools/pool123",
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(t, err, "Failed to create volume")
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			VolumeID:  volume.ID,
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(snapshot).Error
+		assert.NoError(t, err, "Failed to create snapshot")
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return errors.New("workflow execution failed")
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		// Mock updateVolumeStatus
+		originalUpdateVolumeStatus := updateVolumeStatus
+		updateVolumeStatus = func(ctx context.Context, se database.Storage, vol *datamodel.Volume, state string, details string) (*datamodel.Volume, error) {
+			vol.State = state
+			return vol, nil
+		}
+		defer func() { updateVolumeStatus = originalUpdateVolumeStatus }()
+
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+
+		params := &common.RevertVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+			SnapshotID:  snapshot.UUID,
+		}
+
+		_, _, tempErr := orch.RevertVolume(ctx, params)
+
+		// Assert the error
+		assert.NotNil(t, tempErr, "Expected an error but got nil")
+		assert.EqualError(t, tempErr, "workflow execution failed")
+	})
+
+	t.Run("WhenWorkflowExecutionSucceeds", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west1-a",
+			},
+			VendorID: "/projects/project123/locations/location123/pools/pool123",
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				IsDataProtection: false,
+			},
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			VolumeID:  volume.ID,
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(snapshot).Error
+		assert.NoError(tt, err, "Failed to create snapshot")
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		orch := Orchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+
+		params := &common.RevertVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+			SnapshotID:  snapshot.UUID,
+		}
+
+		resultVolume, jobUUID, err := orch.RevertVolume(ctx, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, resultVolume)
+		assert.NotEmpty(tt, jobUUID)
+		assert.Equal(tt, models.LifeCycleStateReverting, resultVolume.LifeCycleState)
+		assert.Equal(tt, volume.UUID, resultVolume.UUID)
+		assert.Equal(tt, volume.Name, resultVolume.DisplayName)
+	})
+}

@@ -7514,6 +7514,54 @@ func (_c *MockDataStore_ListVolumes_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
+// RevertedVolume provides a mock function with given fields: ctx, volume, snapshot
+func (_m *MockDataStore) RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) error {
+	ret := _m.Called(ctx, volume, snapshot)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RevertedVolume")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *datamodel.Snapshot) error); ok {
+		r0 = rf(ctx, volume, snapshot)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_RevertedVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RevertedVolume'
+type MockDataStore_RevertedVolume_Call struct {
+	*mock.Call
+}
+
+// RevertedVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volume *datamodel.Volume
+//   - snapshot *datamodel.Snapshot
+func (_e *MockDataStore_Expecter) RevertedVolume(ctx interface{}, volume interface{}, snapshot interface{}) *MockDataStore_RevertedVolume_Call {
+	return &MockDataStore_RevertedVolume_Call{Call: _e.mock.On("RevertedVolume", ctx, volume, snapshot)}
+}
+
+func (_c *MockDataStore_RevertedVolume_Call) Run(run func(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot)) *MockDataStore_RevertedVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Volume), args[2].(*datamodel.Snapshot))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_RevertedVolume_Call) Return(_a0 error) *MockDataStore_RevertedVolume_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_RevertedVolume_Call) RunAndReturn(run func(context.Context, *datamodel.Volume, *datamodel.Snapshot) error) *MockDataStore_RevertedVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SavePoolWithVsaDetails provides a mock function with given fields: ctx, pool, cluster
 func (_m *MockDataStore) SavePoolWithVsaDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error {
 	ret := _m.Called(ctx, pool, cluster)

@@ -7745,6 +7745,54 @@ func (_c *MockStorage_Migrate_Call) RunAndReturn(run func(context.Context) error
 	return _c
 }
 
+// RevertedVolume provides a mock function with given fields: ctx, volume, snapshot
+func (_m *MockStorage) RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) error {
+	ret := _m.Called(ctx, volume, snapshot)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RevertedVolume")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *datamodel.Snapshot) error); ok {
+		r0 = rf(ctx, volume, snapshot)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_RevertedVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RevertedVolume'
+type MockStorage_RevertedVolume_Call struct {
+	*mock.Call
+}
+
+// RevertedVolume is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volume *datamodel.Volume
+//   - snapshot *datamodel.Snapshot
+func (_e *MockStorage_Expecter) RevertedVolume(ctx interface{}, volume interface{}, snapshot interface{}) *MockStorage_RevertedVolume_Call {
+	return &MockStorage_RevertedVolume_Call{Call: _e.mock.On("RevertedVolume", ctx, volume, snapshot)}
+}
+
+func (_c *MockStorage_RevertedVolume_Call) Run(run func(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot)) *MockStorage_RevertedVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.Volume), args[2].(*datamodel.Snapshot))
+	})
+	return _c
+}
+
+func (_c *MockStorage_RevertedVolume_Call) Return(_a0 error) *MockStorage_RevertedVolume_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_RevertedVolume_Call) RunAndReturn(run func(context.Context, *datamodel.Volume, *datamodel.Snapshot) error) *MockStorage_RevertedVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Rollback provides a mock function with given fields: ctx
 func (_m *MockStorage) Rollback(ctx context.Context) error {
 	ret := _m.Called(ctx)

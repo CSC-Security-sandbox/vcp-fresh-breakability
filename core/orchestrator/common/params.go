@@ -64,6 +64,13 @@ type HostParams struct {
 	OsType   string
 }
 
+type RevertVolumeParams struct {
+	AccountName string
+	Region      string
+	VolumeID    string
+	SnapshotID  string
+}
+
 // CreateVolumeParams describes parameters supplied to CreatePool
 type CreateVolumeParams struct {
 	AccountName       string

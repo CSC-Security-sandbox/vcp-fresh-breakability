@@ -11,7 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-func (h Handler) V1betaStartProjectEvent(ctx context.Context, req *gcpgenserver.StateUpdateV1beta, params gcpgenserver.V1betaStartProjectEventParams) (gcpgenserver.V1betaStartProjectEventRes, error) {
+func (h Handler) V1betaStartProjectEvent(ctx context.Context, req *gcpgenserver.ProjectStateUpdateV1beta, params gcpgenserver.V1betaStartProjectEventParams) (gcpgenserver.V1betaStartProjectEventRes, error) {
 	// Check state [ON, OFF, DELETE]
 	// Do nothing if the state is DELETE
 	logger := util.GetLogger(ctx)
@@ -24,7 +24,7 @@ func (h Handler) V1betaStartProjectEvent(ctx context.Context, req *gcpgenserver.
 		}, nil
 	}
 
-	if req.State == gcpgenserver.StateUpdateV1betaStateDELETE {
+	if req.State == gcpgenserver.ProjectStateUpdateV1betaStateDELETE {
 		msg := "Start Project Event for " + models.StateDelete + " is not Implemented"
 		return &gcpgenserver.V1betaStartProjectEventNotImplemented{
 			Code:    models.NotImplementedErrorCode,
@@ -52,7 +52,7 @@ func (h Handler) V1betaStartProjectEvent(ctx context.Context, req *gcpgenserver.
 	}, nil
 }
 
-func (h Handler) V1betaFinishProjectEvent(ctx context.Context, req *gcpgenserver.StateUpdateV1beta,
+func (h Handler) V1betaFinishProjectEvent(ctx context.Context, req *gcpgenserver.ProjectStateUpdateV1beta,
 	params gcpgenserver.V1betaFinishProjectEventParams) (gcpgenserver.V1betaFinishProjectEventRes, error) {
 	// Check state [ON, OFF, DELETE]
 	// Only act on DELETE. ON and OFF are not implemented
@@ -69,7 +69,7 @@ func (h Handler) V1betaFinishProjectEvent(ctx context.Context, req *gcpgenserver
 	}
 
 	// ON and OFF not implemented
-	if req.State == gcpgenserver.StateUpdateV1betaStateON || req.State == gcpgenserver.StateUpdateV1betaStateOFF {
+	if req.State == gcpgenserver.ProjectStateUpdateV1betaStateON || req.State == gcpgenserver.ProjectStateUpdateV1betaStateOFF {
 		msg := "Finish Project Event for " + string(req.State) + " is not Implemented"
 		return &gcpgenserver.V1betaFinishProjectEventNotImplemented{
 			Code:    models.NotImplementedErrorCode,

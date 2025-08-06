@@ -297,6 +297,10 @@ type V1betaReverseAndResumeReplicationRes interface {
 	v1betaReverseAndResumeReplicationRes()
 }
 
+type V1betaRevertVolumeRes interface {
+	v1betaRevertVolumeRes()
+}
+
 type V1betaStartProjectEventRes interface {
 	v1betaStartProjectEventRes()
 }

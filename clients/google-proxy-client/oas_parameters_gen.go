@@ -865,6 +865,18 @@ type V1betaReverseAndResumeReplicationParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaRevertVolumeParams is parameters of v1beta_revertVolume operation.
+type V1betaRevertVolumeParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaStartProjectEventParams is parameters of v1beta_startProjectEvent operation.
 type V1betaStartProjectEventParams struct {
 	// The project number of the GCP project owning the resource being acted upon.

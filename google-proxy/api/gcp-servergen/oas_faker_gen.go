@@ -3775,6 +3775,20 @@ func (s *PoolV1betaType) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *ProjectStateUpdateV1beta) SetFake() {
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ProjectStateUpdateV1betaState) SetFake() {
+	*s = ProjectStateUpdateV1betaStateON
+}
+
+// SetFake set fake values.
 func (s *ProtocolsV1beta) SetFake() {
 	*s = ProtocolsV1betaPROTOCOLUNSPECIFIED
 }
@@ -4325,20 +4339,6 @@ func (s *SnapshotV1beta) SetFake() {
 // SetFake set fake values.
 func (s *SnapshotV1betaSnapshotState) SetFake() {
 	*s = SnapshotV1betaSnapshotStateSTATEUNSPECIFIED
-}
-
-// SetFake set fake values.
-func (s *StateUpdateV1beta) SetFake() {
-	{
-		{
-			s.State.SetFake()
-		}
-	}
-}
-
-// SetFake set fake values.
-func (s *StateUpdateV1betaState) SetFake() {
-	*s = StateUpdateV1betaStateON
 }
 
 // SetFake set fake values.
@@ -9701,6 +9701,78 @@ func (s *V1betaReverseAndResumeReplicationUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaRevertVolumeBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRevertVolumeBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRevertVolumeConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRevertVolumeConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRevertVolumeForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRevertVolumeForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRevertVolumeInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRevertVolumeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRevertVolumeNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRevertVolumeNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRevertVolumeTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRevertVolumeTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRevertVolumeUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRevertVolumeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRevertVolumeUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRevertVolumeUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaStartProjectEventAccepted) SetFake() {
 	var unwrapped OperationV1beta
 	{
@@ -11251,6 +11323,15 @@ func (s *VolumeReplicationUpdateInternalV1betaLabels) SetFake() {
 // SetFake set fake values.
 func (s *VolumeReplicationUpdateInternalV1betaReplicationSchedule) SetFake() {
 	*s = VolumeReplicationUpdateInternalV1betaReplicationSchedule10minutely
+}
+
+// SetFake set fake values.
+func (s *VolumeRevertV1beta) SetFake() {
+	{
+		{
+			s.SnapshotId = "string"
+		}
+	}
 }
 
 // SetFake set fake values.

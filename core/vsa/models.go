@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-openapi/strfmt"
 	ontaprestmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
@@ -183,6 +184,15 @@ type UpdateVolumeParams struct {
 	TieringPolicy      *TieringPolicy
 	SnapReserve        *int64
 	EncryptionEnable   bool
+}
+
+// RevertVolumeParams describes parameters supplied to Provider.RevertVolume
+type RevertVolumeParams struct {
+	VolumeID        string
+	SnapshotID      string
+	SnapshotName    string
+	SvmName         string
+	PreRevertVolume *datamodel.Volume
 }
 
 type GetVolumeParams struct {

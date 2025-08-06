@@ -1924,6 +1924,7 @@ func TestOperationV1beta_Examples(t *testing.T) {
 		{Input: "{\"application/json\":{\"done\":\"true,\",\"name\":\"/v1beta/projects/1088371202435/locations/us-central1/operations/00000000-0000-0000-0000-000000000000\"}}"},
 		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1\",\"response\":{\"created\":\"0001-01-01T00:00:00.000Z\",\"description\":\"My Resource Description\",\"resourceId\":\"my-resource\",\"snapshotId\":\"1829d6e1-fbe0-87cb-150d-a32290162f0c\",\"snapshotState\":\"CREATING\",\"snapshotStateDetails\":\"Creation in progress\",\"storageClass\":\"SOFTWARE\",\"usedBytes\":0,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\"}}}"},
 		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1\",\"response\":{\"created\":\"0001-01-01T00:00:00.000Z\",\"description\":\"My Resource Description\",\"resourceId\":\"my-resource\",\"snapshotId\":\"1829d6e1-fbe0-87cb-150d-a32290162f0c\",\"snapshotState\":\"UPDATING\",\"snapshotStateDetails\":\"Update in progress\",\"storageClass\":\"SOFTWARE\",\"usedBytes\":0,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\"}}}"},
+		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1\"}}"},
 		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"created\":\"2024-01-24T11:13:24.245Z\",\"description\":\"My replication\",\"destination\":{\"volumeId\":\"20074ffe-4f2e-89d8-0ecf-7071ddce6030\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"healthy\":true,\"mirrorState\":\"MIRRORED\",\"replicationId\":\"3cc26ebf-b59a-ee3a-6854-47ca35f45691\",\"replicationSchedule\":\"HOURLY\",\"resourceId\":\"my-replication\",\"role\":\"SOURCE\",\"source\":{\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"state\":\"UPDATING\",\"stateDetails\":\"Stop in progress\",\"stateDetailsCode\":0,\"transferStats\":{\"lagTime\":169,\"lastTransferDuration\":2,\"lastTransferEndTime\":\"2024-01-26T15:52:43.000Z\",\"lastTransferSize\":3560,\"totalTransferBytes\":1147392,\"totalTransferTimeSecs\":660}}}}"},
 		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"created\":\"2024-01-29T10:59:26.168Z\",\"description\":\"My replication\",\"destination\":{\"volumeId\":\"1a65c06a-94a1-f850-0a1a-d0d07b6f7560\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"healthy\":true,\"mirrorState\":\"PREPARING\",\"replicationSchedule\":\"HOURLY\",\"resourceId\":\"my-replication\",\"role\":\"DESTINATION\",\"source\":{\"volumeId\":\"a02acf13-00ae-8d17-3f9a-e6daa1473d5b\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"state\":\"UPDATING\",\"stateDetailsCode\":0}}}"},
 		{Input: "{\"application/json\":{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"createdTime\":\"2024-02-07T14:55:52.441Z\",\"description\":\"My kms description\",\"keyFullPath\":\"projects/projectId/locations/us/keyRings/keyRing/cryptoKeys/keyName\",\"kmsState\":\"CREATING\",\"kmsStateDetails\":\"Creating Kms config settings\",\"resourceId\":\"my-resource\",\"updatedTime\":\"2024-02-07T14:55:52.441Z\",\"uuid\":\"06048ff8-98e8-7090-5559-f671bc440d67\"}}}"},
@@ -2472,6 +2473,59 @@ func TestPoolV1betaType_Examples(t *testing.T) {
 			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
 
 			var typ2 PoolV1betaType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestProjectStateUpdateV1beta_EncodeDecode(t *testing.T) {
+	var typ ProjectStateUpdateV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ProjectStateUpdateV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestProjectStateUpdateV1betaState_EncodeDecode(t *testing.T) {
+	var typ ProjectStateUpdateV1betaState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ProjectStateUpdateV1betaState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestProjectStateUpdateV1betaState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"DELETE\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ ProjectStateUpdateV1betaState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 ProjectStateUpdateV1betaState
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}
@@ -3414,59 +3468,6 @@ func TestSnapshotV1betaSnapshotState_Examples(t *testing.T) {
 			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
 
 			var typ2 SnapshotV1betaSnapshotState
-			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
-		})
-	}
-}
-func TestStateUpdateV1beta_EncodeDecode(t *testing.T) {
-	var typ StateUpdateV1beta
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 StateUpdateV1beta
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-func TestStateUpdateV1betaState_EncodeDecode(t *testing.T) {
-	var typ StateUpdateV1betaState
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 StateUpdateV1betaState
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
-
-func TestStateUpdateV1betaState_Examples(t *testing.T) {
-
-	for i, tc := range []struct {
-		Input string
-	}{
-		{Input: "\"DELETE\""},
-	} {
-		tc := tc
-		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
-			var typ StateUpdateV1betaState
-
-			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
-				if validateErr, ok := errors.Into[*validate.Error](err); ok {
-					t.Skipf("Validation error: %v", validateErr)
-					return
-				}
-				require.NoErrorf(t, err, "Input: %s", tc.Input)
-			}
-
-			e := jx.Encoder{}
-			typ.Encode(&e)
-			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
-
-			var typ2 StateUpdateV1betaState
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}
@@ -10323,6 +10324,102 @@ func TestV1betaReverseAndResumeReplicationUnprocessableEntity_EncodeDecode(t *te
 	var typ2 V1betaReverseAndResumeReplicationUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaRevertVolumeBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaRevertVolumeBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRevertVolumeBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRevertVolumeConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaRevertVolumeConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRevertVolumeConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRevertVolumeForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaRevertVolumeForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRevertVolumeForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRevertVolumeInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaRevertVolumeInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRevertVolumeInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRevertVolumeNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaRevertVolumeNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRevertVolumeNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRevertVolumeTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaRevertVolumeTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRevertVolumeTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRevertVolumeUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaRevertVolumeUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRevertVolumeUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaRevertVolumeUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaRevertVolumeUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaRevertVolumeUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaStartProjectEventAccepted_EncodeDecode(t *testing.T) {
 	var typ V1betaStartProjectEventAccepted
 	typ.SetFake()
@@ -12154,6 +12251,18 @@ func TestVolumeReplicationUpdateInternalV1betaReplicationSchedule_EncodeDecode(t
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 VolumeReplicationUpdateInternalV1betaReplicationSchedule
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestVolumeRevertV1beta_EncodeDecode(t *testing.T) {
+	var typ VolumeRevertV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 VolumeRevertV1beta
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestVolumeSnapshotCreateV1beta_EncodeDecode(t *testing.T) {

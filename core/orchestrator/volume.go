@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -28,11 +29,13 @@ var (
 	minQuotaInBytesVolume      = utils.MinQuotaInBytesVolumeForVolume
 	maxQuotaInBytesVolume      = utils.MaxQuotaInBytesVolumeForVolume
 	createVolume               = _createVolume
+	revertVolume               = _revertVolume
 	validateCreateVolumeParams = _validateCreateVolumeParams
 	getIPAddressForVolume      = _getIPAddressForVolume
 	updateVolume               = _updateVolume
 	deleteVolume               = _deleteVolume
 	validateDeleteVolumeParams = _validateDeleteVolumeParams
+	updateVolumeStatus         = _updateVolumeStatus
 )
 
 const (
@@ -284,6 +287,106 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 	return convertDatastoreVolumeToModel(dbVolume, nil), createdJob.UUID, nil
+}
+
+// RevertVolume creates the specified volume and adds it to the list of volume belonging to the specified owner
+func (o *Orchestrator) RevertVolume(ctx context.Context, params *common.RevertVolumeParams) (*models.Volume, string, error) {
+	return revertVolume(ctx, o.storage, o.temporal, params)
+}
+
+func _revertVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.RevertVolumeParams) (*models.Volume, string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		logger.Error("Failed to fetch account for the given projectNumber", "error", err)
+		return nil, "", err
+	}
+
+	volume, err := se.GetVolumeWithAccountID(ctx, params.VolumeID, account.ID)
+	if err != nil {
+		logger.Error("Failed to fetch volume for the given account ID", "error", err)
+		return nil, "", err
+	}
+	if volume.State != models.LifeCycleStateREADY {
+		return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrRevertingVolume, customerrors.NewConflictErr("Volume is not in READY state, state: "+volume.State))
+	}
+
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.IsDataProtection {
+		return nil, "", customerrors.NewUserInputValidationErr("Cannot revert a Data Protection Volume")
+	}
+
+	// Validate snapshot exists and is accessible
+	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID, volume.Account.ID, volume.ID)
+	if err != nil {
+		logger.Error("Failed to fetch snapshot for volume revert", "error", err)
+		return nil, "", customerrors.NewUserInputValidationErr("Snapshot not found")
+	}
+
+	// Validate snapshot state
+	if snapshot.State != models.LifeCycleStateREADY {
+		logger.Error("Snapshot is not in a valid state for volume revert", "snapshot_state", snapshot.State)
+		return nil, "", customerrors.NewUserInputValidationErr("Snapshot is not in a valid state for volume revert. Please wait for the snapshot to be ready and retry again.")
+	}
+
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeRevertVolume),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  volume.Name,
+		AccountID:     sql.NullInt64{Int64: volume.AccountID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: volume.UUID},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create volume revert job in database", "error", err)
+		return nil, "", err
+	}
+
+	volume, err = updateVolumeStatus(ctx, se, volume, models.LifeCycleStateReverting, models.LifeCycleStateRevertingDetails)
+	if err != nil {
+		logger.Error("Failed to update volume state in database", "error", err)
+		return nil, "", err
+	}
+
+	location, err := getLocationFromVendorID(volume.Pool.VendorID)
+	if err != nil {
+		logger.Error("Failed to get location from vendor ID: ", "error", err)
+		return nil, "", err
+	}
+
+	// controlWorkflowID defines the workflow ID for the control workflow
+	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSnapshotDeleteSeq, volume.Account.ID, location, volume.Pool.Name)
+	err = workflows.ExecuteWorkflowSequentially(
+		temporal,
+		ctx,
+		client.StartWorkflowOptions{
+			TaskQueue: workflowengine.CustomerTaskQueue,
+			ID:        controlWorkflowID,
+		},
+		workflows.RevertVolumeWorkflow,
+		workflow.ChildWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			WorkflowID:            createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		},
+		params,
+		volume,
+		snapshot,
+	)
+	if err != nil {
+		logger.Error("Failed to start revert volume workflow: ", "error", err)
+		_, DbErr := updateVolumeStatus(ctx, se, volume, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
+		if DbErr != nil {
+			logger.Error("Failed to update volume state in database back to Ready state after workflow failure", "error", DbErr)
+			return nil, "", fmt.Errorf("workflow error: %v, database error: %v", err, DbErr)
+		}
+		return nil, "", err
+	}
+
+	return convertDatastoreVolumeToModel(volume, nil), createdJob.UUID, nil
 }
 
 // GetVolume gets the specified volume
@@ -969,7 +1072,7 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		params.SnapshotPolicy.Name = dbVolume.Name
 	}
 
-	dbVolume, err = updateVolumeStatus(ctx, se, dbVolume)
+	dbVolume, err = updateVolumeStatus(ctx, se, dbVolume, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
 	if err != nil {
 		logger.Error("Failed to update volume state in database", "error", err)
 		return nil, "", err
@@ -994,16 +1097,16 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	return convertDatastoreVolumeToModel(dbVolume, nil), createdJob.UUID, nil
 }
 
-func updateVolumeStatus(ctx context.Context, se database.Storage, dbVolume *datamodel.Volume) (*datamodel.Volume, error) {
+func _updateVolumeStatus(ctx context.Context, se database.Storage, dbVolume *datamodel.Volume, state string, stateDetails string) (*datamodel.Volume, error) {
 	err := se.UpdateVolumeFields(ctx, dbVolume.UUID, map[string]interface{}{
-		"state":         models.LifeCycleStateUpdating,
-		"state_details": models.LifeCycleStateUpdatingDetails,
+		"state":         state,
+		"state_details": stateDetails,
 	})
 	if err != nil {
 		return nil, err
 	}
-	dbVolume.State = models.LifeCycleStateUpdating
-	dbVolume.StateDetails = models.LifeCycleStateUpdatingDetails
+	dbVolume.State = state
+	dbVolume.StateDetails = stateDetails
 	return dbVolume, err
 }
 

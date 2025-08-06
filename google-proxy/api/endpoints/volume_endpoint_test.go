@@ -3955,3 +3955,259 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		assert.Equal(tt, "Internal server error", internalErr.Message)
 	})
 }
+
+func TestV1betaRevertVolume(t *testing.T) {
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	mockParseAndValidateRegionAndZone := func(region string) (string, string, *gcpgenserver.Error) {
+		return "test-region", "test-location", nil
+	}
+	utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone
+	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+	t.Run("ValidRevertVolumeAndWhenAsynchronousIsNotSet", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaRevertVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeRevertV1beta{
+			SnapshotId: "snapshot-1",
+		}
+		volume := &models.Volume{
+			BaseModel:      models.BaseModel{UUID: "vol-1"},
+			LifeCycleState: "READY",
+		}
+		jobUUID := "job-uuid"
+		mockOrchestrator.EXPECT().RevertVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
+
+		result, err := handler.V1betaRevertVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+		assert.True(tt, op.Done.Value)
+	})
+
+	t.Run("UserInputValidationError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaRevertVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeRevertV1beta{
+			SnapshotId: "snapshot-1",
+		}
+		prepareRevertVolumeParams = func(req *gcpgenserver.VolumeRevertV1beta, params gcpgenserver.V1betaRevertVolumeParams, region string) (*common.RevertVolumeParams, error) {
+			return nil, errors.NewUserInputValidationErr("invalid input")
+		}
+		defer func() { prepareRevertVolumeParams = _prepareRevertVolumeParams }()
+
+		result, err := handler.V1betaRevertVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaRevertVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Contains(tt, badReq.Message, "invalid input")
+	})
+
+	t.Run("InternalServerError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaRevertVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeRevertV1beta{
+			SnapshotId: "snapshot-1",
+		}
+		prepareRevertVolumeParams = func(req *gcpgenserver.VolumeRevertV1beta, params gcpgenserver.V1betaRevertVolumeParams, region string) (*common.RevertVolumeParams, error) {
+			return nil, fmt.Errorf("unexpected error")
+		}
+		defer func() { prepareRevertVolumeParams = _prepareRevertVolumeParams }()
+
+		result, err := handler.V1betaRevertVolume(context.Background(), req, params)
+		assert.Error(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaRevertVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "unexpected error")
+	})
+
+	t.Run("BadRequest_InvalidLocation", func(tt *testing.T) {
+		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+		defer func() { utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		params := gcpgenserver.V1betaRevertVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeRevertV1beta{
+			SnapshotId: "snapshot-1",
+		}
+		prepareRevertVolumeParams = func(req *gcpgenserver.VolumeRevertV1beta, params gcpgenserver.V1betaRevertVolumeParams, region string) (*common.RevertVolumeParams, error) {
+			return nil, fmt.Errorf("unexpected error")
+		}
+		defer func() { prepareRevertVolumeParams = _prepareRevertVolumeParams }()
+
+		result, err := handler.V1betaRevertVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaRevertVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "LocationID represents neither a region nor a zone")
+	})
+
+	t.Run("WhenOrchestratorValidationThrowsAnError_Return400BadRequest", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaRevertVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeRevertV1beta{
+			SnapshotId: "snapshot-1",
+		}
+
+		mockOrchestrator.EXPECT().RevertVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("An error occurred"))
+
+		result, err := handler.V1betaRevertVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaRevertVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "An error occurred")
+	})
+
+	t.Run("WhenOrchestratorThrowsAnError_ReturnError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaRevertVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeRevertV1beta{
+			SnapshotId: "snapshot-1",
+		}
+
+		mockOrchestrator.EXPECT().RevertVolume(mock.Anything, mock.Anything).Return(nil, "", errors.New("An error occurred"))
+
+		result, err := handler.V1betaRevertVolume(context.Background(), req, params)
+		assert.Error(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaRevertVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "An error occurred")
+	})
+
+	t.Run("WhenOrchestratorNotFoundError_Return400BadRequest", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaRevertVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeRevertV1beta{
+			SnapshotId: "snapshot-1",
+		}
+
+		mockOrchestrator.EXPECT().RevertVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewNotFoundErr("Volume not found", nil))
+
+		result, err := handler.V1betaRevertVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaRevertVolumeBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "Volume not found")
+	})
+}
+
+func TestPrepareRevertVolumeParams(t *testing.T) {
+	t.Run("ValidRevertVolumeParams", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeRevertV1beta{
+			SnapshotId: "snapshot-1",
+		}
+		params := gcpgenserver.V1betaRevertVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		region := "test-region"
+
+		expected := &common.RevertVolumeParams{
+			AccountName: "test-project",
+			Region:      "test-region",
+			VolumeID:    "vol-1",
+			SnapshotID:  "snapshot-1",
+		}
+
+		result, err := prepareRevertVolumeParams(req, params, region)
+		assert.NoError(tt, err)
+		assert.Equal(tt, expected, result)
+	})
+
+	t.Run("MissingVolumeId", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeRevertV1beta{
+			SnapshotId: "snapshot-1",
+		}
+		params := gcpgenserver.V1betaRevertVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "",
+		}
+		region := "test-region"
+
+		result, err := prepareRevertVolumeParams(req, params, region)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "No Volume ID given")
+	})
+
+	t.Run("MissingProjectNumber", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeRevertV1beta{
+			SnapshotId: "snapshot-1",
+		}
+		params := gcpgenserver.V1betaRevertVolumeParams{
+			ProjectNumber: "",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		region := "test-region"
+
+		result, err := prepareRevertVolumeParams(req, params, region)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "No Project Number given")
+	})
+
+	t.Run("MissingSnapshotId", func(tt *testing.T) {
+		req := &gcpgenserver.VolumeRevertV1beta{
+			SnapshotId: "",
+		}
+		params := gcpgenserver.V1betaRevertVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "vol-1",
+		}
+		region := "test-region"
+
+		result, err := prepareRevertVolumeParams(req, params, region)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "No Snapshot ID given")
+	})
+}

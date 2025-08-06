@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-faster/errors"
 	"github.com/go-faster/jx"
+	"go.uber.org/multierr"
 
 	"github.com/ogen-go/ogen/ogenerrors"
 	"github.com/ogen-go/ogen/validate"
@@ -25,13 +26,13 @@ func (s *Server) decodeV1betaCreateActiveDirectoryRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -96,13 +97,13 @@ func (s *Server) decodeV1betaCreateBackupRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -167,13 +168,13 @@ func (s *Server) decodeV1betaCreateBackupPolicyRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -238,13 +239,13 @@ func (s *Server) decodeV1betaCreateBackupVaultRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -309,13 +310,13 @@ func (s *Server) decodeV1betaCreateHostGroupRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -380,13 +381,13 @@ func (s *Server) decodeV1betaCreateKmsConfigurationRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -451,13 +452,13 @@ func (s *Server) decodeV1betaCreatePoolRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -522,13 +523,13 @@ func (s *Server) decodeV1betaCreateReplicationRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -593,13 +594,13 @@ func (s *Server) decodeV1betaCreateSnapshotRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -664,13 +665,13 @@ func (s *Server) decodeV1betaCreateVolumeRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -735,13 +736,13 @@ func (s *Server) decodeV1betaDeleteReplicationRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -806,13 +807,13 @@ func (s *Server) decodeV1betaDeleteVolumeRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	if _, ok := r.Header["Content-Type"]; !ok && r.ContentLength == 0 {
@@ -863,7 +864,7 @@ func (s *Server) decodeV1betaDeleteVolumeRequest(r *http.Request) (
 }
 
 func (s *Server) decodeV1betaFinishProjectEventRequest(r *http.Request) (
-	req *StateUpdateV1beta,
+	req *ProjectStateUpdateV1beta,
 	close func() error,
 	rerr error,
 ) {
@@ -873,13 +874,13 @@ func (s *Server) decodeV1betaFinishProjectEventRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -902,7 +903,7 @@ func (s *Server) decodeV1betaFinishProjectEventRequest(r *http.Request) (
 
 		d := jx.DecodeBytes(buf)
 
-		var request StateUpdateV1beta
+		var request ProjectStateUpdateV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -944,13 +945,13 @@ func (s *Server) decodeV1betaGetMultipleActiveDirectoriesRequest(r *http.Request
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1015,13 +1016,13 @@ func (s *Server) decodeV1betaGetMultipleBackupPoliciesRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1086,13 +1087,13 @@ func (s *Server) decodeV1betaGetMultipleBackupVaultsRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1157,13 +1158,13 @@ func (s *Server) decodeV1betaGetMultipleBackupsRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1228,13 +1229,13 @@ func (s *Server) decodeV1betaGetMultipleHostGroupsRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1299,13 +1300,13 @@ func (s *Server) decodeV1betaGetMultipleKmsConfigsRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1370,13 +1371,13 @@ func (s *Server) decodeV1betaGetMultiplePoolsRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1441,13 +1442,13 @@ func (s *Server) decodeV1betaGetMultipleReplicationsRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1512,13 +1513,13 @@ func (s *Server) decodeV1betaGetMultipleReplicationsInternalRequest(r *http.Requ
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1583,13 +1584,13 @@ func (s *Server) decodeV1betaGetMultipleSnapshotsRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1654,13 +1655,13 @@ func (s *Server) decodeV1betaGetMultipleVolumesRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1725,13 +1726,13 @@ func (s *Server) decodeV1betaInternalAcceptClusterPeerRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1796,13 +1797,13 @@ func (s *Server) decodeV1betaInternalAuthorizeVolumeReplicationRequest(r *http.R
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1867,13 +1868,13 @@ func (s *Server) decodeV1betaInternalCreateVolumeReplicationRequest(r *http.Requ
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -1938,13 +1939,13 @@ func (s *Server) decodeV1betaInternalStopVolumeReplicationRequest(r *http.Reques
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -2001,13 +2002,13 @@ func (s *Server) decodeV1betaInternalUpdateVolumeReplicationRequest(r *http.Requ
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -2072,13 +2073,13 @@ func (s *Server) decodeV1betaResourceStateUpdateRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -2132,8 +2133,8 @@ func (s *Server) decodeV1betaResourceStateUpdateRequest(r *http.Request) (
 	}
 }
 
-func (s *Server) decodeV1betaStartProjectEventRequest(r *http.Request) (
-	req *StateUpdateV1beta,
+func (s *Server) decodeV1betaRevertVolumeRequest(r *http.Request) (
+	req *VolumeRevertV1beta,
 	close func() error,
 	rerr error,
 ) {
@@ -2143,13 +2144,13 @@ func (s *Server) decodeV1betaStartProjectEventRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -2172,7 +2173,78 @@ func (s *Server) decodeV1betaStartProjectEventRequest(r *http.Request) (
 
 		d := jx.DecodeBytes(buf)
 
-		var request StateUpdateV1beta
+		var request VolumeRevertV1beta
+		if err := func() error {
+			if err := request.Decode(d); err != nil {
+				return err
+			}
+			if err := d.Skip(); err != io.EOF {
+				return errors.New("unexpected trailing data")
+			}
+			return nil
+		}(); err != nil {
+			err = &ogenerrors.DecodeBodyError{
+				ContentType: ct,
+				Body:        buf,
+				Err:         err,
+			}
+			return req, close, err
+		}
+		if err := func() error {
+			if err := request.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			return req, close, errors.Wrap(err, "validate")
+		}
+		return &request, close, nil
+	default:
+		return req, close, validate.InvalidContentType(ct)
+	}
+}
+
+func (s *Server) decodeV1betaStartProjectEventRequest(r *http.Request) (
+	req *ProjectStateUpdateV1beta,
+	close func() error,
+	rerr error,
+) {
+	var closers []func() error
+	close = func() error {
+		var merr error
+		// Close in reverse order, to match defer behavior.
+		for i := len(closers) - 1; i >= 0; i-- {
+			c := closers[i]
+			merr = multierr.Append(merr, c())
+		}
+		return merr
+	}
+	defer func() {
+		if rerr != nil {
+			rerr = multierr.Append(rerr, close())
+		}
+	}()
+	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		return req, close, errors.Wrap(err, "parse media type")
+	}
+	switch {
+	case ct == "application/json":
+		if r.ContentLength == 0 {
+			return req, close, validate.ErrBodyRequired
+		}
+		buf, err := io.ReadAll(r.Body)
+		if err != nil {
+			return req, close, err
+		}
+
+		if len(buf) == 0 {
+			return req, close, validate.ErrBodyRequired
+		}
+
+		d := jx.DecodeBytes(buf)
+
+		var request ProjectStateUpdateV1beta
 		if err := func() error {
 			if err := request.Decode(d); err != nil {
 				return err
@@ -2214,13 +2286,13 @@ func (s *Server) decodeV1betaStopReplicationRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -2277,13 +2349,13 @@ func (s *Server) decodeV1betaUpdateActiveDirectoryRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -2348,13 +2420,13 @@ func (s *Server) decodeV1betaUpdateBackupRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -2419,13 +2491,13 @@ func (s *Server) decodeV1betaUpdateBackupPolicyRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -2490,13 +2562,13 @@ func (s *Server) decodeV1betaUpdateBackupVaultRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -2561,13 +2633,13 @@ func (s *Server) decodeV1betaUpdateHostGroupRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -2624,13 +2696,13 @@ func (s *Server) decodeV1betaUpdateKmsConfigurationRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -2695,13 +2767,13 @@ func (s *Server) decodeV1betaUpdatePoolRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -2766,13 +2838,13 @@ func (s *Server) decodeV1betaUpdateReplicationRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -2837,13 +2909,13 @@ func (s *Server) decodeV1betaUpdateSnapshotRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -2900,13 +2972,13 @@ func (s *Server) decodeV1betaUpdateVolumeRequest(r *http.Request) (
 		// Close in reverse order, to match defer behavior.
 		for i := len(closers) - 1; i >= 0; i-- {
 			c := closers[i]
-			merr = errors.Join(merr, c())
+			merr = multierr.Append(merr, c())
 		}
 		return merr
 	}
 	defer func() {
 		if rerr != nil {
-			rerr = errors.Join(rerr, close())
+			rerr = multierr.Append(rerr, close())
 		}
 	}()
 	ct, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))

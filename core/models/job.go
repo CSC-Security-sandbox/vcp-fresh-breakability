@@ -22,6 +22,7 @@ const (
 	JobTypeDeletePool                        JobType = "DELETE_POOL"
 	JobTypeCreateVolume                      JobType = "CREATE_VOLUME"
 	JobTypeUpdateVolume                      JobType = "UPDATE_VOLUME"
+	JobTypeRevertVolume                      JobType = "REVERT_VOLUME"
 	JobTypeDeleteVolume                      JobType = "DELETE_VOLUME"
 	JobTypeCreateSnapshot                    JobType = "CREATE_SNAPSHOT"
 	JobTypeUpdateSnapshot                    JobType = "UPDATE_SNAPSHOT"

@@ -3240,6 +3240,52 @@ func (_c *MockProvider_ResyncVolumeReplication_Call) RunAndReturn(run func(*Volu
 	return _c
 }
 
+// RevertVolume provides a mock function with given fields: params
+func (_m *MockProvider) RevertVolume(params RevertVolumeParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RevertVolume")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(RevertVolumeParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_RevertVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RevertVolume'
+type MockProvider_RevertVolume_Call struct {
+	*mock.Call
+}
+
+// RevertVolume is a helper method to define mock.On call
+//   - params RevertVolumeParams
+func (_e *MockProvider_Expecter) RevertVolume(params interface{}) *MockProvider_RevertVolume_Call {
+	return &MockProvider_RevertVolume_Call{Call: _e.mock.On("RevertVolume", params)}
+}
+
+func (_c *MockProvider_RevertVolume_Call) Run(run func(params RevertVolumeParams)) *MockProvider_RevertVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(RevertVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_RevertVolume_Call) Return(_a0 error) *MockProvider_RevertVolume_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_RevertVolume_Call) RunAndReturn(run func(RevertVolumeParams) error) *MockProvider_RevertVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SnapmirrorObjectStoreEndpointDelete provides a mock function with given fields: objectStoreUUID, EndpointUUID
 func (_m *MockProvider) SnapmirrorObjectStoreEndpointDelete(objectStoreUUID string, EndpointUUID string) (*OntapAsyncResponse, error) {
 	ret := _m.Called(objectStoreUUID, EndpointUUID)

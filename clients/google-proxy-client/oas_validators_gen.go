@@ -3103,9 +3103,6 @@ func (s *FlexCacheV1beta) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.PeerIpAddresses == nil {
-			return nil // optional
-		}
 		if err := (validate.Array{
 			MinLength:    1,
 			MinLengthSet: true,
@@ -5999,6 +5996,42 @@ func (s PoolV1betaType) Validate() error {
 	}
 }
 
+func (s *ProjectStateUpdateV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.State.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s ProjectStateUpdateV1betaState) Validate() error {
+	switch s {
+	case "ON":
+		return nil
+	case "OFF":
+		return nil
+	case "DELETE":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s ProtocolsV1beta) Validate() error {
 	switch s {
 	case "PROTOCOL_UNSPECIFIED":
@@ -7329,42 +7362,6 @@ func (s SnapshotV1betaSnapshotState) Validate() error {
 	case "DELETING":
 		return nil
 	case "ERROR":
-		return nil
-	default:
-		return errors.Errorf("invalid value: %v", s)
-	}
-}
-
-func (s *StateUpdateV1beta) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := s.State.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "state",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s StateUpdateV1betaState) Validate() error {
-	switch s {
-	case "ON":
-		return nil
-	case "OFF":
-		return nil
-	case "DELETE":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -12737,6 +12734,70 @@ func (s *V1betaReverseAndResumeReplicationUnprocessableEntity) Validate() error 
 	return nil
 }
 
+func (s *V1betaRevertVolumeBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaRevertVolumeConflict) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaRevertVolumeForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaRevertVolumeInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaRevertVolumeNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaRevertVolumeTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaRevertVolumeUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaRevertVolumeUnprocessableEntity) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *V1betaStartProjectEventAccepted) Validate() error {
 	alias := (*OperationV1beta)(s)
 	if err := alias.Validate(); err != nil {
@@ -14984,6 +15045,37 @@ func (s VolumeReplicationUpdateInternalV1betaReplicationSchedule) Validate() err
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
+}
+
+func (s *VolumeRevertV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:    36,
+			MinLengthSet: true,
+			MaxLength:    36,
+			MaxLengthSet: true,
+			Email:        false,
+			Hostname:     false,
+			Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+		}).Validate(string(s.SnapshotId)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "snapshotId",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
 }
 
 func (s *VolumeSnapshotCreateV1beta) Validate() error {

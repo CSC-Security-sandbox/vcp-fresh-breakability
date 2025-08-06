@@ -32,6 +32,7 @@ var (
 	getMultipleVolumesFromCVP     = _getMultipleVolumesFromCVP
 	prepareUpdateVolumeParams     = _prepareUpdateVolumeParams
 	prepareCreateVolumeParams     = _prepareCreateVolumeParams
+	prepareRevertVolumeParams     = _prepareRevertVolumeParams
 	autoTieringEnabled            = env.GetBool("AUTO_TIERING_ENABLED", false)
 )
 
@@ -142,6 +143,62 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
 	if volume.LifeCycleState == models.LifeCycleStateCreating {
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp,
+			Done:     gcpgenserver.NewOptBool(false),
+		}, nil
+	}
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(true),
+	}, nil
+}
+
+func (h Handler) V1betaRevertVolume(ctx context.Context, req *gcpgenserver.VolumeRevertV1beta, params gcpgenserver.V1betaRevertVolumeParams) (gcpgenserver.V1betaRevertVolumeRes, error) {
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	region, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaRevertVolumeBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	param, err := prepareRevertVolumeParams(req, params, region)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaRevertVolumeBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to revert volume", "error", err.Error())
+		return &gcpgenserver.V1betaRevertVolumeInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+
+	volume, jobUUID, err := h.Orchestrator.RevertVolume(ctx, param)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) || errors.IsConflictErr(err) || strings.Contains(err.Error(), "one or more newer Snapshot copies are currently used as a reference Snapshot copy for data protection operations") {
+			return &gcpgenserver.V1betaRevertVolumeBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+
+		logger.Error("Failed to revert volume", "error", err.Error())
+		return &gcpgenserver.V1betaRevertVolumeInternalServerError{Code: 500, Message: err.Error()}, err
+	}
+
+	resp, err := encodeVolumeV1(convertModelToVCPVolume(volume))
+	if err != nil {
+		return nil, err
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	if volume.LifeCycleState == models.LifeCycleStateReverting {
 		return &gcpgenserver.OperationV1beta{
 			Name:     gcpgenserver.NewOptString(operationID),
 			Response: resp,
@@ -337,6 +394,26 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			return nil, errors.NewUserInputValidationErr("Maximum allowed snapshot-reserve-percentage value during create is 90.Use volume update to set it to a higher value after the volume has been created.")
 		}
 		param.SnapReserve = int64(snapReserve)
+	}
+
+	return param, nil
+}
+
+func _prepareRevertVolumeParams(req *gcpgenserver.VolumeRevertV1beta, params gcpgenserver.V1betaRevertVolumeParams, region string) (*common.RevertVolumeParams, error) {
+	if params.VolumeId == "" {
+		return nil, errors.NewUserInputValidationErr("No Volume ID given")
+	}
+	if params.ProjectNumber == "" {
+		return nil, errors.NewUserInputValidationErr("No Project Number given")
+	}
+	if req.SnapshotId == "" {
+		return nil, errors.NewUserInputValidationErr("No Snapshot ID given")
+	}
+	param := &common.RevertVolumeParams{
+		AccountName: params.ProjectNumber,
+		Region:      region,
+		VolumeID:    params.VolumeId,
+		SnapshotID:  req.SnapshotId,
 	}
 
 	return param, nil

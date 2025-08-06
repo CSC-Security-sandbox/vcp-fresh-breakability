@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -882,5 +883,253 @@ func TestUpdateVolumeEnableEncryption(t *testing.T) {
 		err := rc.UpdateVolumeEnableEncryption(params)
 		assert.NoError(tt, err)
 		assert.Nil(tt, err)
+	})
+}
+
+func TestRevertVolume(t *testing.T) {
+	t.Run("TestRevertVolume_Success", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := RevertVolumeParams{
+			VolumeID:   "testVolumeUUID",
+			SnapshotID: "testSnapshotUUID",
+			PreRevertVolume: &datamodel.Volume{
+				SizeInBytes: 1000000,
+			},
+		}
+
+		// Mock VolumeModify returns done = true
+		mockStorage.On("VolumeModify", mock.Anything).Return(true, nil, nil).Once()
+
+		err := rc.RevertVolume(params)
+		assert.NoError(t, err)
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("TestRevertVolume_GetOntapClientError", func(t *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("getOntapClientFunc error")
+		}
+		rc := &OntapRestProvider{}
+
+		params := RevertVolumeParams{
+			VolumeID:   "testVolumeUUID",
+			SnapshotID: "testSnapshotUUID",
+		}
+
+		err := rc.RevertVolume(params)
+
+		assert.Error(t, err)
+		assert.Equal(t, "getOntapClientFunc error", err.Error())
+	})
+
+	t.Run("TestRevertVolume_VolumeModifyError", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := RevertVolumeParams{
+			VolumeID:   "testVolumeUUID",
+			SnapshotID: "testSnapshotUUID",
+		}
+
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New("volume modify error"))
+
+		err := rc.RevertVolume(params)
+
+		assert.Error(t, err)
+		assert.Equal(t, "volume modify error", err.Error())
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("TestRevertVolume_VolumeModifyErrorWithReplicationDestination", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := RevertVolumeParams{
+			VolumeID:   "testVolumeUUID",
+			SnapshotID: "testSnapshotUUID",
+		}
+
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New("Only a Snapshot copy of a read/write volume can be promoted"))
+
+		err := rc.RevertVolume(params)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Cannot revert a Volume Replication Destination Volume")
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("TestRevertVolume_PollError", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := RevertVolumeParams{
+			VolumeID:   "testVolumeUUID",
+			SnapshotID: "testSnapshotUUID",
+		}
+
+		// Mock VolumeModify returns done = false with job
+		mockJob := &ontaprest.JobAccepted{JobUUID: "test-job-uuid"}
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, mockJob, nil).Once()
+
+		// Mock Poll returns error
+		mockClient.On("Poll", mockJob.JobUUID).Return(errors.New("poll error")).Once()
+
+		err := rc.RevertVolume(params)
+
+		assert.Error(t, err)
+		assert.Equal(t, "poll error", err.Error())
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("TestRevertVolume_PollErrorWithSnapshotNotFound", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := RevertVolumeParams{
+			VolumeID:   "testVolumeUUID",
+			SnapshotID: "testSnapshotUUID",
+		}
+
+		// Mock VolumeModify returns done = false with job
+		mockJob := &ontaprest.JobAccepted{JobUUID: "test-job-uuid"}
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, mockJob, nil).Once()
+
+		// Mock Poll returns not found error
+		mockClient.On("Poll", mockJob.JobUUID).Return(errors.NewNotFoundErr("snapshot", nil)).Once()
+
+		err := rc.RevertVolume(params)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("TestRevertVolume_PollErrorWithEntryNotFound", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := RevertVolumeParams{
+			VolumeID:   "testVolumeUUID",
+			SnapshotID: "testSnapshotUUID",
+		}
+
+		// Mock VolumeModify returns done = false with job
+		mockJob := &ontaprest.JobAccepted{JobUUID: "test-job-uuid"}
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, mockJob, nil).Once()
+
+		// Mock Poll returns error with "entry doesn't exist"
+		mockClient.On("Poll", mockJob.JobUUID).Return(errors.New("entry doesn't exist")).Once()
+
+		err := rc.RevertVolume(params)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "entry doesn't exist")
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("TestRevertVolume_PollErrorWithReplicationDestination", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		params := RevertVolumeParams{
+			VolumeID:   "testVolumeUUID",
+			SnapshotID: "testSnapshotUUID",
+		}
+
+		// Mock VolumeModify returns done = false with job
+		mockJob := &ontaprest.JobAccepted{JobUUID: "test-job-uuid"}
+		mockStorage.On("VolumeModify", mock.Anything).Return(false, mockJob, nil).Once()
+
+		// Mock Poll returns error with replication destination message
+		mockClient.On("Poll", mockJob.JobUUID).Return(errors.New("Only a Snapshot copy of a read/write volume can be promoted")).Once()
+
+		err := rc.RevertVolume(params)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Only a Snapshot copy of a read/write volume can be promoted")
+
+		mockStorage.AssertExpectations(t)
+		mockClient.AssertExpectations(t)
 	})
 }

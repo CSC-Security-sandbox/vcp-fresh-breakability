@@ -324,7 +324,7 @@ func (UnimplementedHandler) V1betaEncryptVolumes(ctx context.Context, params V1b
 // Finishes the project state for a 1P account based on the path parameter and project state value.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/finishProjectEvent
-func (UnimplementedHandler) V1betaFinishProjectEvent(ctx context.Context, req *StateUpdateV1beta, params V1betaFinishProjectEventParams) (r V1betaFinishProjectEventRes, _ error) {
+func (UnimplementedHandler) V1betaFinishProjectEvent(ctx context.Context, req *ProjectStateUpdateV1beta, params V1betaFinishProjectEventParams) (r V1betaFinishProjectEventRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -692,12 +692,21 @@ func (UnimplementedHandler) V1betaReverseAndResumeReplication(ctx context.Contex
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaRevertVolume implements v1beta_revertVolume operation.
+//
+// Warning! This operation will permanently revert all changes made after the snapshot was created.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/Revert
+func (UnimplementedHandler) V1betaRevertVolume(ctx context.Context, req *VolumeRevertV1beta, params V1betaRevertVolumeParams) (r V1betaRevertVolumeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaStartProjectEvent implements v1beta_startProjectEvent operation.
 //
 // Updates the project state for a 1P account based on the path parameter and project state value.
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent
-func (UnimplementedHandler) V1betaStartProjectEvent(ctx context.Context, req *StateUpdateV1beta, params V1betaStartProjectEventParams) (r V1betaStartProjectEventRes, _ error) {
+func (UnimplementedHandler) V1betaStartProjectEvent(ctx context.Context, req *ProjectStateUpdateV1beta, params V1betaStartProjectEventParams) (r V1betaStartProjectEventRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

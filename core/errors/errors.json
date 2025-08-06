@@ -323,6 +323,12 @@
     "retriable": true,
     "http_code": 500
   },
+  "6075": {
+    "description": "VolumeRevert failure",
+    "message": "Volume revert failed",
+    "retriable": true,
+    "http_code": 400
+  },
   "7001": {
     "description": "Snapshot Deletion Error",
     "message": "Cannot delete snapshot while snapshot is in use",

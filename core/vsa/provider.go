@@ -34,6 +34,7 @@ type Provider interface {
 	GetVolumeEncryptionStatus(params GetVolumeParams) (*VolumeResponse, error)
 	GetVolumes() ([]*Volume, error)
 	UpdateVolume(params UpdateVolumeParams) error
+	RevertVolume(params RevertVolumeParams) error
 	UpdateVolumeEnableEncryption(params UpdateVolumeParams) error
 	IgroupCreate(params IgroupCreateParams) (string, error)
 	IgroupGet(name, svm *string) (*ontapRest.Igroup, error)

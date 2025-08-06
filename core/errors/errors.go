@@ -149,6 +149,7 @@ const (
 	ErrDescribingVolume                                              = 6072
 	ErrCVPClientHandleResourceEventError                             = 6073
 	ErrCVPClientFinishProjectEventError                              = 6074
+	ErrRevertingVolume                                               = 6075
 
 	ErrDeleteSnapshot                   = 7001
 	ErrVolumeNotOnlineForSnapshotDelete = 7002

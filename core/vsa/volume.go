@@ -10,6 +10,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
+const (
+	DefaultQuotaInBytes uint64 = 1000000000000 // 1TB
+	DefaultName                = "unnamed"
+	VolTagPreFix               = "vol-tag:"
+)
+
 // CreateVolume creates a volume by calling the ONTAP REST Client
 func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeResponse, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
@@ -206,6 +212,38 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 		return nil
 	}
 	return client.Poll(job.JobUUID)
+}
+
+func (rc *OntapRestProvider) RevertVolume(params RevertVolumeParams) error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+
+	revertParams := &ontapRest.VolumeModifyParams{
+		UUID:                  params.VolumeID,
+		RestoreToSnapshotUUID: nillable.GetStringPtr(params.SnapshotID),
+	}
+
+	done, jj, err := client.Storage().VolumeModify(revertParams)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return errors.NewNotFoundErrWithTrackingID("Volume", nil, errors.VolumeNotFound)
+		}
+		if strings.Contains(err.Error(), "Only a Snapshot copy of a read/write volume can be promoted") {
+			return errors.NewUserInputValidationErr("Cannot revert a Volume Replication Destination Volume")
+		}
+		if strings.Contains(err.Error(), "entry doesn't exist") || strings.Contains(err.Error(), "entry not found") {
+			return errors.NewNotFoundErrWithTrackingID("Snapshot", nil, errors.SnapshotNotFound)
+		}
+		return err
+	}
+	if !done {
+		if err = client.Poll(jj.JobUUID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (rc *OntapRestProvider) UpdateVolumeEnableEncryption(params UpdateVolumeParams) error {

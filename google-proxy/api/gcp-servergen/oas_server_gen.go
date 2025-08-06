@@ -220,7 +220,7 @@ type Handler interface {
 	// Finishes the project state for a 1P account based on the path parameter and project state value.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/finishProjectEvent
-	V1betaFinishProjectEvent(ctx context.Context, req *StateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error)
+	V1betaFinishProjectEvent(ctx context.Context, req *ProjectStateUpdateV1beta, params V1betaFinishProjectEventParams) (V1betaFinishProjectEventRes, error)
 	// V1betaGetMultipleActiveDirectories implements v1beta_getMultipleActiveDirectories operation.
 	//
 	// Returns descriptions of Active Directory credentials that is listed in request body.
@@ -465,12 +465,18 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/replications/{replicationResourceId}/reverseAndResumeReplication
 	V1betaReverseAndResumeReplication(ctx context.Context, params V1betaReverseAndResumeReplicationParams) (V1betaReverseAndResumeReplicationRes, error)
+	// V1betaRevertVolume implements v1beta_revertVolume operation.
+	//
+	// Warning! This operation will permanently revert all changes made after the snapshot was created.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/Revert
+	V1betaRevertVolume(ctx context.Context, req *VolumeRevertV1beta, params V1betaRevertVolumeParams) (V1betaRevertVolumeRes, error)
 	// V1betaStartProjectEvent implements v1beta_startProjectEvent operation.
 	//
 	// Updates the project state for a 1P account based on the path parameter and project state value.
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/startProjectEvent
-	V1betaStartProjectEvent(ctx context.Context, req *StateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error)
+	V1betaStartProjectEvent(ctx context.Context, req *ProjectStateUpdateV1beta, params V1betaStartProjectEventParams) (V1betaStartProjectEventRes, error)
 	// V1betaStopReplication implements v1beta_stopReplication operation.
 	//
 	// Stops a replication.
