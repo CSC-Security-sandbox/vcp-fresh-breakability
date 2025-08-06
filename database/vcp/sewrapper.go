@@ -20,13 +20,13 @@ func (re *retryEngine) CreatedPool(ctx context.Context, pool *datamodel.Pool) (*
 		var0, err = re.dataStore.CreatedPool(ctx, pool)
 		if err != nil {
 			re.logError("CreatedPool", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -40,13 +40,13 @@ func (re *retryEngine) CreatingPool(ctx context.Context, pool *datamodel.Pool) (
 		var0, err = re.dataStore.CreatingPool(ctx, pool)
 		if err != nil {
 			re.logError("CreatingPool", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -60,13 +60,13 @@ func (re *retryEngine) UpdatingPool(ctx context.Context, pool *datamodel.Pool) (
 		var0, err = re.dataStore.UpdatingPool(ctx, pool)
 		if err != nil {
 			re.logError("UpdatingPool", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -80,13 +80,13 @@ func (re *retryEngine) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*
 		var0, err = re.dataStore.UpdatedPool(ctx, pool)
 		if err != nil {
 			re.logError("UpdatedPool", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -99,13 +99,13 @@ func (re *retryEngine) UpdatePoolSubnetNames(ctx context.Context, poolUUID, snHo
 		err = re.dataStore.UpdatePoolSubnetNames(ctx, poolUUID, snHostProject, subnetNames)
 		if err != nil {
 			re.logError("UpdatePoolSubnetNames", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -119,13 +119,13 @@ func (re *retryEngine) UpdatePoolState(ctx context.Context, pool *datamodel.Pool
 		var0, err = re.dataStore.UpdatePoolState(ctx, pool, state, stateDetails)
 		if err != nil {
 			re.logError("UpdatePoolState", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -138,13 +138,13 @@ func (re *retryEngine) DeletePool(ctx context.Context, pool *datamodel.Pool) err
 		err = re.dataStore.DeletePool(ctx, pool)
 		if err != nil {
 			re.logError("DeletePool", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -157,13 +157,13 @@ func (re *retryEngine) DeletingPool(ctx context.Context, pool *datamodel.Pool) e
 		err = re.dataStore.DeletingPool(ctx, pool)
 		if err != nil {
 			re.logError("DeletingPool", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -177,13 +177,13 @@ func (re *retryEngine) DescribePool(ctx context.Context, poolUUID string, accoun
 		var0, err = re.dataStore.DescribePool(ctx, poolUUID, accountID)
 		if err != nil {
 			re.logError("DescribePool", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -197,13 +197,13 @@ func (re *retryEngine) GetPool(ctx context.Context, poolUUID string, accountID i
 		var0, err = re.dataStore.GetPool(ctx, poolUUID, accountID)
 		if err != nil {
 			re.logError("GetPool", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -217,13 +217,13 @@ func (re *retryEngine) ListPools(ctx context.Context, filter *dbutils.Filter) ([
 		var0, err = re.dataStore.ListPools(ctx, filter)
 		if err != nil {
 			re.logError("ListPools", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -237,13 +237,13 @@ func (re *retryEngine) GetPoolByVendorID(ctx context.Context, vendorID string, a
 		var0, err = re.dataStore.GetPoolByVendorID(ctx, vendorID, accountID)
 		if err != nil {
 			re.logError("GetPoolByVendorID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -257,13 +257,13 @@ func (re *retryEngine) GetPoolByName(ctx context.Context, conditions [][]interfa
 		var0, err = re.dataStore.GetPoolByName(ctx, conditions)
 		if err != nil {
 			re.logError("GetPoolByName", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -276,13 +276,13 @@ func (re *retryEngine) SavePoolWithVsaDetails(ctx context.Context, pool *datamod
 		err = re.dataStore.SavePoolWithVsaDetails(ctx, pool, cluster)
 		if err != nil {
 			re.logError("SavePoolWithVsaDetails", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -296,13 +296,13 @@ func (re *retryEngine) UpdatePoolWithKmsConfigID(ctx context.Context, pool *data
 		var0, err = re.dataStore.UpdatePoolWithKmsConfigID(ctx, pool, kmsConfigUUID)
 		if err != nil {
 			re.logError("UpdatePoolWithKmsConfigID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -316,13 +316,13 @@ func (re *retryEngine) GetPoolsByAccountName(ctx context.Context, accountName st
 		var0, err = re.dataStore.GetPoolsByAccountName(ctx, accountName)
 		if err != nil {
 			re.logError("GetPoolsByAccountName", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -336,13 +336,13 @@ func (re *retryEngine) GetNextSerialNumberInRegion(ctx context.Context, region s
 		var0, err = re.dataStore.GetNextSerialNumberInRegion(ctx, region)
 		if err != nil {
 			re.logError("GetNextSerialNumberInRegion", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -356,13 +356,13 @@ func (re *retryEngine) CreateVolume(ctx context.Context, volume *datamodel.Volum
 		var0, err = re.dataStore.CreateVolume(ctx, volume)
 		if err != nil {
 			re.logError("CreateVolume", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -376,13 +376,13 @@ func (re *retryEngine) GetVolume(ctx context.Context, id string) (*datamodel.Vol
 		var0, err = re.dataStore.GetVolume(ctx, id)
 		if err != nil {
 			re.logError("GetVolume", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -396,13 +396,13 @@ func (re *retryEngine) DescribeVolume(ctx context.Context, id string) (*datamode
 		var0, err = re.dataStore.DescribeVolume(ctx, id)
 		if err != nil {
 			re.logError("DescribeVolume", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -416,13 +416,13 @@ func (re *retryEngine) GetVolumeWithAccountID(ctx context.Context, id string, ac
 		var0, err = re.dataStore.GetVolumeWithAccountID(ctx, id, accountID)
 		if err != nil {
 			re.logError("GetVolumeWithAccountID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -436,13 +436,13 @@ func (re *retryEngine) GetVolumeCount(ctx context.Context, accountName string) (
 		var0, err = re.dataStore.GetVolumeCount(ctx, accountName)
 		if err != nil {
 			re.logError("GetVolumeCount", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -456,13 +456,13 @@ func (re *retryEngine) GetVolumeByName(ctx context.Context, name string) (*datam
 		var0, err = re.dataStore.GetVolumeByName(ctx, name)
 		if err != nil {
 			re.logError("GetVolumeByName", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -475,13 +475,13 @@ func (re *retryEngine) UpdateVolume(ctx context.Context, volume *datamodel.Volum
 		err = re.dataStore.UpdateVolume(ctx, volume)
 		if err != nil {
 			re.logError("UpdateVolume", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -494,13 +494,13 @@ func (re *retryEngine) RevertedVolume(ctx context.Context, volume *datamodel.Vol
 		err = re.dataStore.RevertedVolume(ctx, volume, snapshot)
 		if err != nil {
 			re.logError("RevertedVolume", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -513,13 +513,13 @@ func (re *retryEngine) UpdateVolumeFields(ctx context.Context, volumeUUID string
 		err = re.dataStore.UpdateVolumeFields(ctx, volumeUUID, updates)
 		if err != nil {
 			re.logError("UpdateVolumeFields", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -533,13 +533,13 @@ func (re *retryEngine) DeleteVolume(ctx context.Context, id string) (*datamodel.
 		var0, err = re.dataStore.DeleteVolume(ctx, id)
 		if err != nil {
 			re.logError("DeleteVolume", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -553,13 +553,13 @@ func (re *retryEngine) UpdateVolumeState(ctx context.Context, id string, state s
 		var0, err = re.dataStore.UpdateVolumeState(ctx, id, state, stateDetails)
 		if err != nil {
 			re.logError("UpdateVolumeState", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -573,13 +573,13 @@ func (re *retryEngine) ListVolumes(ctx context.Context, conditions [][]interface
 		var0, err = re.dataStore.ListVolumes(ctx, conditions)
 		if err != nil {
 			re.logError("ListVolumes", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -593,13 +593,13 @@ func (re *retryEngine) GetVolumesByPoolID(ctx context.Context, poolID int64) ([]
 		var0, err = re.dataStore.GetVolumesByPoolID(ctx, poolID)
 		if err != nil {
 			re.logError("GetVolumesByPoolID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -613,13 +613,13 @@ func (re *retryEngine) GetVolumeCountByPoolID(ctx context.Context, poolID int64)
 		var0, err = re.dataStore.GetVolumeCountByPoolID(ctx, poolID)
 		if err != nil {
 			re.logError("GetVolumeCountByPoolID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -633,13 +633,13 @@ func (re *retryEngine) GetMultipleVolumes(ctx context.Context, conditions [][]in
 		var0, err = re.dataStore.GetMultipleVolumes(ctx, conditions)
 		if err != nil {
 			re.logError("GetMultipleVolumes", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -653,13 +653,13 @@ func (re *retryEngine) VerifyVolumeOwnership(ctx context.Context, volumeID strin
 		var0, err = re.dataStore.VerifyVolumeOwnership(ctx, volumeID, accountName)
 		if err != nil {
 			re.logError("VerifyVolumeOwnership", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -673,13 +673,13 @@ func (re *retryEngine) GetAllVolumesForHG(ctx context.Context, hostGroupUUID str
 		var0, err = re.dataStore.GetAllVolumesForHG(ctx, hostGroupUUID, accountID)
 		if err != nil {
 			re.logError("GetAllVolumesForHG", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -693,13 +693,13 @@ func (re *retryEngine) CreateVolumeReplication(ctx context.Context, volumeRep *d
 		var0, err = re.dataStore.CreateVolumeReplication(ctx, volumeRep)
 		if err != nil {
 			re.logError("CreateVolumeReplication", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -713,13 +713,13 @@ func (re *retryEngine) GetVolumeReplication(ctx context.Context, id string) (*da
 		var0, err = re.dataStore.GetVolumeReplication(ctx, id)
 		if err != nil {
 			re.logError("GetVolumeReplication", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -732,13 +732,13 @@ func (re *retryEngine) UpdateVolumeReplication(ctx context.Context, volumeRep *d
 		err = re.dataStore.UpdateVolumeReplication(ctx, volumeRep)
 		if err != nil {
 			re.logError("UpdateVolumeReplication", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -751,13 +751,13 @@ func (re *retryEngine) UpdateVolumeReplicationStates(ctx context.Context, volume
 		err = re.dataStore.UpdateVolumeReplicationStates(ctx, volumeRep)
 		if err != nil {
 			re.logError("UpdateVolumeReplicationStates", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -770,13 +770,13 @@ func (re *retryEngine) UpdateVolumeReplicationTransferStats(ctx context.Context,
 		err = re.dataStore.UpdateVolumeReplicationTransferStats(ctx, volumeRep)
 		if err != nil {
 			re.logError("UpdateVolumeReplicationTransferStats", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -790,13 +790,13 @@ func (re *retryEngine) DeleteVolumeReplication(ctx context.Context, replication 
 		var0, err = re.dataStore.DeleteVolumeReplication(ctx, replication)
 		if err != nil {
 			re.logError("DeleteVolumeReplication", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -810,13 +810,13 @@ func (re *retryEngine) GetVolumeReplicationByProjectId(ctx context.Context, acco
 		var0, err = re.dataStore.GetVolumeReplicationByProjectId(ctx, accountId)
 		if err != nil {
 			re.logError("GetVolumeReplicationByProjectId", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -830,13 +830,13 @@ func (re *retryEngine) GetVolumeReplicationCount(ctx context.Context, accountNam
 		var0, err = re.dataStore.GetVolumeReplicationCount(ctx, accountName)
 		if err != nil {
 			re.logError("GetVolumeReplicationCount", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -850,13 +850,13 @@ func (re *retryEngine) ListVolumeReplications(ctx context.Context, filter dbutil
 		var0, err = re.dataStore.ListVolumeReplications(ctx, filter)
 		if err != nil {
 			re.logError("ListVolumeReplications", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -870,13 +870,13 @@ func (re *retryEngine) GetAccount(ctx context.Context, name string) (*datamodel.
 		var0, err = re.dataStore.GetAccount(ctx, name)
 		if err != nil {
 			re.logError("GetAccount", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -890,13 +890,13 @@ func (re *retryEngine) CreateAccount(ctx context.Context, account *datamodel.Acc
 		var0, err = re.dataStore.CreateAccount(ctx, account)
 		if err != nil {
 			re.logError("CreateAccount", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -910,13 +910,13 @@ func (re *retryEngine) CreateJob(ctx context.Context, job *datamodel.Job) (*data
 		var0, err = re.dataStore.CreateJob(ctx, job)
 		if err != nil {
 			re.logError("CreateJob", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -929,13 +929,13 @@ func (re *retryEngine) DeleteJob(ctx context.Context, id, errorDetails string) e
 		err = re.dataStore.DeleteJob(ctx, id, errorDetails)
 		if err != nil {
 			re.logError("DeleteJob", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -948,13 +948,13 @@ func (re *retryEngine) UpdateJob(ctx context.Context, jobID string, status strin
 		err = re.dataStore.UpdateJob(ctx, jobID, status, trackingID, errorDetails)
 		if err != nil {
 			re.logError("UpdateJob", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -968,13 +968,13 @@ func (re *retryEngine) GetJob(ctx context.Context, jobID string) (*datamodel.Job
 		var0, err = re.dataStore.GetJob(ctx, jobID)
 		if err != nil {
 			re.logError("GetJob", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -988,13 +988,13 @@ func (re *retryEngine) GetJobsWithCondition(ctx context.Context, filter dbutils.
 		var0, err = re.dataStore.GetJobsWithCondition(ctx, filter)
 		if err != nil {
 			re.logError("GetJobsWithCondition", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1008,13 +1008,13 @@ func (re *retryEngine) GetOngoingMigrateKmsConfigJob(ctx context.Context, accoun
 		var0, err = re.dataStore.GetOngoingMigrateKmsConfigJob(ctx, accountId)
 		if err != nil {
 			re.logError("GetOngoingMigrateKmsConfigJob", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1028,13 +1028,13 @@ func (re *retryEngine) GetSvmForPoolID(ctx context.Context, poolID int64) (*data
 		var0, err = re.dataStore.GetSvmForPoolID(ctx, poolID)
 		if err != nil {
 			re.logError("GetSvmForPoolID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1048,13 +1048,13 @@ func (re *retryEngine) GetNodesByPoolID(ctx context.Context, poolId int64) ([]*d
 		var0, err = re.dataStore.GetNodesByPoolID(ctx, poolId)
 		if err != nil {
 			re.logError("GetNodesByPoolID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1068,13 +1068,13 @@ func (re *retryEngine) CreateNode(ctx context.Context, node *datamodel.Node) (*d
 		var0, err = re.dataStore.CreateNode(ctx, node)
 		if err != nil {
 			re.logError("CreateNode", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1088,13 +1088,13 @@ func (re *retryEngine) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*data
 		var0, err = re.dataStore.CreateSVM(ctx, svm)
 		if err != nil {
 			re.logError("CreateSVM", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1108,13 +1108,13 @@ func (re *retryEngine) GetSvmsByPoolID(ctx context.Context, poolID int64) ([]*da
 		var0, err = re.dataStore.GetSvmsByPoolID(ctx, poolID)
 		if err != nil {
 			re.logError("GetSvmsByPoolID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1128,13 +1128,13 @@ func (re *retryEngine) GetNextSVMIndexByPoolID(ctx context.Context, poolID int64
 		var0, err = re.dataStore.GetNextSVMIndexByPoolID(ctx, poolID)
 		if err != nil {
 			re.logError("GetNextSVMIndexByPoolID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1148,13 +1148,13 @@ func (re *retryEngine) UpdateSvmWithKmsConfigIDs(ctx context.Context, svm *datam
 		var0, err = re.dataStore.UpdateSvmWithKmsConfigIDs(ctx, svm, gcpKmsConfigUUID, externalGcpKmsConfigUUID)
 		if err != nil {
 			re.logError("UpdateSvmWithKmsConfigIDs", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1168,13 +1168,13 @@ func (re *retryEngine) CreateLif(ctx context.Context, lif *datamodel.Lif) (*data
 		var0, err = re.dataStore.CreateLif(ctx, lif)
 		if err != nil {
 			re.logError("CreateLif", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1188,13 +1188,13 @@ func (re *retryEngine) GetLifForNode(ctx context.Context, nodeID int64, accountI
 		var0, err = re.dataStore.GetLifForNode(ctx, nodeID, accountID)
 		if err != nil {
 			re.logError("GetLifForNode", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1208,13 +1208,13 @@ func (re *retryEngine) CreateHostGroup(ctx context.Context, hostGroup *datamodel
 		var0, err = re.dataStore.CreateHostGroup(ctx, hostGroup)
 		if err != nil {
 			re.logError("CreateHostGroup", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1228,13 +1228,13 @@ func (re *retryEngine) GetHostGroup(ctx context.Context, id string, accountID in
 		var0, err = re.dataStore.GetHostGroup(ctx, id, accountID)
 		if err != nil {
 			re.logError("GetHostGroup", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1248,13 +1248,13 @@ func (re *retryEngine) GetMultipleHostGroups(ctx context.Context, ids []string, 
 		var0, err = re.dataStore.GetMultipleHostGroups(ctx, ids, accountID)
 		if err != nil {
 			re.logError("GetMultipleHostGroups", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1268,13 +1268,13 @@ func (re *retryEngine) DeleteHostGroup(ctx context.Context, hostGroupUUID string
 		var0, err = re.dataStore.DeleteHostGroup(ctx, hostGroupUUID, accountID)
 		if err != nil {
 			re.logError("DeleteHostGroup", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1287,13 +1287,13 @@ func (re *retryEngine) UpdateHostGroupsState(ctx context.Context, hostGroupUUID 
 		err = re.dataStore.UpdateHostGroupsState(ctx, hostGroupUUID, accountID, state, stateDetails)
 		if err != nil {
 			re.logError("UpdateHostGroupsState", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1307,13 +1307,13 @@ func (re *retryEngine) UpdateHostGroup(ctx context.Context, hostGroupUUID string
 		var0, err = re.dataStore.UpdateHostGroup(ctx, hostGroupUUID, accountID, description, Hosts)
 		if err != nil {
 			re.logError("UpdateHostGroup", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1327,13 +1327,13 @@ func (re *retryEngine) GetLifByNodeIDAndProtocol(ctx context.Context, nodeID int
 		var0, err = re.dataStore.GetLifByNodeIDAndProtocol(ctx, nodeID, accountID, protocol)
 		if err != nil {
 			re.logError("GetLifByNodeIDAndProtocol", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1347,13 +1347,13 @@ func (re *retryEngine) GetLifForFilesNode(ctx context.Context, nodeID int64, acc
 		var0, err = re.dataStore.GetLifForFilesNode(ctx, nodeID, accountID, protocol)
 		if err != nil {
 			re.logError("GetLifForFilesNode", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1367,13 +1367,13 @@ func (re *retryEngine) GetLifByNodeID(ctx context.Context, nodeID int64, account
 		var0, err = re.dataStore.GetLifByNodeID(ctx, nodeID, accountID)
 		if err != nil {
 			re.logError("GetLifByNodeID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1386,13 +1386,13 @@ func (re *retryEngine) DeleteLif(ctx context.Context, lif *datamodel.Lif) error 
 		err = re.dataStore.DeleteLif(ctx, lif)
 		if err != nil {
 			re.logError("DeleteLif", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1405,13 +1405,13 @@ func (re *retryEngine) DeleteNode(ctx context.Context, node *datamodel.Node) err
 		err = re.dataStore.DeleteNode(ctx, node)
 		if err != nil {
 			re.logError("DeleteNode", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1424,13 +1424,13 @@ func (re *retryEngine) DeletingNode(ctx context.Context, node *datamodel.Node) e
 		err = re.dataStore.DeletingNode(ctx, node)
 		if err != nil {
 			re.logError("DeletingNode", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1443,13 +1443,13 @@ func (re *retryEngine) DeleteSVM(ctx context.Context, svm *datamodel.Svm) error 
 		err = re.dataStore.DeleteSVM(ctx, svm)
 		if err != nil {
 			re.logError("DeleteSVM", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1462,13 +1462,13 @@ func (re *retryEngine) DeletingSVM(ctx context.Context, svm *datamodel.Svm) erro
 		err = re.dataStore.DeletingSVM(ctx, svm)
 		if err != nil {
 			re.logError("DeletingSVM", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1481,13 +1481,13 @@ func (re *retryEngine) ErroredNode(ctx context.Context, node *datamodel.Node, er
 		err = re.dataStore.ErroredNode(ctx, node, errMsg)
 		if err != nil {
 			re.logError("ErroredNode", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1500,13 +1500,13 @@ func (re *retryEngine) ErroredSVM(ctx context.Context, svm *datamodel.Svm, errMs
 		err = re.dataStore.ErroredSVM(ctx, svm, errMsg)
 		if err != nil {
 			re.logError("ErroredSVM", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1520,13 +1520,13 @@ func (re *retryEngine) CreatingSnapshot(ctx context.Context, snapshot *datamodel
 		var0, err = re.dataStore.CreatingSnapshot(ctx, snapshot)
 		if err != nil {
 			re.logError("CreatingSnapshot", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1540,13 +1540,13 @@ func (re *retryEngine) UpdateSnapshot(ctx context.Context, snapshot *datamodel.S
 		var0, err = re.dataStore.UpdateSnapshot(ctx, snapshot)
 		if err != nil {
 			re.logError("UpdateSnapshot", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1560,13 +1560,13 @@ func (re *retryEngine) GetSnapshotByUUID(ctx context.Context, uuid string, accou
 		var0, err = re.dataStore.GetSnapshotByUUID(ctx, uuid, accountID, volumeID)
 		if err != nil {
 			re.logError("GetSnapshotByUUID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1580,13 +1580,13 @@ func (re *retryEngine) GetSnapshotByPoolID(ctx context.Context, SnapshotUUID str
 		var0, err = re.dataStore.GetSnapshotByPoolID(ctx, SnapshotUUID, accountID, poolID, isParentSnapshot)
 		if err != nil {
 			re.logError("GetSnapshotByPoolID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1600,13 +1600,13 @@ func (re *retryEngine) GetSnapshotsByVolumeID(ctx context.Context, volumeID int6
 		var0, err = re.dataStore.GetSnapshotsByVolumeID(ctx, volumeID)
 		if err != nil {
 			re.logError("GetSnapshotsByVolumeID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1620,13 +1620,13 @@ func (re *retryEngine) GetWronglyDeletedSnapshot(ctx context.Context, snapshotEx
 		var0, err = re.dataStore.GetWronglyDeletedSnapshot(ctx, snapshotExternalUUID)
 		if err != nil {
 			re.logError("GetWronglyDeletedSnapshot", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1639,13 +1639,13 @@ func (re *retryEngine) UnDeleteSnapshot(ctx context.Context, snapshot *datamodel
 		err = re.dataStore.UnDeleteSnapshot(ctx, snapshot)
 		if err != nil {
 			re.logError("UnDeleteSnapshot", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1659,13 +1659,13 @@ func (re *retryEngine) GetSnapshotsByVolumeIDs(ctx context.Context, volumeID []i
 		var0, err = re.dataStore.GetSnapshotsByVolumeIDs(ctx, volumeID)
 		if err != nil {
 			re.logError("GetSnapshotsByVolumeIDs", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1679,13 +1679,13 @@ func (re *retryEngine) GetReplicationSnapshotsByVolumeID(ctx context.Context, vo
 		var0, err = re.dataStore.GetReplicationSnapshotsByVolumeID(ctx, volumeID)
 		if err != nil {
 			re.logError("GetReplicationSnapshotsByVolumeID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1699,13 +1699,13 @@ func (re *retryEngine) GetSnapshotsWithCondition(ctx context.Context, filter dbu
 		var0, err = re.dataStore.GetSnapshotsWithCondition(ctx, filter)
 		if err != nil {
 			re.logError("GetSnapshotsWithCondition", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1719,13 +1719,13 @@ func (re *retryEngine) GetAppConsistentSnapshotsForVolume(ctx context.Context, a
 		var0, err = re.dataStore.GetAppConsistentSnapshotsForVolume(ctx, accountID, volumeID)
 		if err != nil {
 			re.logError("GetAppConsistentSnapshotsForVolume", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1739,13 +1739,13 @@ func (re *retryEngine) DeleteSnapshot(ctx context.Context, id string) (*datamode
 		var0, err = re.dataStore.DeleteSnapshot(ctx, id)
 		if err != nil {
 			re.logError("DeleteSnapshot", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1758,13 +1758,13 @@ func (re *retryEngine) DeletingSnapshot(ctx context.Context, snapshot *datamodel
 		err = re.dataStore.DeletingSnapshot(ctx, snapshot)
 		if err != nil {
 			re.logError("DeletingSnapshot", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1778,13 +1778,13 @@ func (re *retryEngine) BatchDeleteSnapshots(ctx context.Context, snapshotIDs []i
 		var0, err = re.dataStore.BatchDeleteSnapshots(ctx, snapshotIDs)
 		if err != nil {
 			re.logError("BatchDeleteSnapshots", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1798,13 +1798,13 @@ func (re *retryEngine) BatchCreateSnapshots(ctx context.Context, newSnapshots []
 		var0, err = re.dataStore.BatchCreateSnapshots(ctx, newSnapshots, returnCreatedSnapshotUUIDs)
 		if err != nil {
 			re.logError("BatchCreateSnapshots", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1817,13 +1817,13 @@ func (re *retryEngine) BatchUpdateSnapshots(ctx context.Context, snapshots []*da
 		err = re.dataStore.BatchUpdateSnapshots(ctx, snapshots)
 		if err != nil {
 			re.logError("BatchUpdateSnapshots", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1836,13 +1836,13 @@ func (re *retryEngine) BatchUnDeleteSnapshots(ctx context.Context, snapshots []*
 		err = re.dataStore.BatchUnDeleteSnapshots(ctx, snapshots)
 		if err != nil {
 			re.logError("BatchUnDeleteSnapshots", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1856,13 +1856,13 @@ func (re *retryEngine) BatchGetSnapshotsByUUIDs(ctx context.Context, snapshotUUI
 		var0, err = re.dataStore.BatchGetSnapshotsByUUIDs(ctx, snapshotUUIDs)
 		if err != nil {
 			re.logError("BatchGetSnapshotsByUUIDs", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1876,13 +1876,13 @@ func (re *retryEngine) BatchGetWronglyDeletedSnapshots(ctx context.Context, snap
 		var0, err = re.dataStore.BatchGetWronglyDeletedSnapshots(ctx, snapshotExternalUUIDs)
 		if err != nil {
 			re.logError("BatchGetWronglyDeletedSnapshots", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1896,13 +1896,13 @@ func (re *retryEngine) GetMultipleKmsConfigs(ctx context.Context, conditions [][
 		var0, err = re.dataStore.GetMultipleKmsConfigs(ctx, conditions)
 		if err != nil {
 			re.logError("GetMultipleKmsConfigs", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1916,13 +1916,13 @@ func (re *retryEngine) GetKmsConfig(ctx context.Context, kmsConfigUUID string) (
 		var0, err = re.dataStore.GetKmsConfig(ctx, kmsConfigUUID)
 		if err != nil {
 			re.logError("GetKmsConfig", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1936,13 +1936,13 @@ func (re *retryEngine) UpdateKmsConfigState(ctx context.Context, kmsConfigUUID s
 		var0, err = re.dataStore.UpdateKmsConfigState(ctx, kmsConfigUUID, state, stateDetails)
 		if err != nil {
 			re.logError("UpdateKmsConfigState", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1956,13 +1956,13 @@ func (re *retryEngine) DeleteKmsConfig(ctx context.Context, kmsConfigUUID, state
 		var0, err = re.dataStore.DeleteKmsConfig(ctx, kmsConfigUUID, state, stateDetails)
 		if err != nil {
 			re.logError("DeleteKmsConfig", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1976,13 +1976,13 @@ func (re *retryEngine) GetSvmsByKmsConfigID(ctx context.Context, kmsConfigID int
 		var0, err = re.dataStore.GetSvmsByKmsConfigID(ctx, kmsConfigID)
 		if err != nil {
 			re.logError("GetSvmsByKmsConfigID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -1996,13 +1996,13 @@ func (re *retryEngine) ListOngoingPoolJobsWithKmsConfigId(ctx context.Context, k
 		var0, err = re.dataStore.ListOngoingPoolJobsWithKmsConfigId(ctx, kmsId, accountId)
 		if err != nil {
 			re.logError("ListOngoingPoolJobsWithKmsConfigId", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2016,13 +2016,13 @@ func (re *retryEngine) CreateKmsConfig(ctx context.Context, kmsConfig *datamodel
 		var0, err = re.dataStore.CreateKmsConfig(ctx, kmsConfig)
 		if err != nil {
 			re.logError("CreateKmsConfig", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2036,13 +2036,13 @@ func (re *retryEngine) GetKmsConfigByUUID(ctx context.Context, uuid string) (*da
 		var0, err = re.dataStore.GetKmsConfigByUUID(ctx, uuid)
 		if err != nil {
 			re.logError("GetKmsConfigByUUID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2056,13 +2056,13 @@ func (re *retryEngine) UpdateKmsConfigAttributes(ctx context.Context, uuid strin
 		var0, err = re.dataStore.UpdateKmsConfigAttributes(ctx, uuid, attributes)
 		if err != nil {
 			re.logError("UpdateKmsConfigAttributes", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2076,13 +2076,13 @@ func (re *retryEngine) GetJobByResourceUUID(ctx context.Context, resourceUUID st
 		var0, err = re.dataStore.GetJobByResourceUUID(ctx, resourceUUID)
 		if err != nil {
 			re.logError("GetJobByResourceUUID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2096,13 +2096,13 @@ func (re *retryEngine) UpdateKmsConfigDetails(ctx context.Context, uuid string, 
 		var0, err = re.dataStore.UpdateKmsConfigDetails(ctx, uuid, fullKeyPath, resourceID)
 		if err != nil {
 			re.logError("UpdateKmsConfigDetails", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2116,13 +2116,13 @@ func (re *retryEngine) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPat
 		var0, err = re.dataStore.GetKmsConfigByKeyFullPath(ctx, keyFullPath)
 		if err != nil {
 			re.logError("GetKmsConfigByKeyFullPath", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2135,13 +2135,13 @@ func (re *retryEngine) UpdateKmsConfig(ctx context.Context, kmsUUID string, upda
 		err = re.dataStore.UpdateKmsConfig(ctx, kmsUUID, updates)
 		if err != nil {
 			re.logError("UpdateKmsConfig", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2155,13 +2155,13 @@ func (re *retryEngine) IsKmsConfigInUse(ctx context.Context, kmsConfigUUID strin
 		var0, err = re.dataStore.IsKmsConfigInUse(ctx, kmsConfigUUID)
 		if err != nil {
 			re.logError("IsKmsConfigInUse", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2175,13 +2175,13 @@ func (re *retryEngine) CreateKmsServiceAccount(ctx context.Context, serviceAccou
 		var0, err = re.dataStore.CreateKmsServiceAccount(ctx, serviceAccount)
 		if err != nil {
 			re.logError("CreateKmsServiceAccount", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2195,13 +2195,13 @@ func (re *retryEngine) UpdateServiceAccountEmailAndKey(ctx context.Context, uuid
 		var0, err = re.dataStore.UpdateServiceAccountEmailAndKey(ctx, uuid, email, key)
 		if err != nil {
 			re.logError("UpdateServiceAccountEmailAndKey", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2215,13 +2215,13 @@ func (re *retryEngine) UpdateServiceAccountState(ctx context.Context, uuid strin
 		var0, err = re.dataStore.UpdateServiceAccountState(ctx, uuid, state, stateDetails)
 		if err != nil {
 			re.logError("UpdateServiceAccountState", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2235,13 +2235,13 @@ func (re *retryEngine) GetServiceAccountFromEmail(ctx context.Context, email str
 		var0, err = re.dataStore.GetServiceAccountFromEmail(ctx, email)
 		if err != nil {
 			re.logError("GetServiceAccountFromEmail", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2255,13 +2255,13 @@ func (re *retryEngine) GetBackupVaultByNameAndOwnerID(ctx context.Context, backu
 		var0, err = re.dataStore.GetBackupVaultByNameAndOwnerID(ctx, backupVaultName, ownerID)
 		if err != nil {
 			re.logError("GetBackupVaultByNameAndOwnerID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2275,13 +2275,13 @@ func (re *retryEngine) CreatingBackupVault(ctx context.Context, bv *datamodel.Ba
 		var0, err = re.dataStore.CreatingBackupVault(ctx, bv)
 		if err != nil {
 			re.logError("CreatingBackupVault", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2295,13 +2295,13 @@ func (re *retryEngine) ListBackupVaults(ctx context.Context, accountID int64) ([
 		var0, err = re.dataStore.ListBackupVaults(ctx, accountID)
 		if err != nil {
 			re.logError("ListBackupVaults", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2315,13 +2315,13 @@ func (re *retryEngine) GetBackupVaultByUUIDndOwnerID(ctx context.Context, backup
 		var0, err = re.dataStore.GetBackupVaultByUUIDndOwnerID(ctx, backupVaultUUID, accountID)
 		if err != nil {
 			re.logError("GetBackupVaultByUUIDndOwnerID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2335,13 +2335,13 @@ func (re *retryEngine) GetBackupByNameAndBackupVaultID(ctx context.Context, back
 		var0, err = re.dataStore.GetBackupByNameAndBackupVaultID(ctx, backupName, backupVaultID)
 		if err != nil {
 			re.logError("GetBackupByNameAndBackupVaultID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2355,13 +2355,13 @@ func (re *retryEngine) CreateBackupVaultEntryInVCP(ctx context.Context, bv *data
 		var0, err = re.dataStore.CreateBackupVaultEntryInVCP(ctx, bv)
 		if err != nil {
 			re.logError("CreateBackupVaultEntryInVCP", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2374,13 +2374,13 @@ func (re *retryEngine) UpdateBackupVault(ctx context.Context, backupVault *datam
 		err = re.dataStore.UpdateBackupVault(ctx, backupVault)
 		if err != nil {
 			re.logError("UpdateBackupVault", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2394,13 +2394,13 @@ func (re *retryEngine) GetBackupVault(ctx context.Context, backupVaultId string)
 		var0, err = re.dataStore.GetBackupVault(ctx, backupVaultId)
 		if err != nil {
 			re.logError("GetBackupVault", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2414,13 +2414,13 @@ func (re *retryEngine) UpdateBackupVaultState(ctx context.Context, bv *datamodel
 		var0, err = re.dataStore.UpdateBackupVaultState(ctx, bv, state, stateDetails)
 		if err != nil {
 			re.logError("UpdateBackupVaultState", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2434,13 +2434,13 @@ func (re *retryEngine) UpdateBackupVaultInVCP(ctx context.Context, vault *datamo
 		var0, err = re.dataStore.UpdateBackupVaultInVCP(ctx, vault, vcpVault)
 		if err != nil {
 			re.logError("UpdateBackupVaultInVCP", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2454,13 +2454,13 @@ func (re *retryEngine) GetMultipleBackupVaults(ctx context.Context, conditions [
 		var0, err = re.dataStore.GetMultipleBackupVaults(ctx, conditions)
 		if err != nil {
 			re.logError("GetMultipleBackupVaults", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2474,13 +2474,13 @@ func (re *retryEngine) DeleteBackupVaultInVCP(ctx context.Context, backupVaultId
 		var0, err = re.dataStore.DeleteBackupVaultInVCP(ctx, backupVaultId)
 		if err != nil {
 			re.logError("DeleteBackupVaultInVCP", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2494,13 +2494,13 @@ func (re *retryEngine) GetVolumeCountByBackupVaultID(ctx context.Context, backup
 		var0, err = re.dataStore.GetVolumeCountByBackupVaultID(ctx, backupVaultUUID)
 		if err != nil {
 			re.logError("GetVolumeCountByBackupVaultID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2514,13 +2514,13 @@ func (re *retryEngine) GetBackupCountByBackupVaultID(ctx context.Context, backup
 		var0, err = re.dataStore.GetBackupCountByBackupVaultID(ctx, backupVaultID)
 		if err != nil {
 			re.logError("GetBackupCountByBackupVaultID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2534,13 +2534,13 @@ func (re *retryEngine) GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, back
 		var0, err = re.dataStore.GetBackupPolicyByUUIDAndOwnerID(ctx, backupPolicyUUID, accountID)
 		if err != nil {
 			re.logError("GetBackupPolicyByUUIDAndOwnerID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2554,13 +2554,13 @@ func (re *retryEngine) GetBackupPolicyByNameAndOwnerID(ctx context.Context, back
 		var0, err = re.dataStore.GetBackupPolicyByNameAndOwnerID(ctx, backupPolicyName, accountID)
 		if err != nil {
 			re.logError("GetBackupPolicyByNameAndOwnerID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2574,13 +2574,13 @@ func (re *retryEngine) GetVolumeCountByBackupPolicyID(ctx context.Context, backu
 		var0, err = re.dataStore.GetVolumeCountByBackupPolicyID(ctx, backupPolicyUUID)
 		if err != nil {
 			re.logError("GetVolumeCountByBackupPolicyID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2594,13 +2594,13 @@ func (re *retryEngine) ListBackupPolicyVolumeCount(ctx context.Context, conditio
 		var0, err = re.dataStore.ListBackupPolicyVolumeCount(ctx, conditions)
 		if err != nil {
 			re.logError("ListBackupPolicyVolumeCount", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2614,13 +2614,13 @@ func (re *retryEngine) ListBackupPolicies(ctx context.Context, conditions [][]in
 		var0, err = re.dataStore.ListBackupPolicies(ctx, conditions)
 		if err != nil {
 			re.logError("ListBackupPolicies", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2634,13 +2634,13 @@ func (re *retryEngine) CreateBackupPolicyEntryInVCP(ctx context.Context, backupP
 		var0, err = re.dataStore.CreateBackupPolicyEntryInVCP(ctx, backupPolicy)
 		if err != nil {
 			re.logError("CreateBackupPolicyEntryInVCP", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2654,13 +2654,13 @@ func (re *retryEngine) UpdateBackupPolicy(ctx context.Context, uuid string, upda
 		var0, err = re.dataStore.UpdateBackupPolicy(ctx, uuid, updates)
 		if err != nil {
 			re.logError("UpdateBackupPolicy", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2674,13 +2674,13 @@ func (re *retryEngine) DeleteBackupPolicy(ctx context.Context, backupPolicyUUID 
 		var0, err = re.dataStore.DeleteBackupPolicy(ctx, backupPolicyUUID)
 		if err != nil {
 			re.logError("DeleteBackupPolicy", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2694,13 +2694,13 @@ func (re *retryEngine) CreateBackup(ctx context.Context, backup *datamodel.Backu
 		var0, err = re.dataStore.CreateBackup(ctx, backup)
 		if err != nil {
 			re.logError("CreateBackup", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2714,13 +2714,13 @@ func (re *retryEngine) GetBackup(ctx context.Context, backupVaultUUID string, ba
 		var0, err = re.dataStore.GetBackup(ctx, backupVaultUUID, backupUUID, accountName)
 		if err != nil {
 			re.logError("GetBackup", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2734,13 +2734,13 @@ func (re *retryEngine) DeleteBackup(ctx context.Context, backupUUID string) (*da
 		var0, err = re.dataStore.DeleteBackup(ctx, backupUUID)
 		if err != nil {
 			re.logError("DeleteBackup", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2754,13 +2754,13 @@ func (re *retryEngine) UpdateBackup(ctx context.Context, backup *datamodel.Backu
 		var0, err = re.dataStore.UpdateBackup(ctx, backup)
 		if err != nil {
 			re.logError("UpdateBackup", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2774,13 +2774,13 @@ func (re *retryEngine) FinishBackup(ctx context.Context, backup *datamodel.Backu
 		var0, err = re.dataStore.FinishBackup(ctx, backup)
 		if err != nil {
 			re.logError("FinishBackup", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2794,13 +2794,13 @@ func (re *retryEngine) UpdateBackupState(ctx context.Context, backup *datamodel.
 		var0, err = re.dataStore.UpdateBackupState(ctx, backup)
 		if err != nil {
 			re.logError("UpdateBackupState", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2814,13 +2814,13 @@ func (re *retryEngine) IsBackupInCreatingorDeletingStateByVolume(ctx context.Con
 		var0, err = re.dataStore.IsBackupInCreatingorDeletingStateByVolume(ctx, volumeUUID)
 		if err != nil {
 			re.logError("IsBackupInCreatingorDeletingStateByVolume", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2834,13 +2834,13 @@ func (re *retryEngine) IsLatestBackup(ctx context.Context, backupUUID, volumeUUI
 		var0, err = re.dataStore.IsLatestBackup(ctx, backupUUID, volumeUUID)
 		if err != nil {
 			re.logError("IsLatestBackup", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2854,13 +2854,13 @@ func (re *retryEngine) BackupCountByVolumeID(ctx context.Context, volumeUUID str
 		var0, err = re.dataStore.BackupCountByVolumeID(ctx, volumeUUID)
 		if err != nil {
 			re.logError("BackupCountByVolumeID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2874,13 +2874,13 @@ func (re *retryEngine) FetchScheduledBackupsForDeletion(ctx context.Context, vol
 		var0, err = re.dataStore.FetchScheduledBackupsForDeletion(ctx, volume, backupPolicy)
 		if err != nil {
 			re.logError("FetchScheduledBackupsForDeletion", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2894,13 +2894,13 @@ func (re *retryEngine) IsBackupShared(ctx context.Context, backup *datamodel.Bac
 		var0, err = re.dataStore.IsBackupShared(ctx, backup)
 		if err != nil {
 			re.logError("IsBackupShared", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2914,13 +2914,13 @@ func (re *retryEngine) GetBackupCountByVolumeUUIDs(ctx context.Context, volumeUU
 		var0, err = re.dataStore.GetBackupCountByVolumeUUIDs(ctx, volumeUUIDs, conditions)
 		if err != nil {
 			re.logError("GetBackupCountByVolumeUUIDs", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2934,13 +2934,13 @@ func (re *retryEngine) CreateAdminJobSpec(ctx context.Context, jobSpec *datamode
 		var0, err = re.dataStore.CreateAdminJobSpec(ctx, jobSpec)
 		if err != nil {
 			re.logError("CreateAdminJobSpec", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2954,13 +2954,13 @@ func (re *retryEngine) GetAdminJobSpecByJobType(ctx context.Context, jobType str
 		var0, err = re.dataStore.GetAdminJobSpecByJobType(ctx, jobType)
 		if err != nil {
 			re.logError("GetAdminJobSpecByJobType", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2973,13 +2973,13 @@ func (re *retryEngine) UpdateAdminJobSpec(ctx context.Context, jobSpec *datamode
 		err = re.dataStore.UpdateAdminJobSpec(ctx, jobSpec)
 		if err != nil {
 			re.logError("UpdateAdminJobSpec", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -2993,13 +2993,13 @@ func (re *retryEngine) GetAdminJobSpecsByState(ctx context.Context, state string
 		var0, err = re.dataStore.GetAdminJobSpecsByState(ctx, state)
 		if err != nil {
 			re.logError("GetAdminJobSpecsByState", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -3013,13 +3013,13 @@ func (re *retryEngine) CreateNodeNodeGroupMap(ctx context.Context, mapping *data
 		var0, err = re.dataStore.CreateNodeNodeGroupMap(ctx, mapping)
 		if err != nil {
 			re.logError("CreateNodeNodeGroupMap", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -3033,13 +3033,13 @@ func (re *retryEngine) GetNodeNodeGroupMap(ctx context.Context, id int64) (*data
 		var0, err = re.dataStore.GetNodeNodeGroupMap(ctx, id)
 		if err != nil {
 			re.logError("GetNodeNodeGroupMap", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -3053,13 +3053,13 @@ func (re *retryEngine) UpdateNodeNodeGroupMap(ctx context.Context, mapping *data
 		var0, err = re.dataStore.UpdateNodeNodeGroupMap(ctx, mapping)
 		if err != nil {
 			re.logError("UpdateNodeNodeGroupMap", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -3072,13 +3072,13 @@ func (re *retryEngine) DeleteNodeNodeGroupMap(ctx context.Context, id int64) err
 		err = re.dataStore.DeleteNodeNodeGroupMap(ctx, id)
 		if err != nil {
 			re.logError("DeleteNodeNodeGroupMap", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -3091,13 +3091,13 @@ func (re *retryEngine) DeleteNodeGroupMap(ctx context.Context, nodeGroupMap *dat
 		err = re.dataStore.DeleteNodeGroupMap(ctx, nodeGroupMap)
 		if err != nil {
 			re.logError("DeleteNodeGroupMap", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -3111,13 +3111,13 @@ func (re *retryEngine) GetNodeGroupMapNodeCount(ctx context.Context, nodeGroupID
 		var0, err = re.dataStore.GetNodeGroupMapNodeCount(ctx, nodeGroupID)
 		if err != nil {
 			re.logError("GetNodeGroupMapNodeCount", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -3131,13 +3131,13 @@ func (re *retryEngine) GetNodeNodeGroupMapByNodeID(ctx context.Context, nodeID i
 		var0, err = re.dataStore.GetNodeNodeGroupMapByNodeID(ctx, nodeID)
 		if err != nil {
 			re.logError("GetNodeNodeGroupMapByNodeID", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -3151,13 +3151,13 @@ func (re *retryEngine) CreateNodeGroup(ctx context.Context, group *datamodel.Nod
 		var0, err = re.dataStore.CreateNodeGroup(ctx, group)
 		if err != nil {
 			re.logError("CreateNodeGroup", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -3171,13 +3171,13 @@ func (re *retryEngine) GetNodeGroup(ctx context.Context, id int64) (*datamodel.N
 		var0, err = re.dataStore.GetNodeGroup(ctx, id)
 		if err != nil {
 			re.logError("GetNodeGroup", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -3191,13 +3191,13 @@ func (re *retryEngine) UpdateNodeGroup(ctx context.Context, group *datamodel.Nod
 		var0, err = re.dataStore.UpdateNodeGroup(ctx, group)
 		if err != nil {
 			re.logError("UpdateNodeGroup", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -3210,13 +3210,13 @@ func (re *retryEngine) DeleteNodeGroup(ctx context.Context, id int64) error {
 		err = re.dataStore.DeleteNodeGroup(ctx, id)
 		if err != nil {
 			re.logError("DeleteNodeGroup", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -3230,13 +3230,13 @@ func (re *retryEngine) ErroredResource(ctx context.Context, resource interface{}
 		var0, err = re.dataStore.ErroredResource(ctx, resource, errorMessage)
 		if err != nil {
 			re.logError("ErroredResource", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -3250,13 +3250,13 @@ func (re *retryEngine) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Conte
 		var0, err = re.dataStore.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, backupVaultUUID, accountID, filters)
 		if err != nil {
 			re.logError("GetBackupsByBackupVaultOwnerIDAndFilter", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
@@ -3270,13 +3270,13 @@ func (re *retryEngine) AssignTwoNodesToTwoGroups(ctx context.Context, params dat
 		var0, err = re.dataStore.AssignTwoNodesToTwoGroups(ctx, params)
 		if err != nil {
 			re.logError("AssignTwoNodesToTwoGroups", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 

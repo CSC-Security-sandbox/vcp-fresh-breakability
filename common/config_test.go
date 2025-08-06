@@ -4,7 +4,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
@@ -190,4 +192,47 @@ func TestValidateRegionMap(t *testing.T) {
 			t.Errorf("expected error for empty local region, got nil")
 		}
 	})
+}
+
+func TestLoadConfig_MetricsDBEnvVars(t *testing.T) {
+	// Set environment variables for metrics DB
+	_ = os.Setenv("LOCAL_REGION", "us-central1")
+	_ = os.Setenv("METRICS_DB_TYPE", "sqlite")
+	_ = os.Setenv("METRICS_DB_HOST", "localhost")
+	_ = os.Setenv("METRICS_DB_PORT", "1234")
+	_ = os.Setenv("METRICS_DB_USER", "metricsuser")
+	_ = os.Setenv("METRICS_DB_PASSWORD", "metricspass")
+	_ = os.Setenv("METRICS_DB_NAME", "metricsdb")
+	_ = os.Setenv("METRICS_DB_SSL_MODE", "require")
+	_ = os.Setenv("METRICS_DB_TIMEZONE", "Asia/Kolkata")
+	_ = os.Setenv("METRICS_DB_MAX_OPEN_CONNS", "99")
+	_ = os.Setenv("METRICS_DB_MAX_IDLE_CONNS", "77")
+	_ = os.Setenv("METRICS_DB_CONN_MAX_LIFETIME", "2h")
+
+	cfg := LoadConfig()
+	assert.NotNil(t, cfg)
+	assert.Equal(t, "sqlite", cfg.MetricsDBType)
+	assert.Equal(t, "localhost", cfg.MetricsDBHost)
+	assert.Equal(t, "1234", cfg.MetricsDBPort)
+	assert.Equal(t, "metricsuser", cfg.MetricsDBUser)
+	assert.Equal(t, "metricspass", cfg.MetricsDBPassword)
+	assert.Equal(t, "metricsdb", cfg.MetricsDBName)
+	assert.Equal(t, "require", cfg.MetricsDBSSLMode)
+	assert.Equal(t, 99, cfg.MetricsDBMaxOpenConns)
+	assert.Equal(t, 77, cfg.MetricsDBMaxIdleConns)
+	assert.Equal(t, 2*time.Hour, cfg.MetricsDBConnMaxLifetime)
+	assert.Equal(t, "Asia/Kolkata", cfg.MetricsDBTimeZone.String())
+
+	// Clean up
+	_ = os.Unsetenv("METRICS_DB_TYPE")
+	_ = os.Unsetenv("METRICS_DB_HOST")
+	_ = os.Unsetenv("METRICS_DB_PORT")
+	_ = os.Unsetenv("METRICS_DB_USER")
+	_ = os.Unsetenv("METRICS_DB_PASSWORD")
+	_ = os.Unsetenv("METRICS_DB_NAME")
+	_ = os.Unsetenv("METRICS_DB_SSL_MODE")
+	_ = os.Unsetenv("METRICS_DB_TIMEZONE")
+	_ = os.Unsetenv("METRICS_DB_MAX_OPEN_CONNS")
+	_ = os.Unsetenv("METRICS_DB_MAX_IDLE_CONNS")
+	_ = os.Unsetenv("METRICS_DB_CONN_MAX_LIFETIME")
 }

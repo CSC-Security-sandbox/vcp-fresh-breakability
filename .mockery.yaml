@@ -94,6 +94,15 @@ packages:
       MigratorInterface:
       DataStore:
       Transaction:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics:
+    config:
+      inpackage: True
+      dir: "{{.InterfaceDir}}"
+    interfaces:
+      Storage:
+      MigratorInterface:
+      DataStore:
+      Transaction:
   github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log:
     config:
       inpackage: True

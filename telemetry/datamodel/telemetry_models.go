@@ -1,6 +1,10 @@
 package datamodel
 
-import "github.com/jackc/pgx/v5/pgtype"
+import (
+	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
+)
 
 type HydratedMetrics struct {
 	MetricTimestamp       pgtype.Timestamp
@@ -48,4 +52,19 @@ type BillingGcpUsage struct {
 	Submission        pgtype.Text
 	CreatedAt         pgtype.Timestamptz
 	UpdatedAt         pgtype.Timestamptz
+}
+
+type Job struct {
+	ID       int64  `gorm:"primaryKey;autoIncrement"`
+	TypeName string `gorm:"type:text"`
+	Status   string `gorm:"type:text"`
+	Queue    string `gorm:"type:text"`
+	Data     string `gorm:"type:text"`
+	Error    string `gorm:"type:text"`
+	Attempt  int32  `gorm:"default:0"`
+
+	CreatedAt   time.Time
+	StartedAt   time.Time
+	FinishedAt  time.Time
+	ScheduledAt time.Time
 }

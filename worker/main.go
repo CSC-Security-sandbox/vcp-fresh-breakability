@@ -22,11 +22,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
+	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/connection"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/db"
 	tManagerPkg "github.com/vcp-vsa-control-Plane/vsa-control-plane/worker/temporalmanager"
 	workflowEngine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"go.temporal.io/sdk/client"
@@ -88,12 +88,12 @@ func main() {
 	}
 
 	// create database connection
-	dbConn, err := db.GetDbConnection(ctx, logger)
+	dbConn, err := database2.GetVcpDbConnection(ctx, logger)
 	if err != nil {
 		logger.Error("Failed to get database connection", "error", err.Error())
 		os.Exit(1)
 	}
-	defer db.CloseDatabase(dbConn, logger)
+	defer database2.CloseDatabase(dbConn, logger)
 	logger.Info("Database connection established", "connection", dbConn)
 
 	// Initialize the temporal server client

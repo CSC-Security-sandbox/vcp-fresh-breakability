@@ -41,11 +41,24 @@ type Config struct {
 	// "verify-ca" - Use SSL & verify CA certificate.
 	// "verify-full" - Use SSL, verify CA & hostname (most secure, recommended for production).
 
-	DBTimeZone *time.Location // Time zone for the database connection (e.g., "UTC", "Asia/Kolkata").
-	// Connection pool settings
-	DBMaxOpenConns    int           // Maximum number of open connections (0 = unlimited).
-	DBMaxIdleConns    int           // Maximum number of idle connections (default: 2).
-	DBConnMaxLifetime time.Duration // Maximum time a connection can be reused before closing (e.g., 30m, 1h).
+	DBTimeZone        *time.Location // Time zone for the database connection (e.g., "UTC", "Asia/Kolkata").
+	DBMaxOpenConns    int            // Maximum number of open connections (0 = unlimited).
+	DBMaxIdleConns    int            // Maximum number of idle connections (default: 2).
+	DBConnMaxLifetime time.Duration  // Maximum time a connection can be reused before closing (e.g., 30m, 1h).
+
+	// Metrics DB connection details (second DB)
+	MetricsDBType            string
+	MetricsDBHost            string
+	MetricsDBPort            string
+	MetricsDBUser            string
+	MetricsDBPassword        string
+	MetricsDBName            string
+	MetricsDBSSLMode         string
+	MetricsDBTimeZone        *time.Location
+	MetricsDBMaxOpenConns    int
+	MetricsDBMaxIdleConns    int
+	MetricsDBConnMaxLifetime time.Duration
+	MetricsServerPort        string
 
 	// Credential files (used for security)
 	CredentialPath string // Path to a credentials file (e.g., service account JSON for GCP, AWS).
@@ -88,9 +101,27 @@ func LoadConfig() *Config {
 	dbMSIUser := env.GetString("DB_MSI_USER", "")
 	refreshAdminJobSpecs := env.GetBool("REFRESH_ADMIN_JOB_SPECS", true)
 
+	metricsDBType := env.GetString("METRICS_DB_TYPE", "postgres")
+	metricsDBHost := env.GetString("METRICS_DB_HOST", "")
+	metricsDBPort := env.GetString("METRICS_DB_PORT", "5432")
+	metricsDBUser := env.GetString("METRICS_DB_USER", "")
+	metricsDBPassword := env.GetString("METRICS_DB_PASSWORD", "")
+	metricsDBName := env.GetString("METRICS_DB_NAME", "")
+	metricsDBSSLMode := env.GetString("METRICS_DB_SSL_MODE", "disable")
+	metricsDBTimeZone := env.GetString("METRICS_DB_TIMEZONE", "UTC")
+	metricsDBMaxOpenConns := env.GetInt("METRICS_DB_MAX_OPEN_CONNS", 25)
+	metricsDBMaxIdleConns := env.GetInt("METRICS_DB_MAX_IDLE_CONNS", 25)
+	metricsDBConnMaxLifetime := parseDuration(env.GetString("METRICS_DB_CONN_MAX_LIFETIME", "1h"))
+	metricsServerPort := env.GetString("METRICS_SERVER_PORT", "8080")
+
 	location, err := time.LoadLocation(dbTimeZone)
 	if err != nil {
 		slog.Error("Invalid timezone: %v", err)
+		return nil
+	}
+	metricsLocation, err := time.LoadLocation(metricsDBTimeZone)
+	if err != nil {
+		slog.Error("Invalid metrics DB timezone: %v", err)
 		return nil
 	}
 
@@ -127,6 +158,19 @@ func LoadConfig() *Config {
 		MSIEnabled:           msiEnabled,
 		MSIDBUser:            dbMSIUser,
 		RefreshAdminJobSpecs: refreshAdminJobSpecs,
+
+		MetricsDBType:            metricsDBType,
+		MetricsDBHost:            metricsDBHost,
+		MetricsDBPort:            metricsDBPort,
+		MetricsDBUser:            metricsDBUser,
+		MetricsDBPassword:        metricsDBPassword,
+		MetricsDBName:            metricsDBName,
+		MetricsDBSSLMode:         metricsDBSSLMode,
+		MetricsDBTimeZone:        metricsLocation,
+		MetricsDBMaxOpenConns:    metricsDBMaxOpenConns,
+		MetricsDBMaxIdleConns:    metricsDBMaxIdleConns,
+		MetricsDBConnMaxLifetime: metricsDBConnMaxLifetime,
+		MetricsServerPort:        metricsServerPort,
 	}
 }
 

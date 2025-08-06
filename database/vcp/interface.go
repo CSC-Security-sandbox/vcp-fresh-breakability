@@ -5,8 +5,17 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	gormWrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"gorm.io/gorm"
 )
+
+type DataStoreRepository struct {
+	db *gormWrapper.Wrapper
+}
+
+func NewDataStoreRepository(db *gormWrapper.Wrapper) *DataStoreRepository {
+	return &DataStoreRepository{db: db}
+}
 
 type (
 	Storage interface {

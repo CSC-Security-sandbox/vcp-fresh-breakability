@@ -39,8 +39,10 @@ generate-google-proxy-client:
 
 .PHONY: generate-retry-engine-wrapper
 generate-retry-engine-wrapper:
-	cd cmd/retry-engine-generator; go run main.go
-	cd scripts; ./generate-retry-engine.sh
+	cd cmd/retry-engine-generator; go run main.go vcp core
+	cd scripts; ./generate-retry-engine.sh vcp core
+	cd cmd/retry-engine-generator; go run main.go metrics telemetry
+	cd scripts; ./generate-retry-engine.sh metrics telemetry
 
 .PHONY: test
 PACKAGES="./..."

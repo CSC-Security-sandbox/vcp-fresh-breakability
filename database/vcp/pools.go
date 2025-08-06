@@ -11,7 +11,6 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	gormWrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -25,14 +24,6 @@ var (
 	listPoolWithDetails = _listPoolWithDetails
 	getPoolByName       = _getPoolByName
 )
-
-type DataStoreRepository struct {
-	db *gormWrapper.Wrapper
-}
-
-func NewDataStoreRepository(db *gormWrapper.Wrapper) *DataStoreRepository {
-	return &DataStoreRepository{db: db}
-}
 
 // CreatedPool converts created pool to available pool
 func (d *DataStoreRepository) CreatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {

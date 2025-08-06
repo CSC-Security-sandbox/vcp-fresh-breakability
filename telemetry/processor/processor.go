@@ -3,6 +3,7 @@ package processor
 import (
 	"context"
 
+	metricdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/collector"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
@@ -10,18 +11,19 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-type Processor interface {
+type VCPProcessor interface {
 	ProcessPerformanceMetrics(ctx context.Context) error
 }
 
 type MetricsProcessor struct {
+	VCPProcessor
 	vcpDatastore       database.Storage
-	telemetryDatastore database.Storage
+	telemetryDatastore metricdb.Storage
 	sink               performance.Sink
 }
 
-func NewMetricsProcessor(vcpDatastore database.Storage, telemetryDatastore database.Storage, sink performance.Sink) *MetricsProcessor {
-	return &MetricsProcessor{vcpDatastore: vcpDatastore, telemetryDatastore: telemetryDatastore, sink: sink}
+func NewMetricsProcessor(vcpDatastore database.Storage, telemetryDatastore metricdb.Storage, sink performance.Sink) MetricsProcessor {
+	return MetricsProcessor{vcpDatastore: vcpDatastore, telemetryDatastore: telemetryDatastore, sink: sink}
 }
 
 func (mp *MetricsProcessor) ProcessPerformanceMetrics(ctx context.Context) error {

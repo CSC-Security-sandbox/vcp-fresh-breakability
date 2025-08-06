@@ -7,6 +7,7 @@ telemetry/api/telemetry-servergen/
 clients/google-proxy-client/oas
 common/resource_deployer.go
 database/vcp/sewrapper.go
+database/metrics/sewrapper.go
 _mock.go
 tools/
 cmd/

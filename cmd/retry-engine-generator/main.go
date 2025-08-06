@@ -22,12 +22,14 @@ import (
 // 2. "go generate" from ../../database
 
 var (
-	logger  = log.NewLogger()
-	funList = make([]*functionSignature, 0)
-	funSig  *functionSignature
-	offset  token.Pos
-	src     string
-	parsed  = false
+	logger      = log.NewLogger()
+	funList     = make([]*functionSignature, 0)
+	funSig      *functionSignature
+	offset      token.Pos
+	src         string
+	parsed      = false
+	directory   string
+	packageName string = "core" // Default package name, can be overridden by command line argument
 )
 
 type param struct {
@@ -39,6 +41,7 @@ type functionAggregate struct {
 	Full      []*functionSignature
 	Modified  []*functionSignature
 	Unchanged []*functionSignature
+	Package   string
 }
 
 func check(e error) {
@@ -125,8 +128,17 @@ func (v *FileVisitor) Visit(node ast.Node) (w ast.Visitor) {
 }
 
 func main() {
+	if len(os.Args) > 2 {
+		// If an argument is provided, use it as the directory
+		directory = os.Args[1]
+		packageName = os.Args[2]
+	} else {
+		// Default to "vcp" if no argument is provided
+		directory = "vcp"
+	}
+
 	// Read source
-	dat, err := ioutil.ReadFile("../../database/vcp/interface.go")
+	dat, err := ioutil.ReadFile("../../database/" + directory + "/interface.go")
 	check(err)
 	src = string(dat)
 
@@ -134,7 +146,7 @@ func main() {
 
 	fset := token.NewFileSet() // positions are relative to fset
 
-	f, err := parser.ParseFile(fset, "../../database/vcp/interface.go", src, parser.AllErrors)
+	f, err := parser.ParseFile(fset, "../../database/"+directory+"/interface.go", src, parser.AllErrors)
 	check(err)
 	offset = f.Pos()
 
@@ -157,8 +169,9 @@ func main() {
 		Full:      funList,
 		Modified:  filteredList,
 		Unchanged: nochangeList,
+		Package:   packageName,
 	}
-	fname := "../../database/vcp/sewrapper.go"
+	fname := "../../database/" + directory + "/sewrapper.go"
 	logger.Info("Generating", "fname", fname)
 	f1, err := os.Create(fname)
 	check(err)
@@ -233,7 +246,7 @@ package database
 import (
 	"context"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/{{ printf "%s" .Package }}/datamodel"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
@@ -249,13 +262,13 @@ func (re *retryEngine) {{ printf "%s" .Name }}({{ printf "%s" .Input }}){{ print
 		{{ printf "%s" .RetParams }}err = re.dataStore.{{ printf "%s" .Name }}({{ printf "%s" .InputTl }})
 		if err != nil {
 			re.logError("{{ printf "%s" .Name }}", err)
-			if !isTransientErr(err) {
+			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}
 		}
 		return true, err
 	})
-	if isTransientErr(err) {
+	if dbutils.IsTransientErr(err) {
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 

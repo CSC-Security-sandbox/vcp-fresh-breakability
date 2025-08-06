@@ -13,12 +13,15 @@ import (
 	"github.com/go-faster/errors"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/connection"
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/api/endpoints"
 	coreapiserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/api/telemetry-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/database"
+	metricscommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/jobs"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/performance"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/processor"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/httphelpers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -36,21 +39,28 @@ func main() {
 
 	logger.Info("Initializing database connections...")
 	// Initialize the VCP database connection
-	VCPDbConn, err := database.InitializeDatabase(ctx, &database.VCPDatabaseImpl, logger)
+	VCPDbConn, err := connection.GetVcpDbConnection(ctx, logger)
 	if err != nil {
 		logger.Error("Failed to initialize VCP database connection", "error", err.Error())
 		return
 	}
 
+	logger.Info("Successfully connected to VCP database...")
+
+	logger.Info("Initializing metrics database...")
 	// Initialize the telemetry database connection
-	telemetryDbConn, err := database.InitializeDatabase(ctx, &database.TelemetryDatabaseImpl, logger)
+	telemetryDbConn, err := connection.GetTelemetryDbConnection(ctx, logger)
 	if err != nil {
 		logger.Error("Failed to initialize Telemetry database connection", "error", err.Error())
 		return
 	}
 
-	googleSink := performance.NewSink(ctx, common.LoadConfig())
+	logger.Info("Successfully connected to Telemetry database...")
+
+	googleSink := performance.NewSink(ctx, metricscommon.LoadConfig())
 	metricsProcessor := processor.NewMetricsProcessor(VCPDbConn, telemetryDbConn, googleSink)
+
+	tdb := telemetryDbConn.SQLDB()
 
 	// Create a new server instance with the API handler
 	var gcpServer *coreapiserver.Server
@@ -58,6 +68,7 @@ func main() {
 		logger.Error("Fatal error occurred", "error", err.Error())
 		os.Exit(1)
 	}
+	logger.Info("Successfully initialized Telemetry server...")
 
 	// prometheus metrics endpoint
 	mux := chi.NewRouter()
@@ -67,19 +78,32 @@ func main() {
 	mux.Mount("/", http.Handler(gcpServer))
 	mux.Handle("/metrics", promhttp.Handler())
 
+	cfg := common.LoadConfig()
+	// Setup HTTP server with proper timeouts
 	httpServer := &http.Server{
-		Addr:    ":8080",
-		Handler: mux,
+		Addr:              "localhost:" + cfg.MetricsServerPort,
+		Handler:           mux,
+		ReadTimeout:       cfg.ReadTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 	}
 
 	eg, _ := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
+		logger.Info("Starting Telemetry server", "port", cfg.MetricsServerPort)
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
 		return nil
 	})
+
+	queue := utils.NewQueue(tdb, &metricsProcessor)
+	queues := []string{"performance"}
+	if err := queue.Worker(context.Background(), queues, &jobs.ProcessPerformanceMetrics{}); err != nil {
+		logger.Errorf(err.Error())
+	}
 
 	handleGracefulShutdown(eg, ctx, httpServer, logger)
 	// Wait for all goroutines to finish

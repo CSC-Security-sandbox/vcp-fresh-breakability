@@ -1,9 +1,10 @@
 package datamodel
 
 import (
-	"github.com/jackc/pgx/v5/pgtype"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func TestHyderatedMetricsInitialization(t *testing.T) {

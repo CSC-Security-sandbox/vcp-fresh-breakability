@@ -111,3 +111,5 @@ run:
     - core/vsa/provider_mock.go
     - database/vcp/data_store_mock.go
     - database/vcp/storage_mock.go
+    - database/metrics/data_store_mock.go
+    - database/metrics/storage_mock.go
