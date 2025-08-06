@@ -49,6 +49,6 @@ data:
         pipelines:
             metrics:
                 receivers: [prometheus]
-                processors: [filter/cv, resourcedetection]
+                processors: [resourcedetection]
                 exporters: [googlecloud, debug]
 {{- end }}
