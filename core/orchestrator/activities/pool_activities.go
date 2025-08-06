@@ -73,7 +73,9 @@ var (
 
 	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
 	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
-	enforceMinSPConfig = env.GetBool("ENFORCE_MIN_SP_CONFIG", false)
+	enforceMinSPConfig   = env.GetBool("ENFORCE_MIN_SP_CONFIG", false)
+	vsaImageProject      = env.GetString("VSA_IMAGE_PROJECT", "")
+	mediatorImageProject = env.GetString("VSA_MEDIATOR_IMAGE_PROJECT", "")
 )
 
 type PoolActivity struct {
@@ -860,10 +862,11 @@ func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZo
 	}
 
 	vlmConfig.Deployment.GCPConfig = vlm.GCPConfig{
-		ProjectID:           regionalTenantProjectID,
-		ImageProjectID:      regionalTenantProjectID,
-		ServiceAccountEmail: vsaClusterSaEmail,
-		BucketName:          autoTierBucket,
+		ProjectID:              regionalTenantProjectID,
+		ImageProjectID:         vsaImageProject,
+		MediatorImageProjectID: mediatorImageProject,
+		ServiceAccountEmail:    vsaClusterSaEmail,
+		BucketName:             autoTierBucket,
 	}
 
 	vlmConfig.Deployment.Region = region
