@@ -315,10 +315,10 @@ func GetCertificateFromCacheOrSecretManager1(ctx context.Context, certificateID 
 
 // GetOrCreateCloudDNSRecord1 checks if a Cloud DNS record exists, and if not, creates it.
 func GetOrCreateCloudDNSRecord1(gcpService GoogleServices, recordName, ipAddress string) (*hyperscalermodels.CustomCloudDNSRecord, error) {
-	record, getErr := gcpService.GetResourceRecordSet(env.CaPoolDeployedProjectID, env.VsaManagedZone, recordName)
+	record, getErr := gcpService.GetResourceRecordSet(env.SecretManagerProjectID, env.VsaManagedZone, recordName)
 	if getErr != nil {
 		gcpService.GetLogger().Debugf("Creating Cloud DNS record: %s.%s with type %s", recordName, env.VsaManagedZone, recordName)
-		record, err := gcpService.CreateResourceRecordSet(env.CaPoolDeployedProjectID, env.VsaManagedZone, ipAddress, recordName)
+		record, err := gcpService.CreateResourceRecordSet(env.SecretManagerProjectID, env.VsaManagedZone, ipAddress, recordName)
 		if err != nil {
 			gcpService.GetLogger().Errorf("Failed to create Cloud DNS record: %v", err)
 			return nil, errors.WrapAsTemporalApplicationError(err)
@@ -331,10 +331,10 @@ func GetOrCreateCloudDNSRecord1(gcpService GoogleServices, recordName, ipAddress
 
 func DeleteCloudDNSRecord1(gcpService GoogleServices, recordName string) error {
 	logger := gcpService.GetLogger()
-	_, err := gcpService.GetResourceRecordSet(env.CaPoolDeployedProjectID, env.VsaManagedZone, recordName)
+	_, err := gcpService.GetResourceRecordSet(env.SecretManagerProjectID, env.VsaManagedZone, recordName)
 	if err == nil {
 		logger.Debugf("Deleting Cloud DNS record: %s.%s", recordName, env.VsaManagedZone)
-		err = gcpService.DeleteResourceRecordSet(env.CaPoolDeployedProjectID, env.VsaManagedZone, recordName)
+		err = gcpService.DeleteResourceRecordSet(env.SecretManagerProjectID, env.VsaManagedZone, recordName)
 		if err != nil {
 			return err
 		}
