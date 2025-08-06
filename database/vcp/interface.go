@@ -124,6 +124,11 @@ type (
 		DeleteSnapshot(ctx context.Context, id string) (*datamodel.Snapshot, error)
 		DeletingSnapshot(ctx context.Context, snapshot *datamodel.Snapshot) error
 		BatchDeleteSnapshots(ctx context.Context, snapshotIDs []int64) ([]*datamodel.Snapshot, error)
+		BatchCreateSnapshots(ctx context.Context, newSnapshots []*datamodel.Snapshot, returnCreatedSnapshotUUIDs bool) ([]string, error)
+		BatchUpdateSnapshots(ctx context.Context, snapshots []*datamodel.Snapshot) error
+		BatchUnDeleteSnapshots(ctx context.Context, snapshots []*datamodel.Snapshot) error
+		BatchGetSnapshotsByUUIDs(ctx context.Context, snapshotUUIDs []string) ([]*datamodel.Snapshot, error)
+		BatchGetWronglyDeletedSnapshots(ctx context.Context, snapshotExternalUUIDs []string) ([]*datamodel.Snapshot, error)
 
 		GetMultipleKmsConfigs(ctx context.Context, conditions [][]interface{}) ([]*datamodel.KmsConfig, error)
 		GetKmsConfig(ctx context.Context, kmsConfigUUID string) (*datamodel.KmsConfig, error)

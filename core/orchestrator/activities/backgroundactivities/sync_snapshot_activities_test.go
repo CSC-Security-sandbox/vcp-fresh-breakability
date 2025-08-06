@@ -471,7 +471,9 @@ func TestSynchronizeSnapshots(t *testing.T) {
 			return nil, nil
 		}
 		syncNewSnapshotsToDatabase = func(ctx context.Context, newIds []string, newSSMap map[string]*vsa.Snapshot, se database.Storage, dbVolumeMap map[string]*datamodel.Volume, pool *datamodel.Pool) ([]*datamodel.Snapshot, error) {
-			return nil, nil
+			return []*datamodel.Snapshot{
+				{BaseModel: datamodel.BaseModel{ID: 1, UUID: "new-snapshot-uuid"}, SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "new-snapshot-uuid"}},
+			}, nil
 		}
 		syncUpdatedSnapshotsToDatabase = func(ctx context.Context, updatedIDs []string, updatedSSMap map[string]*vsa.Snapshot, se database.Storage, dbSnapshotsMap map[string]*datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
 			return nil, nil
@@ -535,7 +537,9 @@ func TestSynchronizeSnapshots(t *testing.T) {
 			return nil, nil
 		}
 		syncNewSnapshotsToDatabase = func(ctx context.Context, newIds []string, newSSMap map[string]*vsa.Snapshot, se database.Storage, dbVolumeMap map[string]*datamodel.Volume, pool *datamodel.Pool) ([]*datamodel.Snapshot, error) {
-			return nil, nil
+			return []*datamodel.Snapshot{
+				{BaseModel: datamodel.BaseModel{ID: 1, UUID: "new-snapshot-uuid"}, SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "new-snapshot-uuid"}},
+			}, nil
 		}
 		syncUpdatedSnapshotsToDatabase = func(ctx context.Context, updatedIDs []string, updatedSSMap map[string]*vsa.Snapshot, se database.Storage, dbSnapshotsMap map[string]*datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
 			return nil, nil
@@ -833,15 +837,17 @@ func TestSyncWronglyDeletedSnapshotsToDatabase(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetWronglyDeletedSnapshot", mock.Anything, mock.Anything).Return(
-			&datamodel.Snapshot{State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails}, nil)
-		mockStorage.On("UnDeleteSnapshot", ctx, mock.Anything).Return(nil)
+		// Mock the batch get wrongly deleted snapshots call
+		mockStorage.On("BatchGetWronglyDeletedSnapshots", ctx, []string{"wrongly-deleted-snapshot-uuid"}).Return(
+			[]*datamodel.Snapshot{{State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails}}, nil)
+		// Mock the batch undelete snapshots call
+		mockStorage.On("BatchUnDeleteSnapshots", ctx, mock.AnythingOfType("[]*datamodel.Snapshot")).Return(nil)
 
 		_, err := syncWronglyDeletedSnapshotsToDatabase(ctx, []string{"snapshot-uuid.volume-uuid"}, wronglyDeletedSnapshotsMap, mockStorage, dbSnapshotsMap)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
-	t.Run("SyncWronglyDeletedSnapshotsToDatabaseFailed", func(tt *testing.T) {
+	t.Run("SyncWronglyDeletedSnapshotsToDatabaseBatchGetFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		dbSnapshotsMap := map[string]*datamodel.Snapshot{
 			"wrongly-deleted-snapshot-uuid": {
@@ -868,12 +874,95 @@ func TestSyncWronglyDeletedSnapshotsToDatabase(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetWronglyDeletedSnapshot", mock.Anything, mock.Anything).Return(
-			&datamodel.Snapshot{State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails}, nil)
-		mockStorage.On("UnDeleteSnapshot", ctx, mock.Anything).Return(errors.New("could not update snapshot"))
+		// Mock the batch get wrongly deleted snapshots call to return error
+		mockStorage.On("BatchGetWronglyDeletedSnapshots", ctx, []string{"wrongly-deleted-snapshot-uuid"}).Return(
+			nil, errors.New("could not get wrongly deleted snapshots"))
 
 		_, err := syncWronglyDeletedSnapshotsToDatabase(ctx, []string{"snapshot-uuid.volume-uuid"}, wronglyDeletedSnapshotsMap, mockStorage, dbSnapshotsMap)
 		assert.Error(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("SyncWronglyDeletedSnapshotsToDatabaseBatchUnDeleteFailed", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		dbSnapshotsMap := map[string]*datamodel.Snapshot{
+			"wrongly-deleted-snapshot-uuid": {
+				BaseModel:    datamodel.BaseModel{ID: 1},
+				State:        models.LifeCycleStateDeleted,
+				StateDetails: models.LifeCycleStateDeletedDetails,
+			},
+		}
+		wronglyDeletedSnapshotsMap := map[string]*vsa.Snapshot{
+			"snapshot-uuid.volume-uuid": {
+				Snapshot: ontaprestmodel.Snapshot{
+					Name: nillable.ToPointer("wrongly-deleted-snapshot"),
+					ProvenanceVolume: &ontaprestmodel.SnapshotInlineProvenanceVolume{
+						UUID: nillable.ToPointer("test-volume-uuid"),
+					},
+					Volume: &ontaprestmodel.SnapshotInlineVolume{
+						Name: nillable.ToPointer("test-volume"),
+					},
+					Svm: &ontaprestmodel.SnapshotInlineSvm{
+						Name: nillable.ToPointer("test-svm"),
+					},
+				},
+				ExternalUUID: "wrongly-deleted-snapshot-uuid",
+			},
+		}
+
+		// Mock the batch get wrongly deleted snapshots call
+		mockStorage.On("BatchGetWronglyDeletedSnapshots", ctx, []string{"wrongly-deleted-snapshot-uuid"}).Return(
+			[]*datamodel.Snapshot{{State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails}}, nil)
+		// Mock the batch undelete snapshots call to return error
+		mockStorage.On("BatchUnDeleteSnapshots", ctx, mock.AnythingOfType("[]*datamodel.Snapshot")).Return(errors.New("could not undelete snapshots"))
+
+		_, err := syncWronglyDeletedSnapshotsToDatabase(ctx, []string{"snapshot-uuid.volume-uuid"}, wronglyDeletedSnapshotsMap, mockStorage, dbSnapshotsMap)
+		assert.Error(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("SyncWronglyDeletedSnapshotsToDatabaseWithEmptySnapshots", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		dbSnapshotsMap := map[string]*datamodel.Snapshot{}
+		wronglyDeletedSnapshotsMap := map[string]*vsa.Snapshot{}
+
+		result, err := syncWronglyDeletedSnapshotsToDatabase(ctx, []string{}, wronglyDeletedSnapshotsMap, mockStorage, dbSnapshotsMap)
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+		// No expectations to assert since no methods should be called
+	})
+	t.Run("SyncWronglyDeletedSnapshotsToDatabaseWithNoSnapshotsFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		dbSnapshotsMap := map[string]*datamodel.Snapshot{
+			"wrongly-deleted-snapshot-uuid": {
+				BaseModel:    datamodel.BaseModel{ID: 1},
+				State:        models.LifeCycleStateDeleted,
+				StateDetails: models.LifeCycleStateDeletedDetails,
+			},
+		}
+		wronglyDeletedSnapshotsMap := map[string]*vsa.Snapshot{
+			"snapshot-uuid.volume-uuid": {
+				Snapshot: ontaprestmodel.Snapshot{
+					Name: nillable.ToPointer("wrongly-deleted-snapshot"),
+					ProvenanceVolume: &ontaprestmodel.SnapshotInlineProvenanceVolume{
+						UUID: nillable.ToPointer("test-volume-uuid"),
+					},
+					Volume: &ontaprestmodel.SnapshotInlineVolume{
+						Name: nillable.ToPointer("test-volume"),
+					},
+					Svm: &ontaprestmodel.SnapshotInlineSvm{
+						Name: nillable.ToPointer("test-svm"),
+					},
+				},
+				ExternalUUID: "wrongly-deleted-snapshot-uuid",
+			},
+		}
+
+		// Mock the batch get wrongly deleted snapshots call to return empty slice
+		mockStorage.On("BatchGetWronglyDeletedSnapshots", ctx, []string{"wrongly-deleted-snapshot-uuid"}).Return(
+			[]*datamodel.Snapshot{}, nil)
+
+		result, err := syncWronglyDeletedSnapshotsToDatabase(ctx, []string{"snapshot-uuid.volume-uuid"}, wronglyDeletedSnapshotsMap, mockStorage, dbSnapshotsMap)
+		assert.NoError(t, err)
+		assert.Empty(t, result)
 		mockStorage.AssertExpectations(t)
 	})
 }
@@ -884,7 +973,7 @@ func TestSyncUpdatedSnapshotsToDatabase(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		dbSnapshotsMap := map[string]*datamodel.Snapshot{
 			"updated-snapshot-uuid": {
-				BaseModel:    datamodel.BaseModel{ID: 1},
+				BaseModel:    datamodel.BaseModel{ID: 1, UUID: "updated-snapshot-uuid"},
 				State:        models.LifeCycleStateREADY,
 				StateDetails: models.LifeCycleStateReadyDetails,
 			},
@@ -909,19 +998,19 @@ func TestSyncUpdatedSnapshotsToDatabase(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("UpdateSnapshot", ctx, mock.Anything).Return(
-			&datamodel.Snapshot{BaseModel: datamodel.BaseModel{ID: 1}}, nil)
+		// Mock the batch update snapshots call
+		mockStorage.On("BatchUpdateSnapshots", ctx, mock.AnythingOfType("[]*datamodel.Snapshot")).Return(nil)
 
 		updatedDbSnapshots, err := syncUpdatedSnapshotsToDatabase(ctx, []string{"snapshot-uuid.volume-uuid"}, updatedSSMap, mockStorage, dbSnapshotsMap)
 		assert.NoError(t, err)
 		assert.Len(t, updatedDbSnapshots, 1)
 		mockStorage.AssertExpectations(t)
 	})
-	t.Run("SyncUpdatedSnapshotsToDatabaseFailed", func(tt *testing.T) {
+	t.Run("SyncUpdatedSnapshotsToDatabaseBatchUpdateFailed", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		dbSnapshotsMap := map[string]*datamodel.Snapshot{
 			"updated-snapshot-uuid": {
-				BaseModel:    datamodel.BaseModel{ID: 1},
+				BaseModel:    datamodel.BaseModel{ID: 1, UUID: "updated-snapshot-uuid"},
 				State:        models.LifeCycleStateREADY,
 				StateDetails: models.LifeCycleStateReadyDetails,
 			},
@@ -946,13 +1035,40 @@ func TestSyncUpdatedSnapshotsToDatabase(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("UpdateSnapshot", ctx, mock.Anything).Return(
-			nil, errors.New("could not update snapshot"))
+		// Mock the batch update snapshots call to return error
+		mockStorage.On("BatchUpdateSnapshots", ctx, mock.AnythingOfType("[]*datamodel.Snapshot")).Return(errors.New("could not update snapshots"))
 
 		updatedDbSnapshot, err := syncUpdatedSnapshotsToDatabase(ctx, []string{"snapshot-uuid.volume-uuid"}, updatedSSMap, mockStorage, dbSnapshotsMap)
 		assert.Error(t, err)
 		assert.Nil(t, updatedDbSnapshot)
 		mockStorage.AssertExpectations(t)
+	})
+	t.Run("SyncUpdatedSnapshotsToDatabaseWithEmptySnapshots", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		dbSnapshotsMap := map[string]*datamodel.Snapshot{}
+		updatedSSMap := map[string]*vsa.Snapshot{}
+
+		result, err := syncUpdatedSnapshotsToDatabase(ctx, []string{}, updatedSSMap, mockStorage, dbSnapshotsMap)
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+		// No expectations to assert since no methods should be called
+	})
+	t.Run("SyncUpdatedSnapshotsToDatabaseWithNonExistentSnapshot", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		dbSnapshotsMap := map[string]*datamodel.Snapshot{}
+		updatedSSMap := map[string]*vsa.Snapshot{
+			"snapshot-uuid.volume-uuid": {
+				Snapshot: ontaprestmodel.Snapshot{
+					Name: nillable.ToPointer("updated-snapshot"),
+				},
+				ExternalUUID: "non-existent-uuid",
+			},
+		}
+
+		result, err := syncUpdatedSnapshotsToDatabase(ctx, []string{"snapshot-uuid.volume-uuid"}, updatedSSMap, mockStorage, dbSnapshotsMap)
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+		// No expectations to assert since no methods should be called when snapshot doesn't exist in DB
 	})
 }
 
@@ -987,14 +1103,7 @@ func TestSyncNewSnapshotsToDatabase(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("CreatingSnapshot", mock.Anything, mock.Anything).Return(
-			&datamodel.Snapshot{
-				BaseModel:    datamodel.BaseModel{ID: 1},
-				State:        models.LifeCycleStateCreating,
-				StateDetails: models.LifeCycleStateCreatingDetails,
-			}, nil)
-		mockStorage.On("UpdateSnapshot", ctx, mock.Anything).Return(
-			&datamodel.Snapshot{BaseModel: datamodel.BaseModel{ID: 1}, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateReadyDetails}, nil)
+		mockStorage.On("BatchCreateSnapshots", ctx, mock.Anything, mock.Anything).Return(nil, nil)
 
 		_, err := syncNewSnapshotsToDatabase(ctx, []string{"snapshot-uuid.volume-uuid"}, newSSMap, mockStorage, dbVolumeMap, pool)
 		assert.NoError(t, err)
@@ -1029,56 +1138,12 @@ func TestSyncNewSnapshotsToDatabase(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("CreatingSnapshot", mock.Anything, mock.Anything).Return(
+		mockStorage.On("BatchCreateSnapshots", ctx, mock.Anything, mock.Anything).Return(
 			nil, errors.New("could not create snapshot"))
 
 		_, err := syncNewSnapshotsToDatabase(ctx, []string{"snapshot-uuid.volume-uuid"}, newSSMap, mockStorage, dbVolumeMap, pool)
 		assert.Error(t, err)
 		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("SyncUpdatedSnapshotsToDatabase_SnapshotUpdateFailed", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		dbVolumeMap := map[string]*datamodel.Volume{
-			"test-volume-uuid": {
-				BaseModel: datamodel.BaseModel{ID: 1},
-			},
-		}
-		pool := &datamodel.Pool{AccountID: 1}
-		newSSMap := map[string]*vsa.Snapshot{
-			"snapshot-uuid.volume-uuid": {
-				Snapshot: ontaprestmodel.Snapshot{
-					Name: nillable.ToPointer("new-snapshot"),
-					ProvenanceVolume: &ontaprestmodel.SnapshotInlineProvenanceVolume{
-						UUID: nillable.ToPointer("test-volume-uuid"),
-					},
-					Volume: &ontaprestmodel.SnapshotInlineVolume{
-						Name: nillable.ToPointer("test-volume"),
-					},
-					Svm: &ontaprestmodel.SnapshotInlineSvm{
-						Name: nillable.ToPointer("test-svm"),
-					},
-				},
-				ExternalUUID:           "new-snapshot-uuid",
-				ExternalVolumeUUID:     "test-volume-uuid",
-				SizeInBytes:            122880,
-				LogicalSizeUsedInBytes: 122880,
-			},
-		}
-
-		mockStorage.On("CreatingSnapshot", mock.Anything, mock.Anything).Return(
-			&datamodel.Snapshot{
-				BaseModel:    datamodel.BaseModel{ID: 1},
-				State:        models.LifeCycleStateCreating,
-				StateDetails: models.LifeCycleStateCreatingDetails,
-			}, nil)
-
-		mockStorage.On("UpdateSnapshot", ctx, mock.Anything).Return(
-			&datamodel.Snapshot{BaseModel: datamodel.BaseModel{ID: 1}}, errors.New("could not update snapshot"))
-
-		_, err := syncNewSnapshotsToDatabase(ctx, []string{"snapshot-uuid.volume-uuid"}, newSSMap, mockStorage, dbVolumeMap, pool)
-		assert.Error(tt, err)
-		mockStorage.AssertExpectations(tt)
 	})
 }
 

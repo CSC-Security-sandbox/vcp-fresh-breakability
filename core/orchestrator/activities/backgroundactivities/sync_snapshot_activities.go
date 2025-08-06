@@ -167,7 +167,7 @@ func (a *SyncSnapshotActivity) SynchronizeSnapshots(ctx context.Context, pools [
 			continue
 		}
 
-		if hydrationEnabled {
+		if hydrationEnabled && (len(createdSnapshots) > 0 || len(deletedSnapshots) > 0) {
 			err = hydrateBatchSnapshotsToCCFE(ctx, createdSnapshots, deletedSnapshots)
 			if err != nil {
 				errMsg := fmt.Sprintf("Failed to hydrate snapshots to CCFE: %v", err)
@@ -238,85 +238,125 @@ func _filterOntapVolumesAndSnapshots(volumes []*vsa.Volume, snapshots []*vsa.Sna
 }
 
 func _syncWronglyDeletedSnapshotsToDatabase(ctx context.Context, wronglyDeletedSnapshots []string, wronglyDeletedSnapshotsMap map[string]*vsa.Snapshot, se database.Storage, dbSnapshotsMap map[string]*datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
-	var unDeletedSnapshots []*datamodel.Snapshot
-	wronglyDeletedChunks := utils.SplitStringSliceIntoChunks(wronglyDeletedSnapshots, snapshotSyncChunkSize)
-	for _, wronglyDeletedChunk := range wronglyDeletedChunks {
-		for _, key := range wronglyDeletedChunk {
-			snapshot := wronglyDeletedSnapshotsMap[key]
-
-			dbSnapshot, err := se.GetWronglyDeletedSnapshot(ctx, snapshot.ExternalUUID)
-			if err != nil {
-				return nil, err
-			}
-
-			err = se.UnDeleteSnapshot(ctx, dbSnapshot)
-			unDeletedSnapshots = append(unDeletedSnapshots, dbSnapshot)
-			if err != nil {
-				return nil, err
-			}
-		}
+	var externalUUIDs []string
+	for _, key := range wronglyDeletedSnapshots {
+		snapshot := wronglyDeletedSnapshotsMap[key]
+		externalUUIDs = append(externalUUIDs, snapshot.ExternalUUID)
 	}
-
-	return unDeletedSnapshots, nil
+	if len(externalUUIDs) == 0 {
+		return nil, nil
+	}
+	allUndeleted := []*datamodel.Snapshot{}
+	for i := 0; i < len(externalUUIDs); i += snapshotSyncChunkSize {
+		end := i + snapshotSyncChunkSize
+		if end > len(externalUUIDs) {
+			end = len(externalUUIDs)
+		}
+		chunk := externalUUIDs[i:end]
+		snapshotsToUnDelete, err := se.BatchGetWronglyDeletedSnapshots(ctx, chunk)
+		if err != nil {
+			return nil, err
+		}
+		if len(snapshotsToUnDelete) == 0 {
+			continue
+		}
+		if err := se.BatchUnDeleteSnapshots(ctx, snapshotsToUnDelete); err != nil {
+			return nil, err
+		}
+		allUndeleted = append(allUndeleted, snapshotsToUnDelete...)
+	}
+	return allUndeleted, nil
 }
 
 func _syncUpdatedSnapshotsToDatabase(ctx context.Context, updatedSnapshots []string, updatedSSMap map[string]*vsa.Snapshot, se database.Storage, dbSnapshotsMap map[string]*datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
-	var updatedDbSnapshots []*datamodel.Snapshot
-	updateChunks := utils.SplitStringSliceIntoChunks(updatedSnapshots, snapshotSyncChunkSize)
-	for _, updateChunk := range updateChunks {
-		for _, key := range updateChunk {
-			snapshot := updatedSSMap[key]
-
-			dbSnapshot, err := se.UpdateSnapshot(ctx, &datamodel.Snapshot{
-				BaseModel: datamodel.BaseModel{
-					ID: dbSnapshotsMap[snapshot.ExternalUUID].ID,
-				},
-				Name: *snapshot.Name,
-				SnapshotAttributes: &datamodel.SnapshotAttributes{
-					SizeInBytes:            snapshot.SizeInBytes,
-					LogicalSizeUsedInBytes: snapshot.LogicalSizeUsedInBytes,
-					ExternalUUID:           snapshot.ExternalUUID,
-				},
-			})
-			if err != nil {
-				return nil, err
-			}
-			updatedDbSnapshots = append(updatedDbSnapshots, dbSnapshot)
+	var snapshotsToUpdate []*datamodel.Snapshot
+	for _, key := range updatedSnapshots {
+		snapshot := updatedSSMap[key]
+		dbSnapshot := dbSnapshotsMap[snapshot.ExternalUUID]
+		if dbSnapshot == nil {
+			continue
 		}
+		snapshotsToUpdate = append(snapshotsToUpdate, &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{
+				UUID: dbSnapshot.UUID,
+				ID:   dbSnapshot.ID,
+			},
+			Name: *snapshot.Name,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes:            snapshot.SizeInBytes,
+				LogicalSizeUsedInBytes: snapshot.LogicalSizeUsedInBytes,
+				ExternalUUID:           snapshot.ExternalUUID,
+			},
+			State:        dbSnapshot.State,
+			StateDetails: dbSnapshot.StateDetails,
+		})
 	}
-	return updatedDbSnapshots, nil
+	if len(snapshotsToUpdate) == 0 {
+		return nil, nil
+	}
+	var allUpdated []*datamodel.Snapshot
+	for i := 0; i < len(snapshotsToUpdate); i += snapshotSyncChunkSize {
+		end := i + snapshotSyncChunkSize
+		if end > len(snapshotsToUpdate) {
+			end = len(snapshotsToUpdate)
+		}
+		chunk := snapshotsToUpdate[i:end]
+		if err := se.BatchUpdateSnapshots(ctx, chunk); err != nil {
+			return nil, err
+		}
+		allUpdated = append(allUpdated, chunk...)
+	}
+	return allUpdated, nil
 }
 
 func _syncNewSnapshotsToDatabase(ctx context.Context, newSnapshots []string, newSSMap map[string]*vsa.Snapshot, se database.Storage, dbVolumeMap map[string]*datamodel.Volume, pool *datamodel.Pool) ([]*datamodel.Snapshot, error) {
-	var createdSnapshots []*datamodel.Snapshot
-	newChunks := utils.SplitStringSliceIntoChunks(newSnapshots, snapshotSyncChunkSize)
-	for _, newChunk := range newChunks {
-		for _, key := range newChunk {
-			snapshot := newSSMap[key]
-			dbSnapshot, err := se.CreatingSnapshot(ctx, &datamodel.Snapshot{
-				Name:      *snapshot.Name,
-				VolumeID:  dbVolumeMap[snapshot.ExternalVolumeUUID].ID,
-				AccountID: pool.AccountID,
-				Volume:    dbVolumeMap[snapshot.ExternalVolumeUUID],
-				Account:   pool.Account,
-				SnapshotAttributes: &datamodel.SnapshotAttributes{
-					SizeInBytes:            snapshot.SizeInBytes,
-					LogicalSizeUsedInBytes: snapshot.LogicalSizeUsedInBytes,
-					ExternalUUID:           snapshot.ExternalUUID,
-				},
-			})
-			if err != nil {
-				return nil, err
-			}
-
-			dbSnapshot.State = models.LifeCycleStateREADY
-			dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
-			_, err = se.UpdateSnapshot(ctx, dbSnapshot)
-			createdSnapshots = append(createdSnapshots, dbSnapshot)
-			if err != nil {
-				return nil, err
-			}
+	var snapshotsToCreate []*datamodel.Snapshot
+	for _, key := range newSnapshots {
+		snapshot := newSSMap[key]
+		vol := dbVolumeMap[snapshot.ExternalVolumeUUID]
+		if vol == nil {
+			continue
 		}
+		snapshotsToCreate = append(snapshotsToCreate, &datamodel.Snapshot{
+			Name:      *snapshot.Name,
+			VolumeID:  vol.ID,
+			AccountID: pool.AccountID,
+			Volume:    vol,
+			Account:   pool.Account,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{
+				SizeInBytes:            snapshot.SizeInBytes,
+				LogicalSizeUsedInBytes: snapshot.LogicalSizeUsedInBytes,
+				ExternalUUID:           snapshot.ExternalUUID,
+			},
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		})
+	}
+	if len(snapshotsToCreate) == 0 {
+		return nil, nil
+	}
+
+	var createdSnapshots []*datamodel.Snapshot
+	var allCreatedUUIDs []string
+	for i := 0; i < len(snapshotsToCreate); i += snapshotSyncChunkSize {
+		end := i + snapshotSyncChunkSize
+		if end > len(snapshotsToCreate) {
+			end = len(snapshotsToCreate)
+		}
+		chunk := snapshotsToCreate[i:end]
+		createdUUIDs, err := se.BatchCreateSnapshots(ctx, chunk, true)
+		if err != nil {
+			return nil, err
+		}
+		allCreatedUUIDs = append(allCreatedUUIDs, createdUUIDs...)
+	}
+
+	if len(allCreatedUUIDs) > 0 {
+		createdSnapshots, err := se.BatchGetSnapshotsByUUIDs(ctx, allCreatedUUIDs)
+		if err != nil {
+			return nil, err
+		}
+		return createdSnapshots, nil
 	}
 	return createdSnapshots, nil
 }

@@ -142,6 +142,66 @@ func (_c *MockStorage_BackupCountByVolumeID_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// BatchCreateSnapshots provides a mock function with given fields: ctx, newSnapshots, returnCreatedSnapshotUUIDs
+func (_m *MockStorage) BatchCreateSnapshots(ctx context.Context, newSnapshots []*datamodel.Snapshot, returnCreatedSnapshotUUIDs bool) ([]string, error) {
+	ret := _m.Called(ctx, newSnapshots, returnCreatedSnapshotUUIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BatchCreateSnapshots")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []*datamodel.Snapshot, bool) ([]string, error)); ok {
+		return rf(ctx, newSnapshots, returnCreatedSnapshotUUIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []*datamodel.Snapshot, bool) []string); ok {
+		r0 = rf(ctx, newSnapshots, returnCreatedSnapshotUUIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []*datamodel.Snapshot, bool) error); ok {
+		r1 = rf(ctx, newSnapshots, returnCreatedSnapshotUUIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_BatchCreateSnapshots_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BatchCreateSnapshots'
+type MockStorage_BatchCreateSnapshots_Call struct {
+	*mock.Call
+}
+
+// BatchCreateSnapshots is a helper method to define mock.On call
+//   - ctx context.Context
+//   - newSnapshots []*datamodel.Snapshot
+//   - returnCreatedSnapshotUUIDs bool
+func (_e *MockStorage_Expecter) BatchCreateSnapshots(ctx interface{}, newSnapshots interface{}, returnCreatedSnapshotUUIDs interface{}) *MockStorage_BatchCreateSnapshots_Call {
+	return &MockStorage_BatchCreateSnapshots_Call{Call: _e.mock.On("BatchCreateSnapshots", ctx, newSnapshots, returnCreatedSnapshotUUIDs)}
+}
+
+func (_c *MockStorage_BatchCreateSnapshots_Call) Run(run func(ctx context.Context, newSnapshots []*datamodel.Snapshot, returnCreatedSnapshotUUIDs bool)) *MockStorage_BatchCreateSnapshots_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]*datamodel.Snapshot), args[2].(bool))
+	})
+	return _c
+}
+
+func (_c *MockStorage_BatchCreateSnapshots_Call) Return(_a0 []string, _a1 error) *MockStorage_BatchCreateSnapshots_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_BatchCreateSnapshots_Call) RunAndReturn(run func(context.Context, []*datamodel.Snapshot, bool) ([]string, error)) *MockStorage_BatchCreateSnapshots_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // BatchDeleteSnapshots provides a mock function with given fields: ctx, snapshotIDs
 func (_m *MockStorage) BatchDeleteSnapshots(ctx context.Context, snapshotIDs []int64) ([]*datamodel.Snapshot, error) {
 	ret := _m.Called(ctx, snapshotIDs)
@@ -197,6 +257,218 @@ func (_c *MockStorage_BatchDeleteSnapshots_Call) Return(_a0 []*datamodel.Snapsho
 }
 
 func (_c *MockStorage_BatchDeleteSnapshots_Call) RunAndReturn(run func(context.Context, []int64) ([]*datamodel.Snapshot, error)) *MockStorage_BatchDeleteSnapshots_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// BatchGetSnapshotsByUUIDs provides a mock function with given fields: ctx, snapshotUUIDs
+func (_m *MockStorage) BatchGetSnapshotsByUUIDs(ctx context.Context, snapshotUUIDs []string) ([]*datamodel.Snapshot, error) {
+	ret := _m.Called(ctx, snapshotUUIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BatchGetSnapshotsByUUIDs")
+	}
+
+	var r0 []*datamodel.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string) ([]*datamodel.Snapshot, error)); ok {
+		return rf(ctx, snapshotUUIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string) []*datamodel.Snapshot); ok {
+		r0 = rf(ctx, snapshotUUIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = rf(ctx, snapshotUUIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_BatchGetSnapshotsByUUIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BatchGetSnapshotsByUUIDs'
+type MockStorage_BatchGetSnapshotsByUUIDs_Call struct {
+	*mock.Call
+}
+
+// BatchGetSnapshotsByUUIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - snapshotUUIDs []string
+func (_e *MockStorage_Expecter) BatchGetSnapshotsByUUIDs(ctx interface{}, snapshotUUIDs interface{}) *MockStorage_BatchGetSnapshotsByUUIDs_Call {
+	return &MockStorage_BatchGetSnapshotsByUUIDs_Call{Call: _e.mock.On("BatchGetSnapshotsByUUIDs", ctx, snapshotUUIDs)}
+}
+
+func (_c *MockStorage_BatchGetSnapshotsByUUIDs_Call) Run(run func(ctx context.Context, snapshotUUIDs []string)) *MockStorage_BatchGetSnapshotsByUUIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_BatchGetSnapshotsByUUIDs_Call) Return(_a0 []*datamodel.Snapshot, _a1 error) *MockStorage_BatchGetSnapshotsByUUIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_BatchGetSnapshotsByUUIDs_Call) RunAndReturn(run func(context.Context, []string) ([]*datamodel.Snapshot, error)) *MockStorage_BatchGetSnapshotsByUUIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// BatchGetWronglyDeletedSnapshots provides a mock function with given fields: ctx, snapshotExternalUUIDs
+func (_m *MockStorage) BatchGetWronglyDeletedSnapshots(ctx context.Context, snapshotExternalUUIDs []string) ([]*datamodel.Snapshot, error) {
+	ret := _m.Called(ctx, snapshotExternalUUIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BatchGetWronglyDeletedSnapshots")
+	}
+
+	var r0 []*datamodel.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string) ([]*datamodel.Snapshot, error)); ok {
+		return rf(ctx, snapshotExternalUUIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string) []*datamodel.Snapshot); ok {
+		r0 = rf(ctx, snapshotExternalUUIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = rf(ctx, snapshotExternalUUIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_BatchGetWronglyDeletedSnapshots_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BatchGetWronglyDeletedSnapshots'
+type MockStorage_BatchGetWronglyDeletedSnapshots_Call struct {
+	*mock.Call
+}
+
+// BatchGetWronglyDeletedSnapshots is a helper method to define mock.On call
+//   - ctx context.Context
+//   - snapshotExternalUUIDs []string
+func (_e *MockStorage_Expecter) BatchGetWronglyDeletedSnapshots(ctx interface{}, snapshotExternalUUIDs interface{}) *MockStorage_BatchGetWronglyDeletedSnapshots_Call {
+	return &MockStorage_BatchGetWronglyDeletedSnapshots_Call{Call: _e.mock.On("BatchGetWronglyDeletedSnapshots", ctx, snapshotExternalUUIDs)}
+}
+
+func (_c *MockStorage_BatchGetWronglyDeletedSnapshots_Call) Run(run func(ctx context.Context, snapshotExternalUUIDs []string)) *MockStorage_BatchGetWronglyDeletedSnapshots_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_BatchGetWronglyDeletedSnapshots_Call) Return(_a0 []*datamodel.Snapshot, _a1 error) *MockStorage_BatchGetWronglyDeletedSnapshots_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_BatchGetWronglyDeletedSnapshots_Call) RunAndReturn(run func(context.Context, []string) ([]*datamodel.Snapshot, error)) *MockStorage_BatchGetWronglyDeletedSnapshots_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// BatchUnDeleteSnapshots provides a mock function with given fields: ctx, snapshots
+func (_m *MockStorage) BatchUnDeleteSnapshots(ctx context.Context, snapshots []*datamodel.Snapshot) error {
+	ret := _m.Called(ctx, snapshots)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BatchUnDeleteSnapshots")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []*datamodel.Snapshot) error); ok {
+		r0 = rf(ctx, snapshots)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_BatchUnDeleteSnapshots_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BatchUnDeleteSnapshots'
+type MockStorage_BatchUnDeleteSnapshots_Call struct {
+	*mock.Call
+}
+
+// BatchUnDeleteSnapshots is a helper method to define mock.On call
+//   - ctx context.Context
+//   - snapshots []*datamodel.Snapshot
+func (_e *MockStorage_Expecter) BatchUnDeleteSnapshots(ctx interface{}, snapshots interface{}) *MockStorage_BatchUnDeleteSnapshots_Call {
+	return &MockStorage_BatchUnDeleteSnapshots_Call{Call: _e.mock.On("BatchUnDeleteSnapshots", ctx, snapshots)}
+}
+
+func (_c *MockStorage_BatchUnDeleteSnapshots_Call) Run(run func(ctx context.Context, snapshots []*datamodel.Snapshot)) *MockStorage_BatchUnDeleteSnapshots_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]*datamodel.Snapshot))
+	})
+	return _c
+}
+
+func (_c *MockStorage_BatchUnDeleteSnapshots_Call) Return(_a0 error) *MockStorage_BatchUnDeleteSnapshots_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_BatchUnDeleteSnapshots_Call) RunAndReturn(run func(context.Context, []*datamodel.Snapshot) error) *MockStorage_BatchUnDeleteSnapshots_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// BatchUpdateSnapshots provides a mock function with given fields: ctx, snapshots
+func (_m *MockStorage) BatchUpdateSnapshots(ctx context.Context, snapshots []*datamodel.Snapshot) error {
+	ret := _m.Called(ctx, snapshots)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BatchUpdateSnapshots")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []*datamodel.Snapshot) error); ok {
+		r0 = rf(ctx, snapshots)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_BatchUpdateSnapshots_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BatchUpdateSnapshots'
+type MockStorage_BatchUpdateSnapshots_Call struct {
+	*mock.Call
+}
+
+// BatchUpdateSnapshots is a helper method to define mock.On call
+//   - ctx context.Context
+//   - snapshots []*datamodel.Snapshot
+func (_e *MockStorage_Expecter) BatchUpdateSnapshots(ctx interface{}, snapshots interface{}) *MockStorage_BatchUpdateSnapshots_Call {
+	return &MockStorage_BatchUpdateSnapshots_Call{Call: _e.mock.On("BatchUpdateSnapshots", ctx, snapshots)}
+}
+
+func (_c *MockStorage_BatchUpdateSnapshots_Call) Run(run func(ctx context.Context, snapshots []*datamodel.Snapshot)) *MockStorage_BatchUpdateSnapshots_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]*datamodel.Snapshot))
+	})
+	return _c
+}
+
+func (_c *MockStorage_BatchUpdateSnapshots_Call) Return(_a0 error) *MockStorage_BatchUpdateSnapshots_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_BatchUpdateSnapshots_Call) RunAndReturn(run func(context.Context, []*datamodel.Snapshot) error) *MockStorage_BatchUpdateSnapshots_Call {
 	_c.Call.Return(run)
 	return _c
 }

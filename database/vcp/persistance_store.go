@@ -685,6 +685,26 @@ func (s *PersistenceStore) BatchDeleteSnapshots(ctx context.Context, snapshotIDs
 	return s.dataStore.BatchDeleteSnapshots(ctx, snapshotIDs)
 }
 
+func (s *PersistenceStore) BatchCreateSnapshots(ctx context.Context, newSnapshots []*datamodel.Snapshot, returnCreatedSnapshotUUIDs bool) ([]string, error) {
+	return s.dataStore.BatchCreateSnapshots(ctx, newSnapshots, returnCreatedSnapshotUUIDs)
+}
+
+func (s *PersistenceStore) BatchUpdateSnapshots(ctx context.Context, snapshots []*datamodel.Snapshot) error {
+	return s.dataStore.BatchUpdateSnapshots(ctx, snapshots)
+}
+
+func (s *PersistenceStore) BatchUnDeleteSnapshots(ctx context.Context, snapshots []*datamodel.Snapshot) error {
+	return s.dataStore.BatchUnDeleteSnapshots(ctx, snapshots)
+}
+
+func (s *PersistenceStore) BatchGetSnapshotsByUUIDs(ctx context.Context, snapshotUUIDs []string) ([]*datamodel.Snapshot, error) {
+	return s.dataStore.BatchGetSnapshotsByUUIDs(ctx, snapshotUUIDs)
+}
+
+func (s *PersistenceStore) BatchGetWronglyDeletedSnapshots(ctx context.Context, snapshotExternalUUIDs []string) ([]*datamodel.Snapshot, error) {
+	return s.dataStore.BatchGetWronglyDeletedSnapshots(ctx, snapshotExternalUUIDs)
+}
+
 func (s *PersistenceStore) GetAppConsistentSnapshotsForVolume(ctx context.Context, accountID, volumeID int64) ([]*datamodel.Snapshot, error) {
 	return s.dataStore.GetAppConsistentSnapshotsForVolume(ctx, accountID, volumeID)
 }

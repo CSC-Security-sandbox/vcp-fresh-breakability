@@ -280,3 +280,123 @@ func (d *DataStoreRepository) GetSnapshotsByVolumeIDs(ctx context.Context, volum
 	}
 	return snapshots, nil
 }
+
+// BatchCreateSnapshots adds all new snapshots that are passed as param and returns a list of snapshotUUIDs
+func (d *DataStoreRepository) BatchCreateSnapshots(ctx context.Context, newSnapshots []*datamodel.Snapshot, returnCreatedSnapshotUUIDs bool) ([]string, error) {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	var createdSnapshots []string
+	for _, snapshot := range newSnapshots {
+		snapshot.UUID = utils.RandomUUID()
+		snapshot.CreatedAt = time.Now()
+		snapshot.UpdatedAt = snapshot.CreatedAt
+		snapshot.DeletedAt = nil
+
+		if err = tx.Create(snapshot).Error; err != nil {
+			logger.Errorf("Batch snapshot create failed for %s: %v", snapshot.Name, err)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
+		}
+		if returnCreatedSnapshotUUIDs {
+			createdSnapshots = append(createdSnapshots, snapshot.UUID)
+		}
+	}
+
+	return createdSnapshots, nil
+}
+
+// BatchUpdateSnapshots updates the state and state details of multiple snapshots in a single transaction
+func (d *DataStoreRepository) BatchUpdateSnapshots(ctx context.Context, snapshots []*datamodel.Snapshot) error {
+	db := d.db.GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	for _, snapshot := range snapshots {
+		snapshot.UpdatedAt = time.Now()
+		if err = tx.Model(&datamodel.Snapshot{}).
+			Where("uuid = ?", snapshot.UUID).
+			Updates(snapshot).Error; err != nil {
+			logger.Errorf("Batch snapshot update failed for %s: %v", snapshot.Name, err)
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+		}
+	}
+
+	return nil
+}
+
+// BatchUnDeleteSnapshots restores multiple snapshots from a deleted state
+func (d *DataStoreRepository) BatchUnDeleteSnapshots(ctx context.Context, snapshots []*datamodel.Snapshot) error {
+	db := d.db.Unscoped().GORM().WithContext(ctx)
+	tx, err := startTransaction(db)
+	if err != nil {
+		return err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	for _, snapshot := range snapshots {
+		snapshot.State = models.LifeCycleStateREADY
+		snapshot.StateDetails = models.LifeCycleStateReadyDetails
+		snapshot.DeletedAt = &gorm.DeletedAt{}
+
+		if err = tx.Model(&datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: snapshot.UUID}}).
+			Where("uuid = ?", snapshot.UUID).
+			Updates(snapshot).Error; err != nil {
+			logger.Errorf("Batch snapshot undelete failed for %s: %v", snapshot.Name, err)
+			return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+		}
+	}
+
+	return nil
+}
+
+// BatchGetSnapshotsByUUIDs retrieves multiple snapshots by their UUIDs
+func (d *DataStoreRepository) BatchGetSnapshotsByUUIDs(ctx context.Context, snapshotUUIDs []string) ([]*datamodel.Snapshot, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var snapshots []*datamodel.Snapshot
+
+	if len(snapshotUUIDs) == 0 {
+		return snapshots, nil
+	}
+
+	err := db.Preload("Account").Preload("Volume").Where("uuid IN ?", snapshotUUIDs).Find(&snapshots).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return snapshots, nil
+}
+
+// BatchGetWronglyDeletedSnapshots retrieves snapshots those were wrongly deleted based on their external UUIDs
+func (d *DataStoreRepository) BatchGetWronglyDeletedSnapshots(ctx context.Context, snapshotExternalUUIDs []string) ([]*datamodel.Snapshot, error) {
+	db := d.db.Unscoped().GORM().WithContext(ctx)
+	var snapshots []*datamodel.Snapshot
+
+	if len(snapshotExternalUUIDs) == 0 {
+		return snapshots, nil
+	}
+
+	// Build the query to match any of the external UUIDs using OR conditions
+	query := db.Preload("Volume")
+	for i, externalUUID := range snapshotExternalUUIDs {
+		if i == 0 {
+			query = query.Where("snapshot_attributes ->> 'external_uuid' = ?", externalUUID)
+		} else {
+			query = query.Or("snapshot_attributes ->> 'external_uuid' = ?", externalUUID)
+		}
+	}
+
+	err := query.Find(&snapshots).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return snapshots, nil
+}

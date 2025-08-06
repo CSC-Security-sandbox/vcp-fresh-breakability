@@ -1055,3 +1055,150 @@ func TestGetWronglyDeletedSnapshot(t *testing.T) {
 		assert.Nil(tt, result)
 	})
 }
+
+func TestBatchCreateSnapshots(t *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	_ = ClearInMemoryDB(store.db.GORM())
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test_account"}
+	_ = store.db.Create(account).Error()
+
+	snapshots := []*datamodel.Snapshot{
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_create_1", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_create_2", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateAvailable},
+	}
+	uuids, err := store.BatchCreateSnapshots(context.Background(), snapshots, true)
+	if err != nil {
+		t.Fatalf("BatchCreateSnapshots failed: %v", err)
+	}
+	if len(uuids) != 2 {
+		t.Fatalf("Expected 2 UUIDs, got %d", len(uuids))
+	}
+}
+
+func TestBatchUpdateSnapshots(t *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	_ = ClearInMemoryDB(store.db.GORM())
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test_account"}
+	_ = store.db.Create(account).Error()
+
+	snapshots := []*datamodel.Snapshot{
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_update_1", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_update_2", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateAvailable},
+	}
+	uuids, err := store.BatchCreateSnapshots(context.Background(), snapshots, true)
+	if err != nil {
+		t.Fatalf("BatchCreateSnapshots failed: %v", err)
+	}
+	for i, uuid := range uuids {
+		snapshots[i].UUID = uuid
+		snapshots[i].State = models.LifeCycleStateDeleted
+		snapshots[i].StateDetails = models.LifeCycleStateDeletedDetails
+	}
+	err = store.BatchUpdateSnapshots(context.Background(), snapshots)
+	if err != nil {
+		t.Fatalf("BatchUpdateSnapshots failed: %v", err)
+	}
+}
+
+func TestBatchUnDeleteSnapshots(t *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	_ = ClearInMemoryDB(store.db.GORM())
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test_account"}
+	_ = store.db.Create(account).Error()
+
+	snapshots := []*datamodel.Snapshot{
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_undelete_1", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_undelete_2", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails},
+	}
+	uuids, err := store.BatchCreateSnapshots(context.Background(), snapshots, true)
+	if err != nil {
+		t.Fatalf("BatchCreateSnapshots failed: %v", err)
+	}
+	for i, uuid := range uuids {
+		snapshots[i].UUID = uuid
+	}
+	err = store.BatchUnDeleteSnapshots(context.Background(), snapshots)
+	if err != nil {
+		t.Fatalf("BatchUnDeleteSnapshots failed: %v", err)
+	}
+}
+
+func TestBatchGetSnapshotsByUUIDs(t *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	_ = ClearInMemoryDB(store.db.GORM())
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test_account"}
+	_ = store.db.Create(account).Error()
+
+	snapshots := []*datamodel.Snapshot{
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_get_1", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_get_2", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateAvailable},
+	}
+	uuids, err := store.BatchCreateSnapshots(context.Background(), snapshots, true)
+	if err != nil {
+		t.Fatalf("BatchCreateSnapshots failed: %v", err)
+	}
+	fetched, err := store.BatchGetSnapshotsByUUIDs(context.Background(), uuids)
+	if err != nil {
+		t.Fatalf("BatchGetSnapshotsByUUIDs failed: %v", err)
+	}
+	if len(fetched) != 2 {
+		t.Fatalf("Expected 2 snapshots, got %d", len(fetched))
+	}
+}
+
+func TestBatchGetWronglyDeletedSnapshots(t *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	_ = ClearInMemoryDB(store.db.GORM())
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test_account"}
+	_ = store.db.Create(account).Error()
+
+	snapshots := []*datamodel.Snapshot{
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_wrongly_deleted_1", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails, SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "ext-uuid-1"}},
+		{BaseModel: datamodel.BaseModel{}, Name: "batch_wrongly_deleted_2", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails, SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "ext-uuid-2"}},
+	}
+	uuids, err := store.BatchCreateSnapshots(context.Background(), snapshots, true)
+	if err != nil {
+		t.Fatalf("BatchCreateSnapshots failed: %v", err)
+	}
+	for i, uuid := range uuids {
+		snapshots[i].UUID = uuid
+	}
+	externalUUIDs := []string{"ext-uuid-1", "ext-uuid-2"}
+	fetched, err := store.BatchGetWronglyDeletedSnapshots(context.Background(), externalUUIDs)
+	if err != nil {
+		t.Fatalf("BatchGetWronglyDeletedSnapshots failed: %v", err)
+	}
+	if len(fetched) != 2 {
+		t.Fatalf("Expected 2 wrongly deleted snapshots, got %d", len(fetched))
+	}
+}
