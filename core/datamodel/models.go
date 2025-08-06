@@ -34,6 +34,7 @@ type Pool struct {
 	DeploymentName    string             `gorm:"column:deployment_name;uniqueIndex:idx_account_deployment"`
 	PoolCredentials   *PoolCredentials   `gorm:"column:pool_credentials;type:jsonb"`
 	SnHostProject     string             `gorm:"column:sn_host_project;index"`
+	VLMConfig         string             `gorm:"vlm_config;type:text"`
 }
 
 type PoolCredentials struct {
@@ -449,7 +450,7 @@ func (rd ReplicationDetails) Value() (driver.Value, error) {
 	return json.Marshal(rd)
 }
 
-func (nd NodeDetails) Scan(value interface{}) error {
+func (nd *NodeDetails) Scan(value interface{}) error {
 	bytes, ok := value.([]byte)
 	if !ok {
 		return errors.New("type assertion to []byte failed")
@@ -676,7 +677,7 @@ type NodeNodeGroupMap struct {
 	HarvestConfig *HarvestConfig `gorm:"column:harvest_config;type:jsonb"`
 }
 
-// Scan implements the Scanner interface for PoolAttributes
+// Scan implements the Scanner interface for HarvestConfig
 func (hc *HarvestConfig) Scan(value interface{}) error {
 	bytes, ok := value.([]byte)
 	if !ok {
@@ -685,7 +686,7 @@ func (hc *HarvestConfig) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, hc)
 }
 
-// Value implements the Valuer interface for PoolAttributes
+// Value implements the Valuer interface for HarvestConfig
 func (hc HarvestConfig) Value() (driver.Value, error) {
 	return json.Marshal(hc)
 }

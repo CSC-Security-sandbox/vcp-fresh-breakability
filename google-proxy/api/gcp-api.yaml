@@ -790,7 +790,7 @@ paths:
         - name: includePolicies
           in: query
           description: "If true, export policy and snapshot policy will be included\
-          \ for each file system"
+           \ for each file system"
           allowEmptyValue: true
           schema:
             type: boolean
@@ -2039,7 +2039,7 @@ paths:
                   "stateDetails": "Create in progress",
                   "stateDetailsCode": 0,
                   "transferStats": { }
-                }
+                 }
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -2217,7 +2217,7 @@ paths:
                     "totalTransferBytes": 18872,
                     "totalTransferTimeSecs": 2
                   }
-                }
+                 }
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -2346,7 +2346,7 @@ paths:
                       totalTransferBytes: 1147392,
                       totalTransferTimeSecs: 660
                     }
-                  }
+                   }
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -2419,7 +2419,7 @@ paths:
                       totalTransferBytes: 556432,
                       totalTransferTimeSecs: 314
                     }
-                  }
+                   }
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -2482,7 +2482,7 @@ paths:
                     },
                     state: UPDATING,
                     stateDetailsCode: 0
-                  }
+                   }
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -2555,7 +2555,7 @@ paths:
                       totalTransferBytes: 556432,
                       totalTransferTimeSecs: 314
                     }
-                  }
+                   }
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -3845,7 +3845,7 @@ paths:
                     "UUID": "6bed33e1-cc9c-e0b5-ac63-24e9410e64c3",
                     "status": "updating"
                   }
-                }
+                 }
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':

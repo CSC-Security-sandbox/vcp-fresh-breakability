@@ -93,4 +93,4 @@ spec:
             - name: GCE_METADATA_HOST
               value: "34.116.66.254:9090"
       imagePullSecrets:
-        - name: ghcr-secret    
+        - name: ghcr-secret

@@ -127,7 +127,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 		PrimaryZone:   "test-zone",
 		SecondaryZone: "test-secondary-zone",
@@ -256,7 +256,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 		PrimaryZone:   "test-zone",
 		SecondaryZone: "test-secondary-zone",
@@ -629,7 +629,7 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 		PrimaryZone:   "test-zone",
 		SecondaryZone: "test-secondary-zone",
@@ -761,7 +761,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
@@ -1137,7 +1137,8 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
 	}()
 
-	env.RegisterActivity(&activities.CommonActivities{})
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 
 	// Setup test input data for update workflow.
@@ -1152,7 +1153,7 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 	}
 	pool := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{
-			UUID: "test-pool-id",
+			UUID: "test-pool-id-foobar-rchilaka",
 		},
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
@@ -1166,12 +1167,12 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 			RegionalTenantProject: "test-regional-project",
 			SnHostProject:         "test-host-project",
 		},
-		SizeInBytes: 2048 * 1024 * 1024,
+		SizeInBytes: 456,
 		PoolAttributes: &datamodel.PoolAttributes{
 			PrimaryZone:     "test-primary-zone",
 			SecondaryZone:   "test-secondary-zone",
-			Iops:            1024,
-			ThroughputMibps: 64,
+			Iops:            10,
+			ThroughputMibps: 6,
 		},
 		KmsConfig: &datamodel.KmsConfig{
 			ServiceAccount: &datamodel.ServiceAccount{
@@ -1181,33 +1182,25 @@ func TestUpdatePoolWorkflow(t *testing.T) {
 		AutoTieringConfig: &datamodel.AutoTieringConfig{
 			BucketName: "test-auto-tier-bucket",
 		},
+		VLMConfig: "{\"deployment\": {\"vsa_instance_type\": \"foo-bar\"}}",
 	}
 
 	// Register activity mocks.
-	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).
-		Return(nil)
-	env.OnActivity("ConstructCurrentVlmConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
-		Deployment: vlm.DeploymentConfig{
-			SPConfig: vlm.SPConfig{
-				IOps:       1024,
-				Throughput: 64,
-				Size:       "1TiB",
-			},
-		},
-	}, nil)
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
+			NumHAPair:       1,
+			VSAInstanceType: "c3-new-instance-type",
 			SPConfig: vlm.SPConfig{
-				IOps:       1024,
-				Throughput: 64,
+				IOps:       2048,
+				Throughput: 128,
 				Size:       "1TiB",
 			},
 		},
 	}, nil)
 	env.OnActivity("GetOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("UpdateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(&vlm.UpdateVSAClusterDeploymentResponse{}, nil)
-	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).
-		Return(nil, nil)
+	env.OnActivity("UpdatedPoolWithVLMConfig", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVSAClientWorkflowManager
@@ -1242,7 +1235,8 @@ func TestUpdatePoolWorkflowNoVLM(t *testing.T) {
 	}
 	env.SetHeader(mockHeader)
 
-	env.RegisterActivity(&activities.CommonActivities{})
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 
 	// Setup test input data for update workflow.
@@ -2020,7 +2014,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
@@ -2149,7 +2143,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
@@ -3627,7 +3621,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, "svmName").Return(nil, nil)
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
-	env.OnActivity("CreatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 		PrimaryZone:   "test-zone",
 		SecondaryZone: "test-secondary-zone",

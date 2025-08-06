@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"dario.cat/mergo"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -189,11 +190,25 @@ func (j *PoolActivity) FailedPoolActivity(ctx context.Context, pool *datamodel.P
 	return nil
 }
 
-func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
+func (j *PoolActivity) CreatedPool(ctx context.Context, pool *datamodel.Pool, vlmConfig *vlm.VLMConfig) (*datamodel.Pool, error) {
 	se := j.SE
+
 	pool, err := se.CreatedPool(ctx, pool)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if vlmConfig != nil {
+		// Save VLMConfig here, so that it can be reused.
+		marshalledVlmConfig, err := json.Marshal(*vlmConfig)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		pool.VLMConfig = string(marshalledVlmConfig)
+		pool, err = se.UpdatedPool(ctx, pool)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		}
 	}
 
 	return pool, nil
@@ -229,6 +244,26 @@ func (j *PoolActivity) DeletePoolResourcesOnRollback(ctx context.Context, pool *
 
 func (j *PoolActivity) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := j.SE
+	return se.UpdatedPool(ctx, pool)
+}
+
+func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datamodel.Pool, vlmConfig vlm.VLMConfig, updatePoolParams *commonparams.UpdatePoolParams) (*datamodel.Pool, error) {
+	se := j.SE
+	marshalledVlmConfig, err := json.Marshal(vlmConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// modifying only the required fields
+	pool.VLMConfig = string(marshalledVlmConfig)
+	pool.SizeInBytes = int64(updatePoolParams.SizeInBytes)
+	pool.Description = updatePoolParams.Description
+	pool.PoolAttributes.ThroughputMibps = int64(updatePoolParams.TotalThroughputMibps)
+	pool.PoolAttributes.Iops = int64(updatePoolParams.TotalIops)
+	if updatePoolParams.Labels != nil {
+		pool.PoolAttributes.Labels = updatePoolParams.Labels
+	}
+
 	return se.UpdatedPool(ctx, pool)
 }
 
@@ -743,55 +778,6 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 	return vlmConfig, nil
 }
 
-func (j *PoolActivity) ConstructCurrentVlmConfig(ctx context.Context, poolId int64, deploymentID string, region string, primaryZone string, secondaryZone string, network string, subnets []string, projectId, snHostProject string, decision *vmrs.Decision, saEmail string, autoTierBucket string) (*vlm.VLMConfig, error) {
-	se := j.SE
-
-	subnet := ""
-	if len(subnets) > 0 {
-		subnet = subnets[len(subnets)-1]
-	}
-
-	vlmConfig := &vlm.VLMConfig{}
-	err := PrepareVlmConfig(vlmConfig, deploymentID, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject, decision, saEmail, autoTierBucket)
-	if err != nil {
-		return nil, err
-	}
-
-	nodes, err := se.GetNodesByPoolID(ctx, poolId)
-	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-	if len(nodes) < 2 {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrIncorrectVSAClusterState, errors.New("not enough nodes in the cluster to create HAPair"))
-	}
-
-	// Map the first two nodes to VM1 and VM2
-	vm1 := vlm.VMConfig{
-		Zone:       nodes[0].ZoneName,
-		Name:       nodes[0].Name,
-		HostName:   nodes[0].Name,
-		NodeIndex:  1,
-		IsMediator: false,
-	}
-	vm2 := vlm.VMConfig{
-		Zone:       nodes[1].ZoneName,
-		Name:       nodes[1].Name,
-		HostName:   nodes[1].Name,
-		NodeIndex:  2,
-		IsMediator: false,
-	}
-
-	vlmConfig.Cloud = vlm.CloudConfig{
-		HAPairs: []vlm.HAPair{
-			{
-				VM1: vm1,
-				VM2: vm2,
-			},
-		},
-	}
-
-	return vlmConfig, nil
-}
 func _resolveZonesForCluster(gcpService hyperscaler2.GoogleServices, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType string) (string, string, error) {
 	if primaryZone == "" || projectNumber == "" || region == "" {
 		return "", "", vsaerrors.WrapAsTemporalApplicationError(errors.New("primary zone is not set or project number is empty or region is empty"))
@@ -868,8 +854,10 @@ func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZo
 		return err
 	}
 
-	// Copy the loaded config to the provided vlmConfig
-	*vlmConfig = *baseConfig
+	// Merge in base/loaded VLM config to fill out any missing zero fields.
+	if err := mergo.Merge(vlmConfig, *baseConfig); err != nil {
+		return err
+	}
 
 	vlmConfig.Deployment.GCPConfig = vlm.GCPConfig{
 		ProjectID:           regionalTenantProjectID,
@@ -1846,5 +1834,3 @@ func (j *PoolActivity) GetInterClusterLifsFromVLMConfig(ctx context.Context, vlm
 	logger.Info("Extracted intercluster LIF IPs from VLM config", "lifCount", len(lifIPs))
 	return lifIPs, nil
 }
-
-

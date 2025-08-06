@@ -7,6 +7,7 @@ toolchain go1.24.4
 require (
 	cloud.google.com/go/iam v1.5.2
 	cloud.google.com/go/storage v1.54.0
+	dario.cat/mergo v1.0.2
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.27.0
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-faster/errors v0.7.1

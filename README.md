@@ -46,7 +46,7 @@ The code is organized into the following directories:
 * [Install helm](https://helm.sh/docs/intro/install/).
 * [Install Docker](https://docs.docker.com/get-docker/).
 * [Install Skaffold](https://skaffold.dev/docs/install/).
-* [Install Github CLI](https://cli.github.com)
+* [Install Github CLI](https://cli.github.com).
 
 #### Steps
 
@@ -56,26 +56,59 @@ The code is organized into the following directories:
 minikube start
 ```
 
-##### 2. Run Skaffold
+##### 2. Temporary steps.
+
+###### 2.0 If you're using Autopush for the first time.
+
+Refer to [Autopush instructions below.](#autopush_instructions)
+
+###### 2.1 Find your regional tenant project ID.
+
+1. Navigate to your GCP console > VPC Network > VPC network peering.
+1. Observe the `Peered project ID` for the `netapp-autopush-tst-network`.
+1. Navigate to that project, in the latchkey org.
+1. ?
+
+I found my regional tenant project ID from an error message. If you already have an Atom/SDE based cluster, you can also find it from the `pool_attributes` in the database.
+
+###### 2.2 Copy ONTAP image into your tenant project.
+
+Find `vsa_image_name` in `common/vsa_config/vlm-config.json`
+
+```bash
+gcloud compute images create <vsa_image_name> --source-image <vsa_image_name>  --source-image-project=g1p-functional-ap-tst-02 --project=<regional_tenant_project_id_ending_in_tp>
+```
+
+###### 2.3 Grab the latest VLM image.
+
+Ask someone what the current tag to use is. You need to be in Seclab for this to work.
+
+```bash
+docker pull docker.repo.eng.netapp.com/cicd/vsa/temporal-vlm:R9.17.1xN_7726644
+minikube image load docker.repo.eng.netapp.com/cicd/vsa/temporal-vlm:R9.17.1xN_7726644
+```
+
+##### 3. Run Skaffold
+
 Run the following command to start Skaffold:
+
 ```bash
 export GHVSA_PAT=$(gh auth token)
-export VSA_NODE_PASSWORD=<passwrod-to-be-set-on-ontap>
-export VSA_NODE_USERNAME=<username-to-be-set-on-ontap>
-export GCE_METADATA_HOST=<ip-of-remote-hosted-mock-server>
-
+export DB_PASSWORD=<password-to-use-for-db>
+export DB_ADMIN_PASSWORD=<password-to-use-for-db>
+export VSA_NODE_PASSWORD=<password-to-be-set-on-ontap>
 make build-all-binaries-dev skaffold-dev
 ```
 
 This will build and deploy all the services to your local Kubernetes cluster. Once deployed, you can access the services using the following URLs:
 
-- Google Proxy: http://127.0.0.1:9000
+- Google Proxy: http://localhost:9000
 - Core Service: http://localhost:9001
-- Postgres: http://127.0.0.1:5433
-- Local Temporal Web: http://127.0.0.1:8080
+- Postgres: http://localhost:5433
+- Local Temporal Web: http://localhost:8080
 - Workflow Server: http://localhost:9003
-- Harvest Farm: http://127.0.0.1:3000
-- Metrics Processor: http://127.0.0.1:9090
+- Harvest Farm: http://localhost:3000
+- Metrics Processor: http://localhost:9090
 
 #### Debugging the code
 
@@ -129,3 +162,65 @@ cd ..
 # Running vsacictl
 vsacictl lint
 ```
+
+<a id="autopush_instructions"></a>
+
+#### Autopush instructions.
+
+
+<a id="autopush_access"></a>
+
+##### Get access to Autopush.
+
+Request for allow-listing: <https://docs.google.com/spreadsheets/d/1o2rNTKv-mu6fYdvJetTA6gqLpJx0MnT_8iT317RECJc/edit?resourcekey=0-tAG1yhd-qmqG6H6yP17WvQ&gid=1741495625#gid=1741495625>
+
+Raise a ticket with Google: <https://partnerissuetracker.corp.google.com/issues/432149046>
+
+
+<a id="autopush_steps"></a>
+
+##### Steps.
+
+1.  Create a network for the filesystem.
+
+    1.  Query all existing VPCs.
+    
+            # List all VPCs in the project.
+            gcloud compute networks list
+    
+    2.  Create a VPC for GCNV.
+    
+            gcloud compute networks create gcnv-file-storage-vpc \
+              --subnet-mode=custom \
+              --bgp-routing-mode=global \
+              --description="VPC for hosting the remote file system."
+    
+    3.  Create a subnet in us.
+    
+            gcloud compute networks subnets create gcnv-file-storage-subnet-us \
+              --network=gcnv-file-storage-vpc \
+              --region=us-west1 \
+              --range=10.0.1.0/24
+
+2.  Allocate IP addresses for private connection to NetApp volumes.
+
+        gcloud compute addresses create gcnv-managed-network \
+               --global \
+               --purpose=VPC_PEERING \
+               --prefix-length=24 \
+               --description="VPC peering range for NetApp Volumes." \
+               --network=gcnv-file-storage-vpc
+
+3.  Create a private connection.
+
+        gcloud services vpc-peerings connect \
+               --service=netapp-tst-autopush-endpoint.appspot.com \
+               --ranges=gcnv-managed-network \
+               --network=gcnv-file-storage-vpc
+
+
+<a id="autopush_console"></a>
+
+##### Autopush console.
+
+<https://console.cloud.google.com/netapp/pools?p2env=features%2F1649438282178%2Fbuild_units%2Fmain%2Fenvironments%2Fautopush&project=g1p-rc74879-dev>

@@ -3,6 +3,7 @@ package workflows
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"time"
@@ -373,7 +374,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	dbPool.ClusterDetails.SubnetNames = tenancyDetails.SubnetworkNames
 
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreatedPool, dbPool).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, poolActivity.CreatedPool, dbPool, &createSVMResponse.VLMConfig).Get(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -491,6 +492,10 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}()
 
 	dbPool := pool
+
+	// In case of any errors, rollback to the old values.
+	rollbackManager.AddActivity(poolActivity.UpdatedPool, pool)
+
 	wf.Logger.Info("Updating pool with new parameters", "params", updatePoolParams) // Update the pool with the new parameters
 
 	// if there is no need of vlm workflow, just perform update pool in db
@@ -502,19 +507,8 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		if updatePoolParams.Labels != nil {
 			dbPool.PoolAttributes.Labels = updatePoolParams.Labels
 		}
-		rollbackManager.AddActivity(poolActivity.UpdatedPool, pool)
 		err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPool, dbPool).Get(ctx, nil) // replace with the actual activity to update the pool
 		return nil, err
-	}
-
-	// Reconstruct the existing VLM config.
-	dsc := &vmrs.Decision{
-		ChosenVMs: []string{""}, // Doesn't matter for retrieving existing VLM config
-		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
-			DesiredIOPS:             int64(pool.PoolAttributes.Iops),
-			DesiredThroughputInMiBs: int64(pool.PoolAttributes.ThroughputMibps),
-			DesiredCapacityInGiB:    int64(utils.BytesToGigabytes(uint64(pool.SizeInBytes))),
-		},
 	}
 
 	bucketName := ""
@@ -523,9 +517,10 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 
 	saEmail := utils.ConstructServiceAccountEmail(pool.ServiceAccountId, pool.ClusterDetails.RegionalTenantProject)
+
+	// Retrieve the last known VLM config that was shared with us.
 	currentVlmConfig := &vlm.VLMConfig{}
-	err = workflow.ExecuteActivity(ctx, poolActivity.ConstructCurrentVlmConfig, pool.ID, dbPool.DeploymentName, updatePoolParams.Region, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.SecondaryZone, pool.ClusterDetails.Network, pool.ClusterDetails.SubnetNames, pool.ClusterDetails.RegionalTenantProject, utils.GetSnHostProject(pool), dsc, saEmail, bucketName).Get(ctx, currentVlmConfig)
-	if err != nil {
+	if err := json.Unmarshal([]byte(pool.VLMConfig), currentVlmConfig); err != nil {
 		return nil, err
 	}
 
@@ -572,24 +567,12 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	updateVSAClusterDeploymentRequest := &vlm.UpdateVSAClusterDeploymentRequest{}
 	prepareUpdateVSAClusterDeploymentRequest(updateVSAClusterDeploymentRequest, *currentVlmConfig, *newVlmConfig, *credentials)
-	_, err = vsaClientWorkflowManager.UpdateVSAClusterDeployment(ctx, updateVSAClusterDeploymentRequest, ontapVersion)
+	updateVSAClusterDeploymentResponse, err := vsaClientWorkflowManager.UpdateVSAClusterDeployment(ctx, updateVSAClusterDeploymentRequest, ontapVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	// modifying only the required fields
-	dbPool.SizeInBytes = int64(updatePoolParams.SizeInBytes)
-	dbPool.Description = updatePoolParams.Description
-	if dbPool.PoolAttributes != nil {
-		dbPool.PoolAttributes.ThroughputMibps = int64(updatePoolParams.TotalThroughputMibps)
-		dbPool.PoolAttributes.Iops = int64(updatePoolParams.TotalIops)
-		if updatePoolParams.Labels != nil {
-			dbPool.PoolAttributes.Labels = updatePoolParams.Labels
-		}
-	}
-
-	rollbackManager.AddActivity(poolActivity.UpdatedPool, pool)
-	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPool, dbPool).Get(ctx, nil) // replace with the actual activity to update the pool
+	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPoolWithVLMConfig, dbPool, updateVSAClusterDeploymentResponse.VLMConfig, updatePoolParams).Get(ctx, nil)
 	return nil, err
 }
 
@@ -1153,8 +1136,13 @@ func prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest *vlm.De
 
 func prepareUpdateVSAClusterDeploymentRequest(updateVSAClusterDeploymentRequest *vlm.UpdateVSAClusterDeploymentRequest, currentVlmConfig vlm.VLMConfig, newVLMConfig vlm.VLMConfig, credentials vlm.OntapCredentials) {
 	updateVSAClusterDeploymentRequest.VLMConfig = currentVlmConfig
+	updateVSAClusterDeploymentRequest.NumHAPair = newVLMConfig.Deployment.NumHAPair
 	updateVSAClusterDeploymentRequest.SPConfig = newVLMConfig.Deployment.SPConfig
 	updateVSAClusterDeploymentRequest.OntapCredentials = credentials
+	if newVLMConfig.Deployment.VSAInstanceType != currentVlmConfig.Deployment.VSAInstanceType {
+		// If we set this all the time, VLM will trigger a VM rotation even if we use the same instance type.
+		updateVSAClusterDeploymentRequest.NewInstanceType = newVLMConfig.Deployment.VSAInstanceType
+	}
 }
 
 func _extractOntapVersion(input string) string {

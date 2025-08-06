@@ -132,11 +132,13 @@ func TestCreatedPool_Success(t *testing.T) {
 	activity := activities.PoolActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{Name: "test-pool"}
+	vlmConfig := &vlm.VLMConfig{}
 
 	mockStorage.On("CreatedPool", ctx, pool).Return(pool, nil)
+	mockStorage.On("UpdatedPool", ctx, pool).Return(pool, nil)
 
 	// Act
-	result, err := activity.CreatedPool(ctx, pool)
+	result, err := activity.CreatedPool(ctx, pool, vlmConfig)
 
 	// Assert
 	assert.NoError(t, err)
@@ -150,11 +152,32 @@ func TestCreatedPool_Failure(t *testing.T) {
 	activity := activities.PoolActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{Name: "test-pool"}
+	vlmConfig := &vlm.VLMConfig{}
 
 	mockStorage.On("CreatedPool", ctx, pool).Return(nil, gorm.ErrInvalidData)
 
 	// Act
-	result, err := activity.CreatedPool(ctx, pool)
+	result, err := activity.CreatedPool(ctx, pool, vlmConfig)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCreatedPoolSuccess_VLMUpdateFailed(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := &datamodel.Pool{Name: "test-pool"}
+	vlmConfig := &vlm.VLMConfig{}
+
+	mockStorage.On("CreatedPool", ctx, pool).Return(pool, nil)
+	mockStorage.On("UpdatedPool", ctx, pool).Return(nil, gorm.ErrInvalidData)
+
+	// Act
+	result, err := activity.CreatedPool(ctx, pool, vlmConfig)
 
 	// Assert
 	assert.Error(t, err)
@@ -4182,205 +4205,6 @@ func TestPoolActivity_DeleteServiceAccount_Success(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func Test_ConstructCurrentVlmConfig_Success(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
-	// Mock ReadFile to return valid JSON
-	originalReadFile := activities.ReadFile
-	defer func() { activities.ReadFile = originalReadFile }()
-	activities.ReadFile = func(filename string) ([]byte, error) {
-		return []byte(`{
-			"cloud": {"ha_pair": []},
-			"deployment": {
-				"deployment_id": "",
-				"spconfig": {"size": "", "throughput": 0, "iops": 0},
-				"zone": {"zone1": "", "zone2": ""},
-				"net_config": {}
-			}
-		}`), nil
-	}
-
-	poolId := int64(1)
-	deploymentID := "test-deployment"
-	region := "us-central1"
-	primaryZone := "us-central1-a"
-	secondaryZone := "us-central1-b"
-	network := "test-network"
-	subnets := []string{"test-subnet"}
-	projectId := "test-project"
-	snHostProject := "test-sn-host-project"
-	saEmail := "test-sa@test-project.iam.gserviceaccount.com"
-	autoTierBucket := "test-auto-tier-bucket"
-
-	decision := &vmrs.Decision{
-		ChosenVMs: []string{"c3-standard-4"},
-		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
-			DesiredIOPS:             1000,
-			DesiredThroughputInMiBs: 100,
-			DesiredCapacityInGiB:    1024,
-		},
-	}
-
-	nodes := []*datamodel.Node{
-		{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Name:      "node1",
-			ZoneName:  "us-central1-a",
-			NodeAttributes: &datamodel.NodeDetails{
-				InstanceType: "c3-standard-4",
-			},
-		},
-		{
-			BaseModel: datamodel.BaseModel{ID: 2},
-			Name:      "node2",
-			ZoneName:  "us-central1-b",
-			NodeAttributes: &datamodel.NodeDetails{
-				InstanceType: "c3-standard-4",
-			},
-		},
-	}
-
-	mockStorage.On("GetNodesByPoolID", ctx, poolId).Return(nodes, nil)
-
-	vlmConfig, err := activity.ConstructCurrentVlmConfig(ctx, poolId, deploymentID, region, primaryZone, secondaryZone, network, subnets, projectId, snHostProject, decision, saEmail, autoTierBucket)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, vlmConfig)
-	assert.Equal(t, "test-deployment", vlmConfig.Deployment.DeploymentID)
-	assert.Equal(t, "1024Gi", vlmConfig.Deployment.SPConfig.Size)
-	assert.Equal(t, int64(100), vlmConfig.Deployment.SPConfig.Throughput)
-	assert.Equal(t, int64(1000), vlmConfig.Deployment.SPConfig.IOps)
-	assert.Equal(t, "us-central1", vlmConfig.Deployment.Region)
-	assert.Equal(t, "us-central1-a", vlmConfig.Deployment.Zone.Zone1)
-	assert.Equal(t, "us-central1-b", vlmConfig.Deployment.Zone.Zone2)
-	assert.Equal(t, "c3-standard-4", vlmConfig.Deployment.VSAInstanceType)
-	assert.Len(t, vlmConfig.Cloud.HAPairs, 1)
-	assert.Equal(t, "node1", vlmConfig.Cloud.HAPairs[0].VM1.Name)
-	assert.Equal(t, "node1", vlmConfig.Cloud.HAPairs[0].VM1.HostName)
-	assert.Equal(t, "us-central1-a", vlmConfig.Cloud.HAPairs[0].VM1.Zone)
-	assert.Equal(t, 1, vlmConfig.Cloud.HAPairs[0].VM1.NodeIndex)
-	assert.False(t, vlmConfig.Cloud.HAPairs[0].VM1.IsMediator)
-	assert.Equal(t, "node2", vlmConfig.Cloud.HAPairs[0].VM2.Name)
-	assert.Equal(t, "node2", vlmConfig.Cloud.HAPairs[0].VM2.HostName)
-	assert.Equal(t, "us-central1-b", vlmConfig.Cloud.HAPairs[0].VM2.Zone)
-	assert.Equal(t, 2, vlmConfig.Cloud.HAPairs[0].VM2.NodeIndex)
-	assert.False(t, vlmConfig.Cloud.HAPairs[0].VM2.IsMediator)
-	mockStorage.AssertExpectations(t)
-}
-
-func Test_ConstructCurrentVlmConfig_NodeRetrievalError(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
-	// Mock ReadFile to return valid JSON
-	originalReadFile := activities.ReadFile
-	defer func() { activities.ReadFile = originalReadFile }()
-	activities.ReadFile = func(filename string) ([]byte, error) {
-		return []byte(`{
-			"cloud": {"ha_pair": []},
-			"deployment": {
-				"deployment_id": "",
-				"spconfig": {"size": "", "throughput": 0, "iops": 0},
-				"zone": {"zone1": "", "zone2": ""},
-				"net_config": {}
-			}
-		}`), nil
-	}
-
-	poolId := int64(1)
-	deploymentID := "test-deployment"
-	region := "us-central1"
-	primaryZone := "us-central1-a"
-	secondaryZone := "us-central1-b"
-	network := "test-network"
-	subnets := []string{"test-subnet"}
-	projectId := "test-project"
-	snHostProject := "test-sn-host-project"
-	saEmail := "test-sa@test-project.iam.gserviceaccount.com"
-	autoTierBucket := "test-auto-tier-bucket"
-
-	decision := &vmrs.Decision{
-		ChosenVMs: []string{"c3-standard-4"},
-		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
-			DesiredIOPS:             1000,
-			DesiredThroughputInMiBs: 100,
-			DesiredCapacityInGiB:    1024,
-		},
-	}
-
-	mockStorage.On("GetNodesByPoolID", ctx, poolId).Return(nil, errors.New("database error"))
-
-	vlmConfig, err := activity.ConstructCurrentVlmConfig(ctx, poolId, deploymentID, region, primaryZone, secondaryZone, network, subnets, projectId, snHostProject, decision, saEmail, autoTierBucket)
-
-	assert.Error(t, err)
-	assert.Nil(t, vlmConfig)
-	assert.Contains(t, err.Error(), "database error")
-	mockStorage.AssertExpectations(t)
-}
-
-func Test_ConstructCurrentVlmConfig_NotEnoughNodes(t *testing.T) {
-	mockStorage := database.NewMockStorage(t)
-	activity := activities.PoolActivity{SE: mockStorage}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
-	// Mock ReadFile to return valid JSON
-	originalReadFile := activities.ReadFile
-	defer func() { activities.ReadFile = originalReadFile }()
-	activities.ReadFile = func(filename string) ([]byte, error) {
-		return []byte(`{
-			"cloud": {"ha_pair": []},
-			"deployment": {
-				"deployment_id": "",
-				"spconfig": {"size": "", "throughput": 0, "iops": 0},
-				"zone": {"zone1": "", "zone2": ""},
-				"net_config": {}
-			}
-		}`), nil
-	}
-
-	poolId := int64(1)
-	deploymentID := "test-deployment"
-	region := "us-central1"
-	primaryZone := "us-central1-a"
-	secondaryZone := "us-central1-b"
-	network := "test-network"
-	subnets := []string{"test-subnet"}
-	projectId := "test-project"
-	snHostProject := "test-sn-host-project"
-	saEmail := "test-sa@test-project.iam.gserviceaccount.com"
-	autoTierBucket := "test-auto-tier-bucket"
-
-	decision := &vmrs.Decision{
-		ChosenVMs: []string{"c3-standard-4"},
-		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
-			DesiredIOPS:             1000,
-			DesiredThroughputInMiBs: 100,
-			DesiredCapacityInGiB:    1024,
-		},
-	}
-
-	// Return only one node instead of the required two
-	nodes := []*datamodel.Node{
-		{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Name:      "node1",
-			ZoneName:  "us-central1-a",
-		},
-	}
-
-	mockStorage.On("GetNodesByPoolID", ctx, poolId).Return(nodes, nil)
-
-	vlmConfig, err := activity.ConstructCurrentVlmConfig(ctx, poolId, deploymentID, region, primaryZone, secondaryZone, network, subnets, projectId, snHostProject, decision, saEmail, autoTierBucket)
-
-	assert.Error(t, err)
-	assert.Nil(t, vlmConfig)
-	assert.Contains(t, err.Error(), "not enough nodes in the cluster to create HAPair")
-	mockStorage.AssertExpectations(t)
-}
-
 func TestCreateQoSPolicyAndApplyToSVM(t *testing.T) {
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 	pool := &datamodel.Pool{
@@ -4982,6 +4806,77 @@ func TestUpdatedPool_Failure(t *testing.T) {
 	mockSE.On("UpdatedPool", ctx, pool).Return(nil, expectedError)
 
 	result, err := activity.UpdatedPool(ctx, pool)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "failed to update pool")
+	mockSE.AssertExpectations(t)
+}
+
+func TestUpdatedPoolWithVLMConfig_Success(t *testing.T) {
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{ID: 1},
+		Name:           "test-pool",
+		PoolAttributes: &datamodel.PoolAttributes{},
+	}
+	vlmConfig := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			Provider: "foobar",
+		},
+	}
+	vlmConfigAsStr := "{\"deployment\":{\"provider\":\"foobar\"}}"
+	updatePoolParams := &commonparams.UpdatePoolParams{
+		SizeInBytes: 1000,
+		Labels: &datamodel.JSONB{
+			"foo": "bar",
+		},
+	}
+
+	expectedPool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{ID: 1},
+		Name:        "test-pool",
+		State:       coremodel.LifeCycleStateInUse,
+		VLMConfig:   vlmConfigAsStr,
+		SizeInBytes: 1000,
+	}
+
+	mockSE.On("UpdatedPool", ctx, pool).Return(expectedPool, nil)
+
+	result, err := activity.UpdatedPoolWithVLMConfig(ctx, pool, vlmConfig, updatePoolParams)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, expectedPool, result)
+	mockSE.AssertExpectations(t)
+}
+
+func TestUpdatedPoolWithVLMConfig_Failure(t *testing.T) {
+	mockSE := database.NewMockStorage(t)
+	activity := &activities.PoolActivity{SE: mockSE}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{ID: 1},
+		Name:           "test-pool",
+		PoolAttributes: &datamodel.PoolAttributes{},
+	}
+	vlmConfig := vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			Provider: "foobar",
+		},
+	}
+	updatePoolParams := &commonparams.UpdatePoolParams{
+		SizeInBytes: 1000,
+	}
+
+	expectedError := errors.New("failed to update pool")
+	mockSE.On("UpdatedPool", ctx, pool).Return(nil, expectedError)
+
+	result, err := activity.UpdatedPoolWithVLMConfig(ctx, pool, vlmConfig, updatePoolParams)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)

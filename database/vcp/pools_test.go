@@ -1311,6 +1311,7 @@ func TestConvertPoolViewToPool(t *testing.T) {
 				SecretID:      "",
 				CertificateID: "",
 			},
+			VLMConfig: "dummy-vlm-config",
 		},
 	}
 
@@ -1343,6 +1344,7 @@ func TestConvertPoolToPoolView(t *testing.T) {
 		Account:      &datamodel.Account{Name: "acc"},
 		State:        "READY",
 		StateDetails: "Available",
+		VLMConfig:    "test-vlm-config",
 	}
 	view := ConvertPoolToPoolView(pool)
 	if view == nil {
@@ -1362,6 +1364,9 @@ func TestConvertPoolToPoolView(t *testing.T) {
 	}
 	if view.VolumeCount != 0 {
 		t.Errorf("expected VolumeCount 0, got %v", view.VolumeCount)
+	}
+	if view.VLMConfig != "test-vlm-config" {
+		t.Errorf("expected VLMConfig test-vlm-config, but instead got %v", view.VLMConfig)
 	}
 
 	// Test nil input

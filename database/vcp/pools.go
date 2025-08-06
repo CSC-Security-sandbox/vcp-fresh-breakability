@@ -374,6 +374,7 @@ func ConvertPoolViewToPool(view *datamodel.PoolView) *datamodel.Pool {
 		KmsConfigID:       view.KmsConfigID,
 		KmsConfig:         view.KmsConfig,
 		SnHostProject:     view.SnHostProject,
+		VLMConfig:         view.VLMConfig,
 	}
 }
 

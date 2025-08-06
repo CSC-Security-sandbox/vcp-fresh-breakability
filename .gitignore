@@ -17,6 +17,7 @@ go.work
 # GoLand project files
 .idea/
 *.env
+!skaffold.env
 .run/
 
 # VS Code settings

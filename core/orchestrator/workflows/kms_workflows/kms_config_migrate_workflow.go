@@ -359,7 +359,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 
 		if len(volumesForMigration) < 1 {
 			kmsWorkflow.Logger.Info(fmt.Sprintf("Pool with ID %s does not have volumes - Pool has been migrated over to use EKM for future volume creations", pool.UUID))
-			err = workflow.ExecuteActivity(ctx, poolActivity.CreatedPool, poolsForMigration[index]).Get(ctx, nil)
+			err = workflow.ExecuteActivity(ctx, poolActivity.CreatedPool, poolsForMigration[index], nil).Get(ctx, nil)
 			if err != nil {
 				kmsWorkflow.Logger.Error(fmt.Sprintf(
 					"Unable to update state of Pool to Ready after association of EKM, pool-id %s", poolsForMigration[index].UUID),
