@@ -861,17 +861,20 @@ func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZo
 		return err
 	}
 
-	if vsaImageProject == "" {
-		vsaImageProject = regionalTenantProjectID
+	vsaImageProjectID := vsaImageProject
+	if vsaImageProjectID == "" {
+		vsaImageProjectID = regionalTenantProjectID
 	}
-	if mediatorImageProject == "" {
-		mediatorImageProject = regionalTenantProjectID
+
+	mediatorImageProjectID := mediatorImageProject
+	if mediatorImageProjectID == "" {
+		mediatorImageProjectID = regionalTenantProjectID
 	}
 
 	vlmConfig.Deployment.GCPConfig = vlm.GCPConfig{
 		ProjectID:              regionalTenantProjectID,
-		ImageProjectID:         vsaImageProject,
-		MediatorImageProjectID: mediatorImageProject,
+		ImageProjectID:         vsaImageProjectID,
+		MediatorImageProjectID: mediatorImageProjectID,
 		ServiceAccountEmail:    vsaClusterSaEmail,
 		BucketName:             autoTierBucket,
 	}
