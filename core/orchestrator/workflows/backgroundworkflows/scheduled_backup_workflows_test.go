@@ -61,6 +61,9 @@ func (s *ScheduledBackupsTestSuite) registerCreateScheduledBackupActivities(comm
 	s.env.RegisterActivity(scheduledBackupActivity.CreateScheduledBackup)
 	s.env.RegisterActivity(scheduledBackupActivity.GenerateScheduledSnapshotName)
 	s.env.RegisterActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE)
+	s.env.RegisterActivity(backupActivity.DeleteBackup)
+	s.env.RegisterActivity(backupActivity.DeleteBackupSnapshot)
+	s.env.RegisterActivity(backupActivity.DeleteSnapshotFromObjectStore)
 }
 
 // Helper function to register all activities needed for DeleteScheduledBackupWorkflow tests
@@ -604,6 +607,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_WeeklySche
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, errors.New("could not create weekly scheduled backup")).Times(3)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{
@@ -674,6 +678,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_MonthlySch
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, errors.New("could not create monthly scheduled backup")).Times(3)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil).Times(2)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{
@@ -793,6 +798,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetNodeFai
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil).Times(3)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return(nil, errors.New("could not fetch nodes of the cluster"))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -857,6 +863,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GenerateSn
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil).Times(3)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
 			{
@@ -934,6 +941,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetObjStor
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil).Times(3)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
 			{
@@ -1012,6 +1020,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetBucketD
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil).Times(3)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
 			{
@@ -1091,6 +1100,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetOrCreat
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil).Times(3)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
 			{
@@ -1177,6 +1187,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSmSourc
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil).Times(3)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
 			{
@@ -1264,6 +1275,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil).Times(3)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
 			{
@@ -1360,6 +1372,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_SnapshotCr
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil).Times(3)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
 			{
@@ -1462,6 +1475,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil).Times(3)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
 			{
@@ -1496,6 +1510,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Snapmirror
 				ExternalUUID: "test-uuid-1",
 			},
 		}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackupSnapshot, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not transfer snapshot to object store"))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1569,6 +1584,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSnapmir
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil).Times(3)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
 			{
@@ -1603,6 +1619,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_GetSnapmir
 				ExternalUUID: "test-uuid-1",
 			},
 		}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackupSnapshot, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusFailed, errors.New("could not get the status of snapmirror transfer"))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1677,6 +1694,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_FinishBack
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil).Times(3)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
 			{
@@ -1711,6 +1729,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_FinishBack
 				ExternalUUID: "test-uuid-1",
 			},
 		}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackupSnapshot, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
 	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(errors.New("could not update backup status"))
@@ -1786,6 +1805,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_HydrateBac
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil).Times(3)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
 			{
@@ -1820,9 +1840,11 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_HydrateBac
 				ExternalUUID: "test-uuid-1",
 			},
 		}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackupSnapshot, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
 	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.DeleteSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not hydrate backups to CCFE"))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -1896,6 +1918,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_ErrorLaunc
 		}, nil)
 	s.env.OnActivity(scheduledBackupActivity.CreateScheduledBackup, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&datamodel.Backup{Attributes: &datamodel.BackupAttributes{}}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackup, mock.Anything, mock.Anything).Return(nil, nil).Times(3)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).
 		Return([]*datamodel.Node{
 			{
@@ -1930,9 +1953,11 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_ErrorLaunc
 				ExternalUUID: "test-uuid-1",
 			},
 		}, nil)
+	s.env.OnActivity(backupActivity.DeleteBackupSnapshot, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(activities.SmStatusSuccess, nil)
 	s.env.OnActivity(backupActivity.FinishBackup, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.DeleteSnapshotFromObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(scheduledBackupActivity.HydrateCreatedBackupsToCCFE, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnWorkflow(DeleteScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("could not launch child workflow"))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)

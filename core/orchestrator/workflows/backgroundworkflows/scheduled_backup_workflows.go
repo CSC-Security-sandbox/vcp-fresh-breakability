@@ -235,7 +235,6 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	backupActivities := &activities.BackupActivity{}
 	scheduledBackupActivities := backgroundactivities.ScheduledBackupActivity{}
 
-	// TODO: Add rollback activities for each of the activities in the workflow.
 	defer func() {
 		if err != nil {
 			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
@@ -257,6 +256,7 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		if err != nil {
 			return nil, err
 		}
+		rollbackManager.AddActivity(backupActivities.DeleteBackup, backup.UUID)
 		backups = append(backups, backup)
 	}
 
@@ -267,6 +267,7 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		if err != nil {
 			return nil, err
 		}
+		rollbackManager.AddActivity(backupActivities.DeleteBackup, backup.UUID)
 		backups = append(backups, backup)
 	}
 
@@ -277,6 +278,7 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 		if err != nil {
 			return nil, err
 		}
+		rollbackManager.AddActivity(backupActivities.DeleteBackup, backup.UUID)
 		backups = append(backups, backup)
 	}
 
@@ -344,6 +346,7 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	if err != nil {
 		return nil, err
 	}
+	rollbackManager.AddActivity(backupActivities.DeleteBackupSnapshot, node, volume.VolumeAttributes.ExternalUUID, snapshotName)
 
 	err = workflow.ExecuteActivity(ctx, backupActivities.SnapmirrorTransfer, node, snapmirrorRelationship.UUID, snapshotName).Get(ctx, nil)
 	if err != nil {
@@ -385,6 +388,7 @@ func (wf *createScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 			return nil, err
 		}
 	}
+	rollbackManager.AddActivity(backupActivities.DeleteSnapshotFromObjectStore, node, cloudTarget.UUID, backups[0].Attributes.EndpointUUID, backups[0].Attributes.SnapshotID)
 
 	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.HydrateCreatedBackupsToCCFE, volume, backups, backupVault.Name).Get(ctx, nil)
 	if err != nil {
