@@ -117,7 +117,7 @@ func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) DeletePollersF
 			logger.Warnf("no leaseName exists for nodeGroupMap Name:%s", nodeMap.NodeGroup.Name)
 			continue
 		}
-		deleteURL := fmt.Sprintf(harvestRestProtocol+"://"+harvestEndPoint+"/config/%s/%d", leaseName, nodeMap.NodeID)
+		deleteURL := fmt.Sprintf(harvestRestProtocol+"://"+harvestEndPoint+"/config/%s/%s%d", leaseName, leasePrefix, nodeMap.NodeID)
 		resp, err := deletePollerRestResponse(ctx, deleteURL)
 		if err != nil {
 			logger.Warnf("Failed to delete YAML template for node mapping %d: %v", nodeMap.NodeID, err)

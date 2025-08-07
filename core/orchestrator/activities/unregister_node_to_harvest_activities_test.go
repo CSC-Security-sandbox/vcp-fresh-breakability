@@ -2,6 +2,7 @@ package activities
 
 import (
 	"context"
+	"fmt"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"net/http"
 	"strconv"
@@ -254,9 +255,16 @@ func TestDeletePollersFromHarvestFarm_Success(t *testing.T) {
 	nodeGroupMapInfo := getNodeGroupMap(true, true)
 	oldDeletePollerRestResponse := deletePollerRestResponse
 	deletePollerRestResponse = func(ctx context.Context, url string) (*http.Response, error) {
-		return &http.Response{StatusCode: 200,
-			Status: "Deleted poller",
-		}, nil
+		for _, nodeGroupMapInfo := range nodeGroupMapInfo {
+			expectedDeleteUrl := fmt.Sprintf(harvestRestProtocol+"://"+harvestEndPoint+"/config/%s/%s%d",
+				nodeGroupMapInfo.NodeGroup.LeaseName, leasePrefix, nodeGroupMapInfo.NodeID)
+			if expectedDeleteUrl == url {
+				return &http.Response{StatusCode: 200,
+					Status: "Deleted poller",
+				}, nil
+			}
+		}
+		return nil, errors.New("delete url mismatch error")
 	}
 	defer func() { deletePollerRestResponse = oldDeletePollerRestResponse }()
 
