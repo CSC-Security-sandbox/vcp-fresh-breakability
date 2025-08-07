@@ -119,6 +119,20 @@ workerConfig:
   iscsiFirewallPortRules: "tcp,3260"
   waitTimeForGcpOperationInSec: "10"
 
+  # Default Workflow Retry configuration
+  startToCloseTimeout: "25m"
+  retryInterval: "5s"
+  retryMaxAttempts: "3"
+  retryMaxInterval: "5m"
+  retryBackoffCoefficient: "2.0"
+
+  # SA Creation Retry Configuration
+  saRetryStartToCloseTimeout: "25m"
+  saRetryInitialInterval: "10s"
+  saRetryMaximumAttempts: "12"
+  saRetryMaximumInterval: "60s"
+  saRetryBackoffCoefficient: "2.0"
+
   # Database configuration
   database:
     type: "postgres"

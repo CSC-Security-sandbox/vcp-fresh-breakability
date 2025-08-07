@@ -44,6 +44,13 @@ var (
 	RetryMaxInterval    = env.GetString("RETRY_MAX_INTERVAL", "5m")
 	RetryBackoff        = env.GetString("RETRY_BACKOFF_COEFFICIENT", "2.0")
 
+	// Service Account specific retry policy configurations
+	SARetryStartToCloseTimeout = env.GetString("SA_RETRY_START_TO_CLOSE_TIMEOUT", "25m")
+	SARetryInitialInterval     = env.GetString("SA_RETRY_INITIAL_INTERVAL", "10s")
+	SARetryMaximumAttempts     = env.GetInt("SA_RETRY_MAXIMUM_ATTEMPTS", 12)
+	SARetryMaximumInterval     = env.GetString("SA_RETRY_MAXIMUM_INTERVAL", "60s")
+	SARetryBackoffCoefficient  = env.GetString("SA_RETRY_BACKOFF_COEFFICIENT", "2.0")
+
 	executeActivity = workflow.ExecuteActivity
 )
 
@@ -98,6 +105,35 @@ func PopulateRetryPolicyParams() (*WorkflowRetryPolicy, error) {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
 	}
 	activityRetryBackoff, err := strconv.ParseFloat(RetryBackoff, 64)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
+	}
+	return &WorkflowRetryPolicy{
+		InitialInterval:     activityRetryInterval,
+		StartToCloseTimeout: activityStartToCloseTimeout,
+		BackoffCoefficient:  activityRetryBackoff,
+		MaximumInterval:     activityRetryMaxInterval,
+		MaximumAttempts:     activityRetryMaxAttempts,
+	}, nil
+}
+
+// populateServiceAccountRetryPolicyParams returns retry policy specific to service account operations
+// with custom values: backoff coefficient 2.0, max attempts 12, max interval 60 seconds
+func populateServiceAccountRetryPolicyParams() (*WorkflowRetryPolicy, error) {
+	activityStartToCloseTimeout, err := time.ParseDuration(SARetryStartToCloseTimeout)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
+	}
+	activityRetryInterval, err := time.ParseDuration(SARetryInitialInterval)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
+	}
+	activityRetryMaxAttempts := SARetryMaximumAttempts
+	activityRetryMaxInterval, err := time.ParseDuration(SARetryMaximumInterval)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
+	}
+	activityRetryBackoff, err := strconv.ParseFloat(SARetryBackoffCoefficient, 64)
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
 	}

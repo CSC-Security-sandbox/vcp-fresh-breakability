@@ -143,6 +143,109 @@ func TestPopulateRetryPolicyParams(t *testing.T) {
 	})
 }
 
+func TestPopulateServiceAccountRetryPolicyParams(t *testing.T) {
+	// Save original values
+	origSARetryStartToCloseTimeout := SARetryStartToCloseTimeout
+	origSARetryInitialInterval := SARetryInitialInterval
+	origSARetryBackoffCoefficient := SARetryBackoffCoefficient
+	origSARetryMaximumInterval := SARetryMaximumInterval
+	origSARetryMaximumAttempts := SARetryMaximumAttempts
+
+	defer func() {
+		SARetryStartToCloseTimeout = origSARetryStartToCloseTimeout
+		SARetryInitialInterval = origSARetryInitialInterval
+		SARetryBackoffCoefficient = origSARetryBackoffCoefficient
+		SARetryMaximumInterval = origSARetryMaximumInterval
+		SARetryMaximumAttempts = origSARetryMaximumAttempts
+	}()
+
+	t.Run("success with updated default values", func(t *testing.T) {
+		SARetryStartToCloseTimeout = "25m"
+		SARetryInitialInterval = "10s"
+		SARetryBackoffCoefficient = "2.0"
+		SARetryMaximumInterval = "60s"
+		SARetryMaximumAttempts = 12
+
+		policy, err := populateServiceAccountRetryPolicyParams()
+		assert.NoError(t, err)
+		assert.NotNil(t, policy)
+		assert.Equal(t, 25*time.Minute, policy.StartToCloseTimeout)
+		assert.Equal(t, 10*time.Second, policy.InitialInterval)
+		assert.Equal(t, 2.0, policy.BackoffCoefficient)
+		assert.Equal(t, 60*time.Second, policy.MaximumInterval)
+		assert.Equal(t, 12, policy.MaximumAttempts)
+	})
+
+	t.Run("success with custom values", func(t *testing.T) {
+		SARetryStartToCloseTimeout = "15m"
+		SARetryInitialInterval = "2s"
+		SARetryBackoffCoefficient = "1.5"
+		SARetryMaximumInterval = "5m"
+		SARetryMaximumAttempts = 8
+
+		policy, err := populateServiceAccountRetryPolicyParams()
+		assert.NoError(t, err)
+		assert.NotNil(t, policy)
+		assert.Equal(t, 15*time.Minute, policy.StartToCloseTimeout)
+		assert.Equal(t, 2*time.Second, policy.InitialInterval)
+		assert.Equal(t, 1.5, policy.BackoffCoefficient)
+		assert.Equal(t, 5*time.Minute, policy.MaximumInterval)
+		assert.Equal(t, 8, policy.MaximumAttempts)
+	})
+
+	t.Run("invalid StartToCloseTimeout", func(t *testing.T) {
+		SARetryStartToCloseTimeout = "invalid-timeout"
+		SARetryInitialInterval = "10s"
+		SARetryBackoffCoefficient = "2.0"
+		SARetryMaximumInterval = "60s"
+		SARetryMaximumAttempts = 12
+
+		policy, err := populateServiceAccountRetryPolicyParams()
+		assert.Error(t, err)
+		assert.Nil(t, policy)
+		assert.Contains(t, err.Error(), "invalid-timeout")
+	})
+
+	t.Run("invalid InitialInterval", func(t *testing.T) {
+		SARetryStartToCloseTimeout = "25m"
+		SARetryInitialInterval = "invalid-interval"
+		SARetryBackoffCoefficient = "2.0"
+		SARetryMaximumInterval = "60s"
+		SARetryMaximumAttempts = 12
+
+		policy, err := populateServiceAccountRetryPolicyParams()
+		assert.Error(t, err)
+		assert.Nil(t, policy)
+		assert.Contains(t, err.Error(), "invalid-interval")
+	})
+
+	t.Run("invalid BackoffCoefficient", func(t *testing.T) {
+		SARetryStartToCloseTimeout = "25m"
+		SARetryInitialInterval = "10s"
+		SARetryBackoffCoefficient = "invalid-backoff"
+		SARetryMaximumInterval = "60s"
+		SARetryMaximumAttempts = 12
+
+		policy, err := populateServiceAccountRetryPolicyParams()
+		assert.Error(t, err)
+		assert.Nil(t, policy)
+		assert.Contains(t, err.Error(), "invalid-backoff")
+	})
+
+	t.Run("invalid MaximumInterval", func(t *testing.T) {
+		SARetryStartToCloseTimeout = "25m"
+		SARetryInitialInterval = "10s"
+		SARetryBackoffCoefficient = "2.0"
+		SARetryMaximumInterval = "invalid-max-interval"
+		SARetryMaximumAttempts = 12
+
+		policy, err := populateServiceAccountRetryPolicyParams()
+		assert.Error(t, err)
+		assert.Nil(t, policy)
+		assert.Contains(t, err.Error(), "invalid-max-interval")
+	})
+}
+
 func TestUpdateJobStatusWithCustomError(t *testing.T) {
 	ctx := context.TODO()
 	wfCtx := &mockWorkflowContext{base: ctx}

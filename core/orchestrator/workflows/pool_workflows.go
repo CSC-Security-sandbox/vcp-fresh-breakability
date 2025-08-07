@@ -224,7 +224,29 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	dbPool.ServiceAccountId = serviceAccountID
 
 	rollbackManager.AddActivity(poolActivity.DeleteServiceAccount, tenancyDetails.RegionalTenantProject, serviceAccountID)
-	err = workflow.ExecuteActivity(ctx, poolActivity.CreateServiceAccountWithStorageRole, tenancyDetails.RegionalTenantProject, serviceAccountID, pool.Name).Get(ctx, serviceAccount)
+
+	// Get the service account specific retry policy
+	saRetryPolicy, err := populateServiceAccountRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+
+	// Create custom activity options for service account creation
+	saActivityOptions := workflow.ActivityOptions{
+		StartToCloseTimeout: saRetryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    saRetryPolicy.InitialInterval,
+			BackoffCoefficient: saRetryPolicy.BackoffCoefficient,
+			MaximumInterval:    saRetryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(saRetryPolicy.MaximumAttempts),
+		},
+	}
+
+	// Create new context with custom activity options while preserving existing context
+	saCtx := workflow.WithActivityOptions(ctx, saActivityOptions)
+
+	// Use the new context for the service account creation activity
+	err = workflow.ExecuteActivity(saCtx, poolActivity.CreateServiceAccountWithStorageRole, tenancyDetails.RegionalTenantProject, serviceAccountID, pool.Name).Get(saCtx, serviceAccount)
 	if err != nil {
 		return nil, err
 	}

@@ -102,3 +102,15 @@ data:
   ADC_PROJECT: {{ .Values.adc.project | quote }}
   ADC_REGION: {{ .Values.adc.region | quote }}
   ADC_CERT_SECRET_NAME: {{ .Values.adc.certSecretName | quote }}
+
+  START_TO_CLOSE_WORKFLOW_TIMEOUT: {{ .Values.workerConfig.startToCloseTimeout | quote }}
+  RETRY_INTERVAL: {{ .Values.workerConfig.retryInterval | quote }}
+  RETRY_MAX_ATTEMPTS: {{ .Values.workerConfig.retryMaxAttempts | quote }}
+  RETRY_MAX_INTERVAL: {{ .Values.workerConfig.retryMaxInterval | quote }}
+  RETRY_BACKOFF_COEFFICIENT: {{ .Values.workerConfig.retryBackoffCoefficient | quote }}
+
+  SA_RETRY_START_TO_CLOSE_TIMEOUT: {{ .Values.workerConfig.saRetryStartToCloseTimeout | quote }}
+  SA_RETRY_INTERVAL: {{ .Values.workerConfig.saRetryInitialInterval | quote }}
+  SA_RETRY_MAXIMUM_ATTEMPTS: {{ .Values.workerConfig.saRetryMaximumAttempts | quote }}
+  SA_RETRY_MAXIMUM_INTERVAL: {{ .Values.workerConfig.saRetryMaximumInterval | quote }}
+  SA_RETRY_BACKOFF_COEFFICIENT: {{ .Values.workerConfig.saRetryBackoffCoefficient | quote }}
