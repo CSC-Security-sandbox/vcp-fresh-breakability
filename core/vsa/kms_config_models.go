@@ -12,7 +12,15 @@ type CreateKmsConfigParams struct {
 	PrivilegedAccount string // Cloud KMS account to impersonate.
 }
 
+type DeleteKmsConfigParams struct {
+	ExternalKmsConfigID string
+}
+
 type CreateKmsConfigResponse struct {
+	ProviderResponse
+}
+
+type DeleteKmsConfigResponse struct {
 	ProviderResponse
 }
 

@@ -36,6 +36,20 @@ func TestGcpKmsCreateParamsToONTAP(t *testing.T) {
 	})
 }
 
+func TestGcpKmsDeleteParamsToOntap(t *testing.T) {
+	t.Run("WhenParamsIsNil", func(tt *testing.T) {
+		otParams := gcpKmsDeleteParamsToOntap(nil)
+		assert.NotNil(tt, otParams)
+		assert.Empty(tt, otParams.UUID)
+	})
+	t.Run("WhenUUIDInParamsIsSet", func(tt *testing.T) {
+		params := GcpKmsDeleteParams{UUID: "uuid1"}
+		otParams := gcpKmsDeleteParamsToOntap(&params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "uuid1", otParams.UUID)
+	})
+}
+
 func TestAggregateCollectionGetParamsToONTAP(t *testing.T) {
 	t.Run("WhenParamsNil", func(tt *testing.T) {
 		otParams := aggregateCollectionGetParamsToONTAP(nil)

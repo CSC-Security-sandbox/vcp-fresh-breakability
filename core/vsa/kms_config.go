@@ -30,6 +30,19 @@ func (rc *OntapRestProvider) CreateKmsConfig(params CreateKmsConfigParams) (*Cre
 	return response, nil
 }
 
+func (rc *OntapRestProvider) DeleteEkmConfig(params DeleteKmsConfigParams) error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+	gcpKmsDeleteParams := &ontapRest.GcpKmsDeleteParams{
+		UUID: params.ExternalKmsConfigID,
+	}
+	errKmsDelete := client.Security().GcpKmsDelete(gcpKmsDeleteParams)
+
+	return errKmsDelete
+}
+
 func (rc *OntapRestProvider) IsGcpKmsReachable(params GetKmsConfigParams) (bool, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {

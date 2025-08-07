@@ -10,6 +10,7 @@ import (
 type SecurityClient interface { // generate:mock
 	GcpKmsCreate(params *GcpKmsCreateParams) ([]*GcpKms, error)
 	GcpKmsGet(params *GcpKmsGetParams) (*GcpKms, error)
+	GcpKmsDelete(params *GcpKmsDeleteParams) error
 }
 
 type securityClient struct {
@@ -42,4 +43,16 @@ func (sc *securityClient) GcpKmsGet(params *GcpKmsGetParams) (*GcpKms, error) {
 	}
 	resp := &GcpKms{GcpKms: *response.Payload}
 	return resp, err
+}
+
+// GcpKmsDelete invokes pkg/ontap-rest/client/security/Client.GcpKmsDelete
+func (sc *securityClient) GcpKmsDelete(params *GcpKmsDeleteParams) error {
+	response, _, err := (*sc.api).GcpKmsDelete(gcpKmsDeleteParamsToOntap(params), nil)
+	if err != nil {
+		return err
+	}
+	if response == nil {
+		return errors.New("ontap-rest response for GcpKmsDelete is nil")
+	}
+	return nil
 }

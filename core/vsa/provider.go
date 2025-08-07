@@ -84,6 +84,7 @@ type Provider interface {
 	CreateSnapshotPolicy(sp *SnapshotPolicy) error
 	DeleteSnapshotPolicy(snapshotPolicyName string) error
 	CreateKmsConfig(params CreateKmsConfigParams) (*CreateKmsConfigResponse, error)
+	DeleteEkmConfig(params DeleteKmsConfigParams) error
 	IsGcpKmsReachable(params GetKmsConfigParams) (bool, error)
 	PostClusterLicenseAccessToken(ctx context.Context, clientSecret string) (*string, error)
 	CreateDns(params CreateDnsParams) error

@@ -52,7 +52,7 @@ func MigrateKmsConfigWorkflow(ctx workflow.Context, params *common.MigrateKmsCon
 		kmsConfigWorkflow.Status = workflows.WorkflowStatusFailed
 		if vsaCmekMigrationSkippedPoolReason != MigrationInfoPrefix {
 			kmsConfigWorkflow.Logger.Info(fmt.Sprintf("%s", vsaCmekMigrationSkippedPoolReason))
-			errWorkflow = fmt.Errorf("%w: \n%s", errWorkflow, vsaCmekMigrationSkippedPoolReason)
+			errWorkflow = fmt.Errorf("%w \n%s", errWorkflow, vsaCmekMigrationSkippedPoolReason)
 		}
 		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), errorcore.WrapAsTemporalApplicationError(errorcore.NewVCPError(errorcore.ErrKMSMigration, errWorkflow)))
 		if err != nil {
@@ -97,11 +97,6 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	params := args[0].(*common.MigrateKmsConfigParams)
 	kmsConfigUUID := params.UUID
 	sdeKmsConfigUUID := params.SdeUUID
-	kmsConfigDataModel := datamodel.KmsConfig{
-		BaseModel:     datamodel.BaseModel{UUID: kmsConfigUUID},
-		KmsAttributes: &datamodel.KmsAttributes{SdeKmsConfigUUID: sdeKmsConfigUUID},
-		Account:       &datamodel.Account{Name: params.ProjectNumber},
-	}
 	vsaCmekMigrationSkippedPoolReason := MigrationInfoPrefix
 
 	kmsConfigActivity := &kms_activities.KmsConfigActivity{}
@@ -211,15 +206,13 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 		var appErr *temporal.ApplicationError
 		if errorcore.As(err, &appErr) && appErr.NonRetryable() && appErr.Type() == kms_activities.ErrTypeKmsConfigNotFound {
 			kmsWorkflow.Logger.Info("KMS configuration not found in VCP DB - Syncing SDE and VCP DBs...")
+			sdeKmsConfig.KmsState = models.LifeCycleStateMigrating
+			sdeKmsConfig.KmsStateDetails = models.LifeCycleStateMigratingDetails
 			createKmsConfigParams := workflows.ConvertToCreateKmsConfigParams(sdeKmsConfig, &paramsForSyncingAndEKMCreation)
 			errSync := syncBetweenSdeAndVsaDBs(ctx, createKmsConfigParams)
 			if errSync != nil {
 				kmsWorkflow.Logger.Error("VSA KMS configuration syncing with SDE DB has failed...", log.Fields{"error": errSync})
 				return vsaCmekMigrationSkippedPoolReason, errSync
-			}
-			errGet := workflow.ExecuteActivity(ctx, kmsConfigActivity.GetKmsConfigActivity, kmsConfigUUID).Get(ctx, &vsaKmsConfig)
-			if errGet != nil {
-				return vsaCmekMigrationSkippedPoolReason, errGet
 			}
 		} else {
 			return vsaCmekMigrationSkippedPoolReason, err
@@ -254,15 +247,6 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	if len(poolsForMigration) < 1 {
 		kmsWorkflow.Logger.Info("Pools requiring migration not present in VSA")
 		return vsaCmekMigrationSkippedPoolReason, nil
-	}
-
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.UpdateKmsConfigState, kmsConfigDataModel, models.LifeCycleStateMigrating, models.LifeCycleStateMigratingDetails).Get(ctx, nil)
-	if err != nil {
-		kmsWorkflow.Logger.Error("Failed to update CMEK policy to Updating state before migration of VSA resources could be initiated", log.Fields{
-			"error":  err,
-			"params": params,
-		})
-		return vsaCmekMigrationSkippedPoolReason, err
 	}
 
 	// Begin migration of VSA resources
@@ -471,6 +455,12 @@ func createEkmForSvm(ctx workflow.Context, node *models.Node, svm *datamodel.Svm
 	kmsConfigActivity := &kms_activities.KmsConfigActivity{}
 	var err error
 
+	defer func() {
+		if err != nil {
+			_ = workflow.ExecuteActivity(ctx, kmsConfigActivity.DeleteEkmConfigActivity, node, svm).Get(ctx, nil)
+		}
+	}()
+
 	// Creates DNS to reach google KMS from the VSA cluster
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateDnsActivity, node).Get(ctx, nil)
 	if err != nil {
@@ -479,12 +469,10 @@ func createEkmForSvm(ctx workflow.Context, node *models.Node, svm *datamodel.Svm
 		}
 	}
 
-	// Configure KMS for SVM if KMS config is not already attached (from a previous failed attempt)
-	if !svm.KmsConfigID.Valid {
-		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.ConfigureKmsForSvmActivity, svm, node, paramsForSyncingAndEKMCreation).Get(ctx, svm)
-		if err != nil {
-			return err
-		}
+	// Configure KMS for SVM
+	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.ConfigureKmsForSvmActivity, svm, node, paramsForSyncingAndEKMCreation).Get(ctx, svm)
+	if err != nil {
+		return err
 	}
 
 	// Check if the KMS config is reachable from the VSA cluster

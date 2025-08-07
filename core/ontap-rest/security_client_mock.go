@@ -75,6 +75,52 @@ func (_c *MockSecurityClient_GcpKmsCreate_Call) RunAndReturn(run func(*GcpKmsCre
 	return _c
 }
 
+// GcpKmsDelete provides a mock function with given fields: params
+func (_m *MockSecurityClient) GcpKmsDelete(params *GcpKmsDeleteParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GcpKmsDelete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*GcpKmsDeleteParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockSecurityClient_GcpKmsDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GcpKmsDelete'
+type MockSecurityClient_GcpKmsDelete_Call struct {
+	*mock.Call
+}
+
+// GcpKmsDelete is a helper method to define mock.On call
+//   - params *GcpKmsDeleteParams
+func (_e *MockSecurityClient_Expecter) GcpKmsDelete(params interface{}) *MockSecurityClient_GcpKmsDelete_Call {
+	return &MockSecurityClient_GcpKmsDelete_Call{Call: _e.mock.On("GcpKmsDelete", params)}
+}
+
+func (_c *MockSecurityClient_GcpKmsDelete_Call) Run(run func(params *GcpKmsDeleteParams)) *MockSecurityClient_GcpKmsDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*GcpKmsDeleteParams))
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_GcpKmsDelete_Call) Return(_a0 error) *MockSecurityClient_GcpKmsDelete_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockSecurityClient_GcpKmsDelete_Call) RunAndReturn(run func(*GcpKmsDeleteParams) error) *MockSecurityClient_GcpKmsDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GcpKmsGet provides a mock function with given fields: params
 func (_m *MockSecurityClient) GcpKmsGet(params *GcpKmsGetParams) (*GcpKms, error) {
 	ret := _m.Called(params)

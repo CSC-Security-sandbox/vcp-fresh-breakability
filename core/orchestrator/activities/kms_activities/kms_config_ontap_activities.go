@@ -110,3 +110,28 @@ func (j *KmsConfigActivity) GetOntapRestProviderForPoolActivity(ctx context.Cont
 	}
 	return provider, nil
 }
+
+func (j *KmsConfigActivity) DeleteEkmConfigActivity(ctx context.Context, node *coreModels.Node, svm *datamodel.Svm) error {
+	logger := util.GetLogger(ctx)
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return err
+	}
+
+	var ekmUUID string
+	if svm.SvmDetails != nil {
+		ekmUUID = svm.SvmDetails.ExternalKmsConfigUUID
+	} else {
+		return errors.New("Unable to determine External-UUID of EKM since SvmDetails field of Svm DataModel is nil")
+	}
+	params := vsa.DeleteKmsConfigParams{
+		ExternalKmsConfigID: ekmUUID,
+	}
+
+	errDelete := provider.DeleteEkmConfig(params)
+	if errDelete != nil {
+		logger.Errorf("Failed to delete EKM, id: %s", ekmUUID)
+		return errDelete
+	}
+	return nil
+}

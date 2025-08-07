@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
@@ -241,6 +242,22 @@ func TestCreateDnsActivity(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
+	})
+
+	t.Run("Returns non-retriable error if provider.CreateDns is unable to reach node", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockProvider.On("CreateDns", mock.Anything).Return(errors.New("Retries exhausted when attempting to reach the storage server"))
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		activity := &KmsConfigActivity{}
+		err := activity.CreateDnsActivity(ctx, node)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "Unable to create DNS: Node not reachable (type: CreateDNSError, retryable: false): unable to reach node")
 	})
 
 	t.Run("returns nil on success", func(t *testing.T) {

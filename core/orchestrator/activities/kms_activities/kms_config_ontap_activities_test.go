@@ -356,3 +356,76 @@ func TestGetOntapRestProviderForPoolActivity(t *testing.T) {
 		assert.NotNil(t, provider)
 	})
 }
+
+func TestDeleteEkmConfigActivity(t *testing.T) {
+	t.Run("WhenProviderNotFound", func(tt *testing.T) {
+		kmsConfigActivity := &KmsConfigActivity{}
+		ctx := context.Background()
+		svm := &datamodel.Svm{}
+		node := &coreModels.Node{}
+
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider not found")
+		}
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+
+		err := kmsConfigActivity.DeleteEkmConfigActivity(ctx, node, svm)
+		assert.Error(tt, err)
+		assert.Errorf(tt, err, "provider not found")
+	})
+	t.Run("WhenSvmDetailsIsNil", func(tt *testing.T) {
+		kmsConfigActivity := &KmsConfigActivity{}
+		ctx := context.Background()
+		svm := &datamodel.Svm{}
+		node := &coreModels.Node{}
+		mockProvider := new(vsa.MockProvider)
+
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+		err := kmsConfigActivity.DeleteEkmConfigActivity(ctx, node, svm)
+		assert.Error(tt, err)
+		assert.Errorf(tt, err, "Unable to determine External-UUID of EKM since SvmDetails field of Svm DataModel is nil")
+	})
+	t.Run("WhenDeleteEkmConfigReturnsError", func(tt *testing.T) {
+		kmsConfigActivity := &KmsConfigActivity{}
+		ctx := context.Background()
+		svm := &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalKmsConfigUUID: "externalUUID1"}}
+		node := &coreModels.Node{}
+		mockProvider := new(vsa.MockProvider)
+		mockProvider.On("DeleteEkmConfig", mock.Anything).Return(errors.New("ekm deletion failed"))
+
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+
+		err := kmsConfigActivity.DeleteEkmConfigActivity(ctx, node, svm)
+
+		assert.Error(tt, err)
+		assert.Errorf(tt, err, "ekm deletion failed")
+	})
+	t.Run("WhenActivityIsSuccessful", func(tt *testing.T) {
+		kmsConfigActivity := &KmsConfigActivity{}
+		ctx := context.Background()
+		svm := &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalKmsConfigUUID: "externalUUID1"}}
+		node := &coreModels.Node{}
+		mockProvider := new(vsa.MockProvider)
+
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+		mockProvider.On("DeleteEkmConfig", mock.Anything).Return(nil)
+
+		err := kmsConfigActivity.DeleteEkmConfigActivity(ctx, node, svm)
+
+		assert.NoError(tt, err)
+		assert.Nil(tt, err)
+	})
+}

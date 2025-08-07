@@ -84,3 +84,33 @@ func TestGcpKmsGet(t *testing.T) {
 		assert.Equal(tt, gcpKms, &response.GcpKms)
 	})
 }
+
+func TestGcpKmsDelete(t *testing.T) {
+	t.Run("WhenGcpKmsDeleteReturnsError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+
+		err := client.GcpKmsDelete(&GcpKmsDeleteParams{})
+		assert.Error(tt, err)
+		assert.Errorf(tt, err, transport.err.Error())
+	})
+	t.Run("WhenGcpKmsDeleteReturnsNilResponse", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.GcpKmsDeleteAccepted{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+
+		err := client.GcpKmsDelete(&GcpKmsDeleteParams{})
+		assert.Error(tt, err)
+		assert.Errorf(tt, err, "ontap-rest response for GcpKmsDelete is nil")
+	})
+	t.Run("WhenGcpKmsDeleteReturnsWithoutError", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.GcpKmsDeleteOK{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+
+		err := client.GcpKmsDelete(&GcpKmsDeleteParams{})
+		assert.NoError(tt, err)
+		assert.Nil(tt, err)
+	})
+}

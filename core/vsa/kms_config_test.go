@@ -185,3 +185,52 @@ func TestIsGcpKmsReachable(t *testing.T) {
 		assert.False(t, result)
 	})
 }
+
+func TestDeleteEkmConfig(t *testing.T) {
+	t.Run("WhenGetOntapClientFuncReturnsError", func(t *testing.T) {
+		origGetClient := getOntapClientFunc
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("get ontap client error")
+		}
+		defer func() { getOntapClientFunc = origGetClient }()
+		provider := &OntapRestProvider{}
+		params := DeleteKmsConfigParams{}
+		err := provider.DeleteEkmConfig(params)
+		assert.Error(t, err)
+		assert.Errorf(t, err, "get ontap client error")
+	})
+	t.Run("WhenSecurityGcpKmsDeleteReturnsError", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSecurity := new(ontaprest.MockSecurityClient)
+		origGetClient := getOntapClientFunc
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("get ontap client error")
+		}
+		defer func() { getOntapClientFunc = origGetClient }()
+		provider := &OntapRestProvider{}
+		mockClient.On("Security").Return(mockSecurity)
+		mockSecurity.On("GcpKmsDelete", mock.Anything).Return(errors.New("ekm delete failed"))
+		params := DeleteKmsConfigParams{ExternalKmsConfigID: "uuid1"}
+
+		err := provider.DeleteEkmConfig(params)
+		assert.Error(t, err)
+		assert.Errorf(t, err, "ekm delete failed")
+	})
+	t.Run("WhenDeleteEkmConfigIsSuccessful", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSecurity := new(ontaprest.MockSecurityClient)
+		origGetClient := getOntapClientFunc
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		defer func() { getOntapClientFunc = origGetClient }()
+		provider := &OntapRestProvider{}
+		mockClient.On("Security").Return(mockSecurity)
+		mockSecurity.On("GcpKmsDelete", mock.Anything).Return(nil)
+		params := DeleteKmsConfigParams{ExternalKmsConfigID: "uuid1"}
+
+		err := provider.DeleteEkmConfig(params)
+		assert.NoError(t, err)
+		assert.Nil(t, err)
+	})
+}

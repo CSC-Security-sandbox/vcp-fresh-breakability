@@ -817,6 +817,15 @@ func gcpKmsGetParamsToONTAP(params *GcpKmsGetParams) *security.GcpKmsGetParams {
 	return otParams
 }
 
+func gcpKmsDeleteParamsToOntap(params *GcpKmsDeleteParams) *security.GcpKmsDeleteParams {
+	otParams := security.NewGcpKmsDeleteParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetUUID(params.UUID)
+	return otParams
+}
+
 // AggregateCollectionGetParams is the input param struct for storageClient.AggregateCollectionGet
 type AggregateCollectionGetParams struct {
 	BaseParams

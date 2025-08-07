@@ -2,6 +2,7 @@ package kms_activities
 
 import (
 	"context"
+	"go.temporal.io/sdk/temporal"
 	"strings"
 	"time"
 
@@ -108,6 +109,11 @@ func (j *KmsConfigActivity) CreateDnsActivity(ctx context.Context, node *models.
 			logger.Info("Create DNS Activity - DNS entry already present in VSA", "error", err)
 			return nil
 		}
+		if strings.Contains(err.Error(), "Retries exhausted when attempting to reach the storage server") {
+			logger.Errorf("Create DNS Activity - Unable to reach node %s Error: %v", node.Name, err)
+			return temporal.NewNonRetryableApplicationError("Unable to create DNS: Node not reachable", "CreateDNSError", errors.New("unable to reach node"))
+		}
+
 		logger.Error("Failed to create dns", "error", err)
 		return err
 	}

@@ -121,7 +121,7 @@ func TestGetNode(t *testing.T) {
 
 		// Assert
 		assert.Error(tt, err)
-		assert.Equal(tt, "no node found for the pool", err.Error())
+		assert.Equal(tt, "Node not present for this pool (type: GetNodeError, retryable: false): node not found for the pool", err.Error())
 		assert.Nil(tt, node)
 		mockStorage.AssertExpectations(tt)
 	})
