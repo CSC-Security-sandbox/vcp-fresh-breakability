@@ -1637,62 +1637,43 @@ func TestUpdateSnapshotActivity_Success(t *testing.T) {
 	activity := activities.BackupActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
-	backup := &datamodel.Backup{
-		Name:       "test-backup",
-		Attributes: &datamodel.BackupAttributes{},
-	}
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{
-			UUID: "volumeUUID",
-			ID:   1,
-		},
-		AccountID: 2,
-	}
-
-	snapshotResponse := &vsa.SnapshotProviderResponse{
-		ProviderResponse: vsa.ProviderResponse{
-			ExternalUUID: "snapshot-uuid",
-		},
-		SizeInBytes:        1024,
-		LogicalSizeInBytes: 512,
-	}
-
 	dbSnapshot := &datamodel.Snapshot{
-		Name:               "test-backup",
-		VolumeID:           volume.ID,
+		BaseModel:          datamodel.BaseModel{ID: 1},
+		Name:               "test-snapshot",
+		State:              models.LifeCycleStateCreating,
 		SnapshotAttributes: &datamodel.SnapshotAttributes{},
 	}
 
-	state := &activities.BackupActivitiesContext{
-		BackupWorkflowInit: &activities.BackupWorkflowInput{
-			Backup: backup,
-			Volume: volume,
-		},
-		Node:             &models.Node{},
-		SnapshotName:     "test-backup",
-		SnapshotResponse: snapshotResponse,
-		DbSnapshot:       dbSnapshot,
+	snapshotResponse := &vsa.SnapshotProviderResponse{
+		ProviderResponse:   vsa.ProviderResponse{ExternalUUID: "ext-uuid-123"},
+		SizeInBytes:        int64(1024),
+		LogicalSizeInBytes: int64(2048),
 	}
 
-	expectedUpdatedSnapshot := &datamodel.Snapshot{
-		Name:         "test-backup",
-		VolumeID:     volume.ID,
+	state := &activities.BackupActivitiesContext{
+		DbSnapshot:       dbSnapshot,
+		SnapshotResponse: snapshotResponse,
+	}
+
+	expectedSnapshot := &datamodel.Snapshot{
+		BaseModel:    datamodel.BaseModel{ID: 1},
+		Name:         "test-snapshot",
 		State:        models.LifeCycleStateREADY,
 		StateDetails: models.LifeCycleStateAvailableDetails,
 		SnapshotAttributes: &datamodel.SnapshotAttributes{
-			SizeInBytes:            1024,
-			ExternalUUID:           "snapshot-uuid",
-			LogicalSizeUsedInBytes: 512,
+			ExternalUUID:           "ext-uuid-123",
+			SizeInBytes:            int64(1024),
+			LogicalSizeUsedInBytes: int64(2048),
 		},
 	}
 
 	mockStorage.On("UpdateSnapshot", ctx, mock.MatchedBy(func(s *datamodel.Snapshot) bool {
 		return s.State == models.LifeCycleStateREADY &&
 			s.StateDetails == models.LifeCycleStateAvailableDetails &&
-			s.SnapshotAttributes.SizeInBytes == 1024 &&
-			s.SnapshotAttributes.ExternalUUID == "snapshot-uuid" &&
-			s.SnapshotAttributes.LogicalSizeUsedInBytes == 512
-	})).Return(expectedUpdatedSnapshot, nil)
+			s.SnapshotAttributes.ExternalUUID == "ext-uuid-123" &&
+			s.SnapshotAttributes.SizeInBytes == int64(1024) &&
+			s.SnapshotAttributes.LogicalSizeUsedInBytes == int64(2048)
+	})).Return(expectedSnapshot, nil)
 
 	// Act
 	result, err := activity.UpdateSnapshotActivity(ctx, state)
@@ -1700,12 +1681,9 @@ func TestUpdateSnapshotActivity_Success(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, "test-backup", result.BackupWorkflowInit.Backup.Attributes.SnapshotName)
-	assert.Equal(t, "snapshot-uuid", result.BackupWorkflowInit.Backup.Attributes.SnapshotID)
-	assert.NotEmpty(t, result.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime)
+	assert.Equal(t, state, result)
 	mockStorage.AssertExpectations(t)
 }
-
 func TestUpdateSnapshotActivity_NilDbSnapshot(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
@@ -1805,47 +1783,24 @@ func TestUpdateSnapshotActivity_WithNilSnapshotResponse(t *testing.T) {
 	activity := activities.BackupActivity{SE: mockStorage}
 	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 
-	backup := &datamodel.Backup{
-		Name:       "test-backup",
-		Attributes: &datamodel.BackupAttributes{},
-	}
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{
-			UUID: "volumeUUID",
-			ID:   1,
-		},
-		AccountID: 2,
-	}
-
 	dbSnapshot := &datamodel.Snapshot{
-		Name:               "test-backup",
-		VolumeID:           volume.ID,
+		BaseModel:          datamodel.BaseModel{ID: 1},
+		Name:               "test-snapshot",
+		State:              models.LifeCycleStateCreating,
 		SnapshotAttributes: &datamodel.SnapshotAttributes{},
 	}
 
 	state := &activities.BackupActivitiesContext{
-		BackupWorkflowInit: &activities.BackupWorkflowInput{
-			Backup: backup,
-			Volume: volume,
-		},
-		Node:             &models.Node{},
-		SnapshotName:     "test-backup",
-		SnapshotResponse: nil, // Nil SnapshotResponse
 		DbSnapshot:       dbSnapshot,
-	}
-
-	expectedUpdatedSnapshot := &datamodel.Snapshot{
-		Name:               "test-backup",
-		VolumeID:           volume.ID,
-		State:              models.LifeCycleStateError,
-		StateDetails:       models.LifeCycleStateCreationErrorDetails,
-		SnapshotAttributes: &datamodel.SnapshotAttributes{},
+		SnapshotResponse: nil,
 	}
 
 	mockStorage.On("UpdateSnapshot", ctx, mock.MatchedBy(func(s *datamodel.Snapshot) bool {
 		return s.State == models.LifeCycleStateError &&
-			s.StateDetails == models.LifeCycleStateCreationErrorDetails
-	})).Return(expectedUpdatedSnapshot, nil)
+			s.StateDetails == models.LifeCycleStateCreationErrorDetails &&
+			s.DeletedAt != nil &&
+			s.DeletedAt.Valid == true
+	})).Return(dbSnapshot, nil)
 
 	// Act
 	result, err := activity.UpdateSnapshotActivity(ctx, state)
@@ -1853,8 +1808,7 @@ func TestUpdateSnapshotActivity_WithNilSnapshotResponse(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, "test-backup", result.BackupWorkflowInit.Backup.Attributes.SnapshotName)
-	assert.NotEmpty(t, result.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime)
+	assert.Equal(t, state, result)
 	mockStorage.AssertExpectations(t)
 }
 

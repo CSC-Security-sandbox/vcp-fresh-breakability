@@ -198,15 +198,6 @@ func (b *BackupActivity) UpdateSnapshotActivity(ctx context.Context, backupActiv
 		logger.Errorf("Failed to update snapshot details in database. Error: %v", err)
 		return nil, err
 	}
-
-	// Update the backupActivitiesContext with snapshot response
-	if backupActivitiesContext.BackupWorkflowInit != nil && backupActivitiesContext.BackupWorkflowInit.Backup != nil && backupActivitiesContext.BackupWorkflowInit.Backup.Attributes != nil {
-		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName = backupActivitiesContext.SnapshotName
-		if backupActivitiesContext.SnapshotResponse != nil {
-			backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID = backupActivitiesContext.SnapshotResponse.ExternalUUID
-		}
-		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime = time.Now().String()
-	}
 	return backupActivitiesContext, nil
 }
 
@@ -222,6 +213,12 @@ func (b *BackupActivity) CreateSnapshotActivity(ctx context.Context, backupActiv
 
 	// Update the backupActivitiesContext with snapshot response
 	backupActivitiesContext.SnapshotResponse = snapshotResponse
+	if backupActivitiesContext.BackupWorkflowInit != nil && backupActivitiesContext.BackupWorkflowInit.Backup != nil && backupActivitiesContext.BackupWorkflowInit.Backup.Attributes != nil {
+		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName = backupActivitiesContext.SnapshotName
+		if backupActivitiesContext.SnapshotResponse != nil {
+			backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID = backupActivitiesContext.SnapshotResponse.ExternalUUID
+		}
+	}
 	return backupActivitiesContext, nil
 }
 
@@ -239,6 +236,9 @@ func (b *BackupActivity) CheckTransferStatusActivity(ctx context.Context, backup
 	status, err := b.GetSnapmirrorTransferStatus(ctx, backupActivitiesContext.Node, backupActivitiesContext.SnapmirrorRelationship.UUID, backupActivitiesContext.SnapshotName)
 	if err != nil {
 		return nil, err
+	}
+	if status == SmStatusSuccess {
+		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotCreationTime = time.Now().String()
 	}
 	backupActivitiesContext.TransferStatus = status
 	return backupActivitiesContext, nil
