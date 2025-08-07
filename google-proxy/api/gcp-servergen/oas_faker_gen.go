@@ -10825,6 +10825,16 @@ func (s *VolumeReplicationCreateInternalV1beta) SetFake() {
 	}
 	{
 		{
+			s.CcfeUri.SetFake()
+		}
+	}
+	{
+		{
+			s.CcfeRemoteUri.SetFake()
+		}
+	}
+	{
+		{
 			s.RemoteRegion = "string"
 		}
 	}
@@ -11078,6 +11088,16 @@ func (s *VolumeReplicationInternalV1beta) SetFake() {
 	{
 		{
 			s.ReplicationSchedule.SetFake()
+		}
+	}
+	{
+		{
+			s.CcfeUri.SetFake()
+		}
+	}
+	{
+		{
+			s.CcfeRemoteUri.SetFake()
 		}
 	}
 	{

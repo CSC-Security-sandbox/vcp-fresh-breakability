@@ -18842,6 +18842,10 @@ type VolumeReplicationCreateInternalV1beta struct {
 	EndpointType        VolumeReplicationCreateInternalV1betaEndpointType           `json:"endpointType"`
 	ReplicationPolicy   OptVolumeReplicationCreateInternalV1betaReplicationPolicy   `json:"replicationPolicy"`
 	ReplicationSchedule OptVolumeReplicationCreateInternalV1betaReplicationSchedule `json:"replicationSchedule"`
+	// The URI for the CCFE.
+	CcfeUri OptString `json:"ccfeUri"`
+	// The URI for the CCFE for the remote region.
+	CcfeRemoteUri OptString `json:"ccfeRemoteUri"`
 	// The remote region for the other end of the volume replication.
 	RemoteRegion string `json:"remoteRegion"`
 	// The source endpoint host for the volume replication.
@@ -18948,6 +18952,16 @@ func (s *VolumeReplicationCreateInternalV1beta) GetReplicationPolicy() OptVolume
 // GetReplicationSchedule returns the value of ReplicationSchedule.
 func (s *VolumeReplicationCreateInternalV1beta) GetReplicationSchedule() OptVolumeReplicationCreateInternalV1betaReplicationSchedule {
 	return s.ReplicationSchedule
+}
+
+// GetCcfeUri returns the value of CcfeUri.
+func (s *VolumeReplicationCreateInternalV1beta) GetCcfeUri() OptString {
+	return s.CcfeUri
+}
+
+// GetCcfeRemoteUri returns the value of CcfeRemoteUri.
+func (s *VolumeReplicationCreateInternalV1beta) GetCcfeRemoteUri() OptString {
+	return s.CcfeRemoteUri
 }
 
 // GetRemoteRegion returns the value of RemoteRegion.
@@ -19148,6 +19162,16 @@ func (s *VolumeReplicationCreateInternalV1beta) SetReplicationPolicy(val OptVolu
 // SetReplicationSchedule sets the value of ReplicationSchedule.
 func (s *VolumeReplicationCreateInternalV1beta) SetReplicationSchedule(val OptVolumeReplicationCreateInternalV1betaReplicationSchedule) {
 	s.ReplicationSchedule = val
+}
+
+// SetCcfeUri sets the value of CcfeUri.
+func (s *VolumeReplicationCreateInternalV1beta) SetCcfeUri(val OptString) {
+	s.CcfeUri = val
+}
+
+// SetCcfeRemoteUri sets the value of CcfeRemoteUri.
+func (s *VolumeReplicationCreateInternalV1beta) SetCcfeRemoteUri(val OptString) {
+	s.CcfeRemoteUri = val
 }
 
 // SetRemoteRegion sets the value of RemoteRegion.
@@ -19818,6 +19842,10 @@ type VolumeReplicationInternalV1beta struct {
 	EndpointType        VolumeReplicationInternalV1betaEndpointType           `json:"endpointType"`
 	ReplicationPolicy   OptVolumeReplicationInternalV1betaReplicationPolicy   `json:"replicationPolicy"`
 	ReplicationSchedule OptVolumeReplicationInternalV1betaReplicationSchedule `json:"replicationSchedule"`
+	// The URI for the CCFE.
+	CcfeUri OptString `json:"ccfeUri"`
+	// The URI for the CCFE for the remote region.
+	CcfeRemoteUri OptString `json:"ccfeRemoteUri"`
 	// The remote region for the other end of the volume replication.
 	RemoteRegion string `json:"remoteRegion"`
 	// The source endpoint host for the volume replication.
@@ -19920,6 +19948,16 @@ func (s *VolumeReplicationInternalV1beta) GetReplicationPolicy() OptVolumeReplic
 // GetReplicationSchedule returns the value of ReplicationSchedule.
 func (s *VolumeReplicationInternalV1beta) GetReplicationSchedule() OptVolumeReplicationInternalV1betaReplicationSchedule {
 	return s.ReplicationSchedule
+}
+
+// GetCcfeUri returns the value of CcfeUri.
+func (s *VolumeReplicationInternalV1beta) GetCcfeUri() OptString {
+	return s.CcfeUri
+}
+
+// GetCcfeRemoteUri returns the value of CcfeRemoteUri.
+func (s *VolumeReplicationInternalV1beta) GetCcfeRemoteUri() OptString {
+	return s.CcfeRemoteUri
 }
 
 // GetRemoteRegion returns the value of RemoteRegion.
@@ -20105,6 +20143,16 @@ func (s *VolumeReplicationInternalV1beta) SetReplicationPolicy(val OptVolumeRepl
 // SetReplicationSchedule sets the value of ReplicationSchedule.
 func (s *VolumeReplicationInternalV1beta) SetReplicationSchedule(val OptVolumeReplicationInternalV1betaReplicationSchedule) {
 	s.ReplicationSchedule = val
+}
+
+// SetCcfeUri sets the value of CcfeUri.
+func (s *VolumeReplicationInternalV1beta) SetCcfeUri(val OptString) {
+	s.CcfeUri = val
+}
+
+// SetCcfeRemoteUri sets the value of CcfeRemoteUri.
+func (s *VolumeReplicationInternalV1beta) SetCcfeRemoteUri(val OptString) {
+	s.CcfeRemoteUri = val
 }
 
 // SetRemoteRegion sets the value of RemoteRegion.

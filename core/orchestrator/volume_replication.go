@@ -15,7 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
@@ -42,7 +42,8 @@ var (
 	deleteReplication        = _deleteReplication
 	releaseVolumeReplication = _releaseVolumeReplication
 	syncReplication          = _syncReplication
-	updateReplication                 = _updateReplication
+	updateReplication        = _updateReplication
+	getActiveReplicationJobs = _getActiveReplicationJobs
 
 	validateCreateReplicationParams = replication.ValidateCreateReplicationParams
 	validateReplicationParams       = replication.ValidateReplicationParams
@@ -50,7 +51,7 @@ var (
 	verifyDstReplicationStop        = replication.VerifyDstReplicationStop
 	VerifyDstReplicationDelete      = replication.VerifyDstReplication
 	verifyDstReplicationSync        = replication.VerifyDstReplicationSync
-	validateReplicationUpdate                  = replication.ValidateReplicationUpdate
+	validateReplicationUpdate       = replication.ValidateReplicationUpdate
 
 	convertCreateReplicationParamsToEventParam = _convertCreateReplicationParamsToEventParam
 	getReplicationObjects                      = _getReplicationObjects
@@ -62,6 +63,17 @@ var (
 	utilsGetPairedRegionUri           = utils.GetPairedRegionURI
 	utilsParseProjectNumberFromURI    = utils.ParseProjectNumberFromURI
 	authGetSignedJwtToken             = auth.GetSignedJwtToken
+)
+
+const (
+	volumeReplicationCVPV1betaLifeCycleStateAvailableForUse = "Available for use"
+	volumeReplicationCVP1betaLifeCycleStateCreation         = "Create in progress"
+	volumeReplicationCVP1betaLifeCycleStateStopping         = "Stop in progress"
+	volumeReplicationCVP1betaLifeCycleStateResuming         = "Resume in progress"
+	volumeReplicationCVP1betaLifeCycleStateSync             = "Sync in progress"
+	volumeReplicationCVP1betaLifeCycleStateReversing        = "Reverse in progress"
+	volumeReplicationCVP1betaLifeCycleStateUpdating         = "Update in progress"
+	volumeReplicationCVP1betaLifeCycleStateDeleting         = "Delete in progress"
 )
 
 func (o *Orchestrator) CreateVolumeReplicationInternal(ctx context.Context, params *commonparams.CreateVolumeReplicationInternalParams) (*models.VolumeReplication, *datamodel.Job, error) {
@@ -576,30 +588,46 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 	}
 	regionReplicationMap := make(map[string][]*datamodel.VolumeReplication)
 	emptyUUID := uuid.UUID{}
+
+	// Add destination regions with their replications and source regions for job fetching
 	for _, replication := range replications {
+		// Add destination region with replication
 		if replication.ReplicationAttributes.DestinationReplicationUUID != emptyUUID.String() && !nillable.IsNilOrEmpty(&replication.ReplicationAttributes.DestinationLocation) {
-			// Add the replication to the response
 			destRegion, _, err := utilParseRegionAndZone(replication.ReplicationAttributes.DestinationLocation)
 			if err != nil {
 				logger.Error("Failed to parse destination region", "error", err)
 				return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingError, err)
 			}
 			regionReplicationMap[destRegion] = append(regionReplicationMap[destRegion], replication)
-		} else if replication.ReplicationAttributes.SourceReplicationUUID != emptyUUID.String() && !nillable.IsNilOrEmpty(&replication.ReplicationAttributes.SourceLocation) {
-			// Add the replication to the response
+		}
+
+		// Add source region to map (without replications) so we can get active jobs from both regions
+		if replication.ReplicationAttributes.SourceReplicationUUID != emptyUUID.String() && !nillable.IsNilOrEmpty(&replication.ReplicationAttributes.SourceLocation) {
 			srcRegion, _, err := utilParseRegionAndZone(replication.ReplicationAttributes.SourceLocation)
 			if err != nil {
 				logger.Error("Failed to parse source region", "error", err)
 				return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingError, err)
 			}
-			regionReplicationMap[srcRegion] = append(regionReplicationMap[srcRegion], replication)
-		} else {
-			logger.Warn("Replication does not have a valid source or destination region", "replication", replication.UUID)
+
+			// Add source region to map if not already present
+			if _, exists := regionReplicationMap[srcRegion]; !exists {
+				regionReplicationMap[srcRegion] = []*datamodel.VolumeReplication{}
+			}
+
+			// If destination location is empty, add the replication to the source region
+			if nillable.IsNilOrEmpty(&replication.ReplicationAttributes.DestinationLocation) {
+				regionReplicationMap[srcRegion] = append(regionReplicationMap[srcRegion], replication)
+			}
 		}
 	}
 
+	// Add current region to map if it is missing
+	if _, ok := regionReplicationMap[currentRegion]; !ok {
+		regionReplicationMap[currentRegion] = []*datamodel.VolumeReplication{}
+	}
+
 	// Fetch the replications from the respective regions via internal API calls
-	list, err := getReplicationObjects(ctx, regionReplicationMap, logger, params)
+	list, jobsList, err := getReplicationObjects(ctx, regionReplicationMap, logger, params)
 	if err != nil {
 		logger.Error("Failed to get replication objects", "error", err)
 		return nil, err
@@ -607,27 +635,45 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 
 	// Convert the internal replications to the response format
 	for _, repl := range list {
-		resp = append(resp, convertInternalReplicationToCCFEModel(*repl, currentRegion))
+		resp = append(resp, convertInternalReplicationToCCFEModel(*repl, currentRegion, &jobsList))
 	}
 
 	return resp, nil
 }
 
-func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger logger.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, error) {
+func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger logger.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 	type ReplicationsForProject struct {
 		replicationUUIDs []string
 		token            string
 	}
 	replicationList := make([]*googleproxyclient.VolumeReplicationInternalV1beta, 0)
+	jobsList := make([]googleproxyclient.InternalJobV1beta, 0)
 
 	for region, replicationsInRegion := range regionReplicationMap {
 		basePath, err := utilsGetPairedRegionUri(region)
 		if err != nil {
 			logger.Error("Failed to get paired region URI", "region", region, "error", err)
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingError, err)
+			return nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingError, err)
 		}
 
 		emptyUUID := uuid.UUID{}
+
+		if len(replicationsInRegion) == 0 {
+			// No replications found in this region, get all the jobs for the region
+			token, err := authGetSignedJwtToken(params.AccountName)
+			if err != nil {
+				logger.Error("Failed to get signed JWT token", "error", err)
+				return nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGenerateAccessToken, err)
+			}
+
+			jobs, err := getActiveReplicationJobs(ctx, basePath, token, region, params.AccountName, &params.XCorrelationID)
+			if err != nil {
+				logger.Error("Failed to get active replication jobs", "error", err, "region", region)
+				return nil, nil, err
+			}
+			jobsList = append(jobsList, jobs...)
+			continue
+		}
 
 		// Build a map with a list of replication UUIDs for each project
 		// Because the replications could use different projects we need to get the token for each project
@@ -635,7 +681,7 @@ func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string
 		for _, replication := range replicationsInRegion {
 			projectNumber, err := GetProjectNumberForRegion(replication, region)
 			if err != nil {
-				return nil, vsaerrors.NewVCPError(vsaerrors.ErrProjectParsingError, err)
+				return nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrProjectParsingError, err)
 			}
 			var replicationUUID string
 			if replication.ReplicationAttributes.DestinationReplicationUUID != emptyUUID.String() {
@@ -648,7 +694,7 @@ func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string
 			if !ok {
 				token, err := authGetSignedJwtToken(projectNumber)
 				if err != nil {
-					return nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGenerateAccessToken, err)
+					return nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGenerateAccessToken, err)
 				}
 				replicationsForProjects[projectNumber] = ReplicationsForProject{token: token, replicationUUIDs: []string{replicationUUID}}
 			} else {
@@ -665,7 +711,7 @@ func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string
 			list, err := googleProxyInternalGetMultipleReplications(ctx, basePath, projectNumber, region, replicationsForProject.token, internalGetReplicationBody, logger, params)
 			if err != nil {
 				logger.Error("Failed to get multiple replications from Google Proxy", "error", err, "projectNumber", projectNumber, "region", region)
-				return nil, err
+				return nil, nil, err
 			}
 			if len(list) == 0 {
 				logger.Warn("No replications found for project", "projectNumber", projectNumber, "region", region)
@@ -677,8 +723,62 @@ func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string
 				replicationList = append(replicationList, &replication)
 			}
 		}
+
+		// Get active replication jobs
+		for projectNumber, replicationsForProject := range replicationsForProjects {
+			// Get all replication jobs for the project
+			jobs, err := getActiveReplicationJobs(ctx, basePath, replicationsForProject.token, region, projectNumber, &params.XCorrelationID)
+			if err != nil {
+				logger.Error("Failed to get active replication jobs", "error", err, "projectNumber", projectNumber, "region", region)
+				return nil, nil, err
+			}
+			jobsList = append(jobsList, jobs...)
+		}
 	}
-	return replicationList, nil
+	return replicationList, jobsList, nil
+}
+
+func _getActiveReplicationJobs(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string) ([]googleproxyclient.InternalJobV1beta, error) {
+	logger := util.GetLogger(ctx)
+
+	logger.Debug(
+		"cvp geActiveReplicationJobs",
+		commonparams.String("destBasePath", basePath),
+		commonparams.String("projectNumber", projectNumber),
+		commonparams.String("locationID", locationID),
+	)
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(basePath, token, logger)
+	params := googleproxyclient.V1betaInternalGetReplicationJobsParams{}
+	params.ProjectNumber = projectNumber
+	params.LocationId = locationID
+	if xCorrelationID != nil {
+		params.XCorrelationID = googleproxyclient.OptString{Value: *xCorrelationID, Set: true}
+	} else {
+		params.XCorrelationID = googleproxyclient.OptString{Value: "", Set: false}
+	}
+
+	getReplicationJobsResponse, err := googleProxyClient.Invoker.V1betaInternalGetReplicationJobs(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	switch r := getReplicationJobsResponse.(type) {
+	case *googleproxyclient.V1betaInternalGetReplicationJobsOK:
+		return r.Jobs, nil
+	case *googleproxyclient.V1betaInternalGetReplicationJobsBadRequest:
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsBadRequest, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalGetReplicationJobsInternalServerError:
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsInternalServerError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalGetReplicationJobsUnauthorized:
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsUnauthorized, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalGetReplicationJobsForbidden:
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsForbidden, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalGetReplicationJobsNotFound:
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsNotFound, errors.New(r.Message))
+	default:
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsUnknown, errors.New("unknown response type"))
+	}
 }
 
 func _googleProxyInternalGetMultipleReplications(ctx context.Context, basePath, projectNumber, location, token string, body googleproxyclient.ReplicationIDListV1beta, logger logger.Logger, paramz commonparams.GetMultipleReplicationsParams) ([]googleproxyclient.VolumeReplicationInternalV1beta, error) {
@@ -780,7 +880,7 @@ func _releaseVolumeReplication(ctx context.Context, se database.Storage, tempora
 	return convertDataStoreReplicationToModel(dbVolumeReplication), createdJob, nil
 }
 
-func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicationInternalV1beta, currentLocation string) gcpgenserver.ReplicationV1beta {
+func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicationInternalV1beta, currentLocation string, jobsList *[]googleproxyclient.InternalJobV1beta) gcpgenserver.ReplicationV1beta {
 	sourceReplication := gcpgenserver.ReplicationVolumeInformationV1beta{
 		VolumeName: gcpgenserver.NewOptString(in.SourceVolumeName),
 		VolumeId:   gcpgenserver.NewOptString(in.SourceVolumeUuid.Value),
@@ -831,7 +931,63 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 		out.Role = gcpgenserver.NewOptReplicationV1betaRole(gcpgenserver.ReplicationV1betaRoleSOURCE)
 	}
 
+	// Check active jobs and override state and mirror state if needed
+	replicationJobType, hasJob := replicationHasJob(in, jobsList)
+	if hasJob {
+		switch replicationJobType {
+		case string(models.JobTypeDeleteVolumeReplication):
+			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateDELETING)
+			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateDeleting)
+			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
+
+		case string(models.JobTypeCreateVolumeReplication):
+			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePREPARING)
+			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateCREATING)
+			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateCreation)
+			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
+
+		case string(models.JobTypeStopVolumeReplication):
+			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateUPDATING)
+			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateStopping)
+			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
+
+		case string(models.JobTypeReverseResumeVolumeReplication):
+			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePREPARING)
+			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateUPDATING)
+			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateReversing)
+			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
+
+		case string(models.JobTypeResumeVolumeReplication):
+			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePREPARING)
+			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateUPDATING)
+			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateResuming)
+			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
+
+		case string(models.JobTypeUpdateVolumeReplication):
+			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateUPDATING)
+			out.StateDetails = gcpgenserver.NewOptString(volumeReplicationCVP1betaLifeCycleStateUpdating)
+			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
+
+		default:
+			out.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStatePREPARING)
+			out.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateUPDATING)
+			out.StateDetailsCode = gcpgenserver.NewOptInt32(0)
+		}
+	}
+
 	return out
+}
+
+func replicationHasJob(in googleproxyclient.VolumeReplicationInternalV1beta, jobsList *[]googleproxyclient.InternalJobV1beta) (string, bool) {
+	if jobsList == nil {
+		return "", false
+	}
+	for _, job := range *jobsList {
+		if in.CcfeUri.Value == job.ResourceName.Value || in.CcfeRemoteUri.Value == job.ResourceName.Value {
+			return job.JobType.Value, true
+		}
+	}
+	return "", false
 }
 
 func mapInternalReplicationStateToCCFEState(state googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState) gcpgenserver.ReplicationV1betaState {

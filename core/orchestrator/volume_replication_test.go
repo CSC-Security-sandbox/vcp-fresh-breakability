@@ -15,7 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
@@ -843,8 +843,8 @@ func TestGetMultipleReplications(t *testing.T) {
 			return "us-e4", "", nil
 		}
 
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, error) {
-			return nil, errors.New("failed to get replication objects")
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+			return nil, []googleproxyclient.InternalJobV1beta{}, errors.New("failed to get replication objects")
 		}
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -895,7 +895,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			return "us-e4", "", nil
 		}
 
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
 			return []*googleproxyclient.VolumeReplicationInternalV1beta{
 				{
 					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
@@ -933,7 +933,7 @@ func TestGetMultipleReplications(t *testing.T) {
 					Jobs:                  nil,
 					Description:           googleproxyclient.NewOptString("Test replication"),
 				},
-			}, nil
+			}, []googleproxyclient.InternalJobV1beta{}, nil
 		}
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -963,6 +963,531 @@ func TestGetMultipleReplications(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 1)
 		assert.Equal(tt, "replication-1", res[0].ResourceId.Value)
+	})
+	t.Run("WhenSourceRegionIsAlsoDestinationRegion", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			utilParseRegionAndZone = utils.ParseRegionAndZone
+			getReplicationObjects = _getReplicationObjects
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-east1", "", nil
+		}
+
+		utilParseRegionAndZone = func(locationID string) (string, string, error) {
+			return locationID, "", nil
+		}
+
+		// Mock getReplicationObjects to capture the regionReplicationMap
+		var capturedRegionMap map[string][]*datamodel.VolumeReplication
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+			capturedRegionMap = regionReplicationMap
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+		}
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName: "test-account",
+			LocationId:  "us-east1",
+		}
+
+		// Create two replications where source region of one is destination region of another
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "uuid-1",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-east1",
+					SourceReplicationUUID:      "source-uuid-1",
+					DestinationLocation:        "us-west1",
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        2,
+					UUID:      "uuid-2",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-2",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-west1", // This is the destination of replication-1
+					SourceReplicationUUID:      "source-uuid-2",
+					DestinationLocation:        "us-central1",
+					DestinationReplicationUUID: "dest-uuid-2",
+				},
+			},
+		}
+
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+
+		_, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+
+		// Verify that all three regions are in the map
+		assert.Contains(tt, capturedRegionMap, "us-east1")
+		assert.Contains(tt, capturedRegionMap, "us-west1")
+		assert.Contains(tt, capturedRegionMap, "us-central1")
+
+		// Verify that us-west1 has replication-1 (as destination) and not replication-2 (as source)
+		assert.Len(tt, capturedRegionMap["us-west1"], 1)
+		assert.Equal(tt, "replication-1", capturedRegionMap["us-west1"][0].Name)
+
+		// Verify that us-central1 has replication-2 (as destination)
+		assert.Len(tt, capturedRegionMap["us-central1"], 1)
+		assert.Equal(tt, "replication-2", capturedRegionMap["us-central1"][0].Name)
+
+		// Verify that us-east1 has no replications (only added for jobs)
+		assert.Len(tt, capturedRegionMap["us-east1"], 0)
+	})
+	t.Run("WhenDestinationLocationIsEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			utilParseRegionAndZone = utils.ParseRegionAndZone
+			getReplicationObjects = _getReplicationObjects
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-east1", "", nil
+		}
+
+		utilParseRegionAndZone = func(locationID string) (string, string, error) {
+			return locationID, "", nil
+		}
+
+		// Mock getReplicationObjects to capture the regionReplicationMap
+		var capturedRegionMap map[string][]*datamodel.VolumeReplication
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+			capturedRegionMap = regionReplicationMap
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+		}
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName: "test-account",
+			LocationId:  "us-east1",
+		}
+
+		// Create a replication with empty destination location
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "uuid-1",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-west1",
+					SourceReplicationUUID:      "source-uuid-1",
+					DestinationLocation:        "", // Empty destination location
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+		}
+
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+
+		_, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+
+		// Verify that us-west1 is in the map and contains the replication
+		assert.Contains(tt, capturedRegionMap, "us-west1")
+		assert.Len(tt, capturedRegionMap["us-west1"], 1)
+		assert.Equal(tt, "replication-1", capturedRegionMap["us-west1"][0].Name)
+
+		// Verify that us-east1 is also in the map (current region)
+		assert.Contains(tt, capturedRegionMap, "us-east1")
+		assert.Len(tt, capturedRegionMap["us-east1"], 0)
+	})
+	t.Run("WhenSourceRegionExistsAndDestinationLocationIsEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			utilParseRegionAndZone = utils.ParseRegionAndZone
+			getReplicationObjects = _getReplicationObjects
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-east1", "", nil
+		}
+
+		utilParseRegionAndZone = func(locationID string) (string, string, error) {
+			return locationID, "", nil
+		}
+
+		// Mock getReplicationObjects to capture the regionReplicationMap
+		var capturedRegionMap map[string][]*datamodel.VolumeReplication
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+			capturedRegionMap = regionReplicationMap
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+		}
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName: "test-account",
+			LocationId:  "us-east1",
+		}
+
+		// Create two replications:
+		// 1. us-west1 -> us-central1 (normal case)
+		// 2. us-central1 -> "" (empty destination, should add to us-central1)
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "uuid-1",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-west1",
+					SourceReplicationUUID:      "source-uuid-1",
+					DestinationLocation:        "us-central1",
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        2,
+					UUID:      "uuid-2",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-2",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-central1", // This region already exists from replication-1
+					SourceReplicationUUID:      "source-uuid-2",
+					DestinationLocation:        "", // Empty destination location
+					DestinationReplicationUUID: "dest-uuid-2",
+				},
+			},
+		}
+
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+
+		_, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+
+		// Verify that us-central1 has both replications
+		assert.Contains(tt, capturedRegionMap, "us-central1")
+		assert.Len(tt, capturedRegionMap["us-central1"], 2)
+
+		// Check that both replications are present
+		replicationNames := []string{
+			capturedRegionMap["us-central1"][0].Name,
+			capturedRegionMap["us-central1"][1].Name,
+		}
+		assert.Contains(tt, replicationNames, "replication-1")
+		assert.Contains(tt, replicationNames, "replication-2")
+
+		// Verify that us-west1 is in the map (source region)
+		assert.Contains(tt, capturedRegionMap, "us-west1")
+		assert.Len(tt, capturedRegionMap["us-west1"], 0)
+
+		// Verify that us-east1 is also in the map (current region)
+		assert.Contains(tt, capturedRegionMap, "us-east1")
+		assert.Len(tt, capturedRegionMap["us-east1"], 0)
+	})
+	t.Run("DestRegionNotEmpty_CurrentRegionIsDest", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			utilParseRegionAndZone = utils.ParseRegionAndZone
+			getReplicationObjects = _getReplicationObjects
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-west1", "", nil // Current region is destination
+		}
+
+		utilParseRegionAndZone = func(locationID string) (string, string, error) {
+			return locationID, "", nil
+		}
+
+		// Mock getReplicationObjects to capture the regionReplicationMap
+		var capturedRegionMap map[string][]*datamodel.VolumeReplication
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+			capturedRegionMap = regionReplicationMap
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+		}
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName: "test-account",
+			LocationId:  "us-west1", // Current region is destination
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "uuid-1",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-east1",
+					SourceReplicationUUID:      "source-uuid-1",
+					DestinationLocation:        "us-west1", // Destination is current region
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+		}
+
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+
+		_, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+
+		// Verify that us-west1 (destination/current region) has the replication
+		assert.Contains(tt, capturedRegionMap, "us-west1")
+		assert.Len(tt, capturedRegionMap["us-west1"], 1)
+		assert.Equal(tt, "replication-1", capturedRegionMap["us-west1"][0].Name)
+
+		// Verify that us-east1 (source region) is in the map for jobs
+		assert.Contains(tt, capturedRegionMap, "us-east1")
+		assert.Len(tt, capturedRegionMap["us-east1"], 0)
+	})
+	t.Run("DestRegionNotEmpty_CurrentRegionIsSource", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			utilParseRegionAndZone = utils.ParseRegionAndZone
+			getReplicationObjects = _getReplicationObjects
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-east1", "", nil // Current region is source
+		}
+
+		utilParseRegionAndZone = func(locationID string) (string, string, error) {
+			return locationID, "", nil
+		}
+
+		// Mock getReplicationObjects to capture the regionReplicationMap
+		var capturedRegionMap map[string][]*datamodel.VolumeReplication
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+			capturedRegionMap = regionReplicationMap
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+		}
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName: "test-account",
+			LocationId:  "us-east1", // Current region is source
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "uuid-1",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-east1", // Source is current region
+					SourceReplicationUUID:      "source-uuid-1",
+					DestinationLocation:        "us-west1",
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+		}
+
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+
+		_, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+
+		// Verify that us-west1 (destination region) has the replication
+		assert.Contains(tt, capturedRegionMap, "us-west1")
+		assert.Len(tt, capturedRegionMap["us-west1"], 1)
+		assert.Equal(tt, "replication-1", capturedRegionMap["us-west1"][0].Name)
+
+		// Verify that us-east1 (source/current region) is in the map for jobs
+		assert.Contains(tt, capturedRegionMap, "us-east1")
+		assert.Len(tt, capturedRegionMap["us-east1"], 0)
+	})
+	t.Run("DestRegionEmpty_SourceRegionNotEmpty_CurrentRegionIsSource", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			utilParseRegionAndZone = utils.ParseRegionAndZone
+			getReplicationObjects = _getReplicationObjects
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-east1", "", nil // Current region is source
+		}
+
+		utilParseRegionAndZone = func(locationID string) (string, string, error) {
+			return locationID, "", nil
+		}
+
+		// Mock getReplicationObjects to capture the regionReplicationMap
+		var capturedRegionMap map[string][]*datamodel.VolumeReplication
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+			capturedRegionMap = regionReplicationMap
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+		}
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName: "test-account",
+			LocationId:  "us-east1", // Current region is source
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "uuid-1",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "us-east1", // Source is current region
+					SourceReplicationUUID:      "source-uuid-1",
+					DestinationLocation:        "", // Empty destination
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+		}
+
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+
+		_, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+
+		// Verify that us-east1 (source/current region) has the replication (because dest is empty)
+		assert.Contains(tt, capturedRegionMap, "us-east1")
+		assert.Len(tt, capturedRegionMap["us-east1"], 1)
+		assert.Equal(tt, "replication-1", capturedRegionMap["us-east1"][0].Name)
+	})
+	t.Run("DestRegionNotEmpty_SourceRegionEmpty_CurrentRegionIsDest", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		defer func() {
+			getAccountWithName = _getAccountWithName
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			utilParseRegionAndZone = utils.ParseRegionAndZone
+			getReplicationObjects = _getReplicationObjects
+		}()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{Name: "test-account"}, nil
+		}
+
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-west1", "", nil // Current region is destination
+		}
+
+		utilParseRegionAndZone = func(locationID string) (string, string, error) {
+			return locationID, "", nil
+		}
+
+		// Mock getReplicationObjects to capture the regionReplicationMap
+		var capturedRegionMap map[string][]*datamodel.VolumeReplication
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+			capturedRegionMap = regionReplicationMap
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+		}
+
+		params := commonparams.GetMultipleReplicationsParams{
+			AccountName: "test-account",
+			LocationId:  "us-west1", // Current region is destination
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "uuid-1",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					SourceLocation:             "", // Empty source
+					SourceReplicationUUID:      "source-uuid-1",
+					DestinationLocation:        "us-west1", // Destination is current region
+					DestinationReplicationUUID: "dest-uuid-1",
+				},
+			},
+		}
+
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
+
+		_, err := _getMultipleReplications(ctx, mockStorage, params)
+		assert.Nil(tt, err)
+
+		// Verify that us-west1 (destination/current region) has the replication
+		assert.Contains(tt, capturedRegionMap, "us-west1")
+		assert.Len(tt, capturedRegionMap["us-west1"], 1)
+		assert.Equal(tt, "replication-1", capturedRegionMap["us-west1"][0].Name)
+
+		// No source region should be added since source location is empty
+		// Only current region and destination region should be in the map
+		assert.Len(tt, capturedRegionMap, 1) // Only us-west1
 	})
 }
 
@@ -1000,7 +1525,7 @@ func TestGetReplicationObjects(t *testing.T) {
 
 		expectedError := errors2.NewVCPError(errors2.ErrRegionZoneParsingError, errors.New("failed to get paired region URI"))
 
-		_, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
 		assert.NotNil(tt, err)
 		assert.EqualError(tt, err, expectedError.Error())
 	})
@@ -1044,7 +1569,7 @@ func TestGetReplicationObjects(t *testing.T) {
 
 		expectedError := errors2.NewVCPError(errors2.ErrProjectParsingError, errors.New("failed to get project number for region"))
 
-		_, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
 		assert.NotNil(tt, err)
 		assert.EqualError(tt, err, expectedError.Error())
 	})
@@ -1093,7 +1618,48 @@ func TestGetReplicationObjects(t *testing.T) {
 
 		expectedError := errors2.NewVCPError(errors2.ErrFailedToGenerateAccessToken, errors.New("failed to get signed JWT token"))
 
-		_, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		assert.NotNil(tt, err)
+		assert.EqualError(tt, err, expectedError.Error())
+	})
+	t.Run("WhenGetActiveReplicationJobsReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		defer func() {
+			utilsGetPairedRegionUri = utils.GetPairedRegionURI
+			GetProjectNumberForRegion = _getProjectNumberForRegion
+			authGetSignedJwtToken = auth.GetSignedJwtToken
+			googleProxyInternalGetMultipleReplications = _googleProxyInternalGetMultipleReplications
+			getActiveReplicationJobs = _getActiveReplicationJobs
+		}()
+
+		utilsGetPairedRegionUri = func(locationId string) (string, error) {
+			return "paired.region.uri", nil
+		}
+
+		GetProjectNumberForRegion = func(replication *datamodel.VolumeReplication, region string) (string, error) {
+			return "45110233509", nil
+		}
+
+		authGetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "signed-jwt-token", nil
+		}
+
+		googleProxyInternalGetMultipleReplications = func(ctx context.Context, basePath, projectNumber, location, token string, body googleproxyclient.ReplicationIDListV1beta, logger log.Logger, paramz commonparams.GetMultipleReplicationsParams) ([]googleproxyclient.VolumeReplicationInternalV1beta, error) {
+			t.Errorf("googleProxyInternalGetMultipleReplications should not be called in this test")
+			return nil, errors.New("failed to get multiple replications")
+		}
+
+		getActiveReplicationJobs = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string) ([]googleproxyclient.InternalJobV1beta, error) {
+			return nil, errors.New("failed to get active replication jobs")
+		}
+
+		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
+		replicationsMap["us-e4"] = []*datamodel.VolumeReplication{}
+
+		expectedError := errors.New("failed to get active replication jobs")
+		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
 		assert.NotNil(tt, err)
 		assert.EqualError(tt, err, expectedError.Error())
 	})
@@ -1146,11 +1712,11 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap["us-e4"] = replications
 
 		expectedError := errors.New("failed to get multiple replications")
-		_, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
 		assert.NotNil(tt, err)
 		assert.EqualError(tt, err, expectedError.Error())
 	})
-	t.Run("WhenHappyPath", func(tt *testing.T) {
+	t.Run("WhenHappyPathWithTwoRegions", func(tt *testing.T) {
 		ctx := context.Background()
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
@@ -1158,8 +1724,10 @@ func TestGetReplicationObjects(t *testing.T) {
 			utilsGetPairedRegionUri = utils.GetPairedRegionURI
 			authGetSignedJwtToken = auth.GetSignedJwtToken
 			googleProxyInternalGetMultipleReplications = _googleProxyInternalGetMultipleReplications
+			getActiveReplicationJobs = _getActiveReplicationJobs
 		}()
 
+		counter := 0
 		replications := []*datamodel.VolumeReplication{
 			{
 				BaseModel: datamodel.BaseModel{
@@ -1227,13 +1795,119 @@ func TestGetReplicationObjects(t *testing.T) {
 			}, nil
 		}
 
+		getActiveReplicationJobs = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string) ([]googleproxyclient.InternalJobV1beta, error) {
+			counter++
+			return nil, nil
+		}
+
 		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
 		replicationsMap["us-e4"] = replications
+		replicationsMap["au-se1"] = []*datamodel.VolumeReplication{}
 
-		res, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 1)
 		assert.Equal(tt, "replication-1", res[0].Name.Value)
+		assert.Equal(tt, 2, counter)
+	})
+	t.Run("WhenHappyPath", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		defer func() {
+			utilsGetPairedRegionUri = utils.GetPairedRegionURI
+			authGetSignedJwtToken = auth.GetSignedJwtToken
+			googleProxyInternalGetMultipleReplications = _googleProxyInternalGetMultipleReplications
+			getActiveReplicationJobs = _getActiveReplicationJobs
+		}()
+
+		counter := 0
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{
+					ID:        1,
+					UUID:      "uuid-1",
+					CreatedAt: time.Time{},
+					UpdatedAt: time.Time{},
+				},
+				Name: "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-e4",
+					DestinationReplicationUUID: "replication-uuid-1",
+				},
+				Uri:       "projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-6",
+				RemoteUri: "projects/45110233509/locations/australia-southeast1/volumes/gosrcvolume1/replications/replication-name-6",
+			},
+		}
+
+		utilsGetPairedRegionUri = func(locationId string) (string, error) {
+			return "paired.region.uri", nil
+		}
+
+		authGetSignedJwtToken = func(projectNumber string) (string, error) {
+			return "signed-jwt-token", nil
+		}
+
+		googleProxyInternalGetMultipleReplications = func(ctx context.Context, basePath, projectNumber, location, token string, body googleproxyclient.ReplicationIDListV1beta, logger log.Logger, paramz commonparams.GetMultipleReplicationsParams) ([]googleproxyclient.VolumeReplicationInternalV1beta, error) {
+			return []googleproxyclient.VolumeReplicationInternalV1beta{
+				{
+					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
+					LifeCycleStateDetails: googleproxyclient.NewOptString(models.LifeCycleStateAvailableDetails),
+					EndpointType:          models.DstEndpoint,
+					ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
+					RemoteRegion:          "us-e4",
+					SourceHostName:        "source-host",
+					SourceServerName:      "source-svm",
+					SourceVolumeName:      "source-volume",
+					SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
+					SourcePoolUuid:        googleproxyclient.NewOptString("source-pool-uuid"),
+					DestinationHostName:   "destination-host",
+					DestinationServerName: "destination-svm",
+					DestinationVolumeName: "destination-volume",
+					DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+					DestinationPoolUuid:   googleproxyclient.NewOptString("destination-pool-uuid"),
+					Name:                  googleproxyclient.NewOptString("replication-1"),
+					MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+					ReplicationType:       googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationType(googleproxyclient.VolumeReplicationInternalV1betaReplicationTypeCROSSREGIONREPLICATION),
+					RelationshipStatus:    googleproxyclient.NewOptVolumeReplicationInternalV1betaRelationshipStatus(googleproxyclient.VolumeReplicationInternalV1betaRelationshipStatusIdle),
+					TotalProgress:         googleproxyclient.NewOptInt64(100),
+					Healthy:               googleproxyclient.NewOptBool(true),
+					TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024), // 1 GB
+					TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),               // 1 hour
+					LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),  // 100 MB
+					LastTransferError:     googleproxyclient.NewOptString("No error"),
+					LastTransferDuration:  googleproxyclient.NewOptInt64(300), // 5 minutes
+					LastTransferEndTime:   googleproxyclient.NewOptDateTime(time.Now()),
+					ProgressLastUpdated:   googleproxyclient.NewOptDateTime(time.Now()),
+					LagTime:               googleproxyclient.NewOptInt64(60), // 1 minute
+					CreatedAt:             googleproxyclient.NewOptDateTime(time.Now()),
+					UpdatedAt:             googleproxyclient.NewOptDateTime(time.Now()),
+					Jobs:                  nil,
+					Description:           googleproxyclient.NewOptString("Test replication"),
+				},
+			}, nil
+		}
+
+		getActiveReplicationJobs = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string) ([]googleproxyclient.InternalJobV1beta, error) {
+			counter++
+			return []googleproxyclient.InternalJobV1beta{
+				{
+					JobUuid:      googleproxyclient.NewOptString("job-uuid-1"),
+					ResourceName: googleproxyclient.NewOptString("projects/45110233509/locations/us-east4/volumes/gosrcvolume1/replications/replication-name-6"),
+					JobType:      googleproxyclient.NewOptString(string(models.JobTypeCreateVolumeReplication)),
+				},
+			}, nil
+		}
+
+		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
+		replicationsMap["us-e4"] = replications
+
+		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		assert.Nil(tt, err)
+		assert.Len(tt, res, 1)
+		assert.Equal(tt, "replication-1", res[0].Name.Value)
+		assert.Equal(tt, 1, counter)
 	})
 	t.Run("WhenHappyPathWithEmptyResult", func(tt *testing.T) {
 		ctx := context.Background()
@@ -1243,8 +1917,10 @@ func TestGetReplicationObjects(t *testing.T) {
 			utilsGetPairedRegionUri = utils.GetPairedRegionURI
 			authGetSignedJwtToken = auth.GetSignedJwtToken
 			googleProxyInternalGetMultipleReplications = _googleProxyInternalGetMultipleReplications
+			getActiveReplicationJobs = _getActiveReplicationJobs
 		}()
 
+		counter := 0
 		replications := []*datamodel.VolumeReplication{
 			{
 				BaseModel: datamodel.BaseModel{
@@ -1275,12 +1951,18 @@ func TestGetReplicationObjects(t *testing.T) {
 			return []googleproxyclient.VolumeReplicationInternalV1beta{}, nil
 		}
 
+		getActiveReplicationJobs = func(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string) ([]googleproxyclient.InternalJobV1beta, error) {
+			counter++
+			return nil, nil
+		}
+
 		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
 		replicationsMap["us-e4"] = replications
 
-		res, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
+		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 0)
+		assert.Equal(tt, 1, counter)
 	})
 }
 
@@ -1564,28 +2246,21 @@ func TestGoogleProxyInternalGetMultipleReplications(t *testing.T) {
 }
 
 func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
-	t.Run("WhenHappyPath", func(tt *testing.T) {
+	baseTime := time.Now()
+
+	t.Run("BasicConversion", func(tt *testing.T) {
 		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
 			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
-			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
-			LifeCycleStateDetails: googleproxyclient.NewOptString(models.LifeCycleStateAvailableDetails),
-			EndpointType:          models.DstEndpoint,
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available for use"),
 			ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
 			RemoteRegion:          "us-e4",
-			SourceHostName:        "source-host",
-			SourceServerName:      "source-svm",
 			SourceVolumeName:      "source-volume",
 			SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
-			SourcePoolUuid:        googleproxyclient.NewOptString("source-pool-uuid"),
-			DestinationHostName:   "destination-host",
-			DestinationServerName: "destination-svm",
 			DestinationVolumeName: "destination-volume",
 			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
-			DestinationPoolUuid:   googleproxyclient.NewOptString("destination-pool-uuid"),
 			Name:                  googleproxyclient.NewOptString("replication-1"),
 			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
-			ReplicationType:       googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationType(googleproxyclient.VolumeReplicationInternalV1betaReplicationTypeCROSSREGIONREPLICATION),
-			RelationshipStatus:    googleproxyclient.NewOptVolumeReplicationInternalV1betaRelationshipStatus(googleproxyclient.VolumeReplicationInternalV1betaRelationshipStatusIdle),
 			TotalProgress:         googleproxyclient.NewOptInt64(100),
 			Healthy:               googleproxyclient.NewOptBool(true),
 			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024), // 1 GB
@@ -1593,21 +2268,523 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),  // 100 MB
 			LastTransferError:     googleproxyclient.NewOptString("No error"),
 			LastTransferDuration:  googleproxyclient.NewOptInt64(300), // 5 minutes
-			LastTransferEndTime:   googleproxyclient.NewOptDateTime(time.Now()),
-			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(time.Now()),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
 			LagTime:               googleproxyclient.NewOptInt64(60), // 1 minute
-			CreatedAt:             googleproxyclient.NewOptDateTime(time.Now()),
-			UpdatedAt:             googleproxyclient.NewOptDateTime(time.Now()),
-			Jobs:                  nil,
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
 			Description:           googleproxyclient.NewOptString("Test replication"),
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4")
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil)
+
 		assert.NotNil(tt, result)
+		assert.Equal(tt, "replication-uuid-1", result.ReplicationId.Value)
 		assert.Equal(tt, "replication-1", result.ResourceId.Value)
-		assert.Equal(tt, "destination-volume-uuid", result.Destination.Value.VolumeId.Value)
-		assert.Equal(tt, gcpserver.ReplicationV1betaMirrorStateMIRRORED, result.MirrorState.Value)
 		assert.Equal(tt, "Test replication", result.Description.Value)
+		assert.Equal(tt, "source-volume", result.Source.Value.VolumeName.Value)
+		assert.Equal(tt, "source-volume-uuid", result.Source.Value.VolumeId.Value)
+		assert.Equal(tt, "destination-volume", result.Destination.Value.VolumeName.Value)
+		assert.Equal(tt, "destination-volume-uuid", result.Destination.Value.VolumeId.Value)
+		assert.Equal(tt, gcpserver.ReplicationV1betaStateREADY, result.State.Value)
+		assert.Equal(tt, "Available for use", result.StateDetails.Value)
+		assert.Equal(tt, int32(0), result.StateDetailsCode.Value)
+		assert.Equal(tt, gcpserver.ReplicationV1betaReplicationScheduleHOURLY, result.ReplicationSchedule.Value)
+		assert.Equal(tt, gcpserver.ReplicationV1betaMirrorStateMIRRORED, result.MirrorState.Value)
+		assert.Equal(tt, true, result.Healthy.Value)
+		assert.Equal(tt, float64(1024*1024*1024), result.TransferStats.Value.TotalTransferBytes.Value)
+		assert.Equal(tt, float64(3600), result.TransferStats.Value.TotalTransferTimeSecs.Value)
+		assert.Equal(tt, float64(1024*1024*100), result.TransferStats.Value.LastTransferSize.Value)
+		assert.Equal(tt, "No error", result.TransferStats.Value.LastTransferError.Value)
+		assert.Equal(tt, float64(300), result.TransferStats.Value.LastTransferDuration.Value)
+		assert.Equal(tt, baseTime, result.TransferStats.Value.LastTransferEndTime.Value)
+		assert.Equal(tt, float64(100), result.TransferStats.Value.TotalProgress.Value)
+		assert.Equal(tt, baseTime, result.TransferStats.Value.ProgressLastUpdated.Value)
+		assert.Equal(tt, float64(60), result.TransferStats.Value.LagTime.Value)
+		assert.Equal(tt, baseTime, result.Created.Value)
+		assert.Equal(tt, gcpserver.ReplicationV1betaRoleDESTINATION, result.Role.Value)
+	})
+
+	t.Run("SourceRole", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available for use"),
+			RemoteRegion:          "us-e4",
+			SourceVolumeName:      "source-volume",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
+			DestinationVolumeName: "destination-volume",
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-w1", nil)
+
+		assert.Equal(tt, gcpserver.ReplicationV1betaRoleSOURCE, result.Role.Value)
+	})
+
+	t.Run("DeleteJobOverride", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available for use"),
+			RemoteRegion:          "us-e4",
+			SourceVolumeName:      "source-volume",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
+			DestinationVolumeName: "destination-volume",
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("replication-1"),
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeDeleteVolumeReplication)),
+				ResourceName: googleproxyclient.NewOptString("replication-1"),
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList)
+
+		assert.Equal(tt, gcpserver.ReplicationV1betaStateDELETING, result.State.Value)
+		assert.Equal(tt, volumeReplicationCVP1betaLifeCycleStateDeleting, result.StateDetails.Value)
+		assert.Equal(tt, int32(0), result.StateDetailsCode.Value)
+	})
+
+	t.Run("CreateJobOverride", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available for use"),
+			RemoteRegion:          "us-e4",
+			SourceVolumeName:      "source-volume",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
+			DestinationVolumeName: "destination-volume",
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("replication-1"),
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeCreateVolumeReplication)),
+				ResourceName: googleproxyclient.NewOptString("replication-1"),
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList)
+
+		assert.Equal(tt, gcpserver.ReplicationV1betaStateCREATING, result.State.Value)
+		assert.Equal(tt, volumeReplicationCVP1betaLifeCycleStateCreation, result.StateDetails.Value)
+		assert.Equal(tt, gcpserver.ReplicationV1betaMirrorStatePREPARING, result.MirrorState.Value)
+		assert.Equal(tt, int32(0), result.StateDetailsCode.Value)
+	})
+
+	t.Run("StopJobOverride", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available for use"),
+			RemoteRegion:          "us-e4",
+			SourceVolumeName:      "source-volume",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
+			DestinationVolumeName: "destination-volume",
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("replication-1"),
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeStopVolumeReplication)),
+				ResourceName: googleproxyclient.NewOptString("replication-1"),
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList)
+
+		assert.Equal(tt, gcpserver.ReplicationV1betaStateUPDATING, result.State.Value)
+		assert.Equal(tt, volumeReplicationCVP1betaLifeCycleStateStopping, result.StateDetails.Value)
+		assert.Equal(tt, int32(0), result.StateDetailsCode.Value)
+	})
+
+	t.Run("ResumeJobOverride", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available for use"),
+			RemoteRegion:          "us-e4",
+			SourceVolumeName:      "source-volume",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
+			DestinationVolumeName: "destination-volume",
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("replication-1"),
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeResumeVolumeReplication)),
+				ResourceName: googleproxyclient.NewOptString("replication-1"),
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList)
+
+		assert.Equal(tt, gcpserver.ReplicationV1betaStateUPDATING, result.State.Value)
+		assert.Equal(tt, volumeReplicationCVP1betaLifeCycleStateResuming, result.StateDetails.Value)
+		assert.Equal(tt, gcpserver.ReplicationV1betaMirrorStatePREPARING, result.MirrorState.Value)
+		assert.Equal(tt, int32(0), result.StateDetailsCode.Value)
+	})
+
+	t.Run("UpdateJobOverride", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available for use"),
+			RemoteRegion:          "us-e4",
+			SourceVolumeName:      "source-volume",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
+			DestinationVolumeName: "destination-volume",
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("replication-1"),
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeUpdateVolumeReplication)),
+				ResourceName: googleproxyclient.NewOptString("replication-1"),
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList)
+
+		assert.Equal(tt, gcpserver.ReplicationV1betaStateUPDATING, result.State.Value)
+		assert.Equal(tt, volumeReplicationCVP1betaLifeCycleStateUpdating, result.StateDetails.Value)
+		assert.Equal(tt, int32(0), result.StateDetailsCode.Value)
+	})
+
+	t.Run("UnknownJobTypeOverride", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available for use"),
+			RemoteRegion:          "us-e4",
+			SourceVolumeName:      "source-volume",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
+			DestinationVolumeName: "destination-volume",
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("replication-1"),
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				JobType:      googleproxyclient.NewOptString("UNKNOWN_JOB_TYPE"),
+				ResourceName: googleproxyclient.NewOptString("replication-1"),
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList)
+
+		assert.Equal(tt, gcpserver.ReplicationV1betaStateUPDATING, result.State.Value)
+		assert.Equal(tt, gcpserver.ReplicationV1betaMirrorStatePREPARING, result.MirrorState.Value)
+		assert.Equal(tt, int32(0), result.StateDetailsCode.Value)
+	})
+
+	t.Run("NoJobOverride", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available for use"),
+			RemoteRegion:          "us-e4",
+			SourceVolumeName:      "source-volume",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
+			DestinationVolumeName: "destination-volume",
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+			CcfeUri:               googleproxyclient.NewOptString("replication-1"),
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeDeleteVolumeReplication)),
+				ResourceName: googleproxyclient.NewOptString("different-replication"),
+			},
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList)
+
+		// Should not be overridden since job doesn't match
+		assert.Equal(tt, gcpserver.ReplicationV1betaStateREADY, result.State.Value)
+		assert.Equal(tt, "Available for use", result.StateDetails.Value)
+		assert.Equal(tt, gcpserver.ReplicationV1betaMirrorStateMIRRORED, result.MirrorState.Value)
+	})
+
+	t.Run("NilJobsList", func(tt *testing.T) {
+		replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+			VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+			LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+			LifeCycleStateDetails: googleproxyclient.NewOptString("Available for use"),
+			RemoteRegion:          "us-e4",
+			SourceVolumeName:      "source-volume",
+			SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
+			DestinationVolumeName: "destination-volume",
+			DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+			Name:                  googleproxyclient.NewOptString("replication-1"),
+			MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+			TotalProgress:         googleproxyclient.NewOptInt64(100),
+			Healthy:               googleproxyclient.NewOptBool(true),
+			TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+			TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+			LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+			LastTransferError:     googleproxyclient.NewOptString("No error"),
+			LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+			LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+			ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+			LagTime:               googleproxyclient.NewOptInt64(60),
+			CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+			Description:           googleproxyclient.NewOptString("Test replication"),
+		}
+
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil)
+
+		// Should not be overridden since jobsList is nil
+		assert.Equal(tt, gcpserver.ReplicationV1betaStateREADY, result.State.Value)
+		assert.Equal(tt, "Available for use", result.StateDetails.Value)
+		assert.Equal(tt, gcpserver.ReplicationV1betaMirrorStateMIRRORED, result.MirrorState.Value)
+	})
+
+	t.Run("DifferentReplicationSchedules", func(tt *testing.T) {
+		testCases := []struct {
+			name          string
+			schedule      googleproxyclient.VolumeReplicationInternalV1betaReplicationSchedule
+			expectedState gcpserver.ReplicationV1betaReplicationSchedule
+		}{
+			{
+				name:          "Hourly",
+				schedule:      googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly,
+				expectedState: gcpserver.ReplicationV1betaReplicationScheduleHOURLY,
+			},
+			{
+				name:          "Daily",
+				schedule:      googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleDaily,
+				expectedState: gcpserver.ReplicationV1betaReplicationScheduleDAILY,
+			},
+			{
+				name:          "10Minutely",
+				schedule:      googleproxyclient.VolumeReplicationInternalV1betaReplicationSchedule10minutely,
+				expectedState: gcpserver.ReplicationV1betaReplicationScheduleEVERY10MINUTES,
+			},
+		}
+
+		for _, tc := range testCases {
+			tt.Run(tc.name, func(t *testing.T) {
+				replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable),
+					LifeCycleStateDetails: googleproxyclient.NewOptString("Available for use"),
+					RemoteRegion:          "us-e4",
+					SourceVolumeName:      "source-volume",
+					SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
+					DestinationVolumeName: "destination-volume",
+					DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+					Name:                  googleproxyclient.NewOptString("replication-1"),
+					MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+					ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(tc.schedule),
+					TotalProgress:         googleproxyclient.NewOptInt64(100),
+					Healthy:               googleproxyclient.NewOptBool(true),
+					TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+					TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+					LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+					LastTransferError:     googleproxyclient.NewOptString("No error"),
+					LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+					LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+					ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+					LagTime:               googleproxyclient.NewOptInt64(60),
+					CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+					Description:           googleproxyclient.NewOptString("Test replication"),
+				}
+
+				result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil)
+				assert.Equal(t, tc.expectedState, result.ReplicationSchedule.Value)
+			})
+		}
+	})
+
+	t.Run("DifferentLifecycleStates", func(tt *testing.T) {
+		testCases := []struct {
+			name          string
+			state         googleproxyclient.VolumeReplicationInternalV1betaLifeCycleState
+			expectedState gcpserver.ReplicationV1betaState
+		}{
+			{
+				name:          "Available",
+				state:         googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable,
+				expectedState: gcpserver.ReplicationV1betaStateREADY,
+			},
+			{
+				name:          "Creating",
+				state:         googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateCreating,
+				expectedState: gcpserver.ReplicationV1betaStateCREATING,
+			},
+			{
+				name:          "Deleting",
+				state:         googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleting,
+				expectedState: gcpserver.ReplicationV1betaStateDELETING,
+			},
+			{
+				name:          "Updating",
+				state:         googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateUpdating,
+				expectedState: gcpserver.ReplicationV1betaStateUPDATING,
+			},
+			{
+				name:          "Error",
+				state:         googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateError,
+				expectedState: gcpserver.ReplicationV1betaStateERROR,
+			},
+			{
+				name:          "Disabled",
+				state:         googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDisabled,
+				expectedState: gcpserver.ReplicationV1betaStateDISABLED,
+			},
+		}
+
+		for _, tc := range testCases {
+			tt.Run(tc.name, func(t *testing.T) {
+				replication := &googleproxyclient.VolumeReplicationInternalV1beta{
+					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(tc.state),
+					LifeCycleStateDetails: googleproxyclient.NewOptString("State details"),
+					RemoteRegion:          "us-e4",
+					SourceVolumeName:      "source-volume",
+					SourceVolumeUuid:      googleproxyclient.NewOptString("source-volume-uuid"),
+					DestinationVolumeName: "destination-volume",
+					DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+					Name:                  googleproxyclient.NewOptString("replication-1"),
+					MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+					TotalProgress:         googleproxyclient.NewOptInt64(100),
+					Healthy:               googleproxyclient.NewOptBool(true),
+					TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+					TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+					LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+					LastTransferError:     googleproxyclient.NewOptString("No error"),
+					LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+					LastTransferEndTime:   googleproxyclient.NewOptDateTime(baseTime),
+					ProgressLastUpdated:   googleproxyclient.NewOptDateTime(baseTime),
+					LagTime:               googleproxyclient.NewOptInt64(60),
+					CreatedAt:             googleproxyclient.NewOptDateTime(baseTime),
+					Description:           googleproxyclient.NewOptString("Test replication"),
+				}
+
+				result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil)
+				assert.Equal(t, tc.expectedState, result.State.Value)
+			})
+		}
 	})
 }
 
@@ -4004,5 +5181,572 @@ func TestUpdateReplication(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.Equal(tt, jobResponse.UUID, jobuuid)
 		assert.Equal(tt, expectedResponse, resp)
+	})
+}
+
+func TestGetActiveReplicationJobs(t *testing.T) {
+	t.Run("WhenResponseIsOK", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+		// Mock the google proxy client
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		// Mock successful response
+		expectedJobs := []googleproxyclient.InternalJobV1beta{
+			{
+				JobType:      googleproxyclient.NewOptString("CreateVolumeReplication"),
+				ResourceName: googleproxyclient.NewOptString("test-replication-uri"),
+			},
+		}
+		okResponse := &googleproxyclient.V1betaInternalGetReplicationJobsOK{
+			Jobs: expectedJobs,
+		}
+
+		params := googleproxyclient.V1betaInternalGetReplicationJobsParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "us-east4",
+			XCorrelationID: googleproxyclient.OptString{Value: "test-correlation-id", Set: true},
+		}
+
+		mockClient.EXPECT().V1betaInternalGetReplicationJobs(ctx, params).Return(okResponse, nil)
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		jobs, err := _getActiveReplicationJobs(ctx, "test-base-path", "test-token", "us-east4", "test-project", nillable.GetStringPtr("test-correlation-id"))
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedJobs, jobs)
+	})
+
+	t.Run("WhenResponseIsBadRequest", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		badRequestResponse := &googleproxyclient.V1betaInternalGetReplicationJobsBadRequest{
+			Message: "Bad request error",
+		}
+
+		params := googleproxyclient.V1betaInternalGetReplicationJobsParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "us-east4",
+			XCorrelationID: googleproxyclient.OptString{Value: "test-correlation-id", Set: true},
+		}
+
+		mockClient.EXPECT().V1betaInternalGetReplicationJobs(ctx, params).Return(badRequestResponse, nil)
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		jobs, err := _getActiveReplicationJobs(ctx, "test-base-path", "test-token", "us-east4", "test-project", nillable.GetStringPtr("test-correlation-id"))
+
+		assert.Error(tt, err)
+		assert.Nil(tt, jobs)
+		assert.Contains(tt, err.Error(), "Bad request error")
+	})
+
+	t.Run("WhenResponseIsInternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		internalServerErrorResponse := &googleproxyclient.V1betaInternalGetReplicationJobsInternalServerError{
+			Message: "Internal server error",
+		}
+
+		params := googleproxyclient.V1betaInternalGetReplicationJobsParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "us-east4",
+			XCorrelationID: googleproxyclient.OptString{Value: "test-correlation-id", Set: true},
+		}
+
+		mockClient.EXPECT().V1betaInternalGetReplicationJobs(ctx, params).Return(internalServerErrorResponse, nil)
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		jobs, err := _getActiveReplicationJobs(ctx, "test-base-path", "test-token", "us-east4", "test-project", nillable.GetStringPtr("test-correlation-id"))
+
+		assert.Error(tt, err)
+		assert.Nil(tt, jobs)
+		assert.Contains(tt, err.Error(), "Internal server error")
+	})
+
+	t.Run("WhenResponseIsUnauthorized", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		unauthorizedResponse := &googleproxyclient.V1betaInternalGetReplicationJobsUnauthorized{
+			Message: "Unauthorized",
+		}
+
+		params := googleproxyclient.V1betaInternalGetReplicationJobsParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "us-east4",
+			XCorrelationID: googleproxyclient.OptString{Value: "test-correlation-id", Set: true},
+		}
+
+		mockClient.EXPECT().V1betaInternalGetReplicationJobs(ctx, params).Return(unauthorizedResponse, nil)
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		jobs, err := _getActiveReplicationJobs(ctx, "test-base-path", "test-token", "us-east4", "test-project", nillable.GetStringPtr("test-correlation-id"))
+
+		assert.Error(tt, err)
+		assert.Nil(tt, jobs)
+		assert.Contains(tt, err.Error(), "Unauthorized")
+	})
+
+	t.Run("WhenResponseIsForbidden", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		forbiddenResponse := &googleproxyclient.V1betaInternalGetReplicationJobsForbidden{
+			Message: "Forbidden",
+		}
+
+		params := googleproxyclient.V1betaInternalGetReplicationJobsParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "us-east4",
+			XCorrelationID: googleproxyclient.OptString{Value: "test-correlation-id", Set: true},
+		}
+
+		mockClient.EXPECT().V1betaInternalGetReplicationJobs(ctx, params).Return(forbiddenResponse, nil)
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		jobs, err := _getActiveReplicationJobs(ctx, "test-base-path", "test-token", "us-east4", "test-project", nillable.GetStringPtr("test-correlation-id"))
+
+		assert.Error(tt, err)
+		assert.Nil(tt, jobs)
+		assert.Contains(tt, err.Error(), "Forbidden")
+	})
+
+	t.Run("WhenResponseIsNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		notFoundResponse := &googleproxyclient.V1betaInternalGetReplicationJobsNotFound{
+			Message: "Not found",
+		}
+
+		params := googleproxyclient.V1betaInternalGetReplicationJobsParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "us-east4",
+			XCorrelationID: googleproxyclient.OptString{Value: "test-correlation-id", Set: true},
+		}
+
+		mockClient.EXPECT().V1betaInternalGetReplicationJobs(ctx, params).Return(notFoundResponse, nil)
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		jobs, err := _getActiveReplicationJobs(ctx, "test-base-path", "test-token", "us-east4", "test-project", nillable.GetStringPtr("test-correlation-id"))
+
+		assert.Error(tt, err)
+		assert.Nil(tt, jobs)
+		assert.Contains(tt, err.Error(), "Not found")
+	})
+
+	t.Run("WhenClientCallFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		params := googleproxyclient.V1betaInternalGetReplicationJobsParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "us-east4",
+			XCorrelationID: googleproxyclient.OptString{Value: "test-correlation-id", Set: true},
+		}
+
+		mockClient.EXPECT().V1betaInternalGetReplicationJobs(ctx, params).Return(nil, errors.New("network error"))
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		jobs, err := _getActiveReplicationJobs(ctx, "test-base-path", "test-token", "us-east4", "test-project", nillable.GetStringPtr("test-correlation-id"))
+
+		assert.Error(tt, err)
+		assert.Nil(tt, jobs)
+		assert.Equal(tt, "network error", err.Error())
+	})
+
+	t.Run("WhenXCorrelationIDIsNil", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+
+		expectedJobs := []googleproxyclient.InternalJobV1beta{}
+		okResponse := &googleproxyclient.V1betaInternalGetReplicationJobsOK{
+			Jobs: expectedJobs,
+		}
+
+		params := googleproxyclient.V1betaInternalGetReplicationJobsParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "us-east4",
+			XCorrelationID: googleproxyclient.OptString{Value: "", Set: false},
+		}
+
+		mockClient.EXPECT().V1betaInternalGetReplicationJobs(ctx, params).Return(okResponse, nil)
+
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		jobs, err := _getActiveReplicationJobs(ctx, "test-base-path", "test-token", "us-east4", "test-project", nil)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedJobs, jobs)
+	})
+}
+
+func TestReplicationHasJob(t *testing.T) {
+	t.Run("WhenJobFoundByCcfeUri", func(tt *testing.T) {
+		replication := googleproxyclient.VolumeReplicationInternalV1beta{
+			CcfeUri:       googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol1/replications/repl1"),
+			CcfeRemoteUri: googleproxyclient.NewOptString("projects/456/locations/us-east1/volumes/vol2/replications/repl2"),
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				ResourceName: googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol1/replications/repl1"),
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeCreateVolumeReplication)),
+			},
+			{
+				ResourceName: googleproxyclient.NewOptString("projects/789/locations/us-west1/volumes/vol3/replications/repl3"),
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeDeleteVolumeReplication)),
+			},
+		}
+
+		jobType, hasJob := replicationHasJob(replication, &jobsList)
+
+		assert.True(tt, hasJob)
+		assert.Equal(tt, string(models.JobTypeCreateVolumeReplication), jobType)
+	})
+
+	t.Run("WhenJobFoundByCcfeRemoteUri", func(tt *testing.T) {
+		replication := googleproxyclient.VolumeReplicationInternalV1beta{
+			CcfeUri:       googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol1/replications/repl1"),
+			CcfeRemoteUri: googleproxyclient.NewOptString("projects/456/locations/us-east1/volumes/vol2/replications/repl2"),
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				ResourceName: googleproxyclient.NewOptString("projects/456/locations/us-east1/volumes/vol2/replications/repl2"),
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeStopVolumeReplication)),
+			},
+			{
+				ResourceName: googleproxyclient.NewOptString("projects/789/locations/us-west1/volumes/vol3/replications/repl3"),
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeDeleteVolumeReplication)),
+			},
+		}
+
+		jobType, hasJob := replicationHasJob(replication, &jobsList)
+
+		assert.True(tt, hasJob)
+		assert.Equal(tt, string(models.JobTypeStopVolumeReplication), jobType)
+	})
+
+	t.Run("WhenJobNotFound", func(tt *testing.T) {
+		replication := googleproxyclient.VolumeReplicationInternalV1beta{
+			CcfeUri:       googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol1/replications/repl1"),
+			CcfeRemoteUri: googleproxyclient.NewOptString("projects/456/locations/us-east1/volumes/vol2/replications/repl2"),
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				ResourceName: googleproxyclient.NewOptString("projects/789/locations/us-west1/volumes/vol3/replications/repl3"),
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeDeleteVolumeReplication)),
+			},
+			{
+				ResourceName: googleproxyclient.NewOptString("projects/111/locations/europe-west1/volumes/vol4/replications/repl4"),
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeUpdateVolumeReplication)),
+			},
+		}
+
+		jobType, hasJob := replicationHasJob(replication, &jobsList)
+
+		assert.False(tt, hasJob)
+		assert.Equal(tt, "", jobType)
+	})
+
+	t.Run("WhenEmptyJobsList", func(tt *testing.T) {
+		replication := googleproxyclient.VolumeReplicationInternalV1beta{
+			CcfeUri:       googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol1/replications/repl1"),
+			CcfeRemoteUri: googleproxyclient.NewOptString("projects/456/locations/us-east1/volumes/vol2/replications/repl2"),
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{}
+
+		jobType, hasJob := replicationHasJob(replication, &jobsList)
+
+		assert.False(tt, hasJob)
+		assert.Equal(tt, "", jobType)
+	})
+
+	t.Run("WhenMultipleJobsMatchPrimaryCcfeUriTakesPrecedence", func(tt *testing.T) {
+		replication := googleproxyclient.VolumeReplicationInternalV1beta{
+			CcfeUri:       googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol1/replications/repl1"),
+			CcfeRemoteUri: googleproxyclient.NewOptString("projects/456/locations/us-east1/volumes/vol2/replications/repl2"),
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				ResourceName: googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol1/replications/repl1"),
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeCreateVolumeReplication)),
+			},
+			{
+				ResourceName: googleproxyclient.NewOptString("projects/456/locations/us-east1/volumes/vol2/replications/repl2"),
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeStopVolumeReplication)),
+			},
+		}
+
+		jobType, hasJob := replicationHasJob(replication, &jobsList)
+
+		assert.True(tt, hasJob)
+		assert.Equal(tt, string(models.JobTypeCreateVolumeReplication), jobType)
+	})
+
+	t.Run("WhenJobTypeIsResumeVolumeReplication", func(tt *testing.T) {
+		replication := googleproxyclient.VolumeReplicationInternalV1beta{
+			CcfeUri:       googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol1/replications/repl1"),
+			CcfeRemoteUri: googleproxyclient.NewOptString("projects/456/locations/us-east1/volumes/vol2/replications/repl2"),
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				ResourceName: googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol1/replications/repl1"),
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeResumeVolumeReplication)),
+			},
+		}
+
+		jobType, hasJob := replicationHasJob(replication, &jobsList)
+
+		assert.True(tt, hasJob)
+		assert.Equal(tt, string(models.JobTypeResumeVolumeReplication), jobType)
+	})
+
+	t.Run("WhenJobTypeIsReverseResumeVolumeReplication", func(tt *testing.T) {
+		replication := googleproxyclient.VolumeReplicationInternalV1beta{
+			CcfeUri:       googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol1/replications/repl1"),
+			CcfeRemoteUri: googleproxyclient.NewOptString("projects/456/locations/us-east1/volumes/vol2/replications/repl2"),
+		}
+
+		jobsList := []googleproxyclient.InternalJobV1beta{
+			{
+				ResourceName: googleproxyclient.NewOptString("projects/456/locations/us-east1/volumes/vol2/replications/repl2"),
+				JobType:      googleproxyclient.NewOptString(string(models.JobTypeReverseResumeVolumeReplication)),
+			},
+		}
+
+		jobType, hasJob := replicationHasJob(replication, &jobsList)
+
+		assert.True(tt, hasJob)
+		assert.Equal(tt, string(models.JobTypeReverseResumeVolumeReplication), jobType)
+	})
+
+	t.Run("WhenNilJobsList", func(tt *testing.T) {
+		replication := googleproxyclient.VolumeReplicationInternalV1beta{
+			CcfeUri:       googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol1/replications/repl1"),
+			CcfeRemoteUri: googleproxyclient.NewOptString("projects/456/locations/us-east1/volumes/vol2/replications/repl2"),
+		}
+
+		jobType, hasJob := replicationHasJob(replication, nil)
+
+		assert.False(tt, hasJob)
+		assert.Equal(tt, "", jobType)
+	})
+}
+
+func TestGetProjectNumberForRegion(t *testing.T) {
+	t.Run("WhenRegionFoundInUri", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			Uri:       "projects/123456789/locations/us-central1/volumes/vol1/replications/repl1",
+			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+		}
+
+		// Mock the utilsParseProjectNumberFromURI function
+		originalUtilsParseProjectNumberFromURI := utilsParseProjectNumberFromURI
+		defer func() { utilsParseProjectNumberFromURI = originalUtilsParseProjectNumberFromURI }()
+
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			if strings.Contains(uri, "us-central1") {
+				return "123456789", nil
+			}
+			return "987654321", nil
+		}
+
+		projectNumber, err := _getProjectNumberForRegion(replication, "us-central1")
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "123456789", projectNumber)
+	})
+
+	t.Run("WhenRegionFoundInRemoteUri", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			Uri:       "projects/123456789/locations/us-central1/volumes/vol1/replications/repl1",
+			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+		}
+
+		// Mock the utilsParseProjectNumberFromURI function
+		originalUtilsParseProjectNumberFromURI := utilsParseProjectNumberFromURI
+		defer func() { utilsParseProjectNumberFromURI = originalUtilsParseProjectNumberFromURI }()
+
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			if strings.Contains(uri, "us-east1") {
+				return "987654321", nil
+			}
+			return "123456789", nil
+		}
+
+		projectNumber, err := _getProjectNumberForRegion(replication, "us-east1")
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "987654321", projectNumber)
+	})
+
+	t.Run("WhenRegionNotFoundInUriButFoundInRemoteUri", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			Uri:       "projects/123456789/locations/us-central1/volumes/vol1/replications/repl1",
+			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+		}
+
+		// Mock the utilsParseProjectNumberFromURI function
+		originalUtilsParseProjectNumberFromURI := utilsParseProjectNumberFromURI
+		defer func() { utilsParseProjectNumberFromURI = originalUtilsParseProjectNumberFromURI }()
+
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			if strings.Contains(uri, "us-east1") {
+				return "987654321", nil
+			}
+			return "123456789", nil
+		}
+
+		projectNumber, err := _getProjectNumberForRegion(replication, "us-east1")
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "987654321", projectNumber)
+	})
+
+	t.Run("WhenUtilsParseProjectNumberFromURIReturnsError", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			Uri:       "projects/123456789/locations/us-central1/volumes/vol1/replications/repl1",
+			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+		}
+
+		// Mock the utilsParseProjectNumberFromURI function to return error
+		originalUtilsParseProjectNumberFromURI := utilsParseProjectNumberFromURI
+		defer func() { utilsParseProjectNumberFromURI = originalUtilsParseProjectNumberFromURI }()
+
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "", errors.New("failed to parse project number")
+		}
+
+		projectNumber, err := _getProjectNumberForRegion(replication, "us-central1")
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "", projectNumber)
+		assert.Equal(tt, "failed to parse project number", err.Error())
+	})
+
+	t.Run("WhenRegionNotFoundInEitherUri", func(tt *testing.T) {
+		replication := &datamodel.VolumeReplication{
+			Uri:       "projects/123456789/locations/us-central1/volumes/vol1/replications/repl1",
+			RemoteUri: "projects/987654321/locations/us-east1/volumes/vol2/replications/repl2",
+		}
+
+		// Mock the utilsParseProjectNumberFromURI function
+		originalUtilsParseProjectNumberFromURI := utilsParseProjectNumberFromURI
+		defer func() { utilsParseProjectNumberFromURI = originalUtilsParseProjectNumberFromURI }()
+
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			// Should be called with RemoteUri since region is not in Uri
+			if strings.Contains(uri, "us-east1") {
+				return "987654321", nil
+			}
+			return "123456789", nil
+		}
+
+		projectNumber, err := _getProjectNumberForRegion(replication, "us-west1")
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, "987654321", projectNumber) // Should return project from RemoteUri
 	})
 }

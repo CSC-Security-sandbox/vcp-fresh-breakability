@@ -134,6 +134,8 @@ func convertToVolumeReplicationInternalV1Beta(replication *datamodel.VolumeRepli
 		UpdatedAt:             gcpgenserver.NewOptDateTime(replication.UpdatedAt),
 		Description:           gcpgenserver.NewOptString(replication.Description),
 		RemoteRegion:          replication.ReplicationAttributes.DestinationLocation,
+		CcfeUri:               gcpgenserver.NewOptString(replication.Uri),
+		CcfeRemoteUri:         gcpgenserver.NewOptString(replication.RemoteUri),
 	}
 }
 

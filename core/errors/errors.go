@@ -152,6 +152,13 @@ const (
 	ErrCVPClientFinishProjectEventError                              = 6074
 	ErrRevertingVolume                                               = 6075
 
+	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsBadRequest          = 6075
+	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsInternalServerError = 6076
+	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsUnauthorized        = 6077
+	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsForbidden           = 6078
+	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsNotFound            = 6079
+	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsUnknown             = 6080
+
 	ErrDeleteSnapshot                   = 7001
 	ErrVolumeNotOnlineForSnapshotDelete = 7002
 	ErrSnapshotPolicyScheduleRequired   = 7003

@@ -47959,6 +47959,18 @@ func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.CcfeUri.Set {
+			e.FieldStart("ccfeUri")
+			s.CcfeUri.Encode(e)
+		}
+	}
+	{
+		if s.CcfeRemoteUri.Set {
+			e.FieldStart("ccfeRemoteUri")
+			s.CcfeRemoteUri.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("remoteRegion")
 		e.Str(s.RemoteRegion)
 	}
@@ -48154,47 +48166,49 @@ func (s *VolumeReplicationCreateInternalV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfVolumeReplicationCreateInternalV1beta = [40]string{
+var jsonFieldsNameOfVolumeReplicationCreateInternalV1beta = [42]string{
 	0:  "volumeReplicationUuid",
 	1:  "lifeCycleState",
 	2:  "lifeCycleStateDetails",
 	3:  "endpointType",
 	4:  "replicationPolicy",
 	5:  "replicationSchedule",
-	6:  "remoteRegion",
-	7:  "sourceHostName",
-	8:  "sourceServerName",
-	9:  "sourceVolumeName",
-	10: "sourceVolumeUuid",
-	11: "sourcePoolUuid",
-	12: "destinationHostName",
-	13: "destinationServerName",
-	14: "destinationVolumeName",
-	15: "destinationVolumeUuid",
-	16: "destinationPoolUuid",
-	17: "name",
-	18: "mirrorState",
-	19: "replicationType",
-	20: "relationshipStatus",
-	21: "totalProgress",
-	22: "healthy",
-	23: "totalTransferBytes",
-	24: "totalTransferTimeSecs",
-	25: "lastTransferSize",
-	26: "lastTransferError",
-	27: "lastTransferDuration",
-	28: "lastTransferEndTime",
-	29: "progressLastUpdated",
-	30: "lagTime",
-	31: "createdAt",
-	32: "updatedAt",
-	33: "deletedAt",
-	34: "jobs",
-	35: "description",
-	36: "labels",
-	37: "reverseResume",
-	38: "ccfeURI",
-	39: "ccfeRemoteURI",
+	6:  "ccfeUri",
+	7:  "ccfeRemoteUri",
+	8:  "remoteRegion",
+	9:  "sourceHostName",
+	10: "sourceServerName",
+	11: "sourceVolumeName",
+	12: "sourceVolumeUuid",
+	13: "sourcePoolUuid",
+	14: "destinationHostName",
+	15: "destinationServerName",
+	16: "destinationVolumeName",
+	17: "destinationVolumeUuid",
+	18: "destinationPoolUuid",
+	19: "name",
+	20: "mirrorState",
+	21: "replicationType",
+	22: "relationshipStatus",
+	23: "totalProgress",
+	24: "healthy",
+	25: "totalTransferBytes",
+	26: "totalTransferTimeSecs",
+	27: "lastTransferSize",
+	28: "lastTransferError",
+	29: "lastTransferDuration",
+	30: "lastTransferEndTime",
+	31: "progressLastUpdated",
+	32: "lagTime",
+	33: "createdAt",
+	34: "updatedAt",
+	35: "deletedAt",
+	36: "jobs",
+	37: "description",
+	38: "labels",
+	39: "reverseResume",
+	40: "ccfeURI",
+	41: "ccfeRemoteURI",
 }
 
 // Decode decodes VolumeReplicationCreateInternalV1beta from json.
@@ -48202,7 +48216,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode VolumeReplicationCreateInternalV1beta to nil")
 	}
-	var requiredBitSet [5]uint8
+	var requiredBitSet [6]uint8
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
@@ -48266,8 +48280,28 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"replicationSchedule\"")
 			}
+		case "ccfeUri":
+			if err := func() error {
+				s.CcfeUri.Reset()
+				if err := s.CcfeUri.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ccfeUri\"")
+			}
+		case "ccfeRemoteUri":
+			if err := func() error {
+				s.CcfeRemoteUri.Reset()
+				if err := s.CcfeRemoteUri.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ccfeRemoteUri\"")
+			}
 		case "remoteRegion":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.RemoteRegion = string(v)
@@ -48279,7 +48313,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"remoteRegion\"")
 			}
 		case "sourceHostName":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceHostName = string(v)
@@ -48291,7 +48325,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sourceHostName\"")
 			}
 		case "sourceServerName":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceServerName = string(v)
@@ -48303,7 +48337,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sourceServerName\"")
 			}
 		case "sourceVolumeName":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceVolumeName = string(v)
@@ -48335,7 +48369,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sourcePoolUuid\"")
 			}
 		case "destinationHostName":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationHostName = string(v)
@@ -48347,7 +48381,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"destinationHostName\"")
 			}
 		case "destinationServerName":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationServerName = string(v)
@@ -48359,7 +48393,7 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"destinationServerName\"")
 			}
 		case "destinationVolumeName":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationVolumeName = string(v)
@@ -48636,9 +48670,10 @@ func (s *VolumeReplicationCreateInternalV1beta) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [5]uint8{
-		0b11001000,
-		0b01110011,
+	for i, mask := range [6]uint8{
+		0b00001000,
+		0b11001111,
+		0b00000001,
 		0b00000000,
 		0b00000000,
 		0b00000000,
@@ -49117,6 +49152,18 @@ func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.CcfeUri.Set {
+			e.FieldStart("ccfeUri")
+			s.CcfeUri.Encode(e)
+		}
+	}
+	{
+		if s.CcfeRemoteUri.Set {
+			e.FieldStart("ccfeRemoteUri")
+			s.CcfeRemoteUri.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("remoteRegion")
 		e.Str(s.RemoteRegion)
 	}
@@ -49294,44 +49341,46 @@ func (s *VolumeReplicationInternalV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfVolumeReplicationInternalV1beta = [37]string{
+var jsonFieldsNameOfVolumeReplicationInternalV1beta = [39]string{
 	0:  "volumeReplicationUuid",
 	1:  "lifeCycleState",
 	2:  "lifeCycleStateDetails",
 	3:  "endpointType",
 	4:  "replicationPolicy",
 	5:  "replicationSchedule",
-	6:  "remoteRegion",
-	7:  "sourceHostName",
-	8:  "sourceServerName",
-	9:  "sourceVolumeName",
-	10: "sourceVolumeUuid",
-	11: "sourcePoolUuid",
-	12: "destinationHostName",
-	13: "destinationServerName",
-	14: "destinationVolumeName",
-	15: "destinationVolumeUuid",
-	16: "destinationPoolUuid",
-	17: "name",
-	18: "mirrorState",
-	19: "replicationType",
-	20: "relationshipStatus",
-	21: "totalProgress",
-	22: "healthy",
-	23: "totalTransferBytes",
-	24: "totalTransferTimeSecs",
-	25: "lastTransferSize",
-	26: "lastTransferError",
-	27: "lastTransferDuration",
-	28: "lastTransferEndTime",
-	29: "progressLastUpdated",
-	30: "lagTime",
-	31: "createdAt",
-	32: "updatedAt",
-	33: "deletedAt",
-	34: "jobs",
-	35: "description",
-	36: "labels",
+	6:  "ccfeUri",
+	7:  "ccfeRemoteUri",
+	8:  "remoteRegion",
+	9:  "sourceHostName",
+	10: "sourceServerName",
+	11: "sourceVolumeName",
+	12: "sourceVolumeUuid",
+	13: "sourcePoolUuid",
+	14: "destinationHostName",
+	15: "destinationServerName",
+	16: "destinationVolumeName",
+	17: "destinationVolumeUuid",
+	18: "destinationPoolUuid",
+	19: "name",
+	20: "mirrorState",
+	21: "replicationType",
+	22: "relationshipStatus",
+	23: "totalProgress",
+	24: "healthy",
+	25: "totalTransferBytes",
+	26: "totalTransferTimeSecs",
+	27: "lastTransferSize",
+	28: "lastTransferError",
+	29: "lastTransferDuration",
+	30: "lastTransferEndTime",
+	31: "progressLastUpdated",
+	32: "lagTime",
+	33: "createdAt",
+	34: "updatedAt",
+	35: "deletedAt",
+	36: "jobs",
+	37: "description",
+	38: "labels",
 }
 
 // Decode decodes VolumeReplicationInternalV1beta from json.
@@ -49403,8 +49452,28 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"replicationSchedule\"")
 			}
+		case "ccfeUri":
+			if err := func() error {
+				s.CcfeUri.Reset()
+				if err := s.CcfeUri.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ccfeUri\"")
+			}
+		case "ccfeRemoteUri":
+			if err := func() error {
+				s.CcfeRemoteUri.Reset()
+				if err := s.CcfeRemoteUri.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ccfeRemoteUri\"")
+			}
 		case "remoteRegion":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.RemoteRegion = string(v)
@@ -49416,7 +49485,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"remoteRegion\"")
 			}
 		case "sourceHostName":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceHostName = string(v)
@@ -49428,7 +49497,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sourceHostName\"")
 			}
 		case "sourceServerName":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceServerName = string(v)
@@ -49440,7 +49509,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sourceServerName\"")
 			}
 		case "sourceVolumeName":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.SourceVolumeName = string(v)
@@ -49472,7 +49541,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"sourcePoolUuid\"")
 			}
 		case "destinationHostName":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationHostName = string(v)
@@ -49484,7 +49553,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"destinationHostName\"")
 			}
 		case "destinationServerName":
-			requiredBitSet[1] |= 1 << 5
+			requiredBitSet[1] |= 1 << 7
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationServerName = string(v)
@@ -49496,7 +49565,7 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"destinationServerName\"")
 			}
 		case "destinationVolumeName":
-			requiredBitSet[1] |= 1 << 6
+			requiredBitSet[2] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.DestinationVolumeName = string(v)
@@ -49744,9 +49813,9 @@ func (s *VolumeReplicationInternalV1beta) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [5]uint8{
-		0b11001000,
-		0b01110011,
-		0b00000000,
+		0b00001000,
+		0b11001111,
+		0b00000001,
 		0b00000000,
 		0b00000000,
 	} {

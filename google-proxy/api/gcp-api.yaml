@@ -5841,6 +5841,16 @@ components:
             - daily
             - weekly
             - monthly
+        ccfeUri:
+          title: ccfeUri
+          type: string
+          description: The URI for the CCFE
+          example: projects/12345/locations/some-location/volumes/some-volume/replications/some-replication
+        ccfeRemoteUri:
+          title: ccfeRemoteUri
+          type: string
+          description: The URI for the CCFE for the remote region
+          example: projects/12345/locations/some-location/volumes/some-volume/replications/some-replication
         remoteRegion:
           title: remoteRegion
           type: string
