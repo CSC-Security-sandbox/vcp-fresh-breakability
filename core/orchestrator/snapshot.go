@@ -477,7 +477,7 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	location, err := getLocationFromVendorID(volume.Pool.VendorID)
+	location, err := utils.GetLocationFromVendorID(volume.Pool.VendorID)
 	if err != nil {
 		logger.Error("Failed to get location from vendor ID: ", "error", err)
 		return nil, "", err

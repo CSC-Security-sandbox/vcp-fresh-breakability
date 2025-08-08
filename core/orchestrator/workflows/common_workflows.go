@@ -193,8 +193,10 @@ func (bw *BaseWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err
 	return executeActivity(ctx, commonActivity.UpdateJobStatus, updatedJob).Get(ctx, nil)
 }
 
+var QueryWorkflowStatus = _queryWorkflowStatus
+
 // QueryWorkflowStatus queries the status of a workflow using its ID and run ID.
-func QueryWorkflowStatus(ctx context.Context, tempClient client.Client, workflowID, runID string) (*WorkflowStatus, error) {
+func _queryWorkflowStatus(ctx context.Context, tempClient client.Client, workflowID, runID string) (*WorkflowStatus, error) {
 	var status WorkflowStatus
 	encVal, err := tempClient.QueryWorkflow(ctx, workflowID, runID, StatusQueryName)
 	if err != nil {

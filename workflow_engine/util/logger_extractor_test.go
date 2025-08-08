@@ -53,3 +53,19 @@ func (s *LoggerExtractorTestSuite) CheckNoLoggerInWorkflowContext(ctx workflow.C
 	}
 	return nil
 }
+
+func (s *LoggerExtractorTestSuite) TestAddExtraLoggerFields() {
+	env := s.NewTestWorkflowEnvironment()
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		// Add extra fields
+		ctx = AddExtraLoggerFields(ctx, map[string]interface{}{"key": "value", "another": 123})
+		// Retrieve fields to verify
+		loggerFields, ok := ctx.Value(middleware.TemporalSLoggerKey).(log.Fields)
+		s.True(ok)
+		s.Equal("value", loggerFields["key"])
+		s.Equal(123, loggerFields["another"])
+		return nil
+	})
+	s.True(env.IsWorkflowCompleted())
+	s.NoError(env.GetWorkflowError())
+}

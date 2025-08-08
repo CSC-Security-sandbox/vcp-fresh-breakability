@@ -164,6 +164,7 @@ func main() {
 func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage) {
 	worker.RegisterWorkflow(jobmanagerworkflows.JobManagerWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.SyncVSASnapshotsWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.SyncSnapshotsForPoolWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupInitWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.DeleteScheduledBackupWorkflow)
@@ -176,6 +177,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&backgroundactivities.SyncSnapshotActivity{SE: conn})
 	worker.RegisterActivity(&activities.BackupActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.ScheduledBackupActivity{SE: conn})
+	worker.RegisterActivity(&backgroundworkflows.SyncSnapshotWFRunningCheck{})
 }
 
 // initializeTemporalClient initializes and returns a TemporalWorkflowEngine client.

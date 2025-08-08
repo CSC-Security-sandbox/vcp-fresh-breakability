@@ -66,125 +66,6 @@ func (a *SyncSnapshotActivity) ListPools(ctx context.Context) ([]*datamodel.Pool
 	return pools, nil
 }
 
-func (a *SyncSnapshotActivity) SynchronizeSnapshots(ctx context.Context, pools []*datamodel.Pool) error {
-	logger := util.GetLogger(ctx)
-	se := a.SE
-	var errors []string
-
-	for _, pool := range pools {
-		provider, err := GetOntapRestProviderForPool(ctx, se, pool)
-		if err != nil {
-			errMsg := fmt.Sprintf("Failed to get ONTAP rest provider for pool %v: %v", pool.UUID, err)
-			logger.Errorf(errMsg)
-			errors = append(errors, errMsg)
-			continue
-		}
-
-		ontapVolumes, err := provider.GetVolumes()
-		if err != nil {
-			errMsg := fmt.Sprintf("Failed to get ONTAP volumes for the pool: %s, %v", pool.UUID, err)
-			logger.Errorf(errMsg)
-			errors = append(errors, errMsg)
-			continue
-		}
-
-		var ontapSnapshots []*vsa.Snapshot
-		for _, volume := range ontapVolumes {
-			volumeSnapshots, err := provider.GetSnapshots(*volume.UUID)
-			if err != nil {
-				errMsg := fmt.Sprintf("Failed to get snapshots from ONTAP for volume %s: %v", *volume.UUID, err)
-				logger.Errorf(errMsg)
-				errors = append(errors, errMsg)
-				continue
-			}
-			ontapSnapshots = append(ontapSnapshots, volumeSnapshots...)
-		}
-
-		ontapVolumeMap, ontapSnapshots := filterOntapVolumesAndSnapshots(ontapVolumes, ontapSnapshots)
-
-		dbVolumes, err := se.GetVolumesByPoolID(ctx, pool.ID)
-		if err != nil {
-			errMsg := fmt.Sprintf("Failed to get volumes from database for pool %s: %v", pool.UUID, err)
-			logger.Errorf(errMsg)
-			errors = append(errors, errMsg)
-			continue
-		}
-
-		var (
-			dbVolumeIDs []int64
-			dbVolumeMap = make(map[string]*datamodel.Volume, len(dbVolumes))
-		)
-		for _, v := range dbVolumes {
-			dbVolumeIDs = append(dbVolumeIDs, v.ID)
-			dbVolumeMap[v.VolumeAttributes.ExternalUUID] = v
-		}
-
-		dbSnapshots, err := se.GetSnapshotsByVolumeIDs(ctx, dbVolumeIDs)
-		if err != nil {
-			errMsg := fmt.Sprintf("Failed to get snapshots from database for pool %s: %v", pool.UUID, err)
-			logger.Errorf(errMsg)
-			errors = append(errors, errMsg)
-			continue
-		}
-
-		var dbSnapshotMap = make(map[string]*datamodel.Snapshot, len(dbSnapshots))
-		for _, dbSnapshot := range dbSnapshots {
-			dbSnapshotMap[dbSnapshot.SnapshotAttributes.ExternalUUID] = dbSnapshot
-		}
-
-		newSSMap, updatedSSMap, wronglyDeletedSnapshotsMap, newIds, updatedIDs, deleteIDs, wronglyDeletedIds :=
-			processSnapshotSync(ctx, ontapVolumeMap, ontapSnapshots, dbVolumeMap, dbSnapshots)
-
-		deletedSnapshots, err := syncDeletedSnapshotsToDatabase(ctx, deleteIDs, se)
-		if err != nil {
-			errMsg := fmt.Sprintf("Failed to sync deleted snapshots to database: %v", err)
-			logger.Errorf(errMsg)
-			errors = append(errors, errMsg)
-			continue
-		}
-
-		createdSnapshots, err := syncNewSnapshotsToDatabase(ctx, newIds, newSSMap, se, dbVolumeMap, pool)
-		if err != nil {
-			errMsg := fmt.Sprintf("Failed to sync new snapshots to database: %v", err)
-			logger.Errorf(errMsg)
-			errors = append(errors, errMsg)
-			continue
-		}
-
-		_, err = syncUpdatedSnapshotsToDatabase(ctx, updatedIDs, updatedSSMap, se, dbSnapshotMap)
-		if err != nil {
-			errMsg := fmt.Sprintf("Failed to sync updated snapshots to database: %v", err)
-			logger.Errorf(errMsg)
-			errors = append(errors, errMsg)
-			continue
-		}
-
-		_, err = syncWronglyDeletedSnapshotsToDatabase(ctx, wronglyDeletedIds, wronglyDeletedSnapshotsMap, se, dbSnapshotMap)
-		if err != nil {
-			errMsg := fmt.Sprintf("Failed to sync wrongly deleted snapshots to database: %v", err)
-			logger.Errorf(errMsg)
-			errors = append(errors, errMsg)
-			continue
-		}
-
-		if hydrationEnabled && (len(createdSnapshots) > 0 || len(deletedSnapshots) > 0) {
-			err = hydrateBatchSnapshotsToCCFE(ctx, createdSnapshots, deletedSnapshots)
-			if err != nil {
-				errMsg := fmt.Sprintf("Failed to hydrate snapshots to CCFE: %v", err)
-				logger.Errorf(errMsg)
-				errors = append(errors, errMsg)
-				continue
-			}
-		}
-	}
-
-	if len(errors) > 0 {
-		return fmt.Errorf("snapshot Synchronization completed with errors: %v", errors)
-	}
-
-	return nil
-}
-
 func _filterOntapVolumesAndSnapshots(volumes []*vsa.Volume, snapshots []*vsa.Snapshot) (map[string]*vsa.Volume, []*vsa.Snapshot) {
 	volumeMap := make(map[string]*vsa.Volume, len(volumes))
 	for _, volume := range volumes {
@@ -330,6 +211,7 @@ func _syncNewSnapshotsToDatabase(ctx context.Context, newSnapshots []string, new
 			},
 			State:        models.LifeCycleStateREADY,
 			StateDetails: models.LifeCycleStateAvailableDetails,
+			Type:         snapshot.Type,
 		})
 	}
 	if len(snapshotsToCreate) == 0 {
@@ -381,6 +263,14 @@ func _getOntapRestProviderForPool(ctx context.Context, se database.Storage, pool
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, err)
 		}
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	if len(nodes) == 0 {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("no nodes found for pool %s", pool.UUID))
+	}
+
+	if pool.PoolCredentials == nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("pool credentials not found for pool %s", pool.UUID))
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
@@ -465,4 +355,145 @@ func _processSnapshotSync(ctx context.Context, ontapVolumeMap map[string]*vsa.Vo
 		}
 	}
 	return
+}
+
+type GetOntapVolumesAndSnapshotsForPoolReturnValue struct {
+	OntapVolumeMap map[string]*vsa.Volume
+	OntapSnapshots []*vsa.Snapshot
+}
+
+func (a *SyncSnapshotActivity) GetOntapVolumesAndSnapshotsForPool(ctx context.Context, pool *datamodel.Pool) (*GetOntapVolumesAndSnapshotsForPoolReturnValue, error) {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+	provider, err := GetOntapRestProviderForPool(ctx, se, pool)
+	if err != nil || provider == nil {
+		errMsg := fmt.Sprintf("Failed to get ONTAP rest provider for pool %v: %v", pool.UUID, err)
+		logger.Errorf(errMsg)
+		return nil, err
+	}
+
+	ontapVolumes, err := provider.GetVolumes()
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to get ONTAP volumes for the pool: %s, %v", pool.UUID, err)
+		logger.Errorf(errMsg)
+		return nil, err
+	}
+
+	var ontapSnapshots []*vsa.Snapshot
+	for _, volume := range ontapVolumes {
+		volumeSnapshots, err := provider.GetSnapshots(*volume.UUID)
+		if err != nil {
+			errMsg := fmt.Sprintf("Failed to get snapshots from ONTAP for volume %s: %v", *volume.UUID, err)
+			logger.Errorf(errMsg)
+			return nil, err
+		}
+		ontapSnapshots = append(ontapSnapshots, volumeSnapshots...)
+	}
+
+	ontapVolumeMap, ontapSnapshots := filterOntapVolumesAndSnapshots(ontapVolumes, ontapSnapshots)
+
+	return &GetOntapVolumesAndSnapshotsForPoolReturnValue{
+		OntapVolumeMap: ontapVolumeMap,
+		OntapSnapshots: ontapSnapshots,
+	}, nil
+}
+
+type GetDBVolumeAndSnapshotsForPoolReturnValue struct {
+	DBVolumeMap   map[string]*datamodel.Volume
+	DBSnapshotMap map[string]*datamodel.Snapshot
+	DBSnapshots   []*datamodel.Snapshot
+}
+
+func (a *SyncSnapshotActivity) GetDBVolumeAndSnapshotsForPool(ctx context.Context, pool *datamodel.Pool) (*GetDBVolumeAndSnapshotsForPoolReturnValue, error) {
+	se := a.SE
+	logger := util.GetLogger(ctx)
+	dbVolumes, err := se.GetVolumesByPoolID(ctx, pool.ID)
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to get volumes from database for pool %s: %v", pool.UUID, err)
+		logger.Errorf(errMsg)
+		return nil, err
+	}
+
+	var (
+		dbVolumeIDs []int64
+		dbVolumeMap = make(map[string]*datamodel.Volume, len(dbVolumes))
+	)
+	for _, v := range dbVolumes {
+		dbVolumeIDs = append(dbVolumeIDs, v.ID)
+		dbVolumeMap[v.VolumeAttributes.ExternalUUID] = v
+	}
+
+	dbSnapshots, err := se.GetSnapshotsByVolumeIDs(ctx, dbVolumeIDs)
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to get snapshots from database for pool %s: %v", pool.UUID, err)
+		logger.Errorf(errMsg)
+		return nil, err
+	}
+
+	var dbSnapshotMap = make(map[string]*datamodel.Snapshot, len(dbSnapshots))
+	for _, dbSnapshot := range dbSnapshots {
+		dbSnapshotMap[dbSnapshot.SnapshotAttributes.ExternalUUID] = dbSnapshot
+	}
+
+	return &GetDBVolumeAndSnapshotsForPoolReturnValue{
+		DBVolumeMap:   dbVolumeMap,
+		DBSnapshotMap: dbSnapshotMap,
+		DBSnapshots:   dbSnapshots,
+	}, nil
+}
+
+type ProcessSnapshotsReturnValue struct {
+	NewSSMap                   map[string]*vsa.Snapshot
+	UpdatedSSMap               map[string]*vsa.Snapshot
+	WronglyDeletedSnapshotsMap map[string]*vsa.Snapshot
+	NewIDs                     []string
+	UpdatedIDs                 []string
+	DeleteIDs                  []int64
+	WronglyDeletedIDs          []string
+}
+
+func (a *SyncSnapshotActivity) ProcessSnapshots(ctx context.Context, ontapVolumeMap map[string]*vsa.Volume, ontapSnapshots []*vsa.Snapshot, dbVolumeMap map[string]*datamodel.Volume, dbSnapshots []*datamodel.Snapshot) (*ProcessSnapshotsReturnValue, error) {
+	newSSMap, updatedSSMap, wronglyDeletedSnapshotsMap, newIds, updatedIDs, deleteIDs, wronglyDeletedIds :=
+		processSnapshotSync(ctx, ontapVolumeMap, ontapSnapshots, dbVolumeMap, dbSnapshots)
+
+	return &ProcessSnapshotsReturnValue{
+		NewSSMap:                   newSSMap,
+		UpdatedSSMap:               updatedSSMap,
+		WronglyDeletedSnapshotsMap: wronglyDeletedSnapshotsMap,
+		NewIDs:                     newIds,
+		UpdatedIDs:                 updatedIDs,
+		DeleteIDs:                  deleteIDs,
+		WronglyDeletedIDs:          wronglyDeletedIds,
+	}, nil
+}
+
+func (a *SyncSnapshotActivity) SyncDeletedSnapshotsToDatabase(ctx context.Context, deleteIDs []int64) ([]*datamodel.Snapshot, error) {
+	return syncDeletedSnapshotsToDatabase(ctx, deleteIDs, a.SE)
+}
+
+func (a *SyncSnapshotActivity) SyncNewSnapshotsToDatabase(ctx context.Context, newSnapshots []string, newSSMap map[string]*vsa.Snapshot, dbVolumeMap map[string]*datamodel.Volume, pool *datamodel.Pool) ([]*datamodel.Snapshot, error) {
+	return syncNewSnapshotsToDatabase(ctx, newSnapshots, newSSMap, a.SE, dbVolumeMap, pool)
+}
+
+func (a *SyncSnapshotActivity) SyncUpdatedSnapshotsToDatabase(ctx context.Context, updatedSnapshots []string, updatedSSMap map[string]*vsa.Snapshot, dbSnapshotsMap map[string]*datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
+	return syncUpdatedSnapshotsToDatabase(ctx, updatedSnapshots, updatedSSMap, a.SE, dbSnapshotsMap)
+}
+
+func (a *SyncSnapshotActivity) SyncWronglyDeletedSnapshotsToDatabase(ctx context.Context, wronglyDeletedSnapshots []string, wronglyDeletedSnapshotsMap map[string]*vsa.Snapshot) ([]*datamodel.Snapshot, error) {
+	return syncWronglyDeletedSnapshotsToDatabase(ctx, wronglyDeletedSnapshots, wronglyDeletedSnapshotsMap, a.SE, nil)
+}
+
+func (a *SyncSnapshotActivity) HydrateSnapshotsToCCFE(ctx context.Context, createdSnapshots []*datamodel.Snapshot, deletedSnapshots []*datamodel.Snapshot) error {
+	logger := util.GetLogger(ctx)
+	if len(createdSnapshots) == 0 && len(deletedSnapshots) == 0 {
+		logger.Info("No snapshots to hydrate to CCFE, skipping hydration")
+		return nil
+	}
+
+	if hydrationEnabled {
+		return hydrateBatchSnapshotsToCCFE(ctx, createdSnapshots, deletedSnapshots)
+	} else {
+		logger.Warn("Hydration is disabled, skipping snapshot hydration to CCFE")
+	}
+	return nil
 }

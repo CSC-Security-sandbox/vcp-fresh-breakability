@@ -932,3 +932,15 @@ func GetSnHostProject(pool *datamodel.Pool) string {
 	}
 	return pool.SnHostProject
 }
+
+// GetLocationFromVendorID extracts the location from a vendor ID.
+func GetLocationFromVendorID(vendorID string) (string, error) {
+	// vendorID is in the format: "/projects/project123/locations/location123/pools/pool123"
+	parts := strings.Split(vendorID, "/")
+
+	if len(parts) != 7 {
+		return "", errors.NewUserInputValidationErr("invalid vendor ID, expected format: /projects/{project}/locations/{location}/pools/{pool}, found: " + vendorID)
+	}
+
+	return parts[len(parts)-3], nil
+}

@@ -75,6 +75,11 @@ func AddExtraLoggerFields(ctx workflow.Context, keyValMap map[string]interface{}
 		if loggerFields, ok := ctx.Value(middleware.TemporalSLoggerKey).(log.Fields); ok {
 			loggerFields[key] = val
 			ctx = workflow.WithValue(ctx, middleware.TemporalSLoggerKey, loggerFields)
+		} else {
+			// If the logger fields do not exist, create a new one with the provided key and value.
+			// This will be useful for background workflows where the logger fields might not be initialized.
+			newLoggerFields := log.Fields{key: val}
+			ctx = workflow.WithValue(ctx, middleware.TemporalSLoggerKey, newLoggerFields)
 		}
 	}
 	return ctx

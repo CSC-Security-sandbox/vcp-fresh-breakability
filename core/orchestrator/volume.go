@@ -242,7 +242,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	location, err := getLocationFromVendorID(dbVolume.Pool.VendorID)
+	location, err := utils.GetLocationFromVendorID(dbVolume.Pool.VendorID)
 	if err != nil {
 		logger.Error("Failed to get location from vendor ID: ", "error", err)
 		return nil, "", err
@@ -350,7 +350,7 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	location, err := getLocationFromVendorID(volume.Pool.VendorID)
+	location, err := utils.GetLocationFromVendorID(volume.Pool.VendorID)
 	if err != nil {
 		logger.Error("Failed to get location from vendor ID: ", "error", err)
 		return nil, "", err
@@ -933,7 +933,7 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
-	location, err := getLocationFromVendorID(volume.Pool.VendorID)
+	location, err := utils.GetLocationFromVendorID(volume.Pool.VendorID)
 	if err != nil {
 		logger.Error("Failed to get location from vendor ID: ", "error", err)
 		return nil, "", err
@@ -1270,17 +1270,6 @@ func convertToModelSnapshotPolicySchedule(schedules []*datamodel.SnapshotPolicyS
 		})
 	}
 	return dbSnapshotPolicySchedules
-}
-
-func getLocationFromVendorID(vendorID string) (string, error) {
-	// vendorID is in the format: "/projects/project123/locations/location123/pools/pool123"
-	parts := strings.Split(vendorID, "/")
-
-	if len(parts) != 7 {
-		return "", customerrors.NewUserInputValidationErr("invalid vendor ID, expected format: /projects/{project}/locations/{location}/pools/{pool}, found: " + vendorID)
-	}
-
-	return parts[len(parts)-3], nil
 }
 
 func validateAllowedClients(allowedClients string) error {
