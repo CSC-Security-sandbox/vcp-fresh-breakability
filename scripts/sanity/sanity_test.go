@@ -27,10 +27,12 @@ var (
 	globalPoolName      = "p" + strconv.FormatInt(time.Now().Unix(), 10)
 	globalHostGroupName = "hg" + strconv.FormatInt(time.Now().Unix(), 10)
 	globalVolumeName    = "v" + strconv.FormatInt(time.Now().Unix(), 10)
+	globalSnapshotName  = "s" + strconv.FormatInt(time.Now().Unix(), 10)
 	globalNetwork       = fmt.Sprintf("projects/%s/global/networks/%s", globalProjectNumber, vpcName)
 	globalPoolUUID      = ""
 	globalHostGroupUUID = ""
 	globalVolumeUUID    = ""
+	globalSnapshotUUID  = ""
 	defaultPoolSize     = 2199023255552 // 2 TiB
 	defaultVolumeSize   = 107374182400  // 100 GiB
 )
@@ -377,6 +379,130 @@ func TestUpdateVolumeAndWaitForCompletion(t *testing.T) {
 		OperationId:   operationID,
 	}
 	done := pollOperationDone(t, client, ctx, describeParams, 20, 30*time.Second)
+	require.True(t, done, "operation did not complete in time")
+}
+
+func TestCreateSnapshot(t *testing.T) {
+	ctx := context.Background()
+	client := getTestClient(t)
+
+	params := googleproxyclient.V1betaCreateSnapshotParams{
+		ProjectNumber: globalProjectNumber,
+		LocationId:    globalLocationId,
+		VolumeId:      globalVolumeUUID,
+	}
+	snapshotReq := &googleproxyclient.VolumeSnapshotCreateV1beta{
+		ResourceId:  globalSnapshotName,
+		Description: googleproxyclient.NewOptString("test snapshot"),
+	}
+
+	res, err := client.V1betaCreateSnapshot(ctx, snapshotReq, params)
+	log.Printf("CreateSnapshot response: %+v, err: %v", res, err)
+	require.NoError(t, err)
+	operation, ok := res.(*googleproxyclient.OperationV1beta)
+	require.True(t, ok, "expected OperationV1beta, got %T", res)
+	operationID := extractOperationID(operation.GetName().Value)
+
+	var snapshotV1beta gcpgenserver.SnapshotV1beta
+	err = json.Unmarshal(operation.GetResponse(), &snapshotV1beta)
+	if err != nil {
+		log.Printf("Error unmarshalling snapshotV1beta: %v", err)
+		require.Fail(t, "Failed to unmarshal snapshotV1beta")
+		return
+	}
+	globalSnapshotUUID = snapshotV1beta.SnapshotId.Value
+
+	require.NotEmpty(t, operationID)
+
+	describeParams := googleproxyclient.V1betaDescribeOperationParams{
+		ProjectNumber: params.ProjectNumber,
+		LocationId:    params.LocationId,
+		OperationId:   operationID,
+	}
+	done := pollOperationDone(t, client, ctx, describeParams, 20, 10*time.Second)
+
+	require.True(t, done, "operation did not complete in time")
+}
+
+func TestGetSnapshot(t *testing.T) {
+	ctx := context.Background()
+	client := getTestClient(t)
+
+	params := googleproxyclient.V1betaDescribeSnapshotParams{
+		ProjectNumber: globalProjectNumber,
+		LocationId:    globalLocationId,
+		VolumeId:      globalVolumeUUID,
+		SnapshotId:    globalSnapshotUUID,
+	}
+
+	res, err := client.V1betaDescribeSnapshot(ctx, params)
+	log.Printf("GetSnapshot response: %+v, err: %v", res, err)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+
+	snapshot, ok := res.(*googleproxyclient.SnapshotV1beta)
+	require.True(t, ok, "expected SnapshotV1beta, got %T", res)
+	require.Equal(t, globalSnapshotUUID, snapshot.SnapshotId.Value)
+	require.Equal(t, globalSnapshotName, snapshot.ResourceId)
+	require.Equal(t, googleproxyclient.SnapshotV1betaSnapshotStateREADY, snapshot.SnapshotState.Value)
+	require.Equal(t, googleproxyclient.StorageClassV1betaSOFTWARE, snapshot.StorageClass.Value)
+	require.Equal(t, "Available for use", snapshot.SnapshotStateDetails.Value)
+}
+
+func TestUpdateSnapshot(t *testing.T) {
+	ctx := context.Background()
+	client := getTestClient(t)
+
+	params := googleproxyclient.V1betaUpdateSnapshotParams{
+		ProjectNumber: globalProjectNumber,
+		LocationId:    globalLocationId,
+		VolumeId:      globalVolumeUUID,
+		SnapshotId:    globalSnapshotUUID,
+	}
+	snapshotReq := &googleproxyclient.VolumeSnapshotUpdateV1beta{
+		Description: "updated snapshot",
+	}
+
+	res, err := client.V1betaUpdateSnapshot(ctx, snapshotReq, params)
+	log.Printf("UpdateSnapshot response: %+v, err: %v", res, err)
+	require.NoError(t, err)
+	operation, ok := res.(*googleproxyclient.OperationV1beta)
+	require.True(t, ok, "expected OperationV1beta, got %T", res)
+	operationID := extractOperationID(operation.GetName().Value)
+	require.NotEmpty(t, operationID)
+	describeParams := googleproxyclient.V1betaDescribeOperationParams{
+		ProjectNumber: params.ProjectNumber,
+		LocationId:    params.LocationId,
+		OperationId:   operationID,
+	}
+	done := pollOperationDone(t, client, ctx, describeParams, 20, 5*time.Second)
+	require.True(t, done, "operation did not complete in time")
+}
+
+func TestDeleteSnapshotAndWaitForCompletion(t *testing.T) {
+	ctx := context.Background()
+	client := getTestClient(t)
+
+	params := googleproxyclient.V1betaDeleteSnapshotParams{
+		ProjectNumber: globalProjectNumber,
+		LocationId:    globalLocationId,
+		VolumeId:      globalVolumeUUID,
+		SnapshotId:    globalSnapshotUUID,
+	}
+
+	res, err := client.V1betaDeleteSnapshot(ctx, params)
+	log.Printf("DeleteSnapshot response: %+v, err: %v", res, err)
+	require.NoError(t, err)
+	operation, ok := res.(*googleproxyclient.OperationV1beta)
+	require.True(t, ok, "expected OperationV1beta, got %T", res)
+	operationID := extractOperationID(operation.GetName().Value)
+	require.NotEmpty(t, operationID)
+	describeParams := googleproxyclient.V1betaDescribeOperationParams{
+		ProjectNumber: params.ProjectNumber,
+		LocationId:    params.LocationId,
+		OperationId:   operationID,
+	}
+	done := pollOperationDone(t, client, ctx, describeParams, 20, 10*time.Second)
 	require.True(t, done, "operation did not complete in time")
 }
 
