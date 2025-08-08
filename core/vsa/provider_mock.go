@@ -1918,6 +1918,65 @@ func (_c *MockProvider_GetSVMPeer_Call) RunAndReturn(run func(*string, *string) 
 	return _c
 }
 
+// GetSnapshot provides a mock function with given fields: snapshotUUID, volumeUUID
+func (_m *MockProvider) GetSnapshot(snapshotUUID string, volumeUUID string) (*SnapshotProviderResponse, error) {
+	ret := _m.Called(snapshotUUID, volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSnapshot")
+	}
+
+	var r0 *SnapshotProviderResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) (*SnapshotProviderResponse, error)); ok {
+		return rf(snapshotUUID, volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) *SnapshotProviderResponse); ok {
+		r0 = rf(snapshotUUID, volumeUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*SnapshotProviderResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(snapshotUUID, volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSnapshot'
+type MockProvider_GetSnapshot_Call struct {
+	*mock.Call
+}
+
+// GetSnapshot is a helper method to define mock.On call
+//   - snapshotUUID string
+//   - volumeUUID string
+func (_e *MockProvider_Expecter) GetSnapshot(snapshotUUID interface{}, volumeUUID interface{}) *MockProvider_GetSnapshot_Call {
+	return &MockProvider_GetSnapshot_Call{Call: _e.mock.On("GetSnapshot", snapshotUUID, volumeUUID)}
+}
+
+func (_c *MockProvider_GetSnapshot_Call) Run(run func(snapshotUUID string, volumeUUID string)) *MockProvider_GetSnapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetSnapshot_Call) Return(_a0 *SnapshotProviderResponse, _a1 error) *MockProvider_GetSnapshot_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetSnapshot_Call) RunAndReturn(run func(string, string) (*SnapshotProviderResponse, error)) *MockProvider_GetSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSnapshots provides a mock function with given fields: volumeUUID
 func (_m *MockProvider) GetSnapshots(volumeUUID string) ([]*Snapshot, error) {
 	ret := _m.Called(volumeUUID)

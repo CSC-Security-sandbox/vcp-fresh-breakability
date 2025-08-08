@@ -711,6 +711,7 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 		},
 		SourceSnapshot: gcpgenserver.OptString{
 			Value: backup.Attributes.SnapshotName,
+			Set:   true,
 		},
 		SourceVolume: gcpgenserver.OptString{
 			Value: backup.Attributes.VolumeName,
@@ -742,18 +743,21 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 
 func createBackupParams(req *gcpgenserver.BackupCreateV1beta, params gcpgenserver.V1betaCreateBackupParams) *common.CreateBackupParams {
 	backupParams := common.CreateBackupParams{
-		AccountName:   params.ProjectNumber,
-		BackupVaultID: params.BackupVaultId,
-		VolumeUUID:    req.VolumeId,
-		BackupName:    req.ResourceId,
-		BackupType:    BackupTypeMANUAL, // Default to MANUAL, later can be changed based on the request
-		LocationID:    params.LocationId,
+		AccountName:         params.ProjectNumber,
+		BackupVaultID:       params.BackupVaultId,
+		VolumeUUID:          req.VolumeId,
+		BackupName:          req.ResourceId,
+		BackupType:          BackupTypeMANUAL, // Default to MANUAL, later can be changed based on the request
+		LocationID:          params.LocationId,
+		UseExistingSnapshot: false, // Default to false, can be changed based on the request
+		SnapshotID:          "",    // Default to empty, can be changed based on the request
 	}
 	if req.Description.IsSet() {
 		backupParams.Description = req.Description.Value
 	}
 	if req.SnapshotId.IsSet() {
 		backupParams.SnapshotID = req.SnapshotId.Value
+		backupParams.UseExistingSnapshot = true
 	}
 	if params.XCorrelationID.IsSet() {
 		backupParams.XCorrelationID = params.XCorrelationID.Value

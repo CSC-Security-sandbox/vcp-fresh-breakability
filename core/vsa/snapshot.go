@@ -175,6 +175,65 @@ func (rc *OntapRestProvider) DeleteSnapshot(snapshotUUID string, volumeUUID stri
 	return nil
 }
 
+// GetSnapshot retrieves a snapshot by calling the ONTAP REST Client
+func (rc *OntapRestProvider) GetSnapshot(snapshotUUID string, volumeUUID string) (*SnapshotProviderResponse, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	sc := client.Storage()
+	snapshot, err := sc.SnapshotGet(&ontapRest.SnapshotGetParams{
+		BaseParams: ontapRest.BaseParams{Fields: []string{"uuid", "version_uuid", "name", "size", "create_time", "snapmirror_label", "provenance_volume", "volume", "svm", "logical_size"}},
+		UUID:       snapshotUUID,
+		VolumeUUID: volumeUUID,
+	})
+	if err != nil {
+		if !errors.IsNotFoundErr(err) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+		}
+
+		// Check if volume exists when snapshot is not found
+		var volume *ontapRest.Volume
+		volume, err = sc.VolumeGet(&ontapRest.VolumeGetParams{
+			BaseParams: ontapRest.BaseParams{Fields: []string{"state"}},
+			UUID:       volumeUUID,
+		})
+		if err != nil {
+			if errors.IsNotFoundErr(err) {
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.NewNotFoundErr("Volume", nil))
+			}
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+		}
+
+		if *volume.State != "online" {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.NewNotFoundErr("Snapshot on offline volume", nil))
+		}
+		rc.Logger.With(log.Fields{
+			"snapshotUUID":       snapshotUUID,
+			"volumeExternalUUID": volumeUUID,
+		}).Warn("Missing snapshot from online volume")
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.NewNotFoundErr("Snapshot", nil))
+	}
+
+	// Validate the Snapshot response to avoid nil pointer dereferences
+	if snapshot == nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapInconsistentResourceError, errors.NewBadRequestErr("invalid Snapshot get response from API: snapshot is nil"))
+	}
+	if snapshot.Name == nil || snapshot.UUID == nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapInconsistentResourceError, errors.NewBadRequestErr("invalid Snapshot get response from API: missing required fields"))
+	}
+
+	// Return the retrieved snapshot
+	return &SnapshotProviderResponse{
+		ProviderResponse: ProviderResponse{
+			Name:         *snapshot.Name,
+			ExternalUUID: *snapshot.UUID,
+		},
+		SizeInBytes:        *snapshot.Size,
+		LogicalSizeInBytes: *snapshot.LogicalSize,
+	}, nil
+}
+
 // ListSnapmirrorSnapshots gets the snapmirror snapshots with prefix "snapmirror*" for the specified volume
 func (rc *OntapRestProvider) ListSnapmirrorSnapshots(volumeUUID string) ([]*SnapshotListResponse, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)

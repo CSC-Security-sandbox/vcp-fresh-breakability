@@ -351,15 +351,16 @@ type ResourceNames struct {
 }
 
 type CreateBackupParams struct {
-	AccountName    string
-	BackupVaultID  string
-	VolumeUUID     string
-	BackupName     string
-	Description    string
-	SnapshotID     string
-	BackupType     string
-	LocationID     string
-	XCorrelationID string
+	AccountName         string
+	BackupVaultID       string
+	VolumeUUID          string
+	BackupName          string
+	Description         string
+	SnapshotID          string
+	BackupType          string
+	LocationID          string
+	XCorrelationID      string
+	UseExistingSnapshot bool
 }
 
 type GetBackupsParams struct {

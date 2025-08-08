@@ -108,6 +108,11 @@ func (d *DataStoreRepository) GetSnapshotByUUID(ctx context.Context, uuid string
 	return getSnapshotWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Snapshot{AccountID: accountID, VolumeID: volumeID, BaseModel: datamodel.BaseModel{UUID: uuid}})
 }
 
+// GetSnapshotByNameAndVolumeId Retrieves a snapshot by name, account ID, and volume ID from the database.
+func (d *DataStoreRepository) GetSnapshotByNameAndVolumeId(ctx context.Context, snapshotName string, accountID int64, volumeID int64) (*datamodel.Snapshot, error) {
+	return getSnapshotWithDetails(d.db.GORM().WithContext(ctx), &datamodel.Snapshot{AccountID: accountID, VolumeID: volumeID, Name: snapshotName})
+}
+
 // GetSnapshotByPoolID Retrieves a snapshot by UUID, account ID, and pool ID, validating the pool association and optionally preloading parent snapshot details.
 func (d *DataStoreRepository) GetSnapshotByPoolID(ctx context.Context, uuid string, accountID int64, poolID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
 	db := d.db.GORM().WithContext(ctx).Preload("Volume").Preload("Volume.Pool")

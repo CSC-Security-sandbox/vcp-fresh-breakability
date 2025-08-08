@@ -8,7 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -23,6 +23,7 @@ var (
 	deleteBackup               = _deleteBackup
 	updateBackup               = _updateBackup
 	validateBackupDeleteParams = _validateBackupDeleteParams
+	validateSnapshotForBackup  = _validateSnapshotForBackup
 )
 
 // CreateBackup creates the specified backup and adds it to the list of backup belonging to the specified BackupVault
@@ -101,9 +102,21 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 
 	backupAttributes := datamodel.BackupAttributes{
-		VolumeName:        volume.Name,
-		AccountIdentifier: account.Name,
-		Protocols:         volume.VolumeAttributes.Protocols,
+		VolumeName:          volume.Name,
+		AccountIdentifier:   account.Name,
+		Protocols:           volume.VolumeAttributes.Protocols,
+		UseExistingSnapshot: params.UseExistingSnapshot,
+	}
+	if params.UseExistingSnapshot {
+		dbSnapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID, account.ID, volume.ID)
+		if err != nil {
+			if customerrors.IsNotFoundErr(err) {
+				return nil, "", customerrors.NewUserInputValidationErr("Snapshot not found")
+			}
+			return nil, "", err
+		}
+		backupAttributes.SnapshotName = dbSnapshot.Name
+		backupAttributes.SnapshotID = dbSnapshot.SnapshotAttributes.ExternalUUID
 	}
 	dbBackup := &datamodel.Backup{
 		Name:          params.BackupName,
@@ -156,7 +169,6 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		backupVault,
 		volume,
 	)
-
 	if err != nil {
 		logger.Error("Failed to start create backup workflow: ", "error", err)
 		return nil, "", err
@@ -247,7 +259,6 @@ func _updateBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		workflows.UpdateBackupWorkflow,
 		backup,
 	)
-
 	if err != nil {
 		logger.Error("Failed to start update backup workflow: ", "error", err)
 		return nil, "", err
@@ -277,6 +288,18 @@ func _validateCreateBackupParams(ctx context.Context, se database.Storage, param
 	if vol.DataProtection != nil && vol.DataProtection.BackupVaultID != params.BackupVaultID {
 		return customerrors.NewUserInputValidationErr("Volume does not have the specified backup vault associated with it")
 	}
+	if vol.VolumeAttributes != nil && vol.VolumeAttributes.IsDataProtection && params.SnapshotID == "" {
+		return customerrors.NewUserInputValidationErr("Backup creation is not supported for destination volumes without specifying an existing snapshot. Please use an existing snapshot to create backups or create a snapshot on the source volume and back that up on this volume once it has been replicated to this volume")
+	}
+
+	if common.SnapmirrorSnapshotPrefix.MatchString(params.BackupName) {
+		return customerrors.NewUserInputValidationErr("Backups cannot be created from snapshots resulting from volume replication. Please use a non-replication snapshot and update the backup name to a non-replication snapshot name")
+	}
+	err = validateSnapshotForBackup(ctx, se, params, vol)
+	if err != nil {
+		return customerrors.NewUserInputValidationErr("Failed to validate snapshot for backup: " + err.Error())
+	}
+
 	return nil
 }
 
@@ -310,6 +333,7 @@ func convertDatastoreBackupToModel(backup *datamodel.Backup) *models.Backup {
 		LifeCycleStateDetails: backup.StateDetails,
 		Description:           &backup.Description,
 		Type:                  backup.Type,
+		SnapshotName:          backup.Attributes.SnapshotName,
 	}
 }
 
@@ -402,7 +426,6 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		workflows.DeleteBackupWorkflow,
 		params,
 	)
-
 	if err != nil {
 		logger.Error("Failed to start delete backup workflow: ", "error", err)
 		return nil, "", err
@@ -442,6 +465,38 @@ func _validateBackupDeleteParams(ctx context.Context, se database.Storage, param
 
 	if isLatest && count != 1 {
 		return customerrors.NewUserInputValidationErr("Cannot delete latest backup")
+	}
+	return nil
+}
+
+func _validateSnapshotForBackup(ctx context.Context, se database.Storage, params *common.CreateBackupParams, vol *datamodel.Volume) error {
+	if params.UseExistingSnapshot {
+		if params.SnapshotID == "" {
+			return customerrors.NewUserInputValidationErr("Missing value for 'SnapshotID'")
+		}
+		snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID, vol.AccountID, vol.ID)
+		if err != nil {
+			if customerrors.IsNotFoundErr(err) {
+				return customerrors.NewUserInputValidationErr("Snapshot not found")
+			}
+			return err
+		}
+		if snapshot.State != models.LifeCycleStateREADY {
+			return customerrors.NewUserInputValidationErr("Snapshot is not in available state")
+		}
+		if common.SnapmirrorSnapshotPrefix.MatchString(snapshot.Name) {
+			return customerrors.NewUserInputValidationErr("Backups cannot be created from snapshots resulting from volume replication. Please use a non-replication snapshot.")
+		}
+	} else {
+		if params.SnapshotID != "" {
+			return customerrors.NewUserInputValidationErr("Cannot set Snapshot ID when useExistingSnapshot is false")
+		}
+
+		if snapshotInDB, err := se.GetSnapshotByNameAndVolumeId(ctx, params.BackupName, vol.AccountID, vol.ID); err != nil && !customerrors.IsNotFoundErr(err) {
+			return err
+		} else if snapshotInDB != nil {
+			return customerrors.NewUserInputValidationErr("Backup creation failed because the name conflicts with an existing snapshot. Please use the existing snapshot or choose a new backup name. A new name will create a new snapshot for the backup")
+		}
 	}
 	return nil
 }

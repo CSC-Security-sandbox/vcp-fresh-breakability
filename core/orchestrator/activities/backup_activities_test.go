@@ -1653,6 +1653,14 @@ func TestUpdateSnapshotActivity_Success(t *testing.T) {
 	state := &activities.BackupActivitiesContext{
 		DbSnapshot:       dbSnapshot,
 		SnapshotResponse: snapshotResponse,
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: &datamodel.Backup{
+				Name: "test-backup",
+				Attributes: &datamodel.BackupAttributes{
+					UseExistingSnapshot: false,
+				},
+			},
+		},
 	}
 
 	expectedSnapshot := &datamodel.Snapshot{
@@ -1793,6 +1801,14 @@ func TestUpdateSnapshotActivity_WithNilSnapshotResponse(t *testing.T) {
 	state := &activities.BackupActivitiesContext{
 		DbSnapshot:       dbSnapshot,
 		SnapshotResponse: nil,
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: &datamodel.Backup{
+				Name: "test-backup",
+				Attributes: &datamodel.BackupAttributes{
+					UseExistingSnapshot: false,
+				},
+			},
+		},
 	}
 
 	mockStorage.On("UpdateSnapshot", ctx, mock.MatchedBy(func(s *datamodel.Snapshot) bool {
@@ -2806,4 +2822,354 @@ func TestGetAccountByName_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, expectedAccount, result)
 	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateSnapshotActivity_UseExistingSnapshot_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	mockProvider := new(vsa.MockProvider)
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	dbSnapshot := &datamodel.Snapshot{
+		Name:     "existing-snapshot",
+		VolumeID: 1,
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			ExternalUUID: "snapshot-uuid",
+		},
+	}
+
+	snapshotResponse := &vsa.SnapshotProviderResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "snapshot-uuid",
+		},
+		SizeInBytes:        2048,
+		LogicalSizeInBytes: 1024,
+	}
+
+	backup := &datamodel.Backup{
+		Name: "test-backup",
+		Attributes: &datamodel.BackupAttributes{
+			UseExistingSnapshot: true,
+			SnapshotName:        "existing-snapshot",
+		},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volumeUUID",
+			ID:   1,
+		},
+		AccountID: 2,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "volume-uuid",
+		},
+	}
+
+	state := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+		Node:         &models.Node{},
+		SnapshotName: "existing-snapshot",
+	}
+
+	mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, "existing-snapshot", volume.AccountID, volume.ID).Return(dbSnapshot, nil)
+	mockProvider.On("GetSnapshot", "snapshot-uuid", "volume-uuid").Return(snapshotResponse, nil)
+
+	// Act
+	result, err := activity.CreateSnapshotActivity(ctx, state)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, snapshotResponse, result.SnapshotResponse)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateSnapshotActivity_UseExistingSnapshot_EmptySnapshotName(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		Name: "test-backup",
+		Attributes: &datamodel.BackupAttributes{
+			UseExistingSnapshot: true,
+			SnapshotName:        "",
+		},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volumeUUID",
+			ID:   1,
+		},
+		AccountID: 2,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "volume-uuid",
+		},
+	}
+
+	state := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+		Node:         &models.Node{},
+		SnapshotName: "", // Empty snapshot name
+	}
+
+	// Act
+	result, err := activity.CreateSnapshotActivity(ctx, state)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "snapshot name is empty in backup attributes")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateSnapshotActivity_UseExistingSnapshot_GetSnapshotFromDBFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		Name: "test-backup",
+		Attributes: &datamodel.BackupAttributes{
+			UseExistingSnapshot: true,
+			SnapshotName:        "existing-snapshot",
+		},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volumeUUID",
+			ID:   1,
+		},
+		AccountID: 2,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "volume-uuid",
+		},
+	}
+
+	state := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+		Node:         &models.Node{},
+		SnapshotName: "existing-snapshot",
+	}
+
+	mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, "existing-snapshot", volume.AccountID, volume.ID).Return(nil, errors.New("snapshot not found in database"))
+
+	// Act
+	result, err := activity.CreateSnapshotActivity(ctx, state)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "snapshot not found in database")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateSnapshotActivity_UseExistingSnapshot_GetSnapshotFromOntapFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	mockProvider := new(vsa.MockProvider)
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	dbSnapshot := &datamodel.Snapshot{
+		Name:     "existing-snapshot",
+		VolumeID: 1,
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			ExternalUUID: "snapshot-uuid",
+		},
+	}
+
+	backup := &datamodel.Backup{
+		Name: "test-backup",
+		Attributes: &datamodel.BackupAttributes{
+			UseExistingSnapshot: true,
+			SnapshotName:        "existing-snapshot",
+		},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volumeUUID",
+			ID:   1,
+		},
+		AccountID: 2,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "volume-uuid",
+		},
+	}
+
+	state := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+		Node:         &models.Node{},
+		SnapshotName: "existing-snapshot",
+	}
+
+	mockStorage.On("GetSnapshotByNameAndVolumeId", ctx, "existing-snapshot", volume.AccountID, volume.ID).Return(dbSnapshot, nil)
+	mockProvider.On("GetSnapshot", "snapshot-uuid", "volume-uuid").Return(nil, errors.New("failed to get snapshot from ONTAP"))
+
+	// Act
+	result, err := activity.CreateSnapshotActivity(ctx, state)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "failed to get snapshot from ONTAP")
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateSnapshotActivity_CreateNewSnapshot_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	mockProvider := new(vsa.MockProvider)
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	snapshotResponse := &vsa.SnapshotProviderResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "new-snapshot-uuid",
+		},
+		SizeInBytes:        2048,
+		LogicalSizeInBytes: 1024,
+	}
+
+	backup := &datamodel.Backup{
+		Name: "test-backup",
+		Attributes: &datamodel.BackupAttributes{
+			UseExistingSnapshot: false,
+		},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volumeUUID",
+			ID:   1,
+		},
+		AccountID: 2,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "volume-uuid",
+		},
+	}
+
+	state := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+		Node:         &models.Node{},
+		SnapshotName: "test-backup",
+	}
+
+	mockProvider.On("CreateSnapshot", vsa.CreateSnapshotParams{
+		VolumeUUID: "volume-uuid",
+		Name:       "test-backup",
+		Comment:    "VCP-Backup",
+	}).Return(snapshotResponse, nil)
+
+	// Act
+	result, err := activity.CreateSnapshotActivity(ctx, state)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, snapshotResponse, result.SnapshotResponse)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateSnapshotActivity_CreateNewSnapshot_Failure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.BackupActivity{SE: mockStorage}
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	mockProvider := new(vsa.MockProvider)
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	backup := &datamodel.Backup{
+		Name: "test-backup",
+		Attributes: &datamodel.BackupAttributes{
+			UseExistingSnapshot: false,
+		},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			UUID: "volumeUUID",
+			ID:   1,
+		},
+		AccountID: 2,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "volume-uuid",
+		},
+	}
+
+	state := &activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup: backup,
+			Volume: volume,
+		},
+		Node:         &models.Node{},
+		SnapshotName: "test-backup",
+	}
+
+	mockProvider.On("CreateSnapshot", vsa.CreateSnapshotParams{
+		VolumeUUID: "volume-uuid",
+		Name:       "test-backup",
+		Comment:    "VCP-Backup",
+	}).Return(nil, errors.New("failed to create snapshot in ONTAP"))
+
+	// Act
+	result, err := activity.CreateSnapshotActivity(ctx, state)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "failed to create snapshot in ONTAP")
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
 }

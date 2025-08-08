@@ -663,7 +663,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
 	})
-	
+
 	t.Run("DeleteSnapshotErrorOnPoll", func(t *testing.T) {
 		mockClient := new(ontaprest.MockRESTClient)
 		mockStorage := new(ontaprest.MockStorageClient)
@@ -1666,5 +1666,251 @@ func TestListSnapmirrorSnapshots(t *testing.T) {
 		assert.EqualError(t, err, "get error")
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
+	})
+}
+
+func TestGetSnapshot(t *testing.T) {
+	originalGetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+
+	t.Run("Success", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		snapshotUUID := "test-snapshot-uuid"
+		volumeUUID := "test-volume-uuid"
+
+		mockSnapshot := &ontaprest.Snapshot{
+			Snapshot: models.Snapshot{
+				Name:        nillable.ToPointer("test-snapshot"),
+				UUID:        nillable.ToPointer(snapshotUUID),
+				Size:        nillable.ToPointer(int64(1024)),
+				LogicalSize: nillable.ToPointer(int64(2048)),
+			},
+		}
+
+		mockStorage.On("SnapshotGet", mock.Anything).Return(mockSnapshot, nil)
+
+		resp, err := rc.GetSnapshot(snapshotUUID, volumeUUID)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, "test-snapshot", resp.Name)
+		assert.Equal(t, snapshotUUID, resp.ExternalUUID)
+		assert.Equal(t, int64(1024), resp.SizeInBytes)
+		assert.Equal(t, int64(2048), resp.LogicalSizeInBytes)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("ClientError", func(t *testing.T) {
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("client error")
+		}
+		rc := &OntapRestProvider{}
+
+		resp, err := rc.GetSnapshot("snapshot-uuid", "volume-uuid")
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "client error")
+	})
+
+	t.Run("SnapshotGetAPIError", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockStorage.On("SnapshotGet", mock.Anything).Return(nil, errors.New("API error"))
+
+		resp, err := rc.GetSnapshot("snapshot-uuid", "volume-uuid")
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("SnapshotNotFoundVolumeExists", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{
+			Logger: log.NewLogger().(*log.Slogger),
+		}
+
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				State: nillable.ToPointer("online"),
+			},
+		}
+
+		mockStorage.On("SnapshotGet", mock.Anything).Return(nil, errors.NewNotFoundErr("Snapshot", nil))
+		mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+
+		resp, err := rc.GetSnapshot("snapshot-uuid", "volume-uuid")
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("SnapshotNotFoundVolumeNotFound", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockStorage.On("SnapshotGet", mock.Anything).Return(nil, errors.NewNotFoundErr("Snapshot", nil))
+		mockStorage.On("VolumeGet", mock.Anything).Return(nil, errors.NewNotFoundErr("Volume", nil))
+
+		resp, err := rc.GetSnapshot("snapshot-uuid", "volume-uuid")
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "Volume")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("SnapshotNotFoundVolumeGetError", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockStorage.On("SnapshotGet", mock.Anything).Return(nil, errors.NewNotFoundErr("Snapshot", nil))
+		mockStorage.On("VolumeGet", mock.Anything).Return(nil, errors.New("volume API error"))
+
+		resp, err := rc.GetSnapshot("snapshot-uuid", "volume-uuid")
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("SnapshotNotFoundVolumeOffline", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				State: nillable.ToPointer("offline"),
+			},
+		}
+
+		mockStorage.On("SnapshotGet", mock.Anything).Return(nil, errors.NewNotFoundErr("Snapshot", nil))
+		mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+
+		resp, err := rc.GetSnapshot("snapshot-uuid", "volume-uuid")
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "Snapshot on offline volume")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("NilSnapshotResponse", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockStorage.On("SnapshotGet", mock.Anything).Return(nil, nil)
+
+		resp, err := rc.GetSnapshot("snapshot-uuid", "volume-uuid")
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "snapshot is nil")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("SnapshotMissingName", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockSnapshot := &ontaprest.Snapshot{
+			Snapshot: models.Snapshot{
+				UUID:        nillable.ToPointer("uuid"),
+				Size:        nillable.ToPointer(int64(1024)),
+				LogicalSize: nillable.ToPointer(int64(2048)),
+				// Name is nil
+			},
+		}
+
+		mockStorage.On("SnapshotGet", mock.Anything).Return(mockSnapshot, nil)
+
+		resp, err := rc.GetSnapshot("snapshot-uuid", "volume-uuid")
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "missing required fields")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("SnapshotMissingUUID", func(t *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		mockSnapshot := &ontaprest.Snapshot{
+			Snapshot: models.Snapshot{
+				Name:        nillable.ToPointer("test-snapshot"),
+				Size:        nillable.ToPointer(int64(1024)),
+				LogicalSize: nillable.ToPointer(int64(2048)),
+				// UUID is nil
+			},
+		}
+
+		mockStorage.On("SnapshotGet", mock.Anything).Return(mockSnapshot, nil)
+
+		resp, err := rc.GetSnapshot("snapshot-uuid", "volume-uuid")
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "missing required fields")
+		mockStorage.AssertExpectations(t)
 	})
 }

@@ -152,7 +152,15 @@ func (b *BackupActivity) CreateSnapmirrorRelationshipActivity(ctx context.Contex
 // CreatingSnapshotActivity creates snapshot in database
 func (b *BackupActivity) CreatingSnapshotActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
 	logger := util.GetLogger(ctx)
-	backupActivitiesContext.SnapshotName = backupActivitiesContext.BackupWorkflowInit.Backup.Name
+	if !backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.UseExistingSnapshot {
+		backupActivitiesContext.SnapshotName = backupActivitiesContext.BackupWorkflowInit.Backup.Name
+	} else {
+		// If UseExistingSnapshot is true, we use the existing snapshot name from the backup attributes
+		if backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName == "" {
+			return nil, errors.New("snapshot name is empty in backup attributes")
+		}
+		backupActivitiesContext.SnapshotName = backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName
+	}
 	snapshot := &datamodel.Snapshot{
 		Name:               backupActivitiesContext.SnapshotName,
 		Description:        BackupComment,
@@ -164,10 +172,24 @@ func (b *BackupActivity) CreatingSnapshotActivity(ctx context.Context, backupAct
 		Type:               SnapshotTypeBackupAdhoc,
 		SnapshotAttributes: &datamodel.SnapshotAttributes{},
 	}
-	dbSnapshot, err := b.SE.CreatingSnapshot(ctx, snapshot)
-	if err != nil {
-		logger.Errorf("Failed to create snapshot in database. Error: %v", err)
-		return backupActivitiesContext, err
+	var dbSnapshot *datamodel.Snapshot
+	var err error
+	// If UseExistingSnapshot is true, we do not create a new snapshot in the database
+	if backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.UseExistingSnapshot {
+		dbSnapshot, err = b.SE.GetSnapshotByNameAndVolumeId(ctx, snapshot.Name, snapshot.AccountID, snapshot.VolumeID)
+		if err != nil {
+			if errors.IsNotFoundErr(err) {
+				return backupActivitiesContext, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.NewNotFoundErr("snapshot", &snapshot.Name))
+			}
+			logger.Errorf("Failed to get snapshot from database. Error: %v", err)
+			return backupActivitiesContext, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+		}
+	} else {
+		dbSnapshot, err = b.SE.CreatingSnapshot(ctx, snapshot)
+		if err != nil {
+			logger.Errorf("Failed to create snapshot in database. Error: %v", err)
+			return backupActivitiesContext, err
+		}
 	}
 	backupActivitiesContext.DbSnapshot = dbSnapshot
 	return backupActivitiesContext, nil
@@ -179,24 +201,25 @@ func (b *BackupActivity) UpdateSnapshotActivity(ctx context.Context, backupActiv
 	if backupActivitiesContext.DbSnapshot == nil {
 		return nil, errors.New("database snapshot is nil")
 	}
-
-	// Update the snapshot in the database
-	if backupActivitiesContext.SnapshotResponse != nil {
-		backupActivitiesContext.DbSnapshot.State = models.LifeCycleStateREADY
-		backupActivitiesContext.DbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
-		backupActivitiesContext.DbSnapshot.SnapshotAttributes.SizeInBytes = backupActivitiesContext.SnapshotResponse.SizeInBytes
-		backupActivitiesContext.DbSnapshot.SnapshotAttributes.ExternalUUID = backupActivitiesContext.SnapshotResponse.ExternalUUID
-		backupActivitiesContext.DbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes = backupActivitiesContext.SnapshotResponse.LogicalSizeInBytes
-	} else {
-		now := time.Now()
-		backupActivitiesContext.DbSnapshot.DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
-		backupActivitiesContext.DbSnapshot.State = models.LifeCycleStateError
-		backupActivitiesContext.DbSnapshot.StateDetails = models.LifeCycleStateCreationErrorDetails
-	}
-	_, err := b.SE.UpdateSnapshot(ctx, backupActivitiesContext.DbSnapshot)
-	if err != nil {
-		logger.Errorf("Failed to update snapshot details in database. Error: %v", err)
-		return nil, err
+	if !backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.UseExistingSnapshot {
+		// Update the snapshot in the database
+		if backupActivitiesContext.SnapshotResponse != nil {
+			backupActivitiesContext.DbSnapshot.State = models.LifeCycleStateREADY
+			backupActivitiesContext.DbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
+			backupActivitiesContext.DbSnapshot.SnapshotAttributes.SizeInBytes = backupActivitiesContext.SnapshotResponse.SizeInBytes
+			backupActivitiesContext.DbSnapshot.SnapshotAttributes.ExternalUUID = backupActivitiesContext.SnapshotResponse.ExternalUUID
+			backupActivitiesContext.DbSnapshot.SnapshotAttributes.LogicalSizeUsedInBytes = backupActivitiesContext.SnapshotResponse.LogicalSizeInBytes
+		} else {
+			now := time.Now()
+			backupActivitiesContext.DbSnapshot.DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
+			backupActivitiesContext.DbSnapshot.State = models.LifeCycleStateError
+			backupActivitiesContext.DbSnapshot.StateDetails = models.LifeCycleStateCreationErrorDetails
+		}
+		_, err := b.SE.UpdateSnapshot(ctx, backupActivitiesContext.DbSnapshot)
+		if err != nil {
+			logger.Errorf("Failed to update snapshot details in database. Error: %v", err)
+			return nil, err
+		}
 	}
 	return backupActivitiesContext, nil
 }
@@ -204,11 +227,30 @@ func (b *BackupActivity) UpdateSnapshotActivity(ctx context.Context, backupActiv
 // CreateSnapshotActivity creates snapshot in Ontap
 func (b *BackupActivity) CreateSnapshotActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
 	logger := util.GetLogger(ctx)
-
-	snapshotResponse, err := b.SnapshotCreate(ctx, backupActivitiesContext.Node, backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID, backupActivitiesContext.SnapshotName, BackupComment)
-	if err != nil {
-		logger.Errorf("Failed to create snapshot in Ontap. Error: %v", err)
-		return nil, err
+	var snapshotResponse *vsa.SnapshotProviderResponse
+	var err error
+	if backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.UseExistingSnapshot {
+		// If UseExistingSnapshot is true, we do not create a new snapshot in Ontap
+		if backupActivitiesContext.SnapshotName == "" {
+			return nil, errors.New("snapshot name is empty in backup attributes")
+		}
+		logger.Infof("Using existing snapshot: %s", backupActivitiesContext.SnapshotName)
+		dbSnapshot, err := b.SE.GetSnapshotByNameAndVolumeId(ctx, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName, backupActivitiesContext.BackupWorkflowInit.Volume.AccountID, backupActivitiesContext.BackupWorkflowInit.Volume.ID)
+		if err != nil {
+			logger.Errorf("Failed to get snapshot from database. Error: %v", err)
+			return nil, err
+		}
+		snapshotResponse, err = b.SnapshotGet(ctx, backupActivitiesContext.Node, dbSnapshot.SnapshotAttributes.ExternalUUID, backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID)
+		if err != nil {
+			logger.Errorf("Failed to get snapshot from Ontap. Error: %v", err)
+			return nil, err
+		}
+	} else {
+		snapshotResponse, err = b.SnapshotCreate(ctx, backupActivitiesContext.Node, backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID, backupActivitiesContext.SnapshotName, BackupComment)
+		if err != nil {
+			logger.Errorf("Failed to create snapshot in Ontap. Error: %v", err)
+			return nil, err
+		}
 	}
 
 	// Update the backupActivitiesContext with snapshot response
@@ -433,6 +475,14 @@ func (a BackupActivity) DeleteBackupSnapshot(ctx context.Context, node *models.N
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return provider.DeleteSnapshot(snapshotUUID, volumeUUID)
+}
+
+func (a BackupActivity) SnapshotGet(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) (*vsa.SnapshotProviderResponse, error) {
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return provider.GetSnapshot(snapshotUUID, volumeUUID)
 }
 
 func (a BackupActivity) IsVolumeDeleted(ctx context.Context, volumeUUID string) (bool, error) {

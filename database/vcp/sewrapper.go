@@ -1573,6 +1573,26 @@ func (re *retryEngine) GetSnapshotByUUID(ctx context.Context, uuid string, accou
 	return var0, err
 }
 
+func (re *retryEngine) GetSnapshotByNameAndVolumeId(ctx context.Context, snapshotName string, accountID int64, volumeID int64) (*datamodel.Snapshot, error) {
+	var var0 *datamodel.Snapshot
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetSnapshotByNameAndVolumeId(ctx, snapshotName, accountID, volumeID)
+		if err != nil {
+			re.logError("GetSnapshotByNameAndVolumeId", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) GetSnapshotByPoolID(ctx context.Context, SnapshotUUID string, accountID int64, poolID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
 	var var0 *datamodel.Snapshot
 	err := retry.Do(func(attempt int) (bool, error) {

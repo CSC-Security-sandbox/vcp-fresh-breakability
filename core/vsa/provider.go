@@ -69,6 +69,7 @@ type Provider interface {
 	GetVolumeReplication(replication *VolumeReplication) (*VolumeReplication, error)
 	CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error)
 	DeleteSnapshot(snapshotUUID string, volumeUUID string) error
+	GetSnapshot(snapshotUUID string, volumeUUID string) (*SnapshotProviderResponse, error)
 	GetSnapshots(volumeUUID string) ([]*Snapshot, error)
 	ListSnapmirrorSnapshots(volumeUUID string) ([]*SnapshotListResponse, error)
 	UpdateSnapshotPolicy(ctx context.Context, params *UpdateSnapshotPolicyParams) error

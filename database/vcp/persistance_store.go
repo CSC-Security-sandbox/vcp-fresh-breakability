@@ -661,6 +661,10 @@ func (s *PersistenceStore) GetSnapshotByUUID(ctx context.Context, uuid string, a
 	return s.dataStore.GetSnapshotByUUID(ctx, uuid, accountID, volumeID)
 }
 
+func (s *PersistenceStore) GetSnapshotByNameAndVolumeId(ctx context.Context, snapshotName string, accountID int64, volumeID int64) (*datamodel.Snapshot, error) {
+	return s.dataStore.GetSnapshotByNameAndVolumeId(ctx, snapshotName, accountID, volumeID)
+}
+
 func (s *PersistenceStore) GetSnapshotByPoolID(ctx context.Context, uuid string, accountID int64, poolID int64, isParentSnapshot bool) (*datamodel.Snapshot, error) {
 	return s.dataStore.GetSnapshotByPoolID(ctx, uuid, accountID, poolID, isParentSnapshot)
 }
