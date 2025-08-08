@@ -69,6 +69,7 @@ func TestGetSignedJwtToken(t *testing.T) {
 	t.Run("WhenCreateMockIamClientReturnsError", func(tt *testing.T) {
 		projectNumber := "123"
 		privateKeyPath = ""
+		mockAccessToken = ""
 		err := os.Setenv("INTEGRATION_TEST", "true")
 		if err != nil {
 			tt.Fatalf("Failed to set environment variable: %v", err)
@@ -78,6 +79,7 @@ func TestGetSignedJwtToken(t *testing.T) {
 			if err != nil {
 				tt.Fatalf("Failed to unset environment variable: %v", err)
 			}
+			mockAccessToken = ""
 		}()
 		client, _ := createMockIamClient(context.Background())
 		token, err := GetSignedJwtToken(projectNumber)
@@ -356,6 +358,25 @@ func TestGetSignedJwtToken(t *testing.T) {
 		assert.Equal(tt, expectedToken, token)
 
 		mm.AssertExpectations(tt)
+	})
+	t.Run("WhenMockAccessTokenIsNotEmpty", func(tt *testing.T) {
+		projectNumber := "123"
+		privateKeyPath = ""
+		mockAccessToken = "my token is mocked buddy!!"
+		err := os.Setenv("INTEGRATION_TEST", "true")
+		if err != nil {
+			tt.Fatalf("Failed to set environment variable: %v", err)
+		}
+		defer func() {
+			err := os.Unsetenv("INTEGRATION_TEST")
+			if err != nil {
+				tt.Fatalf("Failed to unset environment variable: %v", err)
+			}
+			mockAccessToken = ""
+		}()
+		token, err := GetSignedJwtToken(projectNumber)
+		assert.Equal(tt, mockAccessToken, token)
+		assert.NoError(tt, err)
 	})
 }
 

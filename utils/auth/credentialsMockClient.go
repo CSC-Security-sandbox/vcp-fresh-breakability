@@ -19,7 +19,7 @@ var (
 	tokenExpirationTimeString = env.GetString("JWT_TOKEN_TIME", "300")
 	issuer                    = env.GetString("GCP_AUTH_SERVICE_ACCOUNT", "")
 	audience                  = env.GetString("GCP_SERVICE_URL", "")
-	accessToken               = env.GetString("MOCK_ACCESS_TOKEN", "")
+	mockAccessToken           = env.GetString("MOCK_ACCESS_TOKEN", "")
 	projectId                 = env.GetString("MOCK_TEST_PROJECT_ID", "")
 )
 
@@ -80,7 +80,7 @@ func (m *mockIamCredentialsClient) Close() error {
 }
 
 func (m *mockIamCredentialsClient) GenerateAccessToken(ctx context.Context, req *credentials2.GenerateAccessTokenRequest, opts ...gax.CallOption) (*credentials2.GenerateAccessTokenResponse, error) {
-	return &credentials2.GenerateAccessTokenResponse{AccessToken: accessToken}, nil
+	return &credentials2.GenerateAccessTokenResponse{AccessToken: mockAccessToken}, nil
 }
 
 type mockCredentialsClientWrapperImplementation struct {
@@ -119,7 +119,7 @@ func validateEnvVars() error {
 	if audience == "" {
 		return errors.NewVCPError(errors.ErrIamClientNotFoundError, errors.New("GCP_SERVICE_URL not set in environment variables"))
 	}
-	if accessToken == "" {
+	if mockAccessToken == "" {
 		return errors.NewVCPError(errors.ErrIamClientNotFoundError, errors.New("MOCK_ACCESS_TOKEN not set in environment variables"))
 	}
 	if projectId == "" {

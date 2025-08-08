@@ -17,7 +17,7 @@ func TestSignJwt(t *testing.T) {
 	issuer = "test-issuer"
 	audience = "https://test.com"
 	projectId = "642418027188"
-	accessToken = "access-token"
+	mockAccessToken = "access-token"
 	client := &mockIamCredentialsClient{}
 	ctx := context.Background()
 	req := &credentials2.SignJwtRequest{}
@@ -37,7 +37,7 @@ func TestGenerateAccessToken(t *testing.T) {
 	client := &mockIamCredentialsClient{}
 	ctx := context.Background()
 	req := &credentials2.GenerateAccessTokenRequest{}
-	accessToken = "test-access-token"
+	mockAccessToken = "test-access-token"
 	resp, err := client.GenerateAccessToken(ctx, req)
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)

@@ -133,6 +133,10 @@ workerConfig:
   saRetryMaximumInterval: "60s"
   saRetryBackoffCoefficient: "2.0"
 
+  # Mock gcp access token for testing purposes
+  mockAccessToken: ""
+  integrationTest: "false"
+
   # Database configuration
   database:
     type: "postgres"

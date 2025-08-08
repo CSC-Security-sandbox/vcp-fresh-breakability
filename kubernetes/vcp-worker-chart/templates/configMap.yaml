@@ -114,3 +114,6 @@ data:
   SA_RETRY_MAXIMUM_ATTEMPTS: {{ .Values.workerConfig.saRetryMaximumAttempts | quote }}
   SA_RETRY_MAXIMUM_INTERVAL: {{ .Values.workerConfig.saRetryMaximumInterval | quote }}
   SA_RETRY_BACKOFF_COEFFICIENT: {{ .Values.workerConfig.saRetryBackoffCoefficient | quote }}
+
+  MOCK_ACCESS_TOKEN: {{ .Values.workerConfig.mockAccessToken | quote }}
+  INTEGRATION_TEST: {{ .Values.workerConfig.integrationTest | quote }}

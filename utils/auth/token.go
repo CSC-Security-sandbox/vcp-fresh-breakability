@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -45,6 +46,10 @@ func _getSignedJwtToken(projectNumber string) (string, error) {
 	var c credentialsClientWrapper
 	var err error
 	if isIntegrationTest == "true" {
+		if mockAccessToken != "" {
+			logger.Info(fmt.Sprintf("using mock access token: %s", mockAccessToken))
+			return mockAccessToken, nil
+		}
 		c, err = createMockIamClient(ctx)
 	} else {
 		c, err = createIamClient(ctx)
