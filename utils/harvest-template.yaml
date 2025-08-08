@@ -14,6 +14,8 @@ Exporters:
           target: "netapp.googleapis.com/volume/allocated_bytes"
         - source: "snapshots_size_used"
           target: "netapp.googleapis.com/volume/snapshot_bytes"
+        - source: "new_status_code"
+          target: "netapp.googleapis.com/internal/volume/volume_online"
 Defaults:
   collectors:
     - Rest
