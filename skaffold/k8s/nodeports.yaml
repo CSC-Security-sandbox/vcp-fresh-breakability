@@ -1,0 +1,40 @@
+---
+# Google Proxy NodePort Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: google-proxy-nodeport
+  namespace: vcp
+  labels:
+    app: google-proxy
+    service-type: nodeport
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30900
+      name: http
+  selector:
+    app: google-proxy
+---
+# Local Temporal Web NodePort Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: local-temporal-web-nodeport
+  namespace: default
+  labels:
+    app: temporal-web
+    service-type: nodeport
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30808
+      name: http
+  selector:
+    app.kubernetes.io/name: temporal
+    app.kubernetes.io/component: web
+

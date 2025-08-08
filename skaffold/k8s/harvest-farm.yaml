@@ -38,6 +38,7 @@ spec:
       labels:
         app: harvest-farm
     spec:
+      serviceAccountName: vcp-service-account
       containers:
         - name: harvest-farm
           image: ghcr.io/vcp-vsa-control-plane/harvest-multi:25.07.21-1
@@ -132,8 +133,6 @@ spec:
             - mountPath: "/etc/otel-collector-config"
               name: "otel-collector-config"
               readOnly: true
-      imagePullSecrets:
-        - name: ghcr-secret
       volumes:
         - configMap:
             name: otel-collector-config
@@ -258,5 +257,3 @@ spec:
           averageValue: "1"
 
 ---
-
-

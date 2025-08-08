@@ -2,6 +2,11 @@ imageVersion ?= latest
 IMAGE_TAG_GOOGLE_PROXY_MIGRATE := vcp-db-migrate:${imageVersion}
 GHVSA_PAT := ${GHVSA_PAT}
 
+# Registry and timestamp configuration
+DEV_REGISTRY ?= ghcr.io/vcp-vsa-control-plane
+TIMESTAMP := $(shell date +%Y%m%d-%H%M%S)
+IMAGE_TAG := $(TIMESTAMP)
+
 .PHONY: fix-imports
 fix-imports:
 	go get golang.org/x/tools/cmd/goimports
@@ -96,6 +101,50 @@ build-all-binaries-prod:
 .PHONY: clean-artifacts
 clean-artifacts:
 	rm -rf artifacts
+
+# Individual service build targets
+.PHONY: build-google-proxy
+build-google-proxy:
+	@echo "Building google-proxy service..."
+	docker build --build-arg GHVSA_PAT=$(GHVSA_PAT) -f builder/Dockerfile.build-all.dev -t vsa-binaries-builder builder
+	mkdir -p app
+	docker run --rm \
+		-e GHVSA_PAT=$(GHVSA_PAT) \
+		-v $(PWD):/src \
+		-v $(GOCACHE):/go-build-cache \
+		-v $(GOMODCACHE):/go/pkg/mod \
+		-e GOCACHE=/go-build-cache \
+		-e GOMODCACHE=/go/pkg/mod \
+		vsa-binaries-builder sh -c 'go build -gcflags="all=-N -l" -o /src/app/google-proxy ./google-proxy'
+
+.PHONY: build-worker
+build-worker:
+	@echo "Building vcp-worker service..."
+	docker build --build-arg GHVSA_PAT=$(GHVSA_PAT) -f builder/Dockerfile.build-all.dev -t vsa-binaries-builder builder
+	mkdir -p app
+	docker run --rm \
+		-e GHVSA_PAT=$(GHVSA_PAT) \
+		-v $(PWD):/src \
+		-v $(GOCACHE):/go-build-cache \
+		-v $(GOMODCACHE):/go/pkg/mod \
+		-e GOCACHE=/go-build-cache \
+		-e GOMODCACHE=/go/pkg/mod \
+		vsa-binaries-builder sh -c 'go build -gcflags="all=-N -l" -o /src/app/vcp-worker ./worker'
+
+.PHONY: base-image
+base-image:
+	@echo "Building base development image..."
+	docker build -f common/Dockerfile.dev -t base:dev .
+
+.PHONY: google-proxy-dev-image
+google-proxy-dev-image: build-google-proxy base-image
+	@echo "Building google-proxy development Docker image..."
+	docker build --build-arg BASE=base:dev --build-arg GHVSA_PAT=$(GHVSA_PAT) -f google-proxy/Dockerfile.dev -t $(DEV_REGISTRY)/google-proxy:$(IMAGE_TAG) .
+
+.PHONY: worker-dev-image
+worker-dev-image: build-worker base-image
+	@echo "Building vcp-worker development Docker image..."
+	docker build --build-arg BASE=base:dev --build-arg GHVSA_PAT=$(GHVSA_PAT) -f worker/Dockerfile.dev -t $(DEV_REGISTRY)/vcp-worker:$(IMAGE_TAG) .
 
 %:
 	@:

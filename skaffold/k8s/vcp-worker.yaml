@@ -5,6 +5,14 @@ metadata:
   labels:
     name: vcp
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vcp-service-account
+  namespace: vcp
+imagePullSecrets:
+  - name: ghcr-secret
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,6 +30,7 @@ spec:
       labels:
         app: vcp-worker
     spec:
+      serviceAccountName: vcp-service-account
       containers:
         - name: vcp-worker
           image: vcp-worker
@@ -155,7 +164,7 @@ spec:
             - name: ISCSI_FIREWALL_SOURCE_RANGES
               value: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
             - name: MGMT_REGIONAL_NAT_IP
-              value: "34.0.0.0/8,35.0.0.0/8,202.3.112.0/20"
+              value: "34.0.0.0/8,35.0.0.0/8,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20"
             - name: MGMT_NETWORK_IP_RANGE
               value: "198.18.0.0/20"
             - name: RSM_NETWORK_IP_RANGE
@@ -173,9 +182,9 @@ spec:
             - name: WAIT_TIME_FOR_GCP_OPERATION_IN_SEC
               value: "10"
             - name: VSA_IMAGE_PROJECT
-              value: ""
+              value: "gcnv-autopush-images"
             - name: VSA_MEDIATOR_IMAGE_PROJECT
-              value: ""
+              value: "gcnv-autopush-images"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

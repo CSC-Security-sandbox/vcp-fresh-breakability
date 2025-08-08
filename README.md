@@ -15,7 +15,6 @@ The code is organized into the following directories:
 │   ├── core-api/
 │   ├── cvp/
 │   ├── google-proxy-client/
-│   ├── hyperscaler/
 │   ├── ontap-rest/
 │   └── vlm/
 ├── common/                 # Shared/common code across services
@@ -24,13 +23,11 @@ The code is organized into the following directories:
 ├── database/               # Database logic, mocks, and interfaces
 ├── doc/                    # Documentation and architecture diagrams
 ├── google-proxy/           # Google Proxy service and API
-├── harvest-farm/           # Harvest farm logic and Kubernetes manifests
+├── hyperscaler/            # Hyperscaler provider implementations
 ├── kubernetes/             # Helm charts and Kubernetes manifests
-├── mocks/                  # Mock implementations for testing
-├── poller/                 # Poller service and Operator
-├── postgres/               # Postgres-related code and manifests
 ├── scripts/                # Utility scripts for code generation and verification
 ├── security/               # Network policies and security configs
+├── skaffold/               # Skaffold-specific configurations
 ├── telemetry/              # Telemetry service, API, and supporting code
 ├── tools/                  # External tools (Swagger, migration, etc.)
 ├── utils/                  # Utility functions and helpers
@@ -90,23 +87,38 @@ minikube image load docker.repo.eng.netapp.com/cicd/vsa/temporal-vlm:R9.17.1xN_7
 
 ##### 3. Run Skaffold
 
-Run the following command to start Skaffold:
-
+Run the following to set the necessary environment variables:
 ```bash
 export GHVSA_PAT=$(gh auth token)
 export DB_PASSWORD=<password-to-use-for-db>
 export DB_ADMIN_PASSWORD=<password-to-use-for-db>
 export VSA_NODE_PASSWORD=<password-to-be-set-on-ontap>
+export VSA_NODE_USERNAME=<username-to-be-set-on-ontap>
+export GCE_METADATA_HOST=<ip-of-remote-hosted-mock-server>
+export LOCAL_REGION=<region-to-use>
+```
+
+Then for local development, run:
+```bash
 make build-all-binaries-dev skaffold-dev
+```
+
+If you are planning to use SKS clusters you will need to use your GitHub PAT that has read/write permissions to the registry. 
+```bash
+export GHVSA_PAT=<github_pat>
+```
+
+Then run the following command to build and deploy the services on your SKS cluster:
+```bash
+make build-all-binaries-dev
+skaffold run -p sks --default-repo=ghcr.io/<gh-username>
 ```
 
 This will build and deploy all the services to your local Kubernetes cluster. Once deployed, you can access the services using the following URLs:
 
 - Google Proxy: http://localhost:9000
-- Core Service: http://localhost:9001
 - Postgres: http://localhost:5433
 - Local Temporal Web: http://localhost:8080
-- Workflow Server: http://localhost:9003
 - Harvest Farm: http://localhost:3000
 - Metrics Processor: http://localhost:9090
 
@@ -125,10 +137,18 @@ Once the services are deployed, you can attach a debugger to the services using 
 
 Skaffold will automatically watch for changes in the code and rebuild and redeploy the services. If this needs to be disabled, you can run the following command:
 
-```bash 
+```bash
     skaffold dev --no-watch
     # or
     skaffold dev --watch=false
+```
+
+#### Updating services when using SKS clusters
+
+If you are using SKS clusters, you will need to update the services using the following command:
+
+```bash
+nkdev update service
 ```
 
 #### Handling Errors

@@ -134,6 +134,38 @@ profiles:
           requires:
             - image: base
               alias: BASE
+  - name: sks
+    build:
+      local:
+        push: true
+      tagPolicy:
+        dateTime: {}
+      artifacts:
+        - image: base
+          context: .
+          docker:
+            dockerfile: common/Dockerfile.dev
+        - image: google-proxy
+          context: .
+          docker:
+            dockerfile: google-proxy/Dockerfile.dev
+          requires:
+            - image: base
+              alias: BASE
+        - image: vcp-worker
+          context: .
+          docker:
+            dockerfile: worker/Dockerfile.dev
+          requires:
+            - image: base
+              alias: BASE
+        - image: telemetry
+          context: .
+          docker:
+            dockerfile: telemetry/Dockerfile.dev
+          requires:
+            - image: base
+              alias: BASE
 deploy:
   kubectl:
     hooks:

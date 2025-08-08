@@ -38,9 +38,11 @@ spec:
       labels:
         app: metrics-processer
     spec:
+      serviceAccountName: vcp-service-account
       containers:
         - name: metrics-processer
           image: telemetry
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
               name: http
@@ -114,4 +116,3 @@ spec:
               value: "netapp-au-se1-autopush-sde-tst"
             - name: LOCAL_REGION
               value: "us-west2"
-

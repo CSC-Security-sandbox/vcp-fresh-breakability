@@ -38,9 +38,11 @@ spec:
       labels:
         app: google-proxy
     spec:
+      serviceAccountName: vcp-service-account
       containers:
         - name: google-proxy
           image: google-proxy
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
           env:
