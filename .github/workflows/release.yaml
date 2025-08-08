@@ -6,6 +6,7 @@ on:
       - main
       - release/2*
 
+
 permissions:
   packages: write
   contents: read
@@ -147,3 +148,4 @@ jobs:
       pr_title: ${{ needs.obtain_pr_details.outputs.pr_title }}
       pr_base_branch: ${{ needs.obtain_pr_details.outputs.pr_base_branch }}
       component_update: true
+

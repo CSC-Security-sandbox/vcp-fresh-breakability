@@ -195,29 +195,6 @@ jobs:
           done
         shell: bash -e {0}
 
-      - name: Sign the GHCR Image using cosign
-        run: |
-          gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PUB_KEY}}" > /tmp/cosign.pub
-          gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PVT_KEY}}" > /tmp/cosign.key
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
-          for IMAGE in "${IMAGES[@]}"; do
-            digest=$(printenv "${IMAGE}-digest")
-            COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key  ghcr.io/vcp-vsa-control-plane/${IMAGE}@$digest --tlog-upload=false
-            cosign verify --key /tmp/cosign.pub  ghcr.io/vcp-vsa-control-plane/${IMAGE}@$digest --insecure-ignore-tlog=true
-          done
-        shell: bash -e {0}
-      - name: Access Private Key
-        if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
-        run: |
-          gcloud secrets versions access latest --secret="${{secrets.AR_PRIVATE_KEY}}" > /tmp/ec_private.pem
-
-      - name: Retrieve Public Key ID
-        if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
-        id: retrieve_public_key_id
-        run: |
-          PUBLIC_KEY_ID=$(gcloud container binauthz attestors describe ${{secrets.AR_ATTESTOR_NAME}} --format='value(userOwnedGrafeasNote.publicKeys[0].id)')
-          echo "PUBLIC_KEY_ID=${PUBLIC_KEY_ID}" >> $GITHUB_ENV
-
       - name: Generate Artifact URLs
         id: generate_artifact_urls
         shell: bash -e {0}
@@ -236,40 +213,20 @@ jobs:
             fi
           done
 
-      - name: Generate and Sign Payloads
-        if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
-        shell: bash -e {0}
+      - name: Sign the GCP Artifact Image using Cosign
         run: |
+          gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PUB_KEY}}" > /tmp/cosign.pub
+          gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PVT_KEY}}" > /tmp/cosign.key
           IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
           for IMAGE in "${IMAGES[@]}"; do
-            ARTIFACT_URL=$(printenv "${IMAGE//-/_}_ARTIFACT_URL")
-            gcloud container binauthz create-signature-payload \
-            --artifact-url=${ARTIFACT_URL} > /tmp/${IMAGE}_payload.json
-            openssl dgst -sha256 -sign /tmp/ec_private.pem /tmp/${IMAGE}_payload.json > /tmp/${IMAGE}_signature
+            digest=$(printenv "${IMAGE}-digest")
+            export COSIGN_PASSWORD="" 
+            cosign sign --key /tmp/cosign.key  $(printenv "${IMAGE//-/_}_ARTIFACT_URL") --tlog-upload=false
+            cosign verify --key /tmp/cosign.pub  $(printenv "${IMAGE//-/_}_ARTIFACT_URL")  --insecure-ignore-tlog=true
           done
-
-      - name: Create Attestations
-        if: ${{ env.ALL_DIGESTS_EXIST == '0' }}
         shell: bash -e {0}
-        run: |
-          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
-          for IMAGE in "${IMAGES[@]}"; do
-            if [[ "$(printenv "${IMAGE}_DIGEST_EXISTS")" == "0" ]]; then
-              ARTIFACT_URL=$(printenv "${IMAGE//-/_}_ARTIFACT_URL")
-              gcloud container binauthz attestations create \
-              --project="${{vars.AR_GCP_PROJ}}" \
-              --artifact-url="${ARTIFACT_URL}" \
-              --attestor="projects/${{vars.AR_GCP_PROJ}}/attestors/${{secrets.AR_ATTESTOR_NAME}}" \
-              --signature-file=/tmp/${IMAGE}_signature \
-              --public-key-id="${{ env.PUBLIC_KEY_ID }}" \
-              --validate
-              echo "Attestation created for image ${IMAGE}."
-            else
-              echo "Signed Digest for image ${IMAGE} already exists in Google Artifact Registry. Skipping attestation."
-            fi
-          done
 
-      - name: Helm Login to Artifact Registry
+      - name: Helm Login to GCP Artifact Registry
         run: |
           gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${{vars.AR_GCP_REGION}}-docker.pkg.dev
           helm registry login ghcr.io -u ${{github.actor}} --password ${{ secrets.GHVSA_PAT }}
