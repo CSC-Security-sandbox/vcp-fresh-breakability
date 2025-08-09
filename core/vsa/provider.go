@@ -37,6 +37,7 @@ type Provider interface {
 	RevertVolume(params RevertVolumeParams) error
 	UpdateVolumeEnableEncryption(params UpdateVolumeParams) error
 	IgroupCreate(params IgroupCreateParams) (string, error)
+	IgroupDelete(uuid string) error
 	IgroupGet(name, svm *string) (*ontapRest.Igroup, error)
 	IgroupExists(name string, svm *string) (bool, *ontapRest.Igroup, error)
 	LunCreate(params LunCreateParams) (*LunResponse, error)

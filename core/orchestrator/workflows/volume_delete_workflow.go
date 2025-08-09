@@ -156,6 +156,18 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, err
 	}
 
+	if volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
+		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteIgroups, volume, node).Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+	} else if volume.VolumeAttributes.BlockProperties != nil && len(volume.VolumeAttributes.BlockProperties.HostGroupDetails) > 0 {
+		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteIgroupsFromBlockProperties, volume, node).Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	SnapshotPolicyName := getSnapshotPolicyName(volume)
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapshotPolicyInONTAP, SnapshotPolicyName, &node).Get(ctx, nil)
 	if err != nil {

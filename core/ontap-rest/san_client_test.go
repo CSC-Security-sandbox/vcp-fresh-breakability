@@ -110,6 +110,24 @@ func TestIGroupCreate(t *testing.T) {
 	})
 }
 
+func TestIGroupDelete(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("something went wrong")}
+		sanAPI := san.New(transport, nil)
+		client := &sanClient{api: sanAPI}
+		err := client.IGroupDelete(&IgroupDeleteParams{UUID: "uuid"})
+		assert.EqualError(tt, err, transport.err.Error())
+	})
+
+	t.Run("WhenSuccessful_ThenReturnNoError", func(tt *testing.T) {
+		transport := &mockTransport{response: &san.IgroupDeleteOK{}}
+		sanAPI := san.New(transport, nil)
+		client := &sanClient{api: sanAPI}
+		err := client.IGroupDelete(&IgroupDeleteParams{UUID: "uuid"})
+		assert.NoError(tt, err)
+	})
+}
+
 func TestLunCreate(t *testing.T) {
 	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
 		transport := &mockTransport{err: errors.New("something went wrong")}

@@ -327,7 +327,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 			if blockDevice.Name.IsSet() && blockDevice.Name.Value != "" {
 				blockDeviceName = blockDevice.Name.Value
 			}
-			param.BlockDevices = &[]common.BlockDeviceRequest{
+			param.BlockDevices = &[]common.BlockDevice{
 				{
 					Name:       blockDeviceName,
 					OSType:     string(osType.Value),
@@ -511,9 +511,9 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 	}
 	// Check BlockDevices first, then fallback to BlockProperties
 	if len(req.BlockDevices) > 0 {
-		blockDevices := make([]*common.BlockDeviceRequest, 0, len(req.BlockDevices))
+		blockDevices := make([]*common.BlockDevice, 0, len(req.BlockDevices))
 		for _, blockDevice := range req.BlockDevices {
-			blockDeviceReq := &common.BlockDeviceRequest{}
+			blockDeviceReq := &common.BlockDevice{}
 
 			if blockDevice.Name.IsSet() {
 				blockDeviceReq.Name, _ = blockDevice.Name.Get()

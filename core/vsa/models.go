@@ -208,6 +208,10 @@ type IgroupCreateParams struct {
 	Initiator  []string
 }
 
+type IgroupDeleteParams struct {
+	UUID string
+}
+
 type IgroupModifyParams struct {
 	IgroupName string
 	SvmName    string

@@ -7,7 +7,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -45,8 +44,16 @@ func (hgu *HostGroupUpdateActivity) UpdateIGroups(ctx context.Context, hg *datam
 			continue
 		}
 
+		if volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
+			hgDetails := (*volume.VolumeAttributes.BlockDevices)[0].HostGroupDetails
+			if isHGResourceUpdated(hgDetails, hg.UUID, hg.Hosts.Hosts) {
+				logger.Infof("Host group %s is already up to date for volume %s in block devices, skipping update", hg.Name, volume.Name)
+				continue
+			}
+		}
+
 		// If the db volume QNs and current HostGroup QNs are same then skip updating the hg
-		if isHGResourceUpdated(volume.VolumeAttributes.BlockProperties.HostGroupDetails, hg.UUID, hg.Hosts.Hosts) {
+		if volume.VolumeAttributes != nil && volume.VolumeAttributes.BlockProperties != nil && isHGResourceUpdated(volume.VolumeAttributes.BlockProperties.HostGroupDetails, hg.UUID, hg.Hosts.Hosts) {
 			logger.Infof("Host group %s is already up to date for volume %s, skipping update", hg.Name, volume.Name)
 			continue
 		}
@@ -71,33 +78,6 @@ func (hgu *HostGroupUpdateActivity) UpdateIGroups(ctx context.Context, hg *datam
 		}
 
 		updatedHG[volume.Pool.UUID] = true
-	}
-
-	filter := utils2.CreateFilterWithConditions(utils2.NewFilterCondition("account_id", "=", hg.AccountID))
-	pools, err := hgu.SE.ListPools(ctx, filter)
-	if err != nil {
-		logger.Errorf("Failed to get pools for account: %s, error: %s", hg.AccountID, err.Error())
-		return vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
-	for _, pool := range pools {
-		if _, ok := updatedHG[pool.UUID]; ok {
-			continue
-		}
-
-		nodes, err := hgu.SE.GetNodesByPoolID(ctx, pool.ID)
-		if err != nil {
-			logger.Errorf("Failed to get nodes for pool %d: %v", pool.ID, err)
-			continue
-		}
-		provider, getErr := hyperscaler.GetProviderByNode(ctx, hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: nodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID, AuthType: pool.PoolCredentials.AuthType}))
-		if getErr != nil {
-			return vsaerrors.WrapAsTemporalApplicationError(getErr)
-		}
-		err = handleQNsInHostGroup(logger, hg, provider)
-		if err != nil {
-			return vsaerrors.WrapAsTemporalApplicationError(err)
-		}
 	}
 
 	return nil
@@ -141,9 +121,21 @@ func _handleQNsInHostGroup(logger log.Logger, hg *datamodel.HostGroup, provider 
 }
 
 func _updateHGDetailsInVolume(volume *datamodel.Volume, se database.Storage, hg *datamodel.HostGroup, ctx context.Context) error {
-	for indx, hostDetails := range volume.VolumeAttributes.BlockProperties.HostGroupDetails {
-		if hostDetails.HostGroupUUID == hg.UUID {
-			volume.VolumeAttributes.BlockProperties.HostGroupDetails[indx].HostQNs = hg.Hosts.Hosts
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.BlockDevices != nil {
+		blockDevices := *volume.VolumeAttributes.BlockDevices
+		for oindx, blockDevice := range *volume.VolumeAttributes.BlockDevices {
+			for indx, hostDetails := range blockDevice.HostGroupDetails {
+				if hostDetails.HostGroupUUID == hg.UUID {
+					blockDevices[oindx].HostGroupDetails[indx].HostQNs = hg.Hosts.Hosts
+				}
+			}
+		}
+		volume.VolumeAttributes.BlockDevices = &blockDevices
+	} else if volume.VolumeAttributes != nil && volume.VolumeAttributes.BlockProperties != nil {
+		for indx, hostDetails := range volume.VolumeAttributes.BlockProperties.HostGroupDetails {
+			if hostDetails.HostGroupUUID == hg.UUID {
+				volume.VolumeAttributes.BlockProperties.HostGroupDetails[indx].HostQNs = hg.Hosts.Hosts
+			}
 		}
 	}
 

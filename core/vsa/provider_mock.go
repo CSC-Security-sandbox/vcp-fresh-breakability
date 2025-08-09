@@ -2368,6 +2368,52 @@ func (_c *MockProvider_IgroupCreate_Call) RunAndReturn(run func(IgroupCreatePara
 	return _c
 }
 
+// IgroupDelete provides a mock function with given fields: uuid
+func (_m *MockProvider) IgroupDelete(uuid string) error {
+	ret := _m.Called(uuid)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IgroupDelete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(uuid)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_IgroupDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IgroupDelete'
+type MockProvider_IgroupDelete_Call struct {
+	*mock.Call
+}
+
+// IgroupDelete is a helper method to define mock.On call
+//   - uuid string
+func (_e *MockProvider_Expecter) IgroupDelete(uuid interface{}) *MockProvider_IgroupDelete_Call {
+	return &MockProvider_IgroupDelete_Call{Call: _e.mock.On("IgroupDelete", uuid)}
+}
+
+func (_c *MockProvider_IgroupDelete_Call) Run(run func(uuid string)) *MockProvider_IgroupDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_IgroupDelete_Call) Return(_a0 error) *MockProvider_IgroupDelete_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_IgroupDelete_Call) RunAndReturn(run func(string) error) *MockProvider_IgroupDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IgroupDeleteInitiator provides a mock function with given fields: params
 func (_m *MockProvider) IgroupDeleteInitiator(params IgroupDeleteInitiator) error {
 	ret := _m.Called(params)

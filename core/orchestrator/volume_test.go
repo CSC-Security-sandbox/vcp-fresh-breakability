@@ -3000,12 +3000,20 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
 
+		bd := []common.BlockDevice{
+			{
+				Name:   "test_block_device",
+				OSType: "linux",
+			},
+		}
+
 		params := &common.CreateVolumeParams{
 			Name:           "dummy-name",
 			PoolID:         pool.UUID,
 			QuotaInBytes:   minQuotaInBytesPool + 1,
 			Protocols:      []string{utils.ProtocolISCSI},
 			DataProtection: &models.DataProtection{BackupVaultID: bv.UUID},
+			BlockDevices:   &bd,
 		}
 
 		poolView := &datamodel.PoolView{
@@ -5007,7 +5015,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			QuotaInBytes: minQuotaInBytesVolume + 1,
 			DataProtection: &models.DataProtection{
 				BackupPolicyId: "test-policy",
-				BackupVaultID:  "test-vault",
+				BackupVaultID:  "test-bv-uuid1",
 			},
 		}
 		bv := &datamodel.BackupVault{
@@ -5027,6 +5035,15 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		assert.EqualError(tt, err, "scheduled backups needs to be enabled/disabled when a backup policy is assigned to a volume")
 	})
 	tt.Run("WhenBackupPolicySetOnDataProtectedVolume", func(tt *testing.T) {
+		// Create backup vault for this test
+		bv := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-vault-3"},
+			Name:      "test_bv_3",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(bv).Error
+		assert.NoError(tt, err, "Failed to create backup vault")
+
 		scheduledBackupEnable := true
 		params := &common.CreateVolumeParams{
 			Name:             "dummy-name",
@@ -5035,7 +5052,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			IsDataProtection: true,
 			DataProtection: &models.DataProtection{
 				BackupPolicyId:         "test-policy",
-				BackupVaultID:          "test-vault",
+				BackupVaultID:          "test-vault-3",
 				ScheduledBackupEnabled: &scheduledBackupEnable,
 			},
 		}
@@ -5049,12 +5066,24 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		assert.EqualError(tt, err, "scheduled backups are not supported for cross region replication, only manual backups with existing snapshots are supported")
 	})
 	tt.Run("WhenBackupPolicyNotSetWithScheduledBackupNil", func(tt *testing.T) {
+		// Create backup vault for this test
+		bv := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-vault-1"},
+			Name:      "test_bv_1",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(bv).Error
+		assert.NoError(tt, err, "Failed to create backup vault")
+
 		params := &common.CreateVolumeParams{
 			Name:         "dummy-name",
 			PoolID:       pool.UUID,
 			QuotaInBytes: minQuotaInBytesVolume + 1,
 			DataProtection: &models.DataProtection{
-				BackupVaultID: "test-vault",
+				BackupVaultID: "test-vault-1",
+			},
+			BlockProperties: &common.BlockPropertiesRequest{
+				HostGroupUUIDs: []string{},
 			},
 			Protocols: []string{utils.ProtocolISCSI},
 		}
@@ -5068,6 +5097,15 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		assert.Nil(tt, err)
 	})
 	tt.Run("WhenBackupPolicySetWithScheduledBackupEnabled", func(tt *testing.T) {
+		// Create backup vault for this test
+		bv := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "test-vault-2"},
+			Name:      "test_bv_2",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(bv).Error
+		assert.NoError(tt, err, "Failed to create backup vault")
+
 		scheduledBackupEnable := true
 		params := &common.CreateVolumeParams{
 			Name:         "dummy-name",
@@ -5075,8 +5113,11 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 			QuotaInBytes: minQuotaInBytesVolume + 1,
 			DataProtection: &models.DataProtection{
 				BackupPolicyId:         "test-policy",
-				BackupVaultID:          "test-vault",
+				BackupVaultID:          "test-vault-2",
 				ScheduledBackupEnabled: &scheduledBackupEnable,
+			},
+			BlockProperties: &common.BlockPropertiesRequest{
+				HostGroupUUIDs: []string{},
 			},
 			Protocols: []string{utils.ProtocolISCSI},
 		}
@@ -6397,7 +6438,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 
 		// Setup update params with matching BlockDevice
 		params := &common.UpdateVolumeParams{
-			BlockDevices: []*common.BlockDeviceRequest{
+			BlockDevices: []*common.BlockDevice{
 				{
 					Name:       "test-lun-1", // Matches existing BlockDevice
 					HostGroups: []string{"hg-uuid-1", "hg-uuid-2"},
@@ -6456,7 +6497,7 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 
 		// Setup update params with non-matching BlockDevice
 		params := &common.UpdateVolumeParams{
-			BlockDevices: []*common.BlockDeviceRequest{
+			BlockDevices: []*common.BlockDevice{
 				{
 					Name:       "non-matching-lun", // Doesn't match existing BlockDevice
 					HostGroups: []string{"hg-uuid-1"},
@@ -6602,7 +6643,7 @@ func TestBlockVolumeValidator_Validate(t *testing.T) {
 			Name:         "dummy-name",
 			PoolID:       pool.UUID,
 			QuotaInBytes: minQuotaInBytesVolume + 1,
-			BlockDevices: &[]common.BlockDeviceRequest{
+			BlockDevices: &[]common.BlockDevice{
 				{
 					Name:       "test-lun",
 					HostGroups: []string{"hg-uuid"},
@@ -6634,10 +6675,38 @@ func TestBlockVolumeValidator_Validate(t *testing.T) {
 		params := &common.CreateVolumeParams{
 			Name:         "dummy-name",
 			QuotaInBytes: minQuotaInBytesVolume + 1,
+			BlockProperties: &common.BlockPropertiesRequest{
+				HostGroupUUIDs: []string{},
+			},
 		}
 		validator := &BlockVolumeProcessor{}
 		err = validator.Validate(ctx, store, params, account.ID)
 		assert.Nil(tt, err)
+		assert.Nil(tt, params.FileProperties) // Should be set to nil for block volumes
+	})
+	t.Run("WhenNoBPAndBDInParams", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			t.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"}, Name: "test_account"}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			t.Fatalf("Failed to create account: %v", err)
+		}
+		params := &common.CreateVolumeParams{
+			Name:         "dummy-name",
+			QuotaInBytes: minQuotaInBytesVolume + 1,
+		}
+		validator := &BlockVolumeProcessor{}
+		err = validator.Validate(ctx, store, params, account.ID)
+		assert.EqualError(tt, err, "Block Device/Block Properties is required")
 		assert.Nil(tt, params.FileProperties) // Should be set to nil for block volumes
 	})
 }

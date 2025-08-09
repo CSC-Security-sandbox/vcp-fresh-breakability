@@ -13,7 +13,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -84,6 +85,61 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_Success() {
 		Name: "test_volume",
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_SuccessWithBP() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteIgroupsFromBlockProperties, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeAssociatedSnapshots, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(deleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+			BlockProperties: &datamodel.BlockProperties{
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{
+						HostGroupUUID: "test-hostgroup-uuid",
+						HostQNs:       []string{"test-hostgroup-uuid"},
+					},
+				},
+			},
 		},
 	}
 	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
@@ -562,4 +618,96 @@ func (s *SnapshotDeleteTestSuite) TestShouldUpdateVolumeStateToError() {
 
 	// Returns true for nil error
 	assert.True(s.T(), shouldUpdateVolumeStateToError(nil))
+}
+
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateVolumeStateInDBError_ShouldUpdateVolumeStateToError() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(activities.VolumeCreateActivity.UpdateVolumeStateInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("delete volume error"))
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	// Mock UpdateVolumeStateInDB to fail (line 160-162)
+	s.env.OnActivity(activities.VolumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update volume state error"))
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed with error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_UpdateVolumeStateInDBError_ShouldNotUpdateVolumeStateToError() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(activities.VolumeCreateActivity.UpdateVolumeStateInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(utilerrors.NewNotFoundErr("volume not found", nil))
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	// Mock UpdateVolumeStateInDB to fail (line 167)
+	s.env.OnActivity(activities.VolumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update volume state error"))
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
+	// Assert workflow completed with error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
 }

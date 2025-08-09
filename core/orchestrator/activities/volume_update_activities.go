@@ -168,9 +168,13 @@ func (a *VolumeUpdateActivity) EnsureHostGroupsExistsAndMapDisk(ctx context.Cont
 			}
 		}
 	}
+	lunName := utils.GetLunName(volume.Name)
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
+		lunName = (*volume.VolumeAttributes.BlockDevices)[0].Name
+	}
 
 	err = provider.LunMapCreate(vsa.LunMapCreateParams{
-		LunName:    "/vol/" + volume.Name + "/" + utils.GetLunName(volume.Name),
+		LunName:    "/vol/" + volume.Name + "/" + lunName,
 		SvmName:    volume.Svm.Name,
 		IGroupName: hgNames,
 	})
@@ -184,11 +188,18 @@ func (a *VolumeUpdateActivity) EnsureHostGroupsExistsAndMapDisk(ctx context.Cont
 // UnmapHostGroupFromDisk deletes the Disk HostGroup map
 func (a *VolumeUpdateActivity) UnmapHostGroupFromDisk(ctx context.Context, volume *datamodel.Volume, iGroupUUIDs []string, node *models.Node) error {
 	logger := util.GetLogger(ctx)
+	se := a.SE
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	var lunUUID string
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
+		lunUUID = (*volume.VolumeAttributes.BlockDevices)[0].LunUUID
+	} else if volume.VolumeAttributes != nil && volume.VolumeAttributes.BlockProperties != nil {
+		lunUUID = volume.VolumeAttributes.BlockProperties.LunUUID
+	}
 	for _, iGroupUUID := range iGroupUUIDs {
 		hgMapsToDelete, err := a.SE.GetHostGroup(ctx, iGroupUUID, volume.AccountID)
 		if err != nil {
@@ -196,17 +207,44 @@ func (a *VolumeUpdateActivity) UnmapHostGroupFromDisk(ctx context.Context, volum
 		}
 
 		// Fetch iGroups uuid to delete the map
-		iGroupOntap, err := provider.IgroupGet(&hgMapsToDelete.Name, &volume.Svm.Name)
+		exists, iGroupOntap, err := provider.IgroupExists(hgMapsToDelete.Name, &volume.Svm.Name)
 		if err != nil {
 			return err
 		}
+		if !exists {
+			logger.Debugf("IGroup %s not found in vsa cluster, skipping unmapping lun map and igroup delete", iGroupUUID)
+			continue
+		}
 		err = provider.LunMapDelete(vsa.LunMapDeleteParams{
-			LunUUID:    volume.VolumeAttributes.BlockProperties.LunUUID,
+			LunUUID:    lunUUID,
 			IGroupUUID: *iGroupOntap.UUID,
 		})
 		if err != nil {
 			logger.Errorf("Failed to delete lun map for igroup %s: %v", iGroupUUID, err)
 			return err
+		}
+
+		// Fetch all volumes for the HG and delete the IGroup which doesn't have any volume in current pool
+		hgAttachedVolumes, err := se.GetAllVolumesForHG(ctx, iGroupUUID, volume.AccountID)
+		if err != nil {
+			return err
+		}
+
+		// We have to check if there is any other volume using this HG in the same pool
+		deleteIGroup := true
+		for _, volumeWithHG := range hgAttachedVolumes {
+			if volume.PoolID == volumeWithHG.PoolID && volume.UUID != volumeWithHG.UUID {
+				deleteIGroup = false
+				break
+			}
+		}
+
+		if deleteIGroup {
+			err = provider.IgroupDelete(*iGroupOntap.UUID)
+			if err != nil {
+				logger.Errorf("Failed to delete igroup %s: %v", iGroupUUID, err)
+				return err
+			}
 		}
 	}
 	return nil
@@ -292,9 +330,11 @@ func getUpdatedFieldsFromParams(ctx context.Context, se database.Storage, volume
 		blockDevices := make([]datamodel.BlockDevice, 0, len(params.BlockDevices))
 		for _, blockDeviceReq := range params.BlockDevices {
 			blockDevice := datamodel.BlockDevice{
-				Name:   blockDeviceReq.Name,
-				OSType: blockDeviceReq.OSType,
-				Size:   blockDeviceReq.SizeInBytes,
+				Name:       blockDeviceReq.Name,
+				OSType:     blockDeviceReq.OSType,
+				Size:       blockDeviceReq.SizeInBytes,
+				Identifier: blockDeviceReq.LunSerialNumber,
+				LunUUID:    blockDeviceReq.LunUUID,
 			}
 			if len(blockDeviceReq.HostGroups) > 0 {
 				for _, uuid := range blockDeviceReq.HostGroups {

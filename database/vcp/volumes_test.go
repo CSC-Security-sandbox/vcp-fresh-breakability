@@ -1081,3 +1081,216 @@ func TestRevertDeleteSnapshots(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error for non-existent reference snapshot")
 	})
 }
+
+func TestGetVolumesByPoolID_ErrorHandling(t *testing.T) {
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Close the database to simulate an error
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		if err != nil {
+			return
+		}
+
+		volumes, err := store.GetVolumesByPoolID(context.Background(), 1)
+		assert.Error(tt, err, "Expected error when database is closed")
+		assert.Nil(tt, volumes, "Expected nil volumes when error occurs")
+	})
+}
+
+func TestGetVolumeCountByPoolID_ErrorHandling(t *testing.T) {
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Close the database to simulate an error
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		if err != nil {
+			return
+		}
+
+		count, err := store.GetVolumeCountByPoolID(context.Background(), 1)
+		assert.Error(tt, err, "Expected error when database is closed")
+		assert.Equal(tt, int64(0), count, "Expected count to be 0 when error occurs")
+	})
+}
+
+func TestGetMultipleVolumes_ErrorHandling(t *testing.T) {
+	t.Run("WhenDatabaseErrorOccurs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Close the database to simulate an error
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		if err != nil {
+			return
+		}
+
+		conditions := [][]interface{}{
+			{"name", "test-volume"},
+		}
+		volumes, err := store.GetMultipleVolumes(context.Background(), conditions)
+		assert.Error(tt, err, "Expected error when database is closed")
+		assert.Nil(tt, volumes, "Expected nil volumes when error occurs")
+	})
+}
+
+func TestGetAllVolumesForHG_ErrorHandling(t *testing.T) {
+	t.Run("WhenBlockDevicesQueryErrorOccurs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				BlockDevices: &[]datamodel.BlockDevice{
+					{
+						Name: "test-device",
+						HostGroupDetails: []datamodel.HostGroupDetail{
+							{
+								HostGroupUUID: "test-hostgroup-uuid",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Close the database to simulate an error during query
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		if err != nil {
+			return
+		}
+
+		volumes, err := store.GetAllVolumesForHG(context.Background(), "test-hostgroup-uuid", account.ID)
+		assert.Error(tt, err, "Expected error when database is closed")
+		assert.Nil(tt, volumes, "Expected nil volumes when error occurs")
+	})
+
+	t.Run("WhenBlockPropertiesQueryErrorOccurs", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		// Create test data
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "test-account-uuid",
+			},
+			Name: "test_account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			Account:   account,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				BlockProperties: &datamodel.BlockProperties{
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{
+							HostGroupUUID: "test-hostgroup-uuid",
+						},
+					},
+				},
+			},
+		}
+
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err, "Failed to create account")
+		err = store.db.Create(pool).Error()
+		assert.NoError(tt, err, "Failed to create pool")
+		err = store.db.Create(volume).Error()
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Close the database to simulate an error during query
+		sqlDB, err := db.DB()
+		assert.NoError(tt, err)
+		err = sqlDB.Close()
+		if err != nil {
+			return
+		}
+
+		volumes, err := store.GetAllVolumesForHG(context.Background(), "test-hostgroup-uuid", account.ID)
+		assert.Error(tt, err, "Expected error when database is closed")
+		assert.Nil(tt, volumes, "Expected nil volumes when error occurs")
+	})
+}
+
+// Note: Success tests for GetAllVolumesForHG are skipped because SQLite doesn't support
+// PostgreSQL's JSONB syntax used in the queries. These tests would need to be run against
+// a PostgreSQL database to work correctly.
+func TestGetAllVolumesForHG_Success(t *testing.T) {
+	t.Skip("Skipped because SQLite doesn't support PostgreSQL JSONB syntax")
+}

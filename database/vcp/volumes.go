@@ -331,14 +331,30 @@ func (d *DataStoreRepository) GetAllVolumesForHG(ctx context.Context, hostGroupU
 }
 
 func _volumesWithHG(db *gorm.DB, hostGroupUUID string, accountID int64) ([]*datamodel.Volume, error) {
-	var volumes []*datamodel.Volume
+	var volumesWithBD []*datamodel.Volume
 	err := db.Model(&datamodel.Volume{}).
 		Preload("Account").
 		Preload("Pool").
 		Preload("Svm").
 		Where("account_id = ?", accountID).
-		Where("(volume_attributes::jsonb->'block_properties' IS NOT NULL) AND (volume_attributes::jsonb->'block_properties'->'host_group_details' != 'null'::jsonb) AND EXISTS (SELECT 1 FROM jsonb_array_elements(volume_attributes::jsonb->'block_properties'->'host_group_details') AS elem WHERE elem->>'host_group_uuid' = ?)", hostGroupUUID).
-		Find(&volumes).Error
+		Where("(volume_attributes::jsonb->'block_devices' != 'null'::jsonb) AND EXISTS(SELECT 1 FROM jsonb_array_elements(volume_attributes->'block_devices') AS bd WHERE (bd->'host_group_details' != 'null'::jsonb) AND EXISTS (SELECT 1 FROM jsonb_array_elements(bd->'host_group_details') AS hgd WHERE hgd->>'host_group_uuid' = ?))", hostGroupUUID).
+		Find(&volumesWithBD).Error
+	if err != nil {
+		return nil, err
+	}
 
-	return volumes, err
+	var volumesWithBP []*datamodel.Volume
+	err = db.Model(&datamodel.Volume{}).
+		Preload("Account").
+		Preload("Pool").
+		Preload("Svm").
+		Where("account_id = ?", accountID).
+		Where("(volume_attributes::jsonb->'block_properties' IS NOT NULL) AND (volume_attributes::jsonb->'block_properties'->'host_group_details' != 'null'::jsonb) AND EXISTS (SELECT 1 FROM jsonb_array_elements(volume_attributes::jsonb->'block_properties'->'host_group_details') AS elem WHERE elem->>'host_group_uuid' = ?)", hostGroupUUID).
+		Find(&volumesWithBP).Error
+	if err != nil {
+		return nil, err
+	}
+
+	volumesWithBD = append(volumesWithBD, volumesWithBP...)
+	return volumesWithBD, err
 }

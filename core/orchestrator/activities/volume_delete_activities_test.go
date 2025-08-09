@@ -736,6 +736,661 @@ func TestDeleteSnapshotPolicyInONTAP_GetProviderByNodeFailure(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestDeleteIgroups_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := vsa.NewMockProvider(t)
+
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{
+		SE: mockStorage,
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Create test volume with block devices
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					Name: "block-device-1",
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{
+							HostGroupUUID: "hostgroup-uuid-1",
+							HostQNs:       []string{"iqn.example.1"},
+						},
+						{
+							HostGroupUUID: "hostgroup-uuid-2",
+							HostQNs:       []string{"iqn.example.2"},
+						},
+					},
+				},
+				{
+					Name: "block-device-2",
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{
+							HostGroupUUID: "hostgroup-uuid-3",
+							HostQNs:       []string{"iqn.example.3"},
+						},
+					},
+				},
+			},
+		},
+		AccountID: 1,
+		Svm:       &datamodel.Svm{Name: "test-svm"},
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	// Mock SE.GetAllVolumesForHG to return empty volumes (no usage)
+	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-2", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-3", int64(1)).Return([]*datamodel.Volume{}, nil)
+
+	// Mock SE.GetHostGroup to return host groups
+	hostgroup1 := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "hostgroup-uuid-1"},
+		Name:      "hostgroup-name-1",
+		AccountID: 1,
+	}
+	hostgroup2 := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "hostgroup-uuid-2"},
+		Name:      "hostgroup-name-2",
+		AccountID: 1,
+	}
+	hostgroup3 := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "hostgroup-uuid-3"},
+		Name:      "hostgroup-name-3",
+		AccountID: 1,
+	}
+	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
+	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-2", int64(1)).Return(hostgroup2, nil)
+	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-3", int64(1)).Return(hostgroup3, nil)
+
+	// Mock provider.IgroupGet to return igroups
+	igroup1 := &ontap_rest.Igroup{
+		Igroup: oModels.Igroup{
+			UUID: nillable.GetStringPtr("ontap-igroup-uuid-1"),
+			Name: &hostgroup1.Name,
+		},
+	}
+	igroup2 := &ontap_rest.Igroup{
+		Igroup: oModels.Igroup{
+			UUID: nillable.GetStringPtr("ontap-igroup-uuid-2"),
+			Name: &hostgroup2.Name,
+		},
+	}
+	igroup3 := &ontap_rest.Igroup{
+		Igroup: oModels.Igroup{
+			UUID: nillable.GetStringPtr("ontap-igroup-uuid-3"),
+			Name: &hostgroup3.Name,
+		},
+	}
+	mockProvider.On("IgroupGet", &hostgroup1.Name, mock.Anything).Return(igroup1, nil)
+	mockProvider.On("IgroupGet", &hostgroup2.Name, mock.Anything).Return(igroup2, nil)
+	mockProvider.On("IgroupGet", &hostgroup3.Name, mock.Anything).Return(igroup3, nil)
+
+	// Mock provider.IgroupDelete calls
+	mockProvider.On("IgroupDelete", *igroup1.UUID).Return(nil)
+	mockProvider.On("IgroupDelete", *igroup2.UUID).Return(nil)
+	mockProvider.On("IgroupDelete", *igroup3.UUID).Return(nil)
+
+	err := activity.DeleteIgroups(ctx, volume, node)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteIgroups_OneHostGroupInUse(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := vsa.NewMockProvider(t)
+
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{
+		SE: mockStorage,
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Create test volume with block devices
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					Name: "block-device-1",
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{
+							HostGroupUUID: "hostgroup-uuid-1",
+							HostQNs:       []string{"iqn.example.1"},
+						},
+						{
+							HostGroupUUID: "hostgroup-uuid-2",
+							HostQNs:       []string{"iqn.example.2"},
+						},
+					},
+				},
+			},
+		},
+		AccountID: 1,
+		Svm:       &datamodel.Svm{Name: "test-svm"},
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	// Mock SE.GetAllVolumesForHG to return:
+	// - hostgroup-uuid-1: no other volumes (should be deleted)
+	// - hostgroup-uuid-2: has another volume (should NOT be deleted)
+	otherVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "other-volume-uuid"},
+		Name:      "other-volume",
+	}
+	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-2", int64(1)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+
+	// Mock SE.GetHostGroup to return host groups - only for hostgroup-uuid-1 since hostgroup-uuid-2 won't be processed
+	hostgroup1 := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "hostgroup-uuid-1"},
+		Name:      "hostgroup-name-1",
+		AccountID: 1,
+	}
+
+	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
+
+	// Mock provider.IgroupGet to return igroups - only for hostgroup-uuid-1 since hostgroup-uuid-2 won't be processed
+	igroup1 := &ontap_rest.Igroup{
+		Igroup: oModels.Igroup{
+			UUID: nillable.GetStringPtr("ontap-igroup-uuid-1"),
+			Name: &hostgroup1.Name,
+		},
+	}
+	mockProvider.On("IgroupGet", &hostgroup1.Name, mock.Anything).Return(igroup1, nil)
+
+	// Mock provider.IgroupDelete call - only for the unused hostgroup
+	mockProvider.On("IgroupDelete", *igroup1.UUID).Return(nil)
+
+	err := activity.DeleteIgroups(ctx, volume, node)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteIgroups_GetProviderByNodeFailure(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	expectedError := errors.New("failed to get provider")
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, expectedError
+	}
+
+	activity := VolumeDeleteActivity{
+		SE: mockStorage,
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					Name: "block-device-1",
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{
+							HostGroupUUID: "hostgroup-uuid-1",
+							HostQNs:       []string{"iqn.example.1"},
+						},
+					},
+				},
+			},
+		},
+		AccountID: 1,
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	err := activity.DeleteIgroups(ctx, volume, node)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), expectedError.Error())
+}
+
+func TestDeleteIgroups_GetAllVolumesForHGFailure(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := vsa.NewMockProvider(t)
+
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{
+		SE: mockStorage,
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					Name: "block-device-1",
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{
+							HostGroupUUID: "hostgroup-uuid-1",
+							HostQNs:       []string{"iqn.example.1"},
+						},
+					},
+				},
+			},
+		},
+		AccountID: 1,
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	expectedError := errors.New("failed to get volumes for host group")
+	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return(nil, expectedError)
+
+	err := activity.DeleteIgroups(ctx, volume, node)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), expectedError.Error())
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteIgroups_GetHostGroupFailure(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := vsa.NewMockProvider(t)
+
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{
+		SE: mockStorage,
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					Name: "block-device-1",
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{
+							HostGroupUUID: "hostgroup-uuid-1",
+							HostQNs:       []string{"iqn.example.1"},
+						},
+					},
+				},
+			},
+		},
+		AccountID: 1,
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	expectedError := errors.New("failed to get host group")
+	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(nil, expectedError)
+
+	err := activity.DeleteIgroups(ctx, volume, node)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), expectedError.Error())
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteIgroups_IgroupGetNotFoundError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := vsa.NewMockProvider(t)
+
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{
+		SE: mockStorage,
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					Name: "block-device-1",
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{
+							HostGroupUUID: "hostgroup-uuid-1",
+							HostQNs:       []string{"iqn.example.1"},
+						},
+					},
+				},
+			},
+		},
+		AccountID: 1,
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	hostgroup1 := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "hostgroup-uuid-1"},
+		Name:      "hostgroup-name-1",
+		AccountID: 1,
+	}
+
+	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
+
+	// Mock IgroupGet to return not found error
+	notFoundError := utilErrors.NewNotFoundErr("igroup", nil)
+	mockProvider.On("IgroupGet", &hostgroup1.Name, mock.Anything).Return(nil, notFoundError)
+
+	err := activity.DeleteIgroups(ctx, volume, node)
+
+	assert.NoError(t, err) // Should continue and not return error for not found
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteIgroups_IgroupGetOtherError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := vsa.NewMockProvider(t)
+
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{
+		SE: mockStorage,
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					Name: "block-device-1",
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{
+							HostGroupUUID: "hostgroup-uuid-1",
+							HostQNs:       []string{"iqn.example.1"},
+						},
+					},
+				},
+			},
+		},
+		AccountID: 1,
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	hostgroup1 := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "hostgroup-uuid-1"},
+		Name:      "hostgroup-name-1",
+		AccountID: 1,
+	}
+
+	expectedError := errors.New("unexpected error getting igroup")
+	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
+	mockProvider.On("IgroupGet", &hostgroup1.Name, mock.Anything).Return(nil, expectedError)
+
+	err := activity.DeleteIgroups(ctx, volume, node)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), expectedError.Error())
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteIgroups_IgroupDeleteFailure(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := vsa.NewMockProvider(t)
+
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{
+		SE: mockStorage,
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					Name: "block-device-1",
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{
+							HostGroupUUID: "hostgroup-uuid-1",
+							HostQNs:       []string{"iqn.example.1"},
+						},
+					},
+				},
+			},
+		},
+		AccountID: 1,
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	hostgroup1 := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "hostgroup-uuid-1"},
+		Name:      "hostgroup-name-1",
+		AccountID: 1,
+	}
+
+	igroup1 := &ontap_rest.Igroup{
+		Igroup: oModels.Igroup{
+			UUID: nillable.GetStringPtr("ontap-igroup-uuid-1"),
+			Name: &hostgroup1.Name,
+		},
+	}
+
+	expectedError := errors.New("failed to delete igroup")
+	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
+	mockProvider.On("IgroupGet", &hostgroup1.Name, mock.Anything).Return(igroup1, nil)
+	mockProvider.On("IgroupDelete", *igroup1.UUID).Return(expectedError)
+
+	err := activity.DeleteIgroups(ctx, volume, node)
+
+	assert.Error(t, err)
+	assert.Equal(t, expectedError, err)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteIgroups_IgroupWithNilUUID(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := vsa.NewMockProvider(t)
+
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{
+		SE: mockStorage,
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					Name: "block-device-1",
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{
+							HostGroupUUID: "hostgroup-uuid-1",
+							HostQNs:       []string{"iqn.example.1"},
+						},
+					},
+				},
+			},
+		},
+		AccountID: 1,
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	hostgroup1 := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "hostgroup-uuid-1"},
+		Name:      "hostgroup-name-1",
+		AccountID: 1,
+	}
+
+	// Create igroup with nil UUID
+	igroup1 := &ontap_rest.Igroup{
+		Igroup: oModels.Igroup{
+			UUID: nil,
+			Name: &hostgroup1.Name,
+		},
+	}
+
+	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
+	mockProvider.On("IgroupGet", &hostgroup1.Name, mock.Anything).Return(igroup1, nil)
+
+	err := activity.DeleteIgroups(ctx, volume, node)
+
+	assert.NoError(t, err) // Should continue when UUID is nil
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteIgroups_IgroupWithNilIgroup(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := vsa.NewMockProvider(t)
+
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{
+		SE: mockStorage,
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{
+					Name: "block-device-1",
+					HostGroupDetails: []datamodel.HostGroupDetail{
+						{
+							HostGroupUUID: "hostgroup-uuid-1",
+							HostQNs:       []string{"iqn.example.1"},
+						},
+					},
+				},
+			},
+		},
+		AccountID: 1,
+	}
+
+	node := &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "192.168.1.1",
+	}
+
+	hostgroup1 := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "hostgroup-uuid-1"},
+		Name:      "hostgroup-name-1",
+		AccountID: 1,
+	}
+
+	// Mock IgroupGet to return nil igroup
+	mockStorage.On("GetAllVolumesForHG", ctx, "hostgroup-uuid-1", int64(1)).Return([]*datamodel.Volume{}, nil)
+	mockStorage.On("GetHostGroup", ctx, "hostgroup-uuid-1", int64(1)).Return(hostgroup1, nil)
+	mockProvider.On("IgroupGet", &hostgroup1.Name, mock.Anything).Return(nil, nil)
+
+	err := activity.DeleteIgroups(ctx, volume, node)
+
+	assert.NoError(t, err) // Should continue when igroup is nil
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
 func TestDeleteVolumeInONTAP_GetProviderByNodeFailure(t *testing.T) {
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
 	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
@@ -882,6 +1537,467 @@ func TestSnapmirrorInONTAPFailsWhenSnapmirrorRelationshipGetFails(t *testing.T) 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get snapmirror relationship")
 	assert.Nil(t, resp)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteIgroupsFromBlockProperties_Success(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{HostGroupUUID: "test-hostgroup-uuid"},
+				},
+			},
+		},
+	}
+
+	node := &models.Node{}
+
+	hostgroupDB := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "test-hostgroup-uuid"},
+		Name:      "test-hostgroup",
+	}
+
+	igroup := &ontap_rest.Igroup{
+		Igroup: oModels.Igroup{
+			UUID: nillable.GetStringPtr("test-igroup-uuid"),
+		},
+	}
+
+	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetHostGroup", ctx, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
+	mockProvider.On("IgroupGet", &hostgroupDB.Name, (*string)(nil)).Return(igroup, nil)
+	mockProvider.On("IgroupDelete", "test-igroup-uuid").Return(nil)
+
+	// Act
+	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+
+	// Assert
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteIgroupsFromBlockProperties_GetProviderByNodeFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	expectedError := errors.New("provider not found")
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, expectedError
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{HostGroupUUID: "test-hostgroup-uuid"},
+				},
+			},
+		},
+	}
+
+	node := &models.Node{}
+
+	// Act
+	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), expectedError.Error())
+}
+
+func TestDeleteIgroupsFromBlockProperties_GetAllVolumesForHGFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{HostGroupUUID: "test-hostgroup-uuid"},
+				},
+			},
+		},
+	}
+
+	node := &models.Node{}
+
+	expectedError := errors.New("database error")
+	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return(nil, expectedError)
+
+	// Act
+	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), expectedError.Error())
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteIgroupsFromBlockProperties_HostGroupInUse(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{HostGroupUUID: "test-hostgroup-uuid"},
+				},
+			},
+		},
+	}
+
+	otherVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "other-volume-uuid"},
+		AccountID: 1,
+	}
+
+	node := &models.Node{}
+
+	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+
+	// Act
+	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+
+	// Assert
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteIgroupsFromBlockProperties_GetHostGroupFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{HostGroupUUID: "test-hostgroup-uuid"},
+				},
+			},
+		},
+	}
+
+	node := &models.Node{}
+
+	expectedError := errors.New("hostgroup not found")
+	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetHostGroup", ctx, "test-hostgroup-uuid", int64(1)).Return(nil, expectedError)
+
+	// Act
+	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), expectedError.Error())
+	mockStorage.AssertExpectations(t)
+}
+
+func TestDeleteIgroupsFromBlockProperties_IgroupGetNotFoundError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{HostGroupUUID: "test-hostgroup-uuid"},
+				},
+			},
+		},
+	}
+
+	node := &models.Node{}
+
+	hostgroupDB := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "test-hostgroup-uuid"},
+		Name:      "test-hostgroup",
+	}
+
+	notFoundError := utilErrors.NewNotFoundErr("igroup", nil)
+	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetHostGroup", ctx, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
+	mockProvider.On("IgroupGet", &hostgroupDB.Name, (*string)(nil)).Return(nil, notFoundError)
+
+	// Act
+	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+
+	// Assert
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteIgroupsFromBlockProperties_IgroupGetOtherError(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{HostGroupUUID: "test-hostgroup-uuid"},
+				},
+			},
+		},
+	}
+
+	node := &models.Node{}
+
+	hostgroupDB := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "test-hostgroup-uuid"},
+		Name:      "test-hostgroup",
+	}
+
+	expectedError := errors.New("network error")
+	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetHostGroup", ctx, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
+	mockProvider.On("IgroupGet", &hostgroupDB.Name, (*string)(nil)).Return(nil, expectedError)
+
+	// Act
+	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), expectedError.Error())
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteIgroupsFromBlockProperties_IgroupDeleteFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{HostGroupUUID: "test-hostgroup-uuid"},
+				},
+			},
+		},
+	}
+
+	node := &models.Node{}
+
+	hostgroupDB := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "test-hostgroup-uuid"},
+		Name:      "test-hostgroup",
+	}
+
+	igroup := &ontap_rest.Igroup{
+		Igroup: oModels.Igroup{
+			UUID: nillable.GetStringPtr("test-igroup-uuid"),
+		},
+	}
+
+	expectedError := errors.New("delete failed")
+	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetHostGroup", ctx, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
+	mockProvider.On("IgroupGet", &hostgroupDB.Name, (*string)(nil)).Return(igroup, nil)
+	mockProvider.On("IgroupDelete", "test-igroup-uuid").Return(expectedError)
+
+	// Act
+	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), expectedError.Error())
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteIgroupsFromBlockProperties_IgroupWithNilUUID(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{HostGroupUUID: "test-hostgroup-uuid"},
+				},
+			},
+		},
+	}
+
+	node := &models.Node{}
+
+	hostgroupDB := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "test-hostgroup-uuid"},
+		Name:      "test-hostgroup",
+	}
+
+	igroup := &ontap_rest.Igroup{
+		Igroup: oModels.Igroup{
+			UUID: nil, // Nil UUID
+		},
+	}
+
+	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetHostGroup", ctx, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
+	mockProvider.On("IgroupGet", &hostgroupDB.Name, (*string)(nil)).Return(igroup, nil)
+
+	// Act
+	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+
+	// Assert
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteIgroupsFromBlockProperties_IgroupWithNilIgroup(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		AccountID: 1,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{
+				HostGroupDetails: []datamodel.HostGroupDetail{
+					{HostGroupUUID: "test-hostgroup-uuid"},
+				},
+			},
+		},
+	}
+
+	node := &models.Node{}
+
+	hostgroupDB := &datamodel.HostGroup{
+		BaseModel: datamodel.BaseModel{UUID: "test-hostgroup-uuid"},
+		Name:      "test-hostgroup",
+	}
+
+	mockStorage.On("GetAllVolumesForHG", ctx, "test-hostgroup-uuid", int64(1)).Return([]*datamodel.Volume{volume}, nil)
+	mockStorage.On("GetHostGroup", ctx, "test-hostgroup-uuid", int64(1)).Return(hostgroupDB, nil)
+	mockProvider.On("IgroupGet", &hostgroupDB.Name, (*string)(nil)).Return(nil, nil) // Nil igroup
+
+	// Act
+	err := activity.DeleteIgroupsFromBlockProperties(ctx, volume, node)
+
+	// Assert
+	assert.NoError(t, err) // Should continue when igroup is nil
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }

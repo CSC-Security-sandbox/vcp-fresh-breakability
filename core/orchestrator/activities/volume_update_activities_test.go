@@ -375,7 +375,7 @@ func TestGetUpdatedFieldsFromParams_WithBlockDevices_Success(t *testing.T) {
 	}
 
 	params := &common.UpdateVolumeParams{
-		BlockDevices: []*common.BlockDeviceRequest{
+		BlockDevices: []*common.BlockDevice{
 			{
 				Name:        "updated-lun",
 				OSType:      "WINDOWS",
@@ -449,7 +449,7 @@ func TestGetUpdatedFieldsFromParams_WithBlockDevices_GetHostGroupError(t *testin
 	}
 
 	params := &common.UpdateVolumeParams{
-		BlockDevices: []*common.BlockDeviceRequest{
+		BlockDevices: []*common.BlockDevice{
 			{
 				Name:        "updated-lun",
 				OSType:      "WINDOWS",
@@ -492,7 +492,7 @@ func TestGetUpdatedFieldsFromParams_WithBlockDevices_EmptyHostGroups(t *testing.
 	}
 
 	params := &common.UpdateVolumeParams{
-		BlockDevices: []*common.BlockDeviceRequest{
+		BlockDevices: []*common.BlockDevice{
 			{
 				Name:        "updated-lun",
 				OSType:      "WINDOWS",
@@ -545,7 +545,7 @@ func TestGetUpdatedFieldsFromParams_WithBlockProperties_Fallback(t *testing.T) {
 	}
 
 	params := &common.UpdateVolumeParams{
-		BlockDevices: []*common.BlockDeviceRequest{}, // Empty BlockDevices
+		BlockDevices: []*common.BlockDevice{}, // Empty BlockDevices
 		BlockProperties: &common.BlockPropertiesRequest{
 			OSType:         "WINDOWS",
 			HostGroupUUIDs: []string{"hg-uuid-2", "hg-uuid-3"},
@@ -606,7 +606,7 @@ func TestGetUpdatedFieldsFromParams_WithBlockProperties_NilBlockProperties(t *te
 	}
 
 	params := &common.UpdateVolumeParams{
-		BlockDevices: []*common.BlockDeviceRequest{}, // Empty BlockDevices
+		BlockDevices: []*common.BlockDevice{}, // Empty BlockDevices
 		BlockProperties: &common.BlockPropertiesRequest{
 			OSType:         "WINDOWS",
 			HostGroupUUIDs: []string{"hg-uuid-2"},
@@ -983,13 +983,17 @@ func TestDeleteLunIGroupMap(t *testing.T) {
 			mockSetup: func(mockStorage *database.MockStorage, mockProvider *vsa.MockProvider) {
 				mockStorage.On("GetHostGroup", mock.Anything, mock.Anything, int64(1)).Return(&datamodel.HostGroup{Name: "igroup-1"}, nil).Times(2)
 
-				mockProvider.On("IgroupGet", mock.Anything, mock.Anything).Return(&ontap_rest.Igroup{Igroup: ontapModels.Igroup{
+				mockProvider.On("IgroupExists", "igroup-1", mock.Anything).Return(true, &ontap_rest.Igroup{Igroup: ontapModels.Igroup{
 					UUID: nillable.GetStringPtr("ontap-uuid-1")}}, nil).Times(2)
 
 				mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
 					LunUUID:    "lun-uuid",
 					IGroupUUID: "ontap-uuid-1",
 				}).Return(nil).Times(2)
+
+				mockStorage.On("GetAllVolumesForHG", mock.Anything, mock.Anything, int64(1)).Return([]*datamodel.Volume{}, nil).Times(2)
+
+				mockProvider.On("IgroupDelete", "ontap-uuid-1").Return(nil).Times(2)
 			},
 			expectedError: false,
 		},
@@ -1025,7 +1029,7 @@ func TestDeleteLunIGroupMap(t *testing.T) {
 			mockSetup: func(mockStorage *database.MockStorage, mockProvider *vsa.MockProvider) {
 				mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid", int64(1)).Return(&datamodel.HostGroup{Name: "igroup"}, nil)
 
-				mockProvider.On("IgroupGet", mock.Anything, mock.Anything).Return(&ontap_rest.Igroup{Igroup: ontapModels.Igroup{
+				mockProvider.On("IgroupExists", "igroup", mock.Anything).Return(true, &ontap_rest.Igroup{Igroup: ontapModels.Igroup{
 					UUID: nillable.GetStringPtr("ontap-uuid")}}, nil)
 				mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
 					LunUUID:    "lun-uuid",
@@ -1049,7 +1053,7 @@ func TestDeleteLunIGroupMap(t *testing.T) {
 			mockSetup: func(mockStorage *database.MockStorage, mockProvider *vsa.MockProvider) {
 				mockStorage.On("GetHostGroup", mock.Anything, "igroup-uuid", int64(1)).Return(&datamodel.HostGroup{Name: "igroup"}, nil)
 
-				mockProvider.On("IgroupGet", mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
+				mockProvider.On("IgroupExists", "igroup", mock.Anything).Return(false, nil, errors.New("some error"))
 			},
 			expectedError: true,
 		},
@@ -1286,6 +1290,174 @@ func TestEnsureIGroupsExistsAndMapLun(t *testing.T) {
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("successfully ensures iGroups and maps LUN with BlockDevices", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		// Create volume with BlockDevices to test line 173
+		volumeWithBlockDevices := &datamodel.Volume{
+			Name:      "test-volume",
+			AccountID: 12345,
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				BlockDevices: &[]datamodel.BlockDevice{
+					{
+						Name: "custom-lun-name",
+					},
+				},
+			},
+		}
+
+		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volumeWithBlockDevices.AccountID).Return(hostGroups, nil)
+		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(false, nil, nil)
+		mockProvider.On("IgroupCreate", vsa.IgroupCreateParams{
+			IgroupName: "igroup1",
+			SvmName:    "test-svm",
+			OsType:     "linux",
+			Initiator:  []string{"iqn.1993-08.org.debian:01:123456789"},
+		}).Return("", nil)
+		mockProvider.On("IgroupExists", "igroup2", nillable.GetStringPtr("test-svm")).Return(true, nil, nil)
+
+		// Test that the custom lun name is used (line 173)
+		mockProvider.On("LunMapCreate", vsa.LunMapCreateParams{
+			LunName:    "/vol/" + volumeWithBlockDevices.Name + "/custom-lun-name",
+			SvmName:    "test-svm",
+			IGroupName: []string{"igroup1", "igroup2"},
+		}).Return(nil)
+
+		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volumeWithBlockDevices, iGroups, mockNode)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("returns error when LunMapCreate fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(false, nil, nil)
+		mockProvider.On("IgroupCreate", vsa.IgroupCreateParams{
+			IgroupName: "igroup1",
+			SvmName:    "test-svm",
+			OsType:     "linux",
+			Initiator:  []string{"iqn.1993-08.org.debian:01:123456789"},
+		}).Return("", nil)
+		mockProvider.On("IgroupExists", "igroup2", nillable.GetStringPtr("test-svm")).Return(true, nil, nil)
+
+		expectedError := errors.New("failed to create lun map")
+		mockProvider.On("LunMapCreate", vsa.LunMapCreateParams{
+			LunName:    "/vol/" + volume.Name + "/" + utils.GetLunName(volume.Name),
+			SvmName:    "test-svm",
+			IGroupName: []string{"igroup1", "igroup2"},
+		}).Return(expectedError)
+
+		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		assert.EqualError(t, err, "failed to create lun map")
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("returns error when IgroupCreate fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(false, nil, nil)
+		expectedError := errors.New("failed to create igroup")
+		mockProvider.On("IgroupCreate", vsa.IgroupCreateParams{
+			IgroupName: "igroup1",
+			SvmName:    "test-svm",
+			OsType:     "linux",
+			Initiator:  []string{"iqn.1993-08.org.debian:01:123456789"},
+		}).Return("", expectedError)
+
+		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		assert.EqualError(t, err, "failed to create igroup")
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("returns error when IgroupExists fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		mockStorage.On("GetMultipleHostGroups", ctx, iGroups, volume.AccountID).Return(hostGroups, nil)
+		expectedError := errors.New("failed to check igroup existence")
+		mockProvider.On("IgroupExists", "igroup1", nillable.GetStringPtr("test-svm")).Return(false, nil, expectedError)
+
+		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		assert.EqualError(t, err, "failed to check igroup existence")
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("returns error when GetProviderByNode fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		expectedError := errors.New("failed to get provider")
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, expectedError
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		err := activity.EnsureHostGroupsExistsAndMapDisk(ctx, volume, iGroups, mockNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get provider")
 	})
 }
 
@@ -1709,5 +1881,462 @@ func TestFetchAndCreateBackupPolicyFromSDESucceeds(t *testing.T) {
 		res, err := activity.FetchAndCreateBackupPolicyFromSDE(ctx, volume, region)
 		assert.Error(t, err)
 		assert.Nil(t, res)
+	})
+}
+
+// TestUnmapHostGroupFromDisk tests the UnmapHostGroupFromDisk function
+func TestUnmapHostGroupFromDisk(t *testing.T) {
+	mockNode := &models.Node{}
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:      "test-volume",
+		AccountID: 12345,
+		PoolID:    1,
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockProperties: &datamodel.BlockProperties{
+				LunUUID: "test-lun-uuid",
+			},
+		},
+	}
+
+	t.Run("successfully unmaps host group with BlockProperties", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		iGroupUUIDs := []string{"igroup-uuid-1"}
+
+		hostGroup := &datamodel.HostGroup{
+			Name: "test-igroup",
+		}
+
+		ontapIgroup := &ontap_rest.Igroup{
+			Igroup: ontapModels.Igroup{
+				UUID: nillable.GetStringPtr("ontap-igroup-uuid"),
+			},
+		}
+
+		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(true, ontapIgroup, nil)
+		mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
+			LunUUID:    "test-lun-uuid",
+			IGroupUUID: "ontap-igroup-uuid",
+		}).Return(nil)
+		mockStorage.On("GetAllVolumesForHG", ctx, "igroup-uuid-1", volume.AccountID).Return([]*datamodel.Volume{}, nil)
+		mockProvider.On("IgroupDelete", "ontap-igroup-uuid").Return(nil)
+
+		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("successfully unmaps host group with BlockDevices", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		// Create volume with BlockDevices to test line 199
+		volumeWithBlockDevices := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test-volume",
+			AccountID: 12345,
+			PoolID:    1,
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				BlockDevices: &[]datamodel.BlockDevice{
+					{
+						LunUUID: "block-device-lun-uuid",
+					},
+				},
+			},
+		}
+
+		iGroupUUIDs := []string{"igroup-uuid-1"}
+
+		hostGroup := &datamodel.HostGroup{
+			Name: "test-igroup",
+		}
+
+		ontapIgroup := &ontap_rest.Igroup{
+			Igroup: ontapModels.Igroup{
+				UUID: nillable.GetStringPtr("ontap-igroup-uuid"),
+			},
+		}
+
+		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volumeWithBlockDevices.AccountID).Return(hostGroup, nil)
+		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(true, ontapIgroup, nil)
+		// Test that the block device lun uuid is used (line 199)
+		mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
+			LunUUID:    "block-device-lun-uuid",
+			IGroupUUID: "ontap-igroup-uuid",
+		}).Return(nil)
+		mockStorage.On("GetAllVolumesForHG", ctx, "igroup-uuid-1", volumeWithBlockDevices.AccountID).Return([]*datamodel.Volume{}, nil)
+		mockProvider.On("IgroupDelete", "ontap-igroup-uuid").Return(nil)
+
+		err := activity.UnmapHostGroupFromDisk(ctx, volumeWithBlockDevices, iGroupUUIDs, mockNode)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("skips when igroup does not exist", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		iGroupUUIDs := []string{"igroup-uuid-1"}
+
+		hostGroup := &datamodel.HostGroup{
+			Name: "test-igroup",
+		}
+
+		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(false, nil, nil)
+
+		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("returns error when IgroupExists fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		iGroupUUIDs := []string{"igroup-uuid-1"}
+
+		hostGroup := &datamodel.HostGroup{
+			Name: "test-igroup",
+		}
+
+		expectedError := errors.New("failed to check igroup existence")
+		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(false, nil, expectedError)
+
+		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to check igroup existence")
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("returns error when LunMapDelete fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		iGroupUUIDs := []string{"igroup-uuid-1"}
+
+		hostGroup := &datamodel.HostGroup{
+			Name: "test-igroup",
+		}
+
+		ontapIgroup := &ontap_rest.Igroup{
+			Igroup: ontapModels.Igroup{
+				UUID: nillable.GetStringPtr("ontap-igroup-uuid"),
+			},
+		}
+
+		expectedError := errors.New("failed to delete lun map")
+		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(true, ontapIgroup, nil)
+		mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
+			LunUUID:    "test-lun-uuid",
+			IGroupUUID: "ontap-igroup-uuid",
+		}).Return(expectedError)
+
+		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to delete lun map")
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("skips igroup deletion when other volumes use same host group in same pool", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		iGroupUUIDs := []string{"igroup-uuid-1"}
+
+		hostGroup := &datamodel.HostGroup{
+			Name: "test-igroup",
+		}
+
+		ontapIgroup := &ontap_rest.Igroup{
+			Igroup: ontapModels.Igroup{
+				UUID: nillable.GetStringPtr("ontap-igroup-uuid"),
+			},
+		}
+
+		// Create another volume that uses the same host group in the same pool
+		otherVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "other-volume-uuid"},
+			PoolID:    1, // Same pool as the current volume
+		}
+
+		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(true, ontapIgroup, nil)
+		mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
+			LunUUID:    "test-lun-uuid",
+			IGroupUUID: "ontap-igroup-uuid",
+		}).Return(nil)
+		// Test lines 236-238: other volume uses same host group in same pool
+		mockStorage.On("GetAllVolumesForHG", ctx, "igroup-uuid-1", volume.AccountID).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+
+		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("deletes igroup when no other volumes use same host group in same pool", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		iGroupUUIDs := []string{"igroup-uuid-1"}
+
+		hostGroup := &datamodel.HostGroup{
+			Name: "test-igroup",
+		}
+
+		ontapIgroup := &ontap_rest.Igroup{
+			Igroup: ontapModels.Igroup{
+				UUID: nillable.GetStringPtr("ontap-igroup-uuid"),
+			},
+		}
+
+		// Create another volume that uses the same host group but in a different pool
+		otherVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "other-volume-uuid"},
+			PoolID:    2, // Different pool
+		}
+
+		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(true, ontapIgroup, nil)
+		mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
+			LunUUID:    "test-lun-uuid",
+			IGroupUUID: "ontap-igroup-uuid",
+		}).Return(nil)
+		mockStorage.On("GetAllVolumesForHG", ctx, "igroup-uuid-1", volume.AccountID).Return([]*datamodel.Volume{volume, otherVolume}, nil)
+		mockProvider.On("IgroupDelete", "ontap-igroup-uuid").Return(nil)
+
+		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("returns error when IgroupDelete fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		iGroupUUIDs := []string{"igroup-uuid-1"}
+
+		hostGroup := &datamodel.HostGroup{
+			Name: "test-igroup",
+		}
+
+		ontapIgroup := &ontap_rest.Igroup{
+			Igroup: ontapModels.Igroup{
+				UUID: nillable.GetStringPtr("ontap-igroup-uuid"),
+			},
+		}
+
+		expectedError := errors.New("failed to delete igroup")
+		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(true, ontapIgroup, nil)
+		mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
+			LunUUID:    "test-lun-uuid",
+			IGroupUUID: "ontap-igroup-uuid",
+		}).Return(nil)
+		mockStorage.On("GetAllVolumesForHG", ctx, "igroup-uuid-1", volume.AccountID).Return([]*datamodel.Volume{}, nil)
+		mockProvider.On("IgroupDelete", "ontap-igroup-uuid").Return(expectedError)
+
+		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to delete igroup")
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("returns error when GetHostGroup fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		iGroupUUIDs := []string{"igroup-uuid-1"}
+
+		expectedError := errors.New("failed to get host group")
+		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(nil, expectedError)
+
+		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get host group")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("returns error when GetAllVolumesForHG fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := vsa.NewMockProvider(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		iGroupUUIDs := []string{"igroup-uuid-1"}
+
+		hostGroup := &datamodel.HostGroup{
+			Name: "test-igroup",
+		}
+
+		ontapIgroup := &ontap_rest.Igroup{
+			Igroup: ontapModels.Igroup{
+				UUID: nillable.GetStringPtr("ontap-igroup-uuid"),
+			},
+		}
+
+		expectedError := errors.New("failed to get volumes for host group")
+		mockStorage.On("GetHostGroup", ctx, "igroup-uuid-1", volume.AccountID).Return(hostGroup, nil)
+		mockProvider.On("IgroupExists", "test-igroup", nillable.GetStringPtr("test-svm")).Return(true, ontapIgroup, nil)
+		mockProvider.On("LunMapDelete", vsa.LunMapDeleteParams{
+			LunUUID:    "test-lun-uuid",
+			IGroupUUID: "ontap-igroup-uuid",
+		}).Return(nil)
+		mockStorage.On("GetAllVolumesForHG", ctx, "igroup-uuid-1", volume.AccountID).Return(nil, expectedError)
+
+		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get volumes for host group")
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("returns error when GetProviderByNode fails", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		oldProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = oldProviderByNode }()
+
+		expectedError := errors.New("failed to get provider")
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, expectedError
+		}
+
+		activity := &VolumeUpdateActivity{
+			SE: mockStorage,
+		}
+
+		iGroupUUIDs := []string{"igroup-uuid-1"}
+
+		err := activity.UnmapHostGroupFromDisk(ctx, volume, iGroupUUIDs, mockNode)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get provider")
 	})
 }

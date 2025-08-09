@@ -152,3 +152,114 @@ func (va VolumeDeleteActivity) DeleteVolumeAssociatedSnapshots(ctx context.Conte
 	}
 	return nil
 }
+
+func (vda VolumeDeleteActivity) DeleteIgroupsFromBlockProperties(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	se := vda.SE
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	for _, hostgroup := range volume.VolumeAttributes.BlockProperties.HostGroupDetails {
+		volumesWithHG, err := se.GetAllVolumesForHG(ctx, hostgroup.HostGroupUUID, volume.AccountID)
+		if err != nil {
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+
+		// We have to check if there is any other volume using this HG
+		deleteHG := true
+		for _, volumeWithHG := range volumesWithHG {
+			if volume.PoolID == volumeWithHG.PoolID && volume.UUID != volumeWithHG.UUID {
+				deleteHG = false
+				break
+			}
+		}
+
+		if !deleteHG {
+			logger.Debugf("Hostgroup %s has attached volume, not deleting", hostgroup.HostGroupUUID)
+			continue
+		}
+
+		hostgroupDB, err := se.GetHostGroup(ctx, hostgroup.HostGroupUUID, volume.AccountID)
+		if err != nil {
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+
+		igroup, err := provider.IgroupGet(&hostgroupDB.Name, nil)
+		if err != nil {
+			if errors.IsNotFoundErr(err) {
+				logger.Debugf("IGroups %s is already deleted, skipping", hostgroup.HostGroupUUID)
+				continue
+			}
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		if igroup != nil && igroup.UUID != nil {
+			err = provider.IgroupDelete(*igroup.UUID)
+			if err != nil {
+				return vsaerrors.WrapAsTemporalApplicationError(err)
+			}
+		} else {
+			logger.Debugf("Igroup %s not found for volume %s", hostgroup.HostGroupUUID, volume.UUID)
+		}
+
+		logger.Debug("Igroup deleted successfully", "name", hostgroup.HostGroupUUID)
+	}
+	return nil
+}
+
+func (vda VolumeDeleteActivity) DeleteIgroups(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	se := vda.SE
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	for _, blockDevice := range *volume.VolumeAttributes.BlockDevices {
+		for _, hostgroup := range blockDevice.HostGroupDetails {
+			volumesWithHG, err := se.GetAllVolumesForHG(ctx, hostgroup.HostGroupUUID, volume.AccountID)
+			if err != nil {
+				return vsaerrors.WrapAsTemporalApplicationError(err)
+			}
+
+			// We have to check if there is any other volume using this HG
+			deleteHG := true
+			for _, volumeWithHG := range volumesWithHG {
+				if volume.PoolID == volumeWithHG.PoolID && volume.UUID != volumeWithHG.UUID {
+					deleteHG = false
+					break
+				}
+			}
+
+			if !deleteHG {
+				logger.Debugf("Hostgroup %s has attached volume, not deleting", hostgroup.HostGroupUUID)
+				continue
+			}
+
+			hostgroupDB, err := se.GetHostGroup(ctx, hostgroup.HostGroupUUID, volume.AccountID)
+			if err != nil {
+				return vsaerrors.WrapAsTemporalApplicationError(err)
+			}
+
+			igroup, err := provider.IgroupGet(&hostgroupDB.Name, nil)
+			if err != nil {
+				if errors.IsNotFoundErr(err) {
+					logger.Debugf("IGroups %s is already deleted, skipping", hostgroup.HostGroupUUID)
+					continue
+				}
+				return vsaerrors.WrapAsTemporalApplicationError(err)
+			}
+			if igroup != nil && igroup.UUID != nil {
+				err = provider.IgroupDelete(*igroup.UUID)
+				if err != nil {
+					return vsaerrors.WrapAsTemporalApplicationError(err)
+				}
+			} else {
+				logger.Debugf("Igroup %s not found for volume %s", hostgroup.HostGroupUUID, volume.UUID)
+			}
+
+			logger.Debug("Igroup deleted successfully", "name", hostgroup.HostGroupUUID)
+		}
+	}
+	return nil
+}

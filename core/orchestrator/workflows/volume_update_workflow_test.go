@@ -829,7 +829,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_WithBlockDevices_HostG
 	}
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes: 2000,
-		BlockDevices: []*common.BlockDeviceRequest{
+		BlockDevices: []*common.BlockDevice{
 			{
 				Name:       "test-lun",
 				HostGroups: []string{"hg-uuid-2", "hg-uuid-3"}, // Different host groups
@@ -899,7 +899,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_WithBlockDevices_HostG
 	}
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes: 2000,
-		BlockDevices: []*common.BlockDeviceRequest{
+		BlockDevices: []*common.BlockDevice{
 			{
 				Name:       "test-lun",
 				HostGroups: []string{"hg-uuid-1"}, // Same host groups
@@ -961,7 +961,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_WithBlockDevices_NoExi
 	}
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes: 2000,
-		BlockDevices: []*common.BlockDeviceRequest{
+		BlockDevices: []*common.BlockDevice{
 			{
 				Name:       "test-lun",
 				HostGroups: []string{"hg-uuid-1", "hg-uuid-2"},
@@ -1033,7 +1033,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_WithBlockProperties_Fa
 	}
 	params := &common.UpdateVolumeParams{
 		QuotaInBytes: 2000,
-		BlockDevices: []*common.BlockDeviceRequest{}, // Empty BlockDevices
+		BlockDevices: []*common.BlockDevice{}, // Empty BlockDevices
 		BlockProperties: &common.BlockPropertiesRequest{
 			HostGroupUUIDs: []string{"hg-uuid-2", "hg-uuid-3"}, // Different host groups
 		},

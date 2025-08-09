@@ -11,6 +11,7 @@ type SANClient interface { // generate:mock
 	IscsiServiceGet(params *IscsiGetParams) (*Iscsi, error)
 	IscsiServiceCreate(params *IscsiCreateParams) error
 	IGroupCreate(params *IgroupCreateParams) (string, error)
+	IGroupDelete(params *IgroupDeleteParams) error
 	IGroupsGet(params *IgroupGetParams) ([]*Igroup, error)
 	IGroupGet(params *IgroupGetParams) (*Igroup, error)
 	IGroupAddInitiator(params *IgroupAddInitiatorParams) error
@@ -62,6 +63,16 @@ func (t *sanClient) IGroupCreate(params *IgroupCreateParams) (string, error) {
 	}
 
 	return *response.Payload.IgroupResponseInlineRecords[0].Name, nil
+}
+
+// IGroupDelete invokes clients/ontap-rest/client/s_a_n/Client.IGroupDelete to delete an igroup
+func (t *sanClient) IGroupDelete(params *IgroupDeleteParams) error {
+	_, err := t.api.IgroupDelete(igroupDeleteParamsToONTAP(params), nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // LunCreate invokes clients/ontap-rest/client/s_a_n/Client.LunCreate to create a LUN

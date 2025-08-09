@@ -2511,6 +2511,11 @@ type IgroupCreateParams struct {
 	JobID      string
 }
 
+// IgroupDeleteParams is the input parameter for deleting an Igroup
+type IgroupDeleteParams struct {
+	UUID string
+}
+
 // igroupCreateParamsToONTAP converts IgroupCreateParams to ONTAP API parameters.
 func igroupCreateParamsToONTAP(params *IgroupCreateParams) *san.IgroupCreateParams {
 	otParams := san.NewIgroupCreateParams()
@@ -2535,6 +2540,16 @@ func igroupCreateParamsToONTAP(params *IgroupCreateParams) *san.IgroupCreatePara
 	})
 
 	otParams.SetReturnRecords(nillable.ToPointer("true"))
+	return otParams
+}
+
+// igroupDeleteParamsToONTAP converts IgroupDeleteParams to ONTAP API parameters.
+func igroupDeleteParamsToONTAP(params *IgroupDeleteParams) *san.IgroupDeleteParams {
+	otParams := san.NewIgroupDeleteParams()
+	if params == nil {
+		return otParams
+	}
+	otParams.SetUUID(params.UUID)
 	return otParams
 }
 

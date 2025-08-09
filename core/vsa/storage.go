@@ -179,7 +179,7 @@ func (rc *OntapRestProvider) LunMapDelete(params LunMapDeleteParams) error {
 	if err := client.SAN().LunMapDelete(&ontapRest.LunMapDeleteParams{
 		LunUUID:    params.LunUUID,
 		IGroupUUID: params.IGroupUUID,
-	}); err != nil && !strings.Contains(err.Error(), "does not contain") {
+	}); err != nil && !strings.Contains(err.Error(), "was not found") {
 		return err
 	}
 	return nil

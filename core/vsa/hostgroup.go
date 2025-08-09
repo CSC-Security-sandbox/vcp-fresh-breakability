@@ -25,6 +25,21 @@ func (rc *OntapRestProvider) IgroupCreate(params IgroupCreateParams) (string, er
 	return iGroupName, nil
 }
 
+// IgroupDelete deletes an initiator group by calling the ONTAP REST Client
+func (rc *OntapRestProvider) IgroupDelete(uuid string) error {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return err
+	}
+	err = client.SAN().IGroupDelete(&ontapRest.IgroupDeleteParams{
+		UUID: uuid,
+	})
+	if err != nil && !strings.Contains(err.Error(), "was not found") {
+		return err
+	}
+	return nil
+}
+
 // IgroupGet creates an initiator group by calling the ONTAP REST Client
 func (rc *OntapRestProvider) IgroupGet(name, svmName *string) (*ontapRest.Igroup, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)

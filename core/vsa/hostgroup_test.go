@@ -409,3 +409,69 @@ func TestIgroupDeleteInitiator(t *testing.T) {
 		mockClient.AssertExpectations(tt)
 	})
 }
+
+func TestIgroupDelete(t *testing.T) {
+	t.Run("WhenIgroupDeleteSucceeds", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		uuid := "test-igroup-uuid"
+		mockSAN.On("IGroupDelete", mock.Anything).Return(nil)
+
+		err := rc.IgroupDelete(uuid)
+
+		assert.NoError(tt, err)
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenIgroupDeleteFails", func(tt *testing.T) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		uuid := "test-igroup-uuid"
+		expectedError := errors.New("delete failed")
+		mockSAN.On("IGroupDelete", mock.Anything).Return(expectedError)
+
+		err := rc.IgroupDelete(uuid)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, expectedError, err)
+
+		mockSAN.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetOntapClientFuncFails", func(tt *testing.T) {
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("getOntapClientFunc error")
+		}
+		rc := &OntapRestProvider{}
+
+		uuid := "test-igroup-uuid"
+
+		err := rc.IgroupDelete(uuid)
+
+		assert.Error(tt, err)
+		assert.Equal(tt, "getOntapClientFunc error", err.Error())
+	})
+}

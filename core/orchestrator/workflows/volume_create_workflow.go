@@ -158,11 +158,11 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 			blockDevices[i].Name = utils.ExtractLunNameFromPath(lun.Name)
 			blockDevices[i].Identifier = lun.SerialNumber
 			blockDevices[i].Size = lun.Size
+			blockDevices[i].LunUUID = lun.ExternalUUID
 		}
 		// Update the slice back to the volume attributes
 		dbVolume.VolumeAttributes.BlockDevices = &blockDevices
-	}
-	if dbVolume.VolumeAttributes.BlockProperties != nil {
+	} else if dbVolume.VolumeAttributes.BlockProperties != nil {
 		dbVolume.VolumeAttributes.BlockProperties.LunName = utils.ExtractLunNameFromPath(lun.Name)
 		dbVolume.VolumeAttributes.BlockProperties.LunSerialNumber = lun.SerialNumber
 		dbVolume.VolumeAttributes.BlockProperties.LunUUID = lun.ExternalUUID

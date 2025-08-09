@@ -196,11 +196,12 @@ type BlockProperties struct {
 
 // BlockDevice describes a block device within a volume
 type BlockDevice struct {
-	Name             string `json:"name"`
-	HostGroupDetails []HostGroupDetail
-	Identifier       string `json:"identifier"`
-	Size             int64  `json:"size"`
-	OSType           string `json:"os_type"`
+	Name             string            `json:"name"`
+	HostGroupDetails []HostGroupDetail `json:"host_group_details"`
+	Identifier       string            `json:"identifier"`
+	Size             int64             `json:"size"`
+	OSType           string            `json:"os_type"`
+	LunUUID          string            `json:"lun_uuid"`
 }
 
 type FileProperties struct {

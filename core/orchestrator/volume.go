@@ -560,6 +560,8 @@ func (v *BlockVolumeProcessor) Validate(ctx context.Context, se database.Storage
 		if err != nil {
 			return err
 		}
+	} else {
+		return customerrors.NewUserInputValidationErr("Block Device/Block Properties is required")
 	}
 	return nil
 }
@@ -1132,7 +1134,7 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 
 	if len(params.BlockDevices) > 0 {
 		// Find the corresponding BlockDevice in the volume by LUN name
-		var matchingBlockDevice *common.BlockDeviceRequest
+		var matchingBlockDevice *common.BlockDevice
 
 		// Check if volume has BlockDevices
 		if volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
@@ -1146,6 +1148,7 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 							matchingBlockDevice.SizeInBytes = volBlockDevice.Size
 							matchingBlockDevice.OSType = volBlockDevice.OSType
 							matchingBlockDevice.LunSerialNumber = volBlockDevice.Identifier
+							matchingBlockDevice.LunUUID = volBlockDevice.LunUUID
 							break
 						}
 					}
