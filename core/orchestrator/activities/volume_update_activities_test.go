@@ -199,6 +199,44 @@ func TestUpdateLun_Success(t *testing.T) {
 	mockProvider.AssertExpectations(t)
 }
 
+func TestUpdateLunWithBD_Success(t *testing.T) {
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := VolumeUpdateActivity{SE: database.NewMockStorage(t)}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volume := &datamodel.Volume{
+		Name: "test-volume",
+		Svm:  &datamodel.Svm{Name: "test-svm"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			BlockDevices: &[]datamodel.BlockDevice{
+				{LunUUID: "lun-uuid-123"},
+			},
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 4096,
+	}
+	node := &models.Node{}
+
+	mockProvider.On("LunUpdate", vsa.LunUpdateParams{
+		UUID:       "lun-uuid-123",
+		LunName:    "lun_test-volume",
+		VolumeName: "test-volume",
+		SvmName:    "test-svm",
+		Size:       int64(params.QuotaInBytes),
+	}).Return(nil)
+
+	err := activity.UpdateLun(ctx, volume, params.QuotaInBytes, node)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
 func TestUpdateLun_Failure(t *testing.T) {
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
