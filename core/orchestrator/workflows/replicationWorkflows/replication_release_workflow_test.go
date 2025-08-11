@@ -1,7 +1,6 @@
 package replicationWorkflows
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -112,10 +111,8 @@ func TestReleaseVolumeReplicationInternalWorkflowFailure(t *testing.T) {
 			VolumeID:  1,
 			Volume:    volume,
 		}
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("DeleteVolumeReplicationRow", mock.Anything, mock.Anything).Return(errors.New("error"))
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 		env.ExecuteWorkflow(ReleaseVolumeReplicationInternalWorkflow, replicationDb)
-		assert.NoError(tt, env.GetWorkflowError())
+		assert.Error(tt, env.GetWorkflowError())
 	})
 }

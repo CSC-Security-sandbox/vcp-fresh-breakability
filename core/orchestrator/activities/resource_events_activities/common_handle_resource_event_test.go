@@ -56,7 +56,7 @@ func Test_pollCvpOperationForWorkflow(t *testing.T) {
 		result, err := pollCvpOperationForWorkflow(ctx, *mockCVP, operationParams)
 		assert.NotNil(tt, err)
 		assert.Nil(tt, result)
-		assert.ErrorContains(tt, err, errMsg)
+		assert.ErrorContains(tt, err, "Error describing SDE Operation")
 	})
 
 	t.Run("pollCvpOperationForWorkflow_WithOperationInProgress", func(tt *testing.T) {
@@ -155,7 +155,7 @@ func Test_pollCvpOperationForWorkflow(t *testing.T) {
 		result, err := pollCvpOperationForWorkflow(ctx, *mockCVP, operationParams)
 		assert.NotNil(tt, err)
 		assert.Nil(tt, result)
-		assert.ErrorContains(tt, err, "network timeout")
+		assert.ErrorContains(tt, err, "Error describing SDE Operation")
 	})
 
 	t.Run("pollCvpOperationForWorkflow_WithEmptyOperationID", func(tt *testing.T) {

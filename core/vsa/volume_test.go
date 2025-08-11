@@ -394,7 +394,7 @@ func TestDeleteVolume_ErrorWhenVolumeHasClones(t *testing.T) {
 	err := rc.DeleteVolume(volumeUUID, volumeName)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Cannot delete a volume that is being actively used in a Volume Replication relationship or a file clone split triggered by Snapshot RestoreFiles operation or used as a reference snapshot for a backup")
+	assertErrContains(t, err, "Cannot delete a volume that is being actively used in a Volume Replication relationship or a file clone split triggered by Snapshot RestoreFiles operation or used as a reference snapshot for a backup")
 }
 
 func TestGetVolume_WhenVolumeIsFound_ThenReturnVolumeResponse(t *testing.T) {
@@ -590,7 +590,7 @@ func TestGetVolume_WhenVolumeGetReturnsError_getOntapClientFuncError(t *testing.
 
 	assert.Error(t, err)
 	assert.Nil(t, resp)
-	assert.Equal(t, "getOntapClientFunc error", err.Error())
+	assertErrContains(t, err, "getOntapClientFunc error")
 }
 
 func TestUpdateVolume(t *testing.T) {
@@ -621,7 +621,7 @@ func TestUpdateVolume(t *testing.T) {
 	mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New("modify error")).Once()
 	err := rc.UpdateVolume(params)
 	assert.Error(t, err)
-	assert.Equal(t, "modify error", err.Error())
+	assertErrContains(t, err, "modify error")
 
 	// Case 2: VolumeModify returns success == true
 	mockStorage.On("VolumeModify", mock.Anything).Return(true, nil, nil).Once()
@@ -641,7 +641,7 @@ func TestUpdateVolume(t *testing.T) {
 	mockClient.On("Poll", mockJob2.JobUUID).Return(errors.New("poll error")).Once()
 	err = rc.UpdateVolume(params)
 	assert.Error(t, err)
-	assert.Equal(t, "poll error", err.Error())
+	assertErrContains(t, err, "poll error")
 
 	// Case 5: getOntapClientFunc returns error
 	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
@@ -713,7 +713,7 @@ func TestUpdateVolume_ForSplit(t *testing.T) {
 	mockStorage.On("VolumeModify", mock.Anything).Return(false, nil, errors.New("modify error")).Once()
 	err := rc.UpdateVolume(params)
 	assert.Error(t, err)
-	assert.Equal(t, "modify error", err.Error())
+	assertErrContains(t, err, "modify error")
 
 	// Case 2: VolumeModify returns success == true
 	mockStorage.On("VolumeModify", mock.Anything).Return(true, nil, nil).Once()
@@ -936,7 +936,7 @@ func TestRevertVolume(t *testing.T) {
 		err := rc.RevertVolume(params)
 
 		assert.Error(t, err)
-		assert.Equal(t, "getOntapClientFunc error", err.Error())
+		assertErrContains(t, err, "getOntapClientFunc error")
 	})
 
 	t.Run("TestRevertVolume_VolumeModifyError", func(t *testing.T) {
@@ -962,7 +962,7 @@ func TestRevertVolume(t *testing.T) {
 		err := rc.RevertVolume(params)
 
 		assert.Error(t, err)
-		assert.Equal(t, "volume modify error", err.Error())
+		assertErrContains(t, err, "volume modify error")
 
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
@@ -1025,7 +1025,7 @@ func TestRevertVolume(t *testing.T) {
 		err := rc.RevertVolume(params)
 
 		assert.Error(t, err)
-		assert.Equal(t, "poll error", err.Error())
+		assertErrContains(t, err, "poll error")
 
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
@@ -1059,7 +1059,7 @@ func TestRevertVolume(t *testing.T) {
 		err := rc.RevertVolume(params)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "not found")
+		assertErrContains(t, err, "not found")
 
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
@@ -1093,7 +1093,7 @@ func TestRevertVolume(t *testing.T) {
 		err := rc.RevertVolume(params)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "entry doesn't exist")
+		assertErrContains(t, err, "entry doesn't exist")
 
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
@@ -1127,7 +1127,7 @@ func TestRevertVolume(t *testing.T) {
 		err := rc.RevertVolume(params)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Only a Snapshot copy of a read/write volume can be promoted")
+		assertErrContains(t, err, "Only a Snapshot copy of a read/write volume can be promoted")
 
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)

@@ -30,6 +30,12 @@ const (
 	ErrTimeLimitExceeded          = 1008
 	ErrInputValidationError       = 1009
 	ErrResourceStateConflictError = 1010
+	ErrInternalServerError        = 1011
+	ErrModelConversionError       = 1012
+	ErrBase64EncodingError        = 1013
+	ErrBase64DecodingError        = 1014
+	ErrResourceEmptyError         = 1015
+	ErrCSRGenerationError         = 1016
 
 	ErrDatabaseConnectionClosed  = 2001
 	ErrDatabaseTransactionError  = 2002
@@ -38,13 +44,16 @@ const (
 	ErrDatabaseDataUpdateError   = 2005
 	ErrDatabaseDataDeleteError   = 2006
 	ErrDatabaseDataNotFoundError = 2007
+	ErrVolumeNotFound            = 2100
+	ErrAccountNotFound           = 2101
 
-	ErrGCPClientInitializationError  = 3001
-	ErrPSAPeeringNotFoundError       = 3002
-	ErrGCPResourceProvisionError     = 3003
-	ErrGCPResourceFetchError         = 3004
-	ErrGCPResourceDeprovisionError   = 3005
-	ErrGCPResourceAlreadyExistsError = 3006
+	ErrGCPClientInitializationError   = 3001
+	ErrPSAPeeringNotFoundError        = 3002
+	ErrGCPResourceProvisionError      = 3003
+	ErrGCPResourceFetchError          = 3004
+	ErrGCPResourceDeprovisionError    = 3005
+	ErrGCPResourceAlreadyExistsError  = 3006
+	ErrGCPServiceAccountDeletionError = 3007
 
 	ErrVSAClusterCreateError           = 4001
 	ErrCouldNotFetchVSAClusterDetails  = 4002
@@ -56,6 +65,7 @@ const (
 	ErrVLMClientInitializationError    = 4008
 	ErrAllHostGroupsNotFoundError      = 4009
 	ErrMissingRequiredInputError       = 4010
+	ErrUnexpectedNodeCountForPool      = 4011
 
 	ErrONTAPVersionFetchError         = 5001
 	ErrCreatingSVM                    = 5002
@@ -64,6 +74,7 @@ const (
 	ErrSnapshotAppConsistencyError    = 5005
 	ErrOntapRestAPIError              = 5006
 	ErrOntapInconsistentResourceError = 5007
+	ErrONTAPClientCreationError       = 5008
 
 	ErrIamClientNotFoundError      = 6020
 	ErrFailedToParseProjectNumber  = 6021
@@ -151,6 +162,7 @@ const (
 	ErrCVPClientHandleResourceEventError                             = 6073
 	ErrCVPClientFinishProjectEventError                              = 6074
 	ErrRevertingVolume                                               = 6075
+	ErrRevertReplicationDestinationVolume                            = 6076
 
 	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsBadRequest          = 6075
 	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsInternalServerError = 6076
@@ -192,31 +204,49 @@ type CustomError struct {
 
 // Error implements the error interface for CustomError.
 func (e *CustomError) Error() string {
-	return fmt.Sprintf("[%d] %s", e.TrackingID, e.Message)
+	if e == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s", e.Message)
 }
 
 // Unwrap returns the originalErr error if there is one.
 func (e *CustomError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
 	return e.OriginalErr
 }
 
 // IsRetriable returns true if the error is marked as retriable.
 func (e *CustomError) IsRetriable() bool {
+	if e == nil {
+		return false
+	}
 	return e.Retriable
 }
 
 // IsError returns true if the TrackingID is same as queried TrackingID.
 func (e *CustomError) IsError(trackingID int) bool {
+	if e == nil {
+		return false
+	}
 	return e.TrackingID == trackingID
 }
 
 // LogError logs the error message along with its TrackingID.
 func (e *CustomError) LogError() {
+	if e == nil {
+		return
+	}
 	slog.String("Error", e.Error())
 }
 
 // GetHttpCode returns the HTTP code associated with the error.
 func (e *CustomError) GetHttpCode() (bool, int) {
+	if e == nil {
+		return false, 400
+	}
 	if e.HttpCode != nil {
 		return true, *e.HttpCode
 	}
@@ -224,18 +254,22 @@ func (e *CustomError) GetHttpCode() (bool, int) {
 }
 
 func (e *CustomError) GetMessage() string {
+	if e == nil {
+		return ""
+	}
 	return e.Message
 }
 
 // LogOriginalError logs the Original error message along with its code.
 func (e *CustomError) LogOriginalError() {
-	if e.OriginalErr != nil {
-		slog.String("Original Error", e.OriginalErr.Error())
+	if e == nil || e.OriginalErr == nil {
+		return
 	}
+	slog.String("Original Error", e.OriginalErr.Error())
 }
 
 // NewVCPError creates a new CustomError based on the given error name.
-func NewVCPError(trackingID int, originalErr error) Error {
+func NewVCPError(trackingID int, originalErr error) *CustomError {
 	if errMsg, ok := errorMap[trackingID]; ok {
 		if errMsg.Retriable == nil {
 			// Default to false if retriable is not specified in the JSON file.
@@ -253,8 +287,8 @@ func NewVCPError(trackingID int, originalErr error) Error {
 	}
 	// If the error name is not defined, create a generic non-retriable error with the original error.
 	return &CustomError{
-		TrackingID:  0,
-		Message:     fmt.Sprintf("undefined error: %s", originalErr.Error()),
+		TrackingID:  ErrInternalServerError, // Default to ErrInternalServerError
+		Message:     fmt.Sprintf("%s", originalErr.Error()),
 		Retriable:   false,
 		OriginalErr: originalErr,
 	}
@@ -327,4 +361,27 @@ func ExtractCustomerFacingErrorMessage(ctx interface{}, err error) string {
 		}
 	}
 	return errorMessage
+}
+
+func ExtractCustomError(err error) *CustomError {
+	var applicationErr *temporal.ApplicationError
+	var customErr *CustomError
+
+	if As(err, &applicationErr) {
+		if applicationErr.Type() == CustomErrorType {
+			var (
+				trackingID   int
+				errorDetails string
+			)
+			err = applicationErr.Details(&trackingID, &errorDetails)
+			if err != nil {
+			} else {
+				return NewVCPError(trackingID, New(errorDetails))
+			}
+		}
+	} else if As(err, &customErr) {
+		// If the error is already a CustomError, return it directly.
+		return customErr
+	}
+	return NewVCPError(ErrInternalServerError, err)
 }

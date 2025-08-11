@@ -192,12 +192,22 @@ func TestBatchHydrateDeletedSnapshots(t *testing.T) {
 	projectId := "mock-project"
 	token := "mock-token"
 
+	// Save and mock hydrateToCffe
+	originalHydrateToCffe := hydrateToCffe
+	defer func() { hydrateToCffe = originalHydrateToCffe }()
+
 	t.Run("HandlesEmptyHydrateSnapshot", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
 		err := _batchHydrateDeletedSnapshots(ctx, mockLogger, []models.Request{}, currVolumeName, region, projectId, token)
 		assert.Nil(tt, err)
 	})
 
 	t.Run("HandlesEmptyNamesError", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
 		hydrateSnapshot := []models.Request{
 			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-1", ResourceId: ""}},
 		}
@@ -206,6 +216,9 @@ func TestBatchHydrateDeletedSnapshots(t *testing.T) {
 	})
 
 	t.Run("HandlesSingleHydrateSnapshot", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
 		hydrateSnapshot := []models.Request{
 			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-1", ResourceId: "snap-1"}},
 		}
@@ -214,6 +227,9 @@ func TestBatchHydrateDeletedSnapshots(t *testing.T) {
 	})
 
 	t.Run("HandlesMultipleHydrateSnapshots", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
 		hydrateSnapshot := []models.Request{
 			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-1", ResourceId: "snap-1"}},
 			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-2", ResourceId: "snap-2"}},
@@ -226,7 +242,6 @@ func TestBatchHydrateDeletedSnapshots(t *testing.T) {
 		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
 			return errors.New("mock error")
 		}
-		defer func() { hydrateToCffe = _hydrateToCffe }()
 		hydrateSnapshot := []models.Request{
 			{Snapshot: &models.HydrateSnapshot{SnapshotId: "uuid-1", ResourceId: "snap-1"}},
 		}
@@ -236,6 +251,9 @@ func TestBatchHydrateDeletedSnapshots(t *testing.T) {
 	})
 
 	t.Run("HandlesBatchSizeLimit", func(tt *testing.T) {
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return nil
+		}
 		hydrateSnapshot := []models.Request{}
 		for i := 0; i < batchSize+1; i++ {
 			hydrateSnapshot = append(hydrateSnapshot, models.Request{Snapshot: &models.HydrateSnapshot{SnapshotId: fmt.Sprintf("uuid-%d", i), ResourceId: fmt.Sprintf("snap-%d", i)}})

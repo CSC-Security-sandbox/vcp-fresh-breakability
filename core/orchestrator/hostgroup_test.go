@@ -48,7 +48,7 @@ func TestGetHostGroup(t *testing.T) {
 		}
 
 		hg, err := orch.GetHostGroup(ctx, "non-existent-uuid", account.Name)
-		assert.EqualError(tt, err, "host group not found")
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "host group not found")
 		assert.Nil(tt, hg, "Expected nil volume")
 	})
 	t.Run("WhenHostGroupExist", func(tt *testing.T) {
@@ -116,7 +116,7 @@ func TestGetMultipleHostGroups(t *testing.T) {
 		hgResp, err := orch.GetMultipleHostGroups(ctx, "account", []string{})
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
-			assert.EqualError(tt, err, "[0] undefined error: account not found")
+			assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "account not found")
 		}
 
 		assert.Len(tt, hgResp, 0)
@@ -370,7 +370,7 @@ func TestUpdateHostGroup(t *testing.T) {
 		}
 
 		hgResp, jobUUID, err := orch.UpdateHostGroup(ctx, params)
-		assert.EqualError(tt, err, "host group not found", "Expected error when workflow execution fails")
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "host group not found", "Expected error when workflow execution fails")
 		assert.Nil(tt, hgResp, "Host group response should be nil")
 		assert.Emptyf(tt, jobUUID, "Job UUID should be empty when workflow execution fails")
 	})

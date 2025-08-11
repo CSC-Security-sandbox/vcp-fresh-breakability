@@ -6,6 +6,7 @@ import (
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errorcore "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -36,24 +37,27 @@ func CreateKmsConfigWorkflow(ctx workflow.Context, params *common.CreateKmsConfi
 	kmsConfigWorkflow := new(createKmsConfigWorkflow)
 	err := kmsConfigWorkflow.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	kmsConfigWorkflow.Status = workflows.WorkflowStatusRunning
 	err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
-	_, err = kmsConfigWorkflow.Run(ctx, params, kmsConfig)
+	_, customErr := kmsConfigWorkflow.Run(ctx, params, kmsConfig)
 
-	if err != nil {
+	if customErr != nil {
 		kmsConfigWorkflow.Status = workflows.WorkflowStatusFailed
-		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), errorcore.WrapAsTemporalApplicationError(errorcore.NewVCPError(errorcore.ErrKMSCreate, err)))
-		return nil, err
+		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), errorcore.WrapAsTemporalApplicationError(errorcore.NewVCPError(errorcore.ErrKMSCreate, customErr)))
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	kmsConfigWorkflow.Status = workflows.WorkflowStatusCompleted
 	err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-	return nil, err
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	return nil, nil
 }
 
 func (kmsConfigWorkflow *createKmsConfigWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -75,13 +79,13 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Setup(ctx workflow.Context, in
 	})
 }
 
-func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	params := args[0].(*common.CreateKmsConfigParams)
 	kmsConfig := args[1].(*datamodel.KmsConfig)
 	kmsConfigActivity := &kms_activities.KmsConfigActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -106,7 +110,7 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	jwtToken := ""
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GetSignedTokenActivity, params.ProjectNumber).Get(ctx, &jwtToken)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
@@ -135,7 +139,7 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 
 	err = workflow.ExecuteActivity(pollingCtx, kmsConfigActivity.PollKmsConfigOperationActivity, pollKmsConfigParams).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	// Describe KMS configurations to get the created KMS configuration; this must be called after polling the operation to get the sde kms config information
@@ -147,7 +151,7 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	var cvpKmsConfig cvpmodels.KmsConfigV1beta
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.DescribeSDEKmsConfigurationActivity, getKmsConfigParams).Get(ctx, &cvpKmsConfig)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	// Update the KMS configuration attributes in the database
@@ -156,28 +160,28 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	kmsConfig.KmsAttributes.Instructions = cvpKmsConfig.Instructions
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.UpdateKmsConfigAttributesActivity, kmsConfig, kmsConfig.KmsAttributes).Get(ctx, kmsConfig)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	// After the KMS configuration is created, we need to perform additional steps like creating service account keys and granting roles
 	// Create the service account key for the KMS configuration
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateVSAKmsConfigSAKeyActivity, kmsConfig).Get(ctx, kmsConfig)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	// Grant the necessary roles to the service account
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GrantRoleActivity, kmsConfig).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	// Update the Created the KMS configuration in the database
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreatedKmsConfigActivity, kmsConfig).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
-	return kmsConfig, err
+	return kmsConfig, nil
 }
 
 func (kmsConfigWorkflow *createKmsConfigWorkflow) RevertCreateKmsConfigWorkflow(ctx workflow.Context) error {

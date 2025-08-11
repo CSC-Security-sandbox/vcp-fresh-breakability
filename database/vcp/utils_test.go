@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"gorm.io/gorm"
 )
@@ -61,7 +62,9 @@ func Test_commitOrRollbackTransaction(t *testing.T) {
 		logger.On("Error", mock.Anything, mock.Anything, mock.Anything).Return()
 		result := _commitOrRollbackTransaction(logger, tx, &err)
 		assert.Error(t, result)
-		assert.Contains(t, result.Error(), "rollback error")
+		var customErr *errors2.CustomError
+		assert.True(t, errors2.As(result, &customErr), "Expected a CustomError")
+		assert.ErrorContains(t, customErr.OriginalErr, "rollback error")
 	})
 }
 

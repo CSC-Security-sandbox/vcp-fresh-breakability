@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -32,12 +33,12 @@ func FinishProjectEventDeleteStateWorkflow(ctx workflow.Context, params *common.
 	finishProjectEventWorkflow := new(finishProjectEventDeleteStateWorkflow)
 	err := finishProjectEventWorkflow.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	finishProjectEventWorkflow.Status = WorkflowStatusRunning
 	err = finishProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	defer func() {
@@ -50,13 +51,13 @@ func FinishProjectEventDeleteStateWorkflow(ctx workflow.Context, params *common.
 		}
 	}()
 
-	_, err = finishProjectEventWorkflow.Run(ctx, params)
-	if err != nil {
-		log.Errorf("finishProjectEventDeleteStateWorkflow completed with error: %v", err)
-		return nil, err
+	_, errRun := finishProjectEventWorkflow.Run(ctx, params)
+	if errRun != nil {
+		log.Errorf("finishProjectEventDeleteStateWorkflow completed with error: %v", errRun)
+		return nil, ConvertToVSAError(errRun)
 	}
 	log.Infof("finishProjectEventDeleteStateWorkflow completed successfully")
-	return nil, err
+	return nil, nil
 }
 
 func (s *finishProjectEventDeleteStateWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -78,12 +79,12 @@ func (s *finishProjectEventDeleteStateWorkflow) Setup(ctx workflow.Context, inpu
 	})
 }
 
-func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	finishProjectEventParams := args[0].(*common.FinishProjectEventParams)
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -98,7 +99,7 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 	aoCVP := ao
 	aoCVP.RetryPolicy.InitialInterval, err = time.ParseDuration(finishProjectInitialRetryIntervalForCVPClient)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	aoCVP.RetryPolicy.MaximumAttempts = int32(finishProjectCVPJobRetryMaxAttempts)
 	aoCVP.RetryPolicy.BackoffCoefficient = finishProjectBackoffCoefficientForCVPClient
@@ -114,13 +115,13 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 	var result *common.FinishProjectEventResult
 	err = workflow.ExecuteActivity(ctx, finishProjectEventActivity.FinishProjectEventForSDEActivity, finishProjectEventParams).Get(ctx, &result)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctxCVP, finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, finishProjectEventParams, &result).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, err
+	return nil, nil
 }

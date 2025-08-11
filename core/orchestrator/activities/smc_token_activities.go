@@ -51,7 +51,7 @@ func _getSMCLicenseFromCloud(ctx context.Context) (string, error) {
 func _getSecretWithVersion(gcpService hyperscaler2.GoogleServices, gcpProjectId, secretID, versionID string) (*hyperscalermodels.CustomSecret, error) {
 	secret, err := gcpService.GetSecretWithCustomVersion(gcpProjectId, secretID, versionID)
 	if err != nil || secret == nil || secret.SecretVersion == nil {
-		return nil, fmt.Errorf("failed to get secret for project: %s, secretID: %s, versionName: %s, err: %s", gcpProjectId, secretID, versionID, err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to get secret for project: %s, secretID: %s, versionName: %s, err: %s", gcpProjectId, secretID, versionID, err))
 	}
 	return secret, nil
 }
@@ -63,13 +63,13 @@ func _generateTokenForNode(ctx context.Context, node *models.Node, clientSecret 
 	}
 	token, err := provider.PostClusterLicenseAccessToken(ctx, *clientSecret)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate token for node %s: %w", node.Name, err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to generate token for node %s: %w", node.Name, err))
 	}
 	if token == nil {
-		return nil, fmt.Errorf("generated token is nil for node %s", node.Name)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("generated token is nil for node %s", node.Name))
 	}
 	if *token == "" {
-		return nil, fmt.Errorf("generated token is empty for node %s", node.Name)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("generated token is empty for node %s", node.Name))
 	}
 	return token, nil
 }

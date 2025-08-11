@@ -6,6 +6,7 @@ import (
 	"go.temporal.io/sdk/workflow"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -31,10 +32,10 @@ func AcceptClusterPeerWorkflow(ctx workflow.Context, params *common.ClusterPeerP
 	if err != nil {
 		return err
 	}
-	_, err = clusterPeerWF.Run(ctx, params, pool)
-	if err != nil {
+	_, customErr := clusterPeerWF.Run(ctx, params, pool)
+	if customErr != nil {
 		clusterPeerWF.Status = WorkflowStatusFailed
-		err = clusterPeerWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err = clusterPeerWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		return err
 	}
 	clusterPeerWF.Status = WorkflowStatusCompleted
@@ -61,13 +62,13 @@ func (wf *clusterPeerWorkflow) Setup(ctx workflow.Context, input interface{}) er
 	})
 }
 
-func (wf *clusterPeerWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *clusterPeerWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	params := args[0].(*common.ClusterPeerParams)
 	pool := args[1].(*datamodel.Pool)
 	clusterPeerActivity := &activities.ClusterPeerActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -80,7 +81,7 @@ func (wf *clusterPeerWorkflow) Run(ctx workflow.Context, args ...interface{}) (i
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID, AuthType: pool.PoolCredentials.AuthType})
@@ -88,7 +89,7 @@ func (wf *clusterPeerWorkflow) Run(ctx workflow.Context, args ...interface{}) (i
 	clusterPeer := &common.ClusterPeerParams{}
 	err = workflow.ExecuteActivity(ctx, clusterPeerActivity.AcceptClusterPeer, params, node).Get(ctx, &clusterPeer)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	return clusterPeer, nil
 }

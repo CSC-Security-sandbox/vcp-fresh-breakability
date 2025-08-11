@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -106,7 +107,7 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Succes
 	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything).
 		Return(volumes, nil)
 	s.env.OnWorkflow(CreateScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
 	backupPolicy := &datamodel.BackupPolicy{
 		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
@@ -1999,9 +2000,9 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_ErrorLaunc
 
 	var workflowExecutionError *temporal.WorkflowExecutionError
 	if errors.As(s.env.GetWorkflowError(), &workflowExecutionError) {
-		var applicationError *temporal.ApplicationError
-		if errors.As(workflowExecutionError.Unwrap(), &applicationError) {
-			assert.Equal(s.T(), "could not launch child workflow", applicationError.Error())
+		var customError *vsaerrors.CustomError
+		if errors.As(workflowExecutionError.Unwrap(), &customError) {
+			assert.Equal(s.T(), "could not launch child workflow", customError)
 		}
 	} else {
 		assert.Fail(s.T(), "Expected WorkflowExecutionError but got: %v", s.env.GetWorkflowError())

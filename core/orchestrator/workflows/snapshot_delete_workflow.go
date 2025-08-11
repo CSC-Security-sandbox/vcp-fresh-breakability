@@ -27,13 +27,13 @@ func DeleteSnapshotWorkflow(ctx workflow.Context, params *common.DeleteSnapshotP
 	err := snapshotWf.Setup(ctx, params)
 	if err != nil {
 		logger.Infof("Snapshot Delete workflow setup executed with error: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	snapshotWf.Status = WorkflowStatusRunning
 	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
 		logger.Infof("Update job status for snapshot executed with error: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	defer func() {
 		if err == nil {
@@ -44,13 +44,13 @@ func DeleteSnapshotWorkflow(ctx workflow.Context, params *common.DeleteSnapshotP
 			err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		}
 	}()
-	_, err = snapshotWf.Run(ctx, snapshot)
-	if err != nil {
-		logger.Infof("Snapshot delete workflow run executed with error: %v", err)
-		return nil, err
+	_, errRun := snapshotWf.Run(ctx, snapshot)
+	if errRun != nil {
+		logger.Infof("Snapshot delete workflow run executed with error: %v", errRun)
+		return nil, ConvertToVSAError(err)
 	}
 	logger.Info("Snapshot workflow completed successfully")
-	return nil, err
+	return nil, nil
 }
 
 func (wf *snapshotDeleteWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -92,13 +92,13 @@ func shouldUpdateSnapshotStateToError(err error) bool {
 	return true
 }
 
-func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	logger := util.GetLogger(ctx)
 	snapshot := args[0].(*datamodel.Snapshot)
 	deleteActivity := &activities.SnapshotDeleteActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	options := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -129,20 +129,20 @@ func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{})
 	}()
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbSnapshot.Volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: dbSnapshot.Volume.Pool.PoolCredentials.Password, SecretID: dbSnapshot.Volume.Pool.PoolCredentials.SecretID, DeploymentName: dbSnapshot.Volume.Pool.DeploymentName, CertificateID: dbSnapshot.Volume.Pool.PoolCredentials.CertificateID, AuthType: dbSnapshot.Volume.Pool.PoolCredentials.AuthType})
 
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapshotInONTAP, &dbSnapshot, &node).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapshot, &dbSnapshot).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, err
+	return nil, nil
 }

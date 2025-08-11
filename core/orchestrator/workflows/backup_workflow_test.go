@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -138,7 +139,8 @@ func TestBackupWorkflowFail(t *testing.T) {
 
 	// Assert that the workflow was executed and handled the error
 	assert.True(t, env.IsWorkflowCompleted())
-	assert.NoError(t, env.GetWorkflowError())
+	assert.Error(t, env.GetWorkflowError())
+	assert.ErrorContains(t, env.GetWorkflowError(), "failed to prepare object store")
 	env.AssertExpectations(t)
 }
 
@@ -202,7 +204,8 @@ func TestBackupWorkflowFailAfterSnapshot(t *testing.T) {
 
 	// Assert that the workflow was executed and handled the error
 	assert.True(t, env.IsWorkflowCompleted())
-	assert.NoError(t, env.GetWorkflowError())
+	assert.Error(t, env.GetWorkflowError())
+	assert.ErrorContains(t, env.GetWorkflowError(), "failed to transfer snapshot")
 	env.AssertExpectations(t)
 }
 
@@ -262,7 +265,8 @@ func TestBackupWorkflowGetSmSourcePathActivityFailure(t *testing.T) {
 
 	// Assert that the workflow was executed and handled the error
 	assert.True(t, env.IsWorkflowCompleted())
-	assert.NoError(t, env.GetWorkflowError())
+	assert.Error(t, env.GetWorkflowError())
+	assert.ErrorContains(t, env.GetWorkflowError(), "failed to prepare snapmirror")
 	env.AssertExpectations(t)
 }
 
@@ -394,7 +398,8 @@ func TestBackupWorkflowSnapmirrorTransferFailed(t *testing.T) {
 
 	// Assert that the workflow was executed and handled the error
 	assert.True(t, env.IsWorkflowCompleted())
-	assert.NoError(t, env.GetWorkflowError())
+	assert.Error(t, env.GetWorkflowError())
+	assert.ErrorContains(t, env.GetWorkflowError(), "snapmirror transfer failed for snapshot  with status: failed")
 	env.AssertExpectations(t)
 }
 
@@ -473,7 +478,8 @@ func TestUpdateBackupWorkflowFailure(t *testing.T) {
 		// Assert workflow execution - the workflow handles errors internally and completes successfully
 		// even when UpdateBackup fails, because it updates the job status to handle the error
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
+		assert.ErrorContains(t, env.GetWorkflowError(), "update failed")
 		env.AssertExpectations(t)
 	})
 }
@@ -828,7 +834,7 @@ func TestGetBucketDetailsForBucket_NotFound(t *testing.T) {
 	}
 	_, err := getBucketDetailsForBucket(backupVault, "non-existent-bucket")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no matching bucket details found for bucket non-existent-bucket")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "no matching bucket details found for bucket non-existent-bucket")
 }
 
 func TestGetBucketDetailsForBucket_EmptyBucketName(t *testing.T) {
@@ -881,13 +887,16 @@ func TestDeleteBackupWorkflowHandleError(t *testing.T) {
 	// Test HandleError function by simulating workflow execution that triggers error handling
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("GetBackupVault", mock.Anything, params.BackupVaultUUID).Return(nil, errors.New("failed to get backup vault"))
+	env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(&datamodel.Backup{}, nil)
+	env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow - this should trigger error handling
 	env.ExecuteWorkflow(DeleteBackupWorkflow, params)
 
 	// Assert workflow execution - HandleError is called but workflow completes successfully
 	assert.True(t, env.IsWorkflowCompleted())
-	assert.NoError(t, env.GetWorkflowError())
+	assert.Error(t, env.GetWorkflowError())
+	assert.ErrorContains(t, env.GetWorkflowError(), "failed to get backup vault")
 	env.AssertExpectations(t)
 }
 
@@ -928,7 +937,8 @@ func TestDeleteBackupWorkflowHandleErrorFailure(t *testing.T) {
 
 	// Assert workflow execution - HandleError fails but workflow still completes with error
 	assert.True(t, env.IsWorkflowCompleted())
-	assert.NoError(t, env.GetWorkflowError())
+	assert.Error(t, env.GetWorkflowError())
+	assert.ErrorContains(t, env.GetWorkflowError(), "failed to get backup vault")
 	env.AssertExpectations(t)
 }
 
@@ -1036,7 +1046,8 @@ func TestDeleteBackupWorkflowAdditionalErrorCases(t *testing.T) {
 
 		// Assert workflow execution - HandleError is called and workflow completes
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
+		assert.ErrorContains(t, env.GetWorkflowError(), "failed to get backup vault")
 		env.AssertExpectations(t)
 	})
 
@@ -1082,7 +1093,8 @@ func TestDeleteBackupWorkflowAdditionalErrorCases(t *testing.T) {
 
 		// Assert workflow execution - HandleError is called and workflow completes
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
+		assert.ErrorContains(t, env.GetWorkflowError(), "failed to get backup")
 		env.AssertExpectations(t)
 	})
 }

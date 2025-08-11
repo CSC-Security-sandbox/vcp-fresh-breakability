@@ -38,7 +38,7 @@ func (s *BackupPolicyWorkflowsTestSuite) AfterTest() {
 	s.env.AssertExpectations(s.T())
 }
 
-func TestScheduledBackupsTestSuite(t *testing.T) {
+func TestBackupPolicyTestSuite(t *testing.T) {
 	suite.Run(t, new(BackupPolicyWorkflowsTestSuite))
 }
 

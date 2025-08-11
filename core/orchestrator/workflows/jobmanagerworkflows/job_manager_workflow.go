@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/jobmanageractivities"
@@ -36,11 +37,11 @@ func JobManagerWorkflow(ctx workflow.Context) error {
 	}
 	jobManagerWF.Status = workflows.WorkflowStatusRunning
 
-	_, err = jobManagerWF.Run(ctx)
-	if err != nil {
+	_, customErr := jobManagerWF.Run(ctx)
+	if customErr != nil {
 		jobManagerWF.Status = workflows.WorkflowStatusFailed
-		_ = jobManagerWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
-		return err
+		_ = jobManagerWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		return customErr
 	}
 	jobManagerWF.Status = workflows.WorkflowStatusCompleted
 	_ = jobManagerWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
@@ -92,7 +93,7 @@ func (wf *jobManagerWorkflow) CreateJob(ctx workflow.Context) (*datamodel.Job, e
 
 // Run executes the main job management activities: create, update, and delete schedule activities.
 // It logs errors for each activity but continues execution.
-func (wf *jobManagerWorkflow) Run(ctx workflow.Context, _ ...interface{}) (interface{}, error) {
+func (wf *jobManagerWorkflow) Run(ctx workflow.Context, _ ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	logger := util.GetLogger(ctx)
 
 	ao := workflow.ActivityOptions{

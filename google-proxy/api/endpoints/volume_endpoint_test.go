@@ -1525,7 +1525,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		defer func() { prepareUpdateVolumeParams = _prepareUpdateVolumeParams }()
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
-		assert.Error(tt, err)
+		assert.Nil(tt, err)
 		internalErr, ok := result.(*gcpgenserver.V1betaUpdateVolumeInternalServerError)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(500), internalErr.Code)
@@ -1598,7 +1598,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		mockOrchestrator.EXPECT().UpdateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.New("An error occurred"))
 
 		result, err := handler.V1betaUpdateVolume(context.Background(), req, params)
-		assert.Error(tt, err)
+		assert.Nil(tt, err)
 		internalErr, ok := result.(*gcpgenserver.V1betaUpdateVolumeInternalServerError)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(500), internalErr.Code)
@@ -2064,7 +2064,7 @@ func TestV1betaGetVolumeCount(t *testing.T) {
 
 		result, err := handler.V1betaGetVolumeCount(context.Background(), params)
 
-		assert.Error(tt, err)
+		assert.Nil(tt, err)
 		assert.NotNil(tt, result)
 	})
 }
@@ -2117,7 +2117,7 @@ func TestV1betaListVolumes(t *testing.T) {
 
 		result, err := handler.V1betaListVolumes(context.Background(), params)
 
-		assert.Error(tt, err)
+		assert.Nil(tt, err)
 		assert.NotNil(tt, result)
 	})
 }
@@ -2367,7 +2367,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		defer func() { prepareCreateVolumeParams = _prepareCreateVolumeParams }()
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
-		assert.Error(tt, err)
+		assert.Nil(tt, err)
 		internalErr, ok := result.(*gcpgenserver.V1betaCreateVolumeInternalServerError)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(500), internalErr.Code)
@@ -2447,7 +2447,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		mockOrchestrator.EXPECT().CreateVolume(mock.Anything, mock.Anything).Return(nil, "", errors.New("An error occurred"))
 
 		result, err := handler.V1betaCreateVolume(context.Background(), req, params)
-		assert.Error(tt, err)
+		assert.Nil(tt, err)
 		internalErr, ok := result.(*gcpgenserver.V1betaCreateVolumeInternalServerError)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(500), internalErr.Code)
@@ -3404,8 +3404,7 @@ func TestV1betaDescribeVolume(t *testing.T) {
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", true).Return(nil, internalErr)
 
 		result, err := handler.V1betaDescribeVolume(context.Background(), params)
-		assert.Error(tt, err)
-		assert.Equal(tt, internalErr, err)
+		assert.Nil(tt, err)
 		internalServerErr, isInternal := result.(*gcpgenserver.V1betaDescribeVolumeInternalServerError)
 		assert.True(tt, isInternal)
 		assert.Equal(tt, float64(500), internalServerErr.Code)
@@ -3466,8 +3465,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "nonexistent-vol", false).Return(nil, notFoundErr)
 
 		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
-		assert.Error(tt, err)
-		assert.Equal(tt, notFoundErr, err)
+		assert.Nil(tt, err)
 		internalErr, isInternal := result.(*gcpgenserver.V1betaDeleteVolumeInternalServerError)
 		assert.True(tt, isInternal)
 		assert.Equal(tt, float64(404), internalErr.Code)
@@ -3488,8 +3486,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(nil, internalErr)
 
 		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
-		assert.Error(tt, err)
-		assert.Equal(tt, internalErr, err)
+		assert.Nil(tt, err)
 		serverErr, isInternal := result.(*gcpgenserver.V1betaDeleteVolumeInternalServerError)
 		assert.True(tt, isInternal)
 		assert.Equal(tt, float64(500), serverErr.Code)
@@ -3605,8 +3602,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		mockOrchestrator.EXPECT().DeleteVolume(mock.Anything, "vol-1").Return(nil, "", internalErr)
 
 		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
-		assert.Error(tt, err)
-		assert.Equal(tt, internalErr, err)
+		assert.Nil(tt, err)
 		serverErr, isInternal := result.(*gcpgenserver.V1betaDeleteVolumeInternalServerError)
 		assert.True(tt, isInternal)
 		assert.Equal(tt, float64(500), serverErr.Code)
@@ -3831,7 +3827,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(nil, notFoundErr)
 
 		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
-		assert.Error(tt, err)
+		assert.Nil(tt, err)
 
 		internalErr, ok := result.(*gcpgenserver.V1betaDeleteVolumeInternalServerError)
 		assert.True(tt, ok)
@@ -3915,7 +3911,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(nil, unexpectedErr)
 
 		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
-		assert.Error(tt, err)
+		assert.Nil(tt, err)
 
 		internalErr, ok := result.(*gcpgenserver.V1betaDeleteVolumeInternalServerError)
 		assert.True(tt, ok)
@@ -3947,8 +3943,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		mockOrchestrator.EXPECT().DeleteVolume(mock.Anything, "vol-1").Return(nil, "", unexpectedErr)
 
 		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
-		assert.Error(tt, err)
-
+		assert.Nil(tt, err)
 		internalErr, ok := result.(*gcpgenserver.V1betaDeleteVolumeInternalServerError)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(500), internalErr.Code)
@@ -4032,7 +4027,7 @@ func TestV1betaRevertVolume(t *testing.T) {
 		defer func() { prepareRevertVolumeParams = _prepareRevertVolumeParams }()
 
 		result, err := handler.V1betaRevertVolume(context.Background(), req, params)
-		assert.Error(tt, err)
+		assert.Nil(tt, err)
 		internalErr, ok := result.(*gcpgenserver.V1betaRevertVolumeInternalServerError)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(500), internalErr.Code)

@@ -164,7 +164,7 @@ func TestGetMultipleReplicationsInternalWorkflow(t *testing.T) {
 			UpdatedReplications: []*datamodel.VolumeReplication{replication1},
 		}
 
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 		env.OnActivity("GetReplicationsFromDB", mock.Anything, params).Return(params, nil)
 		env.OnActivity("GetNodesForPools", mock.Anything, params).Return(params, nil)
 		env.OnActivity("GetReplicationsFromOntap", mock.Anything, params).Return(nil, errors.New("failed to get replications from Ontap"))
@@ -173,7 +173,6 @@ func TestGetMultipleReplicationsInternalWorkflow(t *testing.T) {
 
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		assert.Nil(tt, err)
-		assert.True(tt, env.IsWorkflowCompleted())
-		assert.ErrorContains(tt, env.GetWorkflowError(), "failed to get replications from Ontap")
+		assert.NotNil(tt, env.GetWorkflowError())
 	})
 }

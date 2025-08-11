@@ -8,6 +8,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	oModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -19,7 +20,22 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/temporal"
 )
+
+func assertTemporalApplicationError(t *testing.T, err error, expectedMsg, expectedType string, expectedNonRetryable bool) {
+	t.Helper()
+	var appErr *temporal.ApplicationError
+	require.ErrorAs(t, err, &appErr)
+
+	var trackingID int
+	var originalMsg string
+	require.NoError(t, appErr.Details(&trackingID, &originalMsg))
+
+	assert.Contains(t, originalMsg, expectedMsg)
+	assert.Equal(t, expectedType, appErr.Type())
+	assert.Equal(t, expectedNonRetryable, appErr.NonRetryable())
+}
 
 func TestDeleteVolume_Success(t *testing.T) {
 	// Arrange
@@ -448,7 +464,7 @@ func TestSnapmirrorInONTAPFailsWhenVolumeAttributesIsNil(t *testing.T) {
 	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volume, node)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "volume test-volume has no volume attributes")
+	assertTemporalApplicationError(t, err, "volume test-volume has no volume attributes", "CustomError", false)
 	assert.Nil(t, resp)
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)

@@ -2,6 +2,7 @@ package replicationWorkflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -19,7 +20,6 @@ type internalVolumeReplicationRowDeleteWorkflow struct {
 var _ workflows.WorkflowInterface = &internalVolumeReplicationRowDeleteWorkflow{}
 
 func ReleaseVolumeReplicationInternalWorkflow(ctx workflow.Context, replication *datamodel.VolumeReplication) error {
-	logger := util.GetLogger(ctx)
 	repWf := new(internalVolumeReplicationRowDeleteWorkflow)
 	err := repWf.Setup(ctx, replication)
 	if err != nil {
@@ -28,22 +28,19 @@ func ReleaseVolumeReplicationInternalWorkflow(ctx workflow.Context, replication 
 	repWf.Status = workflows.WorkflowStatusRunning
 	err = repWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
+		repWf.Status = workflows.WorkflowStatusFailed
+		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		return err
 	}
-	defer func() {
-		if err == nil {
-			repWf.Status = workflows.WorkflowStatusCompleted
-			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-		} else {
-			repWf.Status = workflows.WorkflowStatusFailed
-			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
-		}
-	}()
-	_, err = repWf.Run(ctx, replication)
-	if err != nil {
-		logger.Info("Internal Volume Replication workflow run executed with error", "error", err)
+	_, customErr := repWf.Run(ctx, replication)
+	if customErr != nil {
+		repWf.Status = workflows.WorkflowStatusFailed
+		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		return err
 	}
-	return nil
+	repWf.Status = workflows.WorkflowStatusCompleted
+	err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	return err
 }
 
 func (wf *internalVolumeReplicationRowDeleteWorkflow) Setup(ctx workflow.Context, input interface{}) error { // v is of type *datamodel.VolumeReplication
@@ -65,13 +62,13 @@ func (wf *internalVolumeReplicationRowDeleteWorkflow) Setup(ctx workflow.Context
 	})
 }
 
-func (wf *internalVolumeReplicationRowDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *internalVolumeReplicationRowDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	log := util.GetLogger(ctx)
 	replication := args[0].(*datamodel.VolumeReplication)
 	replicationActivity := &replicationActivities.InternalVolumeReplicationRowDeleteActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -95,5 +92,5 @@ func (wf *internalVolumeReplicationRowDeleteWorkflow) Run(ctx workflow.Context, 
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteVolumeReplicationRow, replication).Get(ctx, nil)
 
-	return nil, err
+	return nil, workflows.ConvertToVSAError(err)
 }

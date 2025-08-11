@@ -3,6 +3,7 @@ package backgroundactivities
 import (
 	"context"
 	"errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"strings"
 	"testing"
 
@@ -590,7 +591,7 @@ func TestGetOntapRestProviderForPool(t *testing.T) {
 		assert.Nil(t, provider)
 		assert.Error(t, err)
 		mockStorage.AssertExpectations(tt)
-		if !strings.Contains(err.Error(), "no nodes found for pool") {
+		if !strings.Contains(vsaerrors.ExtractCustomError(err).OriginalErr.Error(), "no nodes found for pool") {
 			t.Errorf("expected error %v, got %v", "no nodes found for pool", err)
 		}
 	})
@@ -609,7 +610,7 @@ func TestGetOntapRestProviderForPool(t *testing.T) {
 		assert.Nil(t, provider)
 		assert.Error(t, err)
 		mockStorage.AssertExpectations(tt)
-		if !strings.Contains(err.Error(), "pool credentials not found for pool") {
+		if !strings.Contains(vsaerrors.ExtractCustomError(err).OriginalErr.Error(), "pool credentials not found for pool") {
 			t.Errorf("expected error %v, got %v", "pool credentials not found for pool", err)
 		}
 	})

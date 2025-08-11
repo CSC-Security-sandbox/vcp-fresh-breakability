@@ -2,12 +2,13 @@ package replicationWorkflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
- 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -31,21 +32,19 @@ func StopInternalVolumeReplicationWorkflow(ctx workflow.Context, replicationDb *
 	stopRepWf.Status = workflows.WorkflowStatusRunning
 	err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
+		stopRepWf.Status = workflows.WorkflowStatusFailed
+		err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		return nil, err
 	}
-	defer func() {
-		if err == nil {
-			stopRepWf.Status = workflows.WorkflowStatusCompleted
-			err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-		} else {
-			stopRepWf.Status = workflows.WorkflowStatusFailed
-			err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
-		}
-	}()
-	_, err = stopRepWf.Run(ctx, replicationDb, forceStop)
-	if err != nil {
-		logger.Info("Internal Stop Volume Replication workflow run executed with error", "error", err)
+	_, customErr := stopRepWf.Run(ctx, replicationDb, forceStop)
+	if customErr != nil {
+		logger.Info("Internal Stop Volume Replication workflow run executed with error", "error", customErr)
+		stopRepWf.Status = workflows.WorkflowStatusFailed
+		err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		return nil, err
 	}
+	stopRepWf.Status = workflows.WorkflowStatusCompleted
+	err = stopRepWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	return nil, err
 }
 
@@ -68,13 +67,13 @@ func (wf *internalVolumeReplicationStopWorkflow) Setup(ctx workflow.Context, inp
 	})
 }
 
-func (wf *internalVolumeReplicationStopWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *internalVolumeReplicationStopWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	dbReplication := args[0].(*datamodel.VolumeReplication)
 	forceStop := args[1].(bool)
 	replicationActivity := &replicationActivities.InternalStopVolumeReplicationActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -92,28 +91,28 @@ func (wf *internalVolumeReplicationStopWorkflow) Run(ctx workflow.Context, args 
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, dbReplication.Volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: dbReplication.Volume.Pool.PoolCredentials.Password, SecretID: dbReplication.Volume.Pool.PoolCredentials.SecretID, CertificateID: dbReplication.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: dbReplication.Volume.Pool.DeploymentName, AuthType: dbReplication.Volume.Pool.PoolCredentials.AuthType})
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.AbortVolumeReplication, dbReplication, node, forceStop).Get(ctx, &vsaReplication)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.BreakVolumeReplication, dbReplication, node).Get(ctx, &vsaReplication)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSnapMirrorFromOntap, dbReplication, node).Get(ctx, &vsaReplication)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationStopDetails, dbReplication, vsaReplication).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeToNonDPVolume, dbReplication).Get(ctx, nil)
-	return nil, err
+	return nil, workflows.ConvertToVSAError(err)
 }

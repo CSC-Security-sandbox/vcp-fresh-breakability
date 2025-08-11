@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -486,8 +487,11 @@ func TestDeleteSnapshot(t *testing.T) {
 		assert.Equal(tt, models.LifeCycleStateDeletedDetails, deletedSnapshot.StateDetails, "Expected snapshot state details %v, got %v", "", deletedSnapshot.StateDetails)
 
 		_, err = store.GetSnapshotByUUID(context.Background(), snapshot.UUID, account.ID, volume.ID)
-		if !customerrors.IsNotFoundErr(err) {
-			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		var vcpErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &vcpErr) {
+			assert.True(tt, customerrors.IsNotFoundErr(vcpErr.Unwrap()), "Expected underlying NotFoundErr, got %v", vcpErr.Unwrap())
+		} else {
+			tt.Fatalf("Expected VCP CustomError, got %v", err)
 		}
 	})
 	t.Run("WhenSnapshotIsNotFound", func(tt *testing.T) {
@@ -501,8 +505,11 @@ func TestDeleteSnapshot(t *testing.T) {
 
 		deletedSnapshot, err := store.DeleteSnapshot(context.Background(), "dummy")
 		assert.Nil(tt, deletedSnapshot, "Expected nil snapshot, got %v", deletedSnapshot)
-		if !customerrors.IsNotFoundErr(err) {
-			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		var vcpErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &vcpErr) {
+			assert.True(tt, customerrors.IsNotFoundErr(vcpErr.Unwrap()), "Expected underlying NotFoundErr, got %v", vcpErr.Unwrap())
+		} else {
+			tt.Fatalf("Expected VCP CustomError, got %v", err)
 		}
 	})
 	t.Run("ReturnsErrorWhenSnapshotIsNotFound", func(tt *testing.T) {

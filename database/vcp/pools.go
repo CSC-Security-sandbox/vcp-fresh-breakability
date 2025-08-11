@@ -72,7 +72,7 @@ func (d *DataStoreRepository) CreatingPool(ctx context.Context, pool *datamodel.
 		pool.Account.ID = pool.AccountID
 		err = tx.Create(&pool).Error
 		if err != nil {
-			return nil, err
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
 		}
 
 		dbPoolView, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
@@ -82,9 +82,9 @@ func (d *DataStoreRepository) CreatingPool(ctx context.Context, pool *datamodel.
 		return ConvertPoolViewToPool(dbPoolView), nil
 	} else if err1 != nil {
 		logger.Errorf("Error while checking if pool exists: %v", err1)
-		return nil, err1
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err1)
 	}
-	return nil, customerrors.NewConflictErr("pool already exists")
+	return nil, vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, customerrors.NewConflictErr("pool already exists"))
 }
 
 // DescribePool retrieves a pool by its UUID
@@ -154,7 +154,7 @@ func (d *DataStoreRepository) UpdatedPool(ctx context.Context, pool *datamodel.P
 	if err = tx.Model(&datamodel.Pool{}).
 		Where("uuid = ?", pool.UUID).
 		Updates(pool).Error; err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	updatedPoolView, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
 	if err != nil {
@@ -207,7 +207,7 @@ func (d *DataStoreRepository) UpdatePoolState(ctx context.Context, pool *datamod
 	if err = tx.Model(&datamodel.Pool{}).
 		Where("uuid = ?", pool.UUID).
 		Updates(pool).Error; err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	updatedPoolView, err := getPoolWithDetails(tx, &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: pool.UUID}})
 	if err != nil {
@@ -248,7 +248,7 @@ func (d *DataStoreRepository) DeletingPool(ctx context.Context, pool *datamodel.
 	pool.StateDetails = models.LifeCycleStateDeletingDetails
 	err = tx.Updates(pool).Error
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package replicationWorkflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
@@ -29,12 +30,14 @@ func PerformMountCheckWorkflow(ctx workflow.Context, replicationUUID string, acc
 	mountCheckWF.Status = workflows.WorkflowStatusRunning
 	err = mountCheckWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return err
-	}
-	_, err = mountCheckWF.Run(ctx, replicationUUID, accountName)
-	if err != nil {
 		mountCheckWF.Status = workflows.WorkflowStatusFailed
 		err = mountCheckWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		return err
+	}
+	_, customErr := mountCheckWF.Run(ctx, replicationUUID, accountName)
+	if customErr != nil {
+		mountCheckWF.Status = workflows.WorkflowStatusFailed
+		err = mountCheckWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		return err
 	}
 	mountCheckWF.Status = workflows.WorkflowStatusCompleted
@@ -61,13 +64,13 @@ func (wf *mountCheckWorkflow) Setup(ctx workflow.Context, input interface{}) err
 	})
 }
 
-func (wf *mountCheckWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *mountCheckWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	replicationUUID := args[0].(string)
 	accountName := args[1].(string)
 	mountJobActivity := &replicationActivities.MountJobActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -83,13 +86,13 @@ func (wf *mountCheckWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	var replication *datamodel.VolumeReplication
 	err = workflow.ExecuteActivity(ctx, mountJobActivity.GetReplication, replicationUUID).Get(ctx, &replication)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, replication.Volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: replication.Volume.Pool.PoolCredentials.Password, SecretID: replication.Volume.Pool.PoolCredentials.SecretID, CertificateID: replication.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: replication.Volume.Pool.DeploymentName, AuthType: replication.Volume.Pool.PoolCredentials.AuthType})
 
@@ -105,17 +108,17 @@ func (wf *mountCheckWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	ctx1 := workflow.WithActivityOptions(ctx, ao1)
 	err = workflow.ExecuteActivity(ctx1, mountJobActivity.CheckMountJob, replication, node, accountName).Get(ctx1, nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, mountJobActivity.GetReplicationFromOntap, replication, node, accountName).Get(ctx, &replication)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, mountJobActivity.UpdateReplicationInDB, replication).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	return nil, nil

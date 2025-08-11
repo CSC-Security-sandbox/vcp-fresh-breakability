@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"database/sql"
+	errors2 "errors"
 	"testing"
 	"time"
 
@@ -44,8 +45,8 @@ func TestGetVolume(t *testing.T) {
 			storage: store,
 		}
 
-		volume, err := orch.GetVolume(ctx, "non-existent-uuid", false)
-		assert.EqualError(tt, err, "volume not found")
+		volume, err2 := orch.GetVolume(ctx, "non-existent-uuid", false)
+		assert.EqualError(tt, err2, "Volume not found")
 		assert.Nil(tt, volume, "Expected nil volume")
 	})
 	t.Run("WhenVolumeExists", func(tt *testing.T) {
@@ -2389,8 +2390,15 @@ func TestDeleteVolume(t *testing.T) {
 		}
 
 		_, _, err = orch.DeleteVolume(ctx, "non-existent-uuid")
-		assert.EqualError(tt, err, "volume not found")
+		assert.EqualError(tt, err, "Volume not found")
+		var customErr *vsaerrors.CustomError
+		errors2.As(err, &customErr)
+		assert.NotNil(tt, customErr, "Expected a CustomError")
+		assert.NotNil(tt, customErr.HttpCode, 404)
+		assert.NotNil(tt, customErr.Retriable, false)
+		assert.NotNil(tt, customErr.OriginalErr, "volume not found")
 	})
+
 	t.Run("WhenVolumeExistsAndSuccess", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -8237,7 +8245,10 @@ func TestRevertVolume(t *testing.T) {
 		}
 
 		_, _, err = orch.RevertVolume(ctx, params)
-		assert.Contains(tt, err.Error(), "account not found")
+		assert.EqualError(tt, err, "Account not found")
+		var customErr *vsaerrors.CustomError
+		errors2.As(err, &customErr)
+		assert.NotNil(tt, customErr.OriginalErr, "account not found")
 	})
 
 	t.Run("WhenVolumeNotFound", func(tt *testing.T) {
@@ -8275,7 +8286,13 @@ func TestRevertVolume(t *testing.T) {
 		}
 
 		_, _, err = orch.RevertVolume(ctx, params)
-		assert.EqualError(tt, err, "volume not found")
+		assert.EqualError(tt, err, "Volume not found")
+		var customErr *vsaerrors.CustomError
+		errors2.As(err, &customErr)
+		assert.NotNil(tt, customErr, "Expected a CustomError")
+		assert.NotNil(tt, customErr.HttpCode, 404)
+		assert.NotNil(tt, customErr.Retriable, false)
+		assert.NotNil(tt, customErr.OriginalErr, "volume not found")
 	})
 
 	t.Run("WhenVolumeInTransitionState", func(tt *testing.T) {
@@ -8335,7 +8352,7 @@ func TestRevertVolume(t *testing.T) {
 		}
 
 		_, _, err = orch.RevertVolume(ctx, params)
-		assert.Contains(tt, err.Error(), "Volume is not in READY state, state: DELETING")
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Volume is not in READY state, state: DELETING")
 	})
 
 	t.Run("WhenVolumeIsDataProtection", func(tt *testing.T) {

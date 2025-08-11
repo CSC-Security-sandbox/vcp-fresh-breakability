@@ -40,16 +40,16 @@ func DeleteVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume) error 
 		return err
 	}
 
-	_, err = volumeWf.Run(ctx, volume)
-	if err != nil {
-		log.Errorf("DeleteVolumeWorkflow completed with error: %v", err)
+	_, customErr := volumeWf.Run(ctx, volume)
+	if customErr != nil {
+		log.Errorf("DeleteVolumeWorkflow completed with error: %v", customErr)
 		volumeWf.Status = WorkflowStatusFailed
-		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to Done with err for DeleteVolumeWorkflow: %v", err)
 			return err2
 		}
-		return err
+		return customErr
 	}
 
 	volumeWf.Status = WorkflowStatusCompleted
@@ -95,13 +95,13 @@ func shouldUpdateVolumeStateToError(err error) bool {
 	return true
 }
 
-func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	log := util.GetLogger(ctx)
 	volume := args[0].(*datamodel.Volume)
 	deleteActivity := &activities.VolumeDeleteActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	options := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -135,7 +135,7 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.Pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType})
@@ -143,46 +143,46 @@ func (wf *volumeDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	var ontapAsyncResponse *vsa.OntapAsyncResponse
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapmirrorInONTAP, &volume, &node).Get(ctx, &ontapAsyncResponse)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete snapmirror in ontap: %w", err)
+		return nil, ConvertToVSAError(fmt.Errorf("failed to delete snapmirror in ontap: %w", err))
 	}
 
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolumeInONTAP, volume.VolumeAttributes.ExternalUUID, volume.Name, node).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	if volume.VolumeAttributes.BlockDevices != nil && len(*volume.VolumeAttributes.BlockDevices) > 0 {
 		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteIgroups, volume, node).Get(ctx, nil)
 		if err != nil {
-			return nil, err
+			return nil, ConvertToVSAError(err)
 		}
 	} else if volume.VolumeAttributes.BlockProperties != nil && len(volume.VolumeAttributes.BlockProperties.HostGroupDetails) > 0 {
 		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteIgroupsFromBlockProperties, volume, node).Get(ctx, nil)
 		if err != nil {
-			return nil, err
+			return nil, ConvertToVSAError(err)
 		}
 	}
 
 	SnapshotPolicyName := getSnapshotPolicyName(volume)
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapshotPolicyInONTAP, SnapshotPolicyName, &node).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolumeAssociatedSnapshots, volume.ID).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteVolume, &volume).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, err
+	return nil, ConvertToVSAError(err)
 }

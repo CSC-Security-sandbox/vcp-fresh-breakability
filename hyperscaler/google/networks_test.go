@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -66,8 +67,8 @@ func Test_GetTenantProject(t *testing.T) {
 		if err == nil {
 			tt.Error("Expected an error but got nothing")
 		} else {
-			if !strings.Contains(err.Error(), "googleapi: got HTTP response code 500 with body") {
-				tt.Errorf("Unexpected error: %s", err.Error())
+			if !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), "googleapi: got HTTP response code 500 with body") {
+				tt.Errorf("Unexpected error: %s", err.(*vsaerrors.CustomError).OriginalErr.Error())
 			}
 		}
 	})
@@ -133,8 +134,8 @@ func Test_GetTenantProject(t *testing.T) {
 		if err == nil {
 			tt.Error("Expected an error but got nothing")
 		} else {
-			if !strings.Contains(err.Error(), fmt.Sprintf("VPC peering network for TenancyUnit '%s' not found. Use the correct vpc name and ensure VPC network peering with tenant project has already been established.", consumerNetwork)) {
-				tt.Errorf("Unexpected error: %s", err.Error())
+			if !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), fmt.Sprintf("VPC peering network for TenancyUnit '%s' not found. Use the correct vpc name and ensure VPC network peering with tenant project has already been established.", consumerNetwork)) {
+				tt.Errorf("Unexpected error: %s", err.(*vsaerrors.CustomError).OriginalErr.Error())
 			}
 		}
 	})
@@ -207,8 +208,8 @@ func Test_CreateTPSubnetOpInternal(t *testing.T) {
 			if out != nil {
 				tt.Errorf("Unexpected output: %+v\n", out)
 			}
-			if !strings.Contains(err.Error(), "googleapi: got HTTP response code") {
-				tt.Errorf("Unexpected error: %s", err.Error())
+			if !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), "googleapi: got HTTP response code") {
+				tt.Errorf("Unexpected error: %s", err.(*vsaerrors.CustomError).OriginalErr.Error())
 			}
 		}
 		CreateTPSubnetOp = _createTPSubnetOp
@@ -259,8 +260,8 @@ func Test_CreateTPSubnetOpInternal(t *testing.T) {
 			if out != nil {
 				tt.Errorf("Unexpected output: %+v\n", out)
 			}
-			if !strings.Contains(err.Error(), errMsg) {
-				tt.Errorf("Unexpected error: %s", err.Error())
+			if !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), errMsg) {
+				tt.Errorf("Unexpected error: %s", err.(*vsaerrors.CustomError).OriginalErr.Error())
 			}
 		}
 		CreateTPSubnetOp = _createTPSubnetOp
@@ -814,8 +815,8 @@ func Test_InsertFirewall(t *testing.T) {
 		if err == nil {
 			tt.Error("Expected an error but got nothing")
 		} else {
-			if !strings.Contains(err.Error(), "googleapi: got HTTP response code 500 with body") {
-				tt.Errorf("Unexpected error: %s", err.Error())
+			if !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), "googleapi: got HTTP response code 500 with body") {
+				tt.Errorf("Unexpected error: %s", err.(*vsaerrors.CustomError).OriginalErr.Error())
 			}
 		}
 	})
@@ -1036,7 +1037,7 @@ func TestReleaseSubnetwork(t *testing.T) {
 		defer func() { waitForComputeOperation = origDelete }()
 		gService := &GcpServices{AdminGCPService: &AdminGCPService{computeService: computeSvc}, Ctx: ctx, Logger: util.GetLogger(ctx)}
 		err = gService.ReleaseSubnetwork(region, snhost, subnetwork)
-		if err == nil || !strings.Contains(err.Error(), "wait operation failed") {
+		if err == nil || !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), "wait operation failed") {
 			tt.Errorf("Expected wait operation failed error, got: %v", err)
 		}
 	})
@@ -1053,7 +1054,7 @@ func TestReleaseSubnetwork(t *testing.T) {
 		}
 		gService := &GcpServices{AdminGCPService: &AdminGCPService{networkingService: svc}, Ctx: ctx, Logger: util.GetLogger(ctx)}
 		_, err = _createTPSubnetOp(gService, &servicenetworking.AddSubnetworkRequest{}, "test-project")
-		if err == nil || !strings.Contains(err.Error(), "are not successfully connected yet") {
+		if err == nil || !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), "are not successfully connected yet") {
 			tt.Errorf("Expected are not successfully connected yet error, got: %v", err)
 		}
 	})
@@ -1385,8 +1386,8 @@ func Test_updateFirewall(t *testing.T) {
 		if err == nil {
 			tt.Error("Expected an error but got nothing")
 		} else {
-			if !strings.Contains(err.Error(), "googleapi: got HTTP response code 400 with body") {
-				tt.Errorf("Unexpected error: %s", err.Error())
+			if !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), "googleapi: got HTTP response code 400 with body") {
+				tt.Errorf("Unexpected error: %s", err.(*vsaerrors.CustomError).OriginalErr.Error())
 			}
 		}
 	})
@@ -1838,8 +1839,8 @@ func Test_getComputeRegionalOpStatus(t *testing.T) {
 			if out != nil {
 				tt.Errorf("Unexpected output: %+v\n", out)
 			}
-			if !strings.Contains(err.Error(), "response code 500 with body") {
-				tt.Errorf("Unexpected error: %s", err.Error())
+			if !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), "response code 500 with body") {
+				tt.Errorf("Unexpected error: %s", err.(*vsaerrors.CustomError).OriginalErr.Error())
 			}
 		}
 	})
@@ -1876,8 +1877,8 @@ func Test_getComputeRegionalOpStatus(t *testing.T) {
 			if out != nil {
 				tt.Errorf("Unexpected output: %+v\n", out)
 			}
-			if !strings.Contains(err.Error(), "operation not found") {
-				tt.Errorf("Unexpected error: %s", err.Error())
+			if !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), "operation not found") {
+				tt.Errorf("Unexpected error: %s", err.(*vsaerrors.CustomError).OriginalErr.Error())
 			}
 		}
 	})
@@ -1956,8 +1957,8 @@ func TestGetComputeGlobalOpStatus(t *testing.T) {
 			if out != nil {
 				tt.Errorf("Unexpected output: %+v\n", out)
 			}
-			if !strings.Contains(err.Error(), "response code 500 with body") {
-				tt.Errorf("Unexpected error: %s", err.Error())
+			if !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), "response code 500 with body") {
+				tt.Errorf("Unexpected error: %s", err.(*vsaerrors.CustomError).OriginalErr.Error())
 			}
 		}
 	})
@@ -1994,8 +1995,8 @@ func TestGetComputeGlobalOpStatus(t *testing.T) {
 			if out != nil {
 				tt.Errorf("Unexpected output: %+v\n", out)
 			}
-			if !strings.Contains(err.Error(), "operation not found") {
-				tt.Errorf("Unexpected error: %s", err.Error())
+			if !strings.Contains(err.(*vsaerrors.CustomError).OriginalErr.Error(), "operation not found") {
+				tt.Errorf("Unexpected error: %s", err.(*vsaerrors.CustomError).OriginalErr.Error())
 			}
 		}
 	})

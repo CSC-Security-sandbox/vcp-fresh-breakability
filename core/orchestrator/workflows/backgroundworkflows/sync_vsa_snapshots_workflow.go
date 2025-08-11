@@ -3,6 +3,7 @@ package backgroundworkflows
 import (
 	"context"
 	"fmt"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -121,11 +122,11 @@ func SyncSnapshotsForPoolWorkflow(ctx workflow.Context, pool *datamodel.Pool) er
 		return err
 	}
 	syncSnapshotPoolWF.Status = workflows.WorkflowStatusRunning
-	_, err = syncSnapshotPoolWF.Run(ctx, pool)
-	if err != nil {
+	_, errRun := syncSnapshotPoolWF.Run(ctx, pool)
+	if errRun != nil {
 		syncSnapshotPoolWF.Status = workflows.WorkflowStatusFailed
-		syncSnapshotPoolWF.Logger.Error("Failed to sync snapshots for pool", "PoolName", pool.Name, "Error", err)
-		return err
+		syncSnapshotPoolWF.Logger.Error("Failed to sync snapshots for pool", "PoolName", pool.Name, "Error", errRun)
+		return errRun
 	}
 	syncSnapshotPoolWF.Status = workflows.WorkflowStatusCompleted
 	syncSnapshotPoolWF.Logger.Info("Sync snapshot pool completed successfully for pool", "PoolName", pool.Name)
@@ -151,13 +152,13 @@ func (wf *SyncSnapshotsForPoolWF) Setup(ctx workflow.Context, input interface{})
 	})
 }
 
-func (wf *SyncSnapshotsForPoolWF) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *SyncSnapshotsForPoolWF) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	logger := wf.Logger
 	pool := args[0].(*datamodel.Pool)
 
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.ExtractCustomError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -176,14 +177,14 @@ func (wf *SyncSnapshotsForPoolWF) Run(ctx workflow.Context, args ...interface{})
 	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.GetOntapVolumesAndSnapshotsForPool, pool).Get(ctx, &ontapVolSnapshotResp)
 	if err != nil {
 		logger.Error("GetOntapVolumesAndSnapshotsForPool activity execution failed.", "Error", err, "PoolName", pool.Name)
-		return nil, err
+		return nil, vsaerrors.ExtractCustomError(err)
 	}
 
 	var dbVolSnapshotResp *backgroundactivities.GetDBVolumeAndSnapshotsForPoolReturnValue
 	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.GetDBVolumeAndSnapshotsForPool, pool).Get(ctx, &dbVolSnapshotResp)
 	if err != nil {
 		logger.Error("GetDBVolumeAndSnapshotsForPool activity execution failed.", "Error", err, "PoolName", pool.Name)
-		return nil, err
+		return nil, vsaerrors.ExtractCustomError(err)
 	}
 
 	var processSnapshotsResp *backgroundactivities.ProcessSnapshotsReturnValue
@@ -197,39 +198,39 @@ func (wf *SyncSnapshotsForPoolWF) Run(ctx workflow.Context, args ...interface{})
 	).Get(ctx, &processSnapshotsResp)
 	if err != nil {
 		logger.Error("ProcessSnapshots activity execution failed.", "Error", err, "PoolName", pool.Name)
-		return nil, err
+		return nil, vsaerrors.ExtractCustomError(err)
 	}
 
 	var deletedSnapshots []*datamodel.Snapshot
 	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.SyncDeletedSnapshotsToDatabase, processSnapshotsResp.DeleteIDs).Get(ctx, &deletedSnapshots)
 	if err != nil {
 		logger.Error("SyncDeletedSnapshotsToDatabase activity execution failed.", "Error", err, "PoolName", pool.Name)
-		return nil, err
+		return nil, vsaerrors.ExtractCustomError(err)
 	}
 
 	var createdSnapshots []*datamodel.Snapshot
 	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.SyncNewSnapshotsToDatabase, processSnapshotsResp.NewIDs, processSnapshotsResp.NewSSMap, dbVolSnapshotResp.DBVolumeMap, pool).Get(ctx, &createdSnapshots)
 	if err != nil {
 		logger.Error("SyncNewSnapshotsToDatabase activity execution failed.", "Error", err, "PoolName", pool.Name)
-		return nil, err
+		return nil, vsaerrors.ExtractCustomError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.SyncUpdatedSnapshotsToDatabase, processSnapshotsResp.UpdatedIDs, processSnapshotsResp.UpdatedSSMap, dbVolSnapshotResp.DBSnapshotMap).Get(ctx, nil)
 	if err != nil {
 		logger.Error("SyncUpdatedSnapshotsToDatabase activity execution failed.", "Error", err, "PoolName", pool.Name)
-		return nil, err
+		return nil, vsaerrors.ExtractCustomError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.SyncWronglyDeletedSnapshotsToDatabase, processSnapshotsResp.WronglyDeletedIDs, processSnapshotsResp.WronglyDeletedSnapshotsMap, dbVolSnapshotResp.DBSnapshotMap).Get(ctx, nil)
 	if err != nil {
 		logger.Error("SyncWronglyDeletedSnapshotsToDatabase activity execution failed.", "Error", err, "PoolName", pool.Name)
-		return nil, err
+		return nil, vsaerrors.ExtractCustomError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.HydrateSnapshotsToCCFE, createdSnapshots, deletedSnapshots).Get(ctx, nil)
 	if err != nil {
 		logger.Error("HydrateSnapshotsToCCFE activity execution failed.", "Error", err, "PoolName", pool.Name)
-		return nil, err
+		return nil, vsaerrors.ExtractCustomError(err)
 	}
 	return nil, nil
 }

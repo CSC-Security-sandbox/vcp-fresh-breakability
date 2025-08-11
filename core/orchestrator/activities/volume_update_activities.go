@@ -63,7 +63,7 @@ func (a *VolumeUpdateActivity) UpdateVolumeInONTAP(ctx context.Context, volume *
 	err = updateVolume(ctx, provider, *updateVolumeParams)
 	if err != nil {
 		logger.Errorf("Failed to update volume %s in ontap: %v", volume.Name, err)
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Debugf("Volume %s updated successfully in ontap", volume.Name)
 	return nil
@@ -95,9 +95,9 @@ func (a *VolumeUpdateActivity) GetVolumeFromONTAP(ctx context.Context, volume *d
 
 	if err != nil {
 		logger.Errorf("Failed to get volume %s from ONTAP: %v", volume.Name, err)
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return volumeRes, err
+	return volumeRes, nil
 }
 
 // UpdateLun updates the LUN associated with the volume in the VSA cluster
@@ -128,7 +128,7 @@ func (a *VolumeUpdateActivity) UpdateLun(ctx context.Context, volume *datamodel.
 			return nil
 		}
 		logger.Errorf("Failed to update lun %s in vsa cluster: %v", volume.Name, err)
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	logger.Debugf("Lun %s updated successfully in vsa cluster", volume.Name)
@@ -143,7 +143,7 @@ func (a *VolumeUpdateActivity) EnsureHostGroupsExistsAndMapDisk(ctx context.Cont
 	}
 	hgs, err := a.SE.GetMultipleHostGroups(ctx, iGroups, volume.AccountID)
 	if err != nil {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	if len(hgs) == 0 {
 		logger.Debugf("No host groups to map for volume %s", volume.Name)
@@ -279,17 +279,17 @@ func (a *VolumeUpdateActivity) UpdateVolumeInDB(ctx context.Context, volume *dat
 
 	updatedFields, err := prepareFieldsForUpdate(ctx, a.SE, volume, params)
 	if err != nil {
-		logger.Errorf("Failed to update volume %s in the database: %v", volume.Name, err)
-		return err
+		logger.Errorf("Failed to prepareFieldsForUpdate for the volume %s in the database: %v", volume.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	// Update the volume in the database
 	err = a.SE.UpdateVolumeFields(ctx, volume.UUID, updatedFields)
 	if err != nil {
-		logger.Errorf("Failed to update volume %s in the database: %v", volume.Name, err)
-		return err
+		logger.Errorf("Failed to update volume %s in the database: %v", volume.UUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	logger.Debugf("Volume %s updated successfully in the database", volume.Name)
+	logger.Debugf("Volume %s updated successfully in the database", volume.UUID)
 	return nil
 }
 

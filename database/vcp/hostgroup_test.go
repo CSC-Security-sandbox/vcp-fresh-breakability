@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,7 @@ func TestGetHostGroup(t *testing.T) {
 		assert.NoError(tt, err, "Failed to clean up test database")
 
 		result, err := store.GetHostGroup(context.Background(), "hg", 1)
-		assert.EqualError(tt, err, "host group not found")
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "host group not found")
 		assert.Nil(tt, result, "Expected result to be nil")
 	})
 	t.Run("WhenHostGroupExists", func(tt *testing.T) {
@@ -77,7 +78,7 @@ func TestGetHostGroup(t *testing.T) {
 		}
 
 		result, err := store.GetHostGroup(context.Background(), "test-hg", 1)
-		assert.EqualError(tt, err, "host group not found")
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "host group not found")
 		assert.Nil(tt, result, "Expected result to be nil")
 	})
 }
@@ -217,7 +218,7 @@ func TestGetHostGroupWithDetails(t *testing.T) {
 		}
 
 		_, err = getHostGroupWithDetails(wrapper.GORM(), hostGroup)
-		assert.EqualError(tt, err, "host group not found")
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "host group not found")
 	})
 }
 

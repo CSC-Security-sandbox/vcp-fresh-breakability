@@ -9,11 +9,25 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
+
+func assertErrContains(t *testing.T, err error, substring string) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("expected error containing %q, got nil", substring)
+	}
+	var customErr *vsaerrors.CustomError
+	if vsaerrors.As(err, &customErr) && customErr.Unwrap() != nil {
+		assert.ErrorContains(t, customErr.Unwrap(), substring)
+		return
+	}
+	assert.ErrorContains(t, err, substring)
+}
 
 func TestCreateSnapshot(t *testing.T) {
 	originalgetOntapClientFunc := getOntapClientFunc
@@ -152,7 +166,7 @@ func TestCreateSnapshot(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, resp)
-		assert.ErrorContains(t, err, "invalid Snapshot create response from API")
+		assertErrContains(t, err, "invalid Snapshot create response from API")
 	})
 
 	t.Run("CreateSnapshotVolumeNotFound", func(t *testing.T) {
@@ -177,7 +191,7 @@ func TestCreateSnapshot(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, resp)
-		assert.ErrorContains(t, err, "Volume not found")
+		assertErrContains(t, err, "Volume not found")
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
 	})
@@ -313,7 +327,7 @@ func TestCreateSnapshotPolicy(t *testing.T) {
 		}
 		err := rc.CreateSnapshotPolicy(policy)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "too many snapshot policy schedules")
+		assertErrContains(t, err, "too many snapshot policy schedules")
 	})
 
 	t.Run("ErrorNoSchedules", func(t *testing.T) {
@@ -326,7 +340,7 @@ func TestCreateSnapshotPolicy(t *testing.T) {
 		}
 		err := rc.CreateSnapshotPolicy(policy)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "must have at least one snapshot policy schedule")
+		assertErrContains(t, err, "must have at least one snapshot policy schedule")
 	})
 
 	t.Run("ErrorOnCreate", func(t *testing.T) {
@@ -366,7 +380,7 @@ func TestCreateSnapshotPolicy(t *testing.T) {
 
 		err := rc.CreateSnapshotPolicy(policy)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "some error")
+		assertErrContains(t, err, "some error")
 	})
 
 	t.Run("ErrorOnScheduleCreate", func(t *testing.T) {
@@ -409,7 +423,7 @@ func TestCreateSnapshotPolicy(t *testing.T) {
 
 		err := rc.CreateSnapshotPolicy(policy)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unexpected error")
+		assertErrContains(t, err, "unexpected error")
 	})
 
 	t.Run("ScheduleAlreadyExists", func(t *testing.T) {
@@ -572,7 +586,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		err := rc.DeleteSnapshot(snapshotUUID, volumeUUID)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Cannot delete snapshot because volume is not online")
+		assertErrContains(t, err, "Cannot delete snapshot because volume is not online")
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
 	})
@@ -659,7 +673,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		err := rc.DeleteSnapshot(snapshotUUID, volumeUUID)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Cannot delete a snapshot that is being actively used")
+		assertErrContains(t, err, "Cannot delete a snapshot that is being actively used")
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
 	})
@@ -693,7 +707,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		err := rc.DeleteSnapshot(snapshotUUID, volumeUUID)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "polling error")
+		assertErrContains(t, err, "polling error")
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
 	})
@@ -1610,7 +1624,7 @@ func TestListSnapmirrorSnapshots(t *testing.T) {
 		_, err := rc.ListSnapmirrorSnapshots(volumeUUID)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Volume not found")
+		assertErrContains(t, err, "Volume not found")
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
 	})
@@ -1637,7 +1651,7 @@ func TestListSnapmirrorSnapshots(t *testing.T) {
 		_, err := rc.ListSnapmirrorSnapshots(volumeUUID)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Cannot delete snapshot because volume is not online")
+		assertErrContains(t, err, "Cannot delete snapshot because volume is not online")
 		mockStorage.AssertExpectations(t)
 		mockClient.AssertExpectations(t)
 	})
@@ -1718,7 +1732,7 @@ func TestGetSnapshot(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "client error")
+		assertErrContains(t, err, "client error")
 	})
 
 	t.Run("SnapshotGetAPIError", func(t *testing.T) {
@@ -1785,7 +1799,7 @@ func TestGetSnapshot(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "Volume")
+		assertErrContains(t, err, "Volume")
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -1832,7 +1846,7 @@ func TestGetSnapshot(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "Snapshot on offline volume")
+		assertErrContains(t, err, "Snapshot on offline volume")
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -1852,7 +1866,7 @@ func TestGetSnapshot(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "snapshot is nil")
+		assertErrContains(t, err, "snapshot is nil")
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -1881,7 +1895,7 @@ func TestGetSnapshot(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "missing required fields")
+		assertErrContains(t, err, "missing required fields")
 		mockStorage.AssertExpectations(t)
 	})
 

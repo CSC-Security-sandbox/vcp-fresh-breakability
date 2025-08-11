@@ -61,7 +61,7 @@ func TestCreateKmsConfig(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 	t.Run("WhenPollKmsConfigOperationActivityFails", func(t *testing.T) {
@@ -104,7 +104,7 @@ func TestCreateKmsConfig(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 	t.Run("WhenDescribeKmsConfigurationActivityFails", func(t *testing.T) {
@@ -148,7 +148,7 @@ func TestCreateKmsConfig(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 	t.Run("WhenCreateVSAKmsConfigSAKeyActivityFails", func(t *testing.T) {
@@ -196,7 +196,7 @@ func TestCreateKmsConfig(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 	t.Run("WhenGrantRoleActivityFails", func(t *testing.T) {
@@ -244,7 +244,7 @@ func TestCreateKmsConfig(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 	t.Run("WhenCreatedKmsConfigActivityFails", func(t *testing.T) {
@@ -293,7 +293,7 @@ func TestCreateKmsConfig(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 	t.Run("WhenUpdateKmsConfigAttributesActivityFails", func(t *testing.T) {
@@ -339,7 +339,7 @@ func TestCreateKmsConfig(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 	t.Run("WhenSuccess", func(t *testing.T) {

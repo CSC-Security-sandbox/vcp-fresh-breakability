@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -45,13 +46,13 @@ func CreateSnapshotWorkflow(ctx workflow.Context, params *common.CreateSnapshotP
 			err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		}
 	}()
-	_, err = snapshotWf.Run(ctx, snapshot)
-	if err != nil {
+	_, errRun := snapshotWf.Run(ctx, snapshot)
+	if errRun != nil {
 		logger.Infof("Snapshot workflow run executed with error: %v", err)
-		return nil, err
+		return nil, errRun
 	}
 	logger.Debug("Snapshot workflow completed successfully")
-	return nil, err
+	return nil, nil
 }
 
 // Setup initializes the workflow with the necessary parameters and sets up a query handler for status updates.
@@ -75,13 +76,13 @@ func (wf *snapshotCreateWorkflow) Setup(ctx workflow.Context, input interface{})
 }
 
 // Run executes the snapshot creation workflow, including creating the snapshot and updating its details.
-func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	snapshot := args[0].(*datamodel.Snapshot)
 	logger := util.GetLogger(ctx)
 	snapshotActivity := &activities.SnapshotCreateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -99,7 +100,7 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &dbSnapshot.Volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: dbSnapshot.Volume.Pool.PoolCredentials.Password, SecretID: dbSnapshot.Volume.Pool.PoolCredentials.SecretID, DeploymentName: dbSnapshot.Volume.Pool.DeploymentName, CertificateID: dbSnapshot.Volume.Pool.PoolCredentials.CertificateID, AuthType: dbSnapshot.Volume.Pool.PoolCredentials.AuthType})
@@ -116,7 +117,7 @@ func (wf *snapshotCreateWorkflow) Run(ctx workflow.Context, args ...interface{})
 	err = workflow.ExecuteActivity(ctx, snapshotActivity.CreateSnapshotInONTAP, &dbSnapshot, &node).Get(ctx, &snapshotCreateResponse)
 	if err != nil {
 		logger.Errorf("Failed to update snapshot details: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
-	return nil, err
+	return nil, ConvertToVSAError(err)
 }

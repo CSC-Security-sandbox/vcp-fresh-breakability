@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"google.golang.org/api/dns/v1"
 	"google.golang.org/api/privateca/v1"
@@ -25,7 +26,7 @@ var (
 
 func _validateAndConvertPrivateCACertificateToCustomCertificate(certificateId string, cert *privateca.Certificate) (*models.CustomCertificate, error) {
 	if cert == nil {
-		return nil, fmt.Errorf("input certificate is nil")
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("input certificate is nil"))
 	}
 	customCert, err := convertPrivateCACertificateToCustomCertificate(certificateId, cert)
 	if err != nil {
@@ -49,10 +50,10 @@ func _validateAndConvertPrivateCACertificateToCustomCertificate(certificateId st
 
 func _convertSecretToCustomSecret(secret *secretmanager.Secret, secretVersion *models.CustomSecretVersion) (*models.CustomSecret, error) {
 	if secret == nil {
-		return nil, fmt.Errorf("input secret is nil")
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("input secret is nil"))
 	}
 	if secretVersion == nil {
-		return nil, fmt.Errorf("input secret version is nil")
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("input secret version is nil"))
 	}
 	createTime, err := parseTimestamps(secret.CreateTime)
 	if err != nil {
@@ -79,10 +80,10 @@ func _convertSecretToCustomSecret(secret *secretmanager.Secret, secretVersion *m
 
 func _convertSecretVersionToCustomSecretVersion(secretVersionName, secretValue string) (*models.CustomSecretVersion, error) {
 	if secretVersionName == "" {
-		return nil, fmt.Errorf("input secret is nil")
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("input secret is nil"))
 	}
 	if secretValue == "" {
-		return nil, fmt.Errorf("input secret value is nil")
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("input secret value is nil"))
 	}
 	customCert := &models.CustomSecretVersion{
 		Name:  secretVersionName,
@@ -102,7 +103,7 @@ func _convertPrivateKeyToString(key *rsa.PrivateKey, rsaKeyType string) string {
 
 func convertPrivateCACertificateToCustomCertificate(certificateId string, cert *privateca.Certificate) (*models.CustomCertificate, error) {
 	if cert == nil {
-		return nil, fmt.Errorf("input certificate is nil")
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("input certificate is nil"))
 	}
 	createTime, err := parseTimestamps(cert.CreateTime)
 	if err != nil {
@@ -126,7 +127,7 @@ func parseTimestamps(timeStr string) (*timestamppb.Timestamp, error) {
 	if timeStr != "" {
 		parsedTime, err := time.Parse(time.RFC3339, timeStr)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse time: %v", err)
+			return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to parse time: %v", err))
 		}
 		timeStamp = timestamppb.New(parsedTime)
 	}
@@ -135,7 +136,7 @@ func parseTimestamps(timeStr string) (*timestamppb.Timestamp, error) {
 
 func _validateAndConvertCertificateParamsToCustomCertificate(param *models.CustomCertificateParam, pemBlock pem.Block) (*models.CustomCertificate, error) {
 	if param == nil || param.CertificateID == "" || param.CaName == "" || param.CertOwningEntity == "" || param.Region == "" || param.CaPoolName == "" || pemBlock.Type == "" && param.CommonName == "" {
-		return nil, fmt.Errorf("invalid certificate parameters")
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("invalid certificate parameters"))
 	}
 	return &models.CustomCertificate{
 		CertificateID:     param.CertificateID,
@@ -150,10 +151,10 @@ func _validateAndConvertCertificateParamsToCustomCertificate(param *models.Custo
 
 func _validateAndConvertToCustomCloudDNSRecord(recordSet *dns.ResourceRecordSet, managedZone string) (*models.CustomCloudDNSRecord, error) {
 	if recordSet == nil {
-		return nil, fmt.Errorf("resource record set is nil")
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("resource record set is nil"))
 	}
 	if recordSet.Name == "" || recordSet.Type == "" || recordSet.Ttl == 0 || recordSet.Rrdatas == nil || len(recordSet.Rrdatas) == 0 {
-		return nil, fmt.Errorf("resource record set is invalid")
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("resource record set is invalid"))
 	}
 	return &models.CustomCloudDNSRecord{
 		RecordName:  recordSet.Name,

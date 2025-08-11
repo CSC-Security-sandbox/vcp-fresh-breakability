@@ -743,7 +743,7 @@ func (gcpService *GcpServices) DeleteServiceAccount(saEmail string) error {
 			// Service account does not exist, treat as success
 			return nil
 		}
-		return fmt.Errorf("Projects.ServiceAccounts.Delete: %v", err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPServiceAccountDeletionError, fmt.Errorf("Projects.ServiceAccounts.Delete: %v", err))
 	}
 	return nil
 }

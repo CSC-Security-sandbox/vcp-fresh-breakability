@@ -3,6 +3,7 @@ package google
 import (
 	"fmt"
 
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"google.golang.org/api/dns/v1"
@@ -25,7 +26,7 @@ func (gcpService *GcpServices) CreateResourceRecordSet(projectID, managedZone, i
 	resp, err := gcpService.AdminGCPService.cloudDnsService.ResourceRecordSets.Create(projectID, managedZone, rrs).Context(gcpService.Ctx).Do()
 	if err != nil {
 		gcpService.Logger.Errorf("Failed to create resource record set: %v", err)
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
 	gcpService.Logger.Debugf("Resource record set created successfully: %s", resp.Name)
 	return ValidateAndConvertToCustomCloudDNSRecord(resp, managedZone)
@@ -38,10 +39,10 @@ func (gcpService *GcpServices) GetResourceRecordSet(projectID, managedZone, reco
 	resp, err := gcpService.AdminGCPService.cloudDnsService.ResourceRecordSets.List(projectID, managedZone).Name(recordName).Type(recordType).Context(gcpService.Ctx).Do()
 	if err != nil {
 		gcpService.Logger.Errorf("Failed to get resource record set: %v", err)
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 	if len(resp.Rrsets) == 0 {
-		return nil, fmt.Errorf("no DNS records found for recordName : %s, recordType : %s", recordName, recordType)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("no DNS records found for recordName : %s, recordType : %s", recordName, recordType))
 	}
 	gcpService.Logger.Debugf("Resource record set got successfully: %v", resp.Rrsets[0])
 
@@ -55,7 +56,7 @@ func (gcpService *GcpServices) DeleteResourceRecordSet(projectID, managedZone, r
 	_, err := gcpService.AdminGCPService.cloudDnsService.ResourceRecordSets.Delete(projectID, managedZone, recordName, recordType).Context(gcpService.Ctx).Do()
 	if err != nil {
 		gcpService.Logger.Errorf("Failed to delete resource record set: %v", err)
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
 	}
 	gcpService.Logger.Debugf("Resource record set deleted successfully: %s", recordName)
 	return nil

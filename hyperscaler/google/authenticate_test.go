@@ -3,6 +3,7 @@ package google
 import (
 	"encoding/pem"
 	"fmt"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"testing"
 	"time"
 
@@ -113,7 +114,7 @@ func Test_convertPrivateCACertificateToCustomCertificate(t *testing.T) {
 	t.Run("NilCertificate", func(tt *testing.T) {
 		result, err := _validateAndConvertPrivateCACertificateToCustomCertificate("cert-id", nil)
 		assert.Nil(tt, result)
-		assert.EqualError(tt, fmt.Errorf("input certificate is nil"), err.Error())
+		assert.EqualError(tt, fmt.Errorf("input certificate is nil"), err.(*vsaerrors.CustomError).OriginalErr.Error())
 	})
 
 	t.Run("InvalidCreateTime", func(tt *testing.T) {
@@ -123,7 +124,7 @@ func Test_convertPrivateCACertificateToCustomCertificate(t *testing.T) {
 		}
 		result, err := _validateAndConvertPrivateCACertificateToCustomCertificate("cert-id", input)
 		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "failed to parse time")
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to parse time")
 	})
 
 	t.Run("ValidCertificate", func(tt *testing.T) {
@@ -171,7 +172,7 @@ func Test_convertSecretToCustomSecret(t *testing.T) {
 	t.Run("WhenSecretIsNil", func(tt *testing.T) {
 		result, err := _convertSecretToCustomSecret(nil, nil)
 		assert.Nil(tt, result, "Expected result to be nil when input secret is nil")
-		assert.EqualError(tt, err, "input secret is nil", "Expected error message to match")
+		assert.EqualError(tt, err.(*vsaerrors.CustomError).OriginalErr, "input secret is nil", "Expected error message to match")
 	})
 
 	t.Run("WhenCreateTimeIsInvalid", func(tt *testing.T) {
@@ -183,7 +184,7 @@ func Test_convertSecretToCustomSecret(t *testing.T) {
 			Value: "secret-value",
 		})
 		assert.Nil(tt, result, "Expected result to be nil when CreateTime is invalid")
-		assert.Contains(tt, err.Error(), "failed to parse time", "Expected error message to contain 'failed to parse CreateTime'")
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to parse time", "Expected error message to contain 'failed to parse CreateTime'")
 	})
 
 	t.Run("WhenExpireTimeIsInvalid", func(tt *testing.T) {
@@ -196,7 +197,7 @@ func Test_convertSecretToCustomSecret(t *testing.T) {
 			Value: "secret-value",
 		})
 		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "failed to parse time")
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to parse time")
 	})
 
 	t.Run("WhenSecretIsValid", func(tt *testing.T) {
@@ -232,7 +233,7 @@ func Test_convertSecretVersionToCustomSecretVersion(t *testing.T) {
 	t.Run("WhenSecretVersionNameIsEmpty", func(tt *testing.T) {
 		result, err := _convertSecretVersionToCustomSecretVersion("", "test-value")
 		assert.Nil(tt, result, "Expected result to be nil when secret version name is empty")
-		assert.EqualError(tt, err, "input secret is nil", "Expected error message to match")
+		assert.EqualError(tt, err.(*vsaerrors.CustomError).OriginalErr, "input secret is nil", "Expected error message to match")
 	})
 
 	t.Run("WhenSecretVersionNameIsValid", func(tt *testing.T) {
@@ -287,14 +288,14 @@ func Test_validateAndConvertToCustomCloudDNSRecord(t *testing.T) {
 	t.Run("NilRecordSet", func(tt *testing.T) {
 		result, err := _validateAndConvertToCustomCloudDNSRecord(nil, "zone")
 		assert.Nil(tt, result)
-		assert.Equal(tt, "resource record set is nil", err.Error())
+		assert.Equal(tt, "resource record set is nil", err.(*vsaerrors.CustomError).OriginalErr.Error())
 	})
 
 	t.Run("InvalidRecordSet_EmptyFields", func(tt *testing.T) {
 		recordSet := &dns.ResourceRecordSet{}
 		result, err := _validateAndConvertToCustomCloudDNSRecord(recordSet, "zone")
 		assert.Nil(tt, result)
-		assert.Equal(tt, "resource record set is invalid", err.Error())
+		assert.Equal(tt, "resource record set is invalid", err.(*vsaerrors.CustomError).OriginalErr.Error())
 	})
 
 	t.Run("InvalidRecordSet_EmptyRrdatas", func(tt *testing.T) {
@@ -305,7 +306,7 @@ func Test_validateAndConvertToCustomCloudDNSRecord(t *testing.T) {
 		}
 		result, err := _validateAndConvertToCustomCloudDNSRecord(recordSet, "zone")
 		assert.Nil(tt, result)
-		assert.Equal(tt, "resource record set is invalid", err.Error())
+		assert.Equal(tt, "resource record set is invalid", err.(*vsaerrors.CustomError).OriginalErr.Error())
 	})
 
 	t.Run("ValidRecordSet", func(tt *testing.T) {

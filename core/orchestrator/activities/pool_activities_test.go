@@ -5,6 +5,7 @@ import (
 	digitalCert "crypto/x509"
 	"encoding/json"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"strconv"
 	"strings"
 	"testing"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -30,10 +32,25 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
 	"google.golang.org/api/servicenetworking/v1"
 	"gorm.io/gorm"
 )
+
+func assertTemporalApplicationError(t *testing.T, err error, expectedMsg, expectedType string, expectedNonRetryable bool) {
+	t.Helper()
+	var appErr *temporal.ApplicationError
+	require.ErrorAs(t, err, &appErr)
+
+	var trackingID int
+	var originalMsg string
+	require.NoError(t, appErr.Details(&trackingID, &originalMsg))
+
+	assert.Contains(t, originalMsg, expectedMsg)
+	assert.Equal(t, expectedType, appErr.Type())
+	assert.Equal(t, expectedNonRetryable, appErr.NonRetryable())
+}
 
 func TestCreatingPool_Success(t *testing.T) {
 	// Arrange
@@ -478,7 +495,7 @@ func Test_prepareVlmConfig_FileNotFound(t *testing.T) {
 	}
 	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no such file or directory")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "no such file or directory")
 }
 
 func Test_prepareVlmConfig_InvalidJSON(t *testing.T) {
@@ -499,7 +516,7 @@ func Test_prepareVlmConfig_InvalidJSON(t *testing.T) {
 	}
 	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test=zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid character")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid character")
 }
 
 func Test_prepareVlmConfig_EmptyDeploymentName(t *testing.T) {
@@ -842,7 +859,7 @@ func Test_SaveSVMAndLifData_NonExistentHomeNode(t *testing.T) {
 
 	assert.Nil(t, svm)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "LIF lif1 references non-existent home node non-existent-node")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "LIF lif1 references non-existent home node non-existent-node")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -977,7 +994,7 @@ func Test_SaveVSANodeDetails_NoClusterDetailsProvided(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, node)
-	assert.Contains(t, err.Error(), "no cluster details provided")
+	assertTemporalApplicationError(t, err, "no cluster details provided", "CustomError", false)
 }
 
 func Test_SaveVSANodeDetails_NoHAPairsProvided(t *testing.T) {
@@ -993,7 +1010,7 @@ func Test_SaveVSANodeDetails_NoHAPairsProvided(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, node)
-	assert.Contains(t, err.Error(), "no cluster details provided")
+	assertTemporalApplicationError(t, err, "no cluster details provided", "CustomError", false)
 }
 
 func Test_SaveVSANodeDetails_FailsToSaveFirstNode(t *testing.T) {
@@ -1368,7 +1385,7 @@ func Test_DeleteSVMsReturnsErrorWhenSVMDeletionFails(t *testing.T) {
 	err := activities.DeleteSVMs(ctx, mockStorage, pool)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to delete SVM record")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to delete SVM record")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1426,7 +1443,7 @@ func Test_DeleteLIFsReturnsErrorWhenNodesNotFound(t *testing.T) {
 	err := activities.DeleteLIFs(ctx, mockStorage, pool)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to retrieve nodes for pool")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to retrieve nodes for pool")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1462,7 +1479,7 @@ func Test_DeleteLIFsReturnsErrorWhenLIFRetrievalFails(t *testing.T) {
 	err := activities.DeleteLIFs(ctx, mockStorage, pool)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to retrieve LIFs for Node")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to retrieve LIFs for Node")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1482,7 +1499,7 @@ func Test_DeleteLIFsReturnsErrorWhenLIFDeletionFails(t *testing.T) {
 	err := activities.DeleteLIFs(ctx, mockStorage, pool)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to delete LIF record")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to delete LIF record")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1513,7 +1530,7 @@ func TestReturnsErrorWhenSVMsNotFound(t *testing.T) {
 	err := activities.FailedSVMs(ctx, mockStorage, pool)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "SVM not found")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "SVM not found")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1578,7 +1595,7 @@ func TestReturnsErrorWhenNodesNotFound(t *testing.T) {
 	err := activities.FailedNodes(ctx, mockStorage, pool)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to retrieve nodes for pool")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to retrieve nodes for pool")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1645,7 +1662,7 @@ func Test_DeleteNodesReturnsErrorWhenNodesNotFound(t *testing.T) {
 	err := activities.DeleteNodes(ctx, mockStorage, pool)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to retrieve nodes for pool")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to retrieve nodes for pool")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1663,7 +1680,7 @@ func Test_DeleteNodesReturnsErrorWhenNodeDeletionFails(t *testing.T) {
 	err := activities.DeleteNodes(ctx, mockStorage, pool)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to update node record to deleting")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to update node record to deleting")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1705,7 +1722,7 @@ func Test_ReturnsErrorWhenNoSVMsFound(t *testing.T) {
 	err := activities.DeletingSVMs(ctx, mockStorage, pool)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "SVM not found")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "SVM not found")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1723,7 +1740,7 @@ func Test_ReturnsErrorWhenSVMUpdateFails(t *testing.T) {
 	err := activities.DeletingSVMs(ctx, mockStorage, pool)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to update SVM record to deleting svm1")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to update SVM record to deleting svm1")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1773,7 +1790,7 @@ func Test_ReturnsErrorWhenNodesNotFound(t *testing.T) {
 	err := activities.DeletingNodes(ctx, mockStorage, pool)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to retrieve nodes for pool")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to retrieve nodes for pool")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -1791,7 +1808,7 @@ func Test_ReturnsErrorWhenNodeDeletionFails(t *testing.T) {
 	err := activities.DeletingNodes(ctx, mockStorage, pool)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to delete node record")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to delete node record")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -2172,7 +2189,7 @@ func Test_InsertFirewall(t *testing.T) {
 
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
-			assert.EqualError(tt, customErr.Unwrap(), fmt.Sprintf("Error getting subnet for project: %s, vpc name: %s, firewall name: %s. Error : %s", projectName, vpcName, firewallName, errString))
+			assert.EqualError(tt, customErr.Unwrap().(*vsaerrors.CustomError).OriginalErr, fmt.Sprintf("Error getting subnet for project: %s, vpc name: %s, firewall name: %s. Error : %s", projectName, vpcName, firewallName, errString))
 		} else {
 			tt.Fatalf("Expected a CustomError, got: %T", err)
 		}
@@ -2257,7 +2274,7 @@ func Test_CreateVPC(t *testing.T) {
 
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
-			assert.EqualError(tt, customErr.Unwrap(), fmt.Sprintf("Error getting vpc for project: %s and vpc name: %s. Error : %s", projectName, vpcName, errString))
+			assert.EqualError(tt, customErr.Unwrap().(*vsaerrors.CustomError).OriginalErr, fmt.Sprintf("Error getting vpc for project: %s and vpc name: %s. Error : %s", projectName, vpcName, errString))
 		} else {
 			tt.Fatalf("Expected a CustomError, got: %T", err)
 		}
@@ -2313,7 +2330,7 @@ func Test_CreateVPC(t *testing.T) {
 
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
-			assert.Contains(tt, customErr.Unwrap().Error(), errString)
+			assert.Contains(tt, customErr.Unwrap().(*vsaerrors.CustomError).OriginalErr.Error(), errString)
 		} else {
 			tt.Fatalf("Expected a CustomError, got: %T", err)
 		}
@@ -2376,7 +2393,7 @@ func Test_InsertSubnet(t *testing.T) {
 
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
-			assert.EqualError(tt, customErr.Unwrap(), "Error getting subnet for project: test-project, vpc name: test-vpc, subnet name: test-subnet. Error : "+errString)
+			assert.EqualError(tt, customErr.Unwrap().(*vsaerrors.CustomError).OriginalErr, "Error getting subnet for project: test-project, vpc name: test-vpc, subnet name: test-subnet. Error : "+errString)
 		} else {
 			tt.Fatalf("Expected a CustomError, got: %T", err)
 		}
@@ -2759,7 +2776,12 @@ func Test_deleteGCPBucket(t *testing.T) {
 		mockGcp.EXPECT().DeleteBucket(ctx, bucketName).Return(errors.New("delete failed"))
 		err := activities.DeleteGCPBucket(ctx, bucketName, mockGcp)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "delete failed")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) && customErr.Unwrap() != nil {
+			assert.ErrorContains(t, customErr.Unwrap(), "delete failed")
+		} else {
+			assert.ErrorContains(t, err, "delete failed")
+		}
 	})
 }
 
@@ -3106,7 +3128,7 @@ func TestReturnsErrorWhenFailedNodesFails(t *testing.T) {
 	err := activity.FailedPool(ctx, pool, "error during pool deletion")
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to retrieve nodes")
+	assertTemporalApplicationError(t, err, "failed to retrieve nodes", "CustomError", false)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -3247,7 +3269,7 @@ func TestPoolActivity_GetCloudDNSRecords(t *testing.T) {
 
 		expectedHost := &map[string]string{}
 		assert.Error(tt, err)
-		assert.Equal(tt, "no node found for the pool", err.Error())
+		assertTemporalApplicationError(t, err, "no node found for the pool", "CustomError", false)
 		assert.Equal(tt, expectedHost, hostMap)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -3291,7 +3313,7 @@ func TestPoolActivity_DeleteCloudDNSRecords(t *testing.T) {
 		}
 		err := activity.DeleteCloudDNSRecords(ctx, hostMap, env.USER_CERTIFICATE)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "gcp error")
+		assert.Contains(t, vsaerrors.ExtractCustomError(err).OriginalErr.Error(), "gcp error")
 	})
 
 	t.Run("DeleteCloudDNSRecord fails", func(t *testing.T) {
@@ -3401,7 +3423,7 @@ func TestPoolActivity_CreateCloudDNSRecords(t *testing.T) {
 	// CreateCloudDNSRecord returns error
 	t.Run("GetOrCreateCloudDNSRecord error", func(t *testing.T) {
 		hyperscaler2.GetOrCreateCloudDNSRecord = func(gcpService hyperscaler2.GoogleServices, ip, recordName string) (*hyperscaler3.CustomCloudDNSRecord, error) {
-			return nil, fmt.Errorf("dns error")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("dns error"))
 		}
 		vlmConfig := &vlm.VLMConfig{
 			Cloud: vlm.CloudConfig{
@@ -3576,7 +3598,7 @@ func TestPoolActivity_DeleteOnTapCredentials(t *testing.T) {
 		}
 		err := activity.DeleteOnTapCredentials(ctx, pool)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "gcp error")
+		assertTemporalApplicationError(t, err, "gcp error", "CustomError", false)
 	})
 }
 
@@ -3656,7 +3678,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 			}, nil
 		}
 		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, projectID, region, secretID string) (*hyperscaler3.CustomSecret, error) {
-			return nil, fmt.Errorf("pwd error")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("pwd error"))
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool, region, clusterName)
 		assert.Error(t, err)
@@ -3673,7 +3695,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 			},
 		}
 		hyperscaler2.GenerateAndCreateCertificateForVSACluster = func(gcpService hyperscaler2.GoogleServices, region, certificateID, clusterName string) (*hyperscaler3.CustomCertificateResponse, error) {
-			return nil, fmt.Errorf("cert error")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("cert error"))
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool, region, clusterName)
 		assert.Error(t, err)
@@ -3709,7 +3731,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 			},
 		}
 		hyperscaler2.GeneratePasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, projectID, region, secretID string) (*hyperscaler3.CustomSecret, error) {
-			return nil, fmt.Errorf("pwd error")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("pwd error"))
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool, region, clusterName)
 		assert.Error(t, err)
@@ -3740,7 +3762,7 @@ func TestPoolActivity_CreateOnTapCredentials(t *testing.T) {
 			},
 		}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return nil, fmt.Errorf("gcp error")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("gcp error"))
 		}
 		creds, err := activity.CreateOnTapCredentials(ctx, pool, region, clusterName)
 		assert.Error(t, err)
@@ -4048,7 +4070,7 @@ func TestPoolActivity_CreateOnTapCredentials_GetGCPServiceFails(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "failed to get GCP service")
+	assert.Contains(t, vsaerrors.ExtractCustomError(err).OriginalErr.Error(), "failed to get GCP service")
 }
 
 func TestPoolActivity_DeletingPoolResources_DeletingSVMsFails(t *testing.T) {
@@ -4936,7 +4958,7 @@ func TestPoolActivity_GetServiceNetOpStatus(t *testing.T) {
 	t.Run("GetGCPServiceFails", func(t *testing.T) {
 		original := hyperscaler2.GetGCPService
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-			return nil, fmt.Errorf("service error")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("service error"))
 		}
 		defer func() { hyperscaler2.GetGCPService = original }()
 
@@ -4988,7 +5010,7 @@ func Test_getSubnetFromOperation(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "operation response is nil")
+		assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "operation response is nil")
 	})
 	t.Run("InvalidJSON", func(t *testing.T) {
 		invalidJSON := []byte("invalid json data")
@@ -5684,7 +5706,7 @@ func Test_AllocateClusterSerialNumber(t *testing.T) {
 		vlmConfig, err := activity.AllocateClusterSerialNumber(ctx, cfg)
 		assert.Error(t, err)
 		assert.Nil(t, vlmConfig)
-		assert.Contains(t, err.Error(), "region number is not set")
+		assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "region number is not set")
 	})
 	t.Run("FailureOnGetNextSerialNumberInRegionError", func(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
@@ -5705,7 +5727,7 @@ func Test_AllocateClusterSerialNumber(t *testing.T) {
 		vlmConfig, err := activity.AllocateClusterSerialNumber(ctx, cfg)
 		assert.Error(t, err)
 		assert.Nil(t, vlmConfig)
-		assert.Contains(t, err.Error(), "error fetching serial number")
+		assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "error fetching serial number")
 	})
 }
 

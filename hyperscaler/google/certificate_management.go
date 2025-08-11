@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"google.golang.org/api/privateca/v1"
@@ -31,12 +32,12 @@ func (gcpService *GcpServices) CreateCertificate(cert *models.CustomCertificate)
 	certificate, err := gcpService.AdminGCPService.privateCaService.Projects.Locations.CaPools.Certificates.Create(parent, certificate).CertificateId(cert.CertificateID).Context(gcpService.Ctx).Do()
 	if err != nil {
 		gcpService.Logger.Errorf("Failed to create certificate: %v", err)
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
 
 	customCertificate, err := ValidateAndConvertPrivateCACertificateToCustomCertificate(cert.CertificateID, certificate)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrModelConversionError, err)
 	}
 	return customCertificate, nil
 }
@@ -53,7 +54,7 @@ func (gcpService *GcpServices) RevokeCertificate(cert *models.CustomCertificate)
 	_, err := gcpService.AdminGCPService.privateCaService.Projects.Locations.CaPools.Certificates.Revoke(resourceName, revokeCertificateRequest).Context(gcpService.Ctx).Do()
 	if err != nil {
 		gcpService.Logger.Errorf("Failed to revoke certificate: %v", err)
-		return "", err
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
 	}
 
 	return resourceName, nil
@@ -68,13 +69,13 @@ func (gcpService *GcpServices) GetCertificate(projectID, region, poolName, certi
 
 	if err != nil {
 		gcpService.Logger.Errorf("GetCertificate failed for certificate : %s", certificateName)
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 
 	gcpService.Logger.Debug(fmt.Sprintf("GetCertificate success with response :  %s", certificateID))
 	customCertificate, err := ValidateAndConvertPrivateCACertificateToCustomCertificate(certificateID, certificate)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrModelConversionError, err)
 	}
 	return customCertificate, nil
 }

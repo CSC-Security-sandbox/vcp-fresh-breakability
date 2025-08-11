@@ -3,6 +3,7 @@ package vsa
 import (
 	"strings"
 
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
@@ -20,7 +21,7 @@ func (rc *OntapRestProvider) IgroupCreate(params IgroupCreateParams) (string, er
 		Initiators: params.Initiator,
 	})
 	if err != nil {
-		return "", err
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 	return iGroupName, nil
 }
@@ -65,7 +66,7 @@ func (rc *OntapRestProvider) IgroupExists(name string, svm *string) (bool, *onta
 		if errors.IsNotFoundErr(err) {
 			return false, nil, nil
 		}
-		return false, nil, err
+		return false, nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 	if res == nil {
 		return false, nil, nil

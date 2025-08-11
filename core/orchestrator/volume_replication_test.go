@@ -648,7 +648,9 @@ func TestGetMultipleReplications(t *testing.T) {
 
 		_, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.NotNil(tt, err)
-		assert.ErrorContains(tt, err, "failed to list replications")
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "failed to list replications")
 	})
 	t.Run("WhenListVolumeReplicationsReturnsEmpty", func(tt *testing.T) {
 		ctx := context.Background()
@@ -3316,7 +3318,9 @@ func Test_deleteVolumeReplicationRow(t *testing.T) {
 
 		_, _, err := _releaseVolumeReplication(ctx, mockStorage, mockTemporal, "volumeReplication")
 		assert.NotNil(tt, err)
-		assert.True(tt, strings.Contains(err.Error(), "VolumeReplication not found"))
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "VolumeReplication not found")
 	})
 	t.Run("GetVolumeReplication fails", func(tt *testing.T) {
 		ctx := context.Background()
@@ -3327,7 +3331,9 @@ func Test_deleteVolumeReplicationRow(t *testing.T) {
 
 		_, _, err := _releaseVolumeReplication(ctx, mockStorage, mockTemporal, "volumeReplication")
 		assert.NotNil(tt, err)
-		assert.True(tt, strings.Contains(err.Error(), "failed to get volume replication"))
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "failed to get volume replication")
 	})
 	t.Run("WhenReplicationInTransitionState", func(tt *testing.T) {
 		ctx := context.Background()
@@ -5261,7 +5267,9 @@ func TestGetActiveReplicationJobs(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, jobs)
-		assert.Contains(tt, err.Error(), "Bad request error")
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "Bad request error")
 	})
 
 	t.Run("WhenResponseIsInternalServerError", func(tt *testing.T) {
@@ -5297,7 +5305,9 @@ func TestGetActiveReplicationJobs(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, jobs)
-		assert.Contains(tt, err.Error(), "Internal server error")
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "Internal server error")
 	})
 
 	t.Run("WhenResponseIsUnauthorized", func(tt *testing.T) {
@@ -5333,7 +5343,9 @@ func TestGetActiveReplicationJobs(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, jobs)
-		assert.Contains(tt, err.Error(), "Unauthorized")
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "Unauthorized")
 	})
 
 	t.Run("WhenResponseIsForbidden", func(tt *testing.T) {
@@ -5369,7 +5381,9 @@ func TestGetActiveReplicationJobs(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, jobs)
-		assert.Contains(tt, err.Error(), "Forbidden")
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "Forbidden")
 	})
 
 	t.Run("WhenResponseIsNotFound", func(tt *testing.T) {
@@ -5405,7 +5419,9 @@ func TestGetActiveReplicationJobs(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, jobs)
-		assert.Contains(tt, err.Error(), "Not found")
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "Not found")
 	})
 
 	t.Run("WhenClientCallFails", func(tt *testing.T) {

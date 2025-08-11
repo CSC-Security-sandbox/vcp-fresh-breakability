@@ -62,7 +62,15 @@ func getSnapshotWithDetails(db *gorm.DB, query *datamodel.Snapshot) (*datamodel.
 	err := db.First(&snapshot, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "snapshot", &query.UUID)
+			var identifier *string
+			if query != nil {
+				if query.UUID != "" {
+					identifier = &query.UUID
+				} else if query.Name != "" {
+					identifier = &query.Name
+				}
+			}
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, customerrors.NewNotFoundErr("snapshot", identifier))
 		}
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}

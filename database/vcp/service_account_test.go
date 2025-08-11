@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -106,6 +107,6 @@ func TestGetGcpKmsServiceAccountFromEmail(t *testing.T) {
 
 		_, err = store.GetServiceAccountFromEmail(context.Background(), "notfound@email.com")
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "not found")
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "not found")
 	})
 }

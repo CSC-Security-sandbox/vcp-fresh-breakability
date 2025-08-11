@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -30,7 +31,7 @@ func _getHostGroupWithDetails(db *gorm.DB, hostGroup *datamodel.HostGroup) (*dat
 	var dbHostGroup datamodel.HostGroup
 	err := db.Where("uuid = ? AND account_id = ?", hostGroup.UUID, hostGroup.AccountID).Preload("Account").First(&dbHostGroup).Error
 	if err != nil {
-		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "host group", nil)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "host group", nil))
 	}
 	return &dbHostGroup, nil
 }
@@ -77,7 +78,7 @@ func _getMultipleHostGroups(db *gorm.DB, hostGroupUUID []string, accountID int64
 	var dbHostGroups []*datamodel.HostGroup
 	err := db.Where("uuid IN (?)", hostGroupUUID).Where("account_id = ?", accountID).Find(&dbHostGroups).Error
 	if err != nil {
-		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "host group", nil)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "host group", nil))
 	}
 	return dbHostGroups, nil
 }

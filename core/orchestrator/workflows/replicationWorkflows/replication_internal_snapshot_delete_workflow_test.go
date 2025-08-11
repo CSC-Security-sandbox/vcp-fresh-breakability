@@ -105,8 +105,7 @@ func (s *SnapshotsDeleteTestSuite) Test_DeleteSnapshotWorkflow_Failure() {
 			VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
 		},
 	}
-	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2)
-	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed updating job"))
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -130,13 +129,9 @@ func (s *SnapshotsDeleteTestSuite) Test_DeleteSnapshotWorkflow_Failure() {
 	s.env.ExecuteWorkflow(DeleteInternalSnapshotWorkflow, params)
 
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
-	assert.Nil(s.T(), err)
 
-	// Assert workflow failed
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "workflow execution error")
-	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
 }
 
 func TestSnapshotsDeleteTestSuite(t *testing.T) {

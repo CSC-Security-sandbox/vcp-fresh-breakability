@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"google.golang.org/api/secretmanager/v1"
 )
@@ -33,7 +34,7 @@ func (gcpService *GcpServices) CreateSecret(projectID, region, secretID, secretV
 	secret, err := gcpService.AdminGCPService.secretManagerService.Projects.Secrets.Create(parent, secret).SecretId(secretID).Context(gcpService.Ctx).Do()
 	if err != nil {
 		gcpService.Logger.Errorf("CreateSecret failed for project : %s, secretID : %s, err : %s", projectID, secretID, err.Error())
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
 
 	gcpService.Logger.Debugf("CreateSecret success with response :  %s", secret.Name)
@@ -41,12 +42,12 @@ func (gcpService *GcpServices) CreateSecret(projectID, region, secretID, secretV
 	// Add secret version
 	version, err := AddSecretVersion(gcpService, projectID, secretID, secretValue)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
 
 	customSecret, err := ConvertSecretToCustomSecret(secret, version)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrModelConversionError, err)
 	}
 
 	return customSecret, nil
@@ -60,17 +61,17 @@ func (gcpService *GcpServices) GetSecretWithLatestVersion(projectID, secretID st
 	secret, err := gcpService.AdminGCPService.secretManagerService.Projects.Secrets.Get(name).Context(gcpService.Ctx).Do()
 	if err != nil {
 		gcpService.Logger.Errorf("GetSecretWithLatestVersion failed for secret : %s, err : %s", name, err.Error())
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 
 	version, err := GetSecretVersion(gcpService, projectID, secretID, LatestVersion)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 	gcpService.Logger.Debug(fmt.Sprintf("GetSecretWithLatestVersion success with response :  %s", name))
 	customSecret, err := ConvertSecretToCustomSecret(secret, version)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrModelConversionError, err)
 	}
 	return customSecret, nil
 }
@@ -83,17 +84,17 @@ func (gcpService *GcpServices) GetSecretWithCustomVersion(projectID, secretID st
 	secret, err := gcpService.AdminGCPService.secretManagerService.Projects.Secrets.Get(name).Context(gcpService.Ctx).Do()
 	if err != nil {
 		gcpService.Logger.Errorf("GetSecretWithCustomVersion failed for secret : %s, err : %s", name, err.Error())
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 
 	version, err := GetSecretVersion(gcpService, projectID, secretID, versionID)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 	gcpService.Logger.Debugf("GetSecretWithCustomVersion success with response :  %s", name)
 	customSecret, err := ConvertSecretToCustomSecret(secret, version)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrModelConversionError, err)
 	}
 	return customSecret, nil
 }
@@ -105,7 +106,7 @@ func (gcpService *GcpServices) DeleteSecret(projectID, secretID string) error {
 	_, err := gcpService.AdminGCPService.secretManagerService.Projects.Secrets.Delete(name).Context(gcpService.Ctx).Do()
 	if err != nil {
 		gcpService.Logger.Errorf("GetSecretWithLatestVersion failed for secret : %s, err : %s", name, err.Error())
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
 	}
 	return nil
 }
@@ -123,12 +124,12 @@ func _addSecretVersion(gcpService *GcpServices, projectID, secretName, secretVal
 	secretVersion, err := gcpService.AdminGCPService.secretManagerService.Projects.Secrets.AddVersion(parent, req).Context(gcpService.Ctx).Do()
 	if err != nil {
 		gcpService.Logger.Errorf("CreateSecretVersion failed for project : %s, secret : %s, err : %s", projectID, secretName, err.Error())
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
 
 	customSecretVersion, err := ConvertSecretVersionToCustomSecretVersion(secretVersion.Name, secretValue)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrModelConversionError, err)
 	}
 	return customSecretVersion, nil
 }
@@ -141,21 +142,21 @@ func _getSecretVersion(gcpService *GcpServices, projectID, secretName, versionID
 	secretVersion, err := gcpService.AdminGCPService.secretManagerService.Projects.Secrets.Versions.Access(name).Context(gcpService.Ctx).Do()
 	if err != nil {
 		gcpService.Logger.Errorf("GetSecretVersion failed for secret : %s, err : %s", name, err.Error())
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 
 	gcpService.Logger.Debug(fmt.Sprintf("GetSecretVersion success with response :  %s", name))
 	if secretVersion.Payload == nil {
-		return nil, fmt.Errorf("secret version name is empty")
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("secret version name is empty"))
 	}
 	secretValue, err := base64.StdEncoding.DecodeString(secretVersion.Payload.Data)
 	if err != nil {
 		gcpService.Logger.Errorf("unable to decode key-data for secret %s with error: %v", secretName, err)
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrBase64DecodingError, err)
 	}
 	customSecretVersion, err := ConvertSecretVersionToCustomSecretVersion(secretVersion.Name, string(secretValue))
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrModelConversionError, err)
 	}
 	return customSecretVersion, nil
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
@@ -98,23 +99,24 @@ func CreatePoolWorkflow(ctx workflow.Context, params *common.CreatePoolParams, p
 		log.Errorf("failed to update job status to PROCESSING: %v", err)
 		return err
 	}
-	_, err = createPoolWF.Run(ctx, params, pool)
-	if err != nil {
-		log.Errorf("error in createPoolWorkflow: %v", err)
+	_, errRun := createPoolWF.Run(ctx, params, pool)
+	if errRun != nil {
+		log.Errorf("error in createPoolWorkflow: %v", errRun)
 		createPoolWF.Status = WorkflowStatusFailed
-		err2 := createPoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		err2 := createPoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), errRun)
 		if err2 != nil {
 			log.Errorf("failed to update job with err and status to DONE: %v", err2)
 			return err2
 		}
-		return err
+		return errRun
 	}
 	createPoolWF.Status = WorkflowStatusCompleted
 	err = createPoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	if err != nil {
 		log.Errorf("failed to update job status to DONE: %v", err)
+		return err
 	}
-	return err
+	return nil
 }
 
 func (wf *createPoolWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -136,14 +138,14 @@ func (wf *createPoolWorkflow) Setup(ctx workflow.Context, input interface{}) err
 	})
 }
 
-func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	params := args[0].(*common.CreatePoolParams)
 	pool := args[1].(*datamodel.Pool)
 	poolActivity := &activities.PoolActivity{}
 	subnetActivity := SubnetActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -172,28 +174,28 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	tenantProjectNumber := new(string)
 	err = workflow.ExecuteActivity(ctx, poolActivity.FindTenancyProject, params).Get(ctx, tenantProjectNumber)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	createSubnetJobUUID := new(string)
 	err = workflow.ExecuteActivity(ctx, subnetActivity.CreateSubnetJob, params, pool, tenantProjectNumber).Get(ctx, createSubnetJobUUID)
 	if err != nil {
 		wf.Logger.Errorf("Failed to start create subnet workflow for account: %s & vpc: %s, error: %v", params.AccountName, params.VendorSubNetID, err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Wait for the subnet creation job to complete using workflow.sleep.
 	err = PollOnDBJob(ctx, *createSubnetJobUUID, retryPolicy.StartToCloseTimeout)
 	if err != nil {
 		wf.Logger.Errorf("Failed to wait for create subnet job %s to complete, error: %v", *createSubnetJobUUID, err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	tenancyDetails := &common.TenancyInfo{}
 	err = workflow.ExecuteActivity(ctx, subnetActivity.GetTenancyDetails, createSubnetJobUUID).Get(ctx, &tenancyDetails)
 	if err != nil {
 		wf.Logger.Errorf("Failed to get tenancy details for job %s, error: %v", *createSubnetJobUUID, err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	dbPool.ClusterDetails.SubnetNames = tenancyDetails.SubnetworkNames
 
@@ -208,14 +210,14 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	dbPool.ClusterDetails = *tenancyInfo
 	err = workflow.ExecuteActivity(ctx, poolActivity.SavePoolWithClusterDetails, dbPool, tenancyInfo).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	rollbackManager.AddActivity(poolActivity.ReleaseSubnet, dbPool)
 	setupNwCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(setupNwHeartbeatTimeout)*time.Second)
 	err = workflow.ExecuteChildWorkflow(setupNwCtx, ConfigureNetworkWorkflow, tenancyDetails).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	serviceAccount := &iam.ServiceAccount{}
@@ -228,7 +230,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// Get the service account specific retry policy
 	saRetryPolicy, err := populateServiceAccountRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Create custom activity options for service account creation
@@ -248,7 +250,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// Use the new context for the service account creation activity
 	err = workflow.ExecuteActivity(saCtx, poolActivity.CreateServiceAccountWithStorageRole, tenancyDetails.RegionalTenantProject, serviceAccountID, pool.Name).Get(saCtx, serviceAccount)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	AutoTierBucketName := fmt.Sprintf("%s-%s", params.Region, dbPool.UUID)
@@ -262,14 +264,14 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	rollbackManager.AddActivity(poolActivity.DeleteAutoTierBucket, AutoTierBucketName)
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateAutoTierBucket, AutoTierBucketName, params.Region, tenancyDetails.RegionalTenantProject).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	credConfig := &vlm.OntapCredentials{}
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateOnTapCredentials, pool, params.Region, pool.DeploymentName).Get(ctx, &credConfig)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	rollbackManager.AddActivity(poolActivity.DeleteOnTapCredentials, pool)
@@ -305,12 +307,12 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// Use resolved zones to identify VMs and build VLM config
 	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, locationInfo, tenancyDetails, serviceAccount.Email, bucketName).Get(ctx, vlmConfig)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	var resolvedLocationInfo *common.LocationInfo
 	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifySecondaryAndMediatorZone, tenancyDetails.RegionalTenantProject, locationInfo, vlmConfig.Deployment.VSAInstanceType).Get(ctx, &resolvedLocationInfo)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Allocate unique serial numbers in production
@@ -319,7 +321,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	if enableUniqueSerialNumberGeneration && !isProberProject(params.AccountName) {
 		err = workflow.ExecuteActivity(ctx, poolActivity.AllocateClusterSerialNumber, vlmConfig, params.AccountName).Get(ctx, vlmConfig)
 		if err != nil {
-			return nil, err
+			return nil, ConvertToVSAError(err)
 		}
 	}
 
@@ -329,38 +331,38 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest, *vlmConfig, *credConfig, dbPool, resolvedLocationInfo)
 	createVSAClusterDeploymentResponse, err := vsaClientWorkflowManager.CreateVSAClusterDeployment(ctx, createVSAClusterDeploymentRequest)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateCloudDNSRecords, createVSAClusterDeploymentResponse.VLMConfig, dbPool.DeploymentName, dbPool.PoolCredentials.AuthType).Get(ctx, &hostMap)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	rollbackManager.AddActivity(poolActivity.DeleteCloudDNSRecords, hostMap, pool.PoolCredentials.AuthType)
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.SaveVSANodeDetails, dbPool, createVSAClusterDeploymentResponse.VLMConfig, pool.DeploymentName, &hostMap).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: pool.PoolCredentials.Password, SecretID: pool.PoolCredentials.SecretID, DeploymentName: pool.DeploymentName, CertificateID: pool.PoolCredentials.CertificateID, AuthType: pool.PoolCredentials.AuthType})
 
 	var ontapVersion string
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetOntapVersion, node).Get(ctx, &ontapVersion)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Get intercluster LIF IPs from VLM config
 	var interclusterLifIPs []string
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetInterClusterLifsFromVLMConfig, createVSAClusterDeploymentResponse.VLMConfig).Get(ctx, &interclusterLifIPs)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	clusterDetails := &datamodel.ClusterDetails{
@@ -375,44 +377,44 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	dbPool.SnHostProject = tenancyDetails.SnHostProject
 	err = workflow.ExecuteActivity(ctx, poolActivity.SavePoolWithClusterDetails, dbPool, clusterDetails).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	svmName := ""
 	err = workflow.ExecuteActivity(ctx, poolActivity.AllocateSVMName, dbPool).Get(ctx, &svmName)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	createSVMRequest := &vlm.CreateSVMRequest{}
 	prepareCreateSVMRequest(createSVMRequest, svmName, createVSAClusterDeploymentResponse.VLMConfig, *credConfig)
 	createSVMResponse, err := vsaClientWorkflowManager.CreateVSASVM(ctx, createSVMRequest)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	svm := &datamodel.Svm{}
 	err = workflow.ExecuteActivity(ctx, poolActivity.SaveSVMAndLifData, dbPool, createSVMResponse.VLMConfig, svmName).Get(ctx, svm)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Create QoS policy and apply it to the SVM
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreateQoSPolicyAndApplyToSVM, dbPool, svm, node).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Enable KMS for SVM if KMS config is provided
 	err = configureKmsConfigForSvmActivity(ctx, *dbPool, node, svm, params)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	dbPool.ClusterDetails.SubnetNames = tenancyDetails.SubnetworkNames
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.CreatedPool, dbPool, &createSVMResponse.VLMConfig).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Enable billing metrics related workflow(NodeToHarvestFarmWorkflow), when enableMetrics is true
@@ -439,10 +441,10 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		rollbackManager.AddWorkflow(workflowengine.CustomerTaskQueue, UnRegisterNodeFromHarvestFarmWorkflow, unregisterParams)
 
 		if err = workflow.ExecuteChildWorkflow(ctx, RegisterNodeToHarvestFarmWorkflow, registerNodeToHarvestFarmWorkflowInput).Get(ctx, nil); err != nil {
-			return nil, err
+			return nil, ConvertToVSAError(err)
 		}
 	}
-	return nil, err
+	return nil, nil
 }
 
 type updatePoolWorkflow struct {
@@ -460,25 +462,28 @@ func UpdatePoolWorkflow(ctx workflow.Context, params *common.UpdatePoolParams, p
 	updatePoolWF := new(updatePoolWorkflow)
 	err := updatePoolWF.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	updatePoolWF.Status = WorkflowStatusRunning
 	err = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	_, err = updatePoolWF.Run(ctx, params, pool)
-	if err != nil {
+	if e, ok := err.(*vsaerrors.CustomError); ok && e != nil {
 		updatePoolWF.Status = WorkflowStatusFailed
 		err = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
 		if err != nil {
-			return nil, err
+			return nil, ConvertToVSAError(err)
 		}
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	updatePoolWF.Status = WorkflowStatusCompleted
 	err = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-	return nil, err
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+	return nil, nil
 }
 
 func (wf *updatePoolWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -500,13 +505,13 @@ func (wf *updatePoolWorkflow) Setup(ctx workflow.Context, input interface{}) err
 	})
 }
 
-func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	updatePoolParams := args[0].(*common.UpdatePoolParams)
 	pool := args[1].(*datamodel.Pool)
 	poolActivity := &activities.PoolActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -544,7 +549,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			dbPool.PoolAttributes.Labels = updatePoolParams.Labels
 		}
 		err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPool, dbPool).Get(ctx, nil) // replace with the actual activity to update the pool
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	bucketName := ""
@@ -557,7 +562,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// Retrieve the last known VLM config that was shared with us.
 	currentVlmConfig := &vlm.VLMConfig{}
 	if err := json.Unmarshal([]byte(pool.VLMConfig), currentVlmConfig); err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Find the optimal VMs based on the customer requested performance.
@@ -585,7 +590,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifyVMs, vmrsConfigPath, customerRequestedPerformance, dbPool.DeploymentName, locationInfo, poolTenancyInfo, saEmail, bucketName).Get(ctx, newVlmConfig)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Update the mediator zone in the VLM config
@@ -594,7 +599,7 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	credentials := &vlm.OntapCredentials{}
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentials, pool).Get(ctx, &credentials)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
@@ -605,11 +610,11 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	prepareUpdateVSAClusterDeploymentRequest(updateVSAClusterDeploymentRequest, *currentVlmConfig, *newVlmConfig, *credentials)
 	updateVSAClusterDeploymentResponse, err := vsaClientWorkflowManager.UpdateVSAClusterDeployment(ctx, updateVSAClusterDeploymentRequest, ontapVersion)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatedPoolWithVLMConfig, dbPool, updateVSAClusterDeploymentResponse.VLMConfig, updatePoolParams).Get(ctx, nil)
-	return nil, err
+	return nil, ConvertToVSAError(err)
 }
 
 type deletePoolWorkflow struct {
@@ -625,27 +630,28 @@ func DeletePoolWorkflow(ctx workflow.Context, params *common.DeletePoolParams, p
 	deletePoolWF := new(deletePoolWorkflow)
 	err := deletePoolWF.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	deletePoolWF.Status = WorkflowStatusRunning
 	err = deletePoolWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
-	_, err = deletePoolWF.Run(ctx, params, pool)
-	if err != nil {
+	_, errRun := deletePoolWF.Run(ctx, params, pool)
+	if errRun != nil {
 		deletePoolWF.Status = WorkflowStatusFailed
-		err = deletePoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		err = deletePoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), errRun)
 		if err != nil {
-			return nil, err
+			return nil, ConvertToVSAError(err)
 		}
+		return nil, errRun
 	}
 	deletePoolWF.Status = WorkflowStatusCompleted
 	err = deletePoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
-	return nil, err
+	return nil, nil
 }
 
 func (wf *deletePoolWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -667,12 +673,12 @@ func (wf *deletePoolWorkflow) Setup(ctx workflow.Context, input interface{}) err
 	})
 }
 
-func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	params := args[0].(*common.DeletePoolParams)
 	poolActivity := &activities.PoolActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -698,7 +704,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	}
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetPool, dbPool).Get(ctx, &dbPool)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Add the cleanup / rollback activity using this rollback.AddActivity() method instead of writing multiple defer statements,
@@ -707,18 +713,18 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeletingPoolResources, dbPool).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	hostMap := make(map[string]string)
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetCloudDNSRecords, dbPool.ID, dbPool.PoolCredentials.AuthType).Get(ctx, &hostMap)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteCloudDNSRecords, hostMap, dbPool.PoolCredentials.AuthType).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	vsaClientWorkflowManager := GetNewVSAClientWorkflowManager()
@@ -732,7 +738,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest, dbPool.DeploymentName, VLMCloudProvider, dbPool.ClusterDetails.RegionalTenantProject)
 	err = vsaClientWorkflowManager.DeleteVSAClusterDeployment(ctx, deleteVSAClusterDeploymentRequest, ontapVersion)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	bucketName := ""
@@ -742,26 +748,26 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteAutoTierBucket, bucketName).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteServiceAccount, dbPool.ClusterDetails.RegionalTenantProject, dbPool.ServiceAccountId).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.ReleaseSubnet, dbPool).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeleteOnTapCredentials, dbPool).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	err = workflow.ExecuteActivity(ctx, poolActivity.DeletePoolResources, dbPool).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	if enableMetrics {
@@ -773,7 +779,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 		err = workflow.ExecuteChildWorkflow(ctx, UnRegisterNodeFromHarvestFarmWorkflow, unregisterParams).Get(childCtx, nil)
 		if err != nil {
-			return nil, err
+			return nil, ConvertToVSAError(err)
 		}
 	}
 
@@ -782,10 +788,10 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		kmsConfigActivity := &kms_activities.KmsConfigActivity{}
 		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.VerifyVsaKmsReachabilityActivity, dbPool.KmsConfig.UUID).Get(ctx, nil)
 		if err != nil {
-			return nil, err
+			return nil, ConvertToVSAError(err)
 		}
 	}
-	return nil, err
+	return nil, nil
 }
 
 func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
@@ -918,25 +924,28 @@ func PoolDataSubnetWorkFlow(ctx workflow.Context, params *common.CreatePoolParam
 	CreateOrGetSubnetworkWF := new(poolDataSubnetWorkFlow)
 	err := CreateOrGetSubnetworkWF.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	CreateOrGetSubnetworkWF.Status = WorkflowStatusRunning
 	err = CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	_, err = CreateOrGetSubnetworkWF.Run(ctx, params, poolUUID, tenantProjectNumber)
-	if err != nil {
+	if e, ok := err.(*vsaerrors.CustomError); ok && e != nil {
 		CreateOrGetSubnetworkWF.Status = WorkflowStatusFailed
 		upErr := CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
 		if upErr != nil {
 			return nil, upErr
 		}
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	CreateOrGetSubnetworkWF.Status = WorkflowStatusCompleted
 	err = CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-	return nil, err
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+	return nil, nil
 }
 
 func (wf *poolDataSubnetWorkFlow) Setup(ctx workflow.Context, input interface{}) error {
@@ -964,7 +973,7 @@ func (wf *poolDataSubnetWorkFlow) Setup(ctx workflow.Context, input interface{})
 	})
 }
 
-func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	params := args[0].(*common.CreatePoolParams)
 	poolUUID := args[1].(string)
 	tenantProjectNumber := args[2].(string)
@@ -972,7 +981,7 @@ func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{})
 	poolActivity := &activities.PoolActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -999,37 +1008,37 @@ func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{})
 	subnet := new(hyperscalermodels.Subnet)
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetAvailableSubnet, params, tenantProjectNumber).Get(ctx, subnet)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	if subnet.Name == "" {
 		var operationName string
 		err = workflow.ExecuteActivity(ctx, poolActivity.GetCreateDataSubnetOp, params, tenantProjectNumber).Get(ctx, &operationName)
 		if err != nil {
-			return nil, err
+			return nil, ConvertToVSAError(err)
 		}
 		if operationName == "" {
-			return nil, fmt.Errorf("failed to create subnet for tenant project: %s, operation name is empty", tenantProjectNumber)
+			return nil, ConvertToVSAError(fmt.Errorf("failed to create subnet for tenant project: %s, operation name is empty", tenantProjectNumber))
 		}
 		// add retry only for Google timeout : strings.Contains(err.Error(), "Timeout while confirming service network google components")
 		opSubnetInBytes, err := WaitForServiceNetworkOperationStatus(ctx, poolActivity, operationName, retryPolicy.StartToCloseTimeout)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create subnet for tenant project while waiting to get operation status: %s: %w", tenantProjectNumber, err)
+			return nil, ConvertToVSAError(fmt.Errorf("failed to create subnet for tenant project while waiting to get operation status: %s: %w", tenantProjectNumber, err))
 		}
 		err = workflow.ExecuteActivity(ctx, poolActivity.GetSubnetFromOperation, opSubnetInBytes).Get(ctx, &subnet)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get subnet from operation for tenant project: %s: %w", tenantProjectNumber, err)
+			return nil, ConvertToVSAError(fmt.Errorf("failed to get subnet from operation for tenant project: %s: %w", tenantProjectNumber, err))
 		}
 	}
 	tenancyDetails := &common.TenancyInfo{}
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetTenancyInfo, tenantProjectNumber, subnet).Get(ctx, &tenancyDetails)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolSubnet, poolUUID, tenancyDetails).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	// Adding the result to the workflow, which will be returned to the caller as Query after workflow completion
 	wf.TenancyDetails = tenancyDetails
@@ -1109,11 +1118,11 @@ func (sa *SubnetActivity) GetTenancyDetails(ctx context.Context, workflowID stri
 	// Sending runID as empty string will query the latest workflow run execution.
 	encVal, err := temporalClient.QueryWorkflow(ctx, workflowID, "", StatusQueryName)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	err = encVal.Get(&subnetWfRes)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	if subnetWfRes.WorkflowStatus == nil {
@@ -1218,7 +1227,7 @@ func _waitForServiceNetworkOperationStatus(ctx workflow.Context, poolActivity *a
 func ConfigureNetworkWorkflow(ctx workflow.Context, tenancyDetails *common.TenancyInfo) (interface{}, error) {
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -1245,7 +1254,7 @@ func ConfigureNetworkWorkflow(ctx workflow.Context, tenancyDetails *common.Tenan
 	tenantProjectNumber := tenancyDetails.RegionalTenantProject
 	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateVPCs, tenantProjectNumber).Get(setupNwCtx, &vpcOperations)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, &vpcOperations, retryPolicy.StartToCloseTimeout)
 	if err != nil {
@@ -1255,13 +1264,13 @@ func ConfigureNetworkWorkflow(ctx workflow.Context, tenancyDetails *common.Tenan
 	subnetFirewallOperations := make([]common.Operations, 0)
 	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateSubnets, tenantProjectNumber).Get(setupNwCtx, &subnetFirewallOperations)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	firewallOperations := make([]common.Operations, 0)
 	err = workflow.ExecuteActivity(setupNwCtx, poolActivity.CreateFirewalls, tenantProjectNumber, tenancyDetails.SnHostProject, tenancyDetails.Network).Get(setupNwCtx, &firewallOperations)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	subnetFirewallOperations = append(subnetFirewallOperations, firewallOperations...)
 	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, &subnetFirewallOperations, retryPolicy.StartToCloseTimeout)

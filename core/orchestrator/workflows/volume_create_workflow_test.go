@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -1758,7 +1759,8 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_ISCSI() {
 	invalidWorkflow, err := selectVolumeChildWorkflow(protocols, "invalid", "test_account")
 	assert.NotNil(s.T(), err)
 	assert.Nil(s.T(), invalidWorkflow)
-	assert.Contains(s.T(), err.Error(), "invalid phase")
+	assert.Contains(s.T(), err.Error(), "An internal error occurred.")
+	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid phase")
 }
 
 func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_NFSv3() {
@@ -1857,13 +1859,13 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_FileProtocolsDisabled() {
 	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre, "test_account")
 	assert.NotNil(s.T(), err)
 	assert.Nil(s.T(), preWorkflow)
-	assert.Contains(s.T(), err.Error(), "file protocols are not enabled")
+	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "file protocols are not enabled")
 
 	// Test post phase
 	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
 	assert.NotNil(s.T(), err)
 	assert.Nil(s.T(), postWorkflow)
-	assert.Contains(s.T(), err.Error(), "file protocols are not enabled")
+	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "file protocols are not enabled")
 }
 
 func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_UnsupportedProtocol() {
@@ -1874,13 +1876,13 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_UnsupportedProtocol() {
 	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre, "test_account")
 	assert.NotNil(s.T(), err)
 	assert.Nil(s.T(), preWorkflow)
-	assert.Contains(s.T(), err.Error(), "unsupported or unspecified protocol")
+	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "unsupported or unspecified protocol")
 
 	// Test post phase
 	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
 	assert.NotNil(s.T(), err)
 	assert.Nil(s.T(), postWorkflow)
-	assert.Contains(s.T(), err.Error(), "unsupported or unspecified protocol")
+	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "unsupported or unspecified protocol")
 }
 
 func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_EmptyProtocols() {
@@ -1891,13 +1893,13 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_EmptyProtocols() {
 	preWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePre, "test_account")
 	assert.NotNil(s.T(), err)
 	assert.Nil(s.T(), preWorkflow)
-	assert.Contains(s.T(), err.Error(), "unsupported or unspecified protocol")
+	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "unsupported or unspecified protocol")
 
 	// Test post phase
 	postWorkflow, err := selectVolumeChildWorkflow(protocols, PhasePost, "test_account")
 	assert.NotNil(s.T(), err)
 	assert.Nil(s.T(), postWorkflow)
-	assert.Contains(s.T(), err.Error(), "unsupported or unspecified protocol")
+	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "unsupported or unspecified protocol")
 }
 func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_PopulateRetryPolicyError() {
 	// Test PostBlockVolumeWorkflow when PopulateRetryPolicyParams fails
@@ -2786,7 +2788,6 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SetupWorkflowSuccess() {
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
-	// UpdateJob is called through UpdateJobStatus activity, not directly on mock
 }
 
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NoDataProtectionSuccess() {
@@ -3103,7 +3104,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateJobStatusErrorDetailsErr
 	// Mock UpdateJobStatus to fail for DONE state with error details
 	errorDetailsUpdateError := errors.New("failed to update job status with error details")
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStateDONE) && job.ErrorDetails != ""
+		return job.State == string(models.JobsStateERROR) && job.ErrorDetails != ""
 	})).Return(errorDetailsUpdateError)
 
 	// Mock GetVolumeFromONTAPAgain to return error
@@ -3128,7 +3129,7 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_InvalidPhase() {
 	workflow, err := selectVolumeChildWorkflow([]string{utils.ProtocolISCSI}, "invalid", "test-account")
 	assert.Nil(s.T(), workflow)
 	assert.Error(s.T(), err)
-	assert.Contains(s.T(), err.Error(), "invalid phase: invalid")
+	assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid phase: invalid")
 }
 
 func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_InvalidPhaseFile() {
@@ -3140,8 +3141,8 @@ func (s *UnitTestSuite) Test_SelectVolumeChildWorkflow_InvalidPhaseFile() {
 	assert.Nil(s.T(), workflow)
 	assert.Error(s.T(), err)
 	// Check if the error is about file protocols not being enabled first, then invalid phase
-	if !assert.Contains(s.T(), err.Error(), "file protocols are not enabled") {
-		assert.Contains(s.T(), err.Error(), "invalid phase: invalid")
+	if !assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "file protocols are not enabled") {
+		assert.Contains(s.T(), err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid phase: invalid")
 	}
 }
 

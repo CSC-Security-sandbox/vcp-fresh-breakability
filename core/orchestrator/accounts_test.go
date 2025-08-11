@@ -2,14 +2,16 @@ package orchestrator
 
 import (
 	"context"
-	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestGetOrCreateAccount(t *testing.T) {
@@ -185,12 +187,18 @@ func TestGetAccountWithName(t *testing.T) {
 			t.Fatalf("Failed to clean up test storage: %v", err)
 		}
 
-		account, err := _getAccountWithName(ctx, store, testAccount)
-		if err == nil {
-			tt.Errorf("Expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "account not found") {
-			tt.Errorf("Expected error '%v', got %v", "account not found", err)
+		account, mainErr := _getAccountWithName(ctx, store, testAccount)
+		assert.NotNil(tt, mainErr, "Expected an error when account does not exist")
+		assert.EqualError(tt, mainErr, "Account not found")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(mainErr, &customErr) {
+			assert.Equal(tt, customErr.OriginalErr.Error(), "account not found")
+			assert.Equal(tt, customErr.HttpCode, nillable.ToPointer(404), "Expected HTTP code 404 for not found error but got %v", customErr.HttpCode)
+			assert.Equal(tt, customErr.TrackingID, 2101)
+			assert.Equal(tt, customErr.Message, "Account not found")
+			assert.Equal(tt, customErr.Retriable, false)
+		} else {
+			tt.Fatalf("Expected a CustomError, got %T", err)
 		}
 		if account != nil {
 			tt.Errorf("Expected nil account, got %v", account)

@@ -28,3 +28,11 @@ func (h *ErrorHandler) loadErrorMessages() error {
 	}
 	return nil
 }
+
+// init loads error messages from the JSON file when the package is imported
+func init() {
+	err := json.Unmarshal(errorsJSON, &errorMap)
+	if err != nil {
+		panic("Failed to load error messages from JSON file: " + err.Error())
+	}
+}

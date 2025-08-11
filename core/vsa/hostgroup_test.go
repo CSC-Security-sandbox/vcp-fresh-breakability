@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -244,15 +245,18 @@ func TestIgroupExists(t *testing.T) {
 		}
 		rc := &OntapRestProvider{}
 
-		mockSAN.On("IGroupGet", mock.Anything).Return(nil, errors.New("fetch error"))
+		mockSAN.On("IGroupGet", mock.Anything).Return(nil, errors.New("Igroup not found"))
 
 		exists, igroup, err := rc.IgroupExists("testIgroup", nillable.GetStringPtr("testSVM"))
 
 		assert.Error(tt, err)
 		assert.False(tt, exists)
-		assert.Equal(tt, "fetch error", err.Error())
+		assert.Equal(tt, "An internal error occurred.", err.Error())
 		assert.Nil(tt, igroup)
-
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.OriginalErr, "Igroup not found")
+		}
 		mockSAN.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
 	})

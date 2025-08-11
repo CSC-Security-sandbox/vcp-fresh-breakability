@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -33,16 +34,16 @@ func VolumeRefreshWorkflow(ctx workflow.Context, volume *datamodel.Volume) error
 		log.Errorf("Failed to update job status for VolumeRefreshWorkflow: %v", err)
 		return err
 	}
-	_, err = volumeWf.Run(ctx, volume)
-	if err != nil {
-		log.Errorf("Failed to run VolumeRefreshWorkflow: %v", err)
+	_, customErr := volumeWf.Run(ctx, volume)
+	if customErr != nil {
+		log.Errorf("Failed to run VolumeRefreshWorkflow: %v", customErr)
 		volumeWf.Status = WorkflowStatusFailed
-		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		if err2 != nil {
 			log.Errorf("Failed to update job status with error details for VolumeRefreshWorkflow: %v", err2)
 			return err2
 		}
-		return err
+		return customErr
 	}
 	volumeWf.Status = WorkflowStatusCompleted
 	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
@@ -71,13 +72,13 @@ func (wf *volumeMetricHydrationWorkflow) Setup(ctx workflow.Context, input inter
 	})
 }
 
-func (wf *volumeMetricHydrationWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *volumeMetricHydrationWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	log := util.GetLogger(ctx)
 	dbVolume := args[0].(*datamodel.Volume)
 	volumeActivity := &activities.VolumeUpdateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -93,22 +94,22 @@ func (wf *volumeMetricHydrationWorkflow) Run(ctx workflow.Context, args ...inter
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, dbVolume.Pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: dbVolume.Pool.PoolCredentials.Password, SecretID: dbVolume.Pool.PoolCredentials.SecretID, DeploymentName: dbVolume.Pool.DeploymentName, CertificateID: dbVolume.Pool.PoolCredentials.CertificateID, AuthType: dbVolume.Pool.PoolCredentials.AuthType})
 
 	volResponse := &vsa.VolumeResponse{}
 	err = workflow.ExecuteActivity(ctx, volumeActivity.GetVolumeFromONTAP, dbVolume, node).Get(ctx, &volResponse)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	log.Debugf("Volume %v retrieved from ONTAP successfully", dbVolume)
 
 	err = workflow.ExecuteActivity(ctx, volumeActivity.RefreshVolumeFieldsInDB, dbVolume.UUID, volResponse).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, err
+	return nil, ConvertToVSAError(err)
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -154,13 +154,21 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		// Register the workflow
 		env.RegisterWorkflow(func(ctx workflow.Context, params *common.DeleteKmsConfigParams, kmsConfig *datamodel.KmsConfig) (interface{}, error) {
 			wf := &deleteKmsConfigWorkflow{}
-			return wf.Run(ctx, kmsConfig, params)
+			result, customErr := wf.Run(ctx, kmsConfig, params)
+			if customErr != nil {
+				return result, customErr
+			}
+			return result, nil
 		})
 
 		// Execute workflow
 		env.ExecuteWorkflow(func(ctx workflow.Context, params *common.DeleteKmsConfigParams, kmsConfig *datamodel.KmsConfig) (interface{}, error) {
 			wf := &deleteKmsConfigWorkflow{}
-			return wf.Run(ctx, kmsConfig, params)
+			result, customErr := wf.Run(ctx, kmsConfig, params)
+			if customErr != nil {
+				return result, customErr
+			}
+			return result, nil
 		}, params, kmsConfig)
 
 		// Assert workflow execution
@@ -212,7 +220,7 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 }

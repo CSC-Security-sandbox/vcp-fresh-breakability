@@ -60,7 +60,7 @@ func (h Handler) V1betaDescribeVolume(ctx context.Context, params gcpgenserver.V
 			}, nil
 		}
 		logger.Error("Failed to describe volume", "error", err.Error())
-		return &gcpgenserver.V1betaDescribeVolumeInternalServerError{Code: 500, Message: "Internal server error"}, err
+		return &gcpgenserver.V1betaDescribeVolumeInternalServerError{Code: 500, Message: "Internal server error"}, nil
 	}
 
 	return convertModelToVCPVolume(volume), nil
@@ -72,7 +72,7 @@ func (h Handler) V1betaGetVolumeCount(ctx context.Context, params gcpgenserver.V
 	count, err := h.Orchestrator.GetVolumeCount(ctx, params.ProjectNumber)
 	if err != nil {
 		logger.Error("Error while getting volume count", "error", err.Error())
-		return &gcpgenserver.V1betaGetVolumeCountInternalServerError{Code: 500, Message: "Internal server error"}, err
+		return &gcpgenserver.V1betaGetVolumeCountInternalServerError{Code: 500, Message: "Internal server error"}, nil
 	}
 	return &gcpgenserver.V1betaGetVolumeCountOK{VolumeCount: int(count)}, nil
 }
@@ -83,7 +83,7 @@ func (h Handler) V1betaListVolumes(ctx context.Context, params gcpgenserver.V1be
 	volumes, err := h.Orchestrator.ListVolumes(ctx, params.ProjectNumber)
 	if err != nil {
 		logger.Error("Failed to list volumes", "error", err.Error())
-		return &gcpgenserver.V1betaListVolumesInternalServerError{Code: 500, Message: "Internal server error"}, err
+		return &gcpgenserver.V1betaListVolumesInternalServerError{Code: 500, Message: "Internal server error"}, nil
 	}
 	resp := &gcpgenserver.V1betaListVolumesOK{
 		Volumes: convertModelsToVCPVolumes(volumes),
@@ -120,7 +120,7 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 			}, nil
 		}
 		logger.Error("Failed to create volume", "error", err.Error())
-		return &gcpgenserver.V1betaCreateVolumeInternalServerError{Code: 500, Message: err.Error()}, err
+		return &gcpgenserver.V1betaCreateVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
 	volume, jobUUID, err := h.Orchestrator.CreateVolume(ctx, param)
@@ -133,7 +133,7 @@ func (h Handler) V1betaCreateVolume(ctx context.Context, req *gcpgenserver.Volum
 		}
 
 		logger.Error("Failed to create volume", "error", err.Error())
-		return &gcpgenserver.V1betaCreateVolumeInternalServerError{Code: 500, Message: err.Error()}, err
+		return &gcpgenserver.V1betaCreateVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
 	resp, err := encodeVolumeV1(convertModelToVCPVolume(volume))
@@ -176,7 +176,7 @@ func (h Handler) V1betaRevertVolume(ctx context.Context, req *gcpgenserver.Volum
 			}, nil
 		}
 		logger.Error("Failed to revert volume", "error", err.Error())
-		return &gcpgenserver.V1betaRevertVolumeInternalServerError{Code: 500, Message: err.Error()}, err
+		return &gcpgenserver.V1betaRevertVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
 	volume, jobUUID, err := h.Orchestrator.RevertVolume(ctx, param)
@@ -439,7 +439,7 @@ func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.Volum
 		}
 
 		logger.Error("Failed to update volume", "error", err.Error())
-		return &gcpgenserver.V1betaUpdateVolumeInternalServerError{Code: 500, Message: err.Error()}, err
+		return &gcpgenserver.V1betaUpdateVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
 	volume, jobUUID, err := h.Orchestrator.UpdateVolume(ctx, param)
@@ -452,7 +452,7 @@ func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.Volum
 		}
 
 		logger.Error("Failed to update volume", "error", err.Error())
-		return &gcpgenserver.V1betaUpdateVolumeInternalServerError{Code: 500, Message: err.Error()}, err
+		return &gcpgenserver.V1betaUpdateVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
 	resp, err := encodeVolumeV1(convertModelToVCPVolume(volume))
@@ -623,13 +623,13 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 			return &gcpgenserver.V1betaDeleteVolumeInternalServerError{
 				Code:    404,
 				Message: "Volume not found",
-			}, err
+			}, nil
 		}
 		logger.Error("Failed to delete volume", "error", err.Error())
 		return &gcpgenserver.V1betaDeleteVolumeInternalServerError{
 			Code:    500,
 			Message: "Internal server error",
-		}, err
+		}, nil
 	}
 
 	if volume != nil && volume.LifeCycleState == models.LifeCycleStateDeleting {
@@ -637,7 +637,7 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 		return &gcpgenserver.V1betaDeleteVolumeConflict{
 			Code:    409,
 			Message: msg,
-		}, err
+		}, nil
 	}
 
 	if volume != nil && volume.LifeCycleState == models.LifeCycleStateDeleted {
@@ -667,7 +667,7 @@ func (h Handler) V1betaDeleteVolume(ctx context.Context, req gcpgenserver.OptV1b
 		return &gcpgenserver.V1betaDeleteVolumeInternalServerError{
 			Code:    500,
 			Message: "Internal server error",
-		}, err
+		}, nil
 	}
 
 	resp, err := encodeVolumeV1(convertModelToVCPVolume(volume))

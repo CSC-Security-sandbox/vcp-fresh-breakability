@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -33,31 +34,32 @@ func StartProjectEventOffStateWorkflow(ctx workflow.Context, params *common.Star
 	startProjectEventWorkflow := new(startProjectEventOffStateWorkflow)
 	err := startProjectEventWorkflow.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	startProjectEventWorkflow.Status = WorkflowStatusRunning
 	err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
+	var customErr *vsaerrors.CustomError
 	defer func() {
-		if err != nil {
+		if customErr != nil {
 			startProjectEventWorkflow.Status = WorkflowStatusFailed
-			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		} else {
 			startProjectEventWorkflow.Status = WorkflowStatusCompleted
 			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 		}
 	}()
 
-	_, err = startProjectEventWorkflow.Run(ctx, params)
-	if err != nil {
-		log.Errorf("startProjectEventOffStateWorkflow workflow completed with error: %v", err)
-		return nil, err
+	_, customErr = startProjectEventWorkflow.Run(ctx, params)
+	if customErr != nil {
+		log.Errorf("startProjectEventOffStateWorkflow workflow completed with error: %v", customErr)
+		return nil, customErr
 	}
 	log.Infof("startProjectEventOffStateWorkflow workflow completed successfully")
-	return nil, err
+	return nil, nil
 }
 
 func (s *startProjectEventOffStateWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -79,13 +81,13 @@ func (s *startProjectEventOffStateWorkflow) Setup(ctx workflow.Context, input in
 	})
 }
 
-func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	// add activities to disable account, list pools, turn off clusters, forward call to SDE, poll job
 	startProjectEventParams := args[0].(*common.StartProjectEventParams)
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -100,7 +102,7 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 	ao1.RetryPolicy.MaximumAttempts = int32(CVPJobRetryMaxAttempts)
 	ao1.RetryPolicy.InitialInterval, err = time.ParseDuration(InitialRetryIntervalForCVPClient)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
@@ -114,15 +116,15 @@ func (s *startProjectEventOffStateWorkflow) Run(ctx workflow.Context, args ...in
 	var result *common.StartProjectEventResult
 	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.StartProjectEventForSDEActivity, startProjectEventParams).Get(ctx, &result)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx1, startProjectEventActivity.PollStartProjectEventSDEOperationActivity, startProjectEventParams, &result).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, err
+	return nil, ConvertToVSAError(err)
 }
 
 // StartProjectEventOnStateWorkflow is a workflow that handles the ON state for StartProjectEvent.
@@ -137,31 +139,32 @@ func StartProjectEventOnStateWorkflow(ctx workflow.Context, params *common.Start
 	startProjectEventWorkflow := new(startProjectEventOnStateWorkflow)
 	err := startProjectEventWorkflow.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	startProjectEventWorkflow.Status = WorkflowStatusRunning
 	err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
+	var customErr *vsaerrors.CustomError
 	defer func() {
-		if err != nil {
+		if customErr != nil {
 			startProjectEventWorkflow.Status = WorkflowStatusFailed
-			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		} else {
 			startProjectEventWorkflow.Status = WorkflowStatusCompleted
 			err = startProjectEventWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 		}
 	}()
 
-	_, err = startProjectEventWorkflow.Run(ctx, params)
-	if err != nil {
-		log.Errorf("startProjectEventOnStateWorkflow workflow completed with error: %v", err)
-		return nil, err
+	_, customErr = startProjectEventWorkflow.Run(ctx, params)
+	if customErr != nil {
+		log.Errorf("startProjectEventOnStateWorkflow workflow completed with error: %v", customErr)
+		return nil, customErr
 	}
 	log.Infof("startProjectEventOnStateWorkflow workflow completed successfully")
-	return nil, err
+	return nil, nil
 }
 
 func (s *startProjectEventOnStateWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -183,13 +186,13 @@ func (s *startProjectEventOnStateWorkflow) Setup(ctx workflow.Context, input int
 	})
 }
 
-func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	// add activities to enable account, list pools, turn on clusters, forward call to SDE, poll job
 	startProjectEventParams := args[0].(*common.StartProjectEventParams)
 	startProjectEventActivity := &resource_events_activities.StartProjectEventActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -205,7 +208,7 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 	ao1.RetryPolicy.MaximumAttempts = int32(CVPJobRetryMaxAttempts)
 	ao1.RetryPolicy.InitialInterval, err = time.ParseDuration(InitialRetryIntervalForCVPClient)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
@@ -219,13 +222,13 @@ func (s *startProjectEventOnStateWorkflow) Run(ctx workflow.Context, args ...int
 	var result *common.StartProjectEventResult
 	err = workflow.ExecuteActivity(ctx, startProjectEventActivity.StartProjectEventForSDEActivity, startProjectEventParams).Get(ctx, &result)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx1, startProjectEventActivity.PollStartProjectEventSDEOperationActivity, startProjectEventParams, &result).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, err
+	return nil, ConvertToVSAError(err)
 }

@@ -15,7 +15,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"go.temporal.io/sdk/client"
-	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
 
@@ -54,6 +53,16 @@ var (
 	executeActivity = workflow.ExecuteActivity
 )
 
+// ConvertToVSAError converts a regular error to *vsaerrors.CustomError.
+// If the error is already a *vsaerrors.CustomError, it returns it as is.
+// Otherwise, it wraps it in a generic workflow error.
+func ConvertToVSAError(err error) *vsaerrors.CustomError {
+	if err == nil {
+		return nil
+	}
+	return vsaerrors.ExtractCustomError(err)
+}
+
 type WorkflowRetryPolicy struct {
 	InitialInterval     time.Duration
 	BackoffCoefficient  float64
@@ -65,7 +74,7 @@ type WorkflowRetryPolicy struct {
 // WorkflowInterface defines the common methods for all workflows.
 type WorkflowInterface interface {
 	Setup(ctx workflow.Context, input interface{}) error
-	Run(ctx workflow.Context, args ...interface{}) (interface{}, error)
+	Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError)
 	UpdateJobStatus(ctx workflow.Context, status string, err error) error
 }
 
@@ -157,30 +166,13 @@ func (bw *BaseWorkflow) UpdateJobStatus(ctx workflow.Context, status string, err
 		State:     status,
 	}
 	if err != nil {
-		var applicationError *temporal.ApplicationError
-		if vsaerrors.As(err, &applicationError) {
-			if applicationError.Type() == "CustomError" {
-				var (
-					trackingID   int
-					errorDetails string
-				)
-
-				err = applicationError.Details(&trackingID, &errorDetails)
-				if err != nil {
-					bw.Logger.Warn("Couldn't find tracking ID/original error details in the application error", err)
-					updatedJob.TrackingID = -1
-					updatedJob.ErrorDetails = err.Error()
-				}
-
-				updatedJob.TrackingID = trackingID
-				updatedJob.ErrorDetails = errorDetails
-			} else {
-				updatedJob.TrackingID = 0
-				updatedJob.ErrorDetails = err.Error()
-			}
+		var customError *vsaerrors.CustomError
+		if vsaerrors.As(err, &customError) {
+			updatedJob.TrackingID = customError.TrackingID
+			updatedJob.ErrorDetails = customError.OriginalErr.Error()
 		} else {
-			// If the error is not an application error, we set the tracking ID to 0 and the error details to the error message.
-			// This is required so that generic errors that are not of type ApplicationError do not get lost.
+			// If the error is not a custom error, we set the tracking ID to 0 and the error details to the error message.
+			// This is required so that generic errors that are not of type CustomError do not get lost.
 			updatedJob.TrackingID = 0
 			updatedJob.ErrorDetails = err.Error()
 		}

@@ -107,7 +107,7 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
 	})
-	
+
 	t.Run("TestReplicationDeleteWorkflow_Failure", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
@@ -147,10 +147,8 @@ func TestReplicationDeleteWorkflow(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		// Simulate failure in the first activity
-		env.OnActivity("GetSrcBasePathDelete", mock.Anything, mock.Anything).Return(nil, assert.AnError)
-		
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+
 		env.ExecuteWorkflow(ReplicationDeleteWorkflow, params, event)
 
 		assert.True(tt, env.IsWorkflowCompleted())

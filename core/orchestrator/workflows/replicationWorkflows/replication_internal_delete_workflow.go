@@ -2,6 +2,7 @@ package replicationWorkflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
@@ -22,7 +23,6 @@ type internalVolumeReplicationDeleteWorkflow struct {
 var _ workflows.WorkflowInterface = &internalVolumeReplicationDeleteWorkflow{}
 
 func DeleteInternalVolumeReplicationWorkflow(ctx workflow.Context, replication *datamodel.VolumeReplication) (*vsa.VolumeReplication, error) {
-	logger := util.GetLogger(ctx)
 	repWf := new(internalVolumeReplicationDeleteWorkflow)
 	err := repWf.Setup(ctx, replication)
 	if err != nil {
@@ -31,21 +31,18 @@ func DeleteInternalVolumeReplicationWorkflow(ctx workflow.Context, replication *
 	repWf.Status = workflows.WorkflowStatusRunning
 	err = repWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
+		repWf.Status = workflows.WorkflowStatusFailed
+		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		return nil, err
 	}
-	defer func() {
-		if err == nil {
-			repWf.Status = workflows.WorkflowStatusCompleted
-			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-		} else {
-			repWf.Status = workflows.WorkflowStatusFailed
-			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
-		}
-	}()
-	_, err = repWf.Run(ctx, replication)
-	if err != nil {
-		logger.Info("Internal Volume Replication workflow run executed with error", "error", err)
+	_, customErr := repWf.Run(ctx, replication)
+	if customErr != nil {
+		repWf.Status = workflows.WorkflowStatusFailed
+		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		return nil, err
 	}
+	repWf.Status = workflows.WorkflowStatusCompleted
+	err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	return nil, err
 }
 
@@ -68,13 +65,13 @@ func (wf *internalVolumeReplicationDeleteWorkflow) Setup(ctx workflow.Context, i
 	})
 }
 
-func (wf *internalVolumeReplicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *internalVolumeReplicationDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	log := util.GetLogger(ctx)
 	replication := args[0].(*datamodel.VolumeReplication)
 	replicationActivity := &replicationActivities.InternalVolumeReplicationDeleteActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -100,7 +97,7 @@ func (wf *internalVolumeReplicationDeleteWorkflow) Run(ctx workflow.Context, arg
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, replication.Volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: replication.Volume.Pool.PoolCredentials.Password, SecretID: replication.Volume.Pool.PoolCredentials.SecretID, CertificateID: replication.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: replication.Volume.Pool.DeploymentName, AuthType: replication.Volume.Pool.PoolCredentials.AuthType})
@@ -108,9 +105,9 @@ func (wf *internalVolumeReplicationDeleteWorkflow) Run(ctx workflow.Context, arg
 	var replicationDeleteResponse *vsa.VolumeReplication
 	err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteVolumeReplication, replication, node).Get(ctx, &replicationDeleteResponse)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationDetailsForDelete, replication).Get(ctx, nil)
-	return nil, err
+	return nil, workflows.ConvertToVSAError(err)
 }

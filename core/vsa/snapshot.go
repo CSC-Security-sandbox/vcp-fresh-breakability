@@ -42,7 +42,7 @@ func (a action) String() string {
 func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*SnapshotProviderResponse, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrONTAPClientCreationError, err)
 	}
 	snapshot, job, err := client.Storage().SnapshotCreate(&ontapRest.SnapshotCreateParams{
 		VolumeUUID: params.VolumeUUID,

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -576,9 +575,7 @@ func TestUpdatePool(t *testing.T) {
 		}
 
 		_, _, err := _updatePool(ctx, store, temporal, params)
-		if !strings.Contains(err.Error(), "pool not found") {
-			tt.Errorf("Expected not found error, got %s", err.Error())
-		}
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "pool not found")
 	})
 	t.Run("WhenValidatePoolParamsFails", func(tt *testing.T) {
 		ctx, store, _, temporal := setup(tt)

@@ -2,6 +2,7 @@ package vlm
 
 import (
 	"errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -290,7 +291,7 @@ func TestPopulateRetryPolicyParams_InvalidStartToCloseTimeout(t *testing.T) {
 	policy, err := PopulateRetryPolicyParams()
 	assert.Nil(t, policy)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid")
 }
 
 func TestPopulateRetryPolicyParams_InvalidRetryInterval(t *testing.T) {
@@ -301,7 +302,7 @@ func TestPopulateRetryPolicyParams_InvalidRetryInterval(t *testing.T) {
 	policy, err := PopulateRetryPolicyParams()
 	assert.Nil(t, policy)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid")
 }
 
 func TestPopulateRetryPolicyParams_InvalidRetryMaxInterval(t *testing.T) {
@@ -312,7 +313,7 @@ func TestPopulateRetryPolicyParams_InvalidRetryMaxInterval(t *testing.T) {
 	policy, err := PopulateRetryPolicyParams()
 	assert.Nil(t, policy)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid")
 }
 
 func TestPopulateRetryPolicyParams_InvalidRetryBackoff(t *testing.T) {
@@ -323,7 +324,7 @@ func TestPopulateRetryPolicyParams_InvalidRetryBackoff(t *testing.T) {
 	policy, err := PopulateRetryPolicyParams()
 	assert.Nil(t, policy)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid")
 }
 
 func TestUpdateVSAClusterDeployment(t *testing.T) {

@@ -586,7 +586,7 @@ func getBucketDetails(backupVault *datamodel.BackupVault, vol *datamodel.Volume)
 			return bucketDetail, nil
 		}
 	}
-	return nil, fmt.Errorf("no matching bucket details found for volume %s in backup vault %s", vol.Name, backupVault.Name)
+	return nil, vsaerrors.ExtractCustomError(fmt.Errorf("no matching bucket details found for volume %s in backup vault %s", vol.Name, backupVault.Name))
 }
 
 func getSmSourcePath(volume *datamodel.Volume) string {
@@ -623,7 +623,7 @@ func GetSmDestinationPath(backupVault *datamodel.BackupVault, volume *datamodel.
 
 func GetBucketDetails(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (*datamodel.BucketDetails, error) {
 	if vol.VolumeAttributes == nil {
-		return nil, fmt.Errorf("volume %s has no volume attributes", vol.Name)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("volume %s has no volume attributes", vol.Name))
 	}
 
 	for _, bucketDetail := range backupVault.BucketDetails {
@@ -631,7 +631,7 @@ func GetBucketDetails(backupVault *datamodel.BackupVault, vol *datamodel.Volume)
 			return bucketDetail, nil
 		}
 	}
-	return nil, fmt.Errorf("no matching bucket details found for volume %s in backup vault %s", vol.Name, backupVault.Name)
+	return nil, vsaerrors.ExtractCustomError(fmt.Errorf("no matching bucket details found for volume %s in backup vault %s", vol.Name, backupVault.Name))
 }
 
 func GetObjStoreNameFromBackup(backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {
@@ -644,7 +644,7 @@ func GetObjStoreNameFromBackup(backupVault *datamodel.BackupVault, backup *datam
 
 func GetBucketDetailsFromBackup(backupVault *datamodel.BackupVault, backup *datamodel.Backup) (*datamodel.BucketDetails, error) {
 	if backup.Attributes == nil {
-		return nil, fmt.Errorf("backup %s has no attributes", backup.Name)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("backup %s has no attributes", backup.Name))
 	}
 
 	for _, bucketDetail := range backupVault.BucketDetails {
@@ -652,7 +652,7 @@ func GetBucketDetailsFromBackup(backupVault *datamodel.BackupVault, backup *data
 			return bucketDetail, nil
 		}
 	}
-	return nil, fmt.Errorf("no matching bucket details found for backup %s", backup.Name)
+	return nil, vsaerrors.ExtractCustomError(fmt.Errorf("no matching bucket details found for backup %s", backup.Name))
 }
 
 func GetSmSourcePathForRestore(backupVault *datamodel.BackupVault, backup *datamodel.Backup) (string, error) {

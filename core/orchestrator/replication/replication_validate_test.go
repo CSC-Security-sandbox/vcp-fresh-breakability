@@ -774,7 +774,7 @@ func TestValidateReplicationParams(t *testing.T) {
 		}
 		mockStorage.On("ListVolumeReplications", mock.Anything, mock.Anything).Return(response, nil)
 
-		parseError := errors.New("[0] undefined error: some error")
+		parseError := errors.New("some error")
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "", vsaErrors.NewVCPError(vsaErrors.ErrProjectParsingError, parseError)
 		}
@@ -1481,7 +1481,7 @@ func TestValidateReplicationUpdate(t *testing.T) {
 		}()
 		_, err := _validateReplicationUpdate(ctx, event)
 		assert.Error(tt, err)
-		assert.Equal(tt, "[0] undefined error: empty replication update payload", err.Error())
+		assert.Equal(tt, "empty replication update payload", err.Error())
 	})
 	t.Run("WhenReplicationScheduleUnspecified", func(tt *testing.T) {
 		ctx := context.Background()
@@ -1493,7 +1493,7 @@ func TestValidateReplicationUpdate(t *testing.T) {
 		event1.ReplicationSchedule = nillable.ToPointer("REPLICATION_SCHEDULE_UNSPECIFIED")
 		_, err := _validateReplicationUpdate(ctx, &event1)
 		assert.Error(tt, err)
-		assert.Equal(tt, "[0] undefined error: Invalid replication schedule provided.", err.Error())
+		assert.Equal(tt, "Invalid replication schedule provided.", err.Error())
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		ctx := context.Background()

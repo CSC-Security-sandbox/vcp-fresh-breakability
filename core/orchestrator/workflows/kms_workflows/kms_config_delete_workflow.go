@@ -3,6 +3,7 @@ package kms_workflows
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errorcore "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -32,22 +33,25 @@ func DeleteKmsConfigWorkflow(ctx workflow.Context, kmsConfig *datamodel.KmsConfi
 	kmsConfigWf := new(deleteKmsConfigWorkflow)
 	err := kmsConfigWf.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	kmsConfigWf.Status = workflows.WorkflowStatusRunning
 	err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
-	_, err = kmsConfigWf.Run(ctx, kmsConfig, params)
-	if err != nil {
+	_, customErr := kmsConfigWf.Run(ctx, kmsConfig, params)
+	if customErr != nil {
 		kmsConfigWf.Status = workflows.WorkflowStatusFailed
-		err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), errorcore.WrapAsTemporalApplicationError(errorcore.NewVCPError(errorcore.ErrKMSDelete, err)))
-		return nil, err
+		err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), errorcore.WrapAsTemporalApplicationError(errorcore.NewVCPError(errorcore.ErrKMSDelete, customErr)))
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	kmsConfigWf.Status = workflows.WorkflowStatusCompleted
 	err = kmsConfigWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-	return nil, err
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
+	return nil, nil
 }
 
 func (wf *deleteKmsConfigWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -71,13 +75,13 @@ func (wf *deleteKmsConfigWorkflow) Setup(ctx workflow.Context, input interface{}
 	})
 }
 
-func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	kmsConfig := args[0].(*datamodel.KmsConfig)
 	params := args[1].(*common.DeleteKmsConfigParams)
 	deleteActivity := &kms_activities.KmsConfigActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	defaultActivityOpts := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -91,7 +95,7 @@ func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}
 	ctx = workflow.WithActivityOptions(ctx, defaultActivityOpts)
 	jwtToken, err := getSignedJwtToken(params.AccountName)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
 	sdeJobRetryOpts := defaultActivityOpts
@@ -109,23 +113,23 @@ func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}
 	var sdeJobId string
 	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSDEKmsConfig, kmsConfig, params).Get(ctx, &sdeJobId)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx1, deleteActivity.DescribeSDEDeleteJob, &sdeJobId, params).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	if kmsConfig.UUID != "" {
 		err = workflow.ExecuteActivity(ctx, deleteActivity.DisableKmsServiceAccount, kmsConfig).Get(ctx, nil)
 		if err != nil {
-			return nil, err
+			return nil, workflows.ConvertToVSAError(err)
 		}
 
 		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteKmsConfig, kmsConfig, params).Get(ctx, nil)
 		if err != nil {
-			return nil, err
+			return nil, workflows.ConvertToVSAError(err)
 		}
 	}
 	return nil, nil

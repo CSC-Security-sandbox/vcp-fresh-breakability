@@ -47,6 +47,42 @@
     "retriable": false,
     "http_code": 500
   },
+  "1011": {
+    "description": "Internal Server Error",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "1012": {
+    "description": "Model validation and conversion error",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "1013": {
+    "description": "Base64 Encoding Error",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "1014": {
+    "description": "Base64 Decoding Error",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "1015": {
+    "description": "Empty or Nil resource Error",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "1016": {
+    "description": "CSR Generation Failed",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
   "2001": {
     "description": "Database Connection Closed",
     "message": "An internal error occurred.",
@@ -89,6 +125,18 @@
     "retriable": false,
     "http_code": 404
   },
+  "2100": {
+    "description": "Volume not found in the database",
+    "message": "Volume not found",
+    "retriable": false,
+    "http_code": 404
+  },
+  "2101": {
+    "description": "Account not found in the database",
+    "message": "Account not found",
+    "retriable": false,
+    "http_code": 404
+  },
   "3001": {
     "description": "GCP Client Initialization Error",
     "message": "An internal error occurred.",
@@ -119,6 +167,12 @@
     "retriable": true,
     "http_code": 500
   },
+  "3007": {
+      "description": "GCP Service Account Deletion Error",
+      "message": "An internal error occurred.",
+      "retriable": true,
+      "http_code": 500
+  },
   "4001": {
     "description": "VSA Cluster Provisioning Error",
     "message": "An internal error occurred.",
@@ -145,6 +199,12 @@
   },
   "4005": {
     "description": "VSA Cluster - Node Not Found",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "4011": {
+    "description": "No node found for the pool",
     "message": "An internal error occurred.",
     "retriable": false,
     "http_code": 500
@@ -187,6 +247,12 @@
   },
   "5006": {
     "description": "Ontap Rest Error",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "5008": {
+    "description": "Failed to create ONTAP Rest Client",
     "message": "An internal error occurred.",
     "retriable": false,
     "http_code": 500
@@ -334,6 +400,12 @@
     "message": "Volume revert failed",
     "retriable": true,
     "http_code": 400
+  },
+  "6076": {
+    "description": "VolumeRevert failure",
+    "message": "Error reverting volume - Cannot revert a Volume Replication Destination Volume",
+    "retriable": true,
+    "http_code": 409
   },
   "7001": {
     "description": "Snapshot Deletion Error",

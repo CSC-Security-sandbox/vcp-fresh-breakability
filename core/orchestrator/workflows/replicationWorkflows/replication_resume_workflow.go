@@ -1,6 +1,7 @@
 package replicationWorkflows
 
 import (
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -21,7 +22,6 @@ type ReplicationResumeWorkflow struct {
 var _ workflows.WorkflowInterface = &ReplicationResumeWorkflow{}
 
 func ResumeReplicationWorkflow(ctx workflow.Context, params *commonparams.ResumeReplicationParams, event *replication.ResumeReplicationEvent) (*vsa.VolumeReplication, error) {
-	logger := util.GetLogger(ctx)
 	repWf := new(ReplicationResumeWorkflow)
 	err := repWf.Setup(ctx, params)
 	if err != nil {
@@ -30,21 +30,18 @@ func ResumeReplicationWorkflow(ctx workflow.Context, params *commonparams.Resume
 	repWf.Status = workflows.WorkflowStatusRunning
 	err = repWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
+		repWf.Status = workflows.WorkflowStatusFailed
+		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		return nil, err
 	}
-	defer func() {
-		if err == nil {
-			repWf.Status = workflows.WorkflowStatusCompleted
-			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-		} else {
-			repWf.Status = workflows.WorkflowStatusFailed
-			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
-		}
-	}()
-	_, err = repWf.Run(ctx, event, params)
-	if err != nil {
-		logger.Info("Resume Replication workflow run executed with error", "error", err)
+	_, customErr := repWf.Run(ctx, event, params)
+	if customErr != nil {
+		repWf.Status = workflows.WorkflowStatusFailed
+		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		return nil, err
 	}
+	repWf.Status = workflows.WorkflowStatusCompleted
+	err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	return nil, err
 }
 
@@ -67,13 +64,13 @@ func (wf *ReplicationResumeWorkflow) Setup(ctx workflow.Context, input interface
 	})
 }
 
-func (wf *ReplicationResumeWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *ReplicationResumeWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	event := args[0].(*replication.ResumeReplicationEvent)
 	params := args[1].(*commonparams.ResumeReplicationParams)
 	replicationActivity := &replicationActivities.ResumeVolumeReplicationActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -100,39 +97,39 @@ func (wf *ReplicationResumeWorkflow) Run(ctx workflow.Context, args ...interface
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSrcBasePathResume, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetDstBasePathResume, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSignedSrcTokenResume, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetSignedDstTokenResume, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.VerifyDstVolume, &replicationResult).Get(ctx, &replicationResult)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.ResizeVolumeIfNeeded, &replicationResult).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.ResumeReplicationOnDestination, &replicationResult, params).Get(ctx, &replicationResult)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobResume, &replicationResult).Get(ctx, nil)
-	return nil, err
+	return nil, workflows.ConvertToVSAError(err)
 }

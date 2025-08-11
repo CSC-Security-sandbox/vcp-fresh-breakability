@@ -144,13 +144,13 @@ func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamod
 		Size:       availableSpace,
 	})
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Debug("lun updated successfully")
 	lun, err = LunGet(ctx, lunName, volume.Name, volume.Svm.Name, provider)
 	if err != nil {
 		logger.Debug("lun not found !")
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return lun, nil
 }
@@ -288,7 +288,7 @@ func (a VolumeCreateActivity) UpdateVolumeStateInDB(ctx context.Context, volumeU
 		"state_details": stateDetails,
 	})
 	if err != nil {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	return nil

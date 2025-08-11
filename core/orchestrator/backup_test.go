@@ -72,7 +72,7 @@ func TestCreateBackup(t *testing.T) {
 			return &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "testAccountUUID"}}, nil
 		}
 		_, _, err = createBackup(ctx, store, temporal, params)
-		assert.EqualError(tt, err, "volume not found")
+		assertErrContainsOriginal(tt, err, "volume not found")
 	})
 
 	t.Run("WhenFailsWithValidation", func(tt *testing.T) {

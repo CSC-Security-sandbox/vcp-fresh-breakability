@@ -53,7 +53,7 @@ func TestCreateNodeNodeGroupMap_DBError(t *testing.T) {
 	mapping := &datamodel.NodeNodeGroupMap{BaseModel: datamodel.BaseModel{UUID: uuid.NewString()}, NodeID: 12345, NodeGroupID: 67890, HarvestConfig: &datamodel.HarvestConfig{}}
 	_, err = badRepo.CreateNodeNodeGroupMap(ctx, mapping)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "undefined error: sql: database is closed")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "sql: database is closed")
 }
 
 func TestCreateNodeNodeGroupMap_InsertError(t *testing.T) {
@@ -67,8 +67,8 @@ func TestCreateNodeNodeGroupMap_InsertError(t *testing.T) {
 	badRepo := &DataStoreRepository{db: wrapper}
 	_, err := badRepo.CreateNodeNodeGroupMap(ctx, mapping)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "undefined error: sql: database is closed",
-		"error should contain 'undefined error: sql: database is closed', got: %v", err)
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "sql: database is closed",
+		"error should contain 'sql: database is closed', got: %v", err)
 }
 
 func TestGetNodeNodeGroupMap(t *testing.T) {
@@ -117,7 +117,7 @@ func TestUpdateNodeNodeGroupMap_Error(t *testing.T) {
 	badRepo := &DataStoreRepository{db: wrapper}
 	_, err := badRepo.UpdateNodeNodeGroupMap(ctx, mapping)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "undefined error: sql: database is closed")
+	assert.Contains(t, vsaerrors.ExtractCustomError(err).OriginalErr.Error(), "sql: database is closed")
 }
 
 func TestDeleteNodeNodeGroupMap(t *testing.T) {
@@ -141,7 +141,7 @@ func TestDeleteNodeNodeGroupMap_Error(t *testing.T) {
 	badRepo := &DataStoreRepository{db: wrapper}
 	err := badRepo.DeleteNodeNodeGroupMap(ctx, 12345)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "undefined error: sql: database is closed")
+	assert.Contains(t, vsaerrors.ExtractCustomError(err).OriginalErr.Error(), "sql: database is closed")
 }
 
 func TestAssignTwoNodesToTwoGroups_CreatesMappings(t *testing.T) {
@@ -864,7 +864,7 @@ func TestAssignTwoNodesToTwoGroups_GroupCreateError_Node1(t *testing.T) {
 		CustomerProject:  "account-id",
 	})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "undefined error: sql: database is closed",
+	assert.Contains(t, vsaerrors.ExtractCustomError(err).OriginalErr.Error(), "sql: database is closed",
 		"error should contain 'undefined error: sql: database is closed', got: %v", err)
 }
 
@@ -949,7 +949,7 @@ func TestDeleteNodeGroupMap(t *testing.T) {
 	deleted, err := repo.GetNodeNodeGroupMap(context.Background(), created.ID)
 	assert.Error(t, err)
 	assert.Nil(t, deleted)
-	assert.Contains(t, err.Error(), "record not found")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "record not found")
 }
 
 func TestGetNodeGroupMapNodeCount_ZeroCount(t *testing.T) {
@@ -1044,7 +1044,7 @@ func TestGetNodeNodeGroupMapByNodeID_Error(t *testing.T) {
 	repo, _ := setupNodeNodeGroupMapTestRepo(t)
 	result, err := repo.GetNodeNodeGroupMapByNodeID(context.Background(), int64(1))
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not found")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "not found")
 	assert.Nil(t, result)
 }
 

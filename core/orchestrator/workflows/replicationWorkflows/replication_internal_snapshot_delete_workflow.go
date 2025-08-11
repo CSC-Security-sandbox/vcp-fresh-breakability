@@ -1,6 +1,7 @@
 package replicationWorkflows
 
 import (
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -34,23 +35,20 @@ func DeleteInternalSnapshotWorkflow(ctx workflow.Context, params *common.Snapsho
 	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
 		logger.Infof("Update job status for snapshot executed with error: %v", err)
+		snapshotWf.Status = workflows.WorkflowStatusFailed
+		err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		return nil, err
 	}
-	defer func() {
-		if err == nil {
-			snapshotWf.Status = workflows.WorkflowStatusCompleted
-			err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-		} else {
-			snapshotWf.Status = workflows.WorkflowStatusFailed
-			err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
-		}
-	}()
-	_, err = snapshotWf.Run(ctx, params)
-	if err != nil {
-		logger.Infof("Snapshot delete workflow run executed with error: %v", err)
+	_, customErr := snapshotWf.Run(ctx, params)
+	if customErr != nil {
+		logger.Infof("Snapshot delete workflow run executed with error: %v", customErr)
+		snapshotWf.Status = workflows.WorkflowStatusFailed
+		err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		return nil, err
 	}
 	logger.Info("Snapshot workflow completed successfully")
+	snapshotWf.Status = workflows.WorkflowStatusCompleted
+	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	return nil, err
 }
 
@@ -73,13 +71,13 @@ func (wf *internalSnapshotDeleteWorkflow) Setup(ctx workflow.Context, input inte
 	})
 }
 
-func (wf *internalSnapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *internalSnapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	logger := util.GetLogger(ctx)
 	params := args[0].(*common.SnapshotsInternalDeleteParams)
 	replicationActivity := &replicationActivities.InternalSnapshotsDeleteActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -96,27 +94,27 @@ func (wf *internalSnapshotDeleteWorkflow) Run(ctx workflow.Context, args ...inte
 	logger.Infof("Starting the snapshot deletion workflow for snapshots")
 	err = workflow.ExecuteActivity(ctx, replicationActivity.GetNodeFromDB, &params).Get(ctx, &params)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: params.Nodes, Password: params.Volume.Pool.PoolCredentials.Password, SecretID: params.Volume.Pool.PoolCredentials.SecretID, CertificateID: params.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: params.Volume.Pool.DeploymentName, AuthType: params.Volume.Pool.PoolCredentials.AuthType})
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.ListSnapshotInONTAP, &params, &node).Get(ctx, &params)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteSnapshotsInONTAP, &params, &node).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.ListSnapshotFromDB, &params).Get(ctx, &params)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.DehydrateSnapshots, &params).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateSnapshotRecordInDB, &params).Get(ctx, nil)
 
-	return nil, err
+	return nil, workflows.ConvertToVSAError(err)
 }

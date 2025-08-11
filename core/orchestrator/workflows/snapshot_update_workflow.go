@@ -43,10 +43,10 @@ func UpdateSnapshotWorkflow(ctx workflow.Context, snapshot *datamodel.Snapshot) 
 			err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		}
 	}()
-	_, err = snapshotWf.Run(ctx, snapshot)
-	if err != nil {
+	_, errRun := snapshotWf.Run(ctx, snapshot)
+	if errRun != nil {
 		logger.Infof("Snapshot update workflow run executed with error: %v", err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(errRun)
 	}
 	logger.Debug("Snapshot update workflow completed successfully")
 	return nil, nil
@@ -73,12 +73,12 @@ func (wf *snapshotUpdateWorkflow) Setup(ctx workflow.Context, input interface{})
 }
 
 // Run executes the snapshot creation workflow, including creating the snapshot and updating its details.
-func (wf *snapshotUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *snapshotUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	snapshot := args[0].(*datamodel.Snapshot)
 	snapshotUpdateActivity := &activities.SnapshotUpdateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -90,7 +90,7 @@ func (wf *snapshotUpdateWorkflow) Run(ctx workflow.Context, args ...interface{})
 
 	err = workflow.ExecuteActivity(ctx, snapshotUpdateActivity.UpdateSnapshot, snapshot).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	return nil, nil

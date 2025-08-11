@@ -48,12 +48,12 @@ type BackupDeleteAdcReq struct {
 func (a *ADCActivity) DeployADCCloudRunService(ctx context.Context, params *hyperscalermodels.CloudRunServiceConfig) (*hyperscalermodels.CloudRunOperationResponse, error) {
 	cloudService, err := GetCloudService(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get GCP service: %w", err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to get GCP service: %w", err))
 	}
 
 	response, err := cloudService.CreateCloudRunService(ctx, params)
 	if err != nil {
-		return nil, fmt.Errorf("failed to deploy Cloud Run service: %w", err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to deploy Cloud Run service: %w", err))
 	}
 
 	return &hyperscalermodels.CloudRunOperationResponse{
@@ -81,12 +81,12 @@ func (a *ADCActivity) GetADCServiceURL(ctx context.Context, projectID, region, s
 func (a *ADCActivity) CleanupADCCloudRunService(ctx context.Context, projectID, region, serviceName string) (*hyperscalermodels.CloudRunOperationResponse, error) {
 	cloudService, err := GetCloudService(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get GCP service: %w", err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to get GCP service: %w", err))
 	}
 
 	response, err := cloudService.DeleteCloudRunService(ctx, projectID, region, serviceName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete Cloud Run service: %w", err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to delete Cloud Run service: %w", err))
 	}
 
 	return &hyperscalermodels.CloudRunOperationResponse{
@@ -187,11 +187,11 @@ func (a *ADCActivity) InitialDeleteRequestWithCloudRun(ctx context.Context, adcP
 	logger := util.GetLogger(ctx)
 	reqBody, err := ConvertADCParamsToRequest(adcParams)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert ADC params to request: %w", err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to convert ADC params to request: %w", err))
 	}
 	reqBodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to marshal request body: %w", err))
 	}
 
 	// Use Cloud Run service URL instead of Kubernetes service URL
@@ -233,7 +233,7 @@ func (a *ADCActivity) InitialDeleteRequestWithCloudRun(ctx context.Context, adcP
 	// Check for error status codes
 	if resp.StatusCode >= 400 {
 		logger.Errorf("ADC delete request failed with status code: %d", resp.StatusCode)
-		return nil, fmt.Errorf("ADC delete request failed with status code: %d", resp.StatusCode)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("ADC delete request failed with status code: %d", resp.StatusCode))
 	}
 
 	redirectURL := resp.Header.Get("Location")
@@ -248,15 +248,15 @@ func (a *ADCActivity) InitialDeleteRequestWithCloudRun(ctx context.Context, adcP
 func (a *ADCActivity) CheckDeleteStatusWithCloudRun(ctx context.Context, params *common.ADCParams, serviceURL, redirectURL string) (*common.ADCResponse, error) {
 	logger := util.GetLogger(ctx)
 	if redirectURL == "" {
-		return nil, fmt.Errorf("missing redirect URL")
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("missing redirect URL"))
 	}
 	reqBody, err := ConvertADCParamsToRequest(params)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert ADC params to request: %w", err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to convert ADC params to request: %w", err))
 	}
 	reqBodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to marshal request body: %w", err))
 	}
 
 	// Use Cloud Run service URL for async status check
@@ -284,7 +284,7 @@ func (a *ADCActivity) CheckDeleteStatusWithCloudRun(ctx context.Context, params 
 
 	resp, err := restHTTPClient.Do(req)
 	if err != nil && (resp == nil || resp.StatusCode != http.StatusTemporaryRedirect) {
-		return nil, fmt.Errorf("ADC status request error: %w", err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("ADC status request error: %w", err))
 	}
 	defer func() {
 		if resp != nil && resp.Body != nil {
@@ -298,7 +298,7 @@ func (a *ADCActivity) CheckDeleteStatusWithCloudRun(ctx context.Context, params 
 	// Check for error status codes
 	if resp.StatusCode >= 400 {
 		logger.Errorf("ADC delete request failed with status code: %d", resp.StatusCode)
-		return nil, fmt.Errorf("ADC status request failed with status code: %d", resp.StatusCode)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("ADC status request failed with status code: %d", resp.StatusCode))
 	}
 
 	newRedirectURL := resp.Header.Get("Location")
@@ -328,15 +328,15 @@ func (a *ADCActivity) CheckOperationStatus(ctx context.Context, operationName st
 func (a *ADCActivity) CreateHmacKeys(ctx context.Context, params *common.HmacKeyCreateParams) (*common.HmacKeys, error) {
 	cloudService, err := GetCloudService(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get GCP service: %w", err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to get GCP service: %w", err))
 	}
 
 	accessKey, secretKey, err := cloudService.CreateHmacKey(params.ProjectNumber, params.ServiceAccount)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create HMAC key: %w", err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("failed to create HMAC key: %w", err))
 	}
 	if accessKey == nil || secretKey == nil {
-		return nil, fmt.Errorf("accessKey or secretKey is nil")
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("accessKey or secretKey is nil"))
 	}
 
 	// Encode the keys to avoid storing sensitive data in Temporal DB

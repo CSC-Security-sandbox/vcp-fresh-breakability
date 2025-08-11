@@ -1,7 +1,6 @@
 package replicationWorkflows
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -158,11 +157,8 @@ func TestDeleteInternalVolumeReplicationWorkflowFailure(t *testing.T) {
 			Volume:    volume,
 		}
 
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
-		env.OnActivity("DeleteVolumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeReplication{}, nil)
-		env.OnActivity("UpdateVolumeReplicationDetailsForDelete", mock.Anything, mock.Anything).Return(errors.New("error"))
-		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("error"))
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+
 		env.ExecuteWorkflow(DeleteInternalVolumeReplicationWorkflow, replicationDb)
 		assert.NotNil(tt, env.GetWorkflowError())
 	})

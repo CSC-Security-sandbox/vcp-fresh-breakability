@@ -2,6 +2,7 @@ package replicationWorkflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
@@ -23,7 +24,6 @@ type internalVolumeReplicationCreateWorkflow struct {
 var _ workflows.WorkflowInterface = &internalVolumeReplicationCreateWorkflow{}
 
 func CreateInternalVolumeReplicationWorkflow(ctx workflow.Context, params *common.CreateVolumeReplicationInternalParams, replication *datamodel.VolumeReplication) (*vsa.VolumeReplication, error) {
-	logger := util.GetLogger(ctx)
 	repWf := new(internalVolumeReplicationCreateWorkflow)
 	err := repWf.Setup(ctx, params)
 	if err != nil {
@@ -32,21 +32,18 @@ func CreateInternalVolumeReplicationWorkflow(ctx workflow.Context, params *commo
 	repWf.Status = workflows.WorkflowStatusRunning
 	err = repWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
+		repWf.Status = workflows.WorkflowStatusFailed
+		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		return nil, err
 	}
-	defer func() {
-		if err == nil {
-			repWf.Status = workflows.WorkflowStatusCompleted
-			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-		} else {
-			repWf.Status = workflows.WorkflowStatusFailed
-			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
-		}
-	}()
-	_, err = repWf.Run(ctx, params, replication)
-	if err != nil {
-		logger.Info("Internal Volume Replication workflow run executed with error", "error", err)
+	_, customErr := repWf.Run(ctx, params, replication)
+	if customErr != nil {
+		repWf.Status = workflows.WorkflowStatusFailed
+		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		return nil, err
 	}
+	repWf.Status = workflows.WorkflowStatusCompleted
+	err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	return nil, err
 }
 
@@ -69,13 +66,13 @@ func (wf *internalVolumeReplicationCreateWorkflow) Setup(ctx workflow.Context, i
 	})
 }
 
-func (wf *internalVolumeReplicationCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *internalVolumeReplicationCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	params := args[0].(*common.CreateVolumeReplicationInternalParams)
 	replication := args[1].(*datamodel.VolumeReplication)
 	replicationActivity := &replicationActivities.InternalVolumeReplicationActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -91,7 +88,7 @@ func (wf *internalVolumeReplicationCreateWorkflow) Run(ctx workflow.Context, arg
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, replication.Volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: replication.Volume.Pool.PoolCredentials.Password, SecretID: replication.Volume.Pool.PoolCredentials.SecretID, CertificateID: replication.Volume.Pool.PoolCredentials.CertificateID, DeploymentName: replication.Volume.Pool.DeploymentName, AuthType: replication.Volume.Pool.PoolCredentials.AuthType})
@@ -100,15 +97,15 @@ func (wf *internalVolumeReplicationCreateWorkflow) Run(ctx workflow.Context, arg
 	volumeExternalUUID := replication.Volume.VolumeAttributes.ExternalUUID
 	err = workflow.ExecuteActivity(ctx, replicationActivity.CreateVolumeReplicationInternal, params, node, volumeExternalUUID).Get(ctx, &replicationCreateResponse)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationDetails, replication, replicationCreateResponse, nil).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.HydrateReplicationCreate, replication, params.VolumeReplication.Account.Name).Get(ctx, nil)
 
-	return nil, err
+	return nil, workflows.ConvertToVSAError(err)
 }

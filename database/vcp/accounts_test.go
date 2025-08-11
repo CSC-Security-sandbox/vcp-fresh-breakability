@@ -48,7 +48,7 @@ func TestGetAccount(t *testing.T) {
 		_, err = store.GetAccount(context.Background(), "non-existent-account")
 		var customErr *vsaerrors.CustomError
 		if vsaerrors.As(err, &customErr) {
-			assert.EqualError(tt, err, "[0] undefined error: account not found")
+			assert.EqualError(tt, err, "Account not found")
 		}
 	})
 }

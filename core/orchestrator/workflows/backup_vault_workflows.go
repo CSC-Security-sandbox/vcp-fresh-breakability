@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -33,28 +34,29 @@ func UpdateBackupVaultWorkflow(ctx workflow.Context, params *common.BackupVaultP
 	bvWF := new(backupVaultUpdateWorkflow)
 	err := bvWF.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	bvWF.Status = WorkflowStatusRunning
 	err = bvWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
-	_, err = bvWF.Run(ctx, backupVault, params)
-	if err != nil {
+	_, customErr := bvWF.Run(ctx, backupVault, params)
+
+	if customErr != nil {
 		bvWF.Status = WorkflowStatusFailed
-		err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), customErr)
 		if err2 != nil {
 			bvWF.Logger.Errorf("Error when updating the job status: %v", err2)
 		}
-		return nil, err
+		return nil, customErr
 	}
 	bvWF.Status = WorkflowStatusCompleted
 	err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	if err2 != nil {
 		bvWF.Logger.Errorf("Error when updating the job status: %v", err2)
 	}
-	return nil, err
+	return nil, nil
 }
 
 // Setup UpdateBackupVaultWorkflow process pool related requests from a customer.
@@ -81,14 +83,14 @@ func (wf *backupVaultUpdateWorkflow) Setup(ctx workflow.Context, input interface
 	return nil
 }
 
-func (wf *backupVaultUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *backupVaultUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	backupVault := args[0].(*datamodel.BackupVault)
 	bvCommonParams := args[1].(*common.BackupVaultParams)
 	backupVaultActivity := &activities.BackupVaultActivity{}
 
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -110,7 +112,7 @@ func (wf *backupVaultUpdateWorkflow) Run(ctx workflow.Context, args ...interface
 	var jwtToken string
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, bvCommonParams.AccountName).Get(ctx, &jwtToken)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
 
@@ -121,13 +123,13 @@ func (wf *backupVaultUpdateWorkflow) Run(ctx workflow.Context, args ...interface
 			"error":  err,
 			"params": backupVault,
 		})
-		return nil, fmt.Errorf("UpdateBackupVaultInSDE failed: %w", err)
+		return nil, ConvertToVSAError(fmt.Errorf("UpdateBackupVaultInSDE failed: %w", err))
 	}
 
 	dbBackupVault := &datamodel.BackupVault{}
 	err = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultInVCP, &sdeBackupVault, backupVault).Get(ctx, &dbBackupVault)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	return dbBackupVault, nil
@@ -137,28 +139,29 @@ func DeleteBackupVaultWorkflow(ctx workflow.Context, params *common.BackupVaultP
 	bvWF := new(backupVaultDeleteWorkflow)
 	err := bvWF.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	bvWF.Status = WorkflowStatusRunning
 	err = bvWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
-	_, err = bvWF.Run(ctx, backupVault, params)
-	if err != nil {
+	_, customErr := bvWF.Run(ctx, backupVault, params)
+
+	if customErr != nil {
 		bvWF.Status = WorkflowStatusFailed
-		err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), customErr)
 		if err2 != nil {
 			bvWF.Logger.Errorf("Error when updating the job status: %v", err2)
 		}
-		return nil, err
+		return nil, customErr
 	}
 	bvWF.Status = WorkflowStatusCompleted
 	err2 := bvWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	if err2 != nil {
 		bvWF.Logger.Errorf("Error when updating the job status: %v", err2)
 	}
-	return nil, err
+	return nil, nil
 }
 
 // Setup UpdateBackupVaultWorkflow process pool related requests from a customer.
@@ -185,14 +188,14 @@ func (wf *backupVaultDeleteWorkflow) Setup(ctx workflow.Context, input interface
 	return nil
 }
 
-func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	backupVault := args[0].(*datamodel.BackupVault)
 	bvCommonParams := args[1].(*common.BackupVaultParams)
 	backupVaultActivity := &activities.BackupVaultActivity{}
 
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -214,7 +217,7 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 	var jwtToken string
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, bvCommonParams.AccountName).Get(ctx, &jwtToken)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
 
@@ -225,7 +228,7 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 			"error":  err,
 			"params": backupVault,
 		})
-		return nil, fmt.Errorf("DeleteBackupVaultInSDE failed: %w", err)
+		return nil, ConvertToVSAError(fmt.Errorf("DeleteBackupVaultInSDE failed: %w", err))
 	}
 
 	// Delete associated buckets
@@ -235,14 +238,14 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 			"error":  err,
 			"params": backupVault,
 		})
-		return nil, fmt.Errorf("DeleteBackupVaultBuckets failed: %w", err)
+		return nil, ConvertToVSAError(fmt.Errorf("DeleteBackupVaultBuckets failed: %w", err))
 	}
 
 	// Delete backup vault in VCP database
 	dbBackupVault := &datamodel.BackupVault{}
 	err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultInVCP, bvCommonParams.BackupVaultID).Get(ctx, &dbBackupVault)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	return dbBackupVault, nil

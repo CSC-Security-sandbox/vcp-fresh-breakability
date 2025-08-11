@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -598,7 +599,9 @@ func TestGetVolumeReplicationCount(t *testing.T) {
 		assert.NoError(tt, err, "Failed to clean up test database")
 
 		count, err := store.GetVolumeReplicationCount(context.Background(), "nonexistent_account")
-		assert.EqualError(tt, err, "[0] undefined error: account not found")
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "account not found")
 		assert.Equal(tt, int64(0), count, "Expected count %v, got %v", 0, count)
 	})
 }

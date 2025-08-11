@@ -1,6 +1,7 @@
 package workflows
 
 import (
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -24,14 +25,14 @@ func CreateSMCTokenRotationWorkflow(ctx workflow.Context, params *common.CreateS
 	if err != nil {
 		return err
 	}
-	_, err = smcWf.Run(ctx, params)
-	if err != nil {
+	_, errRun := smcWf.Run(ctx, params)
+	if errRun != nil {
 		smcWf.Status = WorkflowStatusFailed
-		err2 := smcWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		err2 := smcWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), errRun)
 		if err2 != nil {
 			return err2
 		}
-		return err
+		return errRun
 	}
 	smcWf.Status = WorkflowStatusCompleted
 	err = smcWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
@@ -59,11 +60,11 @@ func (wf *smcTokenRotationWorkflow) Setup(ctx workflow.Context, input interface{
 	})
 }
 
-func (wf *smcTokenRotationWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *smcTokenRotationWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	// 1. Get SMC License from Cloud
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -81,11 +82,11 @@ func (wf *smcTokenRotationWorkflow) Run(ctx workflow.Context, args ...interface{
 	err = workflow.ExecuteActivity(ctx, smcTokenRotationActivity.GetSMCLicenseFromCloud).Get(ctx, &license)
 	if err != nil {
 		wf.Logger.Error("Failed to get SMC license from cloud", "error", err)
-		return nil, temporal.NewApplicationError("failed to get SMC license", "", err)
+		return nil, ConvertToVSAError(temporal.NewApplicationError("failed to get SMC license", "", err))
 	}
 	if license == "" {
 		wf.Logger.Error("Failed to get SMC license from cloud", "error", err)
-		return nil, temporal.NewApplicationError("SMC license is empty", "", nil)
+		return nil, ConvertToVSAError(temporal.NewApplicationError("SMC license is empty", "", nil))
 	}
 
 	return "SMC token rotation completed", nil

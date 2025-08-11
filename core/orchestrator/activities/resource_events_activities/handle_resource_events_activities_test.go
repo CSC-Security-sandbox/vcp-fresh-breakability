@@ -179,13 +179,12 @@ func Test_HandleResourceEventForSDEActivity(t *testing.T) {
 			XCorrelationID: "test-correlation-id",
 		}
 
-		errMsg := "Client not available"
-		mockClient.EXPECT().V1betaResourceStateUpdate(mock.Anything).Return(nil, nil, nil, errors.New(errMsg))
+		mockClient.EXPECT().V1betaResourceStateUpdate(mock.Anything).Return(nil, nil, nil, errors.New("Client not available"))
 
 		activity := &ResourceEventsActivity{SE: mockSE}
 		_, err := activity.HandleResourceEventsForSDEActivity(ctx, params)
 		assert.NotNil(tt, err)
-		assert.ErrorContains(tt, err, errMsg)
+		assert.ErrorContains(tt, err, "Client error during HandleResouceEvent")
 
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
@@ -303,7 +302,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		assert.True(tt, errors2.As(err, &applicationError))
 		assert.True(tt, applicationError.NonRetryable())
 		assert.Equal(tt, "CustomError", applicationError.Type())
-		assert.ErrorContains(tt, err, "Internal Server Error")
+		assert.ErrorContains(tt, err, "Client error during HandleResouceEvent")
 	})
 	t.Run("PollHandleResourceEventSDEOperationActivity_WhenJobIsNotFinished", func(tt *testing.T) {
 		ctx := context.Background()
@@ -339,7 +338,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		activity := &ResourceEventsActivity{SE: mockSE}
 		err := activity.PollHandleResourceEventSDEOperationActivity(ctx, params, result)
 		assert.NotNil(tt, err)
-		assert.ErrorContains(tt, err, "job not finished")
+		assert.ErrorContains(tt, err, "Error SDE job not done")
 	})
 	t.Run("PollHandleResourceEventSDEOperationActivity_WhenCVPClientReturnsError", func(tt *testing.T) {
 		ctx := context.Background()
@@ -366,12 +365,11 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		}
 
 		mockAsync.EXPECT().V1betaDescribeOperation(mock.Anything).Return(nil, errors.New("Client not available"))
-		errMsg := "Client not available"
 
 		activity := &ResourceEventsActivity{SE: mockSE}
 		err := activity.PollHandleResourceEventSDEOperationActivity(ctx, params, result)
 		assert.NotNil(tt, err)
-		assert.ErrorContains(tt, err, errMsg)
+		assert.ErrorContains(tt, err, "Error describing SDE Operation")
 
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
@@ -404,7 +402,7 @@ func Test_PollHandleResourceEventSDEOperationActivity(t *testing.T) {
 		activity := &ResourceEventsActivity{SE: mockSE}
 		err := activity.PollHandleResourceEventSDEOperationActivity(ctx, params, result)
 		assert.NotNil(tt, err)
-		assert.ErrorContains(tt, err, "operation name is nil")
+		assert.ErrorContains(tt, err, "Invalid Operation Name")
 
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))

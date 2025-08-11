@@ -10,6 +10,7 @@ import (
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errorcore "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
@@ -39,12 +40,12 @@ func MigrateKmsConfigWorkflow(ctx workflow.Context, params *common.MigrateKmsCon
 	kmsConfigWorkflow := new(migrateKmsConfigWorkflow)
 	err := kmsConfigWorkflow.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	kmsConfigWorkflow.Status = workflows.WorkflowStatusRunning
 	err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	vsaCmekMigrationSkippedPoolReason, errWorkflow := kmsConfigWorkflow.Run(ctx, params)
@@ -52,13 +53,13 @@ func MigrateKmsConfigWorkflow(ctx workflow.Context, params *common.MigrateKmsCon
 		kmsConfigWorkflow.Status = workflows.WorkflowStatusFailed
 		if vsaCmekMigrationSkippedPoolReason != MigrationInfoPrefix {
 			kmsConfigWorkflow.Logger.Info(fmt.Sprintf("%s", vsaCmekMigrationSkippedPoolReason))
-			errWorkflow = fmt.Errorf("%w \n%s", errWorkflow, vsaCmekMigrationSkippedPoolReason)
+			errWorkflow = workflows.ConvertToVSAError(fmt.Errorf("%w \n%s", errWorkflow, vsaCmekMigrationSkippedPoolReason))
 		}
 		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), errorcore.WrapAsTemporalApplicationError(errorcore.NewVCPError(errorcore.ErrKMSMigration, errWorkflow)))
 		if err != nil {
-			return nil, err
+			return nil, workflows.ConvertToVSAError(err)
 		}
-		return nil, errWorkflow
+		return nil, workflows.ConvertToVSAError(errWorkflow)
 	}
 
 	kmsConfigWorkflow.Status = workflows.WorkflowStatusCompleted
@@ -67,8 +68,11 @@ func MigrateKmsConfigWorkflow(ctx workflow.Context, params *common.MigrateKmsCon
 	} else {
 		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	}
+	if err != nil {
+		return nil, workflows.ConvertToVSAError(err)
+	}
 
-	return nil, err
+	return nil, nil
 }
 
 func (kmsWorkflow *migrateKmsConfigWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -93,7 +97,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Setup(ctx workflow.Context, input i
 	})
 }
 
-func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	params := args[0].(*common.MigrateKmsConfigParams)
 	kmsConfigUUID := params.UUID
 	sdeKmsConfigUUID := params.SdeUUID
@@ -102,7 +106,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	kmsConfigActivity := &kms_activities.KmsConfigActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
-		return vsaCmekMigrationSkippedPoolReason, err
+		return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(err)
 	}
 	activityOptions := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -116,7 +120,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	ctx = workflow.WithActivityOptions(ctx, activityOptions)
 	jwtToken, err := getSignedJwtToken(params.ProjectNumber)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
 
@@ -138,7 +142,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 			"error":  err,
 			"params": params,
 		})
-		return vsaCmekMigrationSkippedPoolReason, err
+		return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(err)
 	}
 
 	// Policy for polling the KMS migrate operation
@@ -161,7 +165,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 			})
 		}
 
-		return vsaCmekMigrationSkippedPoolReason, err
+		return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(err)
 	}
 
 	poolActivity := &activities.PoolActivity{}
@@ -169,7 +173,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	var poolsForAccount []*datamodel.Pool
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetPoolsByAccountName, params.AccountName).Get(ctx, &poolsForAccount)
 	if err != nil {
-		return vsaCmekMigrationSkippedPoolReason, err
+		return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(err)
 	}
 	if len(poolsForAccount) < 1 {
 		kmsWorkflow.Logger.Info("For the following pools migration was skipped:\n" + vsaCmekMigrationSkippedPoolReason)
@@ -189,7 +193,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 		if errors.IsNotFoundErr(err) {
 			kmsWorkflow.Logger.Info("KMS configuration not found in SDE DB after CMEK migration")
 		}
-		return vsaCmekMigrationSkippedPoolReason, err
+		return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(err)
 	}
 
 	paramsForSyncingAndEKMCreation := common.CreatePoolParams{
@@ -212,10 +216,10 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 			errSync := syncBetweenSdeAndVsaDBs(ctx, createKmsConfigParams)
 			if errSync != nil {
 				kmsWorkflow.Logger.Error("VSA KMS configuration syncing with SDE DB has failed...", log.Fields{"error": errSync})
-				return vsaCmekMigrationSkippedPoolReason, errSync
+				return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(errSync)
 			}
 		} else {
-			return vsaCmekMigrationSkippedPoolReason, err
+			return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(err)
 		}
 	}
 
@@ -395,7 +399,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	}
 
 	if poolMigrationFailed {
-		return vsaCmekMigrationSkippedPoolReason, errors.New("Migration failed for at least one of the Pools")
+		return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(errors.New("Migration failed for at least one of the Pools"))
 	}
 	return vsaCmekMigrationSkippedPoolReason, nil
 }

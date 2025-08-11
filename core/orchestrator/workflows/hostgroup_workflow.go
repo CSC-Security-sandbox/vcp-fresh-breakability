@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -26,12 +27,12 @@ func UpdateHostGroupWorkflow(ctx workflow.Context, hostGroup *datamodel.HostGrou
 	hgWf := new(hostGroupUpdateWorkflow)
 	err := hgWf.Setup(ctx, hostGroup)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	hgWf.Status = WorkflowStatusRunning
 	err = hgWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	defer func() {
@@ -44,13 +45,13 @@ func UpdateHostGroupWorkflow(ctx workflow.Context, hostGroup *datamodel.HostGrou
 		}
 	}()
 
-	_, err = hgWf.Run(ctx, hostGroup)
-	if err != nil {
+	_, errRun := hgWf.Run(ctx, hostGroup)
+	if errRun != nil {
 		log.Errorf("HostGroup update workflow completed with error: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(errRun)
 	}
 	log.Infof("HostGroup update workflow completed successfully")
-	return nil, err
+	return nil, nil
 }
 
 func (wf *hostGroupUpdateWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -72,12 +73,12 @@ func (wf *hostGroupUpdateWorkflow) Setup(ctx workflow.Context, input interface{}
 	})
 }
 
-func (wf *hostGroupUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *hostGroupUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	hg := args[0].(*datamodel.HostGroup)
 	updateActivity := &activities.HostGroupUpdateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	options := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -92,8 +93,8 @@ func (wf *hostGroupUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 
 	err = workflow.ExecuteActivity(ctx, updateActivity.UpdateIGroups, &hg).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, err
+	return nil, nil
 }

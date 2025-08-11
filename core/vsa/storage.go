@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -78,7 +79,7 @@ func (rc *OntapRestProvider) LunCreate(params LunCreateParams) (*LunResponse, er
 		if strings.Contains(err.Error(), "A LUN or NVMe namespace already exists") {
 			return nil, errors.NewConflictErr(fmt.Sprintf("LUN %s already exists in SVM %s", params.LunName, params.SvmName))
 		}
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 	return &LunResponse{
 		ProviderResponse: ProviderResponse{
@@ -111,10 +112,10 @@ func (rc *OntapRestProvider) LunGet(params LunGetParams) (*LunResponse, error) {
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 	if lun == nil {
-		return nil, fmt.Errorf("lun not found: svm=%s, volume=%s, lun=%s", params.SvmName, params.VolumeName, params.LunName)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, fmt.Errorf("lun not found: svm=%s, volume=%s, lun=%s", params.SvmName, params.VolumeName, params.LunName))
 	}
 	return &LunResponse{
 		ProviderResponse: ProviderResponse{
@@ -144,7 +145,7 @@ func (rc *OntapRestProvider) LunUpdate(params LunUpdateParams) error {
 		if strings.Contains(err.Error(), "New LUN size is the same as the old LUN size") {
 			return errors.NewConflictErr(fmt.Sprintf("LUN %s already has the specified size", params.LunName))
 		}
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 	if success {
 		return nil
@@ -164,7 +165,7 @@ func (rc *OntapRestProvider) LunMapCreate(params LunMapCreateParams) error {
 			SvmName:    params.SvmName,
 			IGroupName: params.IGroupName[i],
 		}); err != nil && !strings.Contains(err.Error(), "LUN already mapped to this group") {
-			return err
+			return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}
 	}
 	return nil

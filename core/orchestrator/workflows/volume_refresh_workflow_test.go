@@ -500,7 +500,7 @@ func (s *VolumeGetWorkflowTestSuite) Test_GetVolumeWorkflow_UpdateJobStatusError
 	// Mock UpdateJobStatus to fail for DONE state with error details
 	errorDetailsUpdateError := errors.New("failed to update job status with error details")
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
-		return job.State == string(models.JobsStateDONE) && job.ErrorDetails != ""
+		return job.State == string(models.JobsStateERROR) && job.ErrorDetails != ""
 	})).Return(errorDetailsUpdateError)
 
 	// Mock GetNode to succeed

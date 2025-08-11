@@ -5,6 +5,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	errorcore "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -34,12 +35,12 @@ func UpdateResourceStateONWorkflow(ctx workflow.Context, params *common.UpdateRe
 	updateResourceWF := new(updateResourceStateONWorkflow)
 	err := updateResourceWF.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	updateResourceWF.Status = WorkflowStatusRunning
 	err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	defer func() {
 		if err != nil {
@@ -52,12 +53,12 @@ func UpdateResourceStateONWorkflow(ctx workflow.Context, params *common.UpdateRe
 	}()
 
 	_, err = updateResourceWF.Run(ctx, params)
-	if err != nil {
+	if e, ok := err.(*vsaerrors.CustomError); ok && e != nil {
 		log.Errorf("handleResourceEventOffStateWorkflow workflow completed with error: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	log.Infof("handleResourceEventOffStateWorkflow workflow completed successfully")
-	return nil, err
+	return nil, nil
 }
 
 func (wf *updateResourceStateONWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -79,16 +80,16 @@ func (wf *updateResourceStateONWorkflow) Setup(ctx workflow.Context, input inter
 	})
 }
 
-func (s updateResourceStateONWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (s updateResourceStateONWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	handleResourceEventParams := args[0].(*common.UpdateResourceStateParams)
 	handleResourceEventActivity := &resource_events_activities.ResourceEventsActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	interval, err := time.ParseDuration(handleResourceVCPJobMaxRetryInterval)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -105,7 +106,7 @@ func (s updateResourceStateONWorkflow) Run(ctx workflow.Context, args ...interfa
 	ao1.RetryPolicy.MaximumAttempts = int32(CVPJobRetryMaxAttempts)
 	ao1.RetryPolicy.InitialInterval, err = time.ParseDuration(InitialRetryIntervalForCVPClient)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
@@ -118,7 +119,7 @@ func (s updateResourceStateONWorkflow) Run(ctx workflow.Context, args ...interfa
 	if isPreAGA {
 		err = workflow.ExecuteActivity(ctx, handleResourceEventActivity.HandleResourceEventCheckForVCPActivity, handleResourceEventParams).Get(ctx, nil)
 		if err == nil {
-			return nil, errors.NewNotImplementedYetErr()
+			return nil, ConvertToVSAError(errors.NewNotImplementedYetErr())
 		}
 	} else {
 		err = workflow.ExecuteActivity(ctx, handleResourceEventActivity.HandleResourceEventsONForVCPActivity, handleResourceEventParams).Get(ctx, nil)
@@ -128,21 +129,21 @@ func (s updateResourceStateONWorkflow) Run(ctx workflow.Context, args ...interfa
 	}
 	var applicationErr *temporal.ApplicationError
 	if errorcore.As(err, &applicationErr) && applicationErr.NonRetryable() && applicationErr.Type() != resource_events_activities.ErrTypeResourceNotFound {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	var result *common.HandleResourceEventResult
 	err = workflow.ExecuteActivity(ctx, handleResourceEventActivity.HandleResourceEventsForSDEActivity, handleResourceEventParams).Get(ctx, &result)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx1, handleResourceEventActivity.PollHandleResourceEventSDEOperationActivity, handleResourceEventParams, &result).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, err
+	return nil, nil
 }
 
 type updateResourceStateOFFWorkflow struct {
@@ -155,12 +156,12 @@ func UpdateResourceStateOFFWorkflow(ctx workflow.Context, params *common.UpdateR
 	updateResourceWF := new(updateResourceStateOFFWorkflow)
 	err := updateResourceWF.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	updateResourceWF.Status = WorkflowStatusRunning
 	err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	defer func() {
 		if err != nil {
@@ -173,12 +174,12 @@ func UpdateResourceStateOFFWorkflow(ctx workflow.Context, params *common.UpdateR
 	}()
 
 	_, err = updateResourceWF.Run(ctx, params)
-	if err != nil {
+	if e, ok := err.(*vsaerrors.CustomError); ok && e != nil {
 		log.Errorf("handleResourceEventOffStateWorkflow workflow completed with error: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	log.Infof("handleResourceEventOffStateWorkflow workflow completed successfully")
-	return nil, err
+	return nil, nil
 }
 
 func (wf *updateResourceStateOFFWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -200,16 +201,16 @@ func (wf *updateResourceStateOFFWorkflow) Setup(ctx workflow.Context, input inte
 	})
 }
 
-func (s updateResourceStateOFFWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (s updateResourceStateOFFWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	handleResourceEventParams := args[0].(*common.UpdateResourceStateParams)
 	handleResourceEventActivity := &resource_events_activities.ResourceEventsActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	interval, err := time.ParseDuration(handleResourceVCPJobMaxRetryInterval)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -226,7 +227,7 @@ func (s updateResourceStateOFFWorkflow) Run(ctx workflow.Context, args ...interf
 	ao1.RetryPolicy.MaximumAttempts = int32(CVPJobRetryMaxAttempts)
 	ao1.RetryPolicy.InitialInterval, err = time.ParseDuration(InitialRetryIntervalForCVPClient)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
@@ -240,7 +241,7 @@ func (s updateResourceStateOFFWorkflow) Run(ctx workflow.Context, args ...interf
 	if isPreAGA {
 		err = workflow.ExecuteActivity(ctx, handleResourceEventActivity.HandleResourceEventCheckForVCPActivity, handleResourceEventParams).Get(ctx, &isVCPResource)
 		if err == nil {
-			return nil, errors.NewNotImplementedYetErr()
+			return nil, ConvertToVSAError(errors.NewNotImplementedYetErr())
 		}
 	} else {
 		err = workflow.ExecuteActivity(ctx, handleResourceEventActivity.HandleResourceEventsOFFForVCPActivity, handleResourceEventParams).Get(ctx, &isVCPResource)
@@ -250,21 +251,21 @@ func (s updateResourceStateOFFWorkflow) Run(ctx workflow.Context, args ...interf
 	}
 	var applicationErr *temporal.ApplicationError
 	if errorcore.As(err, &applicationErr) && applicationErr.NonRetryable() && applicationErr.Type() != resource_events_activities.ErrTypeResourceNotFound {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	var result *common.HandleResourceEventResult
 	err = workflow.ExecuteActivity(ctx, handleResourceEventActivity.HandleResourceEventsForSDEActivity, handleResourceEventParams).Get(ctx, &result)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx1, handleResourceEventActivity.PollHandleResourceEventSDEOperationActivity, handleResourceEventParams, &result).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, err
+	return nil, nil
 }
 
 type updateResourceStateCommonResourceOFFWorkflow struct {
@@ -277,12 +278,12 @@ func UpdateResourceStateCommonResourceOFFWorkflow(ctx workflow.Context, params *
 	updateResourceWF := new(updateResourceStateCommonResourceOFFWorkflow)
 	err := updateResourceWF.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	updateResourceWF.Status = WorkflowStatusRunning
 	err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	defer func() {
 		if err != nil {
@@ -295,12 +296,12 @@ func UpdateResourceStateCommonResourceOFFWorkflow(ctx workflow.Context, params *
 	}()
 
 	_, err = updateResourceWF.Run(ctx, params)
-	if err != nil {
+	if e, ok := err.(*vsaerrors.CustomError); ok && e != nil {
 		log.Errorf("handleResourceEventOffStateWorkflow workflow completed with error: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	log.Infof("handleResourceEventOffStateWorkflow workflow completed successfully")
-	return nil, err
+	return nil, nil
 }
 
 func (wf *updateResourceStateCommonResourceOFFWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -322,16 +323,16 @@ func (wf *updateResourceStateCommonResourceOFFWorkflow) Setup(ctx workflow.Conte
 	})
 }
 
-func (s updateResourceStateCommonResourceOFFWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (s updateResourceStateCommonResourceOFFWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	handleResourceEventParams := args[0].(*common.UpdateResourceStateParams)
 	handleResourceEventActivity := &resource_events_activities.ResourceEventsActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	interval, err := time.ParseDuration(handleResourceVCPJobMaxRetryInterval)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -348,7 +349,7 @@ func (s updateResourceStateCommonResourceOFFWorkflow) Run(ctx workflow.Context, 
 	ao1.RetryPolicy.MaximumAttempts = int32(CVPJobRetryMaxAttempts)
 	ao1.RetryPolicy.InitialInterval, err = time.ParseDuration(InitialRetryIntervalForCVPClient)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
@@ -366,21 +367,21 @@ func (s updateResourceStateCommonResourceOFFWorkflow) Run(ctx workflow.Context, 
 	}
 	var applicationErr *temporal.ApplicationError
 	if errorcore.As(err, &applicationErr) && applicationErr.NonRetryable() && applicationErr.Type() != resource_events_activities.ErrTypeResourceNotFound {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	var result *common.HandleResourceEventResult
 	err = workflow.ExecuteActivity(ctx, handleResourceEventActivity.HandleResourceEventsForSDEActivity, handleResourceEventParams).Get(ctx, &result)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx1, handleResourceEventActivity.PollHandleResourceEventSDEOperationActivity, handleResourceEventParams, &result).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, err
+	return nil, nil
 }
 
 type updateResourceStateCommonResourceONWorkflow struct {
@@ -393,12 +394,12 @@ func UpdateResourceStateCommonResourceONWorkflow(ctx workflow.Context, params *c
 	updateResourceWF := new(updateResourceStateCommonResourceONWorkflow)
 	err := updateResourceWF.Setup(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	updateResourceWF.Status = WorkflowStatusRunning
 	err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	defer func() {
 		if err != nil {
@@ -410,13 +411,12 @@ func UpdateResourceStateCommonResourceONWorkflow(ctx workflow.Context, params *c
 		}
 	}()
 
-	_, err = updateResourceWF.Run(ctx, params)
-	if err != nil {
-		log.Errorf("handleResourceEventOffStateWorkflow workflow completed with error: %v", err)
-		return nil, err
+	_, customErr := updateResourceWF.Run(ctx, params)
+	if customErr != nil {
+		err = updateResourceWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 	}
 	log.Infof("handleResourceEventOffStateWorkflow workflow completed successfully")
-	return nil, err
+	return nil, nil
 }
 
 func (wf *updateResourceStateCommonResourceONWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -438,16 +438,16 @@ func (wf *updateResourceStateCommonResourceONWorkflow) Setup(ctx workflow.Contex
 	})
 }
 
-func (s updateResourceStateCommonResourceONWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (s updateResourceStateCommonResourceONWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	handleResourceEventParams := args[0].(*common.UpdateResourceStateParams)
 	handleResourceEventActivity := &resource_events_activities.ResourceEventsActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	interval, err := time.ParseDuration(handleResourceVCPJobMaxRetryInterval)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -464,7 +464,7 @@ func (s updateResourceStateCommonResourceONWorkflow) Run(ctx workflow.Context, a
 	ao1.RetryPolicy.MaximumAttempts = int32(CVPJobRetryMaxAttempts)
 	ao1.RetryPolicy.InitialInterval, err = time.ParseDuration(InitialRetryIntervalForCVPClient)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	ctx = workflow.WithActivityOptions(ctx, ao)
@@ -482,19 +482,19 @@ func (s updateResourceStateCommonResourceONWorkflow) Run(ctx workflow.Context, a
 	}
 	var applicationErr *temporal.ApplicationError
 	if errorcore.As(err, &applicationErr) && applicationErr.NonRetryable() && applicationErr.Type() != resource_events_activities.ErrTypeResourceNotFound {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	var result *common.HandleResourceEventResult
 	err = workflow.ExecuteActivity(ctx, handleResourceEventActivity.HandleResourceEventsForSDEActivity, handleResourceEventParams).Get(ctx, &result)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx1, handleResourceEventActivity.PollHandleResourceEventSDEOperationActivity, handleResourceEventParams, &result).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, err
+	return nil, nil
 }

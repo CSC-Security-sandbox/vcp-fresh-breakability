@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"go.temporal.io/sdk/temporal"
 	"gorm.io/gorm"
 	"io"
@@ -63,12 +64,12 @@ func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(ctx contex
 	nodes, err := a.SE.GetNodesByPoolID(ctx, input.PoolID)
 	if err != nil {
 		logger.Errorf("Failed to fetch node for pool ID %d: %v", input.PoolID, err)
-		return nil, fmt.Errorf("error fetching nodes for pool ID %d: %w", input.PoolID, err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("error fetching nodes for pool ID %d: %w", input.PoolID, err))
 	}
 
 	if len(nodes) < 2 {
 		logger.Errorf("Not enough nodes found for pool ID %d: got %d", input.PoolID, len(nodes))
-		return nil, fmt.Errorf("not enough nodes found for pool")
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("not enough nodes found for pool"))
 	}
 
 	nodeMappings, err := a.SE.AssignTwoNodesToTwoGroups(ctx, datamodel.NodeGroupAssignmentParams{
@@ -80,12 +81,12 @@ func (a *RegisterNodeToHarvestFarmActivity) RegisterNodeToHarvestFarm(ctx contex
 	})
 	if err != nil {
 		logger.Errorf("Failed to assign nodes to groups for pool ID %d: %v", input.PoolID, err)
-		return nil, fmt.Errorf("error assigning nodes to groups for pool ID %d: %w", input.PoolID, err)
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("error assigning nodes to groups for pool ID %d: %w", input.PoolID, err))
 	}
 
 	if len(nodeMappings) < 2 {
 		logger.Errorf("Node group assignment returned insufficient mappings for pool ID %d", input.PoolID)
-		return nil, fmt.Errorf("node group assignment returned insufficient mappings for pool")
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("node group assignment returned insufficient mappings for pool"))
 	}
 
 	logger.Infof("Successfully registered and assigned nodes %d and %d to groups", nodes[0].ID, nodes[1].ID)

@@ -2,10 +2,12 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -47,7 +49,7 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 
 		err = tx.Create(volume).Error
 		if err != nil {
-			return nil, err
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
 		}
 		volume, err = getVolumeWithDetails(tx, &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volume.UUID}})
 		if err != nil {
@@ -55,9 +57,9 @@ func (d *DataStoreRepository) CreateVolume(ctx context.Context, volume *datamode
 		}
 		return volume, nil
 	} else if err2 != nil {
-		return nil, err1
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
-	return nil, customerrors.NewUserInputValidationErr("volume already exists")
+	return nil, vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, customerrors.NewUserInputValidationErr("volume already exists"))
 }
 
 // GetVolume retrieves a volume by its UUID and if the deletedAt field is not set, it returns the volume details.
@@ -125,14 +127,13 @@ func (d *DataStoreRepository) RevertedVolume(ctx context.Context, volume *datamo
 	dbVolume.StateDetails = models.LifeCycleStateAvailableDetails
 	err = tx.Unscoped().Save(dbVolume).Error
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 
 	if len(snapshots) > 0 {
 		err = hydrationActivities.HydrateBatchSnapshotstoCCFE(ctx, nil, snapshots)
 		if err != nil {
 			logger.Errorf("Failed to hydrate snapshots to CCFE after volume revert: %v, snapshots: %+v", err, snapshots)
-			return err
 		}
 	}
 	return nil
@@ -150,7 +151,8 @@ func revertDeleteSnapshots(ctx context.Context, db *gorm.DB, volumeID int64, sna
 
 	if err != nil {
 		logger.Warnf("failed to revert delete snapshots: %v", err)
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError,
+			customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "snapshot", nil))
 	}
 
 	result := db.Exec(
@@ -160,7 +162,7 @@ func revertDeleteSnapshots(ctx context.Context, db *gorm.DB, volumeID int64, sna
 		volumeID, snapshotID,
 	)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, result.Error)
 	}
 
 	return snapshots, nil
@@ -184,7 +186,7 @@ func (d *DataStoreRepository) UpdateVolumeFields(ctx context.Context, volumeUUID
 
 	err = tx.Model(&dbVolume).Updates(updates).Error
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 
 	return nil
@@ -222,7 +224,7 @@ func _deleteVolume(db *gorm.DB, volumeUUID string) (*datamodel.Volume, error) {
 	volume.StateDetails = ""
 	err = db.Save(volume).Error
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataDeleteError, fmt.Errorf("failed to delete volume %s: %w", volumeUUID, err))
 	}
 
 	return volume, nil
@@ -261,7 +263,8 @@ func getVolumeWithDetails(db *gorm.DB, query *datamodel.Volume) (*datamodel.Volu
 	volume := &datamodel.Volume{}
 	err := db.Preload("Account").Preload("Pool").Preload("Svm").Preload("Pool.KmsConfig").First(&volume, query).Error
 	if err != nil {
-		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "volume", nil)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrVolumeNotFound,
+			customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "volume", nil))
 	}
 	return volume, nil
 }

@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -35,16 +36,16 @@ func RevertVolumeWorkflow(ctx workflow.Context, params *common.RevertVolumeParam
 		return err
 	}
 
-	_, err = volumeWf.Run(ctx, params, volume, snapshot)
-	if err != nil {
-		log.Errorf("RevertVolumeWorkflow completed with error: %v", err)
+	_, errRun := volumeWf.Run(ctx, params, volume, snapshot)
+	if errRun != nil {
+		log.Errorf("RevertVolumeWorkflow completed with error: %v", errRun)
 		volumeWf.Status = WorkflowStatusFailed
-		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), errRun)
 		if err2 != nil {
 			log.Errorf("Failed to update job status to Done with err for RevertVolumeWorkflow: %v", err)
 			return err2
 		}
-		return err
+		return errRun
 	}
 
 	volumeWf.Status = WorkflowStatusCompleted
@@ -52,7 +53,7 @@ func RevertVolumeWorkflow(ctx workflow.Context, params *common.RevertVolumeParam
 	if err != nil {
 		log.Errorf("Failed to update job status to Done for RevertVolumeWorkflow: %v", err)
 	}
-	return err
+	return nil
 }
 
 func (wf *volumeRevertWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -74,7 +75,7 @@ func (wf *volumeRevertWorkflow) Setup(ctx workflow.Context, input interface{}) e
 	})
 }
 
-func (wf *volumeRevertWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *volumeRevertWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	log := util.GetLogger(ctx)
 	params := args[0].(*common.RevertVolumeParams)
 	volume := args[1].(*datamodel.Volume)
@@ -82,7 +83,7 @@ func (wf *volumeRevertWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	options := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -110,14 +111,14 @@ func (wf *volumeRevertWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, volume.Pool.ID).Get(ctx, &dbNodes)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType})
 	err = workflow.ExecuteActivity(ctx, activities.VolumeRevertActivity.RevertVolume, &volume, &snapshot, &node, params).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
-	return nil, err
+	return nil, ConvertToVSAError(err)
 }

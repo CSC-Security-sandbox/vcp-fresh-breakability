@@ -3,6 +3,7 @@ package workflows
 import (
 	"errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -33,7 +34,7 @@ func UnRegisterNodeFromHarvestFarmWorkflow(ctx workflow.Context, params *unRegis
 	}
 	wf.Status = WorkflowStatusRunning
 	_, err = wf.Run(ctx, params)
-	if err != nil {
+	if e, ok := err.(*vsaerrors.CustomError); ok && e != nil {
 		wf.Status = WorkflowStatusFailed
 		return err
 	}
@@ -56,12 +57,12 @@ func (wf *unRegisterNodeFromHarvestFarmWorkflow) Setup(ctx workflow.Context, inp
 	return nil
 }
 
-func (wf *unRegisterNodeFromHarvestFarmWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *unRegisterNodeFromHarvestFarmWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	input := args[0].(*unRegisterNodeFromHarvestFarmParams)
 	unRegisterActivity := &activities.UnRegisterNodeFromHarvestActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -90,7 +91,7 @@ func (wf *unRegisterNodeFromHarvestFarmWorkflow) Run(ctx workflow.Context, args 
 			wf.Logger.Infof("no nodes available to perform unregister from harvest farm")
 			return nil, nil
 		}
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// If No Nodes exist, i.e., pollers are already deleted from harvest farm hence mark the wf as success
@@ -109,7 +110,7 @@ func (wf *unRegisterNodeFromHarvestFarmWorkflow) Run(ctx workflow.Context, args 
 			wf.Logger.Infof("no nodeGroupMap available to perform unregister from harvest farm")
 			return nil, nil
 		}
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// If No nodeGroupMap exists, i.e., pollers are already deleted from harvest farm hence mark the wf as success
@@ -122,20 +123,20 @@ func (wf *unRegisterNodeFromHarvestFarmWorkflow) Run(ctx workflow.Context, args 
 	// 3.Delete NodeGroupMapping from DB i.e., soft delete
 	err = workflow.ExecuteActivity(ctx, unRegisterActivity.DeleteNodeGroupMapping, activityParams).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// 4. Delete node pollers from harvest farm, i.e., node harvest yaml files will be deleted from PVC
 	err = workflow.ExecuteActivity(ctx, unRegisterActivity.DeletePollersFromHarvestFarm, activityParams).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// 5. Validate and delete kubernetes lease information from DB, i.e., if no nodes are assigned to
 	// harvest farm then HPA will delete the pod having poller count to 0
 	err = workflow.ExecuteActivity(ctx, unRegisterActivity.ValidateAndReleaseLease, activityParams).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	return nil, nil

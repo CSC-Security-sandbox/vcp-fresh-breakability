@@ -3,7 +3,6 @@ package activities
 import (
 	"context"
 	"fmt"
-	"go.temporal.io/sdk/temporal"
 	"strconv"
 	"strings"
 	"time"
@@ -97,10 +96,10 @@ func (ca CommonActivities) GetNode(ctx context.Context, poolId int64) ([]*datamo
 
 	nodes, err := se.GetNodesByPoolID(ctx, poolId)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	if len(nodes) == 0 {
-		return nil, temporal.NewNonRetryableApplicationError("Node not present for this pool", "GetNodeError", errors.New("node not found for the pool"))
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrUnexpectedNodeCountForPool, errors.New("Node not found for the pool")))
 	}
 
 	return nodes, nil

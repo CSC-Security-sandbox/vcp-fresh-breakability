@@ -156,7 +156,7 @@ func Test_FinishProjectEventForSDEActivity(t *testing.T) {
 		activity := &FinishProjectEventActivity{SE: mockSE}
 		_, err := activity.FinishProjectEventForSDEActivity(ctx, params)
 		assert.NotNil(tt, err)
-		assert.ErrorContains(tt, err, errMsg)
+		assert.ErrorContains(tt, err, "Client not available")
 	})
 
 	t.Run("FinishProjectEventForSDEActivity_WhenCVPClientReturnsUnexpectedResponse", func(tt *testing.T) {
@@ -302,12 +302,13 @@ func Test_PollFinishProjectEventSDEOperationActivity(t *testing.T) {
 
 		activity := &FinishProjectEventActivity{SE: mockSE}
 		err := activity.PollFinishProjectEventSDEOperationActivity(ctx, params, result)
-		var applicationError *temporal.ApplicationError
 		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "Client Error during FinishProjectEvent")
+
+		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
 		assert.True(tt, applicationError.NonRetryable())
 		assert.Equal(tt, "CustomError", applicationError.Type())
-		assert.ErrorContains(tt, err, "Internal Server Error")
 	})
 
 	t.Run("PollFinishProjectEventSDEOperationActivity_WhenJobIsNotFinished", func(tt *testing.T) {
@@ -346,7 +347,7 @@ func Test_PollFinishProjectEventSDEOperationActivity(t *testing.T) {
 		activity := &FinishProjectEventActivity{SE: mockSE}
 		err := activity.PollFinishProjectEventSDEOperationActivity(ctx, params, result)
 		assert.NotNil(tt, err)
-		assert.ErrorContains(tt, err, "job not finished")
+		assert.ErrorContains(tt, err, "Error SDE job not done")
 
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))
@@ -385,7 +386,7 @@ func Test_PollFinishProjectEventSDEOperationActivity(t *testing.T) {
 		activity := &FinishProjectEventActivity{SE: mockSE}
 		err := activity.PollFinishProjectEventSDEOperationActivity(ctx, params, result)
 		assert.NotNil(tt, err)
-		assert.ErrorContains(tt, err, errMsg)
+		assert.ErrorContains(tt, err, "Error describing SDE Operation")
 
 		var applicationError *temporal.ApplicationError
 		assert.True(tt, errors2.As(err, &applicationError))

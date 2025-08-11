@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"go.temporal.io/sdk/temporal"
 	"gorm.io/gorm"
@@ -54,7 +55,7 @@ func TestRegisterNodeToHarvestFarm_NoNodes(t *testing.T) {
 	ctx := context.Background()
 	_, err := activity.RegisterNodeToHarvestFarm(ctx, RegisterNodeToHarvestFarmInput{PoolID: 1, MaxNodesPerGroup: 5, CustomerProjectID: "customer-project", TenantProjectID: "tenant-project"})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not enough nodes found for pool")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "not enough nodes found for pool")
 }
 
 func TestRegisterNodeToHarvestFarm_DBError(t *testing.T) {

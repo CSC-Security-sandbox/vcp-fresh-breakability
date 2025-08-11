@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -44,10 +45,10 @@ func RegisterNodeToHarvestFarmWorkflow(ctx workflow.Context, input RegisterNodeT
 	}
 	wf.Status = WorkflowStatusRunning
 	// Optionally update the job status here if needed
-	_, err = wf.Run(ctx, input)
-	if err != nil {
+	_, customErr := wf.Run(ctx, input)
+	if customErr != nil {
 		wf.Status = WorkflowStatusFailed
-		return err
+		return customErr
 	}
 	wf.Status = WorkflowStatusCompleted
 	return nil
@@ -62,12 +63,12 @@ func (wf *registerNodeToHarvestFarmWorkflow) Setup(ctx workflow.Context, input i
 	return nil
 }
 
-func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	input := args[0].(RegisterNodeToHarvestFarmWorkflowInput)
 	registerActivity := &activities.RegisterNodeToHarvestFarmActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	// Set activity options
 	ao := workflow.ActivityOptions{
@@ -96,14 +97,14 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 			TenantProjectID:   input.TenantProjectID,
 		}).Get(ctx, &nodeMappings)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// 2. Validate and create kubernetes lease if required.
 	var updatedNodeMappings []*datamodel.NodeNodeGroupMap
 	err = workflow.ExecuteActivity(ctx, registerActivity.ValidateAndCreateKubernetesLease, nodeMappings).Get(ctx, &updatedNodeMappings)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Render and upload a Harvest template for each node mapping (sequentially)
@@ -117,7 +118,7 @@ func (wf *registerNodeToHarvestFarmWorkflow) Run(ctx workflow.Context, args ...i
 	uploadActivity := &activities.UploadHarvestTemplateActivity{}
 	err = workflow.ExecuteActivity(ctx, uploadActivity.UploadHarvestTemplate, uploadInput).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	return updatedNodeMappings, nil

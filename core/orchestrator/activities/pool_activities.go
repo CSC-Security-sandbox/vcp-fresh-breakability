@@ -159,7 +159,11 @@ var (
 
 func (j *PoolActivity) CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := j.SE
-	return se.CreatingPool(ctx, pool)
+	pool, err := se.CreatingPool(ctx, pool)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return pool, nil
 }
 
 func (j *PoolActivity) FailedPool(ctx context.Context, pool *datamodel.Pool, errMsg string) error {
@@ -220,8 +224,11 @@ func (j *PoolActivity) ErroredPool(ctx context.Context, pool *datamodel.Pool, er
 	se := j.SE
 
 	res, err := se.ErroredResource(ctx, pool, errMessage)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
 	dbPool := res.(*datamodel.Pool)
-	return dbPool, err
+	return dbPool, nil
 }
 
 func (j *PoolActivity) DeletePoolResourcesOnRollback(ctx context.Context, pool *datamodel.Pool) error {
@@ -246,7 +253,11 @@ func (j *PoolActivity) DeletePoolResourcesOnRollback(ctx context.Context, pool *
 
 func (j *PoolActivity) UpdatedPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := j.SE
-	return se.UpdatedPool(ctx, pool)
+	pool, err := se.UpdatedPool(ctx, pool)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return pool, nil
 }
 
 func (j *PoolActivity) UpdatedPoolWithVLMConfig(ctx context.Context, pool *datamodel.Pool, vlmConfig vlm.VLMConfig, updatePoolParams *commonparams.UpdatePoolParams) (*datamodel.Pool, error) {
@@ -508,7 +519,7 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 	credentials := &vlm.OntapCredentials{}
 	gcpService, getGcpServiceErr := hyperscaler2.GetGCPService(ctx)
 	if getGcpServiceErr != nil {
-		return nil, getGcpServiceErr
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, getGcpServiceErr))
 	}
 
 	switch pool.PoolCredentials.AuthType {
@@ -538,7 +549,7 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 func (j *PoolActivity) DeleteOnTapCredentials(ctx context.Context, pool *datamodel.Pool) error {
 	gcpService, err := hyperscaler2.GetGCPService(ctx)
 	if err != nil {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err))
 	}
 	switch pool.PoolCredentials.AuthType {
 	case env.USER_CERTIFICATE:
@@ -1010,7 +1021,7 @@ func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm
 			haPairNode1 := fmt.Sprintf("%s-%d.%s.%s.", "dns", (2*i)+1, clusterName, env.VsaDeployedDnsName)
 			record1, err := hyperscaler2.GetOrCreateCloudDNSRecord(gcpService, haPairNode1, IpaddressVm1)
 			if err != nil {
-				return nil, err
+				return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err))
 			}
 			hostMap[IpaddressVm1] = record1.RecordName
 
@@ -1018,7 +1029,7 @@ func (j *PoolActivity) CreateCloudDNSRecords(ctx context.Context, vlmConfig *vlm
 			haPairNode2 := fmt.Sprintf("%s-%d.%s.%s.", "dns", (2*i)+2, clusterName, env.VsaDeployedDnsName)
 			record2, err := hyperscaler2.GetOrCreateCloudDNSRecord(gcpService, haPairNode2, IpaddressVm2)
 			if err != nil {
-				return nil, err
+				return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err))
 			}
 			hostMap[IpaddressVm2] = record2.RecordName
 		}
@@ -1031,7 +1042,7 @@ func (j *PoolActivity) DeleteCloudDNSRecords(ctx context.Context, hostMap map[st
 	if authType == env.USER_CERTIFICATE {
 		gcpService, err := hyperscaler2.GetGCPService(ctx)
 		if err != nil {
-			return err
+			return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err))
 		}
 		// Delete entries for each node
 		for _, host := range hostMap {
@@ -1052,10 +1063,10 @@ func (j *PoolActivity) GetCloudDNSRecords(ctx context.Context, poolId int64, aut
 		se := j.SE
 		nodes, err := se.GetNodesByPoolID(ctx, poolId)
 		if err != nil {
-			return &hostMap, err
+			return &hostMap, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err))
 		}
 		if len(nodes) == 0 {
-			return &hostMap, errors.New("no node found for the pool")
+			return &hostMap, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, errors.New("no node found for the pool")))
 		}
 		for _, node := range nodes {
 			hostMap[node.EndpointAddress] = node.HostDNSName
@@ -1589,7 +1600,7 @@ func _createVPC(gService hyperscaler2.GoogleServices, projectName, vpcName strin
 	if err != nil {
 		resourceNotFound, errReceived := resourceNotFoundCheck(err.Error(), projectName, vpcName, "", "")
 		if !resourceNotFound {
-			return "", errReceived
+			return "", vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, errReceived)
 		}
 	}
 	if vpcNetworkReceived != nil {
@@ -1610,7 +1621,7 @@ func _insertSubnet(gService hyperscaler2.GoogleServices, projectName string, Reg
 	if err != nil {
 		resourceNotFound, errReceived := resourceNotFoundCheck(err.Error(), projectName, vpcName, subnetName, "")
 		if !resourceNotFound {
-			return "", errReceived
+			return "", vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errReceived)
 		}
 	}
 	if subnetReceived != nil {
@@ -1647,7 +1658,7 @@ func _insertFirewall(gService hyperscaler2.GoogleServices, projectName, firewall
 		resourceNotFound, errReceived := resourceNotFoundCheck(err.Error(), projectName, vpcName, "", firewallName)
 		logger.Debugf("Error getting firewall for project : %s and network name : %s firewall name : %s . Error : %v resourceNotFound : %t", projectName, vpcName, firewallName, err, resourceNotFound)
 		if !resourceNotFound {
-			return "", errReceived
+			return "", vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errReceived)
 		}
 	}
 	if existingFirewall != nil {

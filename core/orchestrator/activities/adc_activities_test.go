@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -86,7 +88,7 @@ func TestDeployADCCloudRunService(t *testing.T) {
 	t.Run("onCloudServiceGetFailure", func(t *testing.T) {
 		ctx := context.Background()
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
-			return nil, fmt.Errorf("failed to get cloud service")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to get cloud service"))
 		}
 		activity := activities.ADCActivity{}
 		response, err := activity.DeployADCCloudRunService(ctx, nil)
@@ -179,7 +181,7 @@ func TestGetADCServiceURL(t *testing.T) {
 	t.Run("OnCloudServiceGetFailure", func(t *testing.T) {
 		ctx := context.Background()
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
-			return nil, fmt.Errorf("failed to get cloud service")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to get cloud service"))
 		}
 
 		activity := activities.ADCActivity{}
@@ -232,7 +234,7 @@ func TestCleanupADCCloudRunService(t *testing.T) {
 	t.Run("OnCloudServiceGetFailure", func(t *testing.T) {
 		ctx := context.Background()
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
-			return nil, fmt.Errorf("failed to get cloud service")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to get cloud service"))
 		}
 
 		activity := activities.ADCActivity{}
@@ -285,7 +287,7 @@ func TestCreateServiceAccount(t *testing.T) {
 	t.Run("OnCloudServiceGetFailure", func(t *testing.T) {
 		ctx := context.Background()
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
-			return nil, fmt.Errorf("failed to get cloud service")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to get cloud service"))
 		}
 
 		activity := activities.ADCActivity{}
@@ -332,7 +334,7 @@ func TestAttachRolesToServiceAccount(t *testing.T) {
 	t.Run("OnCloudServiceGetFailure", func(t *testing.T) {
 		ctx := context.Background()
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
-			return nil, fmt.Errorf("failed to get cloud service")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to get cloud service"))
 		}
 
 		activity := activities.ADCActivity{}
@@ -394,7 +396,7 @@ func TestIsServiceAccountCreated(t *testing.T) {
 	t.Run("OnCloudServiceGetFailure", func(t *testing.T) {
 		ctx := context.Background()
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
-			return nil, fmt.Errorf("failed to get cloud service")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to get cloud service"))
 		}
 
 		activity := activities.ADCActivity{}
@@ -427,7 +429,7 @@ func TestDeleteSA(t *testing.T) {
 	t.Run("OnCloudServiceGetFailure", func(t *testing.T) {
 		ctx := context.Background()
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
-			return nil, fmt.Errorf("failed to get cloud service")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to get cloud service"))
 		}
 
 		activity := activities.ADCActivity{}
@@ -474,7 +476,7 @@ func TestRemoveRolesFromServiceAccount(t *testing.T) {
 	t.Run("OnCloudServiceGetFailure", func(t *testing.T) {
 		ctx := context.Background()
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
-			return nil, fmt.Errorf("failed to get cloud service")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to get cloud service"))
 		}
 
 		activity := activities.ADCActivity{}
@@ -535,7 +537,7 @@ func TestCheckOperationStatus(t *testing.T) {
 	t.Run("OnCloudServiceGetFailure", func(t *testing.T) {
 		ctx := context.Background()
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
-			return nil, fmt.Errorf("failed to get cloud service")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to get cloud service"))
 		}
 
 		activity := activities.ADCActivity{}
@@ -588,7 +590,7 @@ func TestCreateHmacKeys(t *testing.T) {
 	t.Run("OnCloudServiceGetFailure", func(t *testing.T) {
 		ctx := context.Background()
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
-			return nil, fmt.Errorf("failed to get cloud service")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to get cloud service"))
 		}
 
 		activity := activities.ADCActivity{}
@@ -821,7 +823,7 @@ func TestCheckDeleteStatusWithCloudRun(t *testing.T) {
 		response, err := activity.CheckDeleteStatusWithCloudRun(ctx, params, serviceURL, redirectURL)
 		assert.NotNil(t, err)
 		assert.Nil(t, response)
-		assert.Contains(t, err.Error(), "missing redirect URL")
+		assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "missing redirect URL")
 	})
 
 	t.Run("OnInvalidADCParams", func(t *testing.T) {
@@ -882,7 +884,7 @@ func TestGetStandardAuthToken(t *testing.T) {
 
 		originalGetCloudService := activities.GetCloudService
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
-			return nil, fmt.Errorf("failed to get cloud service")
+			return nil, workflows.ConvertToVSAError(fmt.Errorf("failed to get cloud service"))
 		}
 		defer func() { activities.GetCloudService = originalGetCloudService }()
 

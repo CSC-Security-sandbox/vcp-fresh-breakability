@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -526,10 +527,19 @@ func TestLunGet(t *testing.T) {
 		}
 		resp, err := rc.LunGet(params)
 
-		assert.Error(tt, err)
 		assert.Nil(tt, resp)
-		assert.Contains(tt, err.Error(), "lun not found")
-
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "An internal error occurred.")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, customErr.OriginalErr.Error(), "lun not found: svm=testSVM, volume=testVol, lun=testLun")
+			assert.Equal(tt, customErr.HttpCode, nillable.ToPointer(500))
+			assert.Equal(tt, customErr.TrackingID, 5006)
+			assert.Equal(tt, customErr.Message, "An internal error occurred.")
+			assert.Equal(tt, customErr.Retriable, false)
+		} else {
+			tt.Fatalf("Expected a CustomError, got %T", err)
+		}
 		mockSAN.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
 	})
@@ -556,8 +566,17 @@ func TestLunGet(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, resp)
-		assert.Equal(tt, "fetch error", err.Error())
-
+		assert.EqualError(tt, err, "An internal error occurred.")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, customErr.OriginalErr.Error(), "fetch error")
+			assert.Equal(tt, customErr.HttpCode, nillable.ToPointer(500))
+			assert.Equal(tt, customErr.TrackingID, 5006)
+			assert.Equal(tt, customErr.Message, "An internal error occurred.")
+			assert.Equal(tt, customErr.Retriable, false)
+		} else {
+			tt.Fatalf("Expected a CustomError, got %T", err)
+		}
 		mockSAN.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
 	})
@@ -606,7 +625,17 @@ func TestLunUpdate(t *testing.T) {
 		mockSAN.On("LunUpdate", mock.Anything).Return(false, nil, errors.New("update error")).Once()
 		err := rc.LunUpdate(params)
 		assert.Error(tt, err)
-		assert.Equal(tt, "update error", err.Error())
+		assert.EqualError(tt, err, "An internal error occurred.")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, customErr.OriginalErr.Error(), "update error")
+			assert.Equal(tt, customErr.HttpCode, nillable.ToPointer(500))
+			assert.Equal(tt, customErr.TrackingID, 5006)
+			assert.Equal(tt, customErr.Message, "An internal error occurred.")
+			assert.Equal(tt, customErr.Retriable, false)
+		} else {
+			tt.Fatalf("Expected a CustomError, got %T", err)
+		}
 		mockSAN.AssertExpectations(tt)
 	})
 

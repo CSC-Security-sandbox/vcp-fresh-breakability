@@ -35,7 +35,7 @@ func (a VolumeRevertActivity) RevertVolume(ctx context.Context, volume *datamode
 	err = provider.RevertVolume(revertVolumeParams)
 	if err != nil {
 		logger.Errorf("Failed to revert volume %s in ontap: %v", params.VolumeID, err)
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	logger.Debugf("Volume %s Reverted successfully in ontap", params.VolumeID)
 
@@ -43,7 +43,7 @@ func (a VolumeRevertActivity) RevertVolume(ctx context.Context, volume *datamode
 	err = se.RevertedVolume(ctx, volume, snapshot)
 	if err != nil {
 		logger.Errorf("Failed to update the reverted volume %s in DB: %v", params.VolumeID, err)
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	return nil

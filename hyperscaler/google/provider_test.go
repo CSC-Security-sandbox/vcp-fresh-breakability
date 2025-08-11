@@ -13,6 +13,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/stretchr/testify/assert"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -1713,7 +1714,7 @@ func TestGcpServices_DeleteServiceAccount(t *testing.T) {
 			}
 			err = gcp.DeleteServiceAccount("test-sa@test-project.iam.gserviceaccount.com")
 			if tt.wantErr {
-				assert.Error(t, err)
+				assert.ErrorContains(t, err.(*vsaerrors.CustomError).OriginalErr, "Projects.ServiceAccounts.Delete: googleapi: got HTTP response code 500 with body: ")
 			} else {
 				assert.NoError(t, err)
 			}

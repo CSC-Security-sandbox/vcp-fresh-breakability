@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	oModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -23,6 +24,16 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
+
+func assertErrContainsOriginal(t *testing.T, err error, substring string) {
+	t.Helper()
+	var customErr *vsaerrors.CustomError
+	if vsaerrors.As(err, &customErr) && customErr.Unwrap() != nil {
+		assert.ErrorContains(t, customErr.Unwrap(), substring)
+		return
+	}
+	assert.ErrorContains(t, err, substring)
+}
 
 func TestCreateBackup_Success(t *testing.T) {
 	// Arrange
@@ -2046,7 +2057,7 @@ func TestPrepareObjectStoreActivity_GetObjStoreNameFailure(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "no matching bucket details found")
+	assertErrContainsOriginal(t, err, "no matching bucket details found")
 }
 
 func TestPrepareObjectStoreActivity_GetBucketDetailsFailure(t *testing.T) {
@@ -2091,7 +2102,7 @@ func TestPrepareObjectStoreActivity_GetBucketDetailsFailure(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "no matching bucket details found")
+	assertErrContainsOriginal(t, err, "no matching bucket details found")
 }
 
 func TestGetOrCreateObjectStoreActivity_Success(t *testing.T) {
@@ -2345,7 +2356,7 @@ func TestPrepareSnapmirrorActivity_GetSmDestinationPathFailure(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "no matching bucket details found")
+	assertErrContainsOriginal(t, err, "no matching bucket details found")
 }
 
 func TestCreateSnapmirrorRelationshipActivity_Success(t *testing.T) {

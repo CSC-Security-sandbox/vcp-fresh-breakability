@@ -600,7 +600,7 @@ func TestErroredSVM(t *testing.T) {
 		assert.Error(tt, err)
 		var vcpErr *vsaerrors.CustomError
 		assert.True(tt, errors.As(err, &vcpErr))
-		assert.Contains(tt, err.Error(), "no such table")
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "no such table")
 	})
 }
 

@@ -2,6 +2,7 @@ package replicationWorkflows
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/replicationActivities"
@@ -23,7 +24,6 @@ type internalVolumeReplicationUpdateWorkflow struct {
 var _ workflows.WorkflowInterface = &internalVolumeReplicationUpdateWorkflow{}
 
 func UpdateInternalVolumeReplicationWorkflow(ctx workflow.Context, params *common.UpdateVolumeReplicationInternalParams, replication *datamodel.VolumeReplication) (*vsa.VolumeReplication, error) {
-	logger := util.GetLogger(ctx)
 	repWf := new(internalVolumeReplicationUpdateWorkflow)
 	err := repWf.Setup(ctx, params)
 	if err != nil {
@@ -32,21 +32,18 @@ func UpdateInternalVolumeReplicationWorkflow(ctx workflow.Context, params *commo
 	repWf.Status = workflows.WorkflowStatusRunning
 	err = repWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
+		repWf.Status = workflows.WorkflowStatusFailed
+		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		return nil, err
 	}
-	defer func() {
-		if err == nil {
-			repWf.Status = workflows.WorkflowStatusCompleted
-			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-		} else {
-			repWf.Status = workflows.WorkflowStatusFailed
-			err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
-		}
-	}()
-	_, err = repWf.Run(ctx, params, replication)
-	if err != nil {
-		logger.Info("Internal Volume Replication update workflow run executed with error", "error", err)
+	_, customErr := repWf.Run(ctx, params, replication)
+	if customErr != nil {
+		repWf.Status = workflows.WorkflowStatusFailed
+		err = repWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
+		return nil, err
 	}
+	repWf.Status = workflows.WorkflowStatusCompleted
+	err = repWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	return nil, err
 }
 
@@ -69,14 +66,14 @@ func (wf *internalVolumeReplicationUpdateWorkflow) Setup(ctx workflow.Context, i
 	})
 }
 
-func (wf *internalVolumeReplicationUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *internalVolumeReplicationUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	params := args[0].(*common.UpdateVolumeReplicationInternalParams)
 	replication := args[1].(*datamodel.VolumeReplication)
 	replicationUpdateActivity := &replicationActivities.InternalVolumeReplicationUpdateActivity{}
 	replicationActivity := &replicationActivities.InternalVolumeReplicationActivity{}
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -92,7 +89,7 @@ func (wf *internalVolumeReplicationUpdateWorkflow) Run(ctx workflow.Context, arg
 	var dbNodes []*datamodel.Node
 	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, replication.Volume.PoolID).Get(ctx, &dbNodes)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
@@ -106,13 +103,13 @@ func (wf *internalVolumeReplicationUpdateWorkflow) Run(ctx workflow.Context, arg
 	var replicationUpdateResponse *vsa.VolumeReplication
 	err = workflow.ExecuteActivity(ctx, replicationUpdateActivity.UpdateVolumeReplicationOntap, params, node, replication.ReplicationAttributes.ExternalUUID).Get(ctx, &replicationUpdateResponse)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
 	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationDetails, replication, replicationUpdateResponse, params.Description).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	return nil, err
+	return nil, workflows.ConvertToVSAError(err)
 }

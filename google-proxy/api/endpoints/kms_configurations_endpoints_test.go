@@ -19,7 +19,7 @@ import (
 	vsaCoreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -570,7 +570,7 @@ func TestV1betaEncryptVolumes(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaEncryptVolumesInternalServerError).Code)
-		assert.Equal(t, "[0] undefined error: account not found", result.(*gcpgenserver.V1betaEncryptVolumesInternalServerError).Message)
+		assert.Equal(t, "Account not found", result.(*gcpgenserver.V1betaEncryptVolumesInternalServerError).Message)
 	})
 	t.Run("V1betaEncryptVolumesWhenOrchestratorEncryptVolumesReturnsEmptyOperation", func(tt *testing.T) {
 		params := gcpgenserver.V1betaEncryptVolumesParams{

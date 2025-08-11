@@ -23,6 +23,16 @@ import (
 	"gorm.io/gorm"
 )
 
+func assertErrContainsOriginal(t *testing.T, err error, substring string) {
+	t.Helper()
+	var customErr *vsaerrors.CustomError
+	if vsaerrors.As(err, &customErr) && customErr.Unwrap() != nil {
+		assert.Contains(t, customErr.Unwrap().Error(), substring)
+		return
+	}
+	assert.ErrorContains(t, err, substring)
+}
+
 func TestOrchestrator_CreateSnapshot(t *testing.T) {
 	t.Run("WhenSnapshotCreationSuccess", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -723,10 +733,7 @@ func TestGetSnapshot(t *testing.T) {
 		}
 
 		snapshot, err := orch.GetSnapshot(ctx, params)
-		var customErr *vsaerrors.CustomError
-		if vsaerrors.As(err, &customErr) {
-			assert.EqualError(tt, err, "[0] undefined error: snapshot 'non-existent-uuid' not found")
-		}
+		assertErrContainsOriginal(tt, err, "snapshot 'non-existent-uuid' not found")
 		assert.Nil(tt, snapshot, "Expected nil snapshot")
 	})
 
@@ -1183,16 +1190,22 @@ func TestOrchestrator_GetMultipleSnapshots(t *testing.T) {
 
 		params := &common.UpdateSnapshotParams{
 			SnapshotBaseParams: common.SnapshotBaseParams{
-				VolumeID:    "test-volume-uuid",
+				VolumeID:    "non-existent-vol-uuid",
 				AccountName: "test_account",
 			},
-			SnapshotUUID: "test-snapshot-uuid",
+			SnapshotUUID: "snap-uuid-1",
 			Description:  "updated_desc",
 		}
 		result, jobID, err := orch.UpdateSnapshot(ctx, params)
 		var customErr *vsaerrors.CustomError
-		if vsaerrors.As(err, &customErr) {
-			assert.EqualError(tt, err, "[0] undefined error: volume 'test-volume-uuid' not found")
+		ok := vsaerrors.As(err, &customErr)
+		assert.True(tt, ok, "expected VCP CustomError")
+		if ok {
+			if customErr.Unwrap() != nil {
+				assert.Contains(tt, customErr.Unwrap().Error(), "volume 'non-existent-vol-uuid' not found")
+			} else {
+				assert.Fail(tt, "missing underlying error in CustomError")
+			}
 		}
 		assert.Nil(tt, result)
 		assert.Empty(tt, jobID)
@@ -1346,7 +1359,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		}
 		snapshot, _, err := orch.DeleteSnapshot(ctx, params)
 		assert.Nil(tt, snapshot, "Expected nil snapshot")
-		assert.ErrorContains(tt, err, "not found")
+		assertErrContainsOriginal(tt, err, "not found")
 	})
 
 	t.Run("WhenSnapshotDeletionFailsDueToAccountNotFound", func(tt *testing.T) {
@@ -1391,7 +1404,7 @@ func TestDeleteSnapshot(t *testing.T) {
 		}
 		snapshot, _, err := orch.DeleteSnapshot(ctx, params)
 		assert.Nil(tt, snapshot, "Expected nil snapshot")
-		assert.ErrorContains(tt, err, "failed to validate volume ownership")
+		assertErrContainsOriginal(tt, err, "failed to validate volume ownership")
 	})
 
 	t.Run("WhenSnapshotDeletionFailsDueToWorkflowError", func(tt *testing.T) {
@@ -1566,7 +1579,7 @@ func TestDeleteSnapshots(t *testing.T) {
 			},
 		}
 		_, err = orch.DeleteSnapmirrorSnapshots(ctx, params)
-		assert.ErrorContains(tt, err, "volume.UUID' not found")
+		assertErrContainsOriginal(tt, err, "volume.UUID' not found")
 	})
 	t.Run("WhenSnapshotDeletionFailsDueToAccountNotFound", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -1610,7 +1623,7 @@ func TestDeleteSnapshots(t *testing.T) {
 			},
 		}
 		_, err = orch.DeleteSnapmirrorSnapshots(ctx, params)
-		assert.ErrorContains(tt, err, "volume.UUID' not found")
+		assertErrContainsOriginal(tt, err, "volume.UUID' not found")
 	})
 	t.Run("WhenSnapshotDeletionFailsDueToWorkflowError", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})

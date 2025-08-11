@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -121,7 +122,7 @@ func TestGetNode(t *testing.T) {
 
 		// Assert
 		assert.Error(tt, err)
-		assert.Equal(tt, "Node not present for this pool (type: GetNodeError, retryable: false): node not found for the pool", err.Error())
+		assert.Equal(tt, "Node not found for the pool", vsaerrors.ExtractCustomError(err).OriginalErr.Error())
 		assert.Nil(tt, node)
 		mockStorage.AssertExpectations(tt)
 	})

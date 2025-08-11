@@ -3,6 +3,7 @@ package activities_test
 import (
 	"context"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -95,13 +96,13 @@ func Test_generateTokenForNode_GetProviderByNodeError(t *testing.T) {
 	clientSecret := "secret"
 	origGetProviderByNode := hyperscaler2.GetProviderByNode
 	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodels.Node) (vsa.Provider, error) {
-		return nil, fmt.Errorf("getProviderByNode error")
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("getProviderByNode error"))
 	}
 	defer func() { hyperscaler2.GetProviderByNode = origGetProviderByNode }()
 
 	token, err := activities.GenerateTokenForNode(context.Background(), node, &clientSecret)
 	assert.Error(t, err)
-	assert.Equal(t, "getProviderByNode error", err.Error())
+	assertTemporalApplicationError(t, err, "getProviderByNode error", "CustomError", false)
 	assert.Nil(t, token)
 }
 
@@ -111,7 +112,7 @@ func Test_getSMCLicenseFromCloud_GetGCPServiceError(t *testing.T) {
 	origGetGCPService := hyperscaler2.GetGCPService
 	originalGetSecret := activities.GetSecretWithVersion
 	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-		return nil, fmt.Errorf("gcp service error")
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("gcp service error"))
 	}
 	activities.GetSecretWithVersion = originalGetSecret
 	defer func() {
@@ -134,7 +135,7 @@ func Test_getSMCLicenseFromCloud_GetSecretWithVersionError(t *testing.T) {
 		return mockService, nil
 	}
 	activities.GetSecretWithVersion = func(gcpService hyperscaler2.GoogleServices, gcpProjectId, secretID, versionID string) (*models.CustomSecret, error) {
-		return nil, fmt.Errorf("secret fetch error")
+		return nil, workflows.ConvertToVSAError(fmt.Errorf("secret fetch error"))
 	}
 	defer func() {
 		hyperscaler2.GetGCPService = origGetGCPService

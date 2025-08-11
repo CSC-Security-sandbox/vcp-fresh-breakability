@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
@@ -46,13 +47,14 @@ func ADCWorkflow(ctx workflow.Context, params *common.DeleteBackupParams, backup
 		return err
 	}
 	adcWf.Status = WorkflowStatusRunning
-	_, err = adcWf.Run(ctx, backupVault, backup, account)
-	if err != nil {
+	_, customErr := adcWf.Run(ctx, backupVault, backup, account)
+
+	if customErr != nil {
 		adcWf.Status = WorkflowStatusFailed
-		return err
+		return customErr
 	}
 	adcWf.Status = WorkflowStatusCompleted
-	return err
+	return nil
 }
 
 func (wf *adcWorkflow) Setup(ctx workflow.Context, input interface{}) error {
@@ -75,7 +77,7 @@ func (wf *adcWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 	})
 }
 
-func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, error) {
+func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	log := util.GetLogger(ctx)
 
 	// Extract arguments
@@ -96,7 +98,7 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
@@ -122,14 +124,14 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 	err = workflow.ExecuteActivity(ctx, adcActivity.GenerateResourceTimestamp).Get(ctx, &saTimestamp)
 	if err != nil {
 		log.Errorf("Failed to generate resource timestamp: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Get bucket details for HMAC key creation
 	bucketDetails, err := getBucketDetailsForBucket(backupVault, backup.Attributes.BucketName)
 	if err != nil {
 		log.Errorf("Failed to get bucket details: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Step 1: Create service account for ADC operations
@@ -142,7 +144,7 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 		bucketDetails.TenantProjectNumber, serviceAccountID, serviceAccountDisplayName).Get(ctx, &serviceAccount)
 	if err != nil {
 		log.Errorf("Failed to create service account: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	rollbackManager.AddActivity(adcActivity.DeleteSA, bucketDetails.TenantProjectNumber, serviceAccountID)
 
@@ -151,12 +153,12 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 	err = workflow.ExecuteActivity(ctx, adcActivity.IsServiceAccountCreated, serviceAccount.Email).Get(ctx, &isCreated)
 	if err != nil {
 		log.Errorf("Failed to check if service account is created: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	if !isCreated {
 		log.Errorf("Service account is not created")
-		return nil, fmt.Errorf("service account is not created")
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, fmt.Errorf("service account is not created"))
 	}
 
 	// Step 2: Attach roles to service account
@@ -164,7 +166,7 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 		bucketDetails.TenantProjectNumber, serviceAccount.Email, roles).Get(ctx, nil)
 	if err != nil {
 		log.Errorf("Failed to attach roles to service account: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	rollbackManager.AddActivity(adcActivity.RemoveRolesFromServiceAccount, bucketDetails.TenantProjectNumber, serviceAccountID, roles)
 
@@ -176,7 +178,7 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 	}).Get(ctx, &encodedHmacKeys)
 	if err != nil {
 		log.Errorf("Failed to create HMAC keys: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Step 3: Deploy ADC Cloud Run service
@@ -232,7 +234,7 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 	err = workflow.ExecuteActivity(ctx, adcActivity.DeployADCCloudRunService, cloudRunConfig).Get(ctx, &cloudRunResponse)
 	if err != nil {
 		log.Errorf("Failed to deploy ADC Cloud Run service: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 	rollbackManager.AddActivity(adcActivity.CleanupADCCloudRunService, adcProjectID, adcRegion, cloudRunConfig.ServiceName)
 
@@ -243,19 +245,19 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 		err = workflow.ExecuteActivity(ctx, adcActivity.CheckOperationStatus, cloudRunResponse.OperationName).Get(ctx, &isReady)
 		if err != nil {
 			log.Errorf("Failed to check Cloud Run operation status: %v", err)
-			return nil, err
+			return nil, ConvertToVSAError(err)
 		}
 		if !isReady {
 			attempts++
 			err = workflow.Sleep(ctx, time.Second*10)
 			if err != nil {
-				return nil, fmt.Errorf("failed to sleep during Cloud Run deployment: %w", err)
+				return nil, ConvertToVSAError(fmt.Errorf("failed to sleep during Cloud Run deployment: %w", err))
 			}
 		}
 	}
 
 	if !isReady {
-		return nil, fmt.Errorf("cloud run service deployment timed out after %d attempts", adcMaxCloudRunAttempts)
+		return nil, ConvertToVSAError(fmt.Errorf("cloud run service deployment timed out after %d attempts", adcMaxCloudRunAttempts))
 	}
 
 	// Step 5: Get Cloud Run service URL
@@ -263,7 +265,7 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 	err = workflow.ExecuteActivity(ctx, adcActivity.GetADCServiceURL, adcProjectID, adcRegion, cloudRunConfig.ServiceName).Get(ctx, &serviceURL)
 	if err != nil {
 		log.Errorf("Failed to get ADC service URL: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// wait for service account and HMAC keys to be ready
@@ -290,7 +292,7 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 	err = workflow.ExecuteActivity(ctx, adcActivity.InitialDeleteRequestWithCloudRun, adcParams, serviceURL).Get(ctx, &adcResponse)
 	if err != nil {
 		log.Errorf("Failed to initiate ADC delete request: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	switch adcResponse.StatusCode {
@@ -304,7 +306,7 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 			err = workflow.ExecuteActivity(ctx, adcActivity.CheckDeleteStatusWithCloudRun, adcParams, serviceURL, currentRedirectURL).Get(ctx, &statusResponse)
 			if err != nil {
 				wf.Logger.Error("CheckDeleteStatus failed", "error", err)
-				return nil, err
+				return nil, ConvertToVSAError(err)
 			}
 			switch statusResponse.StatusCode {
 			case http.StatusOK:
@@ -316,37 +318,37 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 			case http.StatusTemporaryRedirect:
 				if statusResponse.RedirectURL == "" {
 					wf.Logger.Error("Received 307 redirect but no redirect URL provided")
-					return nil, fmt.Errorf("received 307 redirect but no redirect URL provided")
+					return nil, ConvertToVSAError(fmt.Errorf("received 307 redirect but no redirect URL provided"))
 				}
 				currentRedirectURL = statusResponse.RedirectURL
 				wf.Logger.Debug("Following redirect", "redirectURL", currentRedirectURL)
 			case http.StatusInternalServerError, http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden:
 				wf.Logger.Error("ADC delete operation failed", "statusCode", statusResponse.StatusCode)
-				return nil, fmt.Errorf("ADC delete operation failed with status code: %d", statusResponse.StatusCode)
+				return nil, ConvertToVSAError(fmt.Errorf("ADC delete operation failed with status code: %d", statusResponse.StatusCode))
 			default:
 				wf.Logger.Warn("Unexpected status code", "statusCode", statusResponse.StatusCode)
 				// For any other status code, treat as error
-				return nil, fmt.Errorf("ADC delete operation failed with unexpected status code: %d", statusResponse.StatusCode)
+				return nil, ConvertToVSAError(fmt.Errorf("ADC delete operation failed with unexpected status code: %d", statusResponse.StatusCode))
 			}
 			if !pollingCompleted {
 				// Sleep for a period before checking the status again.
 				err = workflow.Sleep(ctx, adcRedirectURLTriggerInterval)
 				if err != nil {
 					wf.Logger.Error("Sleep failed", "error", err)
-					return nil, err
+					return nil, ConvertToVSAError(err)
 				}
 				pollingAttempts++
 			}
 		}
 		if !pollingCompleted {
-			return nil, fmt.Errorf("ADC delete operation timed out after %d polling attempts", adcMaxPollingAttempts)
+			return nil, ConvertToVSAError(fmt.Errorf("ADC delete operation timed out after %d polling attempts", adcMaxPollingAttempts))
 		}
 	case http.StatusOK:
 		wf.Logger.Info("Backup deletion completed immediately")
 	case http.StatusNotFound:
 		wf.Logger.Info("Backup not found")
 	default:
-		return nil, fmt.Errorf("ADC delete request failed with status code: %d", adcResponse.StatusCode)
+		return nil, ConvertToVSAError(fmt.Errorf("ADC delete request failed with status code: %d", adcResponse.StatusCode))
 	}
 
 	// Step 9: Cleanup Cloud Run service
@@ -354,7 +356,7 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 	err = workflow.ExecuteActivity(ctx, adcActivity.CleanupADCCloudRunService, adcProjectID, adcRegion, cloudRunConfig.ServiceName).Get(ctx, &cleanupResponse)
 	if err != nil {
 		log.Errorf("Failed to cleanup ADC Cloud Run service: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Wait for Cloud Run service cleanup to complete
@@ -364,13 +366,13 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 		err = workflow.ExecuteActivity(ctx, adcActivity.CheckOperationStatus, cleanupResponse.OperationName).Get(ctx, &isCleanupReady)
 		if err != nil {
 			log.Errorf("Failed to check Cloud Run cleanup operation status: %v", err)
-			return nil, err
+			return nil, ConvertToVSAError(err)
 		}
 		if !isCleanupReady {
 			cleanupAttempts++
 			err := workflow.Sleep(ctx, time.Second*10)
 			if err != nil {
-				return nil, fmt.Errorf("failed to sleep during Cloud Run cleanup: %w", err)
+				return nil, ConvertToVSAError(fmt.Errorf("failed to sleep during Cloud Run cleanup: %w", err))
 			}
 		}
 	}
@@ -383,14 +385,14 @@ func (wf *adcWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface
 	err = workflow.ExecuteActivity(ctx, adcActivity.RemoveRolesFromServiceAccount, bucketDetails.TenantProjectNumber, serviceAccountID, roles).Get(ctx, nil)
 	if err != nil {
 		log.Errorf("Failed to remove roles from service account: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	// Step 11: Cleanup service account
 	err = workflow.ExecuteActivity(ctx, adcActivity.DeleteSA, bucketDetails.TenantProjectNumber, serviceAccountID).Get(ctx, nil)
 	if err != nil {
 		log.Errorf("Failed to cleanup service account: %v", err)
-		return nil, err
+		return nil, ConvertToVSAError(err)
 	}
 
 	log.Infof("ADC workflow completed successfully for %s", backup.Name)

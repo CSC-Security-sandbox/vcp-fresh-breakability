@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"testing"
 	"time"
 
@@ -203,7 +204,7 @@ func TestPopulateServiceAccountRetryPolicyParams(t *testing.T) {
 		policy, err := populateServiceAccountRetryPolicyParams()
 		assert.Error(t, err)
 		assert.Nil(t, policy)
-		assert.Contains(t, err.Error(), "invalid-timeout")
+		assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid-timeout")
 	})
 
 	t.Run("invalid InitialInterval", func(t *testing.T) {
@@ -216,7 +217,7 @@ func TestPopulateServiceAccountRetryPolicyParams(t *testing.T) {
 		policy, err := populateServiceAccountRetryPolicyParams()
 		assert.Error(t, err)
 		assert.Nil(t, policy)
-		assert.Contains(t, err.Error(), "invalid-interval")
+		assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid-interval")
 	})
 
 	t.Run("invalid BackoffCoefficient", func(t *testing.T) {
@@ -229,7 +230,7 @@ func TestPopulateServiceAccountRetryPolicyParams(t *testing.T) {
 		policy, err := populateServiceAccountRetryPolicyParams()
 		assert.Error(t, err)
 		assert.Nil(t, policy)
-		assert.Contains(t, err.Error(), "invalid-backoff")
+		assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid-backoff")
 	})
 
 	t.Run("invalid MaximumInterval", func(t *testing.T) {
@@ -242,7 +243,7 @@ func TestPopulateServiceAccountRetryPolicyParams(t *testing.T) {
 		policy, err := populateServiceAccountRetryPolicyParams()
 		assert.Error(t, err)
 		assert.Nil(t, policy)
-		assert.Contains(t, err.Error(), "invalid-max-interval")
+		assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "invalid-max-interval")
 	})
 }
 
@@ -319,7 +320,7 @@ func TestUpdateJobStatusWithEmptyID(t *testing.T) {
 	err := bw.UpdateJobStatus(wfCtx, models.JobStateFailure, errors.New("test error"))
 
 	assert.Error(t, err)
-	assert.ErrorContains(t, err, "job uuid cannot be empty")
+	assert.ErrorContains(t, err.(*vsaerrors.CustomError).OriginalErr, "job uuid cannot be empty")
 }
 
 func TestGetSnapshotPolicyName(t *testing.T) {
@@ -442,7 +443,7 @@ func TestWaitForDBJob_GetJobFails(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	err := env.GetWorkflowError()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get db job status")
+	assert.Contains(t, vsaerrors.ExtractCustomError(err).OriginalErr.Error(), "failed to get db job status")
 }
 
 func TestCreateNodeForProviderWithPool_CERT(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -1578,7 +1579,8 @@ func TestUpdatePoolState(t *testing.T) {
 		result, errDB := store.UpdatePoolState(context.Background(), pool3, models.LifeCycleStateUpdating, models.LifeCycleStateUpdatingDetails)
 		assert.Nil(tt, result)
 		assert.Error(tt, errDB)
-		assert.EqualError(tt, errDB, "[0] undefined error: pool not found")
+		assert.EqualError(tt, errDB, "An internal error occurred.")
+		assert.Contains(tt, errDB.(*vsaerrors.CustomError).OriginalErr.Error(), "pool not found")
 	})
 }
 

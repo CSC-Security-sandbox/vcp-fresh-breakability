@@ -409,18 +409,18 @@ func TestGetOngoingMigrateKmsConfigJob(t *testing.T) {
 		result, errQuery := store.GetOngoingMigrateKmsConfigJob(context.Background(), int64(2))
 		assert.Nil(tt, result)
 		assert.Error(tt, errQuery)
-		assert.EqualError(tt, errQuery, "[0] undefined error: job not found")
+		assert.EqualError(tt, errQuery.(*vsaerrors.CustomError).OriginalErr, "job not found")
 	})
 	t.Run("WhenQueriedJobStateIsNeitherNewNorProcessing", func(tt *testing.T) {
 		result, errQuery := store.GetOngoingMigrateKmsConfigJob(context.Background(), int64(3))
 		assert.Nil(tt, result)
 		assert.Error(tt, errQuery)
-		assert.EqualError(tt, errQuery, "[0] undefined error: job not found")
+		assert.EqualError(tt, errQuery.(*vsaerrors.CustomError).OriginalErr, "job not found")
 	})
 	t.Run("WhenQueriedJobAccountIdIsNotPresent", func(tt *testing.T) {
 		result, errQuery := store.GetOngoingMigrateKmsConfigJob(context.Background(), int64(4))
 		assert.Nil(tt, result)
 		assert.Error(tt, errQuery)
-		assert.EqualError(tt, errQuery, "[0] undefined error: job not found")
+		assert.EqualError(tt, errQuery.(*vsaerrors.CustomError).OriginalErr, "job not found")
 	})
 }
