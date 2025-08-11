@@ -6,6 +6,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	commonpb "go.temporal.io/api/common/v1"
+	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
 )
@@ -13,6 +17,16 @@ import (
 func TestCreateVSAClusterDeployment(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
 
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, request *CreateVSAClusterDeploymentRequest) error {
@@ -43,6 +57,16 @@ func TestCreateVSAClusterDeployment(t *testing.T) {
 func TestCreateVSAClusterDeployment_Error(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
 
 	// Register a workflow that returns an error
 	env.RegisterWorkflowWithOptions(
@@ -75,6 +99,16 @@ func TestCreateVSAClusterDeployment_Error(t *testing.T) {
 func TestCreateVSASVM(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
 
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, req *CreateSVMRequest) error {
@@ -98,6 +132,16 @@ func TestCreateVSASVM(t *testing.T) {
 func TestCreateVSASVM_Error(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
 
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, req *CreateSVMRequest) error {
@@ -121,6 +165,16 @@ func TestCreateVSASVM_Error(t *testing.T) {
 func TestCreateVSASVM_ErrorNotAlreadyExists(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
 
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, req *CreateSVMRequest) error {
@@ -145,7 +199,16 @@ func TestCreateVSASVM_ErrorNotAlreadyExists(t *testing.T) {
 func TestCreateVSASVM_ErrorAlreadyExistsInUseByDifferentVM(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
-
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, req *CreateSVMRequest) error {
 			return errors.New("already exists and is in use by a different VM")
@@ -169,6 +232,16 @@ func TestCreateVSASVM_ErrorAlreadyExistsInUseByDifferentVM(t *testing.T) {
 func TestDeleteVSAClusterDeployment(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
 
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, req *DeleteVSAClusterDeploymentRequest) error {
@@ -197,6 +270,16 @@ func TestDeleteVSAClusterDeployment(t *testing.T) {
 func TestDeleteVSAClusterDeployment_Error(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
 
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, req *DeleteVSAClusterDeploymentRequest) error {
@@ -225,6 +308,16 @@ func TestDeleteVSAClusterDeployment_Error(t *testing.T) {
 func TestDeleteVSAClusterDeployment_EmptyDeploymentID(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
 
 	deleteReq := &DeleteVSAClusterDeploymentRequest{
 		ProjectID:    "test-project-id",
@@ -248,6 +341,16 @@ func TestDeleteVSAClusterDeployment_EmptyDeploymentID(t *testing.T) {
 func TestDeleteVSAClusterDeployment_EmptyProjectID(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
 
 	deleteReq := &DeleteVSAClusterDeploymentRequest{
 		ProjectID:    "",
@@ -267,6 +370,16 @@ func TestDeleteVSAClusterDeployment_EmptyProjectID(t *testing.T) {
 func TestDeleteVSAClusterDeployment_BothEmpty(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
 
 	deleteReq := &DeleteVSAClusterDeploymentRequest{
 		ProjectID:    "",
@@ -330,6 +443,16 @@ func TestPopulateRetryPolicyParams_InvalidRetryBackoff(t *testing.T) {
 func TestUpdateVSAClusterDeployment(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
 
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, request *UpdateVSAClusterDeploymentRequest) error {
@@ -356,6 +479,16 @@ func TestUpdateVSAClusterDeployment(t *testing.T) {
 func TestUpdateVSAClusterDeployment_Error(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{
+		"requestCorrelationID": "test-correlation-id",
+	})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
 
 	env.RegisterWorkflowWithOptions(
 		func(ctx workflow.Context, request *UpdateVSAClusterDeploymentRequest) error {
@@ -375,6 +508,34 @@ func TestUpdateVSAClusterDeployment_Error(t *testing.T) {
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
+	expectedTaskQueue := VSALifecycleManagerQueuePrefix + "-" + ontapVersion
+	assert.Equal(t, "vsa-lifecycle-manager-1.0.0", expectedTaskQueue, "Task queue should contain ONTAP version")
+}
+
+func TestUpdateVSAClusterDeployment_Error_CorrelationID_NotFound(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request *UpdateVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: UpdateVSAClusterDeploymentWorkflowName},
+	)
+
+	updateVSAClusterDeploymentRequest := &UpdateVSAClusterDeploymentRequest{}
+	ontapVersion := "1.0.0"
+	vlmManager := NewVSAClientWorkflowManager()
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		_, err := vlmManager.UpdateVSAClusterDeployment(ctx, updateVSAClusterDeploymentRequest, ontapVersion)
+		return err
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "correlation ID not found")
 	expectedTaskQueue := VSALifecycleManagerQueuePrefix + "-" + ontapVersion
 	assert.Equal(t, "vsa-lifecycle-manager-1.0.0", expectedTaskQueue, "Task queue should contain ONTAP version")
 }

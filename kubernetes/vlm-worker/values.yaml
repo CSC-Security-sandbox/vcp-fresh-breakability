@@ -47,3 +47,8 @@ workerConfig:
   maxConcurrentActivities: "1000"
   maxConcurrentWorkflow: "1000"
   maxConcurrentWorkflowTaskPollers: "2"
+  # Encryption key must be a 32-byte (256-bit) string for AES-256.
+  vsaVlmEncryptionKey: "" # Should be the same as in the vcp-worker values.yaml.
+
+#Enabling or Disabling Secret Manager for Microservice Secrets
+secretManagerEnabled: false

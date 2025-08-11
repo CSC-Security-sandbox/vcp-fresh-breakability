@@ -10,6 +10,13 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+// Should be in accordance with the keys defined in the client/vlm/config.go file.
+// Due to cyclic dependency issues, we cannot import the vlm package here.
+const (
+	vlmCorrelationIDKey = "x-correlation-id"
+	vlmDeploymentIDKey  = "x-deployment-id"
+)
+
 // ContextPropagateKeys defines keys which are to be propagated.
 var ContextPropagateKeys = []string{
 	// Params to construct back the logger in workflow/activity
@@ -19,6 +26,10 @@ var ContextPropagateKeys = []string{
 	// should be json serializable
 	"logParam",
 	"Authorization",
+
+	// VLM specific keys
+	"correlationID",
+	"deploymentID",
 }
 
 // contextMapPropagator propagates the keySet across a workflow,
@@ -37,6 +48,10 @@ func NewContextMapPropagator() workflow.ContextPropagator {
 			keyMap[key] = middleware.TemporalSLoggerKey
 		case "Authorization":
 			keyMap[key] = middleware.AuthorizationToken
+		case "correlationID":
+			keyMap[key] = vlmCorrelationIDKey
+		case "deploymentID":
+			keyMap[key] = vlmDeploymentIDKey
 		default:
 			keyMap[key] = key
 		}

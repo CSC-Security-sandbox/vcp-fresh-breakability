@@ -14,6 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	temporalUtils "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -73,6 +74,10 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 
 	accountId := createVSAClusterDeploymentRequest.VLMConfig.Deployment.Labels["account_id"]
 
+	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+	if timeout, ok := WorkflowExecutionTimeoutMap[CreateVSAClusterDeploymentWorkflowName]; ok {
+		workflowExecutionTimeout = timeout
+	}
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		WorkflowID:            createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID, // This ensures that each child workflow has a unique identifier, even if the same Deployment ID is used across different zones
 		TaskQueue:             getVLMWorkerQueue(logger, accountId),                                // As VLM workflows are executed in a VSALifecycleManagerQueue queue
@@ -84,9 +89,20 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 			MaximumInterval:    retryPolicy.MaximumInterval,
 			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
 		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
 	})
 
 	createVSAClusterDeploymentResponse := &CreateVSAClusterDeploymentResponse{}
+
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Add correlation and deployment IDs to context
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, createVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID)
 
 	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, CreateVSAClusterDeploymentWorkflowName, createVSAClusterDeploymentRequest).Get(childWorkflowContxt, &createVSAClusterDeploymentResponse)
 
@@ -108,6 +124,11 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 
 	accountId := createSVMRequest.VLMConfig.Deployment.Labels["account_id"]
 
+	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+	if timeout, ok := WorkflowExecutionTimeoutMap[CreateVSASVMWorkflowName]; ok {
+		workflowExecutionTimeout = timeout
+	}
+
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		TaskQueue:             getVLMWorkerQueue(logger, accountId),
 		WaitForCancellation:   true,
@@ -118,9 +139,20 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 			MaximumInterval:    retryPolicy.MaximumInterval,
 			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
 		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
 	})
 
 	createSVMResponse := &CreateSVMResponse{}
+
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Add correlation and deployment IDs to context
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, createSVMRequest.VLMConfig.Deployment.DeploymentID)
 
 	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, CreateVSASVMWorkflowName, createSVMRequest).Get(childWorkflowContxt, &createSVMResponse)
 	if err != nil {
@@ -151,6 +183,10 @@ func (vlmManager *VSAClientWorkflowManager) DeleteVSAClusterDeployment(ctx workf
 		return err
 	}
 
+	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+	if timeout, ok := WorkflowExecutionTimeoutMap[DeleteVSAClusterDeploymentWorkflowName]; ok {
+		workflowExecutionTimeout = timeout
+	}
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + ontapVersion,
 		WaitForCancellation:   true,
@@ -161,7 +197,18 @@ func (vlmManager *VSAClientWorkflowManager) DeleteVSAClusterDeployment(ctx workf
 			MaximumInterval:    retryPolicy.MaximumInterval,
 			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
 		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
 	})
+
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Add correlation and deployment IDs to context
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, deleteVSAClusterDeploymentRequest.DeploymentID)
 
 	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, DeleteVSAClusterDeploymentWorkflowName, deleteVSAClusterDeploymentRequest).Get(childWorkflowContxt, nil)
 	if err != nil {
@@ -180,6 +227,10 @@ func (vlmManager *VSAClientWorkflowManager) UpdateVSAClusterDeployment(ctx workf
 		return nil, err
 	}
 
+	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
+	if timeout, ok := WorkflowExecutionTimeoutMap[UpdateVSAClusterDeploymentWorkflowName]; ok {
+		workflowExecutionTimeout = timeout
+	}
 	childWorkflowContxt := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		TaskQueue:             VSALifecycleManagerQueuePrefix + "-" + ontapVersion,
 		WaitForCancellation:   true,
@@ -190,9 +241,20 @@ func (vlmManager *VSAClientWorkflowManager) UpdateVSAClusterDeployment(ctx workf
 			MaximumInterval:    retryPolicy.MaximumInterval,
 			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
 		},
+		WorkflowExecutionTimeout: workflowExecutionTimeout,
 	})
 
 	updateVSAClusterDeploymentResponse := &UpdateVSAClusterDeploymentResponse{}
+
+	correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+	if err != nil {
+		logger.Error("Failed to get correlation ID from workflow context logger fields", "error", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Add correlation and deployment IDs to context
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, CorrelationIDKey, correlationID)
+	childWorkflowContxt = workflow.WithValue(childWorkflowContxt, DeploymentIDKey, updateVSAClusterDeploymentRequest.VLMConfig.Deployment.DeploymentID)
 
 	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, UpdateVSAClusterDeploymentWorkflowName, updateVSAClusterDeploymentRequest).Get(childWorkflowContxt, &updateVSAClusterDeploymentResponse)
 

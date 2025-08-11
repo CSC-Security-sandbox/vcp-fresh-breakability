@@ -1,13 +1,22 @@
 // IMPORTANT: This is the VLM workflow datamodel file.
 // We shouldn't edit this from the VCP side unless a newer version is shared by the VLM team.
-
 package vlm
+
+import (
+	"time"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
+)
 
 const (
 	GCPCloud string = "gcp"
 
 	DeploymentTypeSharedHA    string = "shared_ha"
 	DeploymentTypeNonSharedHA string = "non_shared_ha"
+
+	CorrelationIDKey string = "x-correlation-id"
+	DeploymentIDKey  string = "x-deployment-id"
 )
 
 // VLMWorkflowName is the name of the workflow
@@ -17,9 +26,22 @@ const (
 	DeleteVSAClusterDeploymentWorkflowName = "vlm.DeleteVSAClusterDeploymentWorkflow"
 	UpdateVSAClusterDeploymentWorkflowName = "vlm.UpdateVSAClusterDeploymentWorkflow"
 
-	GCP_DISK_PD_SSD = "pd-ssd"
-	GCP_DISK_HDB    = "hyperdisk-balanced"
+	GCP_DISK_PD_SSD              = "pd-ssd"
+	GCP_DISK_HDB                 = "hyperdisk-balanced"
+	ONTAP_CREDENTIAL_ENCRYPT_KEY = "ONTAP_CREDENTIAL_ENCRYPT_KEY"
+
+	ErrorTypeVLMError       string = "VLMError"
+	ErrorTypeVLMClientError string = "VLMClientError"
 )
+
+// TODO: Need to revisit these values for Multi HA configurations
+var WorkflowExecutionTimeoutMap map[string]time.Duration = map[string]time.Duration{
+	"DefaultWorkflowExecutionTimeout":      temporal.GetWorkflowGlobalTimeout(),
+	CreateVSAClusterDeploymentWorkflowName: time.Duration(env.GetInt("VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 30)) * time.Minute,
+	CreateVSASVMWorkflowName:               time.Duration(env.GetInt("VLM_CREATE_VSA_SVM_WF_TIMEOUT_MINUTES", 10)) * time.Minute,
+	DeleteVSAClusterDeploymentWorkflowName: time.Duration(env.GetInt("VLM_DELETE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 20)) * time.Minute,
+	UpdateVSAClusterDeploymentWorkflowName: time.Duration(env.GetInt("VLM_UPDATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES", 120)) * time.Minute,
+}
 
 type VLMConfig struct {
 	Cloud      CloudConfig          `json:"cloud"`
@@ -34,15 +56,17 @@ type CloudConfig struct {
 }
 
 type DeploymentConfig struct {
-	Provider           string      `json:"provider"`             // (gcp/aws/azure)
-	DeploymentID       string      `json:"deployment_id"`        // Added
-	SerialNumberPrefix string      `json:"serial_number_prefix"` // used to generate serial number for all the VMs
+	Provider     string `json:"provider"`      // (gcp/aws/azure)
+	DeploymentID string `json:"deployment_id"` // Added
+	// If the Serial number Prefix is provided then it will be used to generate serial numbers for the VMs.
+	SerialNumberPrefix string      `json:"serial_number_prefix"` //used to generate serial number for all the VMs
+	VMSerialNumbers    []string    `json:"vm_serial_numbers"`    // List of serial numbers for the VMs
 	Region             string      `json:"region" `              // Added
 	Zone               ZoneInfo    `json:"zone"`                 // Added
 	Images             ImageConfig `json:"images"`               // Added
 
-	Tags           string            `json:"tags"`             // Comma separated list of tags to be attached for the VMs created by the deployment
-	Labels         map[string]string `json:"labels"`           // List of labels to attach to resources
+	Tags           string            `json:"tags"`             //Comma separated list of tags to be attached for the VMs created by the deployment
+	Labels         map[string]string `json:"labels"`           //List of labels to attach to resources
 	UserBootargs   string            `json:"user_boot_args"`   // The input is a list of key-value pairs with semicolons as delimiters.
 	UserCustomdata map[string]string `json:"user_custom_data"` // Additional Custom data to be passed to the VMs by user
 
@@ -58,8 +82,8 @@ type DeploymentConfig struct {
 
 	// TODO: check if zone wise netconfig is required
 	NetConfig map[VSALIFType]NetworkConfig `json:"net_config"` // Network configuration for the deployment
-	GCPConfig GCPConfig                    `json:"gcpconfig"`  // GCP specific configuration
-	SPConfig  SPConfig                     `json:"spconfig"`   // Storagepool specific configuration
+	GCPConfig GCPConfig                    `json:"gcpconfig"`  //GCP specific configuration
+	SPConfig  SPConfig                     `json:"spconfig"`   //Storagepool specific configuration
 	DevFlags  DevFlags                     `json:"dev_flags"`  // Development flags
 }
 
@@ -100,16 +124,15 @@ type SPConfig struct {
 	Throughput int64  `json:"tput"` // Throughput for the storage pool
 }
 
-// If user wants to use certificate-based authentication, needs to provide following input. Certificate will be installed during deployment and can be used for authentication. Priority will be given to password, if both certificate and password is provided.
 type OntapCertificate struct {
 	Certificate             string   `json:"certificate"`              // Certificate for ONTAP
 	PrivateKey              string   `json:"private_key"`              // Private key for ONTAP
 	InterMediateCertificate []string `json:"intermediate_certificate"` // Intermediate certificate for ONTAP
 	CommonName              string   `json:"common_name"`              // Common name for ONTAP
-	DNSName                 string   `json:"cert_dns"`                 // DNS name for the certificate
+	DNSName                 string   `json:"cert_dns,omitempty"`       // DNS name for the certificate
 }
 
-// OntapCredentials holds the credentials for ONTAP, including the certificate and password. Certificate is an optional field if user wants use certificate.
+// OntapCredentials holds the credentials for ONTAP, including the certificate and username/password.
 type OntapCredentials struct {
 	Certificate   OntapCertificate `json:"certificate"`    // Certificate for ONTAP
 	AdminPassword string           `json:"admin_password"` // Password for ONTAP
@@ -122,17 +145,17 @@ type HAPair struct {
 }
 
 type VMConfig struct {
-	Region       string                   `json:"region"`    // Added
-	Zone         string                   `json:"zone"`      // Added
-	Name         string                   `json:"name"`      // Name of the VM
-	HostName     string                   `json:"host_name"` // Available during cluster create.
-	SerialNumber string                   `json:"serial_number"`
-	NodeIndex    int                      `json:"node_index"` // Added
-	IsMediator   bool                     `json:"is_mediator"`
-	SystemLIFs   map[VSALIFType]LIFConfig `json:"lifs"`         // List of IPs for the VM
-	SystemDisks  []DiskConfig             `json:"system_disks"` // List of system disks for the VM
-	DataDisks    []DiskConfig             `json:"data_disks"`   // List of data disks for the VM
-	// TODO: Add resource status
+	Region          string                   `json:"region"`    // Added
+	Zone            string                   `json:"zone"`      // Added
+	Name            string                   `json:"name"`      // Name of the VM
+	HostName        string                   `json:"host_name"` // Available during cluster create.
+	SerialNumber    string                   `json:"serial_number"`
+	NodeIndex       int                      `json:"node_index"` // Added
+	IsMediator      bool                     `json:"is_mediator"`
+	SystemLIFs      map[VSALIFType]LIFConfig `json:"lifs"`              // List of IPs for the VM
+	SystemDisks     []DiskConfig             `json:"system_disks"`      // List of system disks for the VM
+	DataDisks       []DiskConfig             `json:"data_disks"`        // List of data disks for the VM
+	VSAManagementIP string                   `json:"vsa_management_ip"` // VSA management IP for the VM
 }
 
 type OntapDiskType string
@@ -149,30 +172,31 @@ const (
 type VSALIFType string
 
 const (
-	LIFTypeNodeMgmt     VSALIFType = "nodemgmt"
-	LIFTypeIC           VSALIFType = "ic"
-	LIFTypeCluster      VSALIFType = "clus"
-	LIFTypeInterCluster VSALIFType = "intercluster"
-	LIFTypeRSM          VSALIFType = "rsm"
-	LIFTypeSan          VSALIFType = "san"
-	LIFTypeNas          VSALIFType = "nas"
-	LIFTypeMediator     VSALIFType = "mediator"
+	LIFTypeNodeMgmt         VSALIFType = "nodemgmt"
+	LIFTypeNodeMgmtInternal VSALIFType = "nodemgmtinternal"
+	LIFTypeIC               VSALIFType = "ic"
+	LIFTypeCluster          VSALIFType = "clus"
+	LIFTypeInterCluster     VSALIFType = "intercluster"
+	LIFTypeRSM              VSALIFType = "rsm"
+	LIFTypeSan              VSALIFType = "san"
+	LIFTypeNas              VSALIFType = "nas"
+	LIFTypeMediator         VSALIFType = "mediator"
 )
 
 type LIFConfig struct {
-	Name          string        `json:"lif_name"`       // Name of the LIF
-	VSALIFType    VSALIFType    `json:"vsa_ip_type"`    // Type of VSA LIF
-	IP            string        `json:"ip"`             // IP for the LIF
-	Uuid          string        `json:"lif_uuid"`       // UUID of the LIF
-	NetworkConfig NetworkConfig `json:"network_config"` // Network configuration for the LIF
-	Region        string        `json:"region"`         // Region for the LIF
-	HomeNode      string        `json:"home_node"`      // Home node for the LIF
+	Name          string        `json:"lif_name"`       //Name of the LIF
+	VSALIFType    VSALIFType    `json:"vsa_ip_type"`    //Type of VSA LIF
+	IP            string        `json:"ip"`             //IP for the LIF
+	Uuid          string        `json:"lif_uuid"`       //UUID of the LIF
+	NetworkConfig NetworkConfig `json:"network_config"` //Network configuration for the LIF
+	Region        string        `json:"region"`         //Region for the LIF
+	HomeNode      string        `json:"home_node"`      //Home node for the LIF
 }
 
 type NetworkConfig struct {
-	Subnet           string           `json:"subnet"`  // Subnet for the NIC
-	VPC              string           `json:"vpc"`     // VPC for the NIC
-	Gateway          string           `json:"gateway"` // Gateway for the subnet
+	Subnet           string           `json:"subnet"`  //Subnet for the NIC
+	VPC              string           `json:"vpc"`     //VPC for the NIC
+	Gateway          string           `json:"gateway"` //Gateway for the subnet
 	GCPNetworkConfig GCPNetworkConfig `json:"gcp_network_config"`
 }
 
@@ -203,15 +227,14 @@ type DataAggrConfig struct {
 }
 
 type DiskConfig struct {
-	Name           string            `json:"name"`
-	Size           uint64            `json:"size"`        // in GB
-	AccessMode     string            `json:"access_mode"` // READ_WRITE or READ_WRITE_MANY
-	Type           string            `json:"type"`        // Disk type (e.g., pd-standard, pd-ssd)
-	DiskIops       int64             `json:"disk_iops"`
-	DiskThroughput int64             `json:"disk_throughput"`
-	ResourceStatus string            `json:"resource_status"` // Status of the resource
-	Zone           string            `json:"zone"`            // Zone for the disk
-	Labels         map[string]string `json:"labels"`
+	Name           string `json:"name"`
+	Size           uint64 `json:"size"`        // in GB
+	AccessMode     string `json:"access_mode"` // READ_WRITE or READ_WRITE_MANY
+	Type           string `json:"type"`        // Disk type (e.g., pd-standard, pd-ssd)
+	DiskIops       int64  `json:"disk_iops"`
+	DiskThroughput int64  `json:"disk_throughput"`
+	ResourceStatus string `json:"resource_status"` // Status of the resource
+	Zone           string `json:"zone"`            // Zone for the disk
 	// TODO: Add resource status
 }
 
@@ -235,7 +258,7 @@ type CreateSVMResponse struct {
 type UpdateVSAClusterDeploymentRequest struct {
 	VLMConfig        VLMConfig          `json:"vlm_config"`        // VLM configuration
 	NumHAPair        int                `json:"num_ha_pair"`       // Number of HA pairs to be created
-	SPConfig         SPConfig           `json:"spconfig"`          // Storagepool specific configuration
+	SPConfig         SPConfig           `json:"spconfig"`          //Storagepool specific configuration
 	OntapCredentials OntapCredentials   `json:"ontap_credentials"` // ONTAP credentials for the VSA cluster
 	NewInstanceType  string             `json:"new_instance_type"` // Instance type for the storage pool
 	OntapUpgrade     OntapUpgradeConfig `json:"ontap_upgrade"`     // ONTAP upgrade configuration
@@ -253,6 +276,17 @@ type DeploymentUpdateStatus struct {
 	AggrDownFail bool `json:"aggr_down_fail"`
 	AggrUpFail   bool `json:"aggr_up_fail"`
 	LifUpFail    bool `json:"lif_up_fail"`
+}
+
+// Used for error propagation to VCP
+type VLMClientError struct {
+	HttpCode  int      `json:"vlmclient_http_code"`
+	Code      string   `json:"vlmclient_code"`
+	Message   string   `json:"vlmclient_message"`
+	Component string   `json:"vlmclient_component"`
+	Retryable bool     `json:"vlmclient_retryable"`
+	External  bool     `json:"vlmclient_external"`
+	Cause     []string `json:"vlmclient_error_string"`
 }
 
 type UpdateVSAClusterDeploymentResponse struct {

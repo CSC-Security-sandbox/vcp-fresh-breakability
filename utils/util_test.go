@@ -2,6 +2,11 @@ package utils
 
 import (
 	"context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	commonpb "go.temporal.io/api/common/v1"
+	"go.temporal.io/sdk/converter"
+	"go.temporal.io/sdk/testsuite"
+	"go.temporal.io/sdk/workflow"
 	"net/http"
 	"os"
 	"strconv"
@@ -2280,4 +2285,84 @@ func TestGetResourcesNameForBackup_DebugLength(t *testing.T) {
 		assert.True(t, len(bucketName) <= 67,
 			"Bucket name length %d should not exceed 67 characters", len(bucketName))
 	})
+}
+
+func TestGetCorrelationIDFromWorkflowContextLoggerFields(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+
+	tests := []struct {
+		name          string
+		setupHeader   bool
+		expectedID    string
+		expectError   bool
+		correlationID string
+	}{
+		{
+			name:          "Valid Correlation ID",
+			setupHeader:   true,
+			expectedID:    "test-correlation-id",
+			expectError:   false,
+			correlationID: "test-correlation-id",
+		},
+		{
+			name:          "Missing Header",
+			setupHeader:   false,
+			expectedID:    "",
+			expectError:   true,
+			correlationID: "",
+		},
+		{
+			name:          "no correlation ID in header",
+			setupHeader:   true,
+			expectedID:    "",
+			expectError:   true,
+			correlationID: "",
+		},
+		{
+			name:          "Special Characters in Correlation ID",
+			setupHeader:   true,
+			expectedID:    "test-123_correlation@id",
+			expectError:   false,
+			correlationID: "test-123_correlation@id",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env := ts.NewTestWorkflowEnvironment()
+			if tt.setupHeader {
+				env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+				var encodedValue *commonpb.Payload
+				if tt.correlationID == "" {
+					encodedValue, _ = converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+				} else {
+					encodedValue, _ = converter.GetDefaultDataConverter().ToPayload(log.Fields{
+						"requestCorrelationID": tt.correlationID,
+					})
+				}
+				mockHeader := &commonpb.Header{
+					Fields: map[string]*commonpb.Payload{
+						"logParam": encodedValue,
+					},
+				}
+				env.SetHeader(mockHeader)
+			}
+
+			env.ExecuteWorkflow(func(ctx workflow.Context) (string, error) {
+				return GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+			})
+
+			assert.True(t, env.IsWorkflowCompleted())
+			var result string
+			err := env.GetWorkflowResult(&result)
+
+			if tt.expectError {
+				assert.Error(t, err, "Expected error for test case: %s", tt.name)
+				assert.Empty(t, result, "Expected empty result for test case: %s", tt.name)
+			} else {
+				assert.NoError(t, err, "Unexpected error for test case: %s", tt.name)
+				assert.Equal(t, tt.expectedID, result, "Correlation ID mismatch for test case: %s", tt.name)
+			}
+		})
+	}
 }

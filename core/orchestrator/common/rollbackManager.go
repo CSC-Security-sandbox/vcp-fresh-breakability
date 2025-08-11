@@ -1,7 +1,13 @@
 package common
 
 import (
+	"strings"
+	"time"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/workflow"
 )
@@ -78,8 +84,19 @@ func (rm *RollbackManager) ExecuteRollback(ctx workflow.Context, err error) {
 				logger.Errorf("Error executing rollback fn, err: %v", err)
 			}
 		case rollbackWorkflowType:
+			wfTimeout := temporal.GetWorkflowGlobalTimeout()
+			// If the workflow function is a VLM workflow, fetch the specific timeout and correlation ID
+			if fnName, ok := r.fn.(string); ok && strings.HasPrefix(fnName, "vlm.") {
+				var correlationID string
+				wfTimeout, correlationID, err = fetchVLMTimeoutAndCorrelationID(ctx, fnName)
+				if err != nil {
+					logger.Warnf("Error fetching VLM timeouts for rollback, err: %v", err)
+				}
+				ctx = workflow.WithValue(ctx, vlm.CorrelationIDKey, correlationID)
+			}
 			options := workflow.ChildWorkflowOptions{
-				TaskQueue: r.taskQueue,
+				TaskQueue:                r.taskQueue,
+				WorkflowExecutionTimeout: wfTimeout,
 			}
 			ctxChild := workflow.WithChildOptions(ctx, options)
 			fut := executeChildWorkflow(ctxChild, r.fn, r.args...)
@@ -89,4 +106,19 @@ func (rm *RollbackManager) ExecuteRollback(ctx workflow.Context, err error) {
 			}
 		}
 	}
+}
+
+func fetchVLMTimeoutAndCorrelationID(ctx workflow.Context, fnName string) (time.Duration, string, error) {
+	wfTimeout := temporal.GetWorkflowGlobalTimeout()
+	if timeout, ok := vlm.WorkflowExecutionTimeoutMap[fnName]; ok {
+		wfTimeout = timeout
+		correlationID, err := utils.GetCorrelationIDFromWorkflowContextLoggerFields(ctx)
+		if err != nil {
+			return 0, "", err
+		}
+
+		return wfTimeout, correlationID, nil
+	}
+
+	return wfTimeout, "", nil
 }

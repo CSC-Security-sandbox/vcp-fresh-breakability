@@ -35,3 +35,5 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "vlm-worker.configMapName" . }}
+            - secretRef:
+                name: {{ include "vlm-worker.secretName" . }}

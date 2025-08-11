@@ -81,6 +81,12 @@ workerConfig:
   vsaFilesImageName: "r9-18-1xn-250722-0000"
   vsaImageProject: ""
   vsaMediatorImageProject: ""
+  # Encryption key must be a 32-byte (256-bit) string for AES-256.
+  vsaVlmEncryptionKey: "" # Should be the same as in the vlm-worker values.yaml.
+  vlmCreateVSAClusterDeploymentWorkflowTimeoutMinutes: 30
+  vlmCreateVSASVMWorkflowTimeoutMinutes: 10
+  vlmDeleteVSAClusterDeploymentWorkflowTimeoutMinutes: 20
+  vlmUpdateVSAClusterDeploymentWorkflowTimeoutMinutes: 120
 
   # Mediator VM Configuration
   vsaMediatorInstanceType: "n2-standard-4"

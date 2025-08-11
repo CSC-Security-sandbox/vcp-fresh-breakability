@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"go.temporal.io/sdk/workflow"
 )
 
@@ -167,4 +170,44 @@ func TestRollbackManager_ExecuteRollback_WorkflowError(t *testing.T) {
 
 		rm.ExecuteRollback(wfCtx, errors.New("fail"))
 	})
+}
+
+func TestFetchVLMTimeoutAndCorrelationID(t *testing.T) {
+	ctx := context.Background()
+	// Simulate logger fields in context for correlation ID extraction
+	ctx = context.WithValue(ctx, middleware.TemporalSLoggerKey, log.Fields{"requestCorrelationID": "test-corr-id"})
+	wfCtx := &mockWorkflowContext{base: ctx}
+
+	// Case: workflow name exists in the timeout map.
+	fnName := vlm.CreateVSAClusterDeploymentWorkflowName
+	timeout, corrID, err := fetchVLMTimeoutAndCorrelationID(wfCtx, fnName)
+	assert.NoError(t, err)
+	assert.Equal(t, "test-corr-id", corrID)
+	assert.Equal(t, vlm.WorkflowExecutionTimeoutMap[vlm.CreateVSAClusterDeploymentWorkflowName], timeout)
+
+	// Case: workflow name does not exist in the timeout map.
+	fnName = "vlm.unknownWorkflow"
+	timeout, corrID, err = fetchVLMTimeoutAndCorrelationID(wfCtx, fnName)
+	assert.NoError(t, err)
+	assert.Equal(t, temporal.GetWorkflowGlobalTimeout(), timeout)
+	assert.Equal(t, "", corrID)
+}
+
+func TestFetchVLMTimeoutAndCorrelationID_ErrorCases(t *testing.T) {
+	// Case: context does not contain logger fields
+	ctx := context.Background()
+	wfCtx := &mockWorkflowContext{base: ctx}
+	fnName := vlm.CreateVSAClusterDeploymentWorkflowName
+	timeout, corrID, err := fetchVLMTimeoutAndCorrelationID(wfCtx, fnName)
+	assert.Error(t, err)
+	assert.Equal(t, "", corrID)
+	assert.Equal(t, time.Duration(0), timeout)
+
+	// Case: context contains logger fields but missing correlation ID
+	ctx = context.WithValue(ctx, middleware.TemporalSLoggerKey, log.Fields{})
+	wfCtx = &mockWorkflowContext{base: ctx}
+	timeout, corrID, err = fetchVLMTimeoutAndCorrelationID(wfCtx, fnName)
+	assert.Error(t, err)
+	assert.Equal(t, "", corrID)
+	assert.Equal(t, time.Duration(0), timeout)
 }

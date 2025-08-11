@@ -81,6 +81,10 @@ data:
   ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: {{ .Values.workerConfig.enableUniqueSerialNumberGeneration | quote }}
   CLUSTER_SERIAL_NUMBER_PREFIX: {{ .Values.workerConfig.clusterSerialNumberPrefix | quote }}
   REGION_NUMBER_MAP: {{ .Values.regionNumberMap | toJson | quote }}
+  VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{ .Values.workerConfig.vlmCreateVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
+  VLM_CREATE_VSA_SVM_WF_TIMEOUT_MINUTES: {{ .Values.workerConfig.vlmCreateVSASVMWorkflowTimeoutMinutes | quote }}
+  VLM_DELETE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{ .Values.workerConfig.vlmDeleteVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
+  VLM_UPDATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{ .Values.workerConfig.vlmUpdateVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
 
   MGMT_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.mgmtFirewallSourceRanges | quote }}
   RSM_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.rsmFirewallSourceRanges | quote }}

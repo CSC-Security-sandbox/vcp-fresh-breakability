@@ -50,3 +50,10 @@ Helper function to generate task queue name based on ontap version.
 {{- define "vlm-worker.taskQueueName" -}}
 {{- printf "%s-%s" .Values.workerConfig.taskQueuePrefix .Values.ontapVersion -}}
 {{- end -}}
+
+{{/*
+Helper function to generate the secret name by appending "-secret" to the app name.
+*/}}
+{{- define "vlm-worker.secretName" -}}
+{{- printf "%s-secret" .Values.app.name -}}
+{{- end -}}

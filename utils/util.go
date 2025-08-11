@@ -31,6 +31,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/workflow"
 )
 
 var (
@@ -943,4 +944,17 @@ func GetLocationFromVendorID(vendorID string) (string, error) {
 	}
 
 	return parts[len(parts)-3], nil
+}
+
+// GetCorrelationIDFromWorkflowContextLoggerFields retrieves the correlation ID from the workflow context logger fields.
+func GetCorrelationIDFromWorkflowContextLoggerFields(ctx workflow.Context) (string, error) {
+	if fields, ok := ctx.Value(middleware.TemporalSLoggerKey).(log.Fields); ok {
+		if _, ok := fields[string(middleware.RequestCorrelationID)]; !ok {
+			return "", fmt.Errorf("no correlation ID found in context")
+		}
+
+		return fields[string(middleware.RequestCorrelationID)].(string), nil
+	} else {
+		return "", fmt.Errorf("correlation ID not found in workflow context logger")
+	}
 }
