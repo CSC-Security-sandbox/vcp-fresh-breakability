@@ -8,16 +8,13 @@ import (
 )
 
 func TestHyderatedMetricsInitialization(t *testing.T) {
-	now := pgtype.Timestamp{Time: time.Now(), Valid: true}
-	quantity := pgtype.Numeric{}
+	now := time.Now()
 	metrics := HydratedMetrics{
-		MetricTimestamp:       now,
-		MeasuredType:          "VSA_ALLOCATED_SIZE",
-		ResourceType:          "VSA_BLOCK_VOLUME",
-		Quantity:              quantity,
-		ResourceUuid:          "123e4567-e89b-12d3-a456-426614174000",
-		Metadata:              []byte("dummy metadata"),
-		ResourcePartitionName: "partition-1",
+		MetricTimestamp: now,
+		MeasuredType:    "VSA_ALLOCATED_SIZE",
+		ResourceType:    "VSA_BLOCK_VOLUME",
+		Quantity:        123.45,
+		Metadata:        []byte("dummy metadata"),
 	}
 	if metrics.MeasuredType != "VSA_ALLOCATED_SIZE" {
 		t.Errorf("Expected MeasuredType 'VSA_ALLOCATED_SIZE', got %s", metrics.MeasuredType)

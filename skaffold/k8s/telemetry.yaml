@@ -116,3 +116,7 @@ spec:
               value: "netapp-au-se1-autopush-sde-tst"
             - name: LOCAL_REGION
               value: "us-west2"
+            - name: ENABLE_VOLUME_METRICS
+              value: "false"
+            - name: PUSH_BATCH_SIZE
+              value: "1000"

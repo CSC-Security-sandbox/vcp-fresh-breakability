@@ -3,6 +3,8 @@ package database
 import (
 	"context"
 	"database/sql"
+	"github.com/DATA-DOG/go-sqlmock"
+	"gorm.io/driver/postgres"
 	"testing"
 	"time"
 
@@ -1647,4 +1649,163 @@ func TestGetNextSerialNumberInRegion(t *testing.T) {
 			tt.Errorf("Expected error, got nil")
 		}
 	})
+}
+
+func TestListSnHosts_ReturnsDistinctNonEmptyProjects(t *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	err = ClearInMemoryDB(store.db.GORM())
+	if err != nil {
+		t.Fatalf("Failed to clean up test database: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	if err = store.db.Create(account).Error(); err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool1 := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "uuid-1"},
+		Name:           "pool1",
+		AccountID:      account.ID,
+		Account:        account,
+		SnHostProject:  "project-1",
+		DeploymentName: "deployment-1",
+	}
+	pool2 := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "uuid-2"},
+		Name:           "pool2",
+		AccountID:      account.ID,
+		Account:        account,
+		SnHostProject:  "project-2",
+		DeploymentName: "deployment-2",
+	}
+	pool3 := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "uuid-3"},
+		Name:           "pool3",
+		AccountID:      account.ID,
+		Account:        account,
+		SnHostProject:  "project-1",
+		DeploymentName: "deployment-3",
+	}
+	if err = store.db.Create(pool1).Error(); err != nil {
+		t.Fatalf("Failed to create pool1: %v", err)
+	}
+	if err = store.db.Create(pool2).Error(); err != nil {
+		t.Fatalf("Failed to create pool2: %v", err)
+	}
+	if err = store.db.Create(pool3).Error(); err != nil {
+		t.Fatalf("Failed to create pool3: %v", err)
+	}
+
+	projects, err := store.ListSnHosts(context.Background())
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []string{"project-1", "project-2"}, projects)
+}
+
+func TestListSnHosts_ExcludesEmptyAndNullProjects(t *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	err = ClearInMemoryDB(store.db.GORM())
+	if err != nil {
+		t.Fatalf("Failed to clean up test database: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+	if err = store.db.Create(account).Error(); err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	poolWithProject := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "uuid-1"},
+		Name:           "pool1",
+		AccountID:      account.ID,
+		Account:        account,
+		SnHostProject:  "project-1",
+		DeploymentName: "deployment-1",
+	}
+	poolWithEmpty := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "uuid-2"},
+		Name:           "pool2",
+		AccountID:      account.ID,
+		Account:        account,
+		SnHostProject:  "",
+		DeploymentName: "deployment-2",
+	}
+	poolWithNull := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "uuid-3"},
+		Name:           "pool1",
+		AccountID:      account.ID,
+		Account:        account,
+		SnHostProject:  "project-1",
+		DeploymentName: "deployment-3",
+	}
+	if err = store.db.Create(poolWithProject).Error(); err != nil {
+		t.Fatalf("Failed to create poolWithProject: %v", err)
+	}
+	if err = store.db.Create(poolWithEmpty).Error(); err != nil {
+		t.Fatalf("Failed to create poolWithEmpty: %v", err)
+	}
+	if err = store.db.Create(poolWithNull).Error(); err != nil {
+		t.Fatalf("Failed to create poolWithNull: %v", err)
+	}
+
+	projects, err := store.ListSnHosts(context.Background())
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"project-1"}, projects)
+}
+
+func TestListSnHosts_ReturnsEmptySliceWhenNoProjects(t *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	err = ClearInMemoryDB(store.db.GORM())
+	if err != nil {
+		t.Fatalf("Failed to clean up test database: %v", err)
+	}
+
+	projects, err := store.ListSnHosts(context.Background())
+	assert.NoError(t, err)
+	assert.Empty(t, projects)
+}
+
+func TestListSnHosts_ReturnsErrorOnDBFailure(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("Failed to create sqlmock: %v", err)
+	}
+	gdb, err := gorm.Open(postgres.New(postgres.Config{Conn: db}), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("Failed to open gorm db: %v", err)
+	}
+	wrapper := gormwrapper.New(gdb)
+	store := NewDataStoreRepository(wrapper)
+
+	mock.ExpectClose() // Add this line
+
+	sqlDB, _ := gdb.DB()
+	if err := sqlDB.Close(); err != nil {
+		t.Errorf("failed to close sqlDB: %v", err)
+	}
+
+	projects, err := store.ListSnHosts(context.Background())
+	assert.Error(t, err)
+	assert.Nil(t, projects)
 }

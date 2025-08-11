@@ -23,6 +23,13 @@ func (r *DataStoreRepository) CreateHydratedMetrics(ctx context.Context, m *data
 	return r.db.GORM().WithContext(ctx).Create(m).Error
 }
 
+func (r *DataStoreRepository) CreateHydratedMetricsBatch(ctx context.Context, metrics []datamodel.HydratedMetrics, batchSize int) error {
+	if len(metrics) == 0 {
+		return nil
+	}
+
+	return r.db.GORM().WithContext(ctx).CreateInBatches(metrics, batchSize).Error
+}
 func (r *DataStoreRepository) GetHydratedMetrics(ctx context.Context, filter map[string]interface{}) ([]datamodel.HydratedMetrics, error) {
 	var result []datamodel.HydratedMetrics
 	tx := r.db.GORM().WithContext(ctx)
@@ -34,11 +41,11 @@ func (r *DataStoreRepository) GetHydratedMetrics(ctx context.Context, filter map
 }
 
 func (r *DataStoreRepository) UpdateHydratedMetrics(ctx context.Context, id string, updates map[string]interface{}) error {
-	return r.db.GORM().WithContext(ctx).Model(&datamodel.HydratedMetrics{}).Where("resource_uuid = ?", id).Updates(updates).Error
+	return r.db.GORM().WithContext(ctx).Model(&datamodel.HydratedMetrics{}).Where("resource_name = ?", id).Updates(updates).Error
 }
 
 func (r *DataStoreRepository) DeleteHydratedMetrics(ctx context.Context, id string) error {
-	return r.db.GORM().WithContext(ctx).Where("resource_uuid = ?", id).Delete(&datamodel.HydratedMetrics{}).Error
+	return r.db.GORM().WithContext(ctx).Where("resource_name = ?", id).Delete(&datamodel.HydratedMetrics{}).Error
 }
 
 // AggregatedUsage CRUD
@@ -107,6 +114,7 @@ type (
 	DataStore interface {
 		// HydratedMetrics CRUD
 		CreateHydratedMetrics(ctx context.Context, m *datamodel.HydratedMetrics) error
+		CreateHydratedMetricsBatch(ctx context.Context, metrics []datamodel.HydratedMetrics, batchSize int) error
 		GetHydratedMetrics(ctx context.Context, filter map[string]interface{}) ([]datamodel.HydratedMetrics, error)
 		UpdateHydratedMetrics(ctx context.Context, id string, updates map[string]interface{}) error
 		DeleteHydratedMetrics(ctx context.Context, id string) error

@@ -362,6 +362,10 @@ func (s *PersistenceStore) CreateHydratedMetrics(ctx context.Context, m *datamod
 	return s.dataStore.dataStore.CreateHydratedMetrics(ctx, m)
 }
 
+func (s *PersistenceStore) CreateHydratedMetricsBatch(ctx context.Context, metrics []datamodel.HydratedMetrics, batchSize int) error {
+	return s.dataStore.dataStore.CreateHydratedMetricsBatch(ctx, metrics, batchSize)
+}
+
 func (s *PersistenceStore) GetHydratedMetrics(ctx context.Context, filter map[string]interface{}) ([]datamodel.HydratedMetrics, error) {
 	return s.dataStore.dataStore.GetHydratedMetrics(ctx, filter)
 }

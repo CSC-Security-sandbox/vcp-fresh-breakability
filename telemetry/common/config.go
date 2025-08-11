@@ -1,6 +1,11 @@
 package common
 
-import "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+import (
+	_ "embed"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"gopkg.in/yaml.v3"
+	"log"
+)
 
 type TelemetryConfig struct {
 	// Server configuration
@@ -9,7 +14,20 @@ type TelemetryConfig struct {
 	PusherServiceProject string
 	RootUrl              string
 	RegionName           string
+	EnableVolumeMetrics  bool
+	PushBatchSize        int64
 }
+
+type MetricItem struct {
+	Metric       string `yaml:"metric"`
+	ResourceType string `yaml:"resourceType"`
+}
+type MetricsConfig struct {
+	VolumeMetrics []MetricItem `yaml:"metrics"`
+}
+
+//go:embed metricList.yaml
+var metricListYAML []byte
 
 func LoadConfig() *TelemetryConfig {
 	rootUrl := env.GetString("ROOT_URL", "https://servicecontrol.googleapis.com")
@@ -17,6 +35,8 @@ func LoadConfig() *TelemetryConfig {
 	pusherServiceName := env.GetString("PUSHER_SERVICE_NAME", "autopush-netapp.sandbox.googleapis.com")
 	pusherServiceProject := env.GetString("PUSHER_SERVICE_PROJECT", "netapp-au-se1-autopush-sde-tst")
 	regionName := env.GetString("LOCAL_REGION", "")
+	enableVolumeMetrics := env.GetBool("ENABLE_VOLUME_METRICS", false)
+	pushBatchSize := env.GetInt64("PUSH_BATCH_SIZE", 1000)
 
 	return &TelemetryConfig{
 		RootUrl:              rootUrl,
@@ -24,5 +44,16 @@ func LoadConfig() *TelemetryConfig {
 		PusherServiceProject: pusherServiceProject,
 		OperationBatchSize:   operationBatchSize,
 		RegionName:           regionName,
+		EnableVolumeMetrics:  enableVolumeMetrics,
+		PushBatchSize:        pushBatchSize,
 	}
+}
+
+func LoadMetricsConfigFromBytes() *MetricsConfig {
+	var config MetricsConfig
+	if err := yaml.Unmarshal(metricListYAML, &config); err != nil {
+		log.Fatalf("Failed to unmarshal metrics config: %v", err)
+	}
+
+	return &config
 }

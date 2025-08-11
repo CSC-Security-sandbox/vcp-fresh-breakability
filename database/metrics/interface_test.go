@@ -24,28 +24,28 @@ func TestDataStoreRepository_HydratedMetricsCRUD(t *testing.T) {
 	metric := &datamodel.HydratedMetrics{
 		MeasuredType: "test-type",
 		ResourceType: "test-resource",
-		ResourceUuid: "uuid-1",
+		ResourceName: "test-resource-1",
 	}
 	// Create
 	assert.NoError(t, repo.CreateHydratedMetrics(ctx, metric))
 
 	// Get
-	metrics, err := repo.GetHydratedMetrics(ctx, map[string]interface{}{"resource_uuid": "uuid-1"})
+	metrics, err := repo.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "test-resource-1"})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, metrics)
 
 	// Update
 	updates := map[string]interface{}{"MeasuredType": "updated-type"}
-	assert.NoError(t, repo.UpdateHydratedMetrics(ctx, "uuid-1", updates))
+	assert.NoError(t, repo.UpdateHydratedMetrics(ctx, "test-resource-1", updates))
 
 	// Get after update
-	metrics, err = repo.GetHydratedMetrics(ctx, map[string]interface{}{"resource_uuid": "uuid-1"})
+	metrics, err = repo.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "test-resource-1"})
 	assert.NoError(t, err)
 	assert.Equal(t, "updated-type", metrics[0].MeasuredType)
 
 	// Delete
-	assert.NoError(t, repo.DeleteHydratedMetrics(ctx, "uuid-1"))
-	metrics, err = repo.GetHydratedMetrics(ctx, map[string]interface{}{"resource_uuid": "uuid-1"})
+	assert.NoError(t, repo.DeleteHydratedMetrics(ctx, "test-resource-1"))
+	metrics, err = repo.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "test-resource-1"})
 	assert.NoError(t, err)
 	assert.Empty(t, metrics)
 }

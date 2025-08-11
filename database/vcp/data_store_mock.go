@@ -7457,6 +7457,64 @@ func (_c *MockDataStore_ListPools_Call) RunAndReturn(run func(context.Context, *
 	return _c
 }
 
+// ListSnHosts provides a mock function with given fields: ctx
+func (_m *MockDataStore) ListSnHosts(ctx context.Context) ([]string, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListSnHosts")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListSnHosts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListSnHosts'
+type MockDataStore_ListSnHosts_Call struct {
+	*mock.Call
+}
+
+// ListSnHosts is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockDataStore_Expecter) ListSnHosts(ctx interface{}) *MockDataStore_ListSnHosts_Call {
+	return &MockDataStore_ListSnHosts_Call{Call: _e.mock.On("ListSnHosts", ctx)}
+}
+
+func (_c *MockDataStore_ListSnHosts_Call) Run(run func(ctx context.Context)) *MockDataStore_ListSnHosts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListSnHosts_Call) Return(_a0 []string, _a1 error) *MockDataStore_ListSnHosts_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListSnHosts_Call) RunAndReturn(run func(context.Context) ([]string, error)) *MockDataStore_ListSnHosts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListVolumeReplications provides a mock function with given fields: ctx, filter
 func (_m *MockDataStore) ListVolumeReplications(ctx context.Context, filter utils.Filter) ([]*datamodel.VolumeReplication, error) {
 	ret := _m.Called(ctx, filter)

@@ -8,7 +8,7 @@ import (
 
 func TestReturnsCorrectMappingForValidKey(t *testing.T) {
 	metricsMappingMap := CreateMetricsMappingMap()
-	key := CombinedKeyResourceTypeMeasuredType{
+	key := metadata.CombinedKeyResourceTypeMeasuredType{
 		ResourceType: metadata.VolumePool,
 		MeasuredType: metadata.PoolAllocatedSize,
 	}
@@ -31,7 +31,7 @@ func TestReturnsEmptyMapWhenNoMappingsExist(t *testing.T) {
 
 func TestHandlesNonExistentKeyGracefully(t *testing.T) {
 	metricsMappingMap := CreateMetricsMappingMap()
-	key := CombinedKeyResourceTypeMeasuredType{
+	key := metadata.CombinedKeyResourceTypeMeasuredType{
 		ResourceType: metadata.VolumePool,
 		MeasuredType: metadata.UnknownMeasuredType,
 	}

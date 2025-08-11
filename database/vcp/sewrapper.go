@@ -349,6 +349,26 @@ func (re *retryEngine) GetNextSerialNumberInRegion(ctx context.Context, region s
 	return var0, err
 }
 
+func (re *retryEngine) ListSnHosts(ctx context.Context) ([]string, error) {
+	var var0 []string
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListSnHosts(ctx)
+		if err != nil {
+			re.logError("ListSnHosts", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) CreateVolume(ctx context.Context, volume *datamodel.Volume) (*datamodel.Volume, error) {
 	var var0 *datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {

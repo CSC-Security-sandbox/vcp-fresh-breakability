@@ -7,13 +7,15 @@ import (
 )
 
 type HydratedMetrics struct {
-	MetricTimestamp       pgtype.Timestamp
-	MeasuredType          string
-	ResourceType          string
-	Quantity              pgtype.Numeric
-	ResourceUuid          string
-	Metadata              []byte
-	ResourcePartitionName string
+	ID              int64     `gorm:"primaryKey;autoIncrement" json:"id"`
+	MetricTimestamp time.Time `gorm:"column:metric_timestamp;not null;index" json:"metric_timestamp"`
+	MeasuredType    string    `gorm:"column:measured_type;not null;index" json:"measured_type"`
+	ResourceType    string    `gorm:"column:resource_type;not null;index" json:"resource_type"`
+	Quantity        float64   `gorm:"column:quantity;not null" json:"quantity"`
+	ResourceName    string    `gorm:"column:resource_name;size:255;index" json:"resource_name"`
+	ConsumerID      string    `gorm:"column:consumer_id;size:255;index" json:"consumer_id"`
+	Location        string    `gorm:"column:location;size:255;index" json:"location"`
+	Metadata        []byte    `gorm:"column:metadata;type:jsonb" json:"metadata"`
 }
 type AggregatedUsage struct {
 	ID                     int64

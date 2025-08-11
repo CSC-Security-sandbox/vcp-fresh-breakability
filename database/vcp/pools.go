@@ -440,3 +440,19 @@ func (d *DataStoreRepository) GetNextSerialNumberInRegion(ctx context.Context, p
 	// 00000000001: nextClusterSerialNumber padded to 13 digits
 	return fmt.Sprintf("%s%013d", prefix, nextClusterSerialNumber), nil
 }
+
+func (d *DataStoreRepository) ListSnHosts(ctx context.Context) ([]string, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var projects []string
+	err := db.
+		Model(&datamodel.Pool{}).
+		Where("sn_host_project <> ''").
+		Where("sn_host_project IS NOT NULL").
+		Where("deleted_at IS NULL").
+		Distinct().
+		Pluck("sn_host_project", &projects).Error
+	if err != nil {
+		return nil, err
+	}
+	return projects, nil
+}

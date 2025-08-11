@@ -1,6 +1,8 @@
 package common
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestLoadsConfigWithDefaultValues(t *testing.T) {
 	config := LoadConfig()
@@ -68,5 +70,67 @@ func TestRegionNameWithEnvironmentVariable(t *testing.T) {
 
 	if config.RegionName != "us-west-1" {
 		t.Fatalf("Expected RegionName to be 'us-west-1', got %s", config.RegionName)
+	}
+}
+
+func TestLoadMetricsConfigFromBytesReturnsValidConfig(t *testing.T) {
+	config := LoadMetricsConfigFromBytes()
+
+	if config == nil {
+		t.Fatalf("Expected config to not be nil")
+	}
+	if config.VolumeMetrics == nil {
+		t.Fatalf("Expected VolumeMetrics to not be nil")
+	}
+}
+
+func TestLoadMetricsConfigFromBytesContainsExpectedMetrics(t *testing.T) {
+	config := LoadMetricsConfigFromBytes()
+
+	if len(config.VolumeMetrics) == 0 {
+		t.Fatalf("Expected VolumeMetrics to contain at least one metric")
+	}
+
+	for i, metric := range config.VolumeMetrics {
+		if metric.Metric == "" {
+			t.Fatalf("Expected metric at index %d to have non-empty Metric field", i)
+		}
+		if metric.ResourceType == "" {
+			t.Fatalf("Expected metric at index %d to have non-empty ResourceType field", i)
+		}
+	}
+}
+
+func TestLoadMetricsConfigFromBytesHandlesValidYamlStructure(t *testing.T) {
+	config := LoadMetricsConfigFromBytes()
+
+	foundValidMetric := false
+	for _, metric := range config.VolumeMetrics {
+		if metric.Metric != "" && metric.ResourceType != "" {
+			foundValidMetric = true
+			break
+		}
+	}
+
+	if !foundValidMetric {
+		t.Fatalf("Expected at least one metric with both Metric and ResourceType fields populated")
+	}
+}
+
+func TestLoadMetricsConfigFromBytesWithEmptyYamlReturnsEmptyConfig(t *testing.T) {
+	originalMetricListYAML := metricListYAML
+	defer func() {
+		metricListYAML = originalMetricListYAML
+	}()
+
+	metricListYAML = []byte("")
+
+	config := LoadMetricsConfigFromBytes()
+
+	if config == nil {
+		t.Fatalf("Expected config to not be nil")
+	}
+	if len(config.VolumeMetrics) != 0 {
+		t.Fatalf("Expected VolumeMetrics to be empty, got %d metrics", len(config.VolumeMetrics))
 	}
 }

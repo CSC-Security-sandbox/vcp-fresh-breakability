@@ -40,7 +40,7 @@ type ResourceInfo struct {
 
 type GoogleMetricsClient struct {
 	rootURL                 string
-	nameAndKeyLabelOfMetric map[common.CombinedKeyResourceTypeMeasuredType]common.Triple
+	nameAndKeyLabelOfMetric map[metadata.CombinedKeyResourceTypeMeasuredType]common.Triple
 	logger                  log.Logger
 	config                  *common.TelemetryConfig
 }
@@ -256,8 +256,8 @@ func (client *GoogleMetricsClient) createOperationForMetric(operationId string, 
 	metricsByName := make(map[string][]entity.HydratedMetric)
 	droppedMetrics := make(map[metadata.MeasuredType][]entity.HydratedMetric)
 
-	for _, measuredType := range metadata.MeasuredTypeMap {
-		droppedMetrics[measuredType] = []entity.HydratedMetric{}
+	for _, CombinedMap := range metadata.CombinedKeyResourceTypeMeasuredTypeMap {
+		droppedMetrics[CombinedMap.MeasuredType] = []entity.HydratedMetric{}
 	}
 
 	for _, metric := range googleMetrics {
@@ -314,12 +314,12 @@ func partitionMetrics(googleMetrics []entity.HydratedMetric) [][]entity.Hydrated
 	var partitionedMetrics [][]entity.HydratedMetric
 	for len(metricsByMeasuredType) > 0 {
 		var partition []entity.HydratedMetric
-		for _, measuredType := range metadata.MeasuredTypeMap {
-			if metricsOfType, exists := metricsByMeasuredType[measuredType]; exists && len(metricsOfType) > 0 {
+		for _, CombinedType := range metadata.CombinedKeyResourceTypeMeasuredTypeMap {
+			if metricsOfType, exists := metricsByMeasuredType[CombinedType.MeasuredType]; exists && len(metricsOfType) > 0 {
 				metric := metricsOfType[0]
-				metricsByMeasuredType[measuredType] = metricsOfType[1:]
-				if len(metricsByMeasuredType[measuredType]) == 0 {
-					delete(metricsByMeasuredType, measuredType)
+				metricsByMeasuredType[CombinedType.MeasuredType] = metricsOfType[1:]
+				if len(metricsByMeasuredType[CombinedType.MeasuredType]) == 0 {
+					delete(metricsByMeasuredType, CombinedType.MeasuredType)
 				}
 				partition = append(partition, metric)
 			}
@@ -477,7 +477,7 @@ func removeOperation(operations []*Operation, operation *Operation) []*Operation
 }
 
 func (client *GoogleMetricsClient) GetMetricName(measuredType metadata.MeasuredType, resourceType metadata.ResourceType) (string, error) {
-	nameAndKeyLabel, exists := client.nameAndKeyLabelOfMetric[common.CombinedKeyResourceTypeMeasuredType{ResourceType: resourceType, MeasuredType: measuredType}]
+	nameAndKeyLabel, exists := client.nameAndKeyLabelOfMetric[metadata.CombinedKeyResourceTypeMeasuredType{ResourceType: resourceType, MeasuredType: measuredType}]
 	if !exists {
 		return "", fmt.Errorf("unsupported measured type or resource type received: %s, %s", measuredType, resourceType)
 	}

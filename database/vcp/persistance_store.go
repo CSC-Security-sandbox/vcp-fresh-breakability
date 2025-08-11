@@ -1011,3 +1011,7 @@ func (s *PersistenceStore) GetBackupCountByVolumeUUIDs(ctx context.Context, volu
 func (s *PersistenceStore) GetNextSerialNumberInRegion(ctx context.Context, prefix string) (string, error) {
 	return s.dataStore.GetNextSerialNumberInRegion(ctx, prefix)
 }
+
+func (s *PersistenceStore) ListSnHosts(ctx context.Context) ([]string, error) {
+	return s.dataStore.ListSnHosts(ctx)
+}

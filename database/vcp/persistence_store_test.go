@@ -1913,3 +1913,12 @@ func TestDeleteBackupPolicy_Persistence_Store(t *testing.T) {
 	_, err = store.DeleteBackupPolicy(ctx, "non-existent-uuid")
 	assert.Error(t, err)
 }
+
+func TestListSnHostsReturnsEmptyWhenNoPoolsPresent(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	hosts, err := store.ListSnHosts(ctx)
+	assert.NoError(t, err)
+	assert.Empty(t, hosts)
+}

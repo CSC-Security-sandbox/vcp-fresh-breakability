@@ -260,6 +260,54 @@ func (_c *MockStorage_CreateHydratedMetrics_Call) RunAndReturn(run func(context.
 	return _c
 }
 
+// CreateHydratedMetricsBatch provides a mock function with given fields: ctx, metrics, batchSize
+func (_m *MockStorage) CreateHydratedMetricsBatch(ctx context.Context, metrics []datamodel.HydratedMetrics, batchSize int) error {
+	ret := _m.Called(ctx, metrics, batchSize)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateHydratedMetricsBatch")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, []datamodel.HydratedMetrics, int) error); ok {
+		r0 = rf(ctx, metrics, batchSize)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_CreateHydratedMetricsBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateHydratedMetricsBatch'
+type MockStorage_CreateHydratedMetricsBatch_Call struct {
+	*mock.Call
+}
+
+// CreateHydratedMetricsBatch is a helper method to define mock.On call
+//   - ctx context.Context
+//   - metrics []datamodel.HydratedMetrics
+//   - batchSize int
+func (_e *MockStorage_Expecter) CreateHydratedMetricsBatch(ctx interface{}, metrics interface{}, batchSize interface{}) *MockStorage_CreateHydratedMetricsBatch_Call {
+	return &MockStorage_CreateHydratedMetricsBatch_Call{Call: _e.mock.On("CreateHydratedMetricsBatch", ctx, metrics, batchSize)}
+}
+
+func (_c *MockStorage_CreateHydratedMetricsBatch_Call) Run(run func(ctx context.Context, metrics []datamodel.HydratedMetrics, batchSize int)) *MockStorage_CreateHydratedMetricsBatch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]datamodel.HydratedMetrics), args[2].(int))
+	})
+	return _c
+}
+
+func (_c *MockStorage_CreateHydratedMetricsBatch_Call) Return(_a0 error) *MockStorage_CreateHydratedMetricsBatch_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_CreateHydratedMetricsBatch_Call) RunAndReturn(run func(context.Context, []datamodel.HydratedMetrics, int) error) *MockStorage_CreateHydratedMetricsBatch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DB provides a mock function with no fields
 func (_m *MockStorage) DB() *gorm.DB {
 	ret := _m.Called()

@@ -1,0 +1,82 @@
+package collector
+
+import (
+	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
+	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
+	"context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"time"
+)
+
+// TimeSeriesIterator abstracts the Next method for iterating time series.
+type TimeSeriesIterator interface {
+	Next() (*monitoringpb.TimeSeries, error)
+}
+
+type MetricClientWrapper struct {
+	Client *monitoring.MetricClient
+}
+
+func NewMetricClientWrapper(client *monitoring.MetricClient) *MetricClientWrapper {
+	return &MetricClientWrapper{Client: client}
+}
+
+func (w *MetricClientWrapper) ListTimeSeries(ctx context.Context, req *monitoringpb.ListTimeSeriesRequest) TimeSeriesIterator {
+	it := w.Client.ListTimeSeries(ctx, req)
+	return it
+}
+func (w *MetricClientWrapper) IsNil() bool {
+	return w.Client == nil
+}
+
+type VolumeMetricsProvider interface {
+	GetVolumeMetrics(context.Context, log.Logger) ([]datamodel.HydratedMetrics, error)
+	GetClient() MonitoringClient
+	RefreshTimeWindow()
+}
+type TenantProjectProvider interface {
+	GetTenantProjects(ctx context.Context, logger log.Logger) ([]string, error)
+}
+type MonitoringClient interface {
+	ListTimeSeries(ctx context.Context, req *monitoringpb.ListTimeSeriesRequest) TimeSeriesIterator
+}
+type GoogleTenantProjectProvider struct {
+	vcpDatastore database.Storage
+}
+
+func NewGoogleTenantProjectProvider(ds database.Storage) *GoogleTenantProjectProvider {
+	return &GoogleTenantProjectProvider{vcpDatastore: ds}
+}
+func (p *GoogleVolumeMetricsProvider) GetClient() MonitoringClient {
+	return p.client
+}
+
+func (p *GoogleVolumeMetricsProvider) RefreshTimeWindow() {
+	p.startTime = time.Now().Add(-5 * time.Minute)
+	p.endTime = time.Now()
+}
+
+type GoogleVolumeMetricsProvider struct {
+	tenantProjectProvider TenantProjectProvider
+	client                MonitoringClient
+	startTime             time.Time
+	endTime               time.Time
+	metrics               []common.MetricItem
+}
+
+func NewGoogleVolumeMetricsProvider(tenantProjectProvider TenantProjectProvider, client MonitoringClient, VolumeMetrics []common.MetricItem) *GoogleVolumeMetricsProvider {
+	return &GoogleVolumeMetricsProvider{
+		tenantProjectProvider: tenantProjectProvider,
+		client:                client,
+		startTime:             time.Now().Add(-5 * time.Minute),
+		endTime:               time.Now(),
+		metrics:               VolumeMetrics,
+	}
+}
+
+func NewGoogleProvider(tenantProjectProvider TenantProjectProvider, client MonitoringClient, VolumeMetrics []common.MetricItem) VolumeMetricsProvider {
+	return NewGoogleVolumeMetricsProvider(tenantProjectProvider, client, VolumeMetrics)
+}

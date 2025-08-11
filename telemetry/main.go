@@ -1,7 +1,9 @@
 package main
 
 import (
+	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
 	"context"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/collector"
 	"net/http"
 	"os"
 	"os/signal"
@@ -58,8 +60,15 @@ func main() {
 	logger.Info("Successfully connected to Telemetry database...")
 
 	googleSink := performance.NewSink(ctx, metricscommon.LoadConfig())
-	metricsProcessor := processor.NewMetricsProcessor(VCPDbConn, telemetryDbConn, googleSink)
-
+	tenantProvider := collector.NewGoogleTenantProjectProvider(VCPDbConn)
+	client, err := monitoring.NewMetricClient(ctx)
+	if err != nil {
+		logger.Warnf("Failed to create MetricClient: %v", err)
+	}
+	wrapper := collector.NewMetricClientWrapper(client)
+	config := metricscommon.LoadMetricsConfigFromBytes()
+	provider := collector.NewGoogleProvider(tenantProvider, wrapper, config.VolumeMetrics)
+	metricsProcessor := processor.NewMetricsProcessor(VCPDbConn, telemetryDbConn, googleSink, provider)
 	tdb := telemetryDbConn.SQLDB()
 
 	// Create a new server instance with the API handler

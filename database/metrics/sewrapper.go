@@ -32,6 +32,25 @@ func (re *retryEngine) CreateHydratedMetrics(ctx context.Context, m *datamodel.H
 	return err
 }
 
+func (re *retryEngine) CreateHydratedMetricsBatch(ctx context.Context, metrics []datamodel.HydratedMetrics, batchSize int) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.CreateHydratedMetricsBatch(ctx, metrics, batchSize)
+		if err != nil {
+			re.logError("CreateHydratedMetricsBatch", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return err
+}
+
 func (re *retryEngine) GetHydratedMetrics(ctx context.Context, filter map[string]interface{}) ([]datamodel.HydratedMetrics, error) {
 	var var0 []datamodel.HydratedMetrics
 	err := retry.Do(func(attempt int) (bool, error) {

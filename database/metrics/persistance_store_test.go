@@ -125,13 +125,13 @@ func TestSetupStorageForTest(t *testing.T) {
 	metric := &datamodel.HydratedMetrics{
 		MeasuredType: "test-type",
 		ResourceType: "test-resource",
-		ResourceUuid: "test-uuid",
+		ResourceName: "test-resource-1",
 	}
 
 	err = ps.CreateHydratedMetrics(ctx, metric)
 	assert.NoError(t, err)
 
-	metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_uuid": "test-uuid"})
+	metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "test-resource-1"})
 	assert.NoError(t, err)
 	assert.Len(t, metrics, 1)
 
@@ -320,14 +320,14 @@ func TestPersistenceStore_WithTransaction(t *testing.T) {
 			metric := &datamodel.HydratedMetrics{
 				MeasuredType: "tx-test",
 				ResourceType: "tx-resource",
-				ResourceUuid: "tx-uuid",
+				ResourceName: "tx-resource-1",
 			}
 			return tx.GORM().Create(metric).Error
 		})
 		assert.NoError(t, err)
 
 		// Verify the record was committed
-		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_uuid": "tx-uuid"})
+		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "tx-resource-1"})
 		assert.NoError(t, err)
 		assert.Len(t, metrics, 1)
 	})
@@ -342,7 +342,6 @@ func TestPersistenceStore_WithTransaction(t *testing.T) {
 			metric := &datamodel.HydratedMetrics{
 				MeasuredType: "rollback-test",
 				ResourceType: "rollback-resource",
-				ResourceUuid: "rollback-uuid",
 			}
 			if err := tx.GORM().Create(metric).Error; err != nil {
 				return err
@@ -384,7 +383,6 @@ func TestPersistenceStore_WithTransaction(t *testing.T) {
 				metric := &datamodel.HydratedMetrics{
 					MeasuredType: "panic-test",
 					ResourceType: "panic-resource",
-					ResourceUuid: "panic-uuid",
 				}
 				tx.GORM().Create(metric)
 				// Force a panic
@@ -442,7 +440,7 @@ func TestPersistenceStore_HydratedMetricsCRUD(t *testing.T) {
 		metric := &datamodel.HydratedMetrics{
 			MeasuredType: "cpu",
 			ResourceType: "vm",
-			ResourceUuid: "vm-123",
+			ResourceName: "vm-1",
 		}
 
 		err := ps.CreateHydratedMetrics(ctx, metric)
@@ -451,7 +449,7 @@ func TestPersistenceStore_HydratedMetricsCRUD(t *testing.T) {
 
 	// Test Get
 	t.Run("get hydrated metrics", func(t *testing.T) {
-		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_uuid": "vm-123"})
+		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "vm-1"})
 		assert.NoError(t, err)
 		assert.Len(t, metrics, 1)
 		assert.Equal(t, "cpu", metrics[0].MeasuredType)
@@ -461,11 +459,11 @@ func TestPersistenceStore_HydratedMetricsCRUD(t *testing.T) {
 	// Test Update
 	t.Run("update hydrated metrics", func(t *testing.T) {
 		updates := map[string]interface{}{"measured_type": "memory"}
-		err := ps.UpdateHydratedMetrics(ctx, "vm-123", updates)
+		err := ps.UpdateHydratedMetrics(ctx, "vm-1", updates)
 		assert.NoError(t, err)
 
 		// Verify update
-		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_uuid": "vm-123"})
+		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "vm-1"})
 		assert.NoError(t, err)
 		assert.Len(t, metrics, 1)
 		assert.Equal(t, "memory", metrics[0].MeasuredType)
@@ -473,11 +471,11 @@ func TestPersistenceStore_HydratedMetricsCRUD(t *testing.T) {
 
 	// Test Delete
 	t.Run("delete hydrated metrics", func(t *testing.T) {
-		err := ps.DeleteHydratedMetrics(ctx, "vm-123")
+		err := ps.DeleteHydratedMetrics(ctx, "vm-1")
 		assert.NoError(t, err)
 
 		// Verify deletion
-		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_uuid": "vm-123"})
+		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": "vm-1"})
 		assert.NoError(t, err)
 		assert.Empty(t, metrics)
 	})
@@ -660,7 +658,6 @@ func TestPersistenceStore_ConcurrentAccess(t *testing.T) {
 			metric := &datamodel.HydratedMetrics{
 				MeasuredType: fmt.Sprintf("concurrent-type-%d", id),
 				ResourceType: "concurrent-resource",
-				ResourceUuid: fmt.Sprintf("concurrent-uuid-%d", id),
 			}
 			err := ps.CreateHydratedMetrics(ctx, metric)
 			assert.NoError(t, err)
@@ -769,7 +766,6 @@ func BenchmarkPersistenceStore_CreateHydratedMetrics(b *testing.B) {
 		metric := &datamodel.HydratedMetrics{
 			MeasuredType: fmt.Sprintf("bench-type-%d", i),
 			ResourceType: "bench-resource",
-			ResourceUuid: fmt.Sprintf("bench-uuid-%d", i),
 		}
 		_ = ps.CreateHydratedMetrics(ctx, metric)
 	}
@@ -790,7 +786,6 @@ func BenchmarkPersistenceStore_GetHydratedMetrics(b *testing.B) {
 		metric := &datamodel.HydratedMetrics{
 			MeasuredType: fmt.Sprintf("bench-type-%d", i),
 			ResourceType: "bench-resource",
-			ResourceUuid: fmt.Sprintf("bench-uuid-%d", i),
 		}
 		_ = ps.CreateHydratedMetrics(ctx, metric)
 	}
@@ -976,14 +971,13 @@ func TestPersistenceStore_FieldValidation(t *testing.T) {
 		metric := &datamodel.HydratedMetrics{
 			MeasuredType: "",
 			ResourceType: "",
-			ResourceUuid: "",
 		}
 
 		err := ps.CreateHydratedMetrics(ctx, metric)
 		assert.NoError(t, err) // SQLite is lenient with empty strings
 
 		// Verify we can get it back
-		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_uuid": ""})
+		metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{"resource_name": ""})
 		assert.NoError(t, err)
 		assert.Len(t, metrics, 1)
 	})
@@ -1318,11 +1312,10 @@ func TestPersistenceStore_DataModelValidation(t *testing.T) {
 			{
 				name: "all fields filled",
 				metric: &datamodel.HydratedMetrics{
-					MeasuredType:          "cpu_usage",
-					ResourceType:          "virtual_machine",
-					ResourceUuid:          "vm-12345",
-					ResourcePartitionName: "partition-1",
-					Metadata:              []byte(`{"key": "value"}`),
+					MeasuredType: "cpu_usage",
+					ResourceType: "virtual_machine",
+					Metadata:     []byte(`{"key": "value"}`),
+					ResourceName: "resource-1",
 				},
 			},
 			{
@@ -1330,7 +1323,7 @@ func TestPersistenceStore_DataModelValidation(t *testing.T) {
 				metric: &datamodel.HydratedMetrics{
 					MeasuredType: "memory",
 					ResourceType: "container",
-					ResourceUuid: "container-67890",
+					ResourceName: "resource-2",
 				},
 			},
 			{
@@ -1338,8 +1331,8 @@ func TestPersistenceStore_DataModelValidation(t *testing.T) {
 				metric: &datamodel.HydratedMetrics{
 					MeasuredType: "disk",
 					ResourceType: "storage",
-					ResourceUuid: "disk-abcdef",
 					Metadata:     []byte(`{"size": "100GB", "type": "SSD"}`),
+					ResourceName: "resource-3",
 				},
 			},
 		}
@@ -1351,7 +1344,7 @@ func TestPersistenceStore_DataModelValidation(t *testing.T) {
 
 				// Verify we can retrieve it
 				metrics, err := ps.GetHydratedMetrics(ctx, map[string]interface{}{
-					"resource_uuid": tc.metric.ResourceUuid,
+					"resource_name": tc.metric.ResourceName,
 				})
 				assert.NoError(t, err)
 				assert.Len(t, metrics, 1)

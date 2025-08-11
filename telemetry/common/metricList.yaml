@@ -1,0 +1,29 @@
+metrics:
+  - metric: volume_read_ops
+    resourceType: custom.googleapis.com/netapp
+  - metric: volume_write_ops
+    resourceType: custom.googleapis.com/netapp
+  - metric: volume_other_ops
+    resourceType: custom.googleapis.com/netapp
+  - metric: volume_read_data
+    resourceType: custom.googleapis.com/netapp
+  - metric: volume_write_data
+    resourceType: custom.googleapis.com/netapp
+  - metric: volume_other_data
+    resourceType: custom.googleapis.com/netapp
+  - metric: volume_read_latency
+    resourceType: custom.googleapis.com/netapp
+  - metric: volume_write_latency
+    resourceType: custom.googleapis.com/netapp
+  - metric: volume_other_latency
+    resourceType: custom.googleapis.com/netapp
+  - metric: volume_total_data
+    resourceType: custom.googleapis.com/netapp
+  - metric: volume_space_logical_used
+    resourceType: custom.googleapis.com/netapp
+  - metric: volume_size_total
+    resourceType: custom.googleapis.com/netapp
+  - metric: volume_inode_files_total
+    resourceType: custom.googleapis.com/netapp
+  - metric: volume_inode_files_used
+    resourceType: custom.googleapis.com/netapp
