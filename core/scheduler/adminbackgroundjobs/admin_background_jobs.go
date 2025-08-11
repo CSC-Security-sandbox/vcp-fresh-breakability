@@ -4,6 +4,8 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -39,75 +41,6 @@ func LoadJobSpecs() error {
 	return nil
 }
 
-// IsJobSpecRefreshNeeded checks if any admin job specifications need to be created, updated, or marked for deletion
-// in the database based on the current in-memory job specs. It compares the loaded job specs with those in storage,
-// performs necessary synchronization, and logs actions taken. Returns true if any job specs were updated, along with any error encountered.
-func IsJobSpecRefreshNeeded(ctx context.Context, se database.Storage, logger log.Logger) (bool, error) {
-	areJobSpecsUpdated := false
-
-	for jobType, latestJobSpec := range adminJobSpecs {
-		// To synchronize job specs, only those in CREATING, UPDATING, or DELETING states are considered.
-		// A SCHEDULED state indicates the job spec is current and present in memory for reference.
-		if latestJobSpec.State != scheduler.JobStatusScheduled {
-			logger.Infof("Syncing the job: %s", jobType)
-			existingJob, err := se.GetAdminJobSpecByJobType(ctx, jobType)
-			if err != nil {
-				// If the job spec is not found in the database, we will create it using the latest in-memory specification.
-				if vsaerrors.Is(err, gorm.ErrRecordNotFound) {
-					logger.Debugf("No existing job spec found for jobType: %s", jobType)
-				} else {
-					logger.Errorf("Failed to get existing job spec for jobType: %s, error: %v", jobType, err)
-					// TODO: Implement alerting or notification logic here if necessary
-					continue
-				}
-			}
-
-			if existingJob == nil {
-				latestJobSpec.UUID = uuid.NewString()
-				newJobSpec, err := se.CreateAdminJobSpec(ctx, latestJobSpec)
-				if err != nil {
-					var customErr *vsaerrors.CustomError
-					if vsaerrors.As(err, &customErr) {
-						// If the error is due to a duplicate key, it means another pod has already created this job spec
-						if vsaerrors.Is(customErr.OriginalErr, gorm.ErrDuplicatedKey) {
-							continue
-						}
-					}
-					logger.Errorf("Failed to create new admin job spec for jobType: %s, error: %v", jobType, err)
-					// TODO: Implement alerting or notification logic here if necessary
-					continue
-				}
-				areJobSpecsUpdated = true
-				logger.Infof("Created new admin job spec for jobType: %s, cronExpression: %s", newJobSpec.JobType, newJobSpec.CronExpression)
-			} else if latestJobSpec.State == scheduler.JobStatusUpdating && existingJob.CronExpression != latestJobSpec.CronExpression {
-				// Currently, only updates to the cron expression of existing job specs are supported.
-				// Other types of updates may be handled in the future if needed.
-				latestJobSpec.ID = existingJob.ID
-				err := se.UpdateAdminJobSpec(ctx, latestJobSpec)
-				if err != nil {
-					logger.Errorf("Failed to update admin job spec for jobType: %s, error: %v", jobType, err)
-					// TODO: Implement alerting or notification logic here if necessary
-					continue
-				}
-				areJobSpecsUpdated = true
-				logger.Infof("Updated admin job spec for jobType: %s, cronExpression: %s", jobType, latestJobSpec.CronExpression)
-			} else if latestJobSpec.State == scheduler.JobStatusDeleting && existingJob.State != scheduler.JobStatusDeleting && existingJob.State != scheduler.JobStatusDeleted {
-				latestJobSpec.ID = existingJob.ID
-				err := se.UpdateAdminJobSpec(ctx, latestJobSpec)
-				if err != nil {
-					logger.Errorf("Failed to update admin job spec to DELETING for jobType: %s, error: %v", jobType, err)
-					// TODO: Implement alerting or notification logic here if necessary
-					continue
-				}
-				areJobSpecsUpdated = true
-				logger.Infof("Updated admin job spec to DELETING for jobType: %s", jobType)
-			}
-		}
-	}
-
-	return areJobSpecsUpdated, nil
-}
-
 // LaunchJobManagerWorkflow initiates the background job manager workflow using the Temporal client.
 // The workflow is started in the background-workflows task queue and returns an error if it fails to launch.
 func LaunchJobManagerWorkflow(ctx context.Context, temporalClient client.Client, logger log.Logger) error {
@@ -123,5 +56,139 @@ func LaunchJobManagerWorkflow(ctx context.Context, temporalClient client.Client,
 		logger.Errorf("Failed to start background job manager workflow: %v", err)
 		return err
 	}
+	return nil
+}
+
+// cleanupSingleJobSpec handles the cleanup of a single admin job spec by deleting its Temporal schedule
+// and marking it as deleted in the database. Returns an error if the cleanup fails.
+func cleanupSingleJobSpec(ctx context.Context, se database.Storage, temporal client.Client, spec *datamodel.AdminJobSpec, logger log.Logger) error {
+	// Initialize a Temporal scheduler using the provided Temporal client
+	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
+
+	// Attempt to delete the corresponding Temporal schedule if present
+	_, delErr := temporalScheduler.Delete(ctx, scheduler.DeleteScheduleParams{
+		ScheduleParams: scheduler.ScheduleParams{ScheduleID: spec.UUID},
+	})
+	if delErr != nil {
+		// Log and continue to mark the spec as deleted to ensure no schedules remain
+		logger.Errorf("Failed to delete schedule for jobType %s (UUID: %s): %v", spec.JobType, spec.UUID, delErr)
+	}
+
+	// Mark the admin job spec as deleted (soft delete)
+	now := time.Now()
+	spec.State = scheduler.JobStatusDeleted
+	spec.DeletedAt = &gorm.DeletedAt{Time: now, Valid: true}
+	if updErr := se.UpdateAdminJobSpec(ctx, spec); updErr != nil {
+		return fmt.Errorf("failed to mark admin job spec as deleted for jobType %s: %w", spec.JobType, updErr)
+	}
+
+	return nil
+}
+
+// DeleteAllAdminSchedules deletes all existing admin job schedules in Temporal and
+// marks their corresponding AdminJobSpec records as DELETED with a soft delete.
+// This is used when RefreshAdminJobSpecs is set to false so that no admin schedules remain active.
+// The function continues processing even if individual cleanup operations fail, collecting all errors
+// and returning them as a composite error at the end.
+func DeleteAllAdminSchedules(ctx context.Context, se database.Storage, temporal client.Client, logger log.Logger) error {
+	var errors []error
+
+	statesToCleanup := []string{
+		scheduler.JobStatusScheduled,
+		scheduler.JobStatusCreating,
+		scheduler.JobStatusUpdating,
+		scheduler.JobStatusDeleting,
+	}
+
+	for _, state := range statesToCleanup {
+		adminJobSpecs, err := se.GetAdminJobSpecsByState(ctx, state)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("failed to fetch specs for state %s: %w", state, err))
+			continue
+		}
+
+		for _, spec := range adminJobSpecs {
+			if err := cleanupSingleJobSpec(ctx, se, temporal, spec, logger); err != nil {
+				errors = append(errors, fmt.Errorf("failed to cleanup job %s: %w", spec.JobType, err))
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("cleanup completed with errors: %v", errors)
+	}
+
+	logger.Info("All admin schedules have been deleted and specs marked as DELETED")
+	return nil
+}
+
+// RecreateAdminSchedules deletes any existing Temporal schedules for admin jobs without marking
+// DB specs as deleted, then ensures that specs from the embedded JSON are present in DB with
+// state CREATING so that they will be recreated by the JobManager workflow.
+func RecreateAdminSchedules(ctx context.Context, se database.Storage, temporal client.Client, logger log.Logger) error {
+	// Initialize a Temporal scheduler using the provided Temporal client
+	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
+
+	// 1) Best-effort delete of any existing schedules for non-deleted specs
+	statesToReset := []string{
+		scheduler.JobStatusScheduled,
+		scheduler.JobStatusCreating,
+		scheduler.JobStatusUpdating,
+	}
+
+	for _, state := range statesToReset {
+		adminSpecs, err := se.GetAdminJobSpecsByState(ctx, state)
+		if err != nil {
+			logger.Errorf("Failed to fetch admin job specs by state %s: %v", state, err)
+			return err
+		}
+
+		for _, spec := range adminSpecs {
+			_, delErr := temporalScheduler.Delete(ctx, scheduler.DeleteScheduleParams{
+				ScheduleParams: scheduler.ScheduleParams{ScheduleID: spec.UUID},
+			})
+			if delErr != nil {
+				// Log and continue; we still want to reset DB state to CREATING
+				logger.Errorf("Failed to delete schedule for jobType %s (UUID: %s): %v", spec.JobType, spec.UUID, delErr)
+			}
+		}
+	}
+
+	// 2) Upsert/refresh DB specs from embedded JSON, forcing state to CREATING so schedules will be recreated
+	for jobType, latestSpec := range adminJobSpecs {
+		existingJob, err := se.GetAdminJobSpecByJobType(ctx, jobType)
+		if err != nil {
+			if vsaerrors.Is(err, gorm.ErrRecordNotFound) {
+				// Create new spec
+				latestSpec.UUID = uuid.NewString()
+				latestSpec.State = scheduler.JobStatusCreating
+				latestSpec.DeletedAt = nil
+				if _, createErr := se.CreateAdminJobSpec(ctx, latestSpec); createErr != nil {
+					logger.Errorf("Failed to create admin job spec for jobType %s: %v", jobType, createErr)
+					return createErr
+				}
+				logger.Infof("Created admin job spec for jobType %s with state CREATING", jobType)
+				continue
+			}
+			logger.Errorf("Failed to get existing job spec for jobType %s: %v", jobType, err)
+			return err
+		}
+
+		// Update existing spec to force re-creation
+		latestSpec.ID = existingJob.ID
+		// Preserve existing UUID so schedule ID remains stable across versions
+		if latestSpec.UUID == "" {
+			latestSpec.UUID = existingJob.UUID
+		}
+		latestSpec.State = scheduler.JobStatusCreating
+		latestSpec.DeletedAt = nil
+		if updErr := se.UpdateAdminJobSpec(ctx, latestSpec); updErr != nil {
+			logger.Errorf("Failed to update admin job spec to CREATING for jobType %s: %v", jobType, updErr)
+			return updErr
+		}
+		logger.Infof("Updated admin job spec to CREATING for jobType %s", jobType)
+	}
+
+	logger.Info("All relevant admin schedules deleted and specs set to CREATING for re-creation")
 	return nil
 }

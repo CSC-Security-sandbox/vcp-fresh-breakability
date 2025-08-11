@@ -1005,7 +1005,7 @@ func TestGetAdminJobSpecsByState_Persistence_Store(t *testing.T) {
 	jobSpec1 := &datamodel.AdminJobSpec{JobType: "TEST_JOB", CronExpression: "*/10 * * * *", State: "CREATING"}
 	_, err := store.CreateAdminJobSpec(ctx, jobSpec1)
 	assert.NoError(t, err)
-	jobSpec2 := &datamodel.AdminJobSpec{JobType: "TEST_JOB", CronExpression: "*/10 * * * *", State: "SCHEDULED"}
+	jobSpec2 := &datamodel.AdminJobSpec{JobType: "TEST_JOB_2", CronExpression: "*/10 * * * *", State: "SCHEDULED"}
 	_, err = store.CreateAdminJobSpec(ctx, jobSpec2)
 	assert.NoError(t, err)
 

@@ -185,27 +185,33 @@ func initializeTemporalClient(logger log.Logger) (workflowengine.WorkflowEngine,
 }
 
 func refreshAdminJobSpecs(ctx context.Context, cfg *common.Config, db database.Storage, temporal client.Client, logger log.Logger) error {
-	if cfg.RefreshAdminJobSpecs {
-		err := adminbackgroundjobs.LoadJobSpecs()
-		if err != nil {
-			logger.Errorf("Failed to load admin job specs: %v", err)
-			return err
-		}
-
-		shouldRefreshAdminJobSpecs, err := adminbackgroundjobs.IsJobSpecRefreshNeeded(ctx, db, logger)
-		if err != nil {
-			logger.Errorf("Failed to check if job specs refresh is needed: %v", err)
-			return err
-		}
-
-		if shouldRefreshAdminJobSpecs {
-			err = adminbackgroundjobs.LaunchJobManagerWorkflow(ctx, temporal, logger)
-			if err != nil {
-				return err
-			}
-			logger.Info("Admin job specs have been refreshed successfully")
-		}
+	// Always reload specs to ensure latest changes are picked up
+	if err := adminbackgroundjobs.LoadJobSpecs(); err != nil {
+		logger.Errorf("Failed to load admin job specs: %v", err)
+		return err
 	}
+
+	if cfg.RefreshAdminJobSpecs {
+		// Delete any existing schedules and reset DB specs to CREATING for re-creation
+		if err := adminbackgroundjobs.RecreateAdminSchedules(ctx, db, temporal, logger); err != nil {
+			logger.Errorf("Failed to prepare admin job specs for re-creation: %v", err)
+			return err
+		}
+		// Re-create schedules by launching the job manager workflow
+		if err := adminbackgroundjobs.LaunchJobManagerWorkflow(ctx, temporal, logger); err != nil {
+			logger.Errorf("Failed to launch job manager workflow: %v", err)
+			return err
+		}
+		logger.Info("Admin job schedules deleted if present and re-creation triggered")
+	} else {
+		// Delete all existing schedules and mark specs as DELETED
+		if err := adminbackgroundjobs.DeleteAllAdminSchedules(ctx, db, temporal, logger); err != nil {
+			logger.Errorf("Failed to delete existing admin schedules: %v", err)
+			return err
+		}
+		logger.Info("Admin job schedules deleted because RefreshAdminJobSpecs=false")
+	}
+
 	return nil
 }
 

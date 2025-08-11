@@ -2,6 +2,7 @@ package database
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -35,7 +36,8 @@ func TestCreateAdminJobSpec(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, newJobSpec)
 	})
-	t.Run("WhenAdminJobSpecCreationFails", func(tt *testing.T) {
+	// Updated: Duplicate create should upsert (update) not fail
+	t.Run("WhenAdminJobSpecDuplicateCreateUpserts", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		if err != nil {
 			tt.Fatalf("Failed to set up test database: %v", err)
@@ -57,9 +59,14 @@ func TestCreateAdminJobSpec(t *testing.T) {
 		_, err = store.CreateAdminJobSpec(tt.Context(), jobSpec)
 		assert.NoError(tt, err)
 
-		newJobSpec, err := store.CreateAdminJobSpec(tt.Context(), jobSpec)
-		assert.Error(tt, err)
-		assert.Nil(tt, newJobSpec)
+		// Change values and call create again; should update existing row
+		jobSpec.CronExpression = "*/5 * * * *"
+		jobSpec.State = "UPDATING"
+		updated, err := store.CreateAdminJobSpec(tt.Context(), jobSpec)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, updated)
+		assert.Equal(tt, "*/5 * * * *", updated.CronExpression)
+		assert.Equal(tt, "UPDATING", updated.State)
 	})
 }
 
@@ -227,4 +234,44 @@ func TestGetAdminJobSpecsByState(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Len(tt, retrievedJobSpecs, 0)
 	})
+}
+
+func TestCreateAdminJobSpec_RevivesSoftDeleted(t *testing.T) {
+	db, err := SetupTestDB()
+	if err != nil {
+		t.Fatalf("Failed to set up test database: %v", err)
+	}
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	if err != nil {
+		t.Fatalf("Failed to clean up test database: %v", err)
+	}
+
+	initial := &datamodel.AdminJobSpec{
+		JobType:        "TEST_JOB_SOFT_DELETE",
+		CronExpression: "0 0 * * *",
+		State:          "SCHEDULED",
+	}
+	_, err = store.CreateAdminJobSpec(t.Context(), initial)
+	assert.NoError(t, err)
+
+	// Soft delete it
+	dbGorm := store.db.GORM()
+	softDeleteTime := time.Now()
+	dbGorm.Model(&datamodel.AdminJobSpec{}).Where("job_type = ?", initial.JobType).Update("deleted_at", softDeleteTime)
+
+	// Recreate with new values; should revive and clear deleted_at
+	incoming := &datamodel.AdminJobSpec{
+		JobType:        initial.JobType,
+		CronExpression: "*/10 * * * *",
+		State:          "CREATING",
+	}
+	revived, err := store.CreateAdminJobSpec(t.Context(), incoming)
+	assert.NoError(t, err)
+	assert.NotNil(t, revived)
+	assert.Equal(t, "*/10 * * * *", revived.CronExpression)
+	assert.Equal(t, "CREATING", revived.State)
+	assert.Nil(t, revived.DeletedAt)
 }
