@@ -2,8 +2,10 @@ package google
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -190,5 +192,74 @@ func Test_ListDeleteAccountsKeysWithRetry(t *testing.T) {
 		if err == nil {
 			tt.Errorf("expected error, got null")
 		}
+	})
+}
+
+func Test_CreateServiceAccountKey(t *testing.T) {
+	t.Run("WhenError", func(tt *testing.T) {
+		svc3, err := iam.NewService(
+			context.TODO(), option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint("url"))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		ctx := context.Background()
+		gcp := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: svc3,
+			},
+		}
+		key, err := _createServiceAccountKey(gcp, ctx, "test@project.iam.gserviceaccount.com")
+		assert.Error(tt, err)
+		assert.Nil(tt, key)
+	})
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		ctx := context.Background()
+		keyResp := &iam.ServiceAccountKey{
+			Name:            "key-name",
+			KeyAlgorithm:    "KEY_ALG_RSA_2048",
+			KeyOrigin:       "USER_PROVIDED",
+			PrivateKeyType:  "TYPE_GOOGLE_CREDENTIALS_FILE",
+			PrivateKeyData:  "private",
+			PublicKeyData:   "public",
+			ValidAfterTime:  "2023-01-01T00:00:00Z",
+			ValidBeforeTime: "2024-01-01T00:00:00Z",
+		}
+		url := "/v1/projects/-/serviceAccounts/test@project.iam.gserviceaccount.com/keys"
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url && req.Method == http.MethodPost {
+				response, err := json.Marshal(keyResp)
+				if err != nil {
+					rw.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				rw.Header().Set("Content-Type", "application/json")
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		iamSvc, err := iam.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+		gcp := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: iamSvc,
+			},
+		}
+		key, err := _createServiceAccountKey(gcp, ctx, "test@project.iam.gserviceaccount.com")
+		assert.NoError(tt, err)
+		assert.NotNil(tt, key)
+		assert.Equal(tt, "key-name", key.Name)
+		assert.Equal(tt, "KEY_ALG_RSA_2048", key.KeyAlgorithm)
+		assert.Equal(tt, "USER_PROVIDED", key.KeyOrigin)
+		assert.Equal(tt, "TYPE_GOOGLE_CREDENTIALS_FILE", key.PrivateKeyType)
+		assert.Equal(tt, "private", key.PrivateKeyData)
+		assert.Equal(tt, "public", key.PublicKeyData)
+		assert.Equal(tt, "2023-01-01T00:00:00Z", key.ValidAfterTime)
+		assert.Equal(tt, "2024-01-01T00:00:00Z", key.ValidBeforeTime)
 	})
 }

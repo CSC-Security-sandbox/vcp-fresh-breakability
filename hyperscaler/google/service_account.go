@@ -44,7 +44,11 @@ func convertServiceAccountKeyToModel(key *iam.ServiceAccountKey) *models.Service
 func _createServiceAccountKey(gcpService *GcpServices, ctx context.Context, serviceAccountEmail string) (*models.ServiceAccountKey, error) {
 	request := &iam.CreateServiceAccountKeyRequest{}
 	key, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Keys.Create(fmt.Sprintf("projects/-/serviceAccounts/%s", serviceAccountEmail), request).Context(ctx).Do()
-	return convertServiceAccountKeyToModel(key), err
+	if err != nil {
+		util.GetLogger(ctx).Errorf("Failed to create service account key: %v", err)
+		return nil, fmt.Errorf("failed to create service account key for %s: %w", serviceAccountEmail, err)
+	}
+	return convertServiceAccountKeyToModel(key), nil
 }
 
 func _getServiceAccountIamPolicy(ctx context.Context, gcpService *GcpServices, resource string) (*iam.Policy, error) {
