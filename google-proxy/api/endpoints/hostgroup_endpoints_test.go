@@ -684,6 +684,38 @@ func TestV1betaUpdateHostGroup(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/valid-location-id/operations/job-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
 		assert.Equal(tt, false, result.(*gcpgenserver.OperationV1beta).Done.Value)
 	})
+	t.Run("WhenUpdateHostGroupSucceedsWithOnlyDescriptions", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaUpdateHostGroupParams{
+			LocationId:    "valid-location-id",
+			ProjectNumber: "project-number",
+			HostGroupId:   "host-group-id",
+		}
+
+		req := &gcpgenserver.HostGroupUpdateV1beta{
+			Description: gcpgenserver.NewOptString("updated description"),
+		}
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", nil
+		}
+
+		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		mockOrchestrator.EXPECT().GetHostGroup(mock.Anything, params.HostGroupId, params.ProjectNumber).Return(&models.HostGroup{}, nil)
+		mockOrchestrator.EXPECT().UpdateHostGroup(mock.Anything, mock.Anything).Return(&models.HostGroup{}, "job-id", nil)
+
+		result, err := handler.V1betaUpdateHostGroup(context.Background(), req, params)
+
+		assert.Nil(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/valid-location-id/operations/job-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
+		assert.Equal(tt, false, result.(*gcpgenserver.OperationV1beta).Done.Value)
+	})
 }
 
 // File: google-proxy/api/endpoints/hostgroup_endpoints_test.go

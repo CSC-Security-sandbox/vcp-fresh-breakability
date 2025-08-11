@@ -233,12 +233,16 @@ func (h Handler) V1betaUpdateHostGroup(ctx context.Context, req *gcpgenserver.Ho
 	}
 
 	updateParams := &common.UpdateHostGroupParams{
-		Hosts:         DeduplicateSlice(req.Hosts),
 		AccountName:   params.ProjectNumber,
 		HostGroupUUID: params.HostGroupId,
 	}
 
-	if len(updateParams.Hosts) > maxHostsPerHG {
+	if req.Hosts != nil {
+		hosts := DeduplicateSlice(req.Hosts)
+		updateParams.Hosts = &hosts
+	}
+
+	if updateParams.Hosts != nil && len(*updateParams.Hosts) > maxHostsPerHG {
 		return &gcpgenserver.V1betaUpdateHostGroupBadRequest{
 			Code:    400,
 			Message: fmt.Sprintf("Host group cannot have more than %d hosts", maxHostsPerHG),

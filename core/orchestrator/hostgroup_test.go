@@ -9,7 +9,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -268,7 +268,7 @@ func TestUpdateHostGroup(t *testing.T) {
 			AccountName:   "non-existent-account",
 			HostGroupUUID: "test-hg-uuid",
 			Description:   nillable.GetStringPtr("Updated description"),
-			Hosts:         []string{"a", "b"},
+			Hosts:         &[]string{"a", "b"},
 		}
 
 		_, _, err = orch.UpdateHostGroup(ctx, params)
@@ -317,7 +317,7 @@ func TestUpdateHostGroup(t *testing.T) {
 			AccountName:   account.Name,
 			HostGroupUUID: hg.UUID,
 			Description:   nillable.GetStringPtr("Updated description"),
-			Hosts:         []string{"a", "b"},
+			Hosts:         &[]string{"a", "b"},
 		}
 
 		hgResp, jobUUID, err := orch.UpdateHostGroup(ctx, params)
@@ -366,7 +366,7 @@ func TestUpdateHostGroup(t *testing.T) {
 			AccountName:   account.Name,
 			HostGroupUUID: hg.UUID,
 			Description:   nillable.GetStringPtr("Updated description"),
-			Hosts:         []string{"a", "b"},
+			Hosts:         &[]string{"a", "b"},
 		}
 
 		hgResp, jobUUID, err := orch.UpdateHostGroup(ctx, params)
@@ -418,7 +418,7 @@ func TestUpdateHostGroup(t *testing.T) {
 			AccountName:   account.Name,
 			HostGroupUUID: hg.UUID,
 			Description:   nillable.GetStringPtr("Updated description"),
-			Hosts:         []string{"a", "b"},
+			Hosts:         &[]string{"a", "b"},
 		}
 
 		hgResp, jobUUID, err := orch.UpdateHostGroup(ctx, params)

@@ -140,7 +140,7 @@ func (o *Orchestrator) UpdateHostGroup(ctx context.Context, params *common.Updat
 		return nil, "", err
 	}
 
-	hg, err := o.storage.UpdateHostGroup(ctx, params.HostGroupUUID, account.ID, params.Description, &params.Hosts)
+	hg, err := o.storage.UpdateHostGroup(ctx, params.HostGroupUUID, account.ID, params.Description, params.Hosts)
 	if err != nil {
 		return nil, "", err
 	}

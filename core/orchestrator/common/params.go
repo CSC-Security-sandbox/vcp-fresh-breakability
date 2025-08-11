@@ -485,7 +485,7 @@ type UpdateReplicationParams struct {
 
 // UpdateHostGroupParams describes parameters supplied to UpdateHostGroup
 type UpdateHostGroupParams struct {
-	Hosts         []string
+	Hosts         *[]string
 	Description   *string
 	AccountName   string
 	HostGroupUUID string
