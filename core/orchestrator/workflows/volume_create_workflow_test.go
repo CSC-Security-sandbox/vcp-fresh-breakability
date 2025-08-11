@@ -1116,7 +1116,7 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_Success() {
 	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "uuid", DestinationUUID: nillable.ToPointer("snapmirror-uuid")}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("success", nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
@@ -1207,7 +1207,7 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_WaitError() {
 	}
 
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("success", nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
@@ -1281,7 +1281,7 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_GetOrCreateObjectStoreError()
 	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "uuid", DestinationUUID: nillable.ToPointer("snapmirror-uuid")}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("success", nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
@@ -1356,7 +1356,7 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_GetOrCreateSnapmirrorError() 
 	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "uuid", DestinationUUID: nillable.ToPointer("snapmirror-uuid")}, errors.New("failed to get or snapmirror"))
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("success", nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
@@ -1431,7 +1431,7 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_TransferSnapmirrorError() {
 	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "uuid", DestinationUUID: nillable.ToPointer("snapmirror-uuid")}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("failed", errors.New("failed in snapmirror transfer"))
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
@@ -1506,7 +1506,7 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_TransferPollSnapmirrorError()
 	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "uuid", DestinationUUID: nillable.ToPointer("snapmirror-uuid")}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("failed", errors.New("failed in snapmirror transfer poll"))
-	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
@@ -1581,7 +1581,7 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_UpdateLunError() {
 	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "uuid", DestinationUUID: nillable.ToPointer("snapmirror-uuid")}, nil)
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("success", nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "lun_test",
 			ExternalUUID: "lun-uuid",
@@ -1688,6 +1688,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_Success() {
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
 	isRestoreFromBackup := false
+	isRestoreSnapshot := false
 
 	// Enable file protocols for testing with allowlisted accounts
 	utils.SetFileProtocolSupportedForTesting(true)
@@ -1698,7 +1699,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_Success() {
 	}()
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1720,6 +1721,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_FileProtocolsDisabled() {
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
 	isRestoreFromBackup := false
+	isRestoreSnapshot := false
 
 	// Disable file protocols for testing
 	utils.SetFileProtocolSupportedForTesting(false)
@@ -1730,7 +1732,7 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_FileProtocolsDisabled() {
 	}()
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot)
 
 	// Assert workflow completed successfully (should handle disabled protocols gracefully)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1916,6 +1918,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_PopulateRetryPolicyError() 
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
 	isRestoreFromBackup := false
+	isRestoreSnapshot := false
 
 	// Set invalid environment variable to cause PopulateRetryPolicyParams to fail
 	originalStartToCloseTimeout := StartToCloseTimeout
@@ -1923,7 +1926,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_PopulateRetryPolicyError() 
 	defer func() { StartToCloseTimeout = originalStartToCloseTimeout }()
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1949,6 +1952,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_GetHostsError() {
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
 	isRestoreFromBackup := false
+	isRestoreSnapshot := false
 
 	// Register activities
 	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
@@ -1957,7 +1961,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_GetHostsError() {
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return(nil, errors.New("get hosts error"))
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1983,6 +1987,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateIgroupError() {
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
 	isRestoreFromBackup := false
+	isRestoreSnapshot := false
 
 	// Register activities
 	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
@@ -1993,7 +1998,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateIgroupError() {
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("create igroup error"))
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -2019,6 +2024,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateLunNameError() {
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
 	isRestoreFromBackup := true
+	isRestoreSnapshot := false
 
 	// Register activities
 	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
@@ -2028,10 +2034,10 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateLunNameError() {
 	// Mock activities
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("update lun name error"))
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("update lun name error"))
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -2057,6 +2063,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunError() {
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
 	isRestoreFromBackup := false
+	isRestoreSnapshot := false
 
 	// Register activities
 	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
@@ -2069,7 +2076,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunError() {
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("create lun error"))
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -2095,6 +2102,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunMapError() {
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
 	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
 	isRestoreFromBackup := false
+	isRestoreSnapshot := false
 
 	// Register activities
 	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
@@ -2115,7 +2123,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_CreateLunMapError() {
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("create lun map error"))
 
 	// Execute the workflow
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup)
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot)
 
 	// Assert workflow failed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -2703,7 +2711,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Setup_QueryHandlerError() {
 
 	// Mock child workflows
 	s.env.OnWorkflow("PreBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
-	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
 
 	// Mock activities for minimal workflow
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2763,7 +2771,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_SetupWorkflowSuccess() {
 
 	// Mock child workflows
 	s.env.OnWorkflow("PreBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
-	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
 
 	// Mock activities for minimal workflow
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -3167,7 +3175,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_WithBlockDevices_Success() 
 		},
 	}, nil)
 	s.env.OnActivity(volumeActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "/vol/test_volume/lun_test-lun",
@@ -3214,7 +3222,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_WithBlockDevices_Success() 
 		},
 	}
 
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, dbVolume, node, volCreateResponse, false)
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, dbVolume, node, volCreateResponse, false, false)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -3256,7 +3264,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_WithBlockProperties_Success
 		},
 	}, nil)
 	s.env.OnActivity(volumeActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
 		ProviderResponse: vsa.ProviderResponse{
 			Name:         "/vol/test_volume/lun_test-lun",
@@ -3301,7 +3309,7 @@ func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_WithBlockProperties_Success
 		},
 	}
 
-	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, dbVolume, node, volCreateResponse, false)
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, dbVolume, node, volCreateResponse, false, false)
 
 	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -3580,7 +3588,7 @@ func (s *UnitTestSuite) Test_RestoreVolumeWorkflow_SnapmirrorTransferContinuesPo
 
 	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{}}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
 		ProviderResponse: vsa.ProviderResponse{Name: "test-lun", ExternalUUID: "lun-uuid"},
 		SerialNumber:     "test-serial",
 	}, nil)
@@ -3834,4 +3842,108 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GetSmSourcePathForRestoreActiv
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to get SM source path for restore")
+}
+
+func (s *UnitTestSuite) Test_PostBlockVolumeWorkflow_UpdateLunName_WhenRestoreSnapshot() {
+	// Arrange
+	mockStorage := database.NewMockStorage(s.T())
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	volCreateResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "test-uuid"}}
+	isRestoreFromBackup := false
+	isRestoreSnapshot := true
+
+	// Register and mock activities
+	s.env.RegisterActivity(volumeCreateActivity.GetHosts)
+	s.env.RegisterActivity(volumeCreateActivity.CreateIgroup)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateLunName)
+	s.env.RegisterActivity(volumeCreateActivity.CreateLun)
+	s.env.RegisterActivity(volumeCreateActivity.CreateLunMap)
+
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// UpdateLunName must be used when isRestoreSnapshot=true
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "/vol/vol1/luns/lun1",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+		Size:         1024,
+	}, nil)
+	// If CreateLun is called, fail the test by returning an error
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("CreateLun should not be called when restoring from snapshot"))
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Act
+	s.env.ExecuteWorkflow(PostBlockVolumeWorkflow, volume, node, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot)
+
+	// Assert
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshot_UsesUpdateLunName() {
+	// Arrange
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Account: &datamodel.Account{Name: "account-1"},
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{Password: "password"},
+		},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+	}
+
+	// Snapshot parameters to trigger isRestoreSnapshot=true
+	snapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{ID: 123, UUID: "snap-uuid"}}
+	params := &common.CreateVolumeParams{AccountName: "account-1", SnapshotID: "snap-uuid", Snapshot: snapshot}
+
+	// Mocks for activities used in the full workflow
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "vol-uuid"}, AvailableSpace: 10}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{Name: "hg1", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1"}}}}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// UpdateLunName must be used; CreateLun must not be used
+	s.env.OnActivity(volumeCreateActivity.UpdateLunName, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "/vol/vol1/luns/lun1",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+		Size:         2048,
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("CreateLun should not be called during snapshot restore"))
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Act
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume, nil, nil)
+
+	// Assert
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
 }

@@ -124,7 +124,12 @@ func (rc *OntapRestProvider) LunGet(params LunGetParams) (*LunResponse, error) {
 		},
 		SerialNumber: *lun.SerialNumberHex,
 		Size:         *lun.Space.Size,
-		OSType:       *lun.OsType,
+		OSType: func() string {
+			if lun.OsType != nil {
+				return *lun.OsType
+			}
+			return ""
+		}(),
 	}, nil
 }
 

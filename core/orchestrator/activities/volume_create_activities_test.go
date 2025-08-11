@@ -2171,7 +2171,7 @@ func TestUpdateLunName(t *testing.T) {
 		mockProvider.On("LunUpdate", mock.Anything).Return(nil)
 		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
 
-		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace)
+		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace, false)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, lun)
@@ -2199,7 +2199,7 @@ func TestUpdateLunName(t *testing.T) {
 
 		mockProvider.On("LunGet", mock.Anything).Return(nil, errors.New("lun not found"))
 
-		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace)
+		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace, false)
 
 		assert.Error(t, err)
 		assert.Nil(t, lun)
@@ -2233,7 +2233,7 @@ func TestUpdateLunName(t *testing.T) {
 		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
 		mockProvider.On("LunUpdate", mock.Anything).Return(errors.New("failed to update lun"))
 
-		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace)
+		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace, false)
 
 		assert.Error(t, err)
 		assert.Nil(t, lun)
@@ -2268,7 +2268,7 @@ func TestUpdateLunName(t *testing.T) {
 		mockProvider.On("LunUpdate", mock.Anything).Return(nil)
 		mockProvider.On("LunGet", mock.Anything).Return(nil, errors.New("lun not found"))
 
-		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace)
+		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace, false)
 
 		assert.Error(t, err)
 		assert.Nil(t, lun)

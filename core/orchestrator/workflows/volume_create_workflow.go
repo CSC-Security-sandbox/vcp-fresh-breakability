@@ -52,6 +52,7 @@ type PostVolumeProvisioningParams struct {
 	Node                *models.Node
 	VolCreateResponse   *vsa.VolumeResponse
 	IsRestoreFromBackup bool
+	IsRestoreSnapshot   bool
 }
 
 // selectVolumeChildWorkflow selects the appropriate child workflow based on volume characteristics.
@@ -96,7 +97,7 @@ func PreBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 }
 
 // PostBlockVolumeWorkflow handles post-provisioning for block volumes
-func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool) (*datamodel.Volume, error) {
+func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool) (*datamodel.Volume, error) {
 	volumeActivity := &activities.VolumeCreateActivity{}
 	var err error
 	var hostGroups []*datamodel.HostGroup
@@ -134,8 +135,8 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 	// Create LUN for block volume
 	var lun *vsa.LunResponse
 
-	if isRestoreFromBackup {
-		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, volCreateResponse.AvailableSpace).Get(ctx, &lun)
+	if isRestoreFromBackup || isRestoreSnapshot {
+		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, volCreateResponse.AvailableSpace, isRestoreSnapshot).Get(ctx, &lun)
 		if err != nil {
 			return nil, err
 		}
@@ -201,7 +202,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 }
 
 // PostFileVolumeWorkflow handles post-provisioning for file volumes
-func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool) (*datamodel.Volume, error) {
+func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node, volCreateResponse *vsa.VolumeResponse, isRestoreFromBackup bool, isRestoreSnapshot bool) (*datamodel.Volume, error) {
 	// Configure activity options for child workflow
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -287,6 +288,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 	backupVault := args[2].(*datamodel.BackupVault)
 	backup := args[3].(*datamodel.Backup)
+	isRestoreSnapshot := createVolumeParams.SnapshotID != "" && snapshot != nil
 	isRestoreFromBackup := createVolumeParams.BackupPath != "" && backup != nil
 	volumeActivity := &activities.VolumeCreateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
@@ -435,7 +437,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 	var updatedVolume *datamodel.Volume
-	err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, volCreateResponse, isRestoreFromBackup).Get(ctx, &updatedVolume)
+	err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, dbVolume, node, volCreateResponse, isRestoreFromBackup, isRestoreSnapshot).Get(ctx, &updatedVolume)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
