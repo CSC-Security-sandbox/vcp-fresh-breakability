@@ -595,9 +595,9 @@ func _createBucket(ctx context.Context, resourceName *common.ResourceNames, tena
 	_, bucketDetails, err := GetOrCreateAndGCSResources(gcpService, resourceName.ServiceAccountId, tenancyDetails.RegionalTenantProject, resourceName.Email, resourceName.BucketName, region, "region")
 	if err != nil {
 		gcpService.Logger.Errorf("Error creating bucket: %v", err)
-		return nil, err
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return bucketDetails[0], err
+	return bucketDetails[0], nil
 }
 
 func UpdateBackupVaultWithBucketDetails(se database.Storage, ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails) error {
@@ -640,7 +640,7 @@ func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, service
 		}
 		_, err = gcpServices.CreateServiceAccount(request, projectNumber, email)
 		if err != nil {
-			return nil, bucketDetailsArr, err
+			return nil, bucketDetailsArr, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 
 		// Just to ensure that after service account is created we proceed further
@@ -648,7 +648,7 @@ func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, service
 		account, _, err = gcpServices.IsServiceAccountCreated(email)
 		if err != nil {
 			gcpServices.GetLogger().Error("createServiceAccount failed getOrCreateAndGCSResources")
-			return nil, nil, err
+			return nil, nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 	}
 	roles := []string{
@@ -661,12 +661,12 @@ func _getOrCreateAndGCSResources(gcpServices hyperscaler.GoogleServices, service
 	err = gcpServices.AttachOrUpdateRolesForServiceAccounts(roles, email, projectNumber)
 	if err != nil {
 		gcpServices.GetLogger().Error("AttachOrUpdateRolesForServiceAccounts() failed in getOrCreateAndGCSResources")
-		return nil, bucketDetailsArr, err
+		return nil, bucketDetailsArr, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	err = gcpServices.CreateBucketIfNotExists(context.Background(), projectNumber, bucketName, tenantProjectRegion)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	bucketDetails := &common.BucketDetails{BucketName: bucketName, ServiceAccountName: serviceAccountId, TenantProjectNumber: projectNumber, Location: locationType}
 	bucketDetailsArr = append(bucketDetailsArr, bucketDetails)

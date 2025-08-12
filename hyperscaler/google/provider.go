@@ -531,20 +531,20 @@ func (gcpService *GcpServices) GetServiceConsumerManagementEndpoint() string {
 func (gcpService *GcpServices) GetServiceAccount(projectID, email string) (*hyperscalermodels.ServiceAccount, error) {
 	response, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.List("projects/" + projectID).Do()
 	if err != nil {
-		return nil, fmt.Errorf("Projects.ServiceAccounts.List: %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 	for _, account := range response.Accounts {
 		if account.Email == email {
 			return convertServiceAccountToHyperscalerServiceAccount(account), nil
 		}
 	}
-	return nil, fmt.Errorf("service account not found")
+	return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("service account not found"))
 }
 
 func (gcpService *GcpServices) AttachOrUpdateRolesForServiceAccounts(roles []string, serviceAccountEmail, projectID string) error {
 	policy, err := gcpService.getProjectIamPolicy(projectID)
 	if err != nil {
-		return err
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 
 	currentSvcAccountMember := "serviceAccount:" + serviceAccountEmail
@@ -603,7 +603,7 @@ func (gcpService *GcpServices) getProjectIamPolicy(projectID string) (*projectsM
 	getPolicyRequest := &projectsManagement.GetIamPolicyRequest{}
 	iamPolicy, err := gcpService.AdminGCPService.cloudProjectsService.Projects.GetIamPolicy(projectID, getPolicyRequest).Do()
 	if err != nil {
-		return nil, fmt.Errorf("Projects.GetIamPolicy: %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 	return iamPolicy, nil
 }
@@ -663,9 +663,9 @@ func (gcpService *GcpServices) setProjectIamPolicy(projectID string, etag string
 	}
 	_, err := gcpService.AdminGCPService.cloudProjectsService.Projects.SetIamPolicy(projectID, policyRequest).Do()
 	if err != nil {
-		return fmt.Errorf("Projects.SetIamPolicy: %v", err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
-	return err
+	return nil
 }
 
 func convertServiceAccounttoGcpServiceAccount(sa *hyperscalermodels.ServiceAccount) *iam.ServiceAccount {
@@ -695,15 +695,15 @@ func (gcpService *GcpServices) CreateServiceAccount(createRequest *hyperscalermo
 		case http.StatusConflict:
 			serviceAccount, isSACreated, err := gcpService.IsServiceAccountCreated(email)
 			if err != nil || !isSACreated {
-				return nil, err
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 			}
 			account = convertServiceAccounttoGcpServiceAccount(serviceAccount)
-			return convertServiceAccountToHyperscalerServiceAccount(account), err
+			return convertServiceAccountToHyperscalerServiceAccount(account), nil
 		}
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
 	return convertServiceAccountToHyperscalerServiceAccount(account), nil
 }
@@ -711,7 +711,7 @@ func (gcpService *GcpServices) CreateServiceAccount(createRequest *hyperscalermo
 func (gcpService *GcpServices) IsServiceAccountCreated(email string) (account *hyperscalermodels.ServiceAccount, isSACreated bool, err error) {
 	acc, err := gcpService.GetServiceAccountByEmail(email)
 	if err != nil {
-		return nil, false, fmt.Errorf("Projects.ServiceAccounts.Get: %v", err)
+		return nil, false, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 	return acc, true, nil
 }
@@ -730,7 +730,7 @@ func convertServiceAccountToHyperscalerServiceAccount(sa *iam.ServiceAccount) *h
 func (gcpService *GcpServices) GetServiceAccountByEmail(email string) (*hyperscalermodels.ServiceAccount, error) {
 	account, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Get("projects/-/serviceAccounts/" + email).Do()
 	if err != nil {
-		return nil, fmt.Errorf("Projects.ServiceAccounts.Get: %v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
 	return convertServiceAccountToHyperscalerServiceAccount(account), nil
 }

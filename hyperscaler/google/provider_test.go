@@ -2091,7 +2091,7 @@ func TestAttachOrUpdateRolesForServiceAccounts(t *testing.T) {
 		roles := []string{"roles/editor"}
 		err = gService.AttachOrUpdateRolesForServiceAccounts(roles, serviceAccountEmail, projectID)
 		assert.NotNil(tt, err)
-		assert.Contains(tt, err.Error(), "Projects.GetIamPolicy")
+		assert.ErrorContains(t, err.(*vsaerrors.CustomError).OriginalErr, "An internal error occurred.")
 	})
 
 	t.Run("WhenSetProjectIamPolicyFails", func(tt *testing.T) {
@@ -2140,7 +2140,7 @@ func TestAttachOrUpdateRolesForServiceAccounts(t *testing.T) {
 		roles := []string{"roles/editor"}
 		err = gService.AttachOrUpdateRolesForServiceAccounts(roles, serviceAccountEmail, projectID)
 		assert.NotNil(tt, err)
-		assert.Contains(tt, err.Error(), "Projects.SetIamPolicy")
+		assert.ErrorContains(t, err.(*vsaerrors.CustomError).OriginalErr, "googleapi: got HTTP response code 500 with body: ")
 	})
 
 	t.Run("WhenServiceAccountAlreadyHasRoles", func(tt *testing.T) {
@@ -2462,7 +2462,7 @@ func TestRemoveRolesFromServiceAccounts(t *testing.T) {
 		roles := []string{"roles/storage.admin"}
 		err = gService.RemoveRolesFromServiceAccounts(roles, serviceAccountEmail, projectID)
 		assert.NotNil(tt, err)
-		assert.Contains(tt, err.Error(), "Projects.GetIamPolicy")
+		assert.ErrorContains(t, err.(*vsaerrors.CustomError).OriginalErr, "googleapi: got HTTP response code 500 with body: ")
 	})
 
 	t.Run("WhenSetProjectIamPolicyFails", func(tt *testing.T) {
@@ -2519,7 +2519,7 @@ func TestRemoveRolesFromServiceAccounts(t *testing.T) {
 		roles := []string{"roles/storage.admin"}
 		err = gService.RemoveRolesFromServiceAccounts(roles, serviceAccountEmail, projectID)
 		assert.NotNil(tt, err)
-		assert.Contains(tt, err.Error(), "Projects.SetIamPolicy")
+		assert.ErrorContains(t, err.(*vsaerrors.CustomError).OriginalErr, "googleapi: got HTTP response code 500 with body: ")
 	})
 
 	t.Run("WhenServiceAccountNotInRole", func(tt *testing.T) {
@@ -2915,5 +2915,360 @@ func TestRemoveRolesFromServiceAccounts(t *testing.T) {
 		err = gService.RemoveRolesFromServiceAccounts(roles, serviceAccountEmail, projectID)
 		assert.Nil(tt, err)
 		assert.Equal(tt, 2, callCount, "Expected 2 API calls (getIamPolicy and setIamPolicy)")
+	})
+}
+
+func TestCreateServiceAccount_StatusConflict_ServiceAccountNotFound(t *testing.T) {
+	t.Run("WhenCreateServiceAccountConflictAndServiceAccountNotFound", func(tt *testing.T) {
+		defer testReset(tt)
+		url := "/v1/projects/test-proj/serviceAccounts"
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock server that returns conflict on create, then not found on get
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && req.URL.Path == url {
+				// First call to create returns conflict
+				rw.WriteHeader(http.StatusConflict)
+				return
+			}
+			if req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/projects/-/serviceAccounts/") {
+				// Second call to get service account returns not found
+				rw.WriteHeader(http.StatusNotFound)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		iamSvc, err := iam.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: iamSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		createRequest := &models.CreateServiceAccountRequest{
+			AccountId: "abc",
+			ServiceAccount: &models.ServiceAccount{
+				DisplayName: "test-account",
+			},
+		}
+
+		out, err := gService.CreateServiceAccount(createRequest, "test-proj", "abc@google.com")
+		assert.Nil(tt, out)
+		assert.NotNil(tt, err)
+		assert.Contains(tt, err.Error(), "An internal error occurred.")
+	})
+}
+
+func TestCreateServiceAccount_StatusConflict_ServiceAccountFound(t *testing.T) {
+	t.Run("WhenCreateServiceAccountConflictAndServiceAccountFound", func(tt *testing.T) {
+		defer testReset(tt)
+		url := "/v1/projects/test-proj/serviceAccounts"
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock server that returns conflict on create, then success on get
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && req.URL.Path == url {
+				// First call to create returns conflict
+				rw.WriteHeader(http.StatusConflict)
+				return
+			}
+			if req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/projects/-/serviceAccounts/") {
+				// Second call to get service account returns success
+				resp := &iam.ServiceAccount{
+					Email: "abc@google.com",
+					Name:  "projects/test-proj/serviceAccounts/abc@google.com",
+				}
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		iamSvc, err := iam.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: iamSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		createRequest := &models.CreateServiceAccountRequest{
+			AccountId: "abc",
+			ServiceAccount: &models.ServiceAccount{
+				DisplayName: "test-account",
+			},
+		}
+
+		out, err := gService.CreateServiceAccount(createRequest, "test-proj", "abc@google.com")
+		assert.NotNil(tt, out)
+		assert.Nil(tt, err)
+		assert.Equal(tt, "abc@google.com", out.Email)
+	})
+}
+
+func TestCreateServiceAccount_NonConflictError(t *testing.T) {
+	t.Run("WhenCreateServiceAccountNonConflictError", func(tt *testing.T) {
+		defer testReset(tt)
+		url := "/v1/projects/test-proj/serviceAccounts"
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock server that returns internal server error
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && req.URL.Path == url {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		iamSvc, err := iam.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: iamSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		createRequest := &models.CreateServiceAccountRequest{
+			AccountId: "abc",
+			ServiceAccount: &models.ServiceAccount{
+				DisplayName: "test-account",
+			},
+		}
+
+		out, err := gService.CreateServiceAccount(createRequest, "test-proj", "abc@google.com")
+		assert.Nil(tt, out)
+		assert.NotNil(tt, err)
+		assert.Contains(tt, err.Error(), "An internal error occurred.")
+	})
+}
+
+func TestCreateServiceAccount_Success(t *testing.T) {
+	t.Run("WhenCreateServiceAccountSuccess", func(tt *testing.T) {
+		defer testReset(tt)
+		url := "/v1/projects/test-proj/serviceAccounts"
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock server that returns success
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && req.URL.Path == url {
+				resp := &iam.ServiceAccount{
+					Email: "abc@google.com",
+					Name:  "projects/test-proj/serviceAccounts/abc@google.com",
+				}
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		iamSvc, err := iam.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: iamSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		createRequest := &models.CreateServiceAccountRequest{
+			AccountId: "abc",
+			ServiceAccount: &models.ServiceAccount{
+				DisplayName: "test-account",
+			},
+		}
+
+		out, err := gService.CreateServiceAccount(createRequest, "test-proj", "abc@google.com")
+		assert.NotNil(tt, out)
+		assert.Nil(tt, err)
+		assert.Equal(tt, "abc@google.com", out.Email)
+	})
+}
+
+func TestGetServiceAccountByEmail(t *testing.T) {
+	t.Run("WhenGetServiceAccountByEmailSuccess", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock server that returns success
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/projects/-/serviceAccounts/") {
+				resp := &iam.ServiceAccount{
+					Email: "abc@google.com",
+					Name:  "projects/test-proj/serviceAccounts/abc@google.com",
+				}
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		iamSvc, err := iam.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: iamSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		out, err := gService.GetServiceAccountByEmail("abc@google.com")
+		assert.NotNil(tt, out)
+		assert.Nil(tt, err)
+		assert.Equal(tt, "abc@google.com", out.Email)
+	})
+
+	t.Run("WhenGetServiceAccountByEmailFails", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		// Mock server that returns error
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/projects/-/serviceAccounts/") {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		iamSvc, err := iam.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				iamService: iamSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		out, err := gService.GetServiceAccountByEmail("abc@google.com")
+		assert.Nil(tt, out)
+		assert.NotNil(tt, err)
+		assert.Contains(tt, err.Error(), "An internal error occurred.")
+	})
+}
+
+func TestConvertServiceAccountToHyperscalerServiceAccount(t *testing.T) {
+	t.Run("WhenConvertServiceAccountToHyperscalerServiceAccount", func(tt *testing.T) {
+		iamSA := &iam.ServiceAccount{
+			Name:        "projects/test-proj/serviceAccounts/abc@google.com",
+			Description: "Test Description",
+			Email:       "abc@google.com",
+			ProjectId:   "test-proj",
+			UniqueId:    "123456789",
+			Disabled:    false,
+			DisplayName: "Test Account",
+		}
+
+		result := convertServiceAccountToHyperscalerServiceAccount(iamSA)
+
+		assert.Equal(tt, iamSA.Name, result.Name)
+		assert.Equal(tt, iamSA.Description, result.Description)
+		assert.Equal(tt, iamSA.Email, result.Email)
+		assert.Equal(tt, iamSA.ProjectId, result.ProjectId)
+		assert.Equal(tt, iamSA.UniqueId, result.UniqueId)
+		assert.Equal(tt, iamSA.Disabled, result.Disabled)
+		assert.Equal(tt, iamSA.DisplayName, result.DisplayName)
+	})
+}
+
+func TestConvertServiceAccounttoGcpServiceAccount(t *testing.T) {
+	t.Run("WhenConvertServiceAccounttoGcpServiceAccount", func(tt *testing.T) {
+		hyperscalerSA := &models.ServiceAccount{
+			Name:        "projects/test-proj/serviceAccounts/abc@google.com",
+			Description: "Test Description",
+			Email:       "abc@google.com",
+			ProjectId:   "test-proj",
+			UniqueId:    "123456789",
+			Disabled:    false,
+			DisplayName: "Test Account",
+		}
+
+		result := convertServiceAccounttoGcpServiceAccount(hyperscalerSA)
+
+		assert.Equal(tt, hyperscalerSA.Name, result.Name)
+		assert.Equal(tt, hyperscalerSA.Description, result.Description)
+		assert.Equal(tt, hyperscalerSA.Email, result.Email)
+		assert.Equal(tt, hyperscalerSA.ProjectId, result.ProjectId)
+		assert.Equal(tt, hyperscalerSA.UniqueId, result.UniqueId)
+		assert.Equal(tt, hyperscalerSA.Disabled, result.Disabled)
+		assert.Equal(tt, hyperscalerSA.DisplayName, result.DisplayName)
+	})
+}
+
+func TestConvertCreateServiceAccountRequestToGcpCreateRequest(t *testing.T) {
+	t.Run("WhenConvertCreateServiceAccountRequestToGcpCreateRequest", func(tt *testing.T) {
+		createRequest := &models.CreateServiceAccountRequest{
+			AccountId: "abc",
+			ServiceAccount: &models.ServiceAccount{
+				DisplayName: "Test Account",
+			},
+		}
+
+		result := convertCreateServiceAccountRequestToGcpCreateRequest(createRequest)
+
+		assert.Equal(tt, createRequest.AccountId, result.AccountId)
+		assert.Equal(tt, createRequest.ServiceAccount.DisplayName, result.ServiceAccount.DisplayName)
 	})
 }
