@@ -1223,6 +1223,13 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		if params.QuotaInBytes < volume.SizeInBytes {
 			return customerrors.NewUserInputValidationErr("volume size cannot be reduced")
 		}
+		// Calculate the size increase
+		sizeIncrease := params.QuotaInBytes - volume.SizeInBytes
+
+		// Check if adding the increase to current pool usage exceeds pool size
+		if sizeIncrease > 0 && pool.QuotaInBytes+uint64(sizeIncrease) > uint64(pool.SizeInBytes) {
+			return customerrors.NewUserInputValidationErr("Total size of volumes in a pool cannot exceed the pool capacity.")
+		}
 	}
 
 	if !pool.AllowAutoTiering && params.AutoTieringPolicy != nil && params.AutoTieringPolicy.AutoTieringEnabled {

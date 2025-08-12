@@ -8847,6 +8847,14 @@ func (s *V1betaDeleteVolumeInternalServerError) Validate() error {
 	return nil
 }
 
+func (s *V1betaDeleteVolumeNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *V1betaDeleteVolumeTooManyRequests) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
@@ -15428,7 +15436,7 @@ func (s *VolumeV1beta) Validate() error {
 			MaxLengthSet: true,
 			Email:        false,
 			Hostname:     false,
-			Regex:        regexMap["^[a-zA-Z][a-zA-Z0-9_]{0,62}$"],
+			Regex:        regexMap["^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"],
 		}).Validate(string(s.ResourceId)); err != nil {
 			return errors.Wrap(err, "string")
 		}

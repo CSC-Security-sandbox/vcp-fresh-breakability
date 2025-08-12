@@ -5152,6 +5152,7 @@ func TestUpdateVolume(t *testing.T) {
 		BaseModel:        datamodel.BaseModel{UUID: "pool-uuid"},
 		Name:             "test-pool",
 		AllowAutoTiering: true,
+		SizeInBytes:      2199023255552, // 2TiB
 	}
 	poolView := &datamodel.PoolView{
 		Pool: *dbPool,
@@ -6010,7 +6011,7 @@ func TestUpdateVolume(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
-		poolViewNoTiering := &datamodel.PoolView{Pool: datamodel.Pool{AllowAutoTiering: false}}
+		poolViewNoTiering := &datamodel.PoolView{Pool: datamodel.Pool{AllowAutoTiering: false, SizeInBytes: 2199023255552}}
 		param := &common.UpdateVolumeParams{
 			AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200,
 			AutoTieringPolicy: &common.AutoTieringPolicy{AutoTieringEnabled: true, CoolingThresholdDays: 10},
@@ -6562,6 +6563,243 @@ func Test_validateUpdateVolumeRequest(t *testing.T) {
 		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
 		assert.NoError(tt, err)
 		se.AssertExpectations(tt)
+	})
+
+	// Tests for quota validation logic
+	t.Run("FailsWhenVolumeUpdateExceedsPoolSize", func(tt *testing.T) {
+		ctx := context.Background()
+		se := &database.MockStorage{}
+
+		// Create a volume with current size of 100 GiB
+		currentVolumeSize := int64(100 * 1024 * 1024 * 1024) // 100 GiB
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: currentVolumeSize,
+		}
+
+		// Create a pool with total size of 1000 GiB and current usage of 600 GiB
+		poolTotalSize := int64(1000 * 1024 * 1024 * 1024)    // 1000 GiB
+		poolCurrentUsage := uint64(600 * 1024 * 1024 * 1024) // 600 GiB already used
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes: poolTotalSize,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: poolCurrentUsage,
+		}
+
+		// Request to update volume to 500 GiB (increase of 400 GiB)
+		// This would result in: 600 GiB (current pool usage) + 400 GiB (increase) = 1000 GiB + 1 byte > 1000 GiB pool size
+		newVolumeSize := int64(500*1024*1024*1024 + 1) // 500 GiB + 1 byte
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: newVolumeSize,
+		}
+
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Total size of volumes in a pool cannot exceed the pool capacity.")
+	})
+
+	t.Run("PassesWhenVolumeUpdateFitsExactlyInPool", func(tt *testing.T) {
+		ctx := context.Background()
+		se := &database.MockStorage{}
+
+		// Create a volume with current size of 100 GiB
+		currentVolumeSize := int64(100 * 1024 * 1024 * 1024) // 100 GiB
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: currentVolumeSize,
+		}
+
+		// Create a pool with total size of 1000 GiB and current usage of 600 GiB
+		poolTotalSize := int64(1000 * 1024 * 1024 * 1024)    // 1000 GiB
+		poolCurrentUsage := uint64(600 * 1024 * 1024 * 1024) // 600 GiB already used
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes: poolTotalSize,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: poolCurrentUsage,
+		}
+
+		// Request to update volume to 500 GiB (increase of 400 GiB)
+		// This would result in: 600 GiB (current pool usage) + 400 GiB (increase) = 1000 GiB exactly (pool size)
+		newVolumeSize := int64(500 * 1024 * 1024 * 1024) // 500 GiB exactly
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: newVolumeSize,
+		}
+
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("PassesWhenVolumeUpdateIsWithinPoolLimits", func(tt *testing.T) {
+		ctx := context.Background()
+		se := &database.MockStorage{}
+
+		// Create a volume with current size of 100 GiB
+		currentVolumeSize := int64(100 * 1024 * 1024 * 1024) // 100 GiB
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: currentVolumeSize,
+		}
+
+		// Create a pool with total size of 1000 GiB and current usage of 500 GiB
+		poolTotalSize := int64(1000 * 1024 * 1024 * 1024)    // 1000 GiB
+		poolCurrentUsage := uint64(500 * 1024 * 1024 * 1024) // 500 GiB already used
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes: poolTotalSize,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: poolCurrentUsage,
+		}
+
+		// Request to update volume to 300 GiB (increase of 200 GiB)
+		// This would result in: 500 GiB (current pool usage) + 200 GiB (increase) = 700 GiB < 1000 GiB (pool size)
+		newVolumeSize := int64(300 * 1024 * 1024 * 1024) // 300 GiB
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: newVolumeSize,
+		}
+
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("PassesWhenVolumeUpdateIsTheSameSize", func(tt *testing.T) {
+		ctx := context.Background()
+		se := &database.MockStorage{}
+
+		// Create a volume with current size of 200 GiB
+		currentVolumeSize := int64(200 * 1024 * 1024 * 1024) // 200 GiB
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: currentVolumeSize,
+		}
+
+		// Pool configuration doesn't matter since there's no size change
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes: int64(1000 * 1024 * 1024 * 1024),
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: uint64(800 * 1024 * 1024 * 1024), // Even with high usage
+		}
+
+		// Request to keep volume at the same size (no increase)
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: currentVolumeSize, // Same as current size
+		}
+
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("FailsWhenReducingVolumeSize", func(tt *testing.T) {
+		ctx := context.Background()
+		se := &database.MockStorage{}
+
+		// Create a volume with current size of 200 GiB
+		currentVolumeSize := int64(200 * 1024 * 1024 * 1024) // 200 GiB
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: currentVolumeSize,
+		}
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes: int64(1000 * 1024 * 1024 * 1024),
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: uint64(500 * 1024 * 1024 * 1024),
+		}
+
+		// Request to reduce volume to 100 GiB (reduction)
+		newVolumeSize := int64(100 * 1024 * 1024 * 1024) // 100 GiB < 200 GiB current
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: newVolumeSize,
+		}
+
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume size cannot be reduced")
+	})
+
+	t.Run("PassesWhenQuotaInBytesIsZeroOrNotProvided", func(tt *testing.T) {
+		ctx := context.Background()
+		se := &database.MockStorage{}
+
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(200 * 1024 * 1024 * 1024), // 200 GiB
+		}
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes: int64(1000 * 1024 * 1024 * 1024),
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: uint64(900 * 1024 * 1024 * 1024), // Even with high usage
+		}
+
+		// Test with QuotaInBytes = 0 (not provided)
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: 0, // This should skip quota validation
+		}
+
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.NoError(tt, err)
+
+		// Test with QuotaInBytes not set at all (default value)
+		params2 := &common.UpdateVolumeParams{}
+		err2 := validateUpdateVolumeRequest(ctx, se, volume, params2, pool)
+		assert.NoError(tt, err2)
+	})
+
+	t.Run("EdgeCaseWhenPoolIsFullAndNoVolumeIncrease", func(tt *testing.T) {
+		ctx := context.Background()
+		se := &database.MockStorage{}
+
+		// Create a volume with current size of 200 GiB
+		currentVolumeSize := int64(200 * 1024 * 1024 * 1024) // 200 GiB
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: currentVolumeSize,
+		}
+
+		// Pool is completely full
+		poolTotalSize := int64(1000 * 1024 * 1024 * 1024)     // 1000 GiB
+		poolCurrentUsage := uint64(1000 * 1024 * 1024 * 1024) // 1000 GiB used (100% full)
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				SizeInBytes: poolTotalSize,
+				Account: &datamodel.Account{
+					BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+				},
+			},
+			QuotaInBytes: poolCurrentUsage,
+		}
+
+		// Request to keep volume at the same size (sizeIncrease = 0)
+		params := &common.UpdateVolumeParams{
+			QuotaInBytes: currentVolumeSize, // Same as current size, so sizeIncrease = 0
+		}
+
+		// Should pass because sizeIncrease > 0 condition won't trigger
+		err := validateUpdateVolumeRequest(ctx, se, volume, params, pool)
+		assert.NoError(tt, err)
 	})
 }
 

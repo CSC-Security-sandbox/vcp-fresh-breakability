@@ -40,7 +40,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 	t.Run("ValidInputWithBlockProperties", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -71,8 +71,8 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		expected := &common.CreateVolumeParams{
 			AccountName:      "test-project",
 			Region:           "test-region",
-			Name:             "test-volume",
-			VendorID:         "/projects/test-project/locations/test-location/volumes/test-volume",
+			Name:             "testvolume",
+			VendorID:         "/projects/test-project/locations/test-location/volumes/testvolume",
 			CreationToken:    "test-token",
 			PoolID:           "test-pool",
 			QuotaInBytes:     1024,
@@ -101,7 +101,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 	t.Run("ValidInputWithBlockPropertiesForSnaphotRestore", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -133,8 +133,8 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		expected := &common.CreateVolumeParams{
 			AccountName:      "test-project",
 			Region:           "test-region",
-			Name:             "test-volume",
-			VendorID:         "/projects/test-project/locations/test-location/volumes/test-volume",
+			Name:             "testvolume",
+			VendorID:         "/projects/test-project/locations/test-location/volumes/testvolume",
 			CreationToken:    "test-token",
 			PoolID:           "test-pool",
 			QuotaInBytes:     1024,
@@ -164,7 +164,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 	t.Run("SnapReserveIsSet_ValidValue", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -185,7 +185,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 	t.Run("SnapReserveIsSet_NegativeValue", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -207,7 +207,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 	t.Run("SnapReserveIsSet_TooLargeValue", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -233,7 +233,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		autoTieringEnabled = true
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -273,8 +273,8 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		expected := &common.CreateVolumeParams{
 			AccountName:      "test-project",
 			Region:           "test-region",
-			Name:             "test-volume",
-			VendorID:         "/projects/test-project/locations/test-location/volumes/test-volume",
+			Name:             "testvolume",
+			VendorID:         "/projects/test-project/locations/test-location/volumes/testvolume",
 			CreationToken:    "test-token",
 			PoolID:           "test-pool",
 			QuotaInBytes:     1024,
@@ -314,7 +314,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		autoTieringEnabled = true
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -350,8 +350,8 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 		expected := &common.CreateVolumeParams{
 			AccountName:      "test-project",
 			Region:           "test-region",
-			Name:             "test-volume",
-			VendorID:         "/projects/test-project/locations/test-location/volumes/test-volume",
+			Name:             "testvolume",
+			VendorID:         "/projects/test-project/locations/test-location/volumes/testvolume",
 			CreationToken:    "test-token",
 			PoolID:           "test-pool",
 			QuotaInBytes:     1024,
@@ -385,7 +385,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 	t.Run("ValidInputWithFilePropertiesAndExportRules", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -420,13 +420,13 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 
 		expected := &common.CreateVolumeParams{
 			AccountName:   "test-project",
-			Name:          "test-volume",
+			Name:          "testvolume",
 			PoolID:        "test-pool",
 			QuotaInBytes:  1024,
 			Network:       "",
 			CreationToken: "test-token",
 			Region:        "test-region",
-			VendorID:      "/projects/test-project/locations/test-location/volumes/test-volume",
+			VendorID:      "/projects/test-project/locations/test-location/volumes/testvolume",
 			Protocols: []string{
 				"NFSV3",
 			},
@@ -460,7 +460,7 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 	t.Run("ValidInputWithMultipleProtocols", func(tt *testing.T) {
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -479,13 +479,13 @@ func TestPrepareCreateVolumeParams(t *testing.T) {
 
 		expected := &common.CreateVolumeParams{
 			AccountName:   "test-project",
-			Name:          "test-volume",
+			Name:          "testvolume",
 			PoolID:        "test-pool",
 			QuotaInBytes:  1024,
 			Network:       "",
 			CreationToken: "test-token",
 			Region:        "test-region",
-			VendorID:      "/projects/test-project/locations/test-location/volumes/test-volume",
+			VendorID:      "/projects/test-project/locations/test-location/volumes/testvolume",
 			Protocols: []string{
 				"NFSV3", "NFSV4", "SMB",
 			},
@@ -1329,6 +1329,215 @@ func TestConvertVolumeV1betaCVPToModel(t *testing.T) {
 		assert.Equal(tt, int64(10199181), res.BackupConfig.Value.BackupChainBytes.Value)
 		assert.Equal(tt, "backup-policy-id", res.BackupConfig.Value.BackupPolicyId.Value)
 		assert.Equal(tt, "backup-vault-id", res.BackupConfig.Value.BackupVaultId.Value)
+	})
+
+	t.Run("BasicVolumeConversionWithNilFields", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			ResourceID:         nil, // Test nil ResourceID
+			VolumeID:           "volume-456",
+			VolumeState:        "ACTIVE",
+			VolumeStateDetails: "Volume is healthy",
+			SecurityStyle:      "unix",
+			ServiceLevel:       "FLEX",
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.Empty(tt, result.ResourceId) // nil ResourceID becomes empty string
+		assert.Equal(tt, "volume-456", result.VolumeId.Value)
+		assert.Equal(tt, gcpgenserver.VolumeV1betaVolumeState("ACTIVE"), result.VolumeState.Value)
+	})
+
+	t.Run("VolumeWithExportPolicyRules", func(tt *testing.T) {
+		exportPolicy := &cvpmodels.ExportPolicyV1beta{
+			Rules: []*cvpmodels.SimpleExportPolicyRuleV1beta{
+				{
+					AccessType:         nillable.GetStringPtr("ReadWrite"),
+					AllowedClients:     nillable.GetStringPtr("0.0.0.0/0"),
+					HasRootAccess:      nillable.GetStringPtr("true"),
+					Kerberos5ReadOnly:  nillable.GetBoolPtr(false),
+					Kerberos5ReadWrite: nillable.GetBoolPtr(true),
+					Nfsv3:              nillable.GetBoolPtr(true),
+					Nfsv4:              nillable.GetBoolPtr(true),
+				},
+			},
+		}
+
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID:     "volume-123",
+			ExportPolicy: exportPolicy,
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.True(tt, result.ExportPolicy.IsSet())
+		assert.Len(tt, result.ExportPolicy.Value.Rules, 1)
+
+		rule := result.ExportPolicy.Value.Rules[0]
+		assert.Equal(tt, gcpgenserver.SimpleExportPolicyRuleV1betaAccessType("ReadWrite"), rule.AccessType)
+		assert.Equal(tt, "0.0.0.0/0", rule.AllowedClients)
+		assert.Equal(tt, gcpgenserver.SimpleExportPolicyRuleV1betaHasRootAccess("true"), rule.HasRootAccess.Value)
+		assert.False(tt, rule.Kerberos5ReadOnly.Value)
+		assert.True(tt, rule.Kerberos5ReadWrite.Value)
+		assert.True(tt, rule.Nfsv3.Value)
+		assert.True(tt, rule.Nfsv4.Value)
+	})
+
+	t.Run("VolumeWithNilExportPolicy", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID:     "volume-123",
+			ExportPolicy: nil,
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.True(tt, result.ExportPolicy.IsSet())
+		assert.Empty(tt, result.ExportPolicy.Value.Rules)
+	})
+
+	t.Run("VolumeWithSnapshotPolicyFullSchedules", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID: "volume-123",
+			SnapshotPolicy: &cvpmodels.SnapshotPolicyV1beta{
+				Enabled: nillable.GetBoolPtr(true),
+				HourlySchedule: &cvpmodels.HourlyScheduleV1beta{
+					Minute:          nillable.GetFloat64Ptr(30),
+					SnapshotsToKeep: nillable.GetFloat64Ptr(24),
+				},
+				DailySchedule: &cvpmodels.DailyScheduleV1beta{
+					Hour:            nillable.GetFloat64Ptr(2),
+					Minute:          nillable.GetFloat64Ptr(0),
+					SnapshotsToKeep: nillable.GetFloat64Ptr(7),
+				},
+				WeeklySchedule: &cvpmodels.WeeklyScheduleV1beta{
+					Day:             "Sunday",
+					Hour:            nillable.GetFloat64Ptr(3),
+					Minute:          nillable.GetFloat64Ptr(15),
+					SnapshotsToKeep: nillable.GetFloat64Ptr(4),
+				},
+				MonthlySchedule: &cvpmodels.MonthlyScheduleV1beta{
+					DaysOfMonth:     "1",
+					Hour:            nillable.GetFloat64Ptr(1),
+					Minute:          nillable.GetFloat64Ptr(30),
+					SnapshotsToKeep: nillable.GetFloat64Ptr(12),
+				},
+			},
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.True(tt, result.SnapshotPolicy.IsSet())
+		policy := result.SnapshotPolicy.Value
+
+		assert.True(tt, policy.Enabled.Value)
+
+		assert.True(tt, policy.HourlySchedule.IsSet())
+		assert.Equal(tt, float64(30), policy.HourlySchedule.Value.Minute.Value)
+		assert.Equal(tt, float64(24), policy.HourlySchedule.Value.SnapshotsToKeep.Value)
+
+		assert.True(tt, policy.DailySchedule.IsSet())
+		assert.Equal(tt, float64(2), policy.DailySchedule.Value.Hour.Value)
+		assert.Equal(tt, float64(7), policy.DailySchedule.Value.SnapshotsToKeep.Value)
+
+		assert.True(tt, policy.WeeklySchedule.IsSet())
+		assert.Equal(tt, "Sunday", policy.WeeklySchedule.Value.Day.Value)
+		assert.Equal(tt, float64(4), policy.WeeklySchedule.Value.SnapshotsToKeep.Value)
+
+		assert.True(tt, policy.MonthlySchedule.IsSet())
+		assert.Equal(tt, "1", policy.MonthlySchedule.Value.DaysOfMonth.Value)
+		assert.Equal(tt, float64(12), policy.MonthlySchedule.Value.SnapshotsToKeep.Value)
+	})
+
+	t.Run("VolumeWithSnapshotPolicyDisabled", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID: "volume-123",
+			SnapshotPolicy: &cvpmodels.SnapshotPolicyV1beta{
+				Enabled: nillable.GetBoolPtr(false),
+			},
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.False(tt, result.SnapshotPolicy.IsSet())
+	})
+
+	t.Run("VolumeWithMountPoints", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID: "volume-123",
+			MountPoints: []*cvpmodels.MountPointV1beta{
+				{
+					Export:       "/vol1",
+					ExportFull:   "server:/vol1",
+					IPAddress:    "192.168.1.100",
+					Instructions: "mount -t nfs server:/vol1 /mnt/vol1",
+					Protocol:     "NFSv3",
+				},
+			},
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.Len(tt, result.MountPoints, 1)
+
+		mp1 := result.MountPoints[0]
+		assert.Equal(tt, "/vol1", mp1.Export.Value)
+		assert.Equal(tt, "server:/vol1", mp1.ExportFull.Value)
+		assert.Equal(tt, "192.168.1.100", mp1.IpAddress.Value)
+		assert.Equal(tt, "mount -t nfs server:/vol1 /mnt/vol1", mp1.Instructions.Value)
+		assert.Equal(tt, gcpgenserver.ProtocolsV1beta("NFSv3"), mp1.Protocol.Value)
+	})
+
+	t.Run("VolumeWithTieringPolicy", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID: "volume-123",
+			TieringPolicy: &cvpmodels.TieringPolicyV1beta{
+				TierAction: nillable.GetStringPtr("AUTO"),
+			},
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.True(tt, result.TieringPolicy.IsSet())
+		assert.Equal(tt, gcpgenserver.TieringPolicyV1betaTierAction("AUTO"), result.TieringPolicy.Value.TierAction.Value)
+	})
+
+	t.Run("VolumeWithTieringPolicyNilTierAction", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID: "volume-123",
+			TieringPolicy: &cvpmodels.TieringPolicyV1beta{
+				TierAction: nil, // nil tier action
+			},
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.False(tt, result.TieringPolicy.IsSet())
+	})
+
+	t.Run("VolumeWithCacheParametersNilFields", func(tt *testing.T) {
+		input := &cvpmodels.VolumeV1beta{
+			VolumeID: "volume-123",
+			CacheParameters: &cvpmodels.FlexCacheV1beta{
+				PeerVolumeName:       "origin-volume",
+				PeerClusterName:      "origin-cluster",
+				PeerSvmName:          "origin-svm",
+				CacheState:           "online",
+				Command:              "flexcache create",
+				EnableGlobalFileLock: nil, // nil
+				CommandExpiryTime:    nil, // nil
+				Passphrase:           nil, // nil
+			},
+		}
+
+		result := _convertVolumeV1betaCVPToModel(input)
+
+		assert.True(tt, result.CacheParameters.IsSet())
+		cache := result.CacheParameters.Value
+
+		assert.Equal(tt, "origin-volume", cache.PeerVolumeName.Value)
+		assert.False(tt, cache.EnableGlobalFileLock.IsSet())
+		assert.False(tt, cache.CommandExpiryTime.IsSet())
+		assert.False(tt, cache.Passphrase.IsSet())
 	})
 }
 
@@ -2309,7 +2518,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -2408,7 +2617,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -2436,7 +2645,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -2464,7 +2673,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -2496,7 +2705,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -2532,7 +2741,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		}
 		req := &gcpgenserver.VolumeCreateV1beta{
 			Volume: gcpgenserver.VolumeV1beta{
-				ResourceId:    "test-volume",
+				ResourceId:    "testvolume",
 				CreationToken: gcpgenserver.NewOptString("test-token"),
 				PoolId:        gcpgenserver.NewNilString("test-pool"),
 				QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -3013,7 +3222,7 @@ func TestPrepareCreateVolumeParams_WithAutoTieringFeatureDisabled(t *testing.T) 
 
 	req := &gcpgenserver.VolumeCreateV1beta{
 		Volume: gcpgenserver.VolumeV1beta{
-			ResourceId:    "test-volume",
+			ResourceId:    "testvolume",
 			CreationToken: gcpgenserver.NewOptString("test-token"),
 			PoolId:        gcpgenserver.NewNilString("test-pool"),
 			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -3044,7 +3253,7 @@ func TestPrepareCreateVolumeParams_WithAutoTieringFeatureDisabled(t *testing.T) 
 func TestPrepareCreateVolumeParams_SnapReserveMustBePositiveNumber(t *testing.T) {
 	req := &gcpgenserver.VolumeCreateV1beta{
 		Volume: gcpgenserver.VolumeV1beta{
-			ResourceId:    "test-volume",
+			ResourceId:    "testvolume",
 			CreationToken: gcpgenserver.NewOptString("test-token"),
 			PoolId:        gcpgenserver.NewNilString("test-pool"),
 			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -3068,7 +3277,7 @@ func TestPrepareCreateVolumeParams_SnapReserveMustBePositiveNumber(t *testing.T)
 func TestPrepareCreateVolumeParams_DeDuplicateHGUUID(t *testing.T) {
 	req := &gcpgenserver.VolumeCreateV1beta{
 		Volume: gcpgenserver.VolumeV1beta{
-			ResourceId:    "test-volume",
+			ResourceId:    "testvolume",
 			CreationToken: gcpgenserver.NewOptString("test-token"),
 			PoolId:        gcpgenserver.NewNilString("test-pool"),
 			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
@@ -3090,6 +3299,126 @@ func TestPrepareCreateVolumeParams_DeDuplicateHGUUID(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, result)
 	assert.Len(t, result.BlockProperties.HostGroupUUIDs, 2)
+}
+
+func TestPrepareCreateVolumeParams_ResourceIdWithHyphens_ReturnsError(t *testing.T) {
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "test-volume-with-hyphens",
+			CreationToken: gcpgenserver.NewOptString("test-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+			Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+		},
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+
+	result, err := _prepareCreateVolumeParams(req, params, region)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "The Resource ID can only contain lowercase letters, numbers, and underscores. It must start with a letter and cannot end with an underscore.")
+}
+
+func TestPrepareCreateVolumeParams_ValidResourceIdWithoutHyphens_Success(t *testing.T) {
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:    "validresourceid123",
+			CreationToken: gcpgenserver.NewOptString("test-token"),
+			PoolId:        gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+			Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+		},
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	region := "test-region"
+
+	result, err := _prepareCreateVolumeParams(req, params, region)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "validresourceid123", result.Name)
+	assert.Equal(t, "/projects/test-project/locations/test-location/volumes/validresourceid123", result.VendorID)
+}
+
+func TestPrepareCreateVolumeParams_ResourceIdEdgeCases(t *testing.T) {
+	errorString := "The Resource ID can only contain lowercase letters, numbers, and underscores. It must start with a letter and cannot end with an underscore."
+	testCases := []struct {
+		name          string
+		resourceId    string
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name:          "Single hyphen",
+			resourceId:    "test-volume",
+			expectError:   true,
+			errorContains: errorString,
+		},
+		{
+			name:          "Multiple hyphens",
+			resourceId:    "test-volume-with-multiple-hyphens",
+			expectError:   true,
+			errorContains: errorString,
+		},
+		{
+			name:          "Hyphen at beginning",
+			resourceId:    "-testvolume",
+			expectError:   true,
+			errorContains: errorString,
+		},
+		{
+			name:          "Hyphen at end",
+			resourceId:    "testvolume-",
+			expectError:   true,
+			errorContains: errorString,
+		},
+		{
+			name:        "Valid alphanumeric",
+			resourceId:  "testvolume123",
+			expectError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &gcpgenserver.VolumeCreateV1beta{
+				Volume: gcpgenserver.VolumeV1beta{
+					ResourceId:    tc.resourceId,
+					CreationToken: gcpgenserver.NewOptString("test-token"),
+					PoolId:        gcpgenserver.NewNilString("test-pool"),
+					QuotaInBytes:  gcpgenserver.NewOptFloat64(1024),
+					Protocols:     []gcpgenserver.ProtocolsV1beta{gcpgenserver.ProtocolsV1betaISCSI},
+				},
+			}
+			params := gcpgenserver.V1betaCreateVolumeParams{
+				ProjectNumber: "test-project",
+				LocationId:    "test-location",
+			}
+			region := "test-region"
+
+			result, err := _prepareCreateVolumeParams(req, params, region)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+				assert.Contains(t, err.Error(), tc.errorContains)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tc.resourceId, result.Name)
+				expectedVendorID := fmt.Sprintf("/projects/test-project/locations/test-location/volumes/%s", tc.resourceId)
+				assert.Equal(t, expectedVendorID, result.VendorID)
+			}
+		})
+	}
 }
 
 func TestPrepareUpdateVolumeParams_SnapReserveCannotBeGreaterThan100(t *testing.T) {
@@ -3251,7 +3580,7 @@ func TestConvertModelToVCPVolume_MountPoints(t *testing.T) {
 		// Setup a volume with READY state and non-empty LunName
 		vol := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateREADY),
 			IPAddresses:    []string{"10.72.177.17"},
 			BlockProperties: &models.BlockProperties{
@@ -3277,7 +3606,7 @@ func TestConvertModelToVCPVolume_MountPoints(t *testing.T) {
 		// Setup a volume with non-READY state but with LunName
 		vol := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateCREATING), // Not READY
 			IPAddresses:    []string{"10.72.177.17"},
 			BlockProperties: &models.BlockProperties{
@@ -3298,7 +3627,7 @@ func TestConvertModelToVCPVolume_MountPoints(t *testing.T) {
 		// Setup a volume with READY state but empty LunName
 		vol := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 			LifeCycleState: string(gcpgenserver.VolumeV1betaVolumeStateREADY), // READY
 			IPAddresses:    []string{"10.72.177.17"},
 			BlockProperties: &models.BlockProperties{
@@ -3319,7 +3648,7 @@ func TestConvertModelToVCPVolume_MountPoints(t *testing.T) {
 		// Setup a volume with READY state but no BlockProperties
 		vol := &models.Volume{
 			BaseModel:       models.BaseModel{UUID: "vol-1"},
-			DisplayName:     "test-volume",
+			DisplayName:     "testvolume",
 			LifeCycleState:  string(gcpgenserver.VolumeV1betaVolumeStateREADY), // READY
 			IPAddresses:     []string{"10.72.177.17"},
 			BlockProperties: nil, // No BlockProperties
@@ -3361,7 +3690,7 @@ func TestV1betaDescribeVolume(t *testing.T) {
 		volume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: "READY",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 			QuotaInBytes:   1024 * 1024 * 1024, // 1GB
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", true).Return(volume, nil)
@@ -3369,7 +3698,7 @@ func TestV1betaDescribeVolume(t *testing.T) {
 		result, err := handler.V1betaDescribeVolume(context.Background(), params)
 		assert.NoError(tt, err)
 		volumeResponse := result.(*gcpgenserver.VolumeV1beta)
-		assert.Equal(tt, "test-volume", volumeResponse.ResourceId)
+		assert.Equal(tt, "testvolume", volumeResponse.ResourceId)
 		assert.Equal(tt, "vol-1", volumeResponse.VolumeId.Value)
 	})
 
@@ -3428,7 +3757,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: models.LifeCycleStateREADY,
 			CreationToken:  "token",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 
@@ -3437,7 +3766,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: models.LifeCycleStateDeleted,
 			CreationToken:  "token",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		mockOrchestrator.EXPECT().DeleteVolume(mock.Anything, "vol-1").Return(deletedVolume, "job-123", nil)
 
@@ -3466,10 +3795,10 @@ func TestV1betaDeleteVolume(t *testing.T) {
 
 		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
 		assert.Nil(tt, err)
-		internalErr, isInternal := result.(*gcpgenserver.V1betaDeleteVolumeInternalServerError)
-		assert.True(tt, isInternal)
-		assert.Equal(tt, float64(404), internalErr.Code)
-		assert.Equal(tt, "Volume not found", internalErr.Message)
+		notFoundErr1, isNotFound := result.(*gcpgenserver.V1betaDeleteVolumeNotFound)
+		assert.True(tt, isNotFound)
+		assert.Equal(tt, float64(404), notFoundErr1.Code)
+		assert.Equal(tt, "Volume not found", notFoundErr1.Message)
 	})
 
 	t.Run("GetVolumeInternalServerError", func(tt *testing.T) {
@@ -3507,7 +3836,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: models.LifeCycleStateDeleting,
 			CreationToken:  "token",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 
@@ -3533,7 +3862,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: models.LifeCycleStateDeleted,
 			CreationToken:  "token",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 
@@ -3561,7 +3890,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: models.LifeCycleStateREADY,
 			CreationToken:  "token",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 
@@ -3593,7 +3922,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: models.LifeCycleStateREADY,
 			CreationToken:  "token",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 
@@ -3624,7 +3953,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: models.LifeCycleStateREADY,
 			CreationToken:  "token",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 
@@ -3633,7 +3962,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: models.LifeCycleStateDeleting,
 			CreationToken:  "token",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		mockOrchestrator.EXPECT().DeleteVolume(mock.Anything, "vol-1").Return(deletingVolume, "job-123", nil)
 
@@ -3681,7 +4010,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 					BaseModel:      models.BaseModel{UUID: "vol-1"},
 					LifeCycleState: tc.initialState,
 					CreationToken:  "token",
-					DisplayName:    "test-volume",
+					DisplayName:    "testvolume",
 				}
 				mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(volume, nil)
 
@@ -3690,7 +4019,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 					BaseModel:      models.BaseModel{UUID: "vol-1"},
 					LifeCycleState: models.LifeCycleStateDeleted,
 					CreationToken:  "token",
-					DisplayName:    "test-volume",
+					DisplayName:    "testvolume",
 				}
 				mockOrchestrator.EXPECT().DeleteVolume(mock.Anything, "vol-1").Return(deletedVolume, "job-123", nil)
 
@@ -3725,7 +4054,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		existingVolume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: "READY",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(existingVolume, nil)
 
@@ -3733,7 +4062,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		deletingVolume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: "DELETING",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		jobUUID := "job-uuid-123"
 		mockOrchestrator.EXPECT().DeleteVolume(mock.Anything, "vol-1").Return(deletingVolume, jobUUID, nil)
@@ -3762,7 +4091,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		existingVolume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: "READY",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(existingVolume, nil)
 
@@ -3794,7 +4123,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		existingVolume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: "READY",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(existingVolume, nil)
 
@@ -3829,10 +4158,10 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		result, err := handler.V1betaDeleteVolume(context.Background(), req, params)
 		assert.Nil(tt, err)
 
-		internalErr, ok := result.(*gcpgenserver.V1betaDeleteVolumeInternalServerError)
+		notFoundErr2, ok := result.(*gcpgenserver.V1betaDeleteVolumeNotFound)
 		assert.True(tt, ok)
-		assert.Equal(tt, float64(404), internalErr.Code)
-		assert.Equal(tt, "Volume not found", internalErr.Message)
+		assert.Equal(tt, float64(404), notFoundErr2.Code)
+		assert.Equal(tt, "Volume not found", notFoundErr2.Message)
 	})
 
 	t.Run("VolumeNotFound_DeleteVolume", func(tt *testing.T) {
@@ -3850,7 +4179,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		existingVolume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: "READY",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(existingVolume, nil)
 
@@ -3882,7 +4211,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		deletingVolume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: models.LifeCycleStateDeleting,
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(deletingVolume, nil)
 
@@ -3934,7 +4263,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 		existingVolume := &models.Volume{
 			BaseModel:      models.BaseModel{UUID: "vol-1"},
 			LifeCycleState: "READY",
-			DisplayName:    "test-volume",
+			DisplayName:    "testvolume",
 		}
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-1", false).Return(existingVolume, nil)
 

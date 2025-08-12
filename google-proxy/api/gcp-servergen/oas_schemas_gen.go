@@ -16145,6 +16145,10 @@ type V1betaDeleteVolumeNoContent struct{}
 
 func (*V1betaDeleteVolumeNoContent) v1betaDeleteVolumeRes() {}
 
+type V1betaDeleteVolumeNotFound Error
+
+func (*V1betaDeleteVolumeNotFound) v1betaDeleteVolumeRes() {}
+
 type V1betaDeleteVolumeReq struct {
 	// Delete all the associated backups for the given volume Id or not.
 	DeleteAssociatedBackups OptBool `json:"deleteAssociatedBackups"`
@@ -21206,8 +21210,9 @@ func (s *VolumeUpdateV1betaLabels) init() VolumeUpdateV1betaLabels {
 
 // Ref: #/components/schemas/Volume_v1beta
 type VolumeV1beta struct {
-	// A human readable label for the resource which is restricted to letters, numbers, and underscore,
-	// with the first character a letter, the last a letter or a number, and a 63 character maximum.
+	// A human readable label for the resource which is restricted to letters, numbers, hyphen and
+	// underscore, with the first character a letter, the last a letter or a number, and a 63 character
+	// maximum.
 	ResourceId string `json:"resourceId"`
 	// Uuid v4 of the volume.
 	VolumeId OptString `json:"volumeId"`

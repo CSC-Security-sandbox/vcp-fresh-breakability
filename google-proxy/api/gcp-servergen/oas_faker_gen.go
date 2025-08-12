@@ -5868,6 +5868,15 @@ func (s *V1betaDeleteVolumeInternalServerError) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaDeleteVolumeNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumeNotFound(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaDeleteVolumeReq) SetFake() {
 	{
 		{
