@@ -254,6 +254,7 @@ jobs:
           helm package kubernetes/vsa-control-plane --destination ./helm-packages
           helm package kubernetes/vcp-worker-chart --destination ./helm-packages
           helm package kubernetes/vsa-harvest-otel --destination ./helm-packages
+          helm package kubernetes/vlm-worker --destination ./helm-packages
 
       - name: Push Helm Charts to GHCR
         run: |
@@ -283,7 +284,7 @@ jobs:
             echo "GHCR_${IMAGE}_URL=ghcr.io/vcp-vsa-control-plane/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
             echo "GCP_${IMAGE}_URL=${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_GCP_REPO }}/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
           done
-          CHARTS=("vsa-control-plane" "vcp-worker-chart" "vsa-harvest-otel")
+          CHARTS=("vsa-control-plane" "vcp-worker-chart" "vsa-harvest-otel" "vlm-worker")
           for CHART in "${CHARTS[@]}"; do
             echo "GHCR_${CHART}_HELM_URL=oci://ghcr.io/vcp-vsa-control-plane/${CHART}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
             echo "GCP_${CHART}_HELM_URL=oci://${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_HELM_REPO }}/${CHART}:${{ inputs.tag }}" >> $GITHUB_OUTPUT

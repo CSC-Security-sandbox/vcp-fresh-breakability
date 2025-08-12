@@ -3,10 +3,10 @@ global:
   primaryImageRegistryPath: vcp-vsa-control-plane
   primaryImageRegistryPasswordAuth: true
   primaryImagePullSecretName: ghcr.io
-  secondaryImageRegistry: "europe-north1-docker.pkg.dev/gcnv-artifact-registry-nonprod"
-  secondaryImageRegistryPath: "vcp-container-images-us"
+  secondaryImageRegistry: "us-docker.pkg.dev/gcnv-artifact-registry-nonprod"
+  secondaryImageRegistryPath: "vlm"
   secondaryImageRegistryPasswordAuth: false
-  useTags: true
+  useTags: false
   nodeSelector:
     nodeType: vsacp-nodes
   chartPrimaryImageRegistry: ""
@@ -24,9 +24,9 @@ serviceAccount:
 # Image configuration
 images:
   vlmWorker:
-    name: vlm-worker
-    tag: 0.0.0
-    digest: ""
+    name: temporal-vlm
+    tag: "R9.17.1xN_non_promo_7745405"
+    digest: "sha256:81badcebc85ff5f78ffebda3d10626d4f5288f24448bc8bc969df7c1400873b7"
     secondary: true
     pullPolicy: IfNotPresent
 
