@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -206,7 +207,7 @@ func TestUploadHarvestTemplate_WithCredentials(t *testing.T) {
 		LoadHarvestTemplateFunc: func() (string, error) { return "template: {{.Fake}}", nil },
 		RenderHarvestTemplateFunc: func(cfg *datamodel.HarvestConfig) (string, error) {
 			// Verify that the password was set from credentials
-			assert.Equal(t, "test-password", cfg.PASSWORD)
+			assert.Equal(t, strconv.Quote("test-password"), cfg.PASSWORD)
 			return "fake-yaml", nil
 		},
 	}
@@ -214,7 +215,61 @@ func TestUploadHarvestTemplate_WithCredentials(t *testing.T) {
 	assert.NoError(t, activity.UploadHarvestTemplate(ctx, input))
 
 	// Verify that the password was actually set in the HarvestConfig
-	assert.Equal(t, "test-password", harvestConfig.PASSWORD)
+	assert.Equal(t, strconv.Quote("test-password"), harvestConfig.PASSWORD)
+}
+
+// Below test case validates whether special characters in passwords are embedded with quotes
+func TestUploadHarvestTemplate_WithCreds_SpecialChars(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := r.ParseMultipartForm(10 << 20)
+		assert.NoError(t, err)
+		file, _, err := r.FormFile("file")
+		assert.NoError(t, err)
+		defer func() {
+			cerr := file.Close()
+			assert.NoError(t, cerr)
+		}()
+		content, err := io.ReadAll(file)
+		assert.NoError(t, err)
+		assert.Contains(t, string(content), "fake-yaml")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	harvestConfig := &datamodel.HarvestConfig{}
+	mockSE := new(database.MockStorage)
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			AuthType: 3,
+			Password: "]yq9$r50Kz5^",
+		},
+		AccountID: 1,
+	}
+	poolView := &datamodel.PoolView{
+		Pool: *pool,
+	}
+	input := UploadHarvestTemplateInput{
+		NodeMappings: []*datamodel.NodeNodeGroupMap{{HarvestConfig: harvestConfig, NodeGroup: &datamodel.NodeGroup{LeaseName: "lease-1"}}},
+		UploadURL:    ts.URL,
+		PoolUUID:     pool.UUID,
+		AccountID:    pool.AccountID,
+	}
+	mockSE.On("GetPool", mock.Anything, pool.UUID, pool.AccountID).Return(poolView, nil)
+	activity := &UploadHarvestTemplateActivity{
+		SE:                      mockSE,
+		LoadHarvestTemplateFunc: func() (string, error) { return "template: {{.Fake}}", nil },
+		RenderHarvestTemplateFunc: func(cfg *datamodel.HarvestConfig) (string, error) {
+			// Verify that the password was set from credentials
+			assert.Equal(t, strconv.Quote("]yq9$r50Kz5^"), cfg.PASSWORD)
+			return "fake-yaml", nil
+		},
+	}
+	ctx := context.Background()
+	assert.NoError(t, activity.UploadHarvestTemplate(ctx, input))
+
+	// Verify that the password was actually set in the HarvestConfig
+	assert.Equal(t, strconv.Quote("]yq9$r50Kz5^"), harvestConfig.PASSWORD)
 }
 
 func TestUploadHarvestTemplate_RenderError(t *testing.T) {

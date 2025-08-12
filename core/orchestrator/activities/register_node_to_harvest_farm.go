@@ -11,6 +11,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"strconv"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -295,7 +296,7 @@ func (a *UploadHarvestTemplateActivity) UploadHarvestTemplate(ctx context.Contex
 		}
 
 		// Set password if credentials are provided
-		mapping.HarvestConfig.PASSWORD = credentials.AdminPassword
+		mapping.HarvestConfig.PASSWORD = strconv.Quote(credentials.AdminPassword)
 
 		tmplStr, err := renderFunc(mapping.HarvestConfig)
 		if err != nil {
