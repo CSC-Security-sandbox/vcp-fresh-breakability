@@ -14,7 +14,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -1447,4 +1447,834 @@ func TestValidateUpdatePoolParams_AutoTieringDisabled(t *testing.T) {
 		err := _validateUpdatePoolParams(params, pool)
 		assert.NoError(tt, err)
 	})
+}
+
+// TestCreatePool_WorkflowFailure_JobMarkedAsErrored tests that jobs are marked as errored when workflow fails to start
+func TestCreatePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflowenginemock.MockTemporalTestClient)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-account",
+	}
+
+	job := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
+		Type:      string(models.JobTypeCreatePool),
+		State:     string(models.JobsStateNEW),
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+		AccountID: account.ID,
+	}
+
+	params := &common.CreatePoolParams{
+		AccountName:    "test-account",
+		Name:           "test-pool",
+		VendorID:       "vendor-id",
+		VendorSubNetID: "subnet-id",
+		SizeInBytes:    2 * TibInBytes, // 2TiB (minimum)
+		ServiceLevel:   ServiceLevelNameFLEX,
+		QosType:        QosTypeAuto,
+		Region:         "us-central1",
+		PrimaryZone:    "us-central1-a",
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			ThroughputMibps: 64,
+			Iops:            1024,
+		},
+	}
+
+	// Setup mocks
+	mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+	mockStorage.On("CreatingPool", ctx, mock.Anything).Return(pool, nil)
+
+	// Mock workflow execution to fail
+	workflowError := errors.New("workflow execution failed")
+	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
+
+	// Mock job update to errored state
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil)
+
+	// Mock pool state update to errored state (called by defer function)
+	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Execute test
+	result, jobID, err := _createPool(ctx, mockStorage, mockTemporal, params)
+
+	// Verify results
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, "workflow execution failed", err.Error())
+
+	// Verify job was marked as errored
+	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed")
+}
+
+// TestUpdatePool_WorkflowFailure_JobMarkedAsErrored tests that jobs are marked as errored when workflow fails to start
+func TestUpdatePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	_ = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	// Use the setup function like other tests do
+	ctx, store, _, temporal := setup(t)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-account",
+	}
+
+	params := &common.UpdatePoolParams{
+		PoolId:               "pool-uuid",
+		AccountName:          "test-account",
+		SizeInBytes:          3 * TibInBytes, // 3TiB
+		TotalThroughputMibps: 128,
+		TotalIops:            2048,
+	}
+
+	// Create a pool in the database
+	err := store.DB().Create(account).Error
+	assert.NoError(t, err)
+
+	err = store.DB().Create(&datamodel.Pool{
+		BaseModel:    datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:         "test-pool",
+		AccountID:    account.ID,
+		State:        models.LifeCycleStateREADY,
+		StateDetails: models.LifeCycleStateReadyDetails,
+	}).Error
+	assert.NoError(t, err)
+
+	// Mock the functions like other working tests
+	originalGetAccountWithName := getAccountWithName
+	originalValidateUpdatePoolParams := ValidateUpdatePoolParams
+
+	defer func() {
+		getAccountWithName = originalGetAccountWithName
+		ValidateUpdatePoolParams = originalValidateUpdatePoolParams
+	}()
+
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+
+	ValidateUpdatePoolParams = func(params *common.UpdatePoolParams, pool *datamodel.Pool) error {
+		return nil
+	}
+
+	// Mock workflow execution to fail
+	workflowError := errors.New("workflow execution failed")
+	temporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
+
+	// Execute test
+	result, jobID, err := _updatePool(ctx, store, temporal, params)
+
+	// Verify results
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, "workflow execution failed", err.Error())
+
+	// Verify job was created and marked as errored
+	var jobs []datamodel.Job
+	store.DB().Find(&jobs)
+	assert.Len(t, jobs, 1)
+	assert.Equal(t, string(models.JobsStateERROR), jobs[0].State)
+
+	// Verify pool was also marked as errored
+	var pools []datamodel.Pool
+	store.DB().Find(&pools)
+	assert.Len(t, pools, 1)
+	assert.Equal(t, models.LifeCycleStateREADY, pools[0].State)
+	assert.Equal(t, models.LifeCycleStateReadyDetails, pools[0].StateDetails)
+}
+
+// TestDeletePool_WorkflowFailure_JobMarkedAsErrored tests that jobs are marked as errored when workflow fails to start
+func TestDeletePool_WorkflowFailure_JobMarkedAsErrored(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflowenginemock.MockTemporalTestClient)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-account",
+	}
+
+	job := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
+		Type:      string(models.JobTypeDeletePool),
+		State:     string(models.JobsStateNEW),
+	}
+
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:      "test-pool",
+			AccountID: account.ID,
+			Account:   account,
+		},
+		VolumeCount: 0, // No volumes so it can be deleted
+	}
+
+	params := &common.DeletePoolParams{
+		PoolID:      "pool-uuid",
+		AccountName: "test-account",
+	}
+
+	// Mock getAccountWithName function using helper
+	originalGetAccountWithName := getAccountWithName
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountWithName = originalGetAccountWithName }()
+
+	// Setup mocks
+	mockStorage.On("GetPool", ctx, "pool-uuid", account.ID).Return(poolView, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+	mockStorage.On("DeletingPool", ctx, mock.Anything).Return(nil)
+
+	// Mock workflow execution to fail
+	workflowError := errors.New("workflow execution failed")
+	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
+
+	// Mock job update to errored state
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil)
+
+	// Mock pool state update to errored state (called by defer function)
+	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Execute test
+	result, jobID, err := _deletePool(ctx, mockTemporal, mockStorage, params)
+
+	// Verify results
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, "workflow execution failed", err.Error())
+
+	// Verify job was marked as errored
+	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed")
+}
+
+// TestCreatePool_WorkflowFailure_JobUpdateFails tests error handling when both workflow and job update fail
+func TestCreatePool_WorkflowFailure_JobUpdateFails(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflowenginemock.MockTemporalTestClient)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-account",
+	}
+
+	job := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
+		Type:      string(models.JobTypeCreatePool),
+		State:     string(models.JobsStateNEW),
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+		AccountID: account.ID,
+	}
+
+	params := &common.CreatePoolParams{
+		AccountName:    "test-account",
+		Name:           "test-pool",
+		VendorID:       "vendor-id",
+		VendorSubNetID: "subnet-id",
+		SizeInBytes:    2 * TibInBytes, // 2TiB (minimum)
+		ServiceLevel:   ServiceLevelNameFLEX,
+		QosType:        QosTypeAuto,
+		Region:         "us-central1",
+		PrimaryZone:    "us-central1-a",
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			ThroughputMibps: 64,
+			Iops:            1024,
+		},
+	}
+
+	// Setup mocks
+	mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+	mockStorage.On("CreatingPool", ctx, mock.Anything).Return(pool, nil)
+
+	// Mock workflow execution to fail
+	workflowError := errors.New("workflow execution failed")
+	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
+
+	// Mock job update to also fail
+	jobUpdateError := errors.New("job update failed")
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(jobUpdateError)
+
+	// Mock pool state update to errored state (called by defer function)
+	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Execute test - should still return the original workflow error, not the job update error
+	result, jobID, err := _createPool(ctx, mockStorage, mockTemporal, params)
+
+	// Verify results - should still get the original workflow error
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, "workflow execution failed", err.Error())
+
+	// Verify job update was attempted (even though it failed)
+	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed")
+}
+
+// TestCreatePool_CreatePoolInDBFailsWithGenericError tests error handling when CreatePoolInDB fails with generic error (Line 74)
+func TestCreatePool_CreatePoolInDBFailsWithGenericError(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflowenginemock.MockTemporalTestClient)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-account",
+	}
+
+	params := &common.CreatePoolParams{
+		AccountName:    "test-account",
+		Name:           "test-pool",
+		VendorID:       "vendor-id",
+		VendorSubNetID: "subnet-id",
+		SizeInBytes:    2 * TibInBytes, // 2TiB (minimum)
+		ServiceLevel:   ServiceLevelNameFLEX,
+		QosType:        QosTypeAuto,
+		Region:         "us-central1",
+		PrimaryZone:    "us-central1-a",
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			ThroughputMibps: 64,
+			Iops:            1024,
+		},
+	}
+
+	// Setup mocks
+	mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+
+	// Mock CreatePoolInDB (CreatingPool) to fail with generic error (not conflict)
+	dbError := errors.New("database connection error")
+	mockStorage.On("CreatingPool", ctx, mock.Anything).Return(nil, dbError)
+
+	// Execute test
+	result, jobID, err := _createPool(ctx, mockStorage, mockTemporal, params)
+
+	// Verify results - should return the generic error message (Line 74)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, "unable to process request, please try again later", err.Error())
+}
+
+// TestCreatePool_CreatePoolInDBFailsWithConflictError tests error handling when CreatePoolInDB fails with conflict error
+func TestCreatePool_CreatePoolInDBFailsWithConflictError(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflowenginemock.MockTemporalTestClient)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-account",
+	}
+
+	params := &common.CreatePoolParams{
+		AccountName:    "test-account",
+		Name:           "test-pool",
+		VendorID:       "vendor-id",
+		VendorSubNetID: "subnet-id",
+		SizeInBytes:    2 * TibInBytes, // 2TiB (minimum)
+		ServiceLevel:   ServiceLevelNameFLEX,
+		QosType:        QosTypeAuto,
+		Region:         "us-central1",
+		PrimaryZone:    "us-central1-a",
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			ThroughputMibps: 64,
+			Iops:            1024,
+		},
+	}
+
+	// Setup mocks
+	mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+
+	// Mock CreatePoolInDB (CreatingPool) to fail with conflict error
+	conflictError := errors.NewConflictErr("pool already exists")
+	mockStorage.On("CreatingPool", ctx, mock.Anything).Return(nil, conflictError)
+
+	// Execute test
+	result, jobID, err := _createPool(ctx, mockStorage, mockTemporal, params)
+
+	// Verify results - should pass through the conflict error (not the generic message)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, conflictError, err)
+}
+
+// TestCreatePool_UpdatePoolStateFailsInDefer tests error handling when UpdatePoolState fails in defer (Line 80)
+func TestCreatePool_UpdatePoolStateFailsInDefer(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflowenginemock.MockTemporalTestClient)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-account",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+		AccountID: account.ID,
+	}
+
+	job := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
+		Type:      string(models.JobTypeCreatePool),
+		State:     string(models.JobsStateNEW),
+	}
+
+	params := &common.CreatePoolParams{
+		AccountName:    "test-account",
+		Name:           "test-pool",
+		VendorID:       "vendor-id",
+		VendorSubNetID: "subnet-id",
+		SizeInBytes:    2 * TibInBytes, // 2TiB (minimum)
+		ServiceLevel:   ServiceLevelNameFLEX,
+		QosType:        QosTypeAuto,
+		Region:         "us-central1",
+		PrimaryZone:    "us-central1-a",
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			ThroughputMibps: 64,
+			Iops:            1024,
+		},
+	}
+
+	// Setup mocks
+	mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+	mockStorage.On("CreatingPool", ctx, mock.Anything).Return(pool, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+
+	// Mock workflow execution to fail
+	workflowError := errors.New("workflow execution failed")
+	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
+
+	// Mock UpdateJob to succeed
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil)
+
+	// Mock UpdatePoolState to fail (Line 80)
+	poolStateError := errors.New("pool state update failed")
+	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, poolStateError)
+
+	// Execute test
+	result, jobID, err := _createPool(ctx, mockStorage, mockTemporal, params)
+
+	// Verify results - should still return the original workflow error
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, "workflow execution failed", err.Error())
+
+	// Verify UpdatePoolState was called (even though it failed)
+	mockStorage.AssertCalled(t, "UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything)
+}
+
+// TestCreatePool_CreateJobFails tests error handling when CreateJob fails (Line 97)
+func TestCreatePool_CreateJobFails(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflowenginemock.MockTemporalTestClient)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-account",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+		AccountID: account.ID,
+	}
+
+	params := &common.CreatePoolParams{
+		AccountName:    "test-account",
+		Name:           "test-pool",
+		VendorID:       "vendor-id",
+		VendorSubNetID: "subnet-id",
+		SizeInBytes:    2 * TibInBytes, // 2TiB (minimum)
+		ServiceLevel:   ServiceLevelNameFLEX,
+		QosType:        QosTypeAuto,
+		Region:         "us-central1",
+		PrimaryZone:    "us-central1-a",
+		CustomPerformanceParams: &common.CustomPerformanceParams{
+			ThroughputMibps: 64,
+			Iops:            1024,
+		},
+	}
+
+	// Setup mocks
+	mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+	mockStorage.On("CreatingPool", ctx, mock.Anything).Return(pool, nil)
+
+	// Mock CreateJob to fail (Line 97)
+	jobError := errors.New("job creation failed")
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, jobError)
+
+	// Mock UpdatePoolState for the defer function call (Line 80)
+	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Execute test
+	result, jobID, err := _createPool(ctx, mockStorage, mockTemporal, params)
+
+	// Verify results - should return the generic error message (Line 97)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, "unable to process request, please try again later", err.Error())
+}
+
+// TestUpdatePool_UpdateJobFailsInDefer tests error handling when UpdateJob fails in defer (Line 235)
+func TestUpdatePool_UpdateJobFailsInDefer(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflowenginemock.MockTemporalTestClient)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-account",
+	}
+
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:        "test-pool",
+			AccountID:   account.ID,
+			Account:     account,
+			SizeInBytes: 2 * TibInBytes,
+			QosType:     QosTypeAuto,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+			},
+		},
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:        "test-pool",
+		AccountID:   account.ID,
+		SizeInBytes: 2 * TibInBytes,
+		QosType:     QosTypeAuto,
+	}
+
+	job := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
+		Type:      string(models.JobTypeUpdatePool),
+		State:     string(models.JobsStateNEW),
+	}
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "pool-uuid",
+		SizeInBytes:          2 * TibInBytes,
+		QosType:              QosTypeAuto,
+		TotalThroughputMibps: 64,
+		TotalIops:            1024,
+	}
+
+	// Setup mocks - override the getAccountWithName function
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() {
+		getAccountWithName = _getAccountWithName // restore original function
+	}()
+
+	mockStorage.On("GetPool", ctx, "pool-uuid", account.ID).Return(poolView, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+	mockStorage.On("UpdatingPool", ctx, mock.Anything).Return(pool, nil)
+
+	// Mock workflow execution to fail
+	workflowError := errors.New("workflow execution failed")
+	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
+
+	// Mock UpdateJob to fail (Line 235)
+	jobUpdateError := errors.New("job update failed")
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(jobUpdateError)
+
+	// Mock UpdatePoolState to succeed
+	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Execute test
+	result, jobID, err := _updatePool(ctx, mockStorage, mockTemporal, params)
+
+	// Verify results - should still return the original workflow error
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, "workflow execution failed", err.Error())
+
+	// Verify UpdateJob was called (even though it failed)
+	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed")
+}
+
+// TestUpdatePool_UpdatePoolStateFailsInDefer tests error handling when UpdatePoolState fails in defer (Line 240)
+func TestUpdatePool_UpdatePoolStateFailsInDefer(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflowenginemock.MockTemporalTestClient)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-account",
+	}
+
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:        "test-pool",
+			AccountID:   account.ID,
+			Account:     account,
+			SizeInBytes: 2 * TibInBytes,
+			QosType:     QosTypeAuto,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 64,
+				Iops:            1024,
+			},
+		},
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:        "test-pool",
+		AccountID:   account.ID,
+		SizeInBytes: 2 * TibInBytes,
+		QosType:     QosTypeAuto,
+	}
+
+	job := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
+		Type:      string(models.JobTypeUpdatePool),
+		State:     string(models.JobsStateNEW),
+	}
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "pool-uuid",
+		SizeInBytes:          2 * TibInBytes,
+		QosType:              QosTypeAuto,
+		TotalThroughputMibps: 64,
+		TotalIops:            1024,
+	}
+
+	// Setup mocks - override the getAccountWithName function
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() {
+		getAccountWithName = _getAccountWithName // restore original function
+	}()
+
+	mockStorage.On("GetPool", ctx, "pool-uuid", account.ID).Return(poolView, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+	mockStorage.On("UpdatingPool", ctx, mock.Anything).Return(pool, nil)
+
+	// Mock workflow execution to fail
+	workflowError := errors.New("workflow execution failed")
+	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
+
+	// Mock UpdateJob to succeed
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil)
+
+	// Mock UpdatePoolState to fail (Line 240)
+	poolStateError := errors.New("pool state update failed")
+	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, poolStateError)
+
+	// Execute test
+	result, jobID, err := _updatePool(ctx, mockStorage, mockTemporal, params)
+
+	// Verify results - should still return the original workflow error
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, "workflow execution failed", err.Error())
+
+	// Verify UpdatePoolState was called (even though it failed)
+	mockStorage.AssertCalled(t, "UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything)
+}
+
+// TestDeletePool_UpdateJobFailsInDefer tests error handling when UpdateJob fails in defer (Line 406)
+func TestDeletePool_UpdateJobFailsInDefer(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflowenginemock.MockTemporalTestClient)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-account",
+	}
+
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:      "test-pool",
+			AccountID: account.ID,
+			Account:   account,
+		},
+		VolumeCount: 0, // No volumes, so delete is allowed
+	}
+
+	job := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
+		Type:      string(models.JobTypeDeletePool),
+		State:     string(models.JobsStateNEW),
+	}
+
+	params := &common.DeletePoolParams{
+		AccountName: "test-account",
+		PoolID:      "pool-uuid",
+	}
+
+	// Setup mocks - override the getAccountWithName function
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() {
+		getAccountWithName = _getAccountWithName // restore original function
+	}()
+
+	mockStorage.On("GetPool", ctx, "pool-uuid", account.ID).Return(poolView, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+	mockStorage.On("DeletingPool", ctx, mock.Anything).Return(nil)
+
+	// Mock workflow execution to fail
+	workflowError := errors.New("workflow execution failed")
+	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
+
+	// Mock UpdateJob to fail (Line 406)
+	jobUpdateError := errors.New("job update failed")
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(jobUpdateError)
+
+	// Mock UpdatePoolState to succeed
+	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	// Execute test
+	result, jobID, err := _deletePool(ctx, mockTemporal, mockStorage, params)
+
+	// Verify results - should still return the original workflow error
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, "workflow execution failed", err.Error())
+
+	// Verify UpdateJob was called (even though it failed)
+	mockStorage.AssertCalled(t, "UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed")
+}
+
+// TestDeletePool_UpdatePoolStateFailsInDefer tests error handling when UpdatePoolState fails in defer (Line 419)
+func TestDeletePool_UpdatePoolStateFailsInDefer(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockStorage := new(database.MockStorage)
+	mockTemporal := new(workflowenginemock.MockTemporalTestClient)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-account",
+	}
+
+	poolView := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:      "test-pool",
+			AccountID: account.ID,
+			Account:   account,
+		},
+		VolumeCount: 0, // No volumes, so delete is allowed
+	}
+
+	job := &datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "job-uuid"},
+		Type:      string(models.JobTypeDeletePool),
+		State:     string(models.JobsStateNEW),
+	}
+
+	params := &common.DeletePoolParams{
+		AccountName: "test-account",
+		PoolID:      "pool-uuid",
+	}
+
+	// Setup mocks - override the getAccountWithName function
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() {
+		getAccountWithName = _getAccountWithName // restore original function
+	}()
+
+	mockStorage.On("GetPool", ctx, "pool-uuid", account.ID).Return(poolView, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+	mockStorage.On("DeletingPool", ctx, mock.Anything).Return(nil)
+
+	// Mock workflow execution to fail
+	workflowError := errors.New("workflow execution failed")
+	mockTemporal.On("ExecuteWorkflow", ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, workflowError)
+
+	// Mock UpdateJob to succeed
+	mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, "workflow execution failed").Return(nil)
+
+	// Mock UpdatePoolState to fail (Line 419)
+	poolStateError := errors.New("pool state update failed")
+	mockStorage.On("UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything).Return(nil, poolStateError)
+
+	// Execute test
+	result, jobID, err := _deletePool(ctx, mockTemporal, mockStorage, params)
+
+	// Verify results - should still return the original workflow error
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Empty(t, jobID)
+	assert.Equal(t, "workflow execution failed", err.Error())
+
+	// Verify UpdatePoolState was called (even though it failed)
+	mockStorage.AssertCalled(t, "UpdatePoolState", ctx, mock.Anything, mock.Anything, mock.Anything)
 }

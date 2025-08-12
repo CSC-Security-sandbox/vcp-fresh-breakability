@@ -521,6 +521,9 @@ func TestGetVolume(t *testing.T) {
 		workflowErr := errors.New("workflow execution failed")
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mockVolume).Return(nil, workflowErr)
 
+		// Mock UpdateJob call to mark job as error when workflow fails
+		mockStorage.On("UpdateJob", ctx, mockJob.UUID, string(models.JobsStateERROR), 0, workflowErr.Error()).Return(nil)
+
 		orch := &Orchestrator{
 			storage:  mockStorage,
 			temporal: mockTemporal,
@@ -2652,11 +2655,14 @@ func TestDeleteVolume(t *testing.T) {
 		// Mock GetVolume to return the volume
 		mockStorage.On("GetVolume", ctx, "test-volume-uuid").Return(volume, nil)
 		// Mock CreateJob to succeed
-		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{WorkflowID: "wid"}, nil)
+		jobUUID := "wid"
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{WorkflowID: jobUUID, BaseModel: datamodel.BaseModel{UUID: jobUUID}}, nil)
 		// Mock UpdateVolumeFields to fail
 		mockStorage.On("UpdateVolumeFields", ctx, "test-volume-uuid", mock.Anything).Return(errors.New("update failed"))
 		// Mock IsBackupInCreatingOrDeletingStateByVolume to return false
 		mockStorage.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(false, nil)
+		// Mock UpdateJob call when error occurs in defer function
+		mockStorage.On("UpdateJob", ctx, jobUUID, string(models.JobsStateERROR), 0, "update failed").Return(nil)
 
 		// Call deleteVolume
 		vol, jobID, err := deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
@@ -5197,12 +5203,16 @@ func TestUpdateVolume(t *testing.T) {
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200}
 		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol", State: "READY"}
-		job := &datamodel.Job{WorkflowID: "wid"}
+		jobUUID := "wid"
+		job := &datamodel.Job{WorkflowID: jobUUID, BaseModel: datamodel.BaseModel{UUID: jobUUID}}
 
 		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
-		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update state error"))
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update state error")).Once()
+		// Mock UpdateJob call when error occurs in defer function
+		se.On("UpdateJob", ctx, jobUUID, string(models.JobsStateERROR), 0, "update state error").Return(nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		volume, _, err := updateVolume(ctx, se, temporal, param)
 		assert.EqualError(tt, err, "update state error")
@@ -5214,12 +5224,15 @@ func TestUpdateVolume(t *testing.T) {
 		se := &database.MockStorage{}
 		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: 200}
 		dbVolume := &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vid"}, SizeInBytes: 100, Name: "vol", State: "READY"}
-		job := &datamodel.Job{WorkflowID: "wid"}
+		jobUUID := "wid"
+		job := &datamodel.Job{WorkflowID: jobUUID, BaseModel: datamodel.BaseModel{UUID: jobUUID}}
 
 		se.On("GetPool", ctx, param.PoolID, dbVolume.AccountID).Return(poolView, nil)
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// Mock UpdateJob call when error occurs in defer function
+		se.On("UpdateJob", ctx, jobUUID, string(models.JobsStateERROR), 0, "workflow error").Return(nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow error")).Once()
 		volume, _, err := updateVolume(ctx, se, temporal, param)
@@ -6141,7 +6154,6 @@ func TestOrchestrator_UpdateVolume(t *testing.T) {
 	assert.Equal(t, "vol", vol.DisplayName)
 	assert.Equal(t, "job-id", jobID)
 }
-
 func TestGetVolumeCount(t *testing.T) {
 	t.Run("WhenStorageReturnsCount", func(tt *testing.T) {
 		ctx := context.Background()

@@ -12,10 +12,11 @@ import (
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
@@ -53,6 +54,7 @@ func (o *Orchestrator) CreatePool(ctx context.Context, params *commonparams.Crea
 // createPool creates a new pool and triggers asynchronous creation processes.
 func _createPool(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.CreatePoolParams) (*models.Pool, string, error) {
 	logger := util.GetLogger(ctx)
+
 	account, err := getOrCreateAccount(ctx, se, params.AccountName)
 	if err != nil {
 		return nil, "", err
@@ -61,6 +63,24 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 	if err != nil {
 		return nil, "", err
 	}
+
+	dbPool, err2 := CreatePoolInDB(ctx, se, params, account, logger, err)
+	if err2 != nil {
+		logger.Error("Failed to create pool in database", "error", err2)
+		// Check if it's a specific error that should be passed through
+		if customerrors.IsConflictErr(err2) {
+			return nil, "", err2
+		}
+		return nil, "", errors.New("unable to process request, please try again later")
+	}
+
+	defer func() {
+		if err != nil {
+			if _, jobErr := se.UpdatePoolState(ctx, dbPool, string(models.JobsStateERROR), err.Error()); jobErr != nil {
+				logger.Error("Failed to update pool status to error", "PoolID", dbPool.UUID, "error", jobErr)
+			}
+		}
+	}()
 
 	job := &datamodel.Job{
 		Type:          string(models.JobTypeCreatePool),
@@ -74,9 +94,39 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Error("Failed to create job in database", "error", err)
+		return nil, "", errors.New("unable to process request, please try again later")
+	}
+
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		},
+		workflows.CreatePoolWorkflow,
+		params,
+		dbPool,
+	)
+	if err != nil {
+		logger.Error("Failed to start pool create workflow: ", "error", err)
 		return nil, "", err
 	}
 
+	poolView := database.ConvertPoolToPoolView(dbPool)
+	return convertDatastorePoolToModel(poolView, account.Name), createdJob.UUID, nil
+}
+
+func CreatePoolInDB(ctx context.Context, se database.Storage, params *commonparams.CreatePoolParams, account *datamodel.Account, logger log.Logger, err error) (*datamodel.Pool, error) {
 	poolObj := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{
 			UUID: utils.RandomUUID(),
@@ -133,27 +183,9 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 	dbPool, err := se.CreatingPool(ctx, poolObj)
 	if err != nil {
 		logger.Error("Failed to create pool in database", "error", err)
-		return nil, "", err
+		return nil, err
 	}
-
-	_, err = temporal.ExecuteWorkflow(ctx,
-		client.StartWorkflowOptions{
-			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
-			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-		},
-		workflows.CreatePoolWorkflow,
-		params,
-		dbPool,
-	)
-	if err != nil {
-		logger.Error("Failed to start pool create workflow: ", "error", err)
-		return nil, "", err
-	}
-
-	poolView := database.ConvertPoolToPoolView(dbPool)
-	return convertDatastorePoolToModel(poolView, account.Name), createdJob.UUID, nil
+	return dbPool, nil
 }
 
 // UpdatePool updates the specified pool
@@ -196,10 +228,30 @@ func _updatePool(ctx context.Context, se database.Storage, temporal client.Clien
 		return nil, "", err
 	}
 
+	var poolMarkedAsUpdating bool
+	previousState := dbPool.State
+	previousStateDetails := dbPool.StateDetails
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+			// Mark pool in error state only if it was successfully marked as updating
+			if poolMarkedAsUpdating {
+				if _, poolErr := se.UpdatePoolState(ctx, dbPool, previousState, previousStateDetails); poolErr != nil {
+					logger.Error("Failed to update pool state to ERROR", "poolID", dbPool.UUID, "error", poolErr)
+				}
+			}
+		}
+	}()
+
 	pool, err := se.UpdatingPool(ctx, dbPool)
 	if err != nil {
 		return nil, "", err
 	}
+
+	poolMarkedAsUpdating = true
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
@@ -350,10 +402,30 @@ func _deletePool(ctx context.Context, temporal client.Client, se database.Storag
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
 	}
+
+	// Defer statement to mark job as errored if workflow fails to start
+	defer func() {
+		if err != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to error", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
+
 	dbpool := database.ConvertPoolViewToPool(pool)
 	if err = se.DeletingPool(ctx, dbpool); err != nil {
 		return nil, "", err
 	}
+
+	previousState := dbpool.State
+	previousStateDetails := dbpool.StateDetails
+	defer func() {
+		if err != nil {
+			if _, poolErr := se.UpdatePoolState(ctx, dbpool, previousState, previousStateDetails); poolErr != nil {
+				logger.Error("Failed to update pool state to ERROR", "poolID", dbpool.UUID, "error", poolErr)
+			}
+		}
+	}()
 
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
@@ -601,16 +673,4 @@ func convertJSONBToMap(jsonb *datamodel.JSONB) map[string]string {
 		}
 	}
 	return result
-}
-
-func (o *Orchestrator) GetAccount(ctx context.Context, accountName string) (*datamodel.Account, error) {
-	se := o.storage
-	account, err := getAccountWithName(ctx, se, accountName)
-	if err != nil {
-		return nil, err
-	}
-	if account.DeletedAt != nil || account.State == models.AccountStateDisabled {
-		return nil, customerrors.NewNotFoundErr("account not found or disabled", nil)
-	}
-	return account, nil
 }

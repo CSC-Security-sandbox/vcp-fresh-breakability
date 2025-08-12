@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 var (
@@ -63,6 +64,18 @@ func _getAccountWithName(ctx context.Context, se database.Storage, accountName s
 	account, err := se.GetAccount(ctx, accountName)
 	if err != nil {
 		return nil, err
+	}
+	return account, nil
+}
+
+func (o *Orchestrator) GetAccount(ctx context.Context, accountName string) (*datamodel.Account, error) {
+	se := o.storage
+	account, err := getAccountWithName(ctx, se, accountName)
+	if err != nil {
+		return nil, err
+	}
+	if account.DeletedAt != nil || account.State == models.AccountStateDisabled {
+		return nil, customerrors.NewNotFoundErr("account not found or disabled", nil)
 	}
 	return account, nil
 }

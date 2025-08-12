@@ -242,6 +242,19 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	defer func() {
+		if err != nil {
+			// Mark volume in error state
+			volumeUpdateErr := se.UpdateVolumeFields(ctx, dbVolume.UUID, map[string]interface{}{
+				"state":         models.LifeCycleStateError,
+				"state_details": models.LifeCycleStateCreationErrorDetails,
+			})
+			if volumeUpdateErr != nil {
+				logger.Error("Failed to update volume state to ERROR", "volume_id", dbVolume.UUID, "error", volumeUpdateErr)
+			}
+		}
+	}()
+
 	location, err := utils.GetLocationFromVendorID(dbVolume.Pool.VendorID)
 	if err != nil {
 		logger.Error("Failed to get location from vendor ID: ", "error", err)
@@ -256,11 +269,22 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
+
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Error("Failed to create job in database", "error", err)
 		return nil, "", err
 	}
+
+	// Defer to mark job as error if workflow execution fails
+	defer func() {
+		if err != nil {
+			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error())
+			if updateErr != nil {
+				logger.Error("Failed to update job state to ERROR", "job_id", createdJob.UUID, "error", updateErr)
+			}
+		}
+	}()
 
 	// controlWorkflowID defines the workflow ID for the control workflow
 	controlWorkflowID := fmt.Sprintf(workflows.VolumeCreateDeleteSnapshotDeleteSeq, dbVolume.Account.ID, location, dbVolume.Pool.Name)
@@ -344,11 +368,35 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	// Defer to mark job as error if workflow execution fails
+	defer func() {
+		if err != nil {
+			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error())
+			if updateErr != nil {
+				logger.Error("Failed to update job state to ERROR", "job_id", createdJob.UUID, "error", updateErr)
+			}
+		}
+	}()
+
+	previousState := volume.State
+	previousStateDetails := volume.StateDetails
 	volume, err = updateVolumeStatus(ctx, se, volume, models.LifeCycleStateReverting, models.LifeCycleStateRevertingDetails)
 	if err != nil {
 		logger.Error("Failed to update volume state in database", "error", err)
 		return nil, "", err
 	}
+	// Defer to mark job as error if workflow execution fails
+	defer func() {
+		if err != nil {
+			volumeUpdateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+				"state":         previousState,
+				"state_details": previousStateDetails,
+			})
+			if volumeUpdateErr != nil {
+				logger.Error("Failed to update volume state back to READY", "volume_id", volume.UUID, "error", volumeUpdateErr)
+			}
+		}
+	}()
 
 	location, err := utils.GetLocationFromVendorID(volume.Pool.VendorID)
 	if err != nil {
@@ -378,11 +426,6 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	)
 	if err != nil {
 		logger.Error("Failed to start revert volume workflow: ", "error", err)
-		_, DbErr := updateVolumeStatus(ctx, se, volume, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
-		if DbErr != nil {
-			logger.Error("Failed to update volume state in database back to Ready state after workflow failure", "error", DbErr)
-			return nil, "", fmt.Errorf("workflow error: %v, database error: %v", err, DbErr)
-		}
 		return nil, "", err
 	}
 
@@ -436,6 +479,16 @@ func (o *Orchestrator) GetVolume(ctx context.Context, volumeId string, refreshVo
 		log.Error("Failed to create JobTypeRefreshVolumeFields in database", "error", err)
 		return nil, err
 	}
+
+	// Defer to mark job as error if workflow execution fails
+	defer func() {
+		if err != nil {
+			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error())
+			if updateErr != nil {
+				log.Error("Failed to update job state to ERROR", "job_id", createdJob.UUID, "error", updateErr)
+			}
+		}
+	}()
 
 	_, err = o.temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
@@ -926,6 +979,16 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	// Defer to mark job as error if workflow execution fails
+	defer func() {
+		if err != nil {
+			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error())
+			if updateErr != nil {
+				logger.Error("Failed to update job state to ERROR", "job_id", createdJob.UUID, "error", updateErr)
+			}
+		}
+	}()
+
 	err = se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
 		"state":         models.LifeCycleStateDeleting,
 		"state_details": models.LifeCycleStateDeletingDetails,
@@ -934,6 +997,18 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		logger.Error("Failed to update volume state in database", "error", err)
 		return nil, "", err
 	}
+	// Defer to mark volume as error if workflow execution fails
+	defer func() {
+		if err != nil {
+			volumeUpdateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+				"state":         models.LifeCycleStateError,
+				"state_details": models.LifeCycleStateDeletionErrorDetails,
+			})
+			if volumeUpdateErr != nil {
+				logger.Error("Failed to update volume state to ERROR", "volume_id", volume.UUID, "error", volumeUpdateErr)
+			}
+		}
+	}()
 
 	location, err := utils.GetLocationFromVendorID(volume.Pool.VendorID)
 	if err != nil {
@@ -1064,11 +1139,25 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}
+
 	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Error("Failed to create volume update job in database", "error", err)
 		return nil, "", err
 	}
+
+	// Store the original dbVolume for use in defer function to avoid nil pointer issues
+	originalDBVolume := dbVolume
+
+	// Defer to mark job as error if workflow execution fails
+	defer func() {
+		if err != nil && createdJob != nil {
+			updateErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error())
+			if updateErr != nil {
+				logger.Error("Failed to update job state to ERROR", "job_id", createdJob.UUID, "error", updateErr)
+			}
+		}
+	}()
 
 	if params.SnapshotPolicy != nil {
 		params.SnapshotPolicy.Name = dbVolume.Name
@@ -1079,6 +1168,18 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		logger.Error("Failed to update volume state in database", "error", err)
 		return nil, "", err
 	}
+
+	defer func() {
+		if err != nil && createdJob != nil {
+			volumeUpdateErr := se.UpdateVolumeFields(ctx, originalDBVolume.UUID, map[string]interface{}{
+				"state":         models.LifeCycleStateError,
+				"state_details": models.LifeCycleStateUpdateErrorDetails,
+			})
+			if volumeUpdateErr != nil {
+				logger.Error("Failed to update volume state to ERROR", "volume_id", originalDBVolume.UUID, "error", volumeUpdateErr)
+			}
+		}
+	}()
 
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
