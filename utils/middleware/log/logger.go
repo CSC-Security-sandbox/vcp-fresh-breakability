@@ -40,6 +40,7 @@ var (
 	defaultOutputStream = os.Stdout
 	config              Config
 	uuidNewString       = uuid.NewString
+	globalLogger        Logger
 )
 
 type Config struct {
@@ -54,6 +55,7 @@ func init() {
 		LogLevel:   env.LogLevel,
 		LoggerType: env.LoggerType,
 	}
+	globalLogger = getLogger(config)
 }
 
 type LoggerType string
@@ -74,9 +76,24 @@ func getLogger(config Config) Logger {
 		logger, err = getSlogger(config)
 	}
 	if err != nil {
-		panic(fmt.Sprintf("failed to initialize logger: %v", err))
+		fallbackLogger, fallbackErr := getBasicLogger()
+		if fallbackErr != nil {
+			panic(fmt.Sprintf("failed to initialize logger: %v, fallback also failed: %v", err, fallbackErr))
+		}
+		return fallbackLogger
 	}
 	return logger
+}
+
+func getBasicLogger() (Logger, error) {
+	// This prevents the application from crashing if logger setup fails
+	basicConfig := Config{
+		LogLevel:   "info", // Default to info level
+		AddSource:  false,  // Disable source for fallback
+		LoggerType: "slog", // Use slog as fallback
+	}
+
+	return getSlogger(basicConfig)
 }
 
 // LoggingMiddleware injects a logger into the request context
@@ -94,10 +111,9 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// NewLogger initializes a logger for development purposes
+// NewLogger returns the global logger
 func NewLogger() Logger {
-	logger := getLogger(config)
-	return logger
+	return globalLogger
 }
 
 func NewRequestLogger(r *http.Request) (Logger, Fields) {
@@ -113,7 +129,7 @@ func extractFieldsFromHttpRequest(r *http.Request) (Logger, Fields) {
 		"traceMethod":          r.Method,
 		"traceURL":             r.URL.String(),
 	}
-	logger := NewLogger().WithFields("requestFields", fields)
+	logger := globalLogger.WithFields("requestFields", fields)
 	return logger, fields
 }
 

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-faster/errors"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -55,7 +54,7 @@ func main() {
 	mux := chi.NewRouter()
 	mux.Use(httphelpers.LoggingHttpHandler)
 	mux.Use(log.LoggingMiddleware)
-	mux.Use(chimiddleware.Recoverer)
+	mux.Use(log.RecoverMiddleware)
 
 	// Mount the generated API handler
 	mux.Mount("/", http.Handler(oasserver))

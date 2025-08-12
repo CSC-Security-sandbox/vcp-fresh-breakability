@@ -1105,6 +1105,7 @@ func TestCreateKmsConfig(t *testing.T) {
 	})
 	t.Run("CreateKmsConfigReturnsKmsConfigAndJobUUIDOnSuccess", func(tt *testing.T) {
 		ctx := context.Background()
+		temporal := workflow_engine.NewMockTemporalTestClient(t)
 		mockLogger := log.NewLogger()
 		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
 		params := &common.CreateKmsConfigParams{AccountName: "test_account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k", ResourceID: "res-id", Name: "kms-name"}

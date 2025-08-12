@@ -137,6 +137,7 @@ func _createClientOptionsFromEnv(cfg workflow_engine.ClientConfig, logger log.Lo
 		MetricsHandler: opentelemetry.NewMetricsHandler(opentelemetry.MetricsHandlerOptions{
 			Meter: otel.GetMeterProvider().Meter("Temporal-Worker"),
 		}),
+		Logger: logger,
 	}
 
 	if cfg.GetTLSCertPath() != "" && cfg.GetTLSKeyPath() != "" {

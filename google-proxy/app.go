@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-faster/errors"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -220,7 +219,7 @@ func setupHTTPServer(cfg *common.Config, handler http.Handler) *http.Server {
 	mux.Use(httphelpers.LoggingHttpHandler)
 	mux.Use(log.LoggingMiddleware)
 	mux.Use(middleware.AuthMiddleware)
-	mux.Use(chimiddleware.Recoverer)
+	mux.Use(log.RecoverMiddleware)
 	mux.Mount("/", handler)
 	mux.Handle("/metrics", promhttp.Handler())
 
