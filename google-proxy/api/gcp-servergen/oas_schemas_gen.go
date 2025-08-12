@@ -4255,8 +4255,9 @@ func (*InternalJobV1beta) v1betaInternalMountVolumeReplicationRes() {}
 
 // Ref: #/components/schemas/InternalVolume_v1beta
 type InternalVolumeV1beta struct {
-	// A human readable label for the resource which is restricted to letters, numbers, and underscore,
-	// with the first character a letter, the last a letter or a number, and a 63 character maximum.
+	// A human readable label for the resource which is restricted to letters, numbers, hyphen and
+	// underscore, with the first character a letter, the last a letter or a number, and a 63 character
+	// maximum.
 	ResourceId OptString `json:"resourceId"`
 	// Uuid v4 of the volume.
 	VolumeId OptString `json:"volumeId"`

@@ -1355,3 +1355,51 @@ func TestV1betaInternalDescribeVolume(t *testing.T) {
 		assert.Equal(tt, "", successResp.SvmName.Value)
 	})
 }
+
+// TestInternalVolumeV1beta_ResourceId_ValidationChange tests the validation change
+// for InternalVolume_v1beta resourceId from the old pattern ^[a-zA-Z][a-zA-Z0-9_]{0,62}$
+// to the new pattern ^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$
+func TestInternalVolumeV1beta_ResourceId_ValidationChange(t *testing.T) {
+	t.Run("ValidResourceIds_ShouldPass", func(t *testing.T) {
+		validResourceIds := []string{
+			"a",             // Single lowercase letter
+			"ab",            // Two characters
+			"a-b",           // Hyphen allowed
+			"a_b",           // Underscore allowed
+			"volume1",       // Common format
+			"my-volume-123", // Mixed with hyphen
+			"test_vol_1",    // Mixed with underscore
+		}
+
+		for _, resourceId := range validResourceIds {
+			volume := gcpgenserver.InternalVolumeV1beta{
+				ResourceId: gcpgenserver.NewOptString(resourceId),
+			}
+			err := volume.Validate()
+			assert.NoError(t, err, "ResourceId '%s' should be valid", resourceId)
+		}
+	})
+
+	t.Run("InvalidResourceIds_ShouldFail", func(t *testing.T) {
+		invalidResourceIds := []string{
+			"",        // Empty string
+			"A",       // Uppercase not allowed
+			"Volume1", // Starts with uppercase
+			"1volume", // Starts with number
+			"-volume", // Starts with hyphen
+			"_volume", // Starts with underscore
+			"volume-", // Ends with hyphen
+			"volume_", // Ends with underscore
+			"vol#ume", // Special characters not allowed
+			"vol ume", // Space not allowed
+		}
+
+		for _, resourceId := range invalidResourceIds {
+			volume := gcpgenserver.InternalVolumeV1beta{
+				ResourceId: gcpgenserver.NewOptString(resourceId),
+			}
+			err := volume.Validate()
+			assert.Error(t, err, "ResourceId '%s' should be invalid", resourceId)
+		}
+	})
+}

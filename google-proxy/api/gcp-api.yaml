@@ -7308,10 +7308,10 @@ components:
       properties:
         resourceId:
           maxLength: 63
-          pattern: ^[a-zA-Z][a-zA-Z0-9_]{0,62}$
+          pattern: "^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"
           type: string
           description: "A human readable label for the resource which is restricted\
-            \ to letters, numbers, and underscore, with the first character a letter,\
+            \ to letters, numbers, hyphen and underscore, with the first character a letter,\
             \ the last a letter or a number, and a 63 character maximum"
           example: some_volume_name
         volumeId:

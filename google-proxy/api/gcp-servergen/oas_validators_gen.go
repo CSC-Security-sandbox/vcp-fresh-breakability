@@ -3762,7 +3762,7 @@ func (s *InternalVolumeV1beta) Validate() error {
 					MaxLengthSet: true,
 					Email:        false,
 					Hostname:     false,
-					Regex:        regexMap["^[a-zA-Z][a-zA-Z0-9_]{0,62}$"],
+					Regex:        regexMap["^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"],
 				}).Validate(string(value)); err != nil {
 					return errors.Wrap(err, "string")
 				}
