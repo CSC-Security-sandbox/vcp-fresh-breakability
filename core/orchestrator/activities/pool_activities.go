@@ -132,7 +132,7 @@ const (
 
 var (
 	totalIPPerHAPair          = env.GetInt("TOTAL_IP_PER_HA_PAIR", 6)
-	mediatorVmInstanceType    = env.GetString("VSA_MEDIATOR_INSTANCE_TYPE", "n2-standard-4")
+	mediatorVmInstanceType    = env.GetString("VSA_MEDIATOR_INSTANCE_TYPE", "e2-micro")
 	mediatorVmDiskType        = env.GetString("VSA_MEDIATOR_DISK_TYPE", "pd-ssd")
 	clusterSerialNumberPrefix = env.GetString("CLUSTER_SERIAL_NUMBER_PREFIX", "935")
 	Region                    = env.GetString("LOCAL_REGION", "")
@@ -791,7 +791,7 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 	return vlmConfig, nil
 }
 
-func _resolveZonesForCluster(gcpService hyperscaler2.GoogleServices, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType string) (string, string, error) {
+func _resolveZonesForCluster(gcpService hyperscaler2.GoogleServices, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType string, isRegionalHA bool) (string, string, error) {
 	if primaryZone == "" || projectNumber == "" || region == "" {
 		return "", "", vsaerrors.WrapAsTemporalApplicationError(errors.New("primary zone is not set or project number is empty or region is empty"))
 	}
@@ -835,6 +835,9 @@ func _resolveZonesForCluster(gcpService hyperscaler2.GoogleServices, projectNumb
 		secondaryZone = validSecondaryZone
 	}
 
+	if !isRegionalHA {
+		mediatorZone = primaryZone
+	}
 	// If mediatorZone is not set, find one that supports the instance type and is different from secondary
 	if mediatorZone == "" {
 		for _, zone := range availableZones {
@@ -1741,7 +1744,7 @@ func _getGatewayFromIpCidrRange(ipCidrRange string) (string, error) {
 
 // IdentifySecondaryAndMediatorZone identifies the secondary and mediator zones for a cluster
 // and returns the resolved zones.
-func (j *PoolActivity) IdentifySecondaryAndMediatorZone(ctx context.Context, projectNumber string, locationInfo *commonparams.LocationInfo, instanceType string) (*commonparams.LocationInfo, error) {
+func (j *PoolActivity) IdentifySecondaryAndMediatorZone(ctx context.Context, projectNumber string, locationInfo *commonparams.LocationInfo, instanceType string, isRegionalHA bool) (*commonparams.LocationInfo, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debug("Identifying secondary and mediator zones for cluster")
 
@@ -1752,7 +1755,7 @@ func (j *PoolActivity) IdentifySecondaryAndMediatorZone(ctx context.Context, pro
 	}
 
 	// Use ResolveZonesForCluster to get the secondary and mediator zones
-	resolvedSecondaryZone, resolvedMediatorZone, err := ResolveZonesForCluster(gcpService, projectNumber, locationInfo.Region, locationInfo.PrimaryZone, locationInfo.SecondaryZone, locationInfo.MediatorZone, instanceType)
+	resolvedSecondaryZone, resolvedMediatorZone, err := ResolveZonesForCluster(gcpService, projectNumber, locationInfo.Region, locationInfo.PrimaryZone, locationInfo.SecondaryZone, locationInfo.MediatorZone, instanceType, isRegionalHA)
 	if err != nil {
 		logger.Error("Failed to resolve zones for cluster", "error", err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)

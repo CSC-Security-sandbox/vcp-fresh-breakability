@@ -66,7 +66,9 @@ type PoolAttributes struct {
 	Iops            int64  `json:"iops"`
 	PrimaryZone     string `json:"primary_zone"`
 	SecondaryZone   string `json:"secondary_zone"`
+	MediatorZone    string `json:"mediator_zone"`
 	Labels          *JSONB `json:"labels"`
+	IsRegionalHA    bool   `json:"is_regional_ha"`
 }
 
 // Node represents the public.nodes table in the database

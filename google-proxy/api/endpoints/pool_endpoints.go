@@ -74,6 +74,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 			Message: parsingErr.Message,
 		}, nil
 	}
+	isRegionalHA := zone == ""
 
 	validateErr := validateCreatePoolParams(req, zone)
 	if validateErr != nil {
@@ -138,6 +139,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 		Region:                  region,
 		PrimaryZone:             primaryZone,
 		SecondaryZone:           secondaryZone,
+		IsRegionalHA:            isRegionalHA,
 		Name:                    req.ResourceId,
 		Description:             req.Description.Value,
 		VendorID:                vendorId,
@@ -563,6 +565,10 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 			labels[key] = value
 		}
 	}
+	secondaryZone := ""
+	if pool.PoolAttributes.IsRegionalHA {
+		secondaryZone = pool.PoolAttributes.SecondaryZone
+	}
 
 	poolV1beta := &gcpgenserver.PoolV1beta{
 		PoolId:                   gcpgenserver.NewOptString(pool.UUID),
@@ -591,7 +597,7 @@ func convertToPoolV1Beta(pool *models.Pool) *gcpgenserver.PoolV1beta {
 		AllocatedBytes:          gcpgenserver.NewOptNilFloat64(pool.PoolAttributes.AllocatedBytes),
 		NumberOfVolumes:         gcpgenserver.NewOptNilInt32(int32(pool.PoolAttributes.NumberOfVolumes)),
 		Zone:                    gcpgenserver.NewOptString(pool.PoolAttributes.PrimaryZone),
-		SecondaryZone:           gcpgenserver.NewOptString(pool.PoolAttributes.SecondaryZone),
+		SecondaryZone:           gcpgenserver.NewOptString(secondaryZone),
 		Labels:                  gcpgenserver.NewOptPoolV1betaLabels(labels),
 	}
 

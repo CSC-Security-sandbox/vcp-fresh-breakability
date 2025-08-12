@@ -5364,7 +5364,7 @@ func Test_IdentifySecondaryAndMediatorZone_Success(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.IdentifySecondaryAndMediatorZone(ctx, projectNumber, locationInfo, "c3-std-4")
+	result, err := activity.IdentifySecondaryAndMediatorZone(ctx, projectNumber, locationInfo, "c3-std-4", false)
 
 	// Assert
 	assert.Error(t, err)
@@ -5392,7 +5392,7 @@ func Test_IdentifySecondaryAndMediatorZone_GCPServiceError(t *testing.T) {
 	}
 
 	// Act
-	result, err := activity.IdentifySecondaryAndMediatorZone(ctx, projectNumber, locationInfo, "c3-std-4")
+	result, err := activity.IdentifySecondaryAndMediatorZone(ctx, projectNumber, locationInfo, "c3-std-4", false)
 
 	// Assert
 	assert.Error(t, err)
@@ -5414,16 +5414,14 @@ func Test_resolveZonesForCluster_Success_NoSecondaryNoMediator(t *testing.T) {
 
 	// Mock IsMachineTypeAvailable for secondary zone selection
 	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-b", instanceType).Return(true, nil)
-	// Mock IsMachineTypeAvailable for mediator zone selection
-	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-c", instanceType).Return(true, nil)
 
 	// Act
-	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType)
+	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType, false)
 
 	// Assert
 	assert.NoError(t, err)
 	assert.Equal(t, "us-central1-b", resolvedSecondary)
-	assert.Equal(t, "us-central1-c", resolvedMediator)
+	assert.Equal(t, "us-central1-a", resolvedMediator)
 	mockService.AssertExpectations(t)
 }
 
@@ -5438,7 +5436,7 @@ func Test_resolveZonesForCluster_Error_PrimaryZoneEmpty(t *testing.T) {
 	instanceType := "n2-standard-4"
 
 	// Act
-	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType)
+	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType, false)
 
 	// Assert
 	assert.Error(t, err)
@@ -5461,7 +5459,7 @@ func Test_resolveZonesForCluster_Error_GetZonesFails(t *testing.T) {
 	mockService.On("GetZones", projectNumber, region).Return(nil, errors.New("failed to get zones"))
 
 	// Act
-	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType)
+	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType, false)
 
 	// Assert
 	assert.Error(t, err)
@@ -5489,7 +5487,7 @@ func Test_resolveZonesForCluster_Error_NoSecondaryZoneSupportsInstanceType(t *te
 	mockService.On("IsMachineTypeAvailable", projectNumber, "us-central1-c", instanceType).Return(false, nil)
 
 	// Act
-	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType)
+	resolvedSecondary, resolvedMediator, err := activities.ResolveZonesForCluster(mockService, projectNumber, region, primaryZone, secondaryZone, mediatorZone, instanceType, false)
 
 	// Assert
 	assert.Error(t, err)

@@ -27,6 +27,7 @@ type CreatePoolParams struct {
 	PrimaryZone             string
 	VendorSubNetID          string
 	SecondaryZone           string
+	IsRegionalHA            bool
 	HostUUID                string
 	CustomPerformanceParams *CustomPerformanceParams
 	KmsConfigId             string

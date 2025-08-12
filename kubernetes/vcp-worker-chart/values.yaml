@@ -89,7 +89,7 @@ workerConfig:
   vlmUpdateVSAClusterDeploymentWorkflowTimeoutMinutes: 120
 
   # Mediator VM Configuration
-  vsaMediatorInstanceType: "n2-standard-4"
+  vsaMediatorInstanceType: "e2-micro"
   vsaMediatorDiskType: "pd-ssd"
   vsaMediatorImageName: "r9-17-1xn-250704-0000-mediator-debian-12"
   

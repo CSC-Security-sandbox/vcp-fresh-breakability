@@ -37,6 +37,7 @@ type PoolAttributes struct {
 	SecondaryZone   string
 	AllocatedBytes  float64
 	NumberOfVolumes int64
+	IsRegionalHA    bool
 	Labels          map[string]string
 }
 

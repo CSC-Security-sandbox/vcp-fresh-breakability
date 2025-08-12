@@ -81,6 +81,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 			Iops:            params.CustomPerformanceParams.Iops,
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		DeploymentName: "test-deployment",
 	}
 	svmName := "svmName"
 
@@ -129,7 +130,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 		PrimaryZone:   "test-zone",
 		SecondaryZone: "test-secondary-zone",
 		Region:        "test-region",
@@ -214,6 +215,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 			Iops:            params.CustomPerformanceParams.Iops,
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		DeploymentName: "test-deployment",
 	}
 	svmName := "svmName"
 
@@ -258,7 +260,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 		PrimaryZone:   "test-zone",
 		SecondaryZone: "test-secondary-zone",
 		Region:        "test-region",
@@ -342,11 +344,13 @@ func TestCreatePoolWorkflow_CreateSubnetJobFailure(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
 			Iops:            params.CustomPerformanceParams.Iops,
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		DeploymentName: "test-deployment",
 	}
 
 	defer func() {
@@ -412,11 +416,13 @@ func TestCreatePoolWorkflow_PollJobError(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
 			Iops:            params.CustomPerformanceParams.Iops,
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		DeploymentName: "test-deployment",
 	}
 
 	defer func() {
@@ -483,11 +489,13 @@ func TestCreatePoolWorkflow_GetTenancyDetailsError(t *testing.T) {
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
 		},
 		PoolAttributes: &datamodel.PoolAttributes{
 			Iops:            params.CustomPerformanceParams.Iops,
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		DeploymentName: "test-deployment",
 	}
 
 	defer func() {
@@ -567,6 +575,7 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 			Iops:            params.CustomPerformanceParams.Iops,
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		DeploymentName: "test-deployment",
 	}
 	svmName := "svmName"
 	oldEnableUniqueSerialNumberGeneration := enableUniqueSerialNumberGeneration
@@ -631,7 +640,7 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 		PrimaryZone:   "test-zone",
 		SecondaryZone: "test-secondary-zone",
 		Region:        "test-region",
@@ -701,6 +710,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 				Iops:            params.CustomPerformanceParams.Iops,
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
+			DeploymentName: "test-deployment",
 		}
 		svmName := "svmName"
 
@@ -763,7 +773,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 		env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -835,6 +845,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 				Iops:            params.CustomPerformanceParams.Iops,
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
+			DeploymentName: "test-deployment",
 		}
 
 		defer func() {
@@ -920,6 +931,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 				Iops:            params.CustomPerformanceParams.Iops,
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
+			DeploymentName: "test-deployment",
 		}
 
 		defer func() {
@@ -1006,6 +1018,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 				Iops:            params.CustomPerformanceParams.Iops,
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
+			DeploymentName: "test-deployment",
 		}
 
 		defer func() {
@@ -1733,8 +1746,13 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		pool := &datamodel.Pool{
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
-				SecretID: "",
+				SecretID: "", AuthType: envs.USERNAME_PWD,
 			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+			DeploymentName: "test-deployment",
 		}
 		svmName := "svmName"
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -1777,7 +1795,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -1853,6 +1871,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 				Iops:            params.CustomPerformanceParams.Iops,
 				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 			},
+			DeploymentName: "test-deployment",
 		}
 
 		defer func() {
@@ -1904,7 +1923,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -1971,10 +1990,17 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
 			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+			DeploymentName: "test-deployment",
 		}
 		svmName := "svmName"
 		defer func() {
@@ -2023,7 +2049,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -2035,7 +2061,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		// Mock child workflow execution
 		env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
-			return input.PoolID == 0 &&
+			return input.PoolID == 1 &&
 				input.CustomerProjectID == "test-account" &&
 				input.MaxNodesPerGroup == 200 &&
 				input.TenantProjectID == "test-project"
@@ -2093,10 +2119,17 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId:             "ksmConfigUUID",
 		}
 		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
 			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+			DeploymentName: "test-deployment",
 		}
 		cvpKmsConfig := &cvpModels.KmsConfigV1beta{}
 		svmName := "svmName"
@@ -2150,7 +2183,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -2163,7 +2196,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 
 		// Mock child workflow execution
 		env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
-			return input.PoolID == 0 &&
+			return input.PoolID == 1 &&
 				input.CustomerProjectID == "test-account" &&
 				input.MaxNodesPerGroup == 200 &&
 				input.TenantProjectID == "test-project"
@@ -2230,7 +2263,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
 			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+			DeploymentName: "test-deployment",
 		}
 		cvpKmsConfig := &cvpModels.KmsConfigV1beta{}
 		svmName := "svmName"
@@ -2285,7 +2324,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -2357,7 +2396,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
 			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+			DeploymentName: "test-deployment",
 		}
 		cvpKmsConfig := &cvpModels.KmsConfigV1beta{}
 		svmName := "svmName"
@@ -2412,7 +2457,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -2483,7 +2528,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
 			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+			DeploymentName: "test-deployment",
 		}
 		cvpKmsConfig := &cvpModels.KmsConfigV1beta{}
 		svmName := "svmName"
@@ -2544,7 +2595,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -2615,7 +2666,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
 			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+			DeploymentName: "test-deployment",
 		}
 		svmName := "svmName"
 		defer func() {
@@ -2667,7 +2724,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -2738,7 +2795,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
 			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+			DeploymentName: "test-deployment",
 		}
 		svmName := "svmName"
 		defer func() {
@@ -2788,7 +2851,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -2859,7 +2922,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
 			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+			DeploymentName: "test-deployment",
 		}
 		svmName := "svmName"
 		defer func() {
@@ -2910,7 +2979,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -2981,7 +3050,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
 			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+			DeploymentName: "test-deployment",
 		}
 		svmName := "svmName"
 		defer func() {
@@ -3036,7 +3111,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -3107,7 +3182,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
 			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+			DeploymentName: "test-deployment",
 		}
 		svmName := "svmName"
 		defer func() {
@@ -3162,7 +3243,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -3233,7 +3314,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
 			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+			DeploymentName: "test-deployment",
 		}
 		svmName := "svmName"
 		defer func() {
@@ -3288,7 +3375,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -3359,7 +3446,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			PoolCredentials: &datamodel.PoolCredentials{
 				Password: "test-password",
 				SecretID: "",
+				AuthType: envs.USERNAME_PWD,
 			},
+			PoolAttributes: &datamodel.PoolAttributes{
+				Iops:            params.CustomPerformanceParams.Iops,
+				ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+			},
+			DeploymentName: "test-deployment",
 		}
 		runningEnv = "local"
 		svmName := "svmName"
@@ -3414,7 +3507,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 			PrimaryZone:   "test-zone",
 			SecondaryZone: "test-secondary-zone",
 			Region:        "test-region",
@@ -3465,7 +3558,16 @@ func TestCreatePoolWorkflow_Failure_FindTenancyProject(t *testing.T) {
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
 	}
 	pool := &datamodel.Pool{
-		PoolCredentials: &datamodel.PoolCredentials{Password: "password", SecretID: "secret-id"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "password",
+			SecretID: "secret-id",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+		DeploymentName: "test-deployment",
 	}
 	defer func() {
 		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
@@ -3521,7 +3623,16 @@ func TestCreatePoolWorkflow_InitialFailure_UpdateJobStatus(t *testing.T) {
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
 	}
 	pool := &datamodel.Pool{
-		PoolCredentials: &datamodel.PoolCredentials{Password: "password", SecretID: "secret-id"},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "password",
+			SecretID: "secret-id",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+		DeploymentName: "test-deployment",
 	}
 	defer func() {
 		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
@@ -3584,7 +3695,17 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
 	}
 	pool := &datamodel.Pool{
-		PoolCredentials: &datamodel.PoolCredentials{Password: "password", SecretID: "secret-id"},
+		BaseModel: datamodel.BaseModel{ID: 1},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "password",
+			SecretID: "secret-id",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+		DeploymentName: "test-deployment",
 	}
 
 	defer func() {
@@ -3621,14 +3742,19 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		// Set the pool ID to simulate successful save
+		if pool, ok := args[0].(*datamodel.Pool); ok {
+			pool.ID = 1
+		}
+	}).Return(nil)
 	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return("svmName", nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, "svmName").Return(nil, nil)
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 		PrimaryZone:   "test-zone",
 		SecondaryZone: "test-secondary-zone",
 		Region:        "test-region",
@@ -3643,7 +3769,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 
 	// Mock child workflow execution
 	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
-		return input.PoolID == 0 &&
+		return input.PoolID == 1 &&
 			input.CustomerProjectID == "test-account" &&
 			input.MaxNodesPerGroup == 200 &&
 			input.TenantProjectID == "test-project"
@@ -5320,6 +5446,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
 	}
 	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1},
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
@@ -5329,6 +5456,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 			Iops:            params.CustomPerformanceParams.Iops,
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		DeploymentName: "test-deployment",
 	}
 
 	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
@@ -5374,14 +5502,20 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock SavePoolWithClusterDetails to return a pool with an ID
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		// Set the pool ID to simulate successful save
+		if pool, ok := args[0].(*datamodel.Pool); ok {
+			pool.ID = 1
+		}
+	}).Return(nil)
 	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return("svmName", nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, "svmName").Return(nil, nil)
 	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
 	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
 		PrimaryZone:   "test-zone",
 		SecondaryZone: "test-secondary-zone",
 		Region:        "test-region",
@@ -5398,7 +5532,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 
 	// Mock child workflow execution
 	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
-		return input.PoolID == 0 &&
+		return input.PoolID == 1 &&
 			input.CustomerProjectID == "test-account" &&
 			input.MaxNodesPerGroup == 200 &&
 			input.TenantProjectID == "test-project"
@@ -5458,19 +5592,25 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 
 	// Set up test data
 	params := &common.CreatePoolParams{
-		Name:        "test-pool-sa-max-retries",
-		AccountName: "test-account",
-		SizeInBytes: 1024 * 1024 * 1024 * 1024, // 1 TB
-		Region:      "test-region",
-		PrimaryZone: "test-zone",
+		Name:                    "test-pool-sa-max-retries",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
 	}
 	pool := &datamodel.Pool{
-		BaseModel: datamodel.BaseModel{}, // Ensure this is initialized
+		BaseModel: datamodel.BaseModel{ID: 1},
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
 			AuthType: envs.USERNAME_PWD,
 		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+		DeploymentName: "test-deployment",
 	}
 
 	// Mock activities up to service account creation
@@ -5492,8 +5632,13 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
-	// Mock SavePoolWithClusterDetails to prevent nil pointer dereference
-	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock SavePoolWithClusterDetails to return a pool with an ID
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		// Set the pool ID to simulate successful save
+		if pool, ok := args[0].(*datamodel.Pool); ok {
+			pool.ID = 1
+		}
+	}).Return(nil)
 
 	// Mock service account creation to always fail (exceeding max retry attempts)
 	serviceAccountError := temporal.NewApplicationError("service account creation failed", "ServiceAccountError")
@@ -5563,18 +5708,25 @@ func TestCreatePoolWorkflow_ServiceAccountRetryPolicyConfigError(t *testing.T) {
 
 	// Set up test data
 	params := &common.CreatePoolParams{
-		Name:        "test-pool-sa-config-error",
-		AccountName: "test-account",
-		SizeInBytes: 1024 * 1024 * 1024 * 1024, // 1 TB
-		Region:      "test-region",
-		PrimaryZone: "test-zone",
+		Name:                    "test-pool-sa-config-error",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
 	}
 	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1},
 		PoolCredentials: &datamodel.PoolCredentials{
 			Password: "test-password",
 			SecretID: "",
 			AuthType: envs.USERNAME_PWD,
 		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+		DeploymentName: "test-deployment",
 	}
 
 	// Mock activities up to service account creation
@@ -5593,8 +5745,13 @@ func TestCreatePoolWorkflow_ServiceAccountRetryPolicyConfigError(t *testing.T) {
 		Gateway:               "192.168.1.254",
 	}, nil)
 
-	// Mock SavePoolWithClusterDetails to prevent nil pointer dereference
-	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock SavePoolWithClusterDetails to return a pool with an ID
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		// Set the pool ID to simulate successful save
+		if pool, ok := args[0].(*datamodel.Pool); ok {
+			pool.ID = 1
+		}
+	}).Return(nil)
 
 	// Mock rollback activities
 	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
@@ -5654,6 +5811,7 @@ func TestCreatePoolWorkflow_PopulateRetryPolicyParamsError(t *testing.T) {
 			Iops:            params.CustomPerformanceParams.Iops,
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		DeploymentName: "test-deployment",
 	}
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -5712,6 +5870,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflowError(t *testing.T) {
 			Iops:            params.CustomPerformanceParams.Iops,
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		DeploymentName: "test-deployment",
 	}
 
 	defer func() {
@@ -5795,6 +5954,7 @@ func TestCreatePoolWorkflow_SavePoolWithClusterDetailsError(t *testing.T) {
 			Iops:            params.CustomPerformanceParams.Iops,
 			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
 		},
+		DeploymentName: "test-deployment",
 	}
 
 	defer func() {

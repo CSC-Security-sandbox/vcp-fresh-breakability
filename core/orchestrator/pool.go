@@ -101,6 +101,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 			PrimaryZone:     params.PrimaryZone,
 			SecondaryZone:   params.SecondaryZone,
 			Labels:          params.Labels,
+			IsRegionalHA:    params.IsRegionalHA,
 		},
 	}
 	poolObj.DeploymentName = utils.GenerateDeterministicDeploymentName(poolObj.AccountID, poolObj.UUID, params.Region)
@@ -543,6 +544,7 @@ func convertDatastorePoolToModel(pool *datamodel.PoolView, accountName string) *
 			PrimaryZone:     pool.PoolAttributes.PrimaryZone,
 			SecondaryZone:   pool.PoolAttributes.SecondaryZone,
 			Labels:          labels,
+			IsRegionalHA:    pool.PoolAttributes.IsRegionalHA,
 		},
 		AutoTieringConfig: autoTieringConfig,
 		CustomPerformanceParams: &models.CustomPerformanceParams{

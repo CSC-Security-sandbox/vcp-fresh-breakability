@@ -310,10 +310,12 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 	var resolvedLocationInfo *common.LocationInfo
-	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifySecondaryAndMediatorZone, tenancyDetails.RegionalTenantProject, locationInfo, vlmConfig.Deployment.VSAInstanceType).Get(ctx, &resolvedLocationInfo)
+	err = workflow.ExecuteActivity(ctx, poolActivity.IdentifySecondaryAndMediatorZone, tenancyDetails.RegionalTenantProject, locationInfo, vlmConfig.Deployment.VSAInstanceType, params.IsRegionalHA).Get(ctx, &resolvedLocationInfo)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
+	dbPool.PoolAttributes.SecondaryZone = resolvedLocationInfo.SecondaryZone
+	dbPool.PoolAttributes.MediatorZone = resolvedLocationInfo.MediatorZone
 
 	// Allocate unique serial numbers in production
 	// This is disabled by default (enableUniqueSerialNumberGeneration=false)
