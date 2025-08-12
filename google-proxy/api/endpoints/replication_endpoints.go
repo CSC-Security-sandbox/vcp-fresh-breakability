@@ -34,7 +34,7 @@ func (h Handler) V1betaCreateReplication(ctx context.Context, req *gcpgenserver.
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	if !crrEnabled {
-		return &gcpgenserver.V1betaCreateReplicationForbidden{
+		return &gcpgenserver.V1betaCreateReplicationBadRequest{
 			Code:    400,
 			Message: "CRR is not enabled",
 		}, nil
@@ -386,7 +386,7 @@ func (h Handler) V1betaResumeReplication(ctx context.Context, params gcpgenserve
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	if !crrEnabled {
-		return &gcpgenserver.V1betaResumeReplicationForbidden{
+		return &gcpgenserver.V1betaResumeReplicationBadRequest{
 			Code:    400,
 			Message: "CRR is not enabled",
 		}, nil
@@ -449,8 +449,8 @@ func (h Handler) V1betaUpdateReplication(ctx context.Context, req *gcpgenserver.
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	if !crrEnabled {
-		return &gcpgenserver.V1betaUpdateReplicationForbidden{
-			Code:    403,
+		return &gcpgenserver.V1betaUpdateReplicationBadRequest{
+			Code:    400,
 			Message: "CRR is not enabled",
 		}, nil
 	}
@@ -523,7 +523,7 @@ func (h Handler) V1betaDeleteReplication(ctx context.Context, req *gcpgenserver.
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	if !crrEnabled {
-		return &gcpgenserver.V1betaDeleteReplicationForbidden{
+		return &gcpgenserver.V1betaDeleteReplicationBadRequest{
 			Code:    400,
 			Message: "CRR is not enabled",
 		}, nil
@@ -631,7 +631,7 @@ func (h Handler) V1betaStopReplication(ctx context.Context, req *gcpgenserver.Re
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	if !crrEnabled {
-		return &gcpgenserver.V1betaStopReplicationForbidden{
+		return &gcpgenserver.V1betaStopReplicationBadRequest{
 			Code:    400,
 			Message: "CRR is not enabled",
 		}, nil
@@ -694,7 +694,7 @@ func (h Handler) V1betaSyncReplication(ctx context.Context, params gcpgenserver.
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	if !crrEnabled {
-		return &gcpgenserver.V1betaSyncReplicationForbidden{
+		return &gcpgenserver.V1betaSyncReplicationBadRequest{
 			Code:    400,
 			Message: "CRR is not enabled",
 		}, nil

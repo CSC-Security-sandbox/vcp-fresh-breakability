@@ -586,7 +586,7 @@ func TestV1betaCreateReplication(t *testing.T) {
 			Description: gcpgenserver.NewOptString("description"),
 		}
 		result, _ := handler.V1betaCreateReplication(context.Background(), req, params)
-		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreateReplicationForbidden).Code)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreateReplicationBadRequest).Code)
 	})
 	t.Run("WhenCreateReplicationSucceedsWithNoJob", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -792,7 +792,7 @@ func TestV1betaResumeReplication(t *testing.T) {
 			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 		result, _ := handler.V1betaResumeReplication(context.Background(), params)
-		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaResumeReplicationForbidden).Code)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaResumeReplicationBadRequest).Code)
 	})
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -969,7 +969,7 @@ func TestV1betaStopReplication(t *testing.T) {
 		}
 		req := &gcpgenserver.ReplicationStopV1beta{}
 		result, _ := handler.V1betaStopReplication(context.Background(), req, params)
-		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaStopReplicationForbidden).Code)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaStopReplicationBadRequest).Code)
 	})
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -1098,7 +1098,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 			XCorrelationID:        gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 		result, _ := handler.V1betaDeleteReplication(context.Background(), &req, params)
-		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaDeleteReplicationForbidden).Code)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaDeleteReplicationBadRequest).Code)
 	})
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
@@ -1288,8 +1288,8 @@ func TestV1betaSyncReplication(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaSyncReplicationForbidden).Code)
-		assert.Equal(tt, "CRR is not enabled", result.(*gcpgenserver.V1betaSyncReplicationForbidden).Message)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaSyncReplicationBadRequest).Code)
+		assert.Equal(tt, "CRR is not enabled", result.(*gcpgenserver.V1betaSyncReplicationBadRequest).Message)
 	})
 
 	t.Run("WhenLocationParsingFails", func(tt *testing.T) {
@@ -1463,7 +1463,7 @@ func TestV1betaUpdateReplication(t *testing.T) {
 			Description: gcpgenserver.NewOptString("new description"),
 		}
 		result, _ := handler.V1betaUpdateReplication(context.Background(), req, params)
-		assert.Equal(tt, float64(403), result.(*gcpgenserver.V1betaUpdateReplicationForbidden).Code)
+		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaUpdateReplicationBadRequest).Code)
 	})
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
