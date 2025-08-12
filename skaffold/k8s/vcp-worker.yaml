@@ -161,7 +161,7 @@ spec:
               value: "198.18.0.0/15"
             - name: IC_FIREWALL_SOURCE_RANGES
               value: "198.18.0.0/15"
-            - name: ISCSI_FIREWALL_SOURCE_RANGES
+            - name: DATA_FIREWALL_SOURCE_RANGES
               value: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
             - name: MGMT_REGIONAL_NAT_IP
               value: "34.0.0.0/8,35.0.0.0/8,202.3.112.0/20,216.240.16.0/20,217.70.208.0/20"

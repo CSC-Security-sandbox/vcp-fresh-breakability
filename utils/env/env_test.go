@@ -3,6 +3,8 @@ package env
 import (
 	"fmt"
 	"os"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -991,6 +993,14 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 	originalCertificateLifetime := CertificateLifetime
 	originalCloudDNSCacheTTL := CloudDNSCacheTTL
 	originalNodePassword := NodePassword
+	originalMgmtFirewallSourceRanges := MgmtFirewallSourceRanges
+	originalRsmFirewallSourceRanges := RsmFirewallSourceRanges
+	originalIcFirewallSourceRanges := IcFirewallSourceRanges
+	originalDataFirewallSourceRanges := DataFirewallSourceRanges
+	originalMgmtRegionalNatIP := MgmtRegionalNatIP
+	originalMgmtNetworkIpRange := MgmtNetworkIpRange
+	originalRsmNetworkIpRange := RsmNetworkIpRange
+	originalIcNetworkIpRange := IcNetworkIpRange
 
 	t.Run("WhenAllEnvironmentVariablesAreSet", func(tt *testing.T) {
 		// Set all required environment variables
@@ -1014,6 +1024,22 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 		assert.NoError(tt, err)
 		err = os.Setenv("VSA_NODE_PASSWORD", "test-password")
 		assert.NoError(tt, err)
+		err = os.Setenv("MGMT_FIREWALL_SOURCE_RANGES", "198.18.0.0/20,198.18.0.0/20")
+		assert.NoError(tt, err)
+		err = os.Setenv("RSM_FIREWALL_SOURCE_RANGES", "198.18.0.0/20,198.18.0.0/20")
+		assert.NoError(tt, err)
+		err = os.Setenv("IC_FIREWALL_SOURCE_RANGES", "198.18.0.0/20,198.18.0.0/20")
+		assert.NoError(tt, err)
+		err = os.Setenv("DATA_FIREWALL_SOURCE_RANGES", "198.18.0.0/20,198.18.0.0/20")
+		assert.NoError(tt, err)
+		err = os.Setenv("MGMT_REGIONAL_NAT_IP", "198.18.0.0/20,198.18.0.0/20")
+		assert.NoError(tt, err)
+		err = os.Setenv("MGMT_NETWORK_IP_RANGE", "198.18.0.0/20")
+		assert.NoError(tt, err)
+		err = os.Setenv("RSM_NETWORK_IP_RANGE", "198.18.0.0/20")
+		assert.NoError(tt, err)
+		err = os.Setenv("IC_NETWORK_IP_RANGE", "198.18.0.0/20")
+		assert.NoError(tt, err)
 
 		// Reinitialize variables by simulating package load
 		Region = GetString("LOCAL_REGION", "")
@@ -1026,7 +1052,36 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 		CertificateLifetime = GetString("CERTIFICATE_LIFETIME", "94608000s")
 		CloudDNSCacheTTL = GetInt64("CLOUD_DNS_CACHE_TTL", 300)
 		NodePassword = GetString("VSA_NODE_PASSWORD", "")
+		MgmtFirewallSourceRanges = GetString("MGMT_FIREWALL_SOURCE_RANGES", "")
+		RsmFirewallSourceRanges = GetString("RSM_FIREWALL_SOURCE_RANGES", "")
+		IcFirewallSourceRanges = GetString("IC_FIREWALL_SOURCE_RANGES", "")
+		DataFirewallSourceRanges = GetString("DATA_FIREWALL_SOURCE_RANGES", "")
+		MgmtRegionalNatIP = GetString("MGMT_REGIONAL_NAT_IP", "")
+		MgmtNetworkIpRange = GetString("MGMT_NETWORK_IP_RANGE", "198.18.0.0/20")
+		RsmNetworkIpRange = GetString("RSM_NETWORK_IP_RANGE", "198.18.16.0/20")
+		IcNetworkIpRange = GetString("IC_NETWORK_IP_RANGE", "198.18.32.0/20")
 
+		// Use reflection to update the NetworkSourceRanges map with current values
+		packageValue := reflect.ValueOf(&NetworkSourceRanges).Elem()
+		newMap := map[string]string{
+			"MGMT_FIREWALL_SOURCE_RANGES": MgmtFirewallSourceRanges,
+			"RSM_FIREWALL_SOURCE_RANGES":  RsmFirewallSourceRanges,
+			"IC_FIREWALL_SOURCE_RANGES":   IcFirewallSourceRanges,
+			"DATA_FIREWALL_SOURCE_RANGES": DataFirewallSourceRanges,
+			"MGMT_REGIONAL_NAT_IP":        MgmtRegionalNatIP,
+		}
+		packageValue.Set(reflect.ValueOf(newMap))
+
+		// Use reflection to update the networkIpRanges map with current values
+		packageValue2 := reflect.ValueOf(&NetworkIpRanges).Elem()
+		newMap2 := map[string]string{
+			"MGMT_NETWORK_IP_RANGE": MgmtNetworkIpRange,
+			"RSM_NETWORK_IP_RANGE":  RsmNetworkIpRange,
+			"IC_NETWORK_IP_RANGE":   IcNetworkIpRange,
+		}
+		packageValue2.Set(reflect.ValueOf(newMap2))
+
+		// Validate environment variables
 		err = ValidateEnvironmentVariables()
 		assert.NoError(tt, err)
 
@@ -1050,6 +1105,22 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 		err = os.Unsetenv("CLOUD_DNS_CACHE_TTL")
 		assert.NoError(tt, err)
 		err = os.Unsetenv("VSA_NODE_PASSWORD")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("MGMT_FIREWALL_SOURCE_RANGES")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("RSM_FIREWALL_SOURCE_RANGES")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("IC_FIREWALL_SOURCE_RANGES")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("DATA_FIREWALL_SOURCE_RANGES")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("MGMT_REGIONAL_NAT_IP")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("MGMT_NETWORK_IP_RANGE")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("RSM_NETWORK_IP_RANGE")
+		assert.NoError(tt, err)
+		err = os.Unsetenv("IC_NETWORK_IP_RANGE")
 		assert.NoError(tt, err)
 	})
 
@@ -1179,6 +1250,14 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 	CertificateLifetime = originalCertificateLifetime
 	CloudDNSCacheTTL = originalCloudDNSCacheTTL
 	NodePassword = originalNodePassword
+	MgmtFirewallSourceRanges = originalMgmtFirewallSourceRanges
+	RsmFirewallSourceRanges = originalRsmFirewallSourceRanges
+	IcFirewallSourceRanges = originalIcFirewallSourceRanges
+	DataFirewallSourceRanges = originalDataFirewallSourceRanges
+	MgmtRegionalNatIP = originalMgmtRegionalNatIP
+	MgmtNetworkIpRange = originalMgmtNetworkIpRange
+	RsmNetworkIpRange = originalRsmNetworkIpRange
+	IcNetworkIpRange = originalIcNetworkIpRange
 }
 
 // TestGlobalVariableDeclarations tests the global variables declared in the package
@@ -1376,5 +1455,686 @@ func TestPackageInitFunction(t *testing.T) {
 		assert.NoError(tt, err)
 		err = os.Unsetenv("OTEL_GOOGLE_PROJECT_ID")
 		assert.NoError(tt, err)
+	})
+}
+
+// TestValidateNetworkEnvVariables tests the validateNetworkEnvVariables function
+func TestValidateNetworkEnvVariables(t *testing.T) {
+	// Store original values to restore later
+	originalMgmtFirewallSourceRanges := MgmtFirewallSourceRanges
+	originalRsmFirewallSourceRanges := RsmFirewallSourceRanges
+	originalIcFirewallSourceRanges := IcFirewallSourceRanges
+	originalDataFirewallSourceRanges := DataFirewallSourceRanges
+	originalMgmtRegionalNatIP := MgmtRegionalNatIP
+	originalMgmtNetworkIpRange := MgmtNetworkIpRange
+	originalRsmNetworkIpRange := RsmNetworkIpRange
+	originalIcNetworkIpRange := IcNetworkIpRange
+
+	defer func() {
+		// Restore original values
+		MgmtFirewallSourceRanges = originalMgmtFirewallSourceRanges
+		RsmFirewallSourceRanges = originalRsmFirewallSourceRanges
+		IcFirewallSourceRanges = originalIcFirewallSourceRanges
+		DataFirewallSourceRanges = originalDataFirewallSourceRanges
+		MgmtRegionalNatIP = originalMgmtRegionalNatIP
+		MgmtNetworkIpRange = originalMgmtNetworkIpRange
+		RsmNetworkIpRange = originalRsmNetworkIpRange
+		IcNetworkIpRange = originalIcNetworkIpRange
+
+		// Rebuild maps with original values
+		NetworkSourceRanges = map[string]string{
+			"MGMT_FIREWALL_SOURCE_RANGES": originalMgmtFirewallSourceRanges,
+			"RSM_FIREWALL_SOURCE_RANGES":  originalRsmFirewallSourceRanges,
+			"IC_FIREWALL_SOURCE_RANGES":   originalIcFirewallSourceRanges,
+			"DATA_FIREWALL_SOURCE_RANGES": originalDataFirewallSourceRanges,
+			"MGMT_REGIONAL_NAT_IP":        originalMgmtRegionalNatIP,
+		}
+		NetworkIpRanges = map[string]string{
+			"MGMT_NETWORK_IP_RANGE": originalMgmtNetworkIpRange,
+			"RSM_NETWORK_IP_RANGE":  originalRsmNetworkIpRange,
+			"IC_NETWORK_IP_RANGE":   originalIcNetworkIpRange,
+		}
+	}()
+
+	t.Run("WhenAllNetworkConfigurationsAreValid", func(tt *testing.T) {
+		// Set all valid values
+		MgmtFirewallSourceRanges = "192.168.1.0/24,10.0.0.0/8"
+		RsmFirewallSourceRanges = "172.16.0.0/12"
+		IcFirewallSourceRanges = "203.0.113.0/24"
+		DataFirewallSourceRanges = "198.51.100.0/24"
+		MgmtRegionalNatIP = "198.51.100.1/32"
+		MgmtNetworkIpRange = "198.18.0.0/20"
+		RsmNetworkIpRange = "198.18.16.0/20"
+		IcNetworkIpRange = "198.18.32.0/20"
+
+		// Rebuild maps
+		NetworkSourceRanges = map[string]string{
+			"MGMT_FIREWALL_SOURCE_RANGES": MgmtFirewallSourceRanges,
+			"RSM_FIREWALL_SOURCE_RANGES":  RsmFirewallSourceRanges,
+			"IC_FIREWALL_SOURCE_RANGES":   IcFirewallSourceRanges,
+			"DATA_FIREWALL_SOURCE_RANGES": DataFirewallSourceRanges,
+			"MGMT_REGIONAL_NAT_IP":        MgmtRegionalNatIP,
+		}
+		NetworkIpRanges = map[string]string{
+			"MGMT_NETWORK_IP_RANGE": MgmtNetworkIpRange,
+			"RSM_NETWORK_IP_RANGE":  RsmNetworkIpRange,
+			"IC_NETWORK_IP_RANGE":   IcNetworkIpRange,
+		}
+
+		err := validateNetworkEnvVariables()
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenMgmtFirewallSourceRangeIsEmpty", func(tt *testing.T) {
+		MgmtFirewallSourceRanges = ""
+		RsmFirewallSourceRanges = "10.0.0.0/8"
+		IcFirewallSourceRanges = "172.16.0.0/12"
+		DataFirewallSourceRanges = "203.0.113.0/24"
+		MgmtRegionalNatIP = "198.51.100.1/32"
+		MgmtNetworkIpRange = "198.18.0.0/20"
+		RsmNetworkIpRange = "198.18.16.0/20"
+		IcNetworkIpRange = "198.18.32.0/20"
+
+		NetworkSourceRanges = map[string]string{
+			"MGMT_FIREWALL_SOURCE_RANGES": MgmtFirewallSourceRanges,
+			"RSM_FIREWALL_SOURCE_RANGES":  RsmFirewallSourceRanges,
+			"IC_FIREWALL_SOURCE_RANGES":   IcFirewallSourceRanges,
+			"DATA_FIREWALL_SOURCE_RANGES": DataFirewallSourceRanges,
+			"MGMT_REGIONAL_NAT_IP":        MgmtRegionalNatIP,
+		}
+		NetworkIpRanges = map[string]string{
+			"MGMT_NETWORK_IP_RANGE": MgmtNetworkIpRange,
+			"RSM_NETWORK_IP_RANGE":  RsmNetworkIpRange,
+			"IC_NETWORK_IP_RANGE":   IcNetworkIpRange,
+		}
+
+		err := validateNetworkEnvVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "must be set for firewall for VSA deployment")
+	})
+
+	t.Run("WhenSourceRangeHasInvalidCIDR", func(tt *testing.T) {
+		MgmtFirewallSourceRanges = "invalid-cidr"
+		RsmFirewallSourceRanges = "10.0.0.0/8"
+		IcFirewallSourceRanges = "172.16.0.0/12"
+		DataFirewallSourceRanges = "203.0.113.0/24"
+		MgmtRegionalNatIP = "198.51.100.1/32"
+		MgmtNetworkIpRange = "198.18.0.0/20"
+		RsmNetworkIpRange = "198.18.16.0/20"
+		IcNetworkIpRange = "198.18.32.0/20"
+
+		NetworkSourceRanges = map[string]string{
+			"MGMT_FIREWALL_SOURCE_RANGES": MgmtFirewallSourceRanges,
+			"RSM_FIREWALL_SOURCE_RANGES":  RsmFirewallSourceRanges,
+			"IC_FIREWALL_SOURCE_RANGES":   IcFirewallSourceRanges,
+			"DATA_FIREWALL_SOURCE_RANGES": DataFirewallSourceRanges,
+			"MGMT_REGIONAL_NAT_IP":        MgmtRegionalNatIP,
+		}
+		NetworkIpRanges = map[string]string{
+			"MGMT_NETWORK_IP_RANGE": MgmtNetworkIpRange,
+			"RSM_NETWORK_IP_RANGE":  RsmNetworkIpRange,
+			"IC_NETWORK_IP_RANGE":   IcNetworkIpRange,
+		}
+
+		err := validateNetworkEnvVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Invalid CIDR format")
+	})
+
+	t.Run("WhenMgmtNetworkIpRangeIsEmpty", func(tt *testing.T) {
+		MgmtFirewallSourceRanges = "192.168.1.0/24"
+		RsmFirewallSourceRanges = "10.0.0.0/8"
+		IcFirewallSourceRanges = "172.16.0.0/12"
+		DataFirewallSourceRanges = "203.0.113.0/24"
+		MgmtRegionalNatIP = "198.51.100.1/32"
+		MgmtNetworkIpRange = ""
+		RsmNetworkIpRange = "198.18.16.0/20"
+		IcNetworkIpRange = "198.18.32.0/20"
+
+		NetworkSourceRanges = map[string]string{
+			"MGMT_FIREWALL_SOURCE_RANGES": MgmtFirewallSourceRanges,
+			"RSM_FIREWALL_SOURCE_RANGES":  RsmFirewallSourceRanges,
+			"IC_FIREWALL_SOURCE_RANGES":   IcFirewallSourceRanges,
+			"DATA_FIREWALL_SOURCE_RANGES": DataFirewallSourceRanges,
+			"MGMT_REGIONAL_NAT_IP":        MgmtRegionalNatIP,
+		}
+		NetworkIpRanges = map[string]string{
+			"MGMT_NETWORK_IP_RANGE": MgmtNetworkIpRange,
+			"RSM_NETWORK_IP_RANGE":  RsmNetworkIpRange,
+			"IC_NETWORK_IP_RANGE":   IcNetworkIpRange,
+		}
+
+		err := validateNetworkEnvVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "must be set for subnet for VSA deployment")
+	})
+
+	t.Run("WhenIpRangeHasInvalidCIDR", func(tt *testing.T) {
+		MgmtFirewallSourceRanges = "192.168.1.0/24"
+		RsmFirewallSourceRanges = "10.0.0.0/8"
+		IcFirewallSourceRanges = "172.16.0.0/12"
+		DataFirewallSourceRanges = "203.0.113.0/24"
+		MgmtRegionalNatIP = "198.51.100.1/32"
+		MgmtNetworkIpRange = "invalid-ip-range"
+		RsmNetworkIpRange = "198.18.16.0/20"
+		IcNetworkIpRange = "198.18.32.0/20"
+
+		NetworkSourceRanges = map[string]string{
+			"MGMT_FIREWALL_SOURCE_RANGES": MgmtFirewallSourceRanges,
+			"RSM_FIREWALL_SOURCE_RANGES":  RsmFirewallSourceRanges,
+			"IC_FIREWALL_SOURCE_RANGES":   IcFirewallSourceRanges,
+			"DATA_FIREWALL_SOURCE_RANGES": DataFirewallSourceRanges,
+			"MGMT_REGIONAL_NAT_IP":        MgmtRegionalNatIP,
+		}
+		NetworkIpRanges = map[string]string{
+			"MGMT_NETWORK_IP_RANGE": MgmtNetworkIpRange,
+			"RSM_NETWORK_IP_RANGE":  RsmNetworkIpRange,
+			"IC_NETWORK_IP_RANGE":   IcNetworkIpRange,
+		}
+
+		err := validateNetworkEnvVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Invalid CIDR format")
+	})
+
+	t.Run("WhenMultipleSourceRangesAreValid", func(tt *testing.T) {
+		MgmtFirewallSourceRanges = "192.168.1.0/24,10.0.0.0/8,172.16.0.0/12"
+		RsmFirewallSourceRanges = "203.0.113.0/24,198.51.100.0/24"
+		IcFirewallSourceRanges = "192.0.2.0/24"
+		DataFirewallSourceRanges = "169.254.0.0/16"
+		MgmtRegionalNatIP = "198.51.100.1/32,203.0.113.1/32"
+		MgmtNetworkIpRange = "198.18.0.0/20"
+		RsmNetworkIpRange = "198.18.16.0/20"
+		IcNetworkIpRange = "198.18.32.0/20"
+
+		NetworkSourceRanges = map[string]string{
+			"MGMT_FIREWALL_SOURCE_RANGES": MgmtFirewallSourceRanges,
+			"RSM_FIREWALL_SOURCE_RANGES":  RsmFirewallSourceRanges,
+			"IC_FIREWALL_SOURCE_RANGES":   IcFirewallSourceRanges,
+			"DATA_FIREWALL_SOURCE_RANGES": DataFirewallSourceRanges,
+			"MGMT_REGIONAL_NAT_IP":        MgmtRegionalNatIP,
+		}
+		NetworkIpRanges = map[string]string{
+			"MGMT_NETWORK_IP_RANGE": MgmtNetworkIpRange,
+			"RSM_NETWORK_IP_RANGE":  RsmNetworkIpRange,
+			"IC_NETWORK_IP_RANGE":   IcNetworkIpRange,
+		}
+
+		err := validateNetworkEnvVariables()
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenIPv6RangesAreUsed", func(tt *testing.T) {
+		MgmtFirewallSourceRanges = "2001:db8::/32"
+		RsmFirewallSourceRanges = "fe80::/10"
+		IcFirewallSourceRanges = "::1/128"
+		DataFirewallSourceRanges = "2001:db8:85a3::/48"
+		MgmtRegionalNatIP = "2001:db8:85a3::8a2e:370:7334/128"
+		MgmtNetworkIpRange = "2001:db8:1234::/48"
+		RsmNetworkIpRange = "2001:db8:5678::/48"
+		IcNetworkIpRange = "2001:db8:9abc::/48"
+
+		NetworkSourceRanges = map[string]string{
+			"MGMT_FIREWALL_SOURCE_RANGES": MgmtFirewallSourceRanges,
+			"RSM_FIREWALL_SOURCE_RANGES":  RsmFirewallSourceRanges,
+			"IC_FIREWALL_SOURCE_RANGES":   IcFirewallSourceRanges,
+			"DATA_FIREWALL_SOURCE_RANGES": DataFirewallSourceRanges,
+			"MGMT_REGIONAL_NAT_IP":        MgmtRegionalNatIP,
+		}
+		NetworkIpRanges = map[string]string{
+			"MGMT_NETWORK_IP_RANGE": MgmtNetworkIpRange,
+			"RSM_NETWORK_IP_RANGE":  RsmNetworkIpRange,
+			"IC_NETWORK_IP_RANGE":   IcNetworkIpRange,
+		}
+
+		err := validateNetworkEnvVariables()
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenSourceRangeValidationPassesButIpRangeValidationFails", func(tt *testing.T) {
+		// Valid source ranges
+		MgmtFirewallSourceRanges = "192.168.1.0/24"
+		RsmFirewallSourceRanges = "10.0.0.0/8"
+		IcFirewallSourceRanges = "172.16.0.0/12"
+		DataFirewallSourceRanges = "203.0.113.0/24"
+		MgmtRegionalNatIP = "198.51.100.1/32"
+		// Invalid IP range
+		MgmtNetworkIpRange = "198.18.0.0/20"
+		RsmNetworkIpRange = "invalid-cidr"
+		IcNetworkIpRange = "198.18.32.0/20"
+
+		NetworkSourceRanges = map[string]string{
+			"MGMT_FIREWALL_SOURCE_RANGES": MgmtFirewallSourceRanges,
+			"RSM_FIREWALL_SOURCE_RANGES":  RsmFirewallSourceRanges,
+			"IC_FIREWALL_SOURCE_RANGES":   IcFirewallSourceRanges,
+			"DATA_FIREWALL_SOURCE_RANGES": DataFirewallSourceRanges,
+			"MGMT_REGIONAL_NAT_IP":        MgmtRegionalNatIP,
+		}
+		NetworkIpRanges = map[string]string{
+			"MGMT_NETWORK_IP_RANGE": MgmtNetworkIpRange,
+			"RSM_NETWORK_IP_RANGE":  RsmNetworkIpRange,
+			"IC_NETWORK_IP_RANGE":   IcNetworkIpRange,
+		}
+
+		err := validateNetworkEnvVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Invalid CIDR format")
+	})
+
+	t.Run("WhenEmptyMapsAreProvided", func(tt *testing.T) {
+		// Test with empty maps
+		NetworkSourceRanges = map[string]string{}
+		NetworkIpRanges = map[string]string{}
+
+		err := validateNetworkEnvVariables()
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenNetworkSourceRangesContainsSpaces", func(tt *testing.T) {
+		MgmtFirewallSourceRanges = "192.168.1.0 /24" // Contains space
+		RsmFirewallSourceRanges = "10.0.0.0/8"
+		IcFirewallSourceRanges = "172.16.0.0/12"
+		DataFirewallSourceRanges = "203.0.113.0/24"
+		MgmtRegionalNatIP = "198.51.100.1/32"
+		MgmtNetworkIpRange = "198.18.0.0/20"
+		RsmNetworkIpRange = "198.18.16.0/20"
+		IcNetworkIpRange = "198.18.32.0/20"
+
+		NetworkSourceRanges = map[string]string{
+			"MGMT_FIREWALL_SOURCE_RANGES": MgmtFirewallSourceRanges,
+			"RSM_FIREWALL_SOURCE_RANGES":  RsmFirewallSourceRanges,
+			"IC_FIREWALL_SOURCE_RANGES":   IcFirewallSourceRanges,
+			"DATA_FIREWALL_SOURCE_RANGES": DataFirewallSourceRanges,
+			"MGMT_REGIONAL_NAT_IP":        MgmtRegionalNatIP,
+		}
+		NetworkIpRanges = map[string]string{
+			"MGMT_NETWORK_IP_RANGE": MgmtNetworkIpRange,
+			"RSM_NETWORK_IP_RANGE":  RsmNetworkIpRange,
+			"IC_NETWORK_IP_RANGE":   IcNetworkIpRange,
+		}
+
+		err := validateNetworkEnvVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "contain empty spaces")
+	})
+
+	t.Run("WhenIpRangeContainsSpaces", func(tt *testing.T) {
+		MgmtFirewallSourceRanges = "192.168.1.0/24"
+		RsmFirewallSourceRanges = "10.0.0.0/8"
+		IcFirewallSourceRanges = "172.16.0.0/12"
+		DataFirewallSourceRanges = "203.0.113.0/24"
+		MgmtRegionalNatIP = "198.51.100.1/32"
+		MgmtNetworkIpRange = "198.18.0.0 /20" // Contains space
+		RsmNetworkIpRange = "198.18.16.0/20"
+		IcNetworkIpRange = "198.18.32.0/20"
+
+		NetworkSourceRanges = map[string]string{
+			"MGMT_FIREWALL_SOURCE_RANGES": MgmtFirewallSourceRanges,
+			"RSM_FIREWALL_SOURCE_RANGES":  RsmFirewallSourceRanges,
+			"IC_FIREWALL_SOURCE_RANGES":   IcFirewallSourceRanges,
+			"DATA_FIREWALL_SOURCE_RANGES": DataFirewallSourceRanges,
+			"MGMT_REGIONAL_NAT_IP":        MgmtRegionalNatIP,
+		}
+		NetworkIpRanges = map[string]string{
+			"MGMT_NETWORK_IP_RANGE": MgmtNetworkIpRange,
+			"RSM_NETWORK_IP_RANGE":  RsmNetworkIpRange,
+			"IC_NETWORK_IP_RANGE":   IcNetworkIpRange,
+		}
+
+		err := validateNetworkEnvVariables()
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "contain empty spaces")
+	})
+}
+
+// TestValidateSourceRanges tests the validateSourceRanges function
+func TestValidateSourceRanges(t *testing.T) {
+	envVariableName := "TEST_FIREWALL_SOURCE_RANGES"
+
+	t.Run("WhenSourceRangesIsEmpty", func(tt *testing.T) {
+		err := validateSourceRanges(envVariableName, "")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "TEST_FIREWALL_SOURCE_RANGES must be set for firewall for VSA deployment")
+	})
+
+	t.Run("WhenSourceRangesHasSingleValidCIDR", func(tt *testing.T) {
+		testCases := []string{
+			"192.168.1.0/24",
+			"10.0.0.0/8",
+			"172.16.0.0/12",
+			"203.0.113.0/24",
+			"198.51.100.0/24",
+			"0.0.0.0/0",
+			"127.0.0.1/32",
+		}
+
+		for _, sourceRange := range testCases {
+			err := validateSourceRanges(envVariableName, sourceRange)
+			assert.NoError(tt, err, "Expected no error for valid CIDR: %s", sourceRange)
+		}
+	})
+
+	t.Run("WhenSourceRangesHasSingleInvalidCIDR", func(tt *testing.T) {
+		testCases := []string{
+			"invalid-cidr",
+			"192.168.1.0/33",
+			"256.256.256.256/24",
+			"192.168.1.0",
+			"192.168.1.0/-1",
+			"not.an.ip.address/24",
+			"192.168.1.0/abc",
+		}
+
+		for _, sourceRange := range testCases {
+			err := validateSourceRanges(envVariableName, sourceRange)
+			assert.Error(tt, err, "Expected error for invalid CIDR: %s", sourceRange)
+		}
+	})
+
+	t.Run("WhenSourceRangesHasMultipleValidCIDRs", func(tt *testing.T) {
+		testCases := []string{
+			"192.168.1.0/24,10.0.0.0/8",
+			"172.16.0.0/12,203.0.113.0/24,198.51.100.0/24",
+			"192.168.1.0/24,10.0.0.0/8,172.16.0.0/12,0.0.0.0/0",
+			"127.0.0.1/32,192.168.0.1/32",
+		}
+
+		for _, sourceRange := range testCases {
+			err := validateSourceRanges(envVariableName, sourceRange)
+			assert.NoError(tt, err, "Expected no error for valid CIDRs: %s", sourceRange)
+		}
+	})
+
+	t.Run("WhenSourceRangesHasOneInvalidCIDRAmongValid", func(tt *testing.T) {
+		testCases := []string{
+			"192.168.1.0/24,invalid-cidr",
+			"10.0.0.0/8,256.256.256.256/24",
+			"172.16.0.0/12,192.168.1.0/33,203.0.113.0/24",
+			"valid.but.not.ip/24,192.168.1.0/24",
+		}
+
+		for _, sourceRange := range testCases {
+			err := validateSourceRanges(envVariableName, sourceRange)
+			assert.Error(tt, err, "Expected error for mixed valid/invalid CIDRs: %s", sourceRange)
+		}
+	})
+
+	t.Run("WhenSourceRangesHasAllInvalidCIDRs", func(tt *testing.T) {
+		testCases := []string{
+			"invalid-cidr,another-invalid",
+			"256.256.256.256/24,192.168.1.0/33",
+			"not.an.ip/24,also.not.ip/16",
+		}
+
+		for _, sourceRange := range testCases {
+			err := validateSourceRanges(envVariableName, sourceRange)
+			assert.Error(tt, err, "Expected error for all invalid CIDRs: %s", sourceRange)
+		}
+	})
+
+	t.Run("WhenSourceRangesHasIPv6ValidCIDRs", func(tt *testing.T) {
+		testCases := []string{
+			"2001:db8::/32",
+			"fe80::/10",
+			"::1/128",
+			"2001:db8:85a3::/48",
+			"2001:db8::/32,fe80::/10",
+			"::1/128,2001:db8:85a3::/48,fe80::/64",
+		}
+
+		for _, sourceRange := range testCases {
+			err := validateSourceRanges(envVariableName, sourceRange)
+			assert.NoError(tt, err, "Expected no error for valid IPv6 CIDRs: %s", sourceRange)
+		}
+	})
+
+	t.Run("WhenSourceRangesHasIPv6InvalidCIDRs", func(tt *testing.T) {
+		testCases := []string{
+			"2001:db8::/129",
+			"gggg::/32",
+			"2001:db8:85a3::8a2e:370:7334:extra/64",
+			"invalid:ipv6:address/64",
+		}
+
+		for _, sourceRange := range testCases {
+			err := validateSourceRanges(envVariableName, sourceRange)
+			assert.Error(tt, err, "Expected error for invalid IPv6 CIDRs: %s", sourceRange)
+		}
+	})
+
+	t.Run("WhenSourceRangesHasMixedIPv4AndIPv6", func(tt *testing.T) {
+		testCases := []string{
+			"192.168.1.0/24,2001:db8::/32",
+			"10.0.0.0/8,fe80::/10,172.16.0.0/12",
+			"::1/128,127.0.0.1/32",
+		}
+
+		for _, sourceRange := range testCases {
+			err := validateSourceRanges(envVariableName, sourceRange)
+			assert.NoError(tt, err, "Expected no error for mixed IPv4/IPv6 CIDRs: %s", sourceRange)
+		}
+	})
+
+	t.Run("WhenSourceRangesContainsSpaces", func(tt *testing.T) {
+		testCases := []string{
+			"192.168.1.0 /24",
+			"192.168.1.0/ 24",
+			"192.168.1.0/24 ,10.0.0.0/8",
+			" 192.168.1.0/24",
+			"192.168.1.0/24 ",
+			"192.168.1.0/24, 10.0.0.0/8",
+		}
+
+		for _, sourceRange := range testCases {
+			err := validateSourceRanges(envVariableName, sourceRange)
+			assert.Error(tt, err, "Expected error for CIDRs with spaces: %s", sourceRange)
+			assert.Contains(tt, err.Error(), "contain empty spaces", "Error should mention spaces for: %s", sourceRange)
+		}
+	})
+
+	t.Run("WhenSourceRangesHasEmptyRangeInList", func(tt *testing.T) {
+		testCases := []string{
+			"192.168.1.0/24,,10.0.0.0/8",
+			",192.168.1.0/24",
+			"192.168.1.0/24,",
+			"192.168.1.0/24, ,10.0.0.0/8",
+		}
+
+		for _, sourceRange := range testCases {
+			err := validateSourceRanges(envVariableName, sourceRange)
+			assert.Error(tt, err, "Expected error for empty range in list: %s", sourceRange)
+		}
+	})
+
+	t.Run("WhenEnvVariableNameIsDifferent", func(tt *testing.T) {
+		customEnvName := "CUSTOM_FIREWALL_RANGES"
+		err := validateSourceRanges(customEnvName, "")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "CUSTOM_FIREWALL_RANGES must be set for firewall for VSA deployment")
+	})
+
+	t.Run("WhenSourceRangesHasOnlyCommas", func(tt *testing.T) {
+		testCases := []string{
+			",",
+			",,",
+			",,,",
+		}
+
+		for _, sourceRange := range testCases {
+			err := validateSourceRanges(envVariableName, sourceRange)
+			assert.Error(tt, err, "Expected error for only commas: %s", sourceRange)
+		}
+	})
+
+	t.Run("WhenSourceRangesHasValidEdgeCases", func(tt *testing.T) {
+		testCases := []string{
+			"0.0.0.0/0",          // Any IPv4
+			"::/0",               // Any IPv6
+			"255.255.255.255/32", // Broadcast
+			"224.0.0.0/4",        // Multicast range
+		}
+
+		for _, sourceRange := range testCases {
+			err := validateSourceRanges(envVariableName, sourceRange)
+			assert.NoError(tt, err, "Expected no error for edge case CIDR: %s", sourceRange)
+		}
+	})
+}
+
+// TestValidateIpRange tests the validateIpRange function
+func TestValidateIpRange(t *testing.T) {
+	basicErrorString := "%s must be set for subnet for VSA deployment"
+	envVariableName := "TEST_ENV_VAR"
+
+	t.Run("WhenIpRangeIsEmpty", func(tt *testing.T) {
+		err := validateIpRange("", basicErrorString, envVariableName)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "TEST_ENV_VAR must be set for subnet for VSA deployment")
+	})
+
+	t.Run("WhenIpRangeContainsSpaces", func(tt *testing.T) {
+		testCases := []string{
+			"192.168.1.0 /24",
+			" 192.168.1.0/24",
+			"192.168.1.0/24 ",
+			"192.168. 1.0/24",
+			"192.168.1.0/ 24",
+		}
+
+		for _, ipRange := range testCases {
+			err := validateIpRange(ipRange, basicErrorString, envVariableName)
+			assert.Error(tt, err)
+			assert.Contains(tt, err.Error(), "Can't contain empty spaces")
+			assert.Contains(tt, err.Error(), ipRange)
+		}
+	})
+
+	t.Run("WhenIpRangeIsValidCIDR", func(tt *testing.T) {
+		testCases := []string{
+			"192.168.1.0/24",
+			"10.0.0.0/8",
+			"172.16.0.0/12",
+			"203.0.113.0/24",
+			"198.51.100.0/24",
+			"0.0.0.0/0",
+			"127.0.0.1/32",
+		}
+
+		for _, ipRange := range testCases {
+			err := validateIpRange(ipRange, basicErrorString, envVariableName)
+			assert.NoError(tt, err)
+		}
+	})
+
+	t.Run("WhenIpRangeIsInvalidCIDR", func(tt *testing.T) {
+		testCases := []string{
+			"invalid-cidr",
+			"192.168.1.0/33",
+			"256.256.256.256/24",
+			"192.168.1.0/-1",
+			"192.168.1.0/abc",
+			"192.168.1.0",
+			"192.168.1.0/",
+			"/24",
+			"192.168.1.256/24",
+			"192.168.-1.0/24",
+		}
+
+		for _, ipRange := range testCases {
+			err := validateIpRange(ipRange, basicErrorString, envVariableName)
+			assert.Error(tt, err)
+			assert.Contains(tt, err.Error(), "Invalid CIDR format")
+			assert.Contains(tt, err.Error(), ipRange)
+		}
+	})
+
+	t.Run("WhenBasicErrorStringIsCustom", func(tt *testing.T) {
+		customErrorString := "%s must be configured properly"
+		err := validateIpRange("", customErrorString, envVariableName)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "TEST_ENV_VAR must be configured properly")
+	})
+
+	t.Run("WhenIpRangeIsWhitespaceOnly", func(tt *testing.T) {
+		testCases := []string{
+			" ",
+			"  ",
+			"\t",
+			"\n",
+			"\r",
+		}
+
+		for _, ipRange := range testCases {
+			if strings.Contains(ipRange, " ") {
+				err := validateIpRange(ipRange, basicErrorString, envVariableName)
+				assert.Error(tt, err)
+				assert.Contains(tt, err.Error(), "Can't contain empty spaces")
+			} else {
+				// These whitespace characters don't contain regular spaces, so they trigger CIDR validation error
+				err := validateIpRange(ipRange, basicErrorString, envVariableName)
+				assert.Error(tt, err)
+				assert.Contains(tt, err.Error(), "Invalid CIDR format")
+			}
+		}
+	})
+
+	t.Run("WhenIpRangeHasLeadingTrailingSpaces", func(tt *testing.T) {
+		// These contain regular spaces, so should trigger space check
+		spaceTestCases := []string{
+			" 192.168.1.0/24",
+			"192.168.1.0/24 ",
+			" 192.168.1.0/24 ",
+		}
+
+		for _, ipRange := range spaceTestCases {
+			err := validateIpRange(ipRange, basicErrorString, envVariableName)
+			assert.Error(tt, err)
+			assert.Contains(tt, err.Error(), "Can't contain empty spaces")
+		}
+
+		// These contain tabs but not regular spaces, so they trigger CIDR validation error
+		tabTestCases := []string{
+			"\t192.168.1.0/24",
+			"192.168.1.0/24\t",
+		}
+
+		for _, ipRange := range tabTestCases {
+			err := validateIpRange(ipRange, basicErrorString, envVariableName)
+			assert.Error(tt, err)
+			assert.Contains(tt, err.Error(), "Invalid CIDR format")
+		}
+	})
+
+	t.Run("WhenIpRangeHasIPv6ValidFormats", func(tt *testing.T) {
+		testCases := []string{
+			"2001:db8::/32",
+			"fe80::/10",
+			"::1/128",
+			"2001:db8:85a3::/48",
+			"2001:db8:85a3::8a2e:370:7334/128",
+			"::/0",
+		}
+
+		for _, ipRange := range testCases {
+			err := validateIpRange(ipRange, basicErrorString, envVariableName)
+			assert.NoError(tt, err)
+		}
+	})
+
+	t.Run("WhenIpRangeHasIPv6InvalidFormats", func(tt *testing.T) {
+		testCases := []string{
+			"2001:db8::/129",
+			"2001:db8::g/64",
+			"2001:db8:85a3::8a2e:370:7334:extra/128",
+			"2001:db8",
+			"2001:db8::/",
+			"/64",
+		}
+
+		for _, ipRange := range testCases {
+			err := validateIpRange(ipRange, basicErrorString, envVariableName)
+			assert.Error(tt, err)
+			assert.Contains(tt, err.Error(), "Invalid CIDR format")
+		}
 	})
 }

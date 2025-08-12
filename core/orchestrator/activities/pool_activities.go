@@ -70,6 +70,7 @@ var (
 	GetSubnetFromOperation            = _getSubnetFromOperation
 	GetGatewayFromIpCidrRange         = _getGatewayFromIpCidrRange
 	ResolveZonesForCluster            = _resolveZonesForCluster
+	GetInternalVSANetworkForFirewalls = _getInternalVSANetworkForFirewalls
 
 	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
 	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
@@ -82,45 +83,38 @@ type PoolActivity struct {
 	SE database.Storage
 }
 
-type controlPlaneNetworks struct {
-	vpcName      string
-	subnetName   string
-	ipCidrRange  string
-	sourceRanges string
-	portRules    string
-	firewallName string
-}
-
-var internalVSANetworks = map[string]controlPlaneNetworks{
-	mgmtVpcName: controlPlaneNetworks{vpcName: mgmtVpcName, subnetName: mgmtSubnetName, ipCidrRange: MgmtNetworkIpRange, firewallName: mgmtFirewallName, sourceRanges: getFirewallSourceRangesForMgmt(), portRules: MgmtFirewallPortRules},
-	icVpcName:   controlPlaneNetworks{vpcName: icVpcName, subnetName: icSubnet, ipCidrRange: IcNetworkIpRange, firewallName: icFirewallName, sourceRanges: IcFirewallSourceRanges, portRules: IcFirewallPortRules},
-	rsmVpcName:  controlPlaneNetworks{vpcName: rsmVpcName, subnetName: rsmSubnetName, ipCidrRange: RsmNetworkIpRange, firewallName: rsmFirewallName, sourceRanges: RsmFirewallSourceRanges, portRules: RSMFirewallPortRules},
+type InternalVSANetwork struct {
+	VpcName     string
+	SubnetName  string
+	IpCidrRange string
+	Firewall    hyperscaler_models.Firewall
 }
 
 const (
 	aggregateName  = "aggr1"
 	DefaultSvmName = "gcnv"
 
-	firewallPriority        = 1000
-	ingressTrafficDirection = "INGRESS"
+	FirewallPriority        = 1000
+	IngressTrafficDirection = "INGRESS"
 
 	keyManagerBootarg = "bootarg.keymanager.ekmip.svm_context=false"
 
-	mgmtVpcName      = "mgmt-e0a-vpc-01"
-	mgmtSubnetName   = "mgmt-e0a-subnet-01"
-	mgmtFirewallName = "ingress-" + mgmtVpcName
+	MgmtVpcName      = "mgmt-e0a-vpc-01"
+	MgmtSubnetName   = "mgmt-e0a-subnet-01"
+	MgmtFirewallName = "ingress-" + MgmtVpcName
 
-	icVpcName      = "ic-e0b-vpc-01"
-	icSubnet       = "ic-e0b-subnet-01"
-	icFirewallName = "ingress-" + icVpcName
+	IcVpcName      = "ic-e0b-vpc-01"
+	IcSubnet       = "ic-e0b-subnet-01"
+	IcFirewallName = "ingress-" + IcVpcName
 
-	rsmVpcName      = "rsm-e0c-vpc-01"
-	rsmSubnetName   = "rsm-e0c-subnet-01"
-	rsmFirewallName = "ingress-" + rsmVpcName
+	RsmVpcName      = "rsm-e0c-vpc-01"
+	RsmSubnetName   = "rsm-e0c-subnet-01"
+	RsmFirewallName = "ingress-" + RsmVpcName
 
 	iscsiDataFirewallName = "ingress-data-iscsi"
 
 	DefaultDataFiles = "default-data-files"
+	AllowAllPorts    = "all"
 )
 
 // Minimum allowed values for SPConfig throughput (in MiBs) and IOPS.
@@ -138,10 +132,10 @@ var (
 	Region                    = env.GetString("LOCAL_REGION", "")
 	regionMapJson             = env.GetString("REGION_NUMBER_MAP", `{"africa-south1": "01","asia-east1": "02","asia-east2": "03","asia-northeast1": "04","asia-northeast2": "05","asia-northeast3": "06","asia-south1": "07","asia-south2": "08","asia-southeast1": "09","asia-southeast2": "10","australia-southeast1": "11","australia-southeast2": "12","europe-central2": "13","europe-north1": "14","europe-north2": "15","europe-southwest1": "16","europe-west1": "17","europe-west10": "18","europe-west12": "19","europe-west2": "20","europe-west3": "21","europe-west4": "22","europe-west6": "23","europe-west8": "24","europe-west9": "25","me-central1": "26","me-central2": "27","me-west1": "28","northamerica-northeast1": "29","northamerica-northeast2": "30","northamerica-south1": "31","southamerica-east1": "32","southamerica-west1": "33","us-central1": "34","us-east1": "35","us-east4": "36","us-east5": "37","us-south1": "38","us-west1": "39","us-west2": "40","us-west3": "41","us-west4": "42"}`)
 
-	MgmtFirewallSourceRanges  = env.GetString("MGMT_FIREWALL_SOURCE_RANGES", "")
-	RsmFirewallSourceRanges   = env.GetString("RSM_FIREWALL_SOURCE_RANGES", "")
-	IcFirewallSourceRanges    = env.GetString("IC_FIREWALL_SOURCE_RANGES", "")
-	IscsiFirewallSourceRanges = env.GetString("ISCSI_FIREWALL_SOURCE_RANGES", "")
+	MgmtFirewallSourceRanges = env.GetString("MGMT_FIREWALL_SOURCE_RANGES", "")
+	RsmFirewallSourceRanges  = env.GetString("RSM_FIREWALL_SOURCE_RANGES", "")
+	IcFirewallSourceRanges   = env.GetString("IC_FIREWALL_SOURCE_RANGES", "")
+	DataFirewallSourceRanges = env.GetString("DATA_FIREWALL_SOURCE_RANGES", "")
 
 	MgmtRegionalNatIP = env.GetString("MGMT_REGIONAL_NAT_IP", "")
 
@@ -149,13 +143,22 @@ var (
 	RsmNetworkIpRange  = env.GetString("RSM_NETWORK_IP_RANGE", "198.18.16.0/20")
 	IcNetworkIpRange   = env.GetString("IC_NETWORK_IP_RANGE", "198.18.32.0/20")
 
-	MgmtFirewallPortRules = env.GetString("MGMT_FIREWALL_PORT_RULES", "tcp,udp,icmp")
+	MgmtFirewallPortRules = env.GetString("MGMT_FIREWALL_PORT_RULES", "tcp,22,443")
 	RSMFirewallPortRules  = env.GetString("RSM_FIREWALL_PORT_RULES", "tcp,udp")
 	IcFirewallPortRules   = env.GetString("IC_FIREWALL_PORT_RULES", "tcp,udp")
 
 	IscsiFirewallPortRules = env.GetString("ISCSI_FIREWALL_PORT_RULES", "tcp,3260")
 	RegionNumber           = getRegionNumber()
 )
+
+var InternalVSANetworks = map[string]InternalVSANetwork{
+	MgmtVpcName: {VpcName: MgmtVpcName, SubnetName: MgmtSubnetName, IpCidrRange: MgmtNetworkIpRange,
+		Firewall: hyperscaler_models.Firewall{Name: MgmtFirewallName, SourceRanges: []string{}, AllowedPortRules: strings.Split(MgmtFirewallPortRules, ",")}},
+	IcVpcName: {VpcName: IcVpcName, SubnetName: IcSubnet, IpCidrRange: IcNetworkIpRange,
+		Firewall: hyperscaler_models.Firewall{Name: IcFirewallName, SourceRanges: strings.Split(IcFirewallSourceRanges, ","), AllowedPortRules: strings.Split(IcFirewallPortRules, ",")}},
+	RsmVpcName: {VpcName: RsmVpcName, SubnetName: RsmSubnetName, IpCidrRange: RsmNetworkIpRange,
+		Firewall: hyperscaler_models.Firewall{Name: RsmFirewallName, SourceRanges: strings.Split(RsmFirewallSourceRanges, ","), AllowedPortRules: strings.Split(RSMFirewallPortRules, ",")}},
+}
 
 func (j *PoolActivity) CreatingPool(ctx context.Context, pool *datamodel.Pool) (*datamodel.Pool, error) {
 	se := j.SE
@@ -422,9 +425,9 @@ func (j *PoolActivity) CreateVPCs(ctx context.Context, project string) (*[]commo
 	activity.RecordHeartbeat(ctx, "Setting up VPC's for VSA pool")
 	operations := make([]commonparams.Operations, 0)
 	op := ""
-	for _, values := range internalVSANetworks {
+	for _, values := range InternalVSANetworks {
 		// Create VPCs for management, cluster interconnect, and RSM
-		op, err = CreateVPC(service, project, values.vpcName)
+		op, err = CreateVPC(service, project, values.VpcName)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -452,8 +455,8 @@ func (j *PoolActivity) CreateSubnets(ctx context.Context, project string) (*[]co
 	activity.RecordHeartbeat(ctx, "Setting up Subnets for VSA pool")
 	operations := make([]commonparams.Operations, 0)
 	op := ""
-	for _, values := range internalVSANetworks {
-		op, err = InsertSubnet(service, project, &Region, values.subnetName, values.vpcName, values.ipCidrRange)
+	for _, values := range InternalVSANetworks {
+		op, err = InsertSubnet(service, project, &Region, values.SubnetName, values.VpcName, values.IpCidrRange)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -480,8 +483,10 @@ func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProje
 	activity.RecordHeartbeat(ctx, "Setting up Firewall for VSA pool")
 	operations := make([]commonparams.Operations, 0)
 	op := ""
-	for _, values := range internalVSANetworks {
-		op, err = InsertFirewall(service, project, values.firewallName, values.vpcName, firewallPriority, ingressTrafficDirection, strings.Split(values.sourceRanges, ","), strings.Split(values.portRules, ","))
+	internalVSANetworksLocal := PrepareInternalVSANetworksForFirewall()
+
+	for _, values := range internalVSANetworksLocal {
+		op, err = InsertFirewall(service, project, values.Firewall.Name, values.VpcName, values.Firewall.Priority, values.Firewall.Direction, values.Firewall.SourceRanges, values.Firewall.AllowedPortRules)
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 		}
@@ -513,6 +518,36 @@ func (j *PoolActivity) CreateFirewalls(ctx context.Context, project, snHostProje
 		})
 	}
 	return &operations, nil
+}
+
+// PrepareInternalVSANetworksForFirewall adds private and public IPs for management VPC on top of the existing InternalVSANetworks
+func PrepareInternalVSANetworksForFirewall() map[string]InternalVSANetwork {
+	internalVSANetworksLocal := map[string]InternalVSANetwork{}
+	mgmtValues := InternalVSANetworks[MgmtVpcName]
+
+	// private firewall ned no restriction for port rules
+	internalVSANetworksLocal[MgmtVpcName+"-1"] = GetInternalVSANetworkForFirewalls(mgmtValues.VpcName, mgmtValues.Firewall.Name+"-1", strings.Split(MgmtFirewallSourceRanges, ","), []string{AllowAllPorts}, FirewallPriority, IngressTrafficDirection)
+	// public firewall needs to have restrictions using port rules
+	internalVSANetworksLocal[MgmtVpcName+"-2"] = GetInternalVSANetworkForFirewalls(mgmtValues.VpcName, mgmtValues.Firewall.Name+"-2", strings.Split(MgmtRegionalNatIP, ","), mgmtValues.Firewall.AllowedPortRules, FirewallPriority, IngressTrafficDirection)
+	internalVSANetworksLocal[IcVpcName] = InternalVSANetworks[IcVpcName]
+	internalVSANetworksLocal[RsmVpcName] = InternalVSANetworks[RsmVpcName]
+	return internalVSANetworksLocal
+}
+
+func _getInternalVSANetworkForFirewalls(vpcName, firewallName string, sourceRanges, portRules []string, priority int64, trafficDirection string) InternalVSANetwork {
+	network := InternalVSANetworks[vpcName]
+	return InternalVSANetwork{
+		VpcName:     network.VpcName,
+		SubnetName:  network.SubnetName,
+		IpCidrRange: network.IpCidrRange,
+		Firewall: hyperscaler_models.Firewall{
+			Name:             firewallName,
+			SourceRanges:     sourceRanges,
+			AllowedPortRules: portRules,
+			Priority:         priority,
+			Direction:        trafficDirection,
+		},
+	}
 }
 
 func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamodel.Pool, region, clusterName string) (*vlm.OntapCredentials, error) {
@@ -580,7 +615,7 @@ func (j *PoolActivity) GetOnTapCredentials(ctx context.Context, pool *datamodel.
 
 // setupNetworkFirewallsForIscsi sets up a firewall for iSCSI traffic in GCP
 func setupNetworkFirewallsForIscsi(service hyperscaler2.GoogleServices, snHostProject, network string) (string, error) {
-	return InsertFirewall(service, snHostProject, iscsiDataFirewallName, network, firewallPriority, ingressTrafficDirection, strings.Split(IscsiFirewallSourceRanges, ","), strings.Split(IscsiFirewallPortRules, ","))
+	return InsertFirewall(service, snHostProject, iscsiDataFirewallName, network, FirewallPriority, IngressTrafficDirection, strings.Split(DataFirewallSourceRanges, ","), strings.Split(IscsiFirewallPortRules, ","))
 }
 
 func (j *PoolActivity) DeployDeploymentManager(ctx context.Context, deploymentName, region, zone, network, subnet, projectId, snHostProject string, size int) (*[]map[string]string, error) {
@@ -920,9 +955,9 @@ func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZo
 		Subnet          string
 		SubnetProjectID string
 	}{
-		vlm.LIFTypeNodeMgmt: {mgmtVpcName, mgmtSubnetName, regionalTenantProjectID},
-		vlm.LIFTypeIC:       {icVpcName, icSubnet, regionalTenantProjectID},
-		vlm.LIFTypeRSM:      {rsmVpcName, rsmSubnetName, regionalTenantProjectID},
+		vlm.LIFTypeNodeMgmt: {MgmtVpcName, MgmtSubnetName, regionalTenantProjectID},
+		vlm.LIFTypeIC:       {IcVpcName, IcSubnet, regionalTenantProjectID},
+		vlm.LIFTypeRSM:      {RsmVpcName, RsmSubnetName, regionalTenantProjectID},
 	}
 
 	// assign network configurations for each LIF type
@@ -1793,13 +1828,6 @@ func (j *PoolActivity) AllocateSVMName(ctx context.Context, pool *datamodel.Pool
 
 	// Return SVM name with sequence
 	return fmt.Sprintf("%s-svm-%s", pool.DeploymentName, sequenceStr), nil
-}
-
-func getFirewallSourceRangesForMgmt() string {
-	if MgmtRegionalNatIP != "" {
-		return MgmtFirewallSourceRanges + "," + MgmtRegionalNatIP
-	}
-	return MgmtFirewallSourceRanges
 }
 
 // GetComputeOpStatus returns the status (and result) of a Google's compute networking operation for global and regional operations

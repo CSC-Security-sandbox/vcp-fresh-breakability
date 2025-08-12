@@ -89,7 +89,7 @@ data:
   MGMT_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.mgmtFirewallSourceRanges | quote }}
   RSM_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.rsmFirewallSourceRanges | quote }}
   IC_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.icFirewallSourceRanges | quote }}
-  ISCSI_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.iscsiFirewallSourceRanges | quote }}
+  DATA_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.dataFirewallSourceRanges | quote }}
   MGMT_REGIONAL_NAT_IP: {{ .Values.workerConfig.mgmtRegionalNatIp | quote }}
   MGMT_NETWORK_IP_RANGE: {{ .Values.workerConfig.mgmtNetworkIpRange | quote }}
   RSM_NETWORK_IP_RANGE: {{ .Values.workerConfig.rsmNetworkIpRange | quote }}

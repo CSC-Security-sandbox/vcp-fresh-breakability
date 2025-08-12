@@ -28,6 +28,14 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 	originalRegion := env.Region
 	originalCloudDNSCacheTTL := env.CloudDNSCacheTTL
 	orignalNodePassword := env.NodePassword
+	originalMgmtRegionalNatIP := env.MgmtRegionalNatIP
+	originalMgmtFirewallSourceRanges := env.MgmtFirewallSourceRanges
+	originalRsmFirewallSourceRanges := env.RsmFirewallSourceRanges
+	originalIcFirewallSourceRanges := env.IcFirewallSourceRanges
+	originalDataFirewallSourceRanges := env.DataFirewallSourceRanges
+	originalMgmtNetworkIpRange := env.MgmtNetworkIpRange
+	originalRsmNetworkIpRange := env.RsmNetworkIpRange
+	originalIcNetworkIpRange := env.IcNetworkIpRange
 
 	env.AuthType = env.USER_CERTIFICATE // Set AuthType to USER_CERTIFICATE for this test
 	env.SecretManagerProjectID = ""
@@ -40,6 +48,14 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 	env.Region = ""
 	env.CloudDNSCacheTTL = 0
 	env.NodePassword = ""
+	env.MgmtRegionalNatIP = ""
+	env.MgmtFirewallSourceRanges = ""
+	env.RsmFirewallSourceRanges = ""
+	env.IcFirewallSourceRanges = ""
+	env.DataFirewallSourceRanges = ""
+	env.MgmtNetworkIpRange = ""
+	env.RsmNetworkIpRange = ""
+	env.IcNetworkIpRange = ""
 
 	defer func() {
 		env.AuthType = originalAuthtype                             // Restore original AuthType after test
@@ -53,6 +69,14 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 		env.Region = originalRegion
 		env.CloudDNSCacheTTL = originalCloudDNSCacheTTL // Restore original CloudDNSCacheTTL
 		env.NodePassword = orignalNodePassword
+		env.MgmtRegionalNatIP = originalMgmtRegionalNatIP
+		env.MgmtFirewallSourceRanges = originalMgmtFirewallSourceRanges
+		env.RsmFirewallSourceRanges = originalRsmFirewallSourceRanges
+		env.IcFirewallSourceRanges = originalIcFirewallSourceRanges
+		env.DataFirewallSourceRanges = originalDataFirewallSourceRanges
+		env.MgmtNetworkIpRange = originalMgmtNetworkIpRange
+		env.RsmNetworkIpRange = originalRsmNetworkIpRange
+		env.IcNetworkIpRange = originalIcNetworkIpRange
 	}()
 
 	err := env.ValidateEnvironmentVariables()
@@ -106,6 +130,37 @@ func TestValidateEnvironmentVariables(t *testing.T) {
 	assert.Contains(t, err.Error(), "VSA_NODE_PASSWORD must be set for authentication")
 
 	env.NodePassword = "node-password"
+	err = env.ValidateEnvironmentVariables()
+	assert.Error(t, err)
+	// The error could be for any of the network environment variables since map iteration order is not deterministic
+	assert.Contains(t, err.Error(), "must be set for")
+
+	// Set all required network environment variables
+	env.MgmtFirewallSourceRanges = "10.0.0.0/8"
+	env.RsmFirewallSourceRanges = "10.0.0.0/8"
+	env.IcFirewallSourceRanges = "10.0.0.0/8"
+	env.DataFirewallSourceRanges = "10.0.0.0/8"
+	env.MgmtRegionalNatIP = "10.0.0.1/32"
+	env.MgmtNetworkIpRange = "192.168.1.0/24"
+	env.RsmNetworkIpRange = "192.168.2.0/24"
+	env.IcNetworkIpRange = "192.168.3.0/24"
+	
+	// Update maps with current values only if they haven't been explicitly cleared for testing
+	// If maps are empty, assume they were intentionally cleared for testing
+	if len(env.NetworkSourceRanges) > 0 {
+		env.NetworkSourceRanges["MGMT_FIREWALL_SOURCE_RANGES"] = env.MgmtFirewallSourceRanges
+		env.NetworkSourceRanges["RSM_FIREWALL_SOURCE_RANGES"] = env.RsmFirewallSourceRanges
+		env.NetworkSourceRanges["IC_FIREWALL_SOURCE_RANGES"] = env.IcFirewallSourceRanges
+		env.NetworkSourceRanges["DATA_FIREWALL_SOURCE_RANGES"] = env.DataFirewallSourceRanges
+		env.NetworkSourceRanges["MGMT_REGIONAL_NAT_IP"] = env.MgmtRegionalNatIP
+	}
+	
+	if len(env.NetworkIpRanges) > 0 {
+		env.NetworkIpRanges["MGMT_NETWORK_IP_RANGE"] = env.MgmtNetworkIpRange
+		env.NetworkIpRanges["RSM_NETWORK_IP_RANGE"] = env.RsmNetworkIpRange
+		env.NetworkIpRanges["IC_NETWORK_IP_RANGE"] = env.IcNetworkIpRange
+	}
+	
 	err = env.ValidateEnvironmentVariables()
 	assert.NoError(t, err)
 }

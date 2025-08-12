@@ -27,6 +27,7 @@ import (
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler3 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -2500,9 +2501,9 @@ func Test_setupNetworkFirewallsForIscsi(t *testing.T) {
 	logger := util.GetLogger(ctx)
 	t.Run("WhenSetupNetworkFirewallsForIscsiSucceeds", func(tt *testing.T) {
 		defer func() {
-			activities.IscsiFirewallSourceRanges = "" // Reset the InsertFirewall function to nil after the test
+			activities.DataFirewallSourceRanges = "" // Reset the InsertFirewall function to nil after the test
 		}()
-		activities.IscsiFirewallSourceRanges = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+		activities.DataFirewallSourceRanges = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 		mockService.On("GetLogger").Return(logger)
 		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) (string, error) {
 			assert.Equal(t, snHostProject, project)
@@ -2520,9 +2521,9 @@ func Test_setupNetworkFirewallsForIscsi(t *testing.T) {
 	})
 	t.Run("WhenSetupNetworkFirewallsForIscsiFails", func(tt *testing.T) {
 		defer func() {
-			activities.IscsiFirewallSourceRanges = "" // Reset the InsertFirewall function to nil after the test
+			activities.DataFirewallSourceRanges = "" // Reset the InsertFirewall function to nil after the test
 		}()
-		activities.IscsiFirewallSourceRanges = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+		activities.DataFirewallSourceRanges = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 		activities.InsertFirewall = func(service hyperscaler2.GoogleServices, project, name, network string, priority int64, direction string, sourceRanges, allowedPorts []string) (string, error) {
 			return "", errors.New("firewall error")
 		}
@@ -6290,7 +6291,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
-		assert.Len(t, *operations, 4) // 3 VPC firewalls + 1 iSCSI firewall
+		assert.Len(t, *operations, 5) // 3 VPC firewalls + 1 iSCSI firewall
 
 		// Check all operations are present and not done
 		operationNames := make([]string, len(*operations))
@@ -6301,6 +6302,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		assert.Contains(t, operationNames, "operation-firewall-1")
 		assert.Contains(t, operationNames, "operation-firewall-2")
 		assert.Contains(t, operationNames, "operation-firewall-3")
+		assert.Contains(t, operationNames, "operation-firewall-4")
 		assert.Contains(t, operationNames, "operation-iscsi-firewall")
 	})
 
@@ -6340,7 +6342,7 @@ func TestPoolActivity_CreateFirewalls(t *testing.T) {
 		err = result.Get(&operations)
 		assert.NoError(t, err)
 		assert.NotNil(t, operations)
-		assert.Len(t, *operations, 2) // Only operations that were created
+		assert.Len(t, *operations, 3) // Only operations that were created
 
 		// Check the correct operations are present
 		operationNames := make([]string, len(*operations))
@@ -6926,4 +6928,349 @@ func TestGetInterClusterLifsFromVLMConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Unit tests for PrepareInternalVSANetworksForFirewall
+func TestPrepareInternalVSANetworksForFirewall(t *testing.T) {
+	// Save original values
+	originalMgmtFirewallSourceRanges := activities.MgmtFirewallSourceRanges
+	originalMgmtRegionalNatIP := activities.MgmtRegionalNatIP
+	originalInternalVSANetworks := activities.InternalVSANetworks
+	originalGetInternalVSANetworkForFirewalls := activities.GetInternalVSANetworkForFirewalls
+
+	defer func() {
+		activities.MgmtFirewallSourceRanges = originalMgmtFirewallSourceRanges
+		activities.MgmtRegionalNatIP = originalMgmtRegionalNatIP
+		activities.InternalVSANetworks = originalInternalVSANetworks
+		activities.GetInternalVSANetworkForFirewalls = originalGetInternalVSANetworkForFirewalls
+	}()
+
+	t.Run("Success_WithValidConfiguration", func(t *testing.T) {
+		// Setup test data
+		activities.MgmtFirewallSourceRanges = "10.0.0.0/8,172.16.0.0/12"
+		activities.MgmtRegionalNatIP = "34.123.45.67,34.123.45.68"
+
+		activities.InternalVSANetworks = map[string]activities.InternalVSANetwork{
+			activities.MgmtVpcName: {
+				VpcName:     activities.MgmtVpcName,
+				SubnetName:  activities.MgmtSubnetName,
+				IpCidrRange: activities.MgmtNetworkIpRange,
+				Firewall: hyperscaler_models.Firewall{
+					Name:             activities.MgmtFirewallName,
+					SourceRanges:     []string{},
+					AllowedPortRules: []string{"tcp", "22", "443"},
+				},
+			},
+			activities.IcVpcName: {
+				VpcName:     activities.IcVpcName,
+				SubnetName:  activities.IcSubnet,
+				IpCidrRange: activities.IcNetworkIpRange,
+				Firewall: hyperscaler_models.Firewall{
+					Name:             activities.IcFirewallName,
+					SourceRanges:     []string{"10.0.0.0/8"},
+					AllowedPortRules: []string{"tcp", "udp"},
+				},
+			},
+			activities.RsmVpcName: {
+				VpcName:     activities.RsmVpcName,
+				SubnetName:  activities.RsmSubnetName,
+				IpCidrRange: activities.RsmNetworkIpRange,
+				Firewall: hyperscaler_models.Firewall{
+					Name:             activities.RsmFirewallName,
+					SourceRanges:     []string{"192.168.0.0/16"},
+					AllowedPortRules: []string{"tcp", "udp"},
+				},
+			},
+		}
+
+		// Mock the GetInternalVSANetworkForFirewalls function
+		callCount := 0
+		activities.GetInternalVSANetworkForFirewalls = func(vpcName, firewallName string, sourceRanges, portRules []string, priority int64, trafficDirection string) activities.InternalVSANetwork {
+			callCount++
+			if callCount == 1 {
+				// First call for private firewall
+				assert.Equal(t, activities.MgmtVpcName, vpcName)
+				assert.Equal(t, activities.MgmtFirewallName+"-1", firewallName)
+				assert.Equal(t, []string{"10.0.0.0/8", "172.16.0.0/12"}, sourceRanges)
+				assert.Equal(t, []string{activities.AllowAllPorts}, portRules)
+				assert.Equal(t, int64(activities.FirewallPriority), priority)
+				assert.Equal(t, activities.IngressTrafficDirection, trafficDirection)
+
+				return activities.InternalVSANetwork{
+					VpcName:     activities.MgmtVpcName,
+					SubnetName:  activities.MgmtSubnetName,
+					IpCidrRange: activities.MgmtNetworkIpRange,
+					Firewall: hyperscaler_models.Firewall{
+						Name:             firewallName,
+						SourceRanges:     sourceRanges,
+						AllowedPortRules: portRules,
+						Priority:         priority,
+						Direction:        trafficDirection,
+					},
+				}
+			} else if callCount == 2 {
+				// Second call for public firewall
+				assert.Equal(t, activities.MgmtVpcName, vpcName)
+				assert.Equal(t, activities.MgmtFirewallName+"-2", firewallName)
+				assert.Equal(t, []string{"34.123.45.67", "34.123.45.68"}, sourceRanges)
+				assert.Equal(t, []string{"tcp", "22", "443"}, portRules)
+				assert.Equal(t, int64(activities.FirewallPriority), priority)
+				assert.Equal(t, activities.IngressTrafficDirection, trafficDirection)
+
+				return activities.InternalVSANetwork{
+					VpcName:     activities.MgmtVpcName,
+					SubnetName:  activities.MgmtSubnetName,
+					IpCidrRange: activities.MgmtNetworkIpRange,
+					Firewall: hyperscaler_models.Firewall{
+						Name:             firewallName,
+						SourceRanges:     sourceRanges,
+						AllowedPortRules: portRules,
+						Priority:         priority,
+						Direction:        trafficDirection,
+					},
+				}
+			}
+			return activities.InternalVSANetwork{}
+		}
+
+		// Execute the function
+		result := activities.PrepareInternalVSANetworksForFirewall()
+
+		// Verify results
+		assert.Equal(t, 4, len(result))
+		assert.Contains(t, result, activities.MgmtVpcName+"-1")
+		assert.Contains(t, result, activities.MgmtVpcName+"-2")
+		assert.Contains(t, result, activities.IcVpcName)
+		assert.Contains(t, result, activities.RsmVpcName)
+
+		// Verify IC and RSM networks are copied directly
+		assert.Equal(t, activities.InternalVSANetworks[activities.IcVpcName], result[activities.IcVpcName])
+		assert.Equal(t, activities.InternalVSANetworks[activities.RsmVpcName], result[activities.RsmVpcName])
+
+		// Verify GetInternalVSANetworkForFirewalls was called twice
+		assert.Equal(t, 2, callCount)
+	})
+
+	t.Run("Success_WithEmptySourceRanges", func(t *testing.T) {
+		activities.MgmtFirewallSourceRanges = ""
+		activities.MgmtRegionalNatIP = ""
+
+		activities.InternalVSANetworks = map[string]activities.InternalVSANetwork{
+			activities.MgmtVpcName: {
+				VpcName:     activities.MgmtVpcName,
+				SubnetName:  activities.MgmtSubnetName,
+				IpCidrRange: activities.MgmtNetworkIpRange,
+				Firewall: hyperscaler_models.Firewall{
+					Name:             activities.MgmtFirewallName,
+					AllowedPortRules: []string{"tcp", "22"},
+				},
+			},
+			activities.IcVpcName:  activities.InternalVSANetwork{VpcName: activities.IcVpcName},
+			activities.RsmVpcName: activities.InternalVSANetwork{VpcName: activities.RsmVpcName},
+		}
+
+		activities.GetInternalVSANetworkForFirewalls = func(vpcName, firewallName string, sourceRanges, portRules []string, priority int64, trafficDirection string) activities.InternalVSANetwork {
+			// Verify empty strings result in single empty element when split
+			if strings.Contains(firewallName, "-1") {
+				assert.Equal(t, []string{""}, sourceRanges)
+			} else if strings.Contains(firewallName, "-2") {
+				assert.Equal(t, []string{""}, sourceRanges)
+			}
+			return activities.InternalVSANetwork{VpcName: vpcName, Firewall: hyperscaler_models.Firewall{Name: firewallName}}
+		}
+
+		result := activities.PrepareInternalVSANetworksForFirewall()
+		assert.Equal(t, 4, len(result))
+	})
+
+	t.Run("Success_WithSingleSourceRange", func(t *testing.T) {
+		activities.MgmtFirewallSourceRanges = "10.0.0.0/8"
+		activities.MgmtRegionalNatIP = "34.123.45.67"
+
+		activities.InternalVSANetworks = map[string]activities.InternalVSANetwork{
+			activities.MgmtVpcName: {
+				VpcName: activities.MgmtVpcName,
+				Firewall: hyperscaler_models.Firewall{
+					Name:             activities.MgmtFirewallName,
+					AllowedPortRules: []string{"tcp", "443"},
+				},
+			},
+			activities.IcVpcName:  activities.InternalVSANetwork{VpcName: activities.IcVpcName},
+			activities.RsmVpcName: activities.InternalVSANetwork{VpcName: activities.RsmVpcName},
+		}
+
+		activities.GetInternalVSANetworkForFirewalls = func(vpcName, firewallName string, sourceRanges, portRules []string, priority int64, trafficDirection string) activities.InternalVSANetwork {
+			if strings.Contains(firewallName, "-1") {
+				assert.Equal(t, []string{"10.0.0.0/8"}, sourceRanges)
+			} else if strings.Contains(firewallName, "-2") {
+				assert.Equal(t, []string{"34.123.45.67"}, sourceRanges)
+			}
+			return activities.InternalVSANetwork{VpcName: vpcName, Firewall: hyperscaler_models.Firewall{Name: firewallName}}
+		}
+
+		result := activities.PrepareInternalVSANetworksForFirewall()
+		assert.Equal(t, 4, len(result))
+	})
+}
+
+// Unit tests for _getInternalVSANetworkForFirewalls
+func Test_getInternalVSANetworkForFirewalls(t *testing.T) {
+	// Save original InternalVSANetworks
+	originalInternalVSANetworks := activities.InternalVSANetworks
+	defer func() {
+		activities.InternalVSANetworks = originalInternalVSANetworks
+	}()
+
+	t.Run("Success_WithMgmtVpc", func(t *testing.T) {
+		// Setup test data
+		activities.InternalVSANetworks = map[string]activities.InternalVSANetwork{
+			activities.MgmtVpcName: {
+				VpcName:     "test-mgmt-vpc",
+				SubnetName:  "test-mgmt-subnet",
+				IpCidrRange: "198.18.0.0/20",
+				Firewall: hyperscaler_models.Firewall{
+					Name: "existing-firewall",
+				},
+			},
+		}
+
+		vpcName := activities.MgmtVpcName
+		firewallName := "test-firewall"
+		sourceRanges := []string{"10.0.0.0/8", "172.16.0.0/12"}
+		portRules := []string{"tcp", "22", "443"}
+		priority := int64(1000)
+		trafficDirection := "INGRESS"
+
+		result := activities.GetInternalVSANetworkForFirewalls(vpcName, firewallName, sourceRanges, portRules, priority, trafficDirection)
+
+		// Verify the network details are copied from InternalVSANetworks
+		assert.Equal(t, "test-mgmt-vpc", result.VpcName)
+		assert.Equal(t, "test-mgmt-subnet", result.SubnetName)
+		assert.Equal(t, "198.18.0.0/20", result.IpCidrRange)
+
+		// Verify the firewall details are set from parameters
+		assert.Equal(t, firewallName, result.Firewall.Name)
+		assert.Equal(t, sourceRanges, result.Firewall.SourceRanges)
+		assert.Equal(t, portRules, result.Firewall.AllowedPortRules)
+		assert.Equal(t, priority, result.Firewall.Priority)
+		assert.Equal(t, trafficDirection, result.Firewall.Direction)
+	})
+
+	t.Run("Success_WithIcVpc", func(t *testing.T) {
+		activities.InternalVSANetworks = map[string]activities.InternalVSANetwork{
+			activities.IcVpcName: {
+				VpcName:     "test-ic-vpc",
+				SubnetName:  "test-ic-subnet",
+				IpCidrRange: "198.18.32.0/20",
+				Firewall: hyperscaler_models.Firewall{
+					Name: "existing-ic-firewall",
+				},
+			},
+		}
+
+		vpcName := activities.IcVpcName
+		firewallName := "ic-test-firewall"
+		sourceRanges := []string{"192.168.0.0/16"}
+		portRules := []string{"tcp", "udp"}
+		priority := int64(1500)
+		trafficDirection := "EGRESS"
+
+		result := activities.GetInternalVSANetworkForFirewalls(vpcName, firewallName, sourceRanges, portRules, priority, trafficDirection)
+
+		assert.Equal(t, "test-ic-vpc", result.VpcName)
+		assert.Equal(t, "test-ic-subnet", result.SubnetName)
+		assert.Equal(t, "198.18.32.0/20", result.IpCidrRange)
+		assert.Equal(t, firewallName, result.Firewall.Name)
+		assert.Equal(t, sourceRanges, result.Firewall.SourceRanges)
+		assert.Equal(t, portRules, result.Firewall.AllowedPortRules)
+		assert.Equal(t, priority, result.Firewall.Priority)
+		assert.Equal(t, trafficDirection, result.Firewall.Direction)
+	})
+
+	t.Run("Success_WithRsmVpc", func(t *testing.T) {
+		activities.InternalVSANetworks = map[string]activities.InternalVSANetwork{
+			activities.RsmVpcName: {
+				VpcName:     "test-rsm-vpc",
+				SubnetName:  "test-rsm-subnet",
+				IpCidrRange: "198.18.16.0/20",
+				Firewall: hyperscaler_models.Firewall{
+					Name: "existing-rsm-firewall",
+				},
+			},
+		}
+
+		vpcName := activities.RsmVpcName
+		firewallName := "rsm-test-firewall"
+		sourceRanges := []string{"0.0.0.0/0"}
+		portRules := []string{"all"}
+		priority := int64(2000)
+		trafficDirection := "INGRESS"
+
+		result := activities.GetInternalVSANetworkForFirewalls(vpcName, firewallName, sourceRanges, portRules, priority, trafficDirection)
+
+		assert.Equal(t, "test-rsm-vpc", result.VpcName)
+		assert.Equal(t, "test-rsm-subnet", result.SubnetName)
+		assert.Equal(t, "198.18.16.0/20", result.IpCidrRange)
+		assert.Equal(t, firewallName, result.Firewall.Name)
+		assert.Equal(t, sourceRanges, result.Firewall.SourceRanges)
+		assert.Equal(t, portRules, result.Firewall.AllowedPortRules)
+		assert.Equal(t, priority, result.Firewall.Priority)
+		assert.Equal(t, trafficDirection, result.Firewall.Direction)
+	})
+
+	t.Run("Success_WithEmptyParameters", func(t *testing.T) {
+		activities.InternalVSANetworks = map[string]activities.InternalVSANetwork{
+			activities.MgmtVpcName: {
+				VpcName:     "test-vpc",
+				SubnetName:  "test-subnet",
+				IpCidrRange: "10.0.0.0/24",
+			},
+		}
+
+		vpcName := activities.MgmtVpcName
+		firewallName := ""
+		sourceRanges := []string{}
+		portRules := []string{}
+		priority := int64(0)
+		trafficDirection := ""
+
+		result := activities.GetInternalVSANetworkForFirewalls(vpcName, firewallName, sourceRanges, portRules, priority, trafficDirection)
+
+		assert.Equal(t, "test-vpc", result.VpcName)
+		assert.Equal(t, "test-subnet", result.SubnetName)
+		assert.Equal(t, "10.0.0.0/24", result.IpCidrRange)
+		assert.Equal(t, "", result.Firewall.Name)
+		assert.Equal(t, []string{}, result.Firewall.SourceRanges)
+		assert.Equal(t, []string{}, result.Firewall.AllowedPortRules)
+		assert.Equal(t, int64(0), result.Firewall.Priority)
+		assert.Equal(t, "", result.Firewall.Direction)
+	})
+
+	t.Run("Success_WithNilSourceRangesAndPortRules", func(t *testing.T) {
+		activities.InternalVSANetworks = map[string]activities.InternalVSANetwork{
+			activities.MgmtVpcName: {
+				VpcName:     "test-vpc",
+				SubnetName:  "test-subnet",
+				IpCidrRange: "172.16.0.0/16",
+			},
+		}
+
+		vpcName := activities.MgmtVpcName
+		firewallName := "nil-test-firewall"
+		var sourceRanges []string = nil
+		var portRules []string = nil
+		priority := int64(500)
+		trafficDirection := "BIDIRECTIONAL"
+
+		result := activities.GetInternalVSANetworkForFirewalls(vpcName, firewallName, sourceRanges, portRules, priority, trafficDirection)
+
+		assert.Equal(t, "test-vpc", result.VpcName)
+		assert.Equal(t, "test-subnet", result.SubnetName)
+		assert.Equal(t, "172.16.0.0/16", result.IpCidrRange)
+		assert.Equal(t, firewallName, result.Firewall.Name)
+		assert.Nil(t, result.Firewall.SourceRanges)
+		assert.Nil(t, result.Firewall.AllowedPortRules)
+		assert.Equal(t, priority, result.Firewall.Priority)
+		assert.Equal(t, trafficDirection, result.Firewall.Direction)
+	})
 }

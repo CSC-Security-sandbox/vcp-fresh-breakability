@@ -2,6 +2,7 @@ package env
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"regexp"
 	"strconv"
@@ -282,7 +283,34 @@ var (
 	CertificateLifetime     = GetString("CERTIFICATE_LIFETIME", "94608000s") // Default to 3 years
 	NodePassword            = GetString("VSA_NODE_PASSWORD", "")
 	CloudDNSCacheTTL        = GetInt64("CLOUD_DNS_CACHE_TTL", 300) // Default to 300 seconds
+
+	MgmtFirewallSourceRanges = GetString("MGMT_FIREWALL_SOURCE_RANGES", "")
+	RsmFirewallSourceRanges  = GetString("RSM_FIREWALL_SOURCE_RANGES", "")
+	IcFirewallSourceRanges   = GetString("IC_FIREWALL_SOURCE_RANGES", "")
+	DataFirewallSourceRanges = GetString("DATA_FIREWALL_SOURCE_RANGES", "")
+
+	MgmtRegionalNatIP = GetString("MGMT_REGIONAL_NAT_IP", "")
+
+	MgmtNetworkIpRange = GetString("MGMT_NETWORK_IP_RANGE", "198.18.0.0/20")
+	RsmNetworkIpRange  = GetString("RSM_NETWORK_IP_RANGE", "198.18.16.0/20")
+	IcNetworkIpRange   = GetString("IC_NETWORK_IP_RANGE", "198.18.32.0/20")
 )
+
+// networkEnvVariables holds the environment variables related to firewall of network configuration for source ranges
+var NetworkSourceRanges = map[string]string{
+	"MGMT_FIREWALL_SOURCE_RANGES": MgmtFirewallSourceRanges,
+	"RSM_FIREWALL_SOURCE_RANGES":  RsmFirewallSourceRanges,
+	"IC_FIREWALL_SOURCE_RANGES":   IcFirewallSourceRanges,
+	"DATA_FIREWALL_SOURCE_RANGES": DataFirewallSourceRanges,
+	"MGMT_REGIONAL_NAT_IP":        MgmtRegionalNatIP,
+}
+
+// networkEnvVariables holds the environment variables related to subnet in network configuration for ip ranges
+var NetworkIpRanges = map[string]string{
+	"MGMT_NETWORK_IP_RANGE": MgmtNetworkIpRange,
+	"RSM_NETWORK_IP_RANGE":  RsmNetworkIpRange,
+	"IC_NETWORK_IP_RANGE":   IcNetworkIpRange,
+}
 
 func ValidateEnvironmentVariables() error {
 	if Region == "" {
@@ -314,6 +342,49 @@ func ValidateEnvironmentVariables() error {
 	}
 	if NodePassword == "" {
 		return errors.New(500, "VSA_NODE_PASSWORD must be set for authentication")
+	}
+	return validateNetworkEnvVariables()
+}
+
+func validateNetworkEnvVariables() error {
+	for envVariableName, envVariableValue := range NetworkSourceRanges {
+		if err := validateSourceRanges(envVariableName, envVariableValue); err != nil {
+			return err
+		}
+	}
+	for envVariableName, envVariableValue := range NetworkIpRanges {
+		basicErrorString := " must be set for subnet for VSA deployment"
+		if err := validateIpRange(envVariableValue, basicErrorString, envVariableName); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateSourceRanges(envVariableName, sourceRanges string) error {
+	basicErrorString := " must be set for firewall for VSA deployment"
+	if sourceRanges == "" {
+		return errors.New(500, "%s"+basicErrorString, envVariableName)
+	}
+	ranges := strings.Split(sourceRanges, ",")
+	for _, rangeStr := range ranges {
+		if err := validateIpRange(rangeStr, basicErrorString, envVariableName); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateIpRange(ipRange, basicErrorString, envVariableName string) error {
+	if ipRange == "" {
+		return errors.New(500, basicErrorString, envVariableName)
+	}
+	if strings.Contains(ipRange, " ") {
+		return errors.New(500, "%s%s. Can't contain empty spaces in: %s", envVariableName, basicErrorString, ipRange)
+	}
+	// Validate CIDR format using net.ParseCIDR
+	if _, _, err := net.ParseCIDR(ipRange); err != nil {
+		return errors.New(500, "%s%s. Invalid CIDR format in: %s", envVariableName, basicErrorString, ipRange)
 	}
 	return nil
 }
