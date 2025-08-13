@@ -260,7 +260,7 @@ func (d *DataStoreRepository) BatchDeleteSnapshots(ctx context.Context, snapshot
 	}
 
 	var snapshots []*datamodel.Snapshot
-	err = tx.Unscoped().Preload("Volume").Where("id IN ?", snapshotIDs).Find(&snapshots).Error
+	err = tx.Unscoped().Preload("Volume").Preload("Volume.Pool").Where("id IN ?", snapshotIDs).Find(&snapshots).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
@@ -385,7 +385,7 @@ func (d *DataStoreRepository) BatchGetSnapshotsByUUIDs(ctx context.Context, snap
 		return snapshots, nil
 	}
 
-	err := db.Preload("Account").Preload("Volume").Where("uuid IN ?", snapshotUUIDs).Find(&snapshots).Error
+	err := db.Preload("Account").Preload("Volume").Preload("Volume.Pool").Where("uuid IN ?", snapshotUUIDs).Find(&snapshots).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
@@ -402,7 +402,7 @@ func (d *DataStoreRepository) BatchGetWronglyDeletedSnapshots(ctx context.Contex
 	}
 
 	// Build the query to match any of the external UUIDs using OR conditions
-	query := db.Preload("Volume")
+	query := db.Preload("Volume").Preload("Volume.Pool")
 	for i, externalUUID := range snapshotExternalUUIDs {
 		if i == 0 {
 			query = query.Where("snapshot_attributes ->> 'external_uuid' = ?", externalUUID)

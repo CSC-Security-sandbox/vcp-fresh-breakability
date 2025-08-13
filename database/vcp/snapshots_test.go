@@ -642,10 +642,24 @@ func TestBatchDeleteSnapshots(t *testing.T) {
 			tt.Fatalf("Failed to create account: %v", err)
 		}
 
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-west-1a",
+			},
+		}
+		err = store.db.Create(pool).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
 			Name:      "test_volume",
 			AccountID: account.ID,
+			PoolID:    pool.ID,
 		}
 		err = store.db.Create(volume).Error()
 		if err != nil {
@@ -1174,6 +1188,27 @@ func TestBatchGetSnapshotsByUUIDs(t *testing.T) {
 	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test_account"}
 	_ = store.db.Create(account).Error()
 
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+		Name:      "test_pool",
+		AccountID: account.ID,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone: "us-east-1a",
+		},
+	}
+	_ = store.db.Create(pool).Error()
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+		Name:      "test_volume",
+		AccountID: account.ID,
+		PoolID:    pool.ID,
+	}
+	err = store.db.Create(volume).Error()
+	if err != nil {
+		t.Fatalf("Failed to create volume: %v", err)
+	}
+
 	snapshots := []*datamodel.Snapshot{
 		{BaseModel: datamodel.BaseModel{}, Name: "batch_get_1", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateAvailable},
 		{BaseModel: datamodel.BaseModel{}, Name: "batch_get_2", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateAvailable},
@@ -1202,6 +1237,27 @@ func TestBatchGetWronglyDeletedSnapshots(t *testing.T) {
 
 	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test_account"}
 	_ = store.db.Create(account).Error()
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+		Name:      "test_pool",
+		AccountID: account.ID,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone: "us-east-1a",
+		},
+	}
+	_ = store.db.Create(pool).Error()
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+		Name:      "test_volume",
+		AccountID: account.ID,
+		PoolID:    pool.ID,
+	}
+	err = store.db.Create(volume).Error()
+	if err != nil {
+		t.Fatalf("Failed to create volume: %v", err)
+	}
 
 	snapshots := []*datamodel.Snapshot{
 		{BaseModel: datamodel.BaseModel{}, Name: "batch_wrongly_deleted_1", VolumeID: 1, AccountID: account.ID, Account: account, State: models.LifeCycleStateDeleted, StateDetails: models.LifeCycleStateDeletedDetails, SnapshotAttributes: &datamodel.SnapshotAttributes{ExternalUUID: "ext-uuid-1"}},
