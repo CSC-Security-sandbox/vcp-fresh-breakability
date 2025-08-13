@@ -2171,7 +2171,43 @@ func TestV1betaDeletePool(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, "operation-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
+		assert.Equal(tt, true, result.(*gcpgenserver.OperationV1beta).Done.Value)
+	})
+	t.Run("WhenPoolDeletionRaceCondition", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaDeletePoolParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "deletable-pool-id",
+		}
+
+		createdAt := time.Now()
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID:      "deletable-pool-id",
+				CreatedAt: createdAt,
+				UpdatedAt: createdAt,
+			},
+			PoolAttributes: &models.PoolAttributes{},
+		}
+		deletePoolParams := &common.DeletePoolParams{
+			AccountName: params.ProjectNumber,
+			PoolID:      existingPool.UUID,
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		mockOrchestrator.EXPECT().DescribePool(mock.Anything, params.PoolId, params.ProjectNumber).Return(existingPool, nil)
+		mockOrchestrator.EXPECT().DeletePool(mock.Anything, deletePoolParams).Return(existingPool, "", errors.NewNotFoundErr("pool not found", nil))
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		result, err := handler.V1betaDeletePool(context.Background(), params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, true, result.(*gcpgenserver.OperationV1beta).Done.Value)
 	})
 	t.Run("WhenPoolDeletionSucceeds", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)

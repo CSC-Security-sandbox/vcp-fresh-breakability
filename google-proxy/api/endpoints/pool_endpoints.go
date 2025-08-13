@@ -220,13 +220,9 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 		}
 	}
 	if existingPool.DeletedAt != nil {
-		resp, err := encodePoolV1(convertToPoolV1Beta(existingPool))
-		if err != nil {
-			return nil, err
-		}
 		return &gcpgenserver.OperationV1beta{
-			Name:     gcpgenserver.OptString{Value: "operation-id"},
-			Response: resp,
+			Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, utils.RandomUUID())),
+			Done: gcpgenserver.NewOptBool(true),
 		}, nil
 	}
 	deletePoolParams := &common.DeletePoolParams{
@@ -238,9 +234,9 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			logger.Info("Pool not found", "uuid", params.PoolId)
-			return &gcpgenserver.V1betaDeletePoolNotFound{
-				Code:    404,
-				Message: "Pool not found",
+			return &gcpgenserver.OperationV1beta{
+				Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, utils.RandomUUID())),
+				Done: gcpgenserver.NewOptBool(true),
 			}, nil
 		}
 		if errors.IsConflictErr(err) {
