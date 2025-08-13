@@ -74,11 +74,7 @@ on:
     secrets:
       GHVSA_PAT:
         required: true
-      AR_PRIVATE_KEY:
-        required: true
       GHCR_REPO:
-        required: true
-      AR_ATTESTOR_NAME:
         required: true
 
 permissions:
@@ -166,7 +162,6 @@ jobs:
         run: |
           gcloud config set project ${{ vars.AR_GCP_PROJ }} --quiet
           gcloud auth configure-docker ${{vars.AR_GCP_REGION}}-docker.pkg.dev --quiet
-          gcloud secrets versions access latest --secret="${{secrets.AR_PRIVATE_KEY}}" > /tmp/ec_private.pem
 
       - name: Push images
         env:
@@ -193,9 +188,9 @@ jobs:
             https://ghcr.io/v2/VCP-VSA-control-Plane/${IMAGE}/manifests/${{ inputs.tag }} | jq -r '.config.digest')
             echo "${IMAGE}-digest=$digest" >> $GITHUB_ENV
           done
-        shell: bash -e {0}
+          shell: bash -e {0}
 
-      - name: Generate Artifact URLs
+      - name: Generate GCP Artifact URLs
         id: generate_artifact_urls
         shell: bash -e {0}
         run: |
@@ -213,20 +208,31 @@ jobs:
             fi
           done
 
-      - name: Sign the GCP Artifact Image using Cosign
+      - name: Sign Images using cosign (GHCR and GCP)
         run: |
           gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PUB_KEY}}" > /tmp/cosign.pub
           gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PVT_KEY}}" > /tmp/cosign.key
           IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker")
+          
           for IMAGE in "${IMAGES[@]}"; do
-            digest=$(printenv "${IMAGE}-digest")
-            export COSIGN_PASSWORD="" 
-            cosign sign --key /tmp/cosign.key  $(printenv "${IMAGE//-/_}_ARTIFACT_URL") --tlog-upload=false
-            cosign verify --key /tmp/cosign.pub  $(printenv "${IMAGE//-/_}_ARTIFACT_URL")  --insecure-ignore-tlog=true
+            # Sign GHCR image
+            ghcr_digest=$(printenv "${IMAGE}-digest")
+            echo "Signing GHCR image: ${IMAGE}@${ghcr_digest}"
+            COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key ghcr.io/vcp-vsa-control-plane/${IMAGE}@$ghcr_digest --tlog-upload=false
+            cosign verify --key /tmp/cosign.pub ghcr.io/vcp-vsa-control-plane/${IMAGE}@$ghcr_digest --insecure-ignore-tlog=true
+            
+            # Sign GCP Artifact Registry image
+            gcp_artifact_url=$(printenv "${IMAGE//-/_}_ARTIFACT_URL")
+            if [[ -n "$gcp_artifact_url" ]]; then
+              echo "Signing GCP image: ${gcp_artifact_url}"
+              COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key $gcp_artifact_url --tlog-upload=false
+              cosign verify --key /tmp/cosign.pub $gcp_artifact_url --insecure-ignore-tlog=true
+            else
+              echo "Warning: No GCP artifact URL found for ${IMAGE}"
+            fi
           done
         shell: bash -e {0}
-
-      - name: Helm Login to GCP Artifact Registry
+      - name: Helm Login to Artifact Registry
         run: |
           gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${{vars.AR_GCP_REGION}}-docker.pkg.dev
           helm registry login ghcr.io -u ${{github.actor}} --password ${{ secrets.GHVSA_PAT }}
