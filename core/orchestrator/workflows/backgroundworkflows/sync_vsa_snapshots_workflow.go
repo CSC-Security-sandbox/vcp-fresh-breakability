@@ -171,7 +171,7 @@ func (wf *SyncSnapshotsForPoolWF) Run(ctx workflow.Context, args ...interface{})
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	syncSnapshotActivity := &backgroundactivities.SyncSnapshotActivity{}
-	logger.Info("Starting synchronization of snapshots for pool", "PoolName", pool.Name)
+	logger.Infof("Starting synchronization of snapshots for pool: %s", pool.Name)
 
 	var ontapVolSnapshotResp *backgroundactivities.GetOntapVolumesAndSnapshotsForPoolReturnValue
 	err = workflow.ExecuteActivity(ctx, syncSnapshotActivity.GetOntapVolumesAndSnapshotsForPool, pool).Get(ctx, &ontapVolSnapshotResp)
