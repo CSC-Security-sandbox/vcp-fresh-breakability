@@ -485,6 +485,10 @@ func (o *Orchestrator) GetMultiplePools(ctx context.Context, accountName string,
 
 	account, err := getAccountWithName(ctx, se, accountName)
 	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			util.GetLogger(ctx).Warnf("Account with name %s not found in VCP, checking in CVP", accountName)
+			return []*models.Pool{}, nil
+		}
 		return nil, err
 	}
 

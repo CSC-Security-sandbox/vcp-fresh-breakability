@@ -1014,11 +1014,8 @@ func TestMultiplePools(t *testing.T) {
 			return nil, errors.NewNotFoundErr("account not found", nil)
 		}
 		_, err := orch.GetMultiplePools(ctx, "non-existent-account", []string{"uuid1", "uuid2"})
-		if err == nil {
-			t.Errorf("Expected error, got nil")
-		}
-		if !errors.IsNotFoundErr(err) {
-			t.Errorf("Expected not found error, got %v", err)
+		if err != nil {
+			t.Errorf("Expected nil, got error: %v", err)
 		}
 	})
 	t.Run("ReturnsErrorWhenNoPoolsMatchUUIDs", func(tt *testing.T) {

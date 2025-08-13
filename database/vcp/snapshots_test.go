@@ -642,8 +642,18 @@ func TestBatchDeleteSnapshots(t *testing.T) {
 			tt.Fatalf("Failed to create account: %v", err)
 		}
 
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+			Name:      "test_volume",
+			AccountID: account.ID,
+		}
+		err = store.db.Create(volume).Error()
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
 		snapshot1 := &datamodel.Snapshot{
-			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid-1"},
+			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid-1", ID: 1},
 			Name:         "test_snapshot-1",
 			VolumeID:     1,
 			AccountID:    account.ID,
@@ -652,7 +662,7 @@ func TestBatchDeleteSnapshots(t *testing.T) {
 			StateDetails: models.LifeCycleStateAvailable,
 		}
 		snapshot2 := &datamodel.Snapshot{
-			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid-2"},
+			BaseModel:    datamodel.BaseModel{UUID: "test-snapshot-uuid-2", ID: 2},
 			Name:         "test_snapshot-2",
 			VolumeID:     1,
 			AccountID:    account.ID,
@@ -675,6 +685,10 @@ func TestBatchDeleteSnapshots(t *testing.T) {
 			tt.Fatalf("Failed to batch delete snapshots: %v", err)
 		}
 		assert.Len(tt, deletedSnapshots, 2)
+
+		for _, snapshots := range deletedSnapshots {
+			assert.Equal(tt, snapshots.Volume.Name, volume.Name)
+		}
 
 		updatedSnapshot1 := &datamodel.Snapshot{}
 		err = store.db.GORM().Unscoped().First(updatedSnapshot1, "uuid = ?", snapshot1.UUID).Error

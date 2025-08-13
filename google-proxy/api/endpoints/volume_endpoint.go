@@ -1027,7 +1027,7 @@ func (h Handler) V1betaGetMultipleVolumes(ctx context.Context, req *gcpgenserver
 	volumesModelVCP, err := h.Orchestrator.GetMultipleVolumes(ctx, req.VolumeUuids, params.ProjectNumber)
 	if err != nil {
 		logger.Error("Failed to fetch volume", "error", err.Error())
-		return &gcpgenserver.V1betaGetMultipleVolumesInternalServerError{Code: 500, Message: "Internal server error"}, err
+		return &gcpgenserver.V1betaGetMultipleVolumesInternalServerError{Code: 500, Message: "Internal server error"}, nil
 	}
 
 	volumesVCP := make([]gcpgenserver.VolumeV1beta, 0, len(req.VolumeUuids))

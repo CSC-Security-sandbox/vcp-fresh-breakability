@@ -13,7 +13,6 @@ import (
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 var (
@@ -248,8 +247,7 @@ func (d *DataStoreRepository) BatchDeleteSnapshots(ctx context.Context, snapshot
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
 
-	var snapshots []*datamodel.Snapshot
-	err = tx.Model(&snapshots).Clauses(clause.Returning{}).Where("id IN ?", snapshotIDs).Updates(
+	err = tx.Model(&datamodel.Snapshot{}).Where("id IN ?", snapshotIDs).Updates(
 		datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{
 				DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
@@ -259,6 +257,12 @@ func (d *DataStoreRepository) BatchDeleteSnapshots(ctx context.Context, snapshot
 		}).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+
+	var snapshots []*datamodel.Snapshot
+	err = tx.Unscoped().Preload("Volume").Where("id IN ?", snapshotIDs).Find(&snapshots).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	return snapshots, nil
 }

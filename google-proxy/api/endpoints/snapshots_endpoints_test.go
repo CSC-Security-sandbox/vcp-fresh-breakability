@@ -88,7 +88,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 		mockOrchestrator.EXPECT().GetMultipleSnapshots(mock.Anything, params.VolumeId, mock.Anything, req.SnapshotUuids).Return(nil, errors.New("internal error"))
 		handler := Handler{Orchestrator: mockOrchestrator}
 		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
-		assert.Error(tt, err)
+		assert.NoError(tt, err)
 		internal, ok := result.(*gcpserver.V1betaGetMultipleSnapshotsInternalServerError)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(500), internal.Code)
@@ -226,7 +226,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 		assert.True(tt, ok)
 		assert.Len(tt, okResult.Snapshots, 0)
 	})
-	
+
 	t.Run("WhenSnapshotsNotFoundInVCPAndFoundInCVP", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
@@ -290,6 +290,310 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 		assert.Equal(t, "cvp-snap-uuid-2", okResult.Snapshots[1].SnapshotId.Value)
 		assert.Equal(t, "CVP snapshot 1", okResult.Snapshots[0].Description.Value)
 		assert.Equal(t, "CVP snapshot 2", okResult.Snapshots[1].Description.Value)
+	})
+
+	t.Run("WhenOrchestratorGetMultipleSnapshotsFails_ReturnsInternalServerError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaGetMultipleSnapshotsParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "volume-id",
+		}
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"snap-uuid-1", "snap-uuid-2"},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "region", "zone", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		// Mock orchestrator to return an error
+		mockOrchestrator.EXPECT().GetMultipleSnapshots(mock.Anything, params.VolumeId, mock.Anything, req.SnapshotUuids).Return(nil, errors.New("database connection failed"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Should return InternalServerError with proper error message
+		internalServerError, ok := result.(*gcpserver.V1betaGetMultipleSnapshotsInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalServerError.Code)
+		assert.Equal(tt, "Internal server error", internalServerError.Message)
+	})
+
+	t.Run("WhenOrchestratorGetMultipleSnapshotsFails_ErrorNotReturned", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaGetMultipleSnapshotsParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "volume-id",
+		}
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"snap-uuid-1", "snap-uuid-2"},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "region", "zone", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		// Mock orchestrator to return an error
+		mockOrchestrator.EXPECT().GetMultipleSnapshots(mock.Anything, params.VolumeId, mock.Anything, req.SnapshotUuids).Return(nil, errors.New("database connection failed"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
+
+		// Current behavior: err is NOT propagated from orchestrator
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Should return InternalServerError
+		internalServerError, ok := result.(*gcpserver.V1betaGetMultipleSnapshotsInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalServerError.Code)
+	})
+
+	t.Run("WhenSomeSnapshotsNotFoundInVCP_TriggersCVPFallback", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaGetMultipleSnapshotsParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "volume-id",
+		}
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"snap-uuid-1", "snap-uuid-2", "snap-uuid-3"},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "region", "zone", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		// Mock VCP to return only some snapshots (snap-uuid-1 and snap-uuid-2 found, snap-uuid-3 missing)
+		vcpSnapshots := []*coremodels.Snapshot{
+			{
+				BaseModel: coremodels.BaseModel{UUID: "snap-uuid-1"},
+				Name:      "snapshot-1",
+			},
+			{
+				BaseModel: coremodels.BaseModel{UUID: "snap-uuid-2"},
+				Name:      "snapshot-2",
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleSnapshots(mock.Anything, params.VolumeId, mock.Anything, req.SnapshotUuids).Return(vcpSnapshots, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Should return OK response with VCP snapshots only (since CVP fallback will be mocked)
+		okResp, ok := result.(*gcpserver.V1betaGetMultipleSnapshotsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Snapshots, 2)
+		// Verify the snapshots returned are from VCP
+		assert.Equal(tt, "snap-uuid-1", okResp.Snapshots[0].SnapshotId.Value)
+		assert.Equal(tt, "snap-uuid-2", okResp.Snapshots[1].SnapshotId.Value)
+	})
+
+	t.Run("WhenAllSnapshotsFoundInVCP_NoCVPFallback", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaGetMultipleSnapshotsParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "volume-id",
+		}
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"snap-uuid-1", "snap-uuid-2"},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "region", "zone", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		// Mock VCP to return all requested snapshots
+		vcpSnapshots := []*coremodels.Snapshot{
+			{
+				BaseModel: coremodels.BaseModel{UUID: "snap-uuid-1"},
+				Name:      "snapshot-1",
+			},
+			{
+				BaseModel: coremodels.BaseModel{UUID: "snap-uuid-2"},
+				Name:      "snapshot-2",
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleSnapshots(mock.Anything, params.VolumeId, mock.Anything, req.SnapshotUuids).Return(vcpSnapshots, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Should return OK response with all VCP snapshots, no CVP fallback needed
+		okResp, ok := result.(*gcpserver.V1betaGetMultipleSnapshotsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Snapshots, 2)
+		// Verify all snapshots are returned
+		assert.Equal(tt, "snap-uuid-1", okResp.Snapshots[0].SnapshotId.Value)
+		assert.Equal(tt, "snap-uuid-2", okResp.Snapshots[1].SnapshotId.Value)
+	})
+
+	t.Run("WhenOrchestratorGetMultipleSnapshotsReturnsEmpty_TriggersCVPFallback", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaGetMultipleSnapshotsParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "volume-id",
+		}
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"snap-uuid-1", "snap-uuid-2"},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "region", "zone", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		// Mock VCP to return empty snapshots (triggering CVP fallback)
+		mockOrchestrator.EXPECT().GetMultipleSnapshots(mock.Anything, params.VolumeId, mock.Anything, req.SnapshotUuids).Return([]*coremodels.Snapshot{}, nil)
+
+		// Mock CVP client to avoid nil pointer during fallback and return empty list
+		mockSnapshotsClient := snapshots.NewMockClientService(tt)
+		cvpClient := &cvpapi.Cvp{Snapshots: mockSnapshotsClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp { return *cvpClient }
+		mockSnapshotsClient.EXPECT().V1betaGetMultipleSnapshots(mock.Anything).Return(&snapshots.V1betaGetMultipleSnapshotsOK{
+			Payload: &snapshots.V1betaGetMultipleSnapshotsOKBody{Snapshots: []*models.SnapshotV1beta{}},
+		}, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Should return OK response (CVP fallback will be handled by getMultipleSnapshotsFromCVP)
+		okResp, ok := result.(*gcpserver.V1betaGetMultipleSnapshotsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Snapshots, 0) // CVP fallback will be mocked to return empty
+	})
+
+	t.Run("WhenOrchestratorGetMultipleSnapshotsReturnsNil_TriggersCVPFallback", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaGetMultipleSnapshotsParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "volume-id",
+		}
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"snap-uuid-1", "snap-uuid-2"},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "region", "zone", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		// Mock VCP to return nil (triggering CVP fallback)
+		mockOrchestrator.EXPECT().GetMultipleSnapshots(mock.Anything, params.VolumeId, mock.Anything, req.SnapshotUuids).Return(nil, nil)
+
+		// Mock CVP client to avoid nil pointer during fallback and return empty list
+		mockSnapshotsClient2 := snapshots.NewMockClientService(tt)
+		cvpClient2 := &cvpapi.Cvp{Snapshots: mockSnapshotsClient2}
+		originalCreateClient2 := createClient
+		defer func() { createClient = originalCreateClient2 }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp { return *cvpClient2 }
+		mockSnapshotsClient2.EXPECT().V1betaGetMultipleSnapshots(mock.Anything).Return(&snapshots.V1betaGetMultipleSnapshotsOK{
+			Payload: &snapshots.V1betaGetMultipleSnapshotsOKBody{Snapshots: []*models.SnapshotV1beta{}},
+		}, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Should return OK response (CVP fallback will be handled by getMultipleSnapshotsFromCVP)
+		okResp, ok := result.(*gcpserver.V1betaGetMultipleSnapshotsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Snapshots, 0) // CVP fallback will be mocked to return empty
+	})
+
+	t.Run("WhenAccountCreationSucceeds_ProceedsWithSnapshotRetrieval", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaGetMultipleSnapshotsParams{
+			LocationId:    "location-id",
+			ProjectNumber: "new-account-number", // New account that will be created
+			VolumeId:      "volume-id",
+		}
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"snap-uuid-1"},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "region", "zone", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		// Mock VCP to return snapshots (account creation will be handled by getOrCreateAccount)
+		vcpSnapshots := []*coremodels.Snapshot{
+			{
+				BaseModel: coremodels.BaseModel{UUID: "snap-uuid-1"},
+				Name:      "snapshot-1",
+			},
+		}
+		mockOrchestrator.EXPECT().GetMultipleSnapshots(mock.Anything, params.VolumeId, mock.Anything, req.SnapshotUuids).Return(vcpSnapshots, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Should return OK response with snapshots
+		okResp, ok := result.(*gcpserver.V1betaGetMultipleSnapshotsOK)
+		assert.True(tt, ok)
+		assert.Len(tt, okResp.Snapshots, 1)
+		assert.Equal(tt, "snap-uuid-1", okResp.Snapshots[0].SnapshotId.Value)
+	})
+
+	t.Run("WhenAccountCreationFails_ReturnsInternalServerError", func(tt *testing.T) {
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpserver.V1betaGetMultipleSnapshotsParams{
+			LocationId:    "location-id",
+			ProjectNumber: "invalid-account-number",
+			VolumeId:      "volume-id",
+		}
+		req := &gcpserver.SnapshotIdListV1beta{
+			SnapshotUuids: []string{"snap-uuid-1"},
+		}
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
+			return "region", "zone", nil
+		}
+		defer func() {
+			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		// Mock orchestrator to return an error during account creation/retrieval
+		mockOrchestrator.EXPECT().GetMultipleSnapshots(mock.Anything, params.VolumeId, mock.Anything, req.SnapshotUuids).Return(nil, errors.New("account creation failed"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaGetMultipleSnapshots(context.Background(), req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		// Should return InternalServerError
+		internalServerError, ok := result.(*gcpserver.V1betaGetMultipleSnapshotsInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalServerError.Code)
+		assert.Equal(tt, "Internal server error", internalServerError.Message)
 	})
 }
 

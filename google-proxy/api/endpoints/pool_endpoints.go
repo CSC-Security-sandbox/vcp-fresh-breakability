@@ -300,8 +300,11 @@ func (h Handler) V1betaGetMultiplePools(ctx context.Context, req *gcpgenserver.P
 	// Query VCP first
 	poolsModelVCP, err := h.Orchestrator.GetMultiplePools(ctx, params.ProjectNumber, req.PoolUuids)
 	if err != nil {
-		logger.Error("Failed to fetch pools", "error", err.Error())
-		return &gcpgenserver.V1betaGetMultiplePoolsInternalServerError{Code: 500, Message: "Internal server error"}, err
+		logger.Error("Failed to get multiple pools", "error", err.Error())
+		return &gcpgenserver.V1betaGetMultiplePoolsInternalServerError{
+			Code:    500,
+			Message: "Internal server error while getting pools",
+		}, nil
 	}
 
 	poolsVCP := make([]gcpgenserver.PoolV1beta, 0, len(req.PoolUuids))
@@ -339,6 +342,7 @@ func (h Handler) V1betaGetMultiplePools(ctx context.Context, req *gcpgenserver.P
 		}, nil
 	}
 
+	logger.Debug("Some pools not found in VCP, fetching from CVP", "missingPools", missingPoolUUIDs)
 	return getMultiplePoolsFromCVP(ctx, missingPoolUUIDs, params, poolsVCP)
 }
 

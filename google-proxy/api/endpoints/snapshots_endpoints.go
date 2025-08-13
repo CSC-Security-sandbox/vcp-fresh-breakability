@@ -43,7 +43,7 @@ func (h Handler) V1betaGetMultipleSnapshots(ctx context.Context, req *gcpgenserv
 	snapshotModelVCP, err := h.Orchestrator.GetMultipleSnapshots(ctx, params.VolumeId, params.ProjectNumber, req.SnapshotUuids)
 	if err != nil {
 		logger.Error("Failed to fetch snapshots", "error", err.Error())
-		return &gcpgenserver.V1betaGetMultipleSnapshotsInternalServerError{Code: 500, Message: "Internal server error"}, err
+		return &gcpgenserver.V1betaGetMultipleSnapshotsInternalServerError{Code: 500, Message: "Internal server error"}, nil
 	}
 
 	snapshotsVCP := make([]gcpgenserver.SnapshotV1beta, 0)
