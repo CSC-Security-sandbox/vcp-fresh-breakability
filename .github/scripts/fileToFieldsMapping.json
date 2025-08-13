@@ -37,5 +37,12 @@
       "version",
       "appVersion"
     ]
+  },
+  {
+    "filePath": "kubernetes/vlm-worker/Chart.yaml",
+    "yamlPath": [
+      "version",
+      "appVersion"
+    ]
   }
 ]
