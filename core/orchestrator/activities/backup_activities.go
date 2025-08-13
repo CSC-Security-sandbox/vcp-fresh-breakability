@@ -58,6 +58,22 @@ func (a BackupActivity) CreateBackup(ctx context.Context, backup *datamodel.Back
 	se := a.SE
 	return se.CreateBackup(ctx, backup)
 }
+
+func (a BackupActivity) IsSnapmirrorDeleted(ctx context.Context, node *models.Node, params *commonparams.SnapmirrorRelationshipParams) (bool, error) {
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return false, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	_, err = provider.SnapmirrorRelationshipGet(params.DestinationPath, params.SourcePath)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return true, nil
+		}
+		return false, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return false, nil
+}
+
 func (a BackupActivity) GetBackup(ctx context.Context, backupVaultUUID, backupUUID, accountName string) (*datamodel.Backup, error) {
 	se := a.SE
 	return se.GetBackup(ctx, backupVaultUUID, backupUUID, accountName)
@@ -536,36 +552,63 @@ func (a BackupActivity) GetBackupCountByVolumeUUID(ctx context.Context, volumeUU
 	return se.BackupCountByVolumeID(ctx, volumeUUID)
 }
 
+// DeleteSnapshotFromObjectStore Enhanced DeleteSnapshotFromObjectStore with idempotency
 func (a BackupActivity) DeleteSnapshotFromObjectStore(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID, snapshotUUID string) (*vsa.OntapAsyncResponse, error) {
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return provider.SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID, EndpointUUID, snapshotUUID)
+
+	response, err := provider.SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID, EndpointUUID, snapshotUUID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return response, nil
 }
 
+// Enhanced DeleteSnapmirror with idempotency
 func (a BackupActivity) DeleteSnapmirror(ctx context.Context, node *models.Node, snapmirrorUUID string) (*vsa.OntapAsyncResponse, error) {
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return provider.SnapmirrorRelationshipDelete(snapmirrorUUID)
+	response, err := provider.SnapmirrorRelationshipDelete(snapmirrorUUID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return response, nil
 }
 
+// DeleteCloudEndpoint Enhanced DeleteCloudEndpoint with idempotency
 func (a BackupActivity) DeleteCloudEndpoint(ctx context.Context, node *models.Node, objectStoreUUID string, EndpointUUID string) (*vsa.OntapAsyncResponse, error) {
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return provider.SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, EndpointUUID)
+
+	response, err := provider.SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, EndpointUUID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return response, nil
 }
 
+// Enhanced DeleteSnapshotForBackup with idempotency
 func (a BackupActivity) DeleteSnapshotForBackup(ctx context.Context, node *models.Node, snapshotUUID, volumeUUID string) error {
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	return provider.DeleteSnapshot(snapshotUUID, volumeUUID)
+
+	err = provider.DeleteSnapshot(snapshotUUID, volumeUUID)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return nil
 }
 
 func (j *BackupActivity) IsBackupShared(ctx context.Context, backup *datamodel.Backup) (bool, error) {

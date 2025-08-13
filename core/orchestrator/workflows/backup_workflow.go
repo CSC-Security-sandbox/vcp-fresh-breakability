@@ -289,7 +289,7 @@ func DeleteBackupWorkflow(ctx workflow.Context, params *commonparams.DeleteBacku
 			backupWf.Logger.Errorf("Failed to revert backup delete workflow: %v", err2)
 		}
 		backupWf.Status = WorkflowStatusFailed
-		err2 = backupWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), customErr)
+		err2 = backupWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		if err2 != nil {
 			backupWf.Logger.Errorf("Failed to update job status for workflow %s: %v", backupWf.ID, err2)
 		}
@@ -373,7 +373,46 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		return nil, ConvertToVSAError(err)
 	}
 
-	if isVolumeDeleted {
+	var volume *datamodel.Volume
+	var node *models.Node
+	var smSourcePath string
+	var smDestinationPath string
+	var isSnapmirrorDeleted bool
+	if !isVolumeDeleted {
+		err = workflow.ExecuteActivity(ctx, backupActivity.GetVolume, dbBackup.VolumeUUID).Get(ctx, &volume)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		var dbNodes []*datamodel.Node
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.PoolID).Get(ctx, &dbNodes)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		node = hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType})
+
+		err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathActivity, volume).Get(ctx, &smSourcePath)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		err = workflow.ExecuteActivity(ctx, backupActivity.GetSmDestinationPathActivity, dbBackupVault, volume).Get(ctx, &smDestinationPath)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		params := &commonparams.SnapmirrorRelationshipParams{
+			SourcePath:      smSourcePath,
+			DestinationPath: smDestinationPath,
+		}
+
+		err = workflow.ExecuteActivity(ctx, backupActivity.IsSnapmirrorDeleted, node, params).Get(ctx, &isSnapmirrorDeleted)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	}
+
+	if isVolumeDeleted || isSnapmirrorDeleted {
 		// if volume is deleted then we need to delete the backup with adc
 		err = workflow.ExecuteChildWorkflow(ctx, ADCWorkflow, deleteBackupParams, dbBackupVault, dbBackup, account).Get(ctx, nil)
 		if err != nil {
@@ -385,20 +424,6 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-
-		var volume *datamodel.Volume
-		err = workflow.ExecuteActivity(ctx, backupActivity.GetVolume, dbBackup.VolumeUUID).Get(ctx, &volume)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-
-		var dbNodes []*datamodel.Node
-		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, &volume.PoolID).Get(ctx, &dbNodes)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-		node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{Nodes: dbNodes, Password: volume.Pool.PoolCredentials.Password, SecretID: volume.Pool.PoolCredentials.SecretID, DeploymentName: volume.Pool.DeploymentName, CertificateID: volume.Pool.PoolCredentials.CertificateID, AuthType: volume.Pool.PoolCredentials.AuthType})
-
 		var objStore *commonparams.CloudTarget
 		err = workflow.ExecuteActivity(ctx, backupActivity.GetObjectStore, node, bucketDetails.BucketName).Get(ctx, &objStore)
 		if err != nil {
@@ -407,17 +432,7 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 		var ontapAsyncResponse *vsa.OntapAsyncResponse
 		if backupCount == 1 {
-			var smDestinationPath string
-			err = workflow.ExecuteActivity(ctx, backupActivity.GetSmDestinationPathActivity, dbBackupVault, volume).Get(ctx, &smDestinationPath)
-			if err != nil {
-				return nil, ConvertToVSAError(err)
-			}
 			var snapmirrorRelationship *commonparams.SnapmirrorRelationship
-			var smSourcePath string
-			err = workflow.ExecuteActivity(ctx, backupActivity.GetSmSourcePathActivity, volume).Get(ctx, &smSourcePath)
-			if err != nil {
-				return nil, ConvertToVSAError(err)
-			}
 			err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirror, node, smSourcePath, smDestinationPath).Get(ctx, &snapmirrorRelationship)
 			if err != nil {
 				return nil, ConvertToVSAError(err)

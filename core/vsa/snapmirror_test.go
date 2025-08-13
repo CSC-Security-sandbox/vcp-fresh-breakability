@@ -3,15 +3,16 @@ package vsa
 import (
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/mock"
 	"testing"
 	"time"
 
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	utilsErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -402,6 +403,28 @@ func TestSnapmirrorObjectStoreEndpointDelete(t *testing.T) {
 		assert.NotNil(t, job)
 		assert.Equal(t, "jobUUID", job.JobUUID)
 	})
+	t.Run("OnNotError", func(t *testing.T) {
+		mockClient := new(ontapRest.MockRESTClient)
+		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockClient, nil
+		}
+		ontapProvider := &OntapRestProvider{}
+		objectStoreUUID := "objectStoreUUID"
+		endpointUUID := "endpointUUID"
+		expectedParams := &ontapRest.SnapmirrorCloudEndpointDeleteParams{
+			ObjectStoreUUID: objectStoreUUID,
+			EndpointUUID:    endpointUUID,
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorObjectStoreEndpointDelete", expectedParams).Return(nil, utilsErrors.NewNotFoundErr("Snapmirror endpoint not found", nil))
+
+		job, err := ontapProvider.SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, endpointUUID)
+		assert.NoError(t, err)
+		assert.Nil(t, job)
+	})
 	t.Run("OnSuccessWithoutJob", func(t *testing.T) {
 		mockClient := new(ontapRest.MockRESTClient)
 		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
@@ -478,6 +501,32 @@ func TestSnapmirrorObjectStoreSnapshotDelete(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, job)
 		assert.Equal(t, "jobUUID", job.JobUUID)
+	})
+	t.Run("OnNotFoundError", func(t *testing.T) {
+		mockClient := new(ontapRest.MockRESTClient)
+		mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockClient, nil
+		}
+		ontapProvider := &OntapRestProvider{}
+		objectStoreUUID := "objectStoreUUID"
+		endpointUUID := "endpointUUID"
+		snapshotUUID := "snapshotUUID"
+		expectedParams := &ontapRest.SnapmirrorCloudSnapshotDeleteParams{
+			ObjectStoreUUID: objectStoreUUID,
+			EndpointUUID:    endpointUUID,
+			SnapshotUUID:    snapshotUUID,
+		}
+
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorObjectStoreSnapshotDelete", expectedParams).Return(nil, utilsErrors.NewNotFoundErr("Snapshot not found", nil))
+
+		job, err := ontapProvider.SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID, endpointUUID, snapshotUUID)
+		assert.NoError(t, err)
+		assert.Nil(t, job)
 	})
 	t.Run("OnSuccessWithoutJob", func(t *testing.T) {
 		mockClient := new(ontapRest.MockRESTClient)
@@ -668,4 +717,23 @@ func TestSnapmirrorObjectStoreSnapshotGet(t *testing.T) {
 		mockClient.AssertExpectations(tt)
 		mockSnapmirrorClient.AssertExpectations(tt)
 	})
+}
+
+func TestSnapmirrorRelationshipDeleteFailsOnJobNotFoundError(t *testing.T) {
+	mockClient := new(ontapRest.MockRESTClient)
+	mockSnapmirrorClient := new(ontapRest.MockSnapmirrorClient)
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockClient, nil
+	}
+	ontapProvider := &OntapRestProvider{}
+	expectedParams := &ontapRest.SnapmirrorRelationshipDeleteParams{UUID: "snapmirrorUUID"}
+
+	mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+	mockSnapmirrorClient.On("SnapmirrorRelationshipDelete", expectedParams).Return(false, nil, utilsErrors.NewNotFoundErr("Snapmirror relationship not found", nil))
+
+	_, err := ontapProvider.SnapmirrorRelationshipDelete("snapmirrorUUID")
+	assert.NoError(t, err)
 }

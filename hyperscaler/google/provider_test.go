@@ -804,6 +804,11 @@ func TestCreateBucketIfNotExists(t *testing.T) {
 			statusCode:  http.StatusConflict,
 			expectError: false,
 		},
+		{
+			name:        "forbidden",
+			statusCode:  http.StatusForbidden,
+			expectError: true,
+		},
 	}
 
 	for _, tc := range tests {

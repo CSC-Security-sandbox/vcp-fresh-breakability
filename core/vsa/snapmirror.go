@@ -5,6 +5,7 @@ import (
 
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 func (rc *OntapRestProvider) SnapmirrorRelationshipCreate(params *commonparams.SnapmirrorRelationshipParams, smcToken *string) (*ontapRest.SnapmirrorRelationship, error) {
@@ -32,12 +33,21 @@ func (rc *OntapRestProvider) SnapmirrorRelationshipCreate(params *commonparams.S
 	return snapmirror[0], nil
 }
 
+// SnapmirrorRelationshipDelete Enhanced SnapmirrorRelationshipDelete with idempotency
 func (rc *OntapRestProvider) SnapmirrorRelationshipDelete(UUID string) (*OntapAsyncResponse, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
 		return nil, err
 	}
 	_, job, err := client.Snapmirror().SnapmirrorRelationshipDelete(&ontapRest.SnapmirrorRelationshipDeleteParams{UUID: UUID})
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			// Relationship was deleted by another process, treat as success
+			return nil, nil
+		}
+		return nil, err
+	}
+
 	if job != nil {
 		return &OntapAsyncResponse{JobUUID: job.JobUUID}, err
 	}
@@ -83,6 +93,7 @@ func (rc *OntapRestProvider) SnapmirrorRelationshipTransferGet(snapmirrorUUID, s
 	return snapmirrorTransfer, nil
 }
 
+// SnapmirrorObjectStoreEndpointDelete Enhanced SnapmirrorObjectStoreEndpointDelete with idempotency
 func (rc *OntapRestProvider) SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, EndpointUUID string) (*OntapAsyncResponse, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
@@ -92,12 +103,21 @@ func (rc *OntapRestProvider) SnapmirrorObjectStoreEndpointDelete(objectStoreUUID
 		ObjectStoreUUID: objectStoreUUID,
 		EndpointUUID:    EndpointUUID,
 	})
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			// Endpoint was deleted by another process, treat as success
+			return nil, nil
+		}
+		return nil, err
+	}
+
 	if job != nil {
 		return &OntapAsyncResponse{JobUUID: job.JobUUID}, err
 	}
 	return nil, err
 }
 
+// SnapmirrorObjectStoreSnapshotDelete Enhanced SnapmirrorObjectStoreSnapshotDelete with idempotency
 func (rc *OntapRestProvider) SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID, EndpointUUID, snapshotUUID string) (*OntapAsyncResponse, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
@@ -108,6 +128,14 @@ func (rc *OntapRestProvider) SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID
 		EndpointUUID:    EndpointUUID,
 		SnapshotUUID:    snapshotUUID,
 	})
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			// Snapshot was deleted by another process, treat as success
+			return nil, nil
+		}
+		return nil, err
+	}
+
 	if job != nil {
 		return &OntapAsyncResponse{JobUUID: job.JobUUID}, err
 	}

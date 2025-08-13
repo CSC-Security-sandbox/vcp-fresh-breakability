@@ -476,17 +476,22 @@ func _initializeCloudRunService(ctx context.Context) (*cloudrun.Service, error) 
 	return client, nil
 }
 
+// Enhanced CreateBucketIfNotExists with better error handling
 func (gcpService *GcpServices) CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string) error {
 	logger := util.GetLogger(ctx)
 	err := gcpService.AdminGCPService.storageService.Bucket(bucketName).Create(ctx, projectID, &storage.BucketAttrs{
 		Location: region,
 	})
 	if err != nil {
-		// Ignore error if bucket already exists
 		var gErr *googleapi.Error
-		if errors.As(err, &gErr) && gErr.Code == 409 {
-			logger.Infof("bucket %s already exists", bucketName)
-			return nil
+		if errors.As(err, &gErr) {
+			switch gErr.Code {
+			case 409: // Already exists
+				logger.Infof("bucket %s already exists", bucketName)
+				return nil
+			default:
+				return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
+			}
 		}
 		return err
 	}

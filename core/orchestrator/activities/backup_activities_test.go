@@ -3356,3 +3356,74 @@ func TestGetObjectStoreSnapshotActivity(t *testing.T) {
 		mockProvider.AssertExpectations(tt)
 	})
 }
+
+// TestIsSnapmirrorDeleted_ReturnsErrorWhenGetProviderFails tests error handling for provider lookup failure.
+func TestIsSnapmirrorDeleted_ReturnsErrorWhenGetProviderFails(t *testing.T) {
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return nil, errors.New("provider lookup failed")
+	}
+
+	activity := activities.BackupActivity{}
+	ctx := context.Background()
+	node := &models.Node{}
+	params := &commonparams.SnapmirrorRelationshipParams{
+		DestinationPath: "/dest/path",
+		SourcePath:      "/src/path",
+	}
+	deleted, err := activity.IsSnapmirrorDeleted(ctx, node, params)
+	assert.False(t, deleted)
+	assert.Error(t, err)
+}
+
+// TestIsSnapmirrorDeleted_ReturnsTrueWhenNotFound tests the case where the snapmirror is not found.
+func TestIsSnapmirrorDeleted_ReturnsTrueWhenNotFound(t *testing.T) {
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	mockProvider := new(vsa.MockProvider)
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	notFoundErr := utilerrors.NewNotFoundErr("SnapmirrorRelationship", nil)
+	mockProvider.On("SnapmirrorRelationshipGet", "/dest/path", "/src/path").Return(nil, notFoundErr)
+
+	activity := activities.BackupActivity{}
+	ctx := context.Background()
+	node := &models.Node{}
+	params := &commonparams.SnapmirrorRelationshipParams{
+		DestinationPath: "/dest/path",
+		SourcePath:      "/src/path",
+	}
+	deleted, err := activity.IsSnapmirrorDeleted(ctx, node, params)
+	assert.True(t, deleted)
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+// TestIsSnapmirrorDeleted_ReturnsErrorWhenOtherErrorOccurs tests error wrapping for non not-found errors.
+func TestIsSnapmirrorDeleted_ReturnsErrorWhenOtherErrorOccurs(t *testing.T) {
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	mockProvider := new(vsa.MockProvider)
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	otherErr := errors.New("temporary error")
+	mockProvider.On("SnapmirrorRelationshipGet", "/dest/path", "/src/path").Return(nil, otherErr)
+
+	activity := activities.BackupActivity{}
+	ctx := context.Background()
+	node := &models.Node{}
+	params := &commonparams.SnapmirrorRelationshipParams{
+		DestinationPath: "/dest/path",
+		SourcePath:      "/src/path",
+	}
+	deleted, err := activity.IsSnapmirrorDeleted(ctx, node, params)
+	assert.False(t, deleted)
+	assert.Error(t, err)
+	mockProvider.AssertExpectations(t)
+}
