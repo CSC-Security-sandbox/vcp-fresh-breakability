@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -89,7 +88,7 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		if err != nil {
 			return nil, "", err
 		} else if len(appConsistentSnaps) == 1 {
-			return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrSnapshotAppConsistencyError, customerrors.NewConflictErr("Volume already has an app consistent snapshot"))
+			return nil, "", customerrors.NewConflictErr("Volume already has an app consistent snapshot")
 		}
 	}
 
@@ -128,7 +127,7 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 					if snapshot.Name == job.ResourceName {
 						if snapshot.State == models.LifeCycleStateREADY {
 							logger.Warnf("Snapshot with name %s already exists", snapshot.Name)
-							return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceAlreadyExistsError, customerrors.NewConflictErr("snapshot already exists"))
+							return nil, "", customerrors.NewConflictErr("snapshot already exists")
 						} else {
 							logger.Infof("Found ongoing snapshot creation job for account %s with name %s. Job UUID: %s", params.AccountName, params.Name, job.UUID)
 							dataStoreSnap := ConvertDatastoreSnapshotToModel(snapshot)
@@ -327,7 +326,7 @@ func _updateSnapshot(ctx context.Context, se database.Storage, temporal client.C
 
 	if snapshot.State == models.LifeCycleStateCreating || snapshot.State == models.LifeCycleStateUpdating || snapshot.State == models.LifeCycleStateDeleting {
 		logger.Errorf("Snapshot %s cannot be update, while in transitioning state: %s", params.SnapshotUUID, snapshot.State)
-		return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("Snapshot is in transition state and cannot be updated, state: "+snapshot.State))
+		return nil, "", customerrors.NewConflictErr("Snapshot is in transition state and cannot be updated, state: " + snapshot.State)
 	}
 
 	job := &datamodel.Job{
@@ -404,14 +403,14 @@ func _convertDatastoreSnapshotToModel(snapshot *datamodel.Snapshot) *models.Snap
 
 func validateCreatSnapshotOperation(volume *datamodel.Volume, params *common.CreateSnapshotParams, account *datamodel.Account) error {
 	if params.Name == "" {
-		return vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, customerrors.NewUserInputValidationErr("Snapshot name is empty. Please provide a valid name."))
+		return customerrors.NewUserInputValidationErr("Snapshot name is empty. Please provide a valid name.")
 	}
 
 	if volume.State == models.LifeCycleStateCreating {
-		return vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("Can not create a snapshot when volume is in creating stage."))
+		return customerrors.NewConflictErr("Can not create a snapshot when volume is in creating stage.")
 	}
 	if volume.State == models.LifeCycleStateDeleting {
-		return vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("Can not create a snapshot when volume is in deleting stage."))
+		return customerrors.NewConflictErr("Can not create a snapshot when volume is in deleting stage.")
 	}
 
 	// @TODO: Include DataProtection check when implemented
@@ -443,7 +442,7 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 	if snapshot.State == models.LifeCycleStateDeleting ||
 		snapshot.State == models.LifeCycleStateCreating ||
 		snapshot.State == models.LifeCycleStateUpdating {
-		return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("Snapshot is in transition state and cannot be deleted, state: "+snapshot.State))
+		return nil, "", customerrors.NewConflictErr("Snapshot is in transition state and cannot be deleted, state: " + snapshot.State)
 	}
 
 	job := &datamodel.Job{
@@ -467,7 +466,7 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		}
 	}()
 
-	createdJob, err := se.CreateJob(ctx, job)
+	job, err = se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Errorf("Failed to create snapshot delete job in database %v", err)
 		return nil, "", err
@@ -495,7 +494,7 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		workflows.DeleteSnapshotWorkflow,
 		workflow.ChildWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
-			WorkflowID:            createdJob.WorkflowID,
+			WorkflowID:            job.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
@@ -507,7 +506,7 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
-	return ConvertDatastoreSnapshotToModel(snapshot), createdJob.UUID, nil
+	return ConvertDatastoreSnapshotToModel(snapshot), job.UUID, nil
 }
 
 func _volumeOwnershipCheck(ctx context.Context, se database.Storage, volumeUUID string, accountName string) (*datamodel.Volume, error) {
@@ -517,10 +516,10 @@ func _volumeOwnershipCheck(ctx context.Context, se database.Storage, volumeUUID 
 	if err != nil {
 		if customerrors.IsNotFoundErr(err) {
 			logger.Errorf("Volume %s not found for account %s", volumeUUID, accountName)
-			return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, customerrors.NewNotFoundErr("volume", &volumeUUID))
+			return nil, customerrors.NewUserInputValidationErr("Volume not found")
 		}
 		logger.Errorf("Failed to verify volume ownership: %v", err)
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, customerrors.NewUserInputValidationErr("failed to validate volume ownership"))
+		return nil, customerrors.NewUserInputValidationErr("failed to validate volume ownership")
 	}
 
 	return volume, nil
@@ -564,10 +563,10 @@ func _deleteSnapshots(ctx context.Context, se database.Storage, temporal client.
 		return "", customerrors.NewNotFoundErr("Volume", nil)
 	}
 	if dbVolume.State == models.LifeCycleStateDeleting {
-		return "", vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("Volume of the snapshot is being deleted."))
+		return "", customerrors.NewConflictErr("Volume of the snapshot is being deleted.")
 	}
 	if dbVolume.State == models.VolumeStateOffline {
-		return "", vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, customerrors.NewConflictErr("Volume is offline."))
+		return "", customerrors.NewConflictErr("Volume is offline.")
 	}
 
 	job := &datamodel.Job{
@@ -595,7 +594,7 @@ func _deleteSnapshots(ctx context.Context, se database.Storage, temporal client.
 		}
 	}()
 
-	createdJob, err := se.CreateJob(ctx, job)
+	job, err = se.CreateJob(ctx, job)
 	if err != nil {
 		logger.Errorf("Failed to create snapshot delete job in database %v", err)
 		return "", err
@@ -605,7 +604,7 @@ func _deleteSnapshots(ctx context.Context, se database.Storage, temporal client.
 	_, err = temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
-			ID:                    createdJob.WorkflowID,
+			ID:                    job.WorkflowID,
 			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
 			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
 		},
@@ -617,5 +616,5 @@ func _deleteSnapshots(ctx context.Context, se database.Storage, temporal client.
 		return "", err
 	}
 
-	return createdJob.UUID, nil
+	return job.UUID, nil
 }

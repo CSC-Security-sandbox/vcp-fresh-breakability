@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -77,7 +78,7 @@ func TestVolumeRevertActivity_RevertVolume_Success(t *testing.T) {
 		PreRevertVolume: volume,
 	}).Return(nil)
 
-	mockStorage.On("RevertedVolume", ctx, volume, snapshot).Return(nil)
+	mockStorage.On("RevertedVolume", ctx, volume, snapshot).Return([]*datamodel.Snapshot{}, nil)
 
 	// Act
 	err := activity.RevertVolume(ctx, volume, snapshot, node, params)
@@ -282,7 +283,7 @@ func TestVolumeRevertActivity_RevertVolume_RevertedVolumeFailure(t *testing.T) {
 		PreRevertVolume: volume,
 	}).Return(nil)
 
-	mockStorage.On("RevertedVolume", ctx, volume, snapshot).Return(expectedError)
+	mockStorage.On("RevertedVolume", ctx, volume, snapshot).Return([]*datamodel.Snapshot{}, expectedError)
 
 	// Act
 	err := activity.RevertVolume(ctx, volume, snapshot, node, params)
@@ -290,6 +291,99 @@ func TestVolumeRevertActivity_RevertVolume_RevertedVolumeFailure(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Equal(t, expectedError, err)
+	mockProvider.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestVolumeRevertActivity_RevertVolume_HydrationFailure(t *testing.T) {
+	// Arrange
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+
+	// Save original function and restore after test
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	// Save original hydration function and restore after test
+	originalHydrateBatchSnapshotstoCCFE := hydrationActivities.HydrateBatchSnapshotstoCCFE
+	defer func() { hydrationActivities.HydrateBatchSnapshotstoCCFE = originalHydrateBatchSnapshotstoCCFE }()
+
+	// Mock HydrateBatchSnapshotstoCCFE to return an error
+	hydrationActivities.HydrateBatchSnapshotstoCCFE = func(ctx context.Context, createdSnapshots []*datamodel.Snapshot, deletedSnapshots []*datamodel.Snapshot) error {
+		return errors.New("hydration failed")
+	}
+
+	activity := VolumeRevertActivity{
+		SE: mockStorage,
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "volume-uuid",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-volume-uuid",
+		},
+		Svm: &datamodel.Svm{
+			Name: "test-svm",
+		},
+	}
+
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{
+			ID:   1,
+			UUID: "snapshot-uuid",
+		},
+		Name: "test-snapshot",
+		SnapshotAttributes: &datamodel.SnapshotAttributes{
+			ExternalUUID: "external-snapshot-uuid",
+		},
+	}
+
+	node := &models.Node{
+		Name: "test-node",
+	}
+
+	params := vsa.RevertVolumeParams{
+		VolumeID:   "external-volume-uuid",
+		SnapshotID: "external-snapshot-uuid",
+	}
+
+	// Create some snapshots to be returned by RevertedVolume
+	returnedSnapshots := []*datamodel.Snapshot{
+		{
+			BaseModel: datamodel.BaseModel{
+				ID:   2,
+				UUID: "returned-snapshot-uuid",
+			},
+			Name: "returned-snapshot",
+		},
+	}
+
+	// Setup mocks
+	mockProvider.On("RevertVolume", vsa.RevertVolumeParams{
+		VolumeID:        "external-volume-uuid",
+		SnapshotID:      "external-snapshot-uuid",
+		SnapshotName:    "test-snapshot",
+		SvmName:         "test-svm",
+		PreRevertVolume: volume,
+	}).Return(nil)
+
+	mockStorage.On("RevertedVolume", ctx, volume, snapshot).Return(returnedSnapshots, nil)
+
+	// Act
+	err := activity.RevertVolume(ctx, volume, snapshot, node, params)
+
+	// Assert - should not return error even if hydration fails (lines 52-54)
+	assert.NoError(t, err)
 	mockProvider.AssertExpectations(t)
 	mockStorage.AssertExpectations(t)
 }

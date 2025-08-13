@@ -89,6 +89,10 @@ func (d *DataStoreRepository) UpdateSnapshot(ctx context.Context, snapshot *data
 		return nil, err
 	}
 	err = tx.Model(&dbSnapshot).Updates(datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{
+			DeletedAt: snapshot.DeletedAt,
+			UpdatedAt: time.Now(),
+		},
 		Name:               snapshot.Name,
 		Description:        snapshot.Description,
 		SnapshotAttributes: snapshot.SnapshotAttributes,

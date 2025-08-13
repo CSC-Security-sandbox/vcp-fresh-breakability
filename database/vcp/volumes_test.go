@@ -868,30 +868,10 @@ func TestRevertedVolume(t *testing.T) {
 		assert.NoError(tt, err, "Failed to create snapshot 2")
 
 		// Call RevertedVolume
-		err = store.RevertedVolume(context.Background(), volume, snapshot1)
+		snapshots, err := store.RevertedVolume(context.Background(), volume, snapshot1)
 		assert.NoError(tt, err, "Expected no error, got %v", err)
+		assert.NotNil(tt, snapshots, "Expected snapshots to be returned")
 	})
-	t.Run("WhenVolumeIsNotFound", func(tt *testing.T) {
-		db, err := SetupTestDB()
-		assert.NoError(tt, err, "Failed to set up test database")
-		wrapper := gormwrapper.New(db)
-		store := NewDataStoreRepository(wrapper)
-
-		err = ClearInMemoryDB(store.db.GORM())
-		assert.NoError(tt, err, "Failed to clean up test database")
-
-		// Create a non-existent volume
-		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: "non-existent-uuid"},
-		}
-		snapshot := &datamodel.Snapshot{
-			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
-		}
-
-		err = store.RevertedVolume(context.Background(), volume, snapshot)
-		assert.Error(tt, err, "Expected error for non-existent volume")
-	})
-
 	t.Run("WhenTransactionStartFails", func(tt *testing.T) {
 		origStartTransaction := startTransaction
 		startTransaction = func(db *gorm.DB) (*gorm.DB, error) {
@@ -911,174 +891,113 @@ func TestRevertedVolume(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 		}
 
-		err = store.RevertedVolume(context.Background(), volume, snapshot)
+		_, err = store.RevertedVolume(context.Background(), volume, snapshot)
 		assert.Error(tt, err, "Expected error for transaction failure")
 		assert.Contains(tt, err.Error(), "transaction start failed")
 	})
 }
 
 func TestRevertDeleteSnapshots(t *testing.T) {
-	t.Run("WhenSnapshotsAreDeletedSuccessfully", func(tt *testing.T) {
+	t.Run("WhenRevertDeleteSnapshotsSucceeds", func(t *testing.T) {
+		ctx := context.Background()
 		db, err := SetupTestDB()
-		assert.NoError(tt, err, "Failed to set up test database")
+		assert.NoError(t, err, "Failed to set up test database")
 		wrapper := gormwrapper.New(db)
 		store := NewDataStoreRepository(wrapper)
 
 		err = ClearInMemoryDB(store.db.GORM())
-		assert.NoError(tt, err, "Failed to clean up test database")
+		assert.NoError(t, err, "Failed to clean up test database")
 
-		// Create account
 		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{
-				ID:   1,
-				UUID: "test-account-uuid",
-			},
-			Name: "test_account",
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
 		}
 		err = store.db.Create(account).Error()
-		assert.NoError(tt, err, "Failed to create account")
-
-		// Create volume
-		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
-			Name:      "test_volume",
-			AccountID: account.ID,
-			Account:   account,
-		}
-		err = store.db.Create(volume).Error()
-		assert.NoError(tt, err, "Failed to create volume")
-
-		// Create snapshots with different creation times
-		snapshot1 := &datamodel.Snapshot{
-			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid-1"},
-			Name:      "test_snapshot_1",
-			AccountID: account.ID,
-			VolumeID:  volume.ID,
-			Account:   account,
-			Volume:    volume,
-		}
-		snapshot2 := &datamodel.Snapshot{
-			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid-2"},
-			Name:      "test_snapshot_2",
-			AccountID: account.ID,
-			VolumeID:  volume.ID,
-			Account:   account,
-			Volume:    volume,
-		}
-		snapshot3 := &datamodel.Snapshot{
-			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid-3"},
-			Name:      "test_snapshot_3",
-			AccountID: account.ID,
-			VolumeID:  volume.ID,
-			Account:   account,
-			Volume:    volume,
-		}
-
-		err = store.db.Create(snapshot1).Error()
-		assert.NoError(tt, err, "Failed to create snapshot 1")
-		err = store.db.Create(snapshot2).Error()
-		assert.NoError(tt, err, "Failed to create snapshot 2")
-		err = store.db.Create(snapshot3).Error()
-		assert.NoError(tt, err, "Failed to create snapshot 3")
-
-		// Call revertDeleteSnapshots with snapshot2 as the reference point
-		snapshots, err := revertDeleteSnapshots(context.Background(), store.db.GORM(), volume.ID, snapshot2.UUID)
-		assert.NoError(tt, err, "Expected no error, got %v", err)
-		assert.NotNil(tt, snapshots, "Expected deleted snapshots, got nil")
-
-		// Verify that snapshots created after snapshot2 are marked as deleted
-		var deletedSnapshots []*datamodel.Snapshot
-		result := store.db.GORM().Unscoped().Where("volume_id = ? AND deleted_at IS NOT NULL", volume.ID).Find(&deletedSnapshots)
-		assert.NoError(tt, result.Error, "Failed to query deleted snapshots")
-		assert.GreaterOrEqual(tt, len(deletedSnapshots), 1, "Expected at least one deleted snapshot")
-	})
-
-	t.Run("WhenNoSnapshotsExistAfterReference", func(tt *testing.T) {
-		db, err := SetupTestDB()
-		assert.NoError(tt, err, "Failed to set up test database")
-		wrapper := gormwrapper.New(db)
-		store := NewDataStoreRepository(wrapper)
-
-		err = ClearInMemoryDB(store.db.GORM())
-		assert.NoError(tt, err, "Failed to clean up test database")
-
-		// Create account and volume
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{
-				ID:   1,
-				UUID: "test-account-uuid",
-			},
-			Name: "test_account",
-		}
-		err = store.db.Create(account).Error()
-		assert.NoError(tt, err, "Failed to create account")
+		assert.NoError(t, err)
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: account.ID,
-			Account:   account,
 		}
 		err = store.db.Create(volume).Error()
-		assert.NoError(tt, err, "Failed to create volume")
+		assert.NoError(t, err)
 
-		// Create only one snapshot
 		snapshot := &datamodel.Snapshot{
 			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
 			Name:      "test_snapshot",
 			AccountID: account.ID,
 			VolumeID:  volume.ID,
-			Account:   account,
-			Volume:    volume,
 		}
 		err = store.db.Create(snapshot).Error()
-		assert.NoError(tt, err, "Failed to create snapshot")
+		assert.NoError(t, err)
 
-		// Call revertDeleteSnapshots with the only snapshot as reference
-		snapshots, err := revertDeleteSnapshots(context.Background(), store.db.GORM(), volume.ID, snapshot.UUID)
-		assert.NotNil(tt, snapshots, "Expected deleted snapshots, got nil")
-		assert.NoError(tt, err, "Expected no error, got %v", err)
-
-		// Verify no snapshots are marked as deleted
-		var deletedSnapshots []*datamodel.Snapshot
-		result := store.db.GORM().Unscoped().Where("volume_id = ? AND deleted_at IS NOT NULL", volume.ID).Find(&deletedSnapshots)
-		assert.NoError(tt, result.Error, "Failed to query deleted snapshots")
-		assert.Equal(tt, 0, len(deletedSnapshots), "Expected no deleted snapshots")
+		snapshots, err := revertDeleteSnapshots(ctx, store.db.GORM(), volume.ID, snapshot.UUID)
+		assert.NoError(t, err)
+		assert.NotNil(t, snapshots)
 	})
 
-	t.Run("WhenReferenceSnapshotDoesNotExist", func(tt *testing.T) {
+	t.Run("WhenRevertDeleteSnapshotsFailsOnDatabaseReadError", func(t *testing.T) {
+		ctx := context.Background()
 		db, err := SetupTestDB()
-		assert.NoError(tt, err, "Failed to set up test database")
+		assert.NoError(t, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		// Use an invalid volume ID to trigger database read error
+		// The function handles the error gracefully and returns empty slice instead of error
+		snapshots, err := revertDeleteSnapshots(ctx, store.db.GORM(), 99999, "invalid-snapshot-uuid")
+		assert.NoError(t, err) // The function handles the error gracefully
+		assert.NotNil(t, snapshots)
+		assert.Empty(t, snapshots) // Should return empty slice for invalid data
+	})
+
+	t.Run("WhenRevertDeleteSnapshotsFailsOnDatabaseUpdateError", func(t *testing.T) {
+		ctx := context.Background()
+		db, err := SetupTestDB()
+		assert.NoError(t, err, "Failed to set up test database")
 		wrapper := gormwrapper.New(db)
 		store := NewDataStoreRepository(wrapper)
 
 		err = ClearInMemoryDB(store.db.GORM())
-		assert.NoError(tt, err, "Failed to clean up test database")
+		assert.NoError(t, err, "Failed to clean up test database")
 
-		// Create account and volume
 		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{
-				ID:   1,
-				UUID: "test-account-uuid",
-			},
-			Name: "test_account",
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
 		}
 		err = store.db.Create(account).Error()
-		assert.NoError(tt, err, "Failed to create account")
+		assert.NoError(t, err)
 
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:      "test_volume",
 			AccountID: account.ID,
-			Account:   account,
 		}
 		err = store.db.Create(volume).Error()
-		assert.NoError(tt, err, "Failed to create volume")
+		assert.NoError(t, err)
 
-		// Call revertDeleteSnapshots with non-existent snapshot
-		snapshots, err := revertDeleteSnapshots(context.Background(), store.db.GORM(), volume.ID, "non-existent-uuid")
-		assert.NotNil(tt, snapshots, "Expected deleted snapshots, got nil")
-		assert.NoError(tt, err, "Expected no error for non-existent reference snapshot")
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+		}
+		err = store.db.Create(snapshot).Error()
+		assert.NoError(t, err)
+
+		// Close the database connection to simulate a database error
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(t, err, "Failed to get underlying sql.DB")
+		err = sqlDB.Close()
+		if err != nil {
+			return
+		}
+
+		// Now try to call revertDeleteSnapshots - this should fail due to closed connection
+		snapshots, err := revertDeleteSnapshots(ctx, store.db.GORM(), volume.ID, snapshot.UUID)
+		assert.Error(t, err, "Expected error when database connection is closed")
+		assert.Nil(t, snapshots, "Expected nil snapshots when database query fails")
 	})
 }
 

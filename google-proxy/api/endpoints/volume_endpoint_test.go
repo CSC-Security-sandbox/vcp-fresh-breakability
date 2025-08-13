@@ -4288,7 +4288,7 @@ func TestV1betaRevertVolume(t *testing.T) {
 	utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone
 	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
 
-	t.Run("ValidRevertVolumeAndWhenAsynchronousIsNotSet", func(tt *testing.T) {
+	t.Run("ValidRevertVolume", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
@@ -4436,7 +4436,7 @@ func TestV1betaRevertVolume(t *testing.T) {
 		assert.Contains(tt, internalErr.Message, "An error occurred")
 	})
 
-	t.Run("WhenOrchestratorNotFoundError_Return400BadRequest", func(tt *testing.T) {
+	t.Run("WhenOrchestratorNotFoundError_Return404NotFoundError", func(tt *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
@@ -4453,9 +4453,9 @@ func TestV1betaRevertVolume(t *testing.T) {
 
 		result, err := handler.V1betaRevertVolume(context.Background(), req, params)
 		assert.NoError(tt, err)
-		internalErr, ok := result.(*gcpgenserver.V1betaRevertVolumeBadRequest)
+		internalErr, ok := result.(*gcpgenserver.V1betaRevertVolumeNotFound)
 		assert.True(tt, ok)
-		assert.Equal(tt, float64(400), internalErr.Code)
+		assert.Equal(tt, float64(404), internalErr.Code)
 		assert.Contains(tt, internalErr.Message, "Volume not found")
 	})
 }

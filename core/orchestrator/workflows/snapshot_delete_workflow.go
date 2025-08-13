@@ -27,29 +27,31 @@ func DeleteSnapshotWorkflow(ctx workflow.Context, params *common.DeleteSnapshotP
 	err := snapshotWf.Setup(ctx, params)
 	if err != nil {
 		logger.Infof("Snapshot Delete workflow setup executed with error: %v", err)
-		return nil, ConvertToVSAError(err)
+		return nil, err
 	}
 	snapshotWf.Status = WorkflowStatusRunning
 	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
 		logger.Infof("Update job status for snapshot executed with error: %v", err)
-		return nil, ConvertToVSAError(err)
+		return nil, err
 	}
-	defer func() {
-		if err == nil {
-			snapshotWf.Status = WorkflowStatusCompleted
-			err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-		} else {
-			snapshotWf.Status = WorkflowStatusFailed
-			err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+	_, customErr := snapshotWf.Run(ctx, snapshot)
+	if customErr != nil {
+		logger.Infof("Snapshot delete workflow run executed with error: %v", customErr)
+		snapshotWf.Status = WorkflowStatusFailed
+		jobUpdateErr := snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		if jobUpdateErr != nil {
+			logger.Errorf("Failed to update job status to Done with error for DeleteSnapshotWorkflow: %v", jobUpdateErr)
+			return nil, jobUpdateErr
 		}
-	}()
-	_, errRun := snapshotWf.Run(ctx, snapshot)
-	if errRun != nil {
-		logger.Infof("Snapshot delete workflow run executed with error: %v", errRun)
-		return nil, ConvertToVSAError(err)
+		return nil, customErr
 	}
-	logger.Info("Snapshot workflow completed successfully")
+	snapshotWf.Status = WorkflowStatusCompleted
+	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if err != nil {
+		logger.Errorf("Failed to update job status to Done for DeleteSnapshotWorkflow: %v", err)
+	}
+	logger.Debug("Delete Snapshot workflow completed successfully")
 	return nil, nil
 }
 
@@ -70,26 +72,6 @@ func (wf *snapshotDeleteWorkflow) Setup(ctx workflow.Context, input interface{})
 			CustomerID: wf.CustomerID,
 		}, nil
 	})
-}
-
-// shouldUpdateSnapshotStateToError checks if the error should trigger updating the snapshot state to error
-// Some errors are legitimate business logic errors that should not mark the snapshot as having a deletion error
-func shouldUpdateSnapshotStateToError(err error) bool {
-	// Check for specific VCP errors that should not update snapshot state to error
-	var customError *vsaerrors.CustomError
-	if vsaerrors.As(err, &customError) {
-		// ErrDeleteSnapshot (7001) - snapshot has owners/clones/replication, legitimate business error
-		if customError.TrackingID == vsaerrors.ErrDeleteSnapshot {
-			return false
-		}
-		// ErrVolumeNotOnlineForSnapshotDelete (7002) - volume is not online, legitimate business error
-		if customError.TrackingID == vsaerrors.ErrVolumeNotOnlineForSnapshotDelete {
-			return false
-		}
-	}
-
-	// For all other errors, update the snapshot state to error
-	return true
 }
 
 func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
@@ -117,13 +99,8 @@ func (wf *snapshotDeleteWorkflow) Run(ctx workflow.Context, args ...interface{})
 	var dbNodes []*datamodel.Node
 	defer func() {
 		if err != nil {
-			if shouldUpdateSnapshotStateToError(err) {
-				dbSnapshot.State = models.LifeCycleStateError
-				dbSnapshot.StateDetails = models.LifeCycleStateDeletionErrorDetails
-			} else {
-				dbSnapshot.State = models.LifeCycleStateREADY
-				dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
-			}
+			dbSnapshot.State = models.LifeCycleStateREADY
+			dbSnapshot.StateDetails = models.LifeCycleStateAvailableDetails
 			workflow.ExecuteActivity(ctx, deleteActivity.UpdateDeleteSnapshotDetails, &dbSnapshot)
 		}
 	}()

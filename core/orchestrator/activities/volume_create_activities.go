@@ -120,7 +120,7 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 	return res, nil
 }
 
-func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamodel.Volume, node *models.Node, availableSpace int64, isRestoreSnapshot bool) (*vsa.LunResponse, error) {
+func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamodel.Volume, node *models.Node) (*vsa.LunResponse, error) {
 	logger := util.GetLogger(ctx)
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -137,23 +137,13 @@ func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamod
 	uuid := response.ExternalUUID
 	logger.Debugf("\n\nLun Name : %s\n\n", lun.Name)
 
-	if isRestoreSnapshot {
-		err = provider.LunUpdate(vsa.LunUpdateParams{
-			UUID:       uuid,
-			LunName:    lunName,
-			VolumeName: volume.Name,
-			SvmName:    volume.Svm.Name,
-			Size:       lun.Size,
-		})
-	} else {
-		err = provider.LunUpdate(vsa.LunUpdateParams{
-			UUID:       uuid,
-			LunName:    lunName,
-			VolumeName: volume.Name,
-			SvmName:    volume.Svm.Name,
-			Size:       availableSpace,
-		})
-	}
+	err = provider.LunUpdate(vsa.LunUpdateParams{
+		UUID:       uuid,
+		LunName:    lunName,
+		VolumeName: volume.Name,
+		SvmName:    volume.Svm.Name,
+		Size:       lun.Size,
+	})
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}

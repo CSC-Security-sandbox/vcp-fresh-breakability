@@ -614,9 +614,10 @@ func ExtractLunNameFromPath(fullLunName string) string {
 
 func IsTransitionalState(state string) bool {
 	transitionalStates := map[string]struct{}{
-		models.LifeCycleStateCreating: {},
-		models.LifeCycleStateUpdating: {},
-		models.LifeCycleStateDeleting: {},
+		models.LifeCycleStateCreating:  {},
+		models.LifeCycleStateUpdating:  {},
+		models.LifeCycleStateDeleting:  {},
+		models.LifeCycleStateReverting: {},
 	}
 	_, exists := transitionalStates[state]
 	return exists

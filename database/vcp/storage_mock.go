@@ -7866,21 +7866,33 @@ func (_c *MockStorage_Migrate_Call) RunAndReturn(run func(context.Context) error
 }
 
 // RevertedVolume provides a mock function with given fields: ctx, volume, snapshot
-func (_m *MockStorage) RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) error {
+func (_m *MockStorage) RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
 	ret := _m.Called(ctx, volume, snapshot)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RevertedVolume")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *datamodel.Snapshot) error); ok {
+	var r0 []*datamodel.Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *datamodel.Snapshot) ([]*datamodel.Snapshot, error)); ok {
+		return rf(ctx, volume, snapshot)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *datamodel.Snapshot) []*datamodel.Snapshot); ok {
 		r0 = rf(ctx, volume, snapshot)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Snapshot)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Volume, *datamodel.Snapshot) error); ok {
+		r1 = rf(ctx, volume, snapshot)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // MockStorage_RevertedVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RevertedVolume'
@@ -7903,12 +7915,12 @@ func (_c *MockStorage_RevertedVolume_Call) Run(run func(ctx context.Context, vol
 	return _c
 }
 
-func (_c *MockStorage_RevertedVolume_Call) Return(_a0 error) *MockStorage_RevertedVolume_Call {
-	_c.Call.Return(_a0)
+func (_c *MockStorage_RevertedVolume_Call) Return(_a0 []*datamodel.Snapshot, _a1 error) *MockStorage_RevertedVolume_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockStorage_RevertedVolume_Call) RunAndReturn(run func(context.Context, *datamodel.Volume, *datamodel.Snapshot) error) *MockStorage_RevertedVolume_Call {
+func (_c *MockStorage_RevertedVolume_Call) RunAndReturn(run func(context.Context, *datamodel.Volume, *datamodel.Snapshot) ([]*datamodel.Snapshot, error)) *MockStorage_RevertedVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }

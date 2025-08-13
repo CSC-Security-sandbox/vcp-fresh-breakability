@@ -9,7 +9,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -105,38 +104,28 @@ func (d *DataStoreRepository) UpdateVolume(ctx context.Context, volume *datamode
 	return nil
 }
 
-func (d *DataStoreRepository) RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) error {
+func (d *DataStoreRepository) RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	logger := util.GetLogger(ctx)
 	defer commitOrRollbackOnError(logger, tx, &err)
-	dbVolume, err := getVolumeWithDetails(tx, &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: volume.UUID}})
-	if err != nil {
-		return err
-	}
 
 	snapshots, err := revertDeleteSnapshots(ctx, tx, volume.ID, snapshot.UUID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	dbVolume.State = models.LifeCycleStateREADY
-	dbVolume.StateDetails = models.LifeCycleStateAvailableDetails
-	err = tx.Unscoped().Save(dbVolume).Error
+	volume.State = models.LifeCycleStateREADY
+	volume.StateDetails = models.LifeCycleStateAvailableDetails
+	err = tx.Unscoped().Save(volume).Error
 	if err != nil {
-		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
 
-	if len(snapshots) > 0 {
-		err = hydrationActivities.HydrateBatchSnapshotstoCCFE(ctx, nil, snapshots)
-		if err != nil {
-			logger.Errorf("Failed to hydrate snapshots to CCFE after volume revert: %v, snapshots: %+v", err, snapshots)
-		}
-	}
-	return nil
+	return snapshots, nil
 }
 
 func revertDeleteSnapshots(ctx context.Context, db *gorm.DB, volumeID int64, snapshotID string) ([]*datamodel.Snapshot, error) {
@@ -148,7 +137,6 @@ func revertDeleteSnapshots(ctx context.Context, db *gorm.DB, volumeID int64, sna
 		"volume_id = ? and created_at > (select created_at from (select created_at from snapshots where uuid = ?) as ss)",
 		volumeID, snapshotID,
 	).Find(&snapshots).Error
-
 	if err != nil {
 		logger.Warnf("failed to revert delete snapshots: %v", err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError,

@@ -26,29 +26,31 @@ func UpdateSnapshotWorkflow(ctx workflow.Context, snapshot *datamodel.Snapshot) 
 	err := snapshotWf.Setup(ctx, snapshot)
 	if err != nil {
 		logger.Infof("Snapshot update workflow setup executed with error: %v", err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, err
 	}
 	snapshotWf.Status = WorkflowStatusRunning
 	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
 		logger.Infof("Update job status for snapshot executed with error: %v", err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, err
 	}
-	defer func() {
-		if err == nil {
-			snapshotWf.Status = WorkflowStatusCompleted
-			err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-		} else {
-			snapshotWf.Status = WorkflowStatusFailed
-			err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+	_, customErr := snapshotWf.Run(ctx, snapshot)
+	if customErr != nil {
+		logger.Infof("Snapshot update workflow run executed with error: %v", customErr)
+		snapshotWf.Status = WorkflowStatusFailed
+		jobUpdateErr := snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		if jobUpdateErr != nil {
+			logger.Errorf("Failed to update job status to Done with error for UpdateSnapshotWorkflow: %v", jobUpdateErr)
+			return nil, jobUpdateErr
 		}
-	}()
-	_, errRun := snapshotWf.Run(ctx, snapshot)
-	if errRun != nil {
-		logger.Infof("Snapshot update workflow run executed with error: %v", err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(errRun)
+		return nil, customErr
 	}
-	logger.Debug("Snapshot update workflow completed successfully")
+	snapshotWf.Status = WorkflowStatusCompleted
+	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if err != nil {
+		logger.Errorf("Failed to update job status to Done for UpdateSnapshotWorkflow: %v", err)
+	}
+	logger.Debug("Snapshot Update workflow completed successfully")
 	return nil, nil
 }
 

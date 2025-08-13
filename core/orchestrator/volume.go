@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -332,8 +331,14 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		logger.Error("Failed to fetch volume for the given account ID", "error", err)
 		return nil, "", err
 	}
+
+	if utils.IsTransitionalState(volume.State) {
+		logger.Errorf("Volume %s cannot be reverted, while in transitioning state: %s", volume.Name, volume.State)
+		return nil, "", customerrors.NewConflictErr("volume is in transition state and cannot be reverted, state: " + volume.State)
+	}
+
 	if volume.State != models.LifeCycleStateREADY {
-		return nil, "", vsaerrors.NewVCPError(vsaerrors.ErrRevertingVolume, customerrors.NewConflictErr("Volume is not in READY state, state: "+volume.State))
+		return nil, "", customerrors.NewConflictErr("Volume is not in READY state, state: " + volume.State)
 	}
 
 	if volume.VolumeAttributes != nil && volume.VolumeAttributes.IsDataProtection {
@@ -350,7 +355,7 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	// Validate snapshot state
 	if snapshot.State != models.LifeCycleStateREADY {
 		logger.Error("Snapshot is not in a valid state for volume revert", "snapshot_state", snapshot.State)
-		return nil, "", customerrors.NewUserInputValidationErr("Snapshot is not in a valid state for volume revert. Please wait for the snapshot to be ready and retry again.")
+		return nil, "", customerrors.NewConflictErr("Snapshot is not in a valid state for volume revert. Please wait for the snapshot to be ready and retry again.")
 	}
 
 	job := &datamodel.Job{

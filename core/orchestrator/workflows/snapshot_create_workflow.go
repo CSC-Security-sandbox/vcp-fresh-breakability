@@ -37,21 +37,23 @@ func CreateSnapshotWorkflow(ctx workflow.Context, params *common.CreateSnapshotP
 		logger.Infof("Update job status for snapshot executed with error: %v", err)
 		return nil, err
 	}
-	defer func() {
-		if err == nil {
-			snapshotWf.Status = WorkflowStatusCompleted
-			err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
-		} else {
-			snapshotWf.Status = WorkflowStatusFailed
-			err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+	_, customErr := snapshotWf.Run(ctx, snapshot)
+	if customErr != nil {
+		logger.Infof("Snapshot workflow run executed with error: %v", customErr)
+		snapshotWf.Status = WorkflowStatusFailed
+		jobUpdateErr := snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
+		if jobUpdateErr != nil {
+			logger.Errorf("Failed to update job status to Done with error for CreateSnapshotWorkflow: %v", jobUpdateErr)
+			return nil, jobUpdateErr
 		}
-	}()
-	_, errRun := snapshotWf.Run(ctx, snapshot)
-	if errRun != nil {
-		logger.Infof("Snapshot workflow run executed with error: %v", err)
-		return nil, errRun
+		return nil, customErr
 	}
-	logger.Debug("Snapshot workflow completed successfully")
+	snapshotWf.Status = WorkflowStatusCompleted
+	err = snapshotWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
+	if err != nil {
+		logger.Errorf("Failed to update job status to Done for CreateSnapshotWorkflow: %v", err)
+	}
+	logger.Debug("Create Snapshot workflow completed successfully")
 	return nil, nil
 }
 

@@ -28,7 +28,7 @@ data:
   GCP_SERVICE_NETWORKING_ENDPOINT_URL: {{ .Values.workerConfig.gcpServiceNetworkingEndpointUrl | quote }}
   LOCAL_REGION: {{ .Values.workerConfig.localRegion | quote }}
   VSA_NODE_USERNAME: {{ .Values.workerConfig.vsaNodeUsername | quote }}
-  GCP_HYDRATE_AUTH_SERVICE_ACCOUNT: {{ .Values.workerConfig.gcpServiceNetworkingEndpointUrl | quote }}
+  GCP_HYDRATE_AUTH_SERVICE_ACCOUNT: {{ .Values.workerConfig.gcpHydrateAuthServiceAccount | quote }}
   GCP_HYDRATE_BASE_URL: {{ .Values.workerConfig.gcpHydrateBaseUrl | quote }}
   PROXY_CLIENT_TRANSPORT_SCHEMA: {{ .Values.workerConfig.proxyClientTransportSchema | quote }}
   VCP_PAIRED_REGIONS: {{ .Values.workerConfig.vcpPairedRegions | quote }}

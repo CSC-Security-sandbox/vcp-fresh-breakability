@@ -2159,7 +2159,6 @@ func TestUpdateLunName(t *testing.T) {
 			Name: "test-volume",
 			Svm:  &datamodel.Svm{Name: "test-svm"},
 		}
-		availableSpace := int64(107374182400) // 100 GiB
 		lunResponse := &vsa.LunResponse{
 			ProviderResponse: vsa.ProviderResponse{
 				ExternalUUID: "lun-uuid-123",
@@ -2171,7 +2170,7 @@ func TestUpdateLunName(t *testing.T) {
 		mockProvider.On("LunUpdate", mock.Anything).Return(nil)
 		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
 
-		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace, false)
+		lun, err := activity.UpdateLunName(ctx, volume, node)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, lun)
@@ -2195,11 +2194,10 @@ func TestUpdateLunName(t *testing.T) {
 			Name: "test-volume",
 			Svm:  &datamodel.Svm{Name: "test-svm"},
 		}
-		availableSpace := int64(107374182400) // 100 GiB
 
 		mockProvider.On("LunGet", mock.Anything).Return(nil, errors.New("lun not found"))
 
-		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace, false)
+		lun, err := activity.UpdateLunName(ctx, volume, node)
 
 		assert.Error(t, err)
 		assert.Nil(t, lun)
@@ -2222,7 +2220,6 @@ func TestUpdateLunName(t *testing.T) {
 			Name: "test-volume",
 			Svm:  &datamodel.Svm{Name: "test-svm"},
 		}
-		availableSpace := int64(107374182400) // 100 GiB
 		lunResponse := &vsa.LunResponse{
 			ProviderResponse: vsa.ProviderResponse{
 				ExternalUUID: "lun-uuid-123",
@@ -2233,7 +2230,7 @@ func TestUpdateLunName(t *testing.T) {
 		mockProvider.On("LunGet", mock.Anything).Return(lunResponse, nil)
 		mockProvider.On("LunUpdate", mock.Anything).Return(errors.New("failed to update lun"))
 
-		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace, false)
+		lun, err := activity.UpdateLunName(ctx, volume, node)
 
 		assert.Error(t, err)
 		assert.Nil(t, lun)
@@ -2256,7 +2253,6 @@ func TestUpdateLunName(t *testing.T) {
 			Name: "test-volume",
 			Svm:  &datamodel.Svm{Name: "test-svm"},
 		}
-		availableSpace := int64(107374182400) // 100 GiB
 		lunResponse := &vsa.LunResponse{
 			ProviderResponse: vsa.ProviderResponse{
 				ExternalUUID: "lun-uuid-123",
@@ -2268,7 +2264,7 @@ func TestUpdateLunName(t *testing.T) {
 		mockProvider.On("LunUpdate", mock.Anything).Return(nil)
 		mockProvider.On("LunGet", mock.Anything).Return(nil, errors.New("lun not found"))
 
-		lun, err := activity.UpdateLunName(ctx, volume, node, availableSpace, false)
+		lun, err := activity.UpdateLunName(ctx, volume, node)
 
 		assert.Error(t, err)
 		assert.Nil(t, lun)

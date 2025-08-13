@@ -508,10 +508,11 @@ func (re *retryEngine) UpdateVolume(ctx context.Context, volume *datamodel.Volum
 	return err
 }
 
-func (re *retryEngine) RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) error {
+func (re *retryEngine) RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
+	var var0 []*datamodel.Snapshot
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		err = re.dataStore.RevertedVolume(ctx, volume, snapshot)
+		var0, err = re.dataStore.RevertedVolume(ctx, volume, snapshot)
 		if err != nil {
 			re.logError("RevertedVolume", err)
 			if !dbutils.IsTransientErr(err) {
@@ -524,7 +525,7 @@ func (re *retryEngine) RevertedVolume(ctx context.Context, volume *datamodel.Vol
 		err = errors.NewTransientErr("Internal error. Please try again later.")
 	}
 
-	return err
+	return var0, err
 }
 
 func (re *retryEngine) UpdateVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error {

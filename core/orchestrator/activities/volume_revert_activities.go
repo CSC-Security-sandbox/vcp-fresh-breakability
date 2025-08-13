@@ -6,6 +6,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -40,10 +41,18 @@ func (a VolumeRevertActivity) RevertVolume(ctx context.Context, volume *datamode
 	logger.Debugf("Volume %s Reverted successfully in ontap", params.VolumeID)
 
 	se := a.SE
-	err = se.RevertedVolume(ctx, volume, snapshot)
+	snapshots, err := se.RevertedVolume(ctx, volume, snapshot)
 	if err != nil {
 		logger.Errorf("Failed to update the reverted volume %s in DB: %v", params.VolumeID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Hydrate snapshots to CCFE after volume revert
+	if len(snapshots) > 0 {
+		hydrateErr := hydrationActivities.HydrateBatchSnapshotstoCCFE(ctx, nil, snapshots)
+		if hydrateErr != nil {
+			logger.Errorf("Failed to hydrate snapshots to CCFE after volume revert: %v, snapshots: %+v", hydrateErr, snapshots)
+		}
 	}
 
 	return nil

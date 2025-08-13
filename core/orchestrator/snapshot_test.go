@@ -405,7 +405,7 @@ func TestOrchestrator_CreateSnapshot(t *testing.T) {
 		if err != nil {
 			tt.Fatalf("Failed to create test storage: %v", err)
 		}
-		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 		orch := Orchestrator{
 			storage:  store,
 			temporal: temporal,
@@ -1197,16 +1197,8 @@ func TestOrchestrator_GetMultipleSnapshots(t *testing.T) {
 			Description:  "updated_desc",
 		}
 		result, jobID, err := orch.UpdateSnapshot(ctx, params)
-		var customErr *vsaerrors.CustomError
-		ok := vsaerrors.As(err, &customErr)
-		assert.True(tt, ok, "expected VCP CustomError")
-		if ok {
-			if customErr.Unwrap() != nil {
-				assert.Contains(tt, customErr.Unwrap().Error(), "volume 'non-existent-vol-uuid' not found")
-			} else {
-				assert.Fail(tt, "missing underlying error in CustomError")
-			}
-		}
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Volume not found")
 		assert.Nil(tt, result)
 		assert.Empty(tt, jobID)
 	})
@@ -1579,7 +1571,7 @@ func TestDeleteSnapshots(t *testing.T) {
 			},
 		}
 		_, err = orch.DeleteSnapmirrorSnapshots(ctx, params)
-		assertErrContainsOriginal(tt, err, "volume.UUID' not found")
+		assert.ErrorContains(tt, err, "Volume not found")
 	})
 	t.Run("WhenSnapshotDeletionFailsDueToAccountNotFound", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -1623,7 +1615,7 @@ func TestDeleteSnapshots(t *testing.T) {
 			},
 		}
 		_, err = orch.DeleteSnapmirrorSnapshots(ctx, params)
-		assertErrContainsOriginal(tt, err, "volume.UUID' not found")
+		assert.ErrorContains(tt, err, "Volume not found")
 	})
 	t.Run("WhenSnapshotDeletionFailsDueToWorkflowError", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})

@@ -60,7 +60,7 @@ type (
 		GetVolumeCount(ctx context.Context, accountName string) (int64, error)
 		GetVolumeByName(ctx context.Context, name string) (*datamodel.Volume, error)
 		UpdateVolume(ctx context.Context, volume *datamodel.Volume) error
-		RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) error
+		RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) ([]*datamodel.Snapshot, error)
 		UpdateVolumeFields(ctx context.Context, volumeUUID string, updates map[string]interface{}) error
 		DeleteVolume(ctx context.Context, id string) (*datamodel.Volume, error)
 		UpdateVolumeState(ctx context.Context, id string, state string, stateDetails string) (*datamodel.Volume, error)

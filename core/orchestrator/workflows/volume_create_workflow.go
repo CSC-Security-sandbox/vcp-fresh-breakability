@@ -136,7 +136,7 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 	var lun *vsa.LunResponse
 
 	if isRestoreFromBackup || isRestoreSnapshot {
-		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node, volCreateResponse.AvailableSpace, isRestoreSnapshot).Get(ctx, &lun)
+		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateLunName, &dbVolume, &node).Get(ctx, &lun)
 		if err != nil {
 			return nil, err
 		}

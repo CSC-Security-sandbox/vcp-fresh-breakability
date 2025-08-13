@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 )
 
@@ -16,7 +17,7 @@ func (a *SnapshotUpdateActivity) UpdateSnapshot(ctx context.Context, snapshot *d
 
 	_, err := se.UpdateSnapshot(ctx, snapshot)
 	if err != nil {
-		return err
+		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	return nil
 }

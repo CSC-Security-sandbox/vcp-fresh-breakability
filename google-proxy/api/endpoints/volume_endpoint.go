@@ -181,7 +181,13 @@ func (h Handler) V1betaRevertVolume(ctx context.Context, req *gcpgenserver.Volum
 
 	volume, jobUUID, err := h.Orchestrator.RevertVolume(ctx, param)
 	if err != nil {
-		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) || errors.IsConflictErr(err) || strings.Contains(err.Error(), "one or more newer Snapshot copies are currently used as a reference Snapshot copy for data protection operations") {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaRevertVolumeNotFound{
+				Code:    404,
+				Message: err.Error(),
+			}, nil
+		}
+		if errors.IsUserInputValidationErr(err) || errors.IsConflictErr(err) || strings.Contains(err.Error(), "one or more newer Snapshot copies are currently used as a reference Snapshot copy for data protection operations") {
 			return &gcpgenserver.V1betaRevertVolumeBadRequest{
 				Code:    400,
 				Message: err.Error(),

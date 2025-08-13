@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -43,8 +44,9 @@ func (s *updateSnapshotTestSuite) AfterTest() {
 }
 
 func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_Success() {
-	commonActivity := activities.CommonActivities{}
-	updateSnapshotActivity := activities.SnapshotUpdateActivity{}
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateSnapshotActivity := activities.SnapshotUpdateActivity{SE: mockStorage}
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{ID: int64(1)},
 		Account:   &datamodel.Account{Name: "test-account"},
@@ -55,8 +57,11 @@ func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_Success() {
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(updateSnapshotActivity.UpdateSnapshot)
 
-	// Mock activities
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock UpdateJob method calls
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "DONE", 0, "").Return(nil)
+
+	// Mock UpdateSnapshot activity
 	s.env.OnActivity(updateSnapshotActivity.UpdateSnapshot, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -65,14 +70,15 @@ func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_Success() {
 	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
 	assert.Nil(s.T(), err)
 
-	// Assert workflow failed
+	// Assert workflow completed successfully
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 }
 
 func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_UpdateJobStatus_Error() {
-	commonActivity := activities.CommonActivities{}
-	updateSnapshotActivity := activities.SnapshotUpdateActivity{}
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateSnapshotActivity := activities.SnapshotUpdateActivity{SE: mockStorage}
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{ID: int64(1)},
 		Account:   &datamodel.Account{Name: "test-account"},
@@ -83,8 +89,8 @@ func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_UpdateJobStatus_Error() {
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(updateSnapshotActivity.UpdateSnapshot)
 
-	// Mock UpdateJobStatus to return error
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+	// Mock UpdateJob to return error for PROCESSING state
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(assert.AnError)
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(UpdateSnapshotWorkflow, snapshot)
@@ -94,16 +100,25 @@ func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_UpdateJobStatus_Error() {
 }
 
 func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_UpdateJobStatus_Setup_Error() {
-	commonActivity := activities.CommonActivities{}
-	updateSnapshotActivity := activities.SnapshotUpdateActivity{}
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateSnapshotActivity := activities.SnapshotUpdateActivity{SE: mockStorage}
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{ID: int64(1)},
+		Account:   &datamodel.Account{Name: ""}, // Empty account name to trigger setup error
 		Volume:    &datamodel.Volume{Name: "test-volume"},
 	}
+
+	// Mock UpdateJob method calls
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 0, mock.Anything).Return(nil)
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(updateSnapshotActivity.UpdateSnapshot)
+
+	// Mock UpdateSnapshot activity to return error
+	s.env.OnActivity(updateSnapshotActivity.UpdateSnapshot, mock.Anything, mock.Anything).Return(assert.AnError)
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(UpdateSnapshotWorkflow, snapshot)
@@ -112,9 +127,10 @@ func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_UpdateJobStatus_Setup_Erro
 	assert.Error(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_UpdateSnapshot_Error() {
-	commonActivity := activities.CommonActivities{}
-	updateSnapshotActivity := activities.SnapshotUpdateActivity{}
+func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_UpdateJobStatus_Processing_Error() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateSnapshotActivity := activities.SnapshotUpdateActivity{SE: mockStorage}
 	snapshot := &datamodel.Snapshot{
 		BaseModel: datamodel.BaseModel{ID: int64(1)},
 		Account:   &datamodel.Account{Name: "test-account"},
@@ -125,8 +141,63 @@ func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_UpdateSnapshot_Error() {
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(updateSnapshotActivity.UpdateSnapshot)
 
-	// Mock UpdateJobStatus to return nil, UpdateSnapshot to return error
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// Mock UpdateJob to return error for PROCESSING state
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(assert.AnError)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(UpdateSnapshotWorkflow, snapshot)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_CompletesDespiteFinalJobStatusUpdateError() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateSnapshotActivity := activities.SnapshotUpdateActivity{SE: mockStorage}
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{ID: int64(1)},
+		Account:   &datamodel.Account{Name: "test-account"},
+		Volume:    &datamodel.Volume{Name: "test-volume"},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateSnapshotActivity.UpdateSnapshot)
+
+	// Mock UpdateJob method calls
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "DONE", 0, "").Return(assert.AnError)
+
+	// Mock UpdateSnapshot activity
+	s.env.OnActivity(updateSnapshotActivity.UpdateSnapshot, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(UpdateSnapshotWorkflow, snapshot)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *updateSnapshotTestSuite) Test_UpdateWorkflow_UpdateSnapshot_Error() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateSnapshotActivity := activities.SnapshotUpdateActivity{SE: mockStorage}
+	snapshot := &datamodel.Snapshot{
+		BaseModel: datamodel.BaseModel{ID: int64(1)},
+		Account:   &datamodel.Account{Name: "test-account"},
+		Volume:    &datamodel.Volume{Name: "test-volume"},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateSnapshotActivity.UpdateSnapshot)
+
+	// Mock UpdateJob method calls
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "PROCESSING", 0, "").Return(nil)
+	mockStorage.On("UpdateJob", mock.Anything, "default-test-workflow-id", "ERROR", 0, mock.Anything).Return(nil)
+
+	// Mock UpdateSnapshot to return error
 	s.env.OnActivity(updateSnapshotActivity.UpdateSnapshot, mock.Anything, mock.Anything).Return(assert.AnError)
 
 	// Execute workflow
