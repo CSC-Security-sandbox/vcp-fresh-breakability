@@ -3,11 +3,12 @@ kind: Deployment
 metadata:
   namespace: {{ $.Values.global.namespace }}
   name: {{ include "harvest.name" . }}
+  labels:
+    {{ include "harvest.kubernetes.labels" . | nindent 6 }}
 spec:
   replicas: {{ $.Values.replicaCount }}
   selector:
     matchLabels:
-      {{ include "harvest.kubernetes.labels" . | nindent 6 }}
       app: {{ .Chart.Name }}
   template:
     metadata:
