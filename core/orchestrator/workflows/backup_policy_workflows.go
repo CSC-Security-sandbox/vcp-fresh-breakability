@@ -1,8 +1,6 @@
 package workflows
 
 import (
-	"fmt"
-
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -94,6 +92,13 @@ func (wf *updateBackupPolicyWorkflow) Run(ctx workflow.Context, args ...interfac
 			BackoffCoefficient: retryPolicy.BackoffCoefficient,
 			MaximumInterval:    retryPolicy.MaximumInterval,
 			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{
+				"V1betaUpdateBackupPolicyBadRequest",
+				"V1betaUpdateBackupPolicyUnauthorized",
+				"V1betaUpdateBackupPolicyForbidden",
+				"V1betaUpdateBackupPolicyNotFound",
+				"V1betaUpdateBackupPolicyInternalServerError",
+			},
 		},
 	}
 	commonActivities := &activities.CommonActivities{}
@@ -120,7 +125,7 @@ func (wf *updateBackupPolicyWorkflow) Run(ctx workflow.Context, args ...interfac
 	err = workflow.ExecuteActivity(ctx, backupPolicyActivity.UpdateBackupPolicyInSDE, params).Get(ctx, &sdeBackupPolicy)
 	if err != nil {
 		wf.Logger.Errorf("Failed to update backup policy in SDE: backupPolicy: %v, err: %v", dbBackupPolicy, err.Error())
-		return nil, ConvertToVSAError(fmt.Errorf("UpdateBackupPolicyInSDE failed: %v", err.Error()))
+		return nil, ConvertToVSAError(err)
 	}
 
 	rollbackManager.AddActivity(backupPolicyActivity.RevertBackupPolicyUpdateInSDE, params, dbBackupPolicy)

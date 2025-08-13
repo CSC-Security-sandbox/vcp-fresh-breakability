@@ -36,6 +36,7 @@ const (
 	ErrBase64DecodingError        = 1014
 	ErrResourceEmptyError         = 1015
 	ErrCSRGenerationError         = 1016
+	ErrWorkflowNotLaunched        = 1017
 
 	ErrDatabaseConnectionClosed  = 2001
 	ErrDatabaseTransactionError  = 2002

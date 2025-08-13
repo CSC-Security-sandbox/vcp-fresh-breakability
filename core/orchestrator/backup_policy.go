@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -85,20 +86,6 @@ func (o *Orchestrator) UpdateBackupPolicy(ctx context.Context, params *commonpar
 		return nil, "", err
 	}
 
-	job := &datamodel.Job{
-		Type:          string(models.JobTypeUpdateBackupPolicy),
-		State:         string(models.JobsStateNEW),
-		ResourceName:  params.Name,
-		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
-		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
-		RequestID:     utils.GetRequestIDFromContext(ctx),
-	}
-
-	createdJob, err := se.CreateJob(ctx, job)
-	if err != nil {
-		logger.Error("Failed to create job in database", "error", err)
-		return nil, "", err
-	}
 	dbBackupPolicy, err := se.GetBackupPolicyByUUIDAndOwnerID(ctx, params.BackupPolicyID, account.ID)
 	if err != nil {
 		return nil, "", err
@@ -112,15 +99,66 @@ func (o *Orchestrator) UpdateBackupPolicy(ctx context.Context, params *commonpar
 		return nil, "", err
 	}
 
+	var (
+		createdJob                                               *datamodel.Job
+		jobCreationErr, backupPolicyUpdateErr, workflowLaunchErr error
+	)
+	defer func() {
+		if workflowLaunchErr != nil {
+			// If workflowLaunchErr is not nil, the workflow launch attempt failed after updating the backup policy state,
+			// so we must revert the backup policy to its previous state.
+			updates := map[string]interface{}{
+				"life_cycle_state":         models.LifeCycleStateREADY,
+				"life_cycle_state_details": models.LifeCycleStateReadyDetails,
+			}
+			_, err2 := se.UpdateBackupPolicy(ctx, dbBackupPolicy.UUID, updates)
+			if err2 != nil {
+				logger.Errorf("Failed to rollback backup policy in database: %v", err2)
+			}
+
+			// Update the job state to ERROR
+			err2 = se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), vsaerrors.ErrWorkflowNotLaunched, workflowLaunchErr.Error())
+			if err2 != nil {
+				logger.Errorf("Failed to update job state to ERROR in database: %v", err2)
+			}
+		}
+
+		if backupPolicyUpdateErr != nil {
+			// If backupPolicyUpdateErr is not nil, the update to the backup policy failed after creating the job,
+			// so we must update the job state to ERROR.
+			err2 := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), vsaerrors.ErrWorkflowNotLaunched, backupPolicyUpdateErr.Error())
+			if err2 != nil {
+				logger.Errorf("Failed to update job state to ERROR in database: %v", err2)
+			}
+		}
+	}()
+
+	// Create a job for backup policy update
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeUpdateBackupPolicy),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  params.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+	createdJob, jobCreationErr = se.CreateJob(ctx, job)
+	if jobCreationErr != nil {
+		logger.Errorf("Failed to create job in database: %v", jobCreationErr)
+		return nil, "", jobCreationErr
+	}
+
 	updates := map[string]interface{}{
 		"life_cycle_state":         models.LifeCycleStateUpdating,
 		"life_cycle_state_details": models.LifeCycleStateUpdatingDetails,
 	}
-	updatingBackupPolicy, err := se.UpdateBackupPolicy(ctx, dbBackupPolicy.UUID, updates)
-	if err != nil {
-		return nil, "", err
+	updatingBackupPolicy, backupPolicyUpdateErr := se.UpdateBackupPolicy(ctx, dbBackupPolicy.UUID, updates)
+	if backupPolicyUpdateErr != nil {
+		logger.Errorf("Failed to update backup policy in database: %v", backupPolicyUpdateErr)
+		return nil, "", backupPolicyUpdateErr
 	}
-	_, err = o.temporal.ExecuteWorkflow(ctx,
+
+	_, workflowLaunchErr = o.temporal.ExecuteWorkflow(ctx,
 		client.StartWorkflowOptions{
 			TaskQueue:             workflowengine.CustomerTaskQueue,
 			ID:                    createdJob.WorkflowID,
@@ -130,9 +168,9 @@ func (o *Orchestrator) UpdateBackupPolicy(ctx context.Context, params *commonpar
 		params,
 		dbBackupPolicy,
 	)
-	if err != nil {
-		logger.Error("Failed to start backup policy update workflow: ", "error", err)
-		return nil, "", err
+	if workflowLaunchErr != nil {
+		logger.Errorf("Failed to launch workflow for backup policy update: %v", workflowLaunchErr)
+		return nil, "", workflowLaunchErr
 	}
 	return convertDatastoreBackupPolicyToModel(updatingBackupPolicy), createdJob.UUID, nil
 }

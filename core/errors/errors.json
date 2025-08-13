@@ -83,6 +83,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "1017": {
+    "description": "Could not launch Temporal Workflow from the Orchestrator Layer",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
   "2001": {
     "description": "Database Connection Closed",
     "message": "An internal error occurred.",

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -16,6 +17,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
 )
@@ -254,6 +256,306 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 	s.env.AssertActivityCalled(s.T(), "RevertBackupPolicyUpdateInVCP", mock.Anything, mock.Anything)
+}
+
+func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEBadRequestError() {
+	mockStorage := database.NewMockStorage(s.T())
+	mockScheduler := scheduler.NewMockScheduler(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
+	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
+	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
+		nil, backup_policy.NewV1betaUpdateBackupPolicyBadRequest())
+	s.env.OnActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP, mock.Anything, mock.Anything).Return(&datamodel.BackupPolicy{}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	params := &common.UpdateBackupPolicyParams{
+		Name:               "backup-policy-1",
+		AccountName:        "account-1",
+		BackupPolicyID:     "backup-policy-uuid-1",
+		LocationID:         "us-west1",
+		Description:        nillable.ToPointer("backup policy description"),
+		PolicyEnabled:      nillable.ToPointer(true),
+		DailyBackupLimit:   nillable.ToPointer(int64(3)),
+		WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+		MonthlyBackupLimit: nillable.ToPointer(int64(3)),
+	}
+	dbBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			ID:   int64(1),
+			UUID: "backup-policy-uuid-1",
+		},
+		Name: "backup-policy-1",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "account-1",
+		},
+		AccountID:             int64(1),
+		Description:           nil,
+		DailyBackupsToKeep:    2,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  2,
+		PolicyEnabled:         false,
+		LifeCycleState:        models.LifeCycleStateUpdating,
+		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+	}
+
+	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+
+	var applicationError *temporal.ApplicationError
+	assert.ErrorAs(s.T(), s.env.GetWorkflowError(), &applicationError)
+
+	s.env.AssertActivityCalled(s.T(), "RevertBackupPolicyUpdateInVCP", mock.Anything, mock.Anything)
+	s.env.AssertActivityNumberOfCalls(s.T(), "UpdateBackupPolicyInSDE", 1)
+}
+
+func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEUnauthorizedError() {
+	mockStorage := database.NewMockStorage(s.T())
+	mockScheduler := scheduler.NewMockScheduler(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
+	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
+	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
+		nil, backup_policy.NewV1betaUpdateBackupPolicyUnauthorized())
+	s.env.OnActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP, mock.Anything, mock.Anything).Return(&datamodel.BackupPolicy{}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	params := &common.UpdateBackupPolicyParams{
+		Name:               "backup-policy-1",
+		AccountName:        "account-1",
+		BackupPolicyID:     "backup-policy-uuid-1",
+		LocationID:         "us-west1",
+		Description:        nillable.ToPointer("backup policy description"),
+		PolicyEnabled:      nillable.ToPointer(true),
+		DailyBackupLimit:   nillable.ToPointer(int64(3)),
+		WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+		MonthlyBackupLimit: nillable.ToPointer(int64(3)),
+	}
+	dbBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			ID:   int64(1),
+			UUID: "backup-policy-uuid-1",
+		},
+		Name: "backup-policy-1",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "account-1",
+		},
+		AccountID:             int64(1),
+		Description:           nil,
+		DailyBackupsToKeep:    2,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  2,
+		PolicyEnabled:         false,
+		LifeCycleState:        models.LifeCycleStateUpdating,
+		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+	}
+
+	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+
+	var applicationError *temporal.ApplicationError
+	assert.ErrorAs(s.T(), s.env.GetWorkflowError(), &applicationError)
+
+	s.env.AssertActivityCalled(s.T(), "RevertBackupPolicyUpdateInVCP", mock.Anything, mock.Anything)
+	s.env.AssertActivityNumberOfCalls(s.T(), "UpdateBackupPolicyInSDE", 1)
+}
+
+func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEForbiddenError() {
+	mockStorage := database.NewMockStorage(s.T())
+	mockScheduler := scheduler.NewMockScheduler(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
+	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
+	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
+		nil, backup_policy.NewV1betaUpdateBackupPolicyForbidden())
+	s.env.OnActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP, mock.Anything, mock.Anything).Return(&datamodel.BackupPolicy{}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	params := &common.UpdateBackupPolicyParams{
+		Name:               "backup-policy-1",
+		AccountName:        "account-1",
+		BackupPolicyID:     "backup-policy-uuid-1",
+		LocationID:         "us-west1",
+		Description:        nillable.ToPointer("backup policy description"),
+		PolicyEnabled:      nillable.ToPointer(true),
+		DailyBackupLimit:   nillable.ToPointer(int64(3)),
+		WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+		MonthlyBackupLimit: nillable.ToPointer(int64(3)),
+	}
+	dbBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			ID:   int64(1),
+			UUID: "backup-policy-uuid-1",
+		},
+		Name: "backup-policy-1",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "account-1",
+		},
+		AccountID:             int64(1),
+		Description:           nil,
+		DailyBackupsToKeep:    2,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  2,
+		PolicyEnabled:         false,
+		LifeCycleState:        models.LifeCycleStateUpdating,
+		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+	}
+
+	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+
+	var applicationError *temporal.ApplicationError
+	assert.ErrorAs(s.T(), s.env.GetWorkflowError(), &applicationError)
+
+	s.env.AssertActivityCalled(s.T(), "RevertBackupPolicyUpdateInVCP", mock.Anything, mock.Anything)
+	s.env.AssertActivityNumberOfCalls(s.T(), "UpdateBackupPolicyInSDE", 1)
+}
+
+func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDENotFoundError() {
+	mockStorage := database.NewMockStorage(s.T())
+	mockScheduler := scheduler.NewMockScheduler(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
+	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
+	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
+		nil, backup_policy.NewV1betaUpdateBackupPolicyNotFound())
+	s.env.OnActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP, mock.Anything, mock.Anything).Return(&datamodel.BackupPolicy{}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	params := &common.UpdateBackupPolicyParams{
+		Name:               "backup-policy-1",
+		AccountName:        "account-1",
+		BackupPolicyID:     "backup-policy-uuid-1",
+		LocationID:         "us-west1",
+		Description:        nillable.ToPointer("backup policy description"),
+		PolicyEnabled:      nillable.ToPointer(true),
+		DailyBackupLimit:   nillable.ToPointer(int64(3)),
+		WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+		MonthlyBackupLimit: nillable.ToPointer(int64(3)),
+	}
+	dbBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			ID:   int64(1),
+			UUID: "backup-policy-uuid-1",
+		},
+		Name: "backup-policy-1",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "account-1",
+		},
+		AccountID:             int64(1),
+		Description:           nil,
+		DailyBackupsToKeep:    2,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  2,
+		PolicyEnabled:         false,
+		LifeCycleState:        models.LifeCycleStateUpdating,
+		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+	}
+
+	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+
+	var applicationError *temporal.ApplicationError
+	assert.ErrorAs(s.T(), s.env.GetWorkflowError(), &applicationError)
+
+	s.env.AssertActivityCalled(s.T(), "RevertBackupPolicyUpdateInVCP", mock.Anything, mock.Anything)
+	s.env.AssertActivityNumberOfCalls(s.T(), "UpdateBackupPolicyInSDE", 1)
+}
+
+func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEInternalServerError() {
+	mockStorage := database.NewMockStorage(s.T())
+	mockScheduler := scheduler.NewMockScheduler(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: mockScheduler}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(backupPolicyActivity.UpdateBackupPolicyInSDE)
+	s.env.RegisterActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("mock-jwt-token", nil)
+	s.env.OnActivity(backupPolicyActivity.UpdateBackupPolicyInSDE, mock.Anything, mock.Anything).Return(
+		nil, backup_policy.NewV1betaUpdateBackupPolicyInternalServerError())
+	s.env.OnActivity(backupPolicyActivity.RevertBackupPolicyUpdateInVCP, mock.Anything, mock.Anything).Return(&datamodel.BackupPolicy{}, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	params := &common.UpdateBackupPolicyParams{
+		Name:               "backup-policy-1",
+		AccountName:        "account-1",
+		BackupPolicyID:     "backup-policy-uuid-1",
+		LocationID:         "us-west1",
+		Description:        nillable.ToPointer("backup policy description"),
+		PolicyEnabled:      nillable.ToPointer(true),
+		DailyBackupLimit:   nillable.ToPointer(int64(3)),
+		WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+		MonthlyBackupLimit: nillable.ToPointer(int64(3)),
+	}
+	dbBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			ID:   int64(1),
+			UUID: "backup-policy-uuid-1",
+		},
+		Name: "backup-policy-1",
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "account-1",
+		},
+		AccountID:             int64(1),
+		Description:           nil,
+		DailyBackupsToKeep:    2,
+		WeeklyBackupsToKeep:   2,
+		MonthlyBackupsToKeep:  2,
+		PolicyEnabled:         false,
+		LifeCycleState:        models.LifeCycleStateUpdating,
+		LifeCycleStateDetails: models.LifeCycleStateUpdatingDetails,
+	}
+
+	s.env.ExecuteWorkflow(UpdateBackupPolicyWorkflow, params, dbBackupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+
+	var applicationError *temporal.ApplicationError
+	assert.ErrorAs(s.T(), s.env.GetWorkflowError(), &applicationError)
+
+	s.env.AssertActivityCalled(s.T(), "RevertBackupPolicyUpdateInVCP", mock.Anything, mock.Anything)
+	s.env.AssertActivityNumberOfCalls(s.T(), "UpdateBackupPolicyInSDE", 1)
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UnpauseBackupPolicyScheduleFailure() {
