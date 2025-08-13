@@ -5,7 +5,6 @@ import (
 	digitalCert "crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"strconv"
 	"strings"
 	"testing"
@@ -20,6 +19,7 @@ import (
 	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
 	vmrs_decision "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/decision"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -5664,26 +5664,86 @@ func TestAllocateSVMName(t *testing.T) {
 }
 
 func Test_AllocateClusterSerialNumber(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
+	t.Run("SuccessOneHAPair", func(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.PoolActivity{SE: mockStorage}
-		serialNumber := "935010000000000001"
-
-		cfg := &vlm.VLMConfig{
-			Deployment: vlm.DeploymentConfig{
-				NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
-				GCPConfig: vlm.GCPConfig{},
+		serialNumber1 := "935010000000000001"
+		serialNumber2 := "935010000000000002"
+		serials := []string{serialNumber1, serialNumber2}
+		req := &vlm.CreateVSAClusterDeploymentRequest{
+			VLMConfig: vlm.VLMConfig{
+				Deployment: vlm.DeploymentConfig{
+					NumHAPair: 1,
+					NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+					GCPConfig: vlm.GCPConfig{},
+				},
 			},
 		}
 		oldRegionNumber := activities.RegionNumber
 		activities.RegionNumber = "34"
 		defer func() { activities.RegionNumber = oldRegionNumber }()
 
-		mockStorage.On("GetNextSerialNumberInRegion", ctx, "93534").Return(serialNumber, nil)
-		vlmConfig, err := activity.AllocateClusterSerialNumber(ctx, cfg)
+		mockStorage.On("GetNextSerialNumberInRegion", ctx, "93534").Return(serialNumber1, nil).Once()
+		mockStorage.On("GetNextSerialNumberInRegion", ctx, "93534").Return(serialNumber2, nil).Once()
+		result, err := activity.AllocateClusterSerialNumber(ctx, req)
 		assert.NoError(t, err)
-		assert.Equal(t, serialNumber, vlmConfig.Deployment.SerialNumberPrefix)
+		assert.Equal(t, "", result.VLMConfig.Deployment.SerialNumberPrefix)
+		assert.Equal(t, serials, result.VLMConfig.Deployment.VMSerialNumbers)
+	})
+	t.Run("SuccessMultiHAPair", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+		serialNumber1 := "935010000000000001"
+		serialNumber2 := "935010000000000002"
+		serialNumber3 := "935010000000000003"
+		serialNumber4 := "935010000000000004"
+		serials := []string{serialNumber1, serialNumber2, serialNumber3, serialNumber4}
+		req := &vlm.CreateVSAClusterDeploymentRequest{
+			VLMConfig: vlm.VLMConfig{
+				Deployment: vlm.DeploymentConfig{
+					NumHAPair: 2,
+					NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+					GCPConfig: vlm.GCPConfig{},
+				},
+			},
+		}
+		oldRegionNumber := activities.RegionNumber
+		activities.RegionNumber = "34"
+		defer func() { activities.RegionNumber = oldRegionNumber }()
+
+		mockStorage.On("GetNextSerialNumberInRegion", ctx, "93534").Return(serialNumber1, nil).Once()
+		mockStorage.On("GetNextSerialNumberInRegion", ctx, "93534").Return(serialNumber2, nil).Once()
+		mockStorage.On("GetNextSerialNumberInRegion", ctx, "93534").Return(serialNumber3, nil).Once()
+		mockStorage.On("GetNextSerialNumberInRegion", ctx, "93534").Return(serialNumber4, nil).Once()
+		result, err := activity.AllocateClusterSerialNumber(ctx, req)
+		assert.NoError(t, err)
+		assert.Equal(t, "", result.VLMConfig.Deployment.SerialNumberPrefix)
+		assert.Equal(t, serials, result.VLMConfig.Deployment.VMSerialNumbers)
+	})
+	t.Run("FailureOnHAPairBeingZero", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.PoolActivity{SE: mockStorage}
+
+		req := &vlm.CreateVSAClusterDeploymentRequest{
+			VLMConfig: vlm.VLMConfig{
+				Deployment: vlm.DeploymentConfig{
+					NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+					GCPConfig: vlm.GCPConfig{},
+				},
+			},
+		}
+
+		oldRegionNumber := activities.RegionNumber
+		activities.RegionNumber = "34"
+		defer func() { activities.RegionNumber = oldRegionNumber }()
+
+		result, err := activity.AllocateClusterSerialNumber(ctx, req)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "HA pairs count must be at least 1")
 	})
 
 	t.Run("FailureOnRegionNotAvailable", func(t *testing.T) {
@@ -5691,10 +5751,12 @@ func Test_AllocateClusterSerialNumber(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.PoolActivity{SE: mockStorage}
 
-		cfg := &vlm.VLMConfig{
-			Deployment: vlm.DeploymentConfig{
-				NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
-				GCPConfig: vlm.GCPConfig{},
+		req := &vlm.CreateVSAClusterDeploymentRequest{
+			VLMConfig: vlm.VLMConfig{
+				Deployment: vlm.DeploymentConfig{
+					NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+					GCPConfig: vlm.GCPConfig{},
+				},
 			},
 		}
 
@@ -5702,19 +5764,22 @@ func Test_AllocateClusterSerialNumber(t *testing.T) {
 		activities.RegionNumber = ""
 		defer func() { activities.RegionNumber = oldRegionNumber }()
 
-		vlmConfig, err := activity.AllocateClusterSerialNumber(ctx, cfg)
+		result, err := activity.AllocateClusterSerialNumber(ctx, req)
 		assert.Error(t, err)
-		assert.Nil(t, vlmConfig)
+		assert.Nil(t, result)
 		assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "region number is not set")
 	})
 	t.Run("FailureOnGetNextSerialNumberInRegionError", func(t *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
 		mockStorage := database.NewMockStorage(t)
 		activity := activities.PoolActivity{SE: mockStorage}
-		cfg := &vlm.VLMConfig{
-			Deployment: vlm.DeploymentConfig{
-				NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
-				GCPConfig: vlm.GCPConfig{},
+		req := &vlm.CreateVSAClusterDeploymentRequest{
+			VLMConfig: vlm.VLMConfig{
+				Deployment: vlm.DeploymentConfig{
+					NumHAPair: 1,
+					NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+					GCPConfig: vlm.GCPConfig{},
+				},
 			},
 		}
 
@@ -5723,9 +5788,9 @@ func Test_AllocateClusterSerialNumber(t *testing.T) {
 		defer func() { activities.RegionNumber = oldRegionNumber }()
 
 		mockStorage.On("GetNextSerialNumberInRegion", ctx, "93534").Return("", errors.New("error fetching serial number"))
-		vlmConfig, err := activity.AllocateClusterSerialNumber(ctx, cfg)
+		result, err := activity.AllocateClusterSerialNumber(ctx, req)
 		assert.Error(t, err)
-		assert.Nil(t, vlmConfig)
+		assert.Nil(t, result)
 		assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "error fetching serial number")
 	})
 }

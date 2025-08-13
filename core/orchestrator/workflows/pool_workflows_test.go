@@ -618,14 +618,17 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-	env.OnActivity("AllocateClusterSerialNumber", mock.Anything, mock.Anything).Return(&vlm.VLMConfig{
-		Deployment: vlm.DeploymentConfig{
-			SPConfig: vlm.SPConfig{
-				IOps:       1024,
-				Throughput: 64,
-				Size:       "1TiB",
+	env.OnActivity("AllocateClusterSerialNumber", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentRequest{
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				SPConfig: vlm.SPConfig{
+					IOps:       1024,
+					Throughput: 64,
+					Size:       "1TiB",
+				},
+				SerialNumberPrefix: "",
+				VMSerialNumbers:    []string{"93534000000000000001", "93534000000000000002"},
 			},
-			SerialNumberPrefix: "93500011111",
 		},
 	}, nil)
 	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)

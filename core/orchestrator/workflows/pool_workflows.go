@@ -317,20 +317,21 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	dbPool.PoolAttributes.SecondaryZone = resolvedLocationInfo.SecondaryZone
 	dbPool.PoolAttributes.MediatorZone = resolvedLocationInfo.MediatorZone
 
+	hostMap := make(map[string]string)
+
+	createVSAClusterDeploymentRequest := &vlm.CreateVSAClusterDeploymentRequest{}
+	prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest, *vlmConfig, *credConfig, dbPool, resolvedLocationInfo)
+
 	// Allocate unique serial numbers in production
 	// This is disabled by default (enableUniqueSerialNumberGeneration=false)
 	// Serial number will only be allocated if the project is not a prober project.
 	if enableUniqueSerialNumberGeneration && !isProberProject(params.AccountName) {
-		err = workflow.ExecuteActivity(ctx, poolActivity.AllocateClusterSerialNumber, vlmConfig, params.AccountName).Get(ctx, vlmConfig)
+		err = workflow.ExecuteActivity(ctx, poolActivity.AllocateClusterSerialNumber, createVSAClusterDeploymentRequest, params.AccountName).Get(ctx, createVSAClusterDeploymentRequest)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
 	}
 
-	hostMap := make(map[string]string)
-
-	createVSAClusterDeploymentRequest := &vlm.CreateVSAClusterDeploymentRequest{}
-	prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest, *vlmConfig, *credConfig, dbPool, resolvedLocationInfo)
 	createVSAClusterDeploymentResponse, err := vsaClientWorkflowManager.CreateVSAClusterDeployment(ctx, createVSAClusterDeploymentRequest)
 	if err != nil {
 		return nil, ConvertToVSAError(err)

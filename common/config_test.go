@@ -2,6 +2,7 @@ package common
 
 import (
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -27,10 +28,22 @@ func TestLoadConfig(t *testing.T) {
 			t.Errorf("expected config to be set")
 		}
 	})
-	t.Run("Failure", func(t *testing.T) {
-		config := LoadConfig()
-		if config != nil {
-			t.Errorf("expected config to be nil")
+	t.Run("FailureOnWrongRegion", func(t *testing.T) {
+		if os.Getenv("BE_CRASHER") == "1" {
+			_ = os.Setenv("LOCAL_REGION", "invalid-region")
+			_ = os.Setenv("REGION_NUMBER_MAP", `{"us-central1": "34"}`)
+			LoadConfig() // This will call os.Exit(1)
+			return
+		}
+
+		cmd := exec.Command(os.Args[0], "-test.run=TestLoadConfig/FailureOnWrongRegion")
+		cmd.Env = append(os.Environ(), "BE_CRASHER=1")
+		err := cmd.Run()
+
+		if exitError, ok := err.(*exec.ExitError); ok {
+			assert.Equal(t, 1, exitError.ExitCode())
+		} else {
+			t.Fatal("Expected exit code 1, but process didn't exit")
 		}
 	})
 }

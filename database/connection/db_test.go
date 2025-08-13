@@ -3,6 +3,7 @@ package connection_test
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -50,6 +51,16 @@ func TestGetDbConnection(t *testing.T) {
 	ctx := context.Background()
 	logger := log.NewLogger()
 
+	err := os.Setenv("LOCAL_REGION", "us-central1")
+	if err != nil {
+		return
+	}
+	defer func() {
+		err := os.Unsetenv("LOCAL_REGION")
+		if err != nil {
+			t.Errorf("Failed to unset region")
+		}
+	}()
 	origInitializeDatabase := conn.InitializeVcpDatabase
 	// Mock the InitializeDatabase function to return a mock database connection
 	conn.InitializeVcpDatabase = func(ctx context.Context, cfg *common.Config, logger log.Logger) (vcpdb.Storage, error) {
@@ -82,7 +93,16 @@ func TestGetDbConnection(t *testing.T) {
 func TestGetTelemetryDbConnection(t *testing.T) {
 	ctx := context.Background()
 	logger := log.NewLogger()
-
+	err := os.Setenv("LOCAL_REGION", "us-central1")
+	if err != nil {
+		return
+	}
+	defer func() {
+		err := os.Unsetenv("LOCAL_REGION")
+		if err != nil {
+			t.Errorf("Failed to unset region")
+		}
+	}()
 	origInitializeDatabase := conn.InitializeMetricsDatabase
 	defer func() { conn.InitializeMetricsDatabase = origInitializeDatabase }()
 

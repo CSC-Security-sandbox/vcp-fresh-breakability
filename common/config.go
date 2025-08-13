@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -130,7 +131,7 @@ func LoadConfig() *Config {
 
 	if err := validateRegionMap(region, regionMapJsonForNodeSerialNumber); err != nil {
 		slog.Error("Invalid Region: %v", err)
-		return nil
+		os.Exit(1)
 	}
 
 	return &Config{

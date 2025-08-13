@@ -433,12 +433,12 @@ func (d *DataStoreRepository) GetNextSerialNumberInRegion(ctx context.Context, p
 		return "", vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 
-	// Example, in case seq returns 1: 935010000000000001
-	// Example, in case seq returns 45555: 935010000000045555
+	// Example, in case seq returns 1: 93501000000000000001
+	// Example, in case seq returns 45555: 93501000000000045555
 	// 935: predefined prefix
 	// 01: region code, e.g., 01 for us-central1
-	// 00000000001: nextClusterSerialNumber padded to 13 digits
-	return fmt.Sprintf("%s%013d", prefix, nextClusterSerialNumber), nil
+	// 000000000000001: nextClusterSerialNumber padded to 15 digits
+	return fmt.Sprintf("%s%015d", prefix, nextClusterSerialNumber), nil
 }
 
 func (d *DataStoreRepository) ListSnHosts(ctx context.Context) ([]string, error) {
