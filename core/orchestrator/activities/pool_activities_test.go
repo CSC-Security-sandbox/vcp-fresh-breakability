@@ -484,6 +484,47 @@ func Test_prepareVlmConfig_Success(t *testing.T) {
 	assert.Equal(t, "1024Gi", cfg.Deployment.SPConfig.Size)
 }
 
+func Test_prepareVlmConfig_StripLssd(t *testing.T) {
+	// Set the environment variable to true
+	originalEnv := env.GetBool("VSA_INSTANCE_TYPE_OVERRIDE_LSSD", false)
+	// Restore the original value after the test
+	activities.VsaInstanceTypeOverride = true
+	defer func() { activities.VsaInstanceTypeOverride = originalEnv }()
+
+	cfg := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+			GCPConfig: vlm.GCPConfig{},
+		},
+	}
+	originalReadFile := activities.ReadFile
+	defer func() { activities.ReadFile = originalReadFile }()
+	activities.ReadFile = func(filename string) ([]byte, error) {
+		return []byte("{}"), nil
+	}
+
+	dsc := &vmrs.Decision{
+		ChosenVMs: []string{"c3-standard-16-lssd"},
+		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
+			DesiredIOPS:             1024,
+			DesiredThroughputInMiBs: 64,
+			DesiredCapacityInGiB:    1024,
+		},
+	}
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "test-tenant-project@xyz.com", "test-tenant-project")
+	assert.NoError(t, err)
+	assert.Equal(t, "test-deployment", cfg.Deployment.DeploymentID)
+	assert.Equal(t, "test-region", cfg.Deployment.Region)
+	assert.Equal(t, "test-zone1", cfg.Deployment.Zone.Zone1)
+	assert.Equal(t, "test-zone2", cfg.Deployment.Zone.Zone2)
+	assert.Equal(t, "test-network", cfg.Deployment.NetConfig[vlm.LIFTypeInterCluster].VPC)
+	assert.Equal(t, "test-sn-host-project", cfg.Deployment.NetConfig[vlm.LIFTypeInterCluster].GCPNetworkConfig.SubnetProjectID)
+	assert.Equal(t, int64(64), cfg.Deployment.SPConfig.Throughput)
+	assert.Equal(t, int64(1024), cfg.Deployment.SPConfig.IOps)
+	assert.Equal(t, "1024Gi", cfg.Deployment.SPConfig.Size)
+	assert.Equal(t, "c3-standard-16", cfg.Deployment.VSAInstanceType, "Expected '-lssd' to be stripped from the instance type")
+}
+
 func Test_prepareVlmConfig_FileNotFound(t *testing.T) {
 	cfg := &vlm.VLMConfig{}
 	dsc := &vmrs.Decision{

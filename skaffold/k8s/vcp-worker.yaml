@@ -185,6 +185,8 @@ spec:
               value: "gcnv-autopush-images"
             - name: VSA_MEDIATOR_IMAGE_PROJECT
               value: "gcnv-autopush-images"
+            - name: VSA_INSTANCE_TYPE_OVERRIDE_LSSD
+              value: "false"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

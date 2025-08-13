@@ -76,9 +76,10 @@ var (
 
 	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
 	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
-	enforceMinSPConfig   = env.GetBool("ENFORCE_MIN_SP_CONFIG", false)
-	vsaImageProject      = env.GetString("VSA_IMAGE_PROJECT", "")
-	mediatorImageProject = env.GetString("VSA_MEDIATOR_IMAGE_PROJECT", "")
+	enforceMinSPConfig      = env.GetBool("ENFORCE_MIN_SP_CONFIG", false)
+	vsaImageProject         = env.GetString("VSA_IMAGE_PROJECT", "")
+	mediatorImageProject    = env.GetString("VSA_MEDIATOR_IMAGE_PROJECT", "")
+	VsaInstanceTypeOverride = env.GetBool("VSA_INSTANCE_TYPE_OVERRIDE_LSSD", false)
 )
 
 type PoolActivity struct {
@@ -947,6 +948,9 @@ func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZo
 
 	vlmConfig.Deployment.SPConfig.Size = fmt.Sprintf("%dGi", decision.StoragePoolRequirements.DesiredCapacityInGiB)
 	vlmConfig.Deployment.VSAInstanceType = decision.ChosenVMs[0] // VLM currently only supports a single VM type for VSA clusters (homogeneous clusters).
+	if VsaInstanceTypeOverride {
+		vlmConfig.Deployment.VSAInstanceType = strings.TrimSuffix(decision.ChosenVMs[0], "-lssd") // Remove the "-lssd" suffix if it exists, as the region does not support SSDs.
+	}
 
 	vlmConfig.Deployment.DeploymentID = deploymentID
 	vlmConfig.Deployment.Zone.Zone1 = primaryZone
