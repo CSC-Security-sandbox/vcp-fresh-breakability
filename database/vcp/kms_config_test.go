@@ -594,7 +594,7 @@ func TestGetKmsConfigByKeyFullPath(t *testing.T) {
 		assert.NoError(t, err)
 
 		keyFullPath := "projects/project1/locations/us-central1/keyRings/ring1/cryptoKeys/key1"
-		result, err := store.GetKmsConfigByKeyFullPath(context.Background(), keyFullPath)
+		result, err := store.GetKmsConfigByKeyFullPath(context.Background(), keyFullPath, account.ID)
 		assert.NoError(t, err)
 		assert.Equal(t, kmsConfig.UUID, result.UUID)
 		assert.Equal(t, kmsConfig.Name, result.Name)
@@ -610,7 +610,7 @@ func TestGetKmsConfigByKeyFullPath(t *testing.T) {
 		assert.NoError(t, err)
 
 		invalidKeyFullPath := "invalid/key/full/path"
-		result, err := store.GetKmsConfigByKeyFullPath(context.Background(), invalidKeyFullPath)
+		result, err := store.GetKmsConfigByKeyFullPath(context.Background(), invalidKeyFullPath, 1)
 		assert.Error(t, err)
 		assert.Nil(t, result)
 	})
@@ -623,7 +623,7 @@ func TestGetKmsConfigByKeyFullPath(t *testing.T) {
 		assert.NoError(t, err)
 
 		keyFullPath := "projects/project1/locations/us-central1/keyRings/ring1/cryptoKeys/key1"
-		result, err := store.GetKmsConfigByKeyFullPath(context.Background(), keyFullPath)
+		result, err := store.GetKmsConfigByKeyFullPath(context.Background(), keyFullPath, 1)
 		assert.Error(t, err)
 		assert.Nil(t, result)
 	})

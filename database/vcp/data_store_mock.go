@@ -4276,9 +4276,9 @@ func (_c *MockDataStore_GetKmsConfig_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
-// GetKmsConfigByKeyFullPath provides a mock function with given fields: ctx, keyFullPath
-func (_m *MockDataStore) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string) (*datamodel.KmsConfig, error) {
-	ret := _m.Called(ctx, keyFullPath)
+// GetKmsConfigByKeyFullPath provides a mock function with given fields: ctx, keyFullPath, accountID
+func (_m *MockDataStore) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string, accountID int64) (*datamodel.KmsConfig, error) {
+	ret := _m.Called(ctx, keyFullPath, accountID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetKmsConfigByKeyFullPath")
@@ -4286,19 +4286,19 @@ func (_m *MockDataStore) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullP
 
 	var r0 *datamodel.KmsConfig
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.KmsConfig, error)); ok {
-		return rf(ctx, keyFullPath)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*datamodel.KmsConfig, error)); ok {
+		return rf(ctx, keyFullPath, accountID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.KmsConfig); ok {
-		r0 = rf(ctx, keyFullPath)
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *datamodel.KmsConfig); ok {
+		r0 = rf(ctx, keyFullPath, accountID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.KmsConfig)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, keyFullPath)
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, keyFullPath, accountID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4314,13 +4314,14 @@ type MockDataStore_GetKmsConfigByKeyFullPath_Call struct {
 // GetKmsConfigByKeyFullPath is a helper method to define mock.On call
 //   - ctx context.Context
 //   - keyFullPath string
-func (_e *MockDataStore_Expecter) GetKmsConfigByKeyFullPath(ctx interface{}, keyFullPath interface{}) *MockDataStore_GetKmsConfigByKeyFullPath_Call {
-	return &MockDataStore_GetKmsConfigByKeyFullPath_Call{Call: _e.mock.On("GetKmsConfigByKeyFullPath", ctx, keyFullPath)}
+//   - accountID int64
+func (_e *MockDataStore_Expecter) GetKmsConfigByKeyFullPath(ctx interface{}, keyFullPath interface{}, accountID interface{}) *MockDataStore_GetKmsConfigByKeyFullPath_Call {
+	return &MockDataStore_GetKmsConfigByKeyFullPath_Call{Call: _e.mock.On("GetKmsConfigByKeyFullPath", ctx, keyFullPath, accountID)}
 }
 
-func (_c *MockDataStore_GetKmsConfigByKeyFullPath_Call) Run(run func(ctx context.Context, keyFullPath string)) *MockDataStore_GetKmsConfigByKeyFullPath_Call {
+func (_c *MockDataStore_GetKmsConfigByKeyFullPath_Call) Run(run func(ctx context.Context, keyFullPath string, accountID int64)) *MockDataStore_GetKmsConfigByKeyFullPath_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
 	})
 	return _c
 }
@@ -4330,7 +4331,7 @@ func (_c *MockDataStore_GetKmsConfigByKeyFullPath_Call) Return(_a0 *datamodel.Km
 	return _c
 }
 
-func (_c *MockDataStore_GetKmsConfigByKeyFullPath_Call) RunAndReturn(run func(context.Context, string) (*datamodel.KmsConfig, error)) *MockDataStore_GetKmsConfigByKeyFullPath_Call {
+func (_c *MockDataStore_GetKmsConfigByKeyFullPath_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.KmsConfig, error)) *MockDataStore_GetKmsConfigByKeyFullPath_Call {
 	_c.Call.Return(run)
 	return _c
 }

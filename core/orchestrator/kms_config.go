@@ -490,11 +490,11 @@ func (o *Orchestrator) GetKmsConfigByKeyFullPath(ctx context.Context, params *co
 }
 
 func _getKmsConfigByKeyFullPath(ctx context.Context, se database.Storage, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
-	_, err := getOrCreateAccount(ctx, se, params.AccountName)
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
 	if err != nil {
 		return nil, err
 	}
-	dbKmsConfig, err := se.GetKmsConfigByKeyFullPath(ctx, params.KeyFullPath)
+	dbKmsConfig, err := se.GetKmsConfigByKeyFullPath(ctx, params.KeyFullPath, account.ID)
 	if err != nil {
 		return nil, err
 	}

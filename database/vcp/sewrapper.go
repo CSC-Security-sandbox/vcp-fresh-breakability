@@ -2149,11 +2149,11 @@ func (re *retryEngine) UpdateKmsConfigDetails(ctx context.Context, uuid string, 
 	return var0, err
 }
 
-func (re *retryEngine) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string) (*datamodel.KmsConfig, error) {
+func (re *retryEngine) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string, accountID int64) (*datamodel.KmsConfig, error) {
 	var var0 *datamodel.KmsConfig
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetKmsConfigByKeyFullPath(ctx, keyFullPath)
+		var0, err = re.dataStore.GetKmsConfigByKeyFullPath(ctx, keyFullPath, accountID)
 		if err != nil {
 			re.logError("GetKmsConfigByKeyFullPath", err)
 			if !dbutils.IsTransientErr(err) {

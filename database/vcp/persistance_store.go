@@ -772,8 +772,8 @@ func (s *PersistenceStore) UpdateKmsConfigDetails(ctx context.Context, uuid stri
 	return s.dataStore.UpdateKmsConfigDetails(ctx, uuid, keyFullPath, resourceID)
 }
 
-func (s *PersistenceStore) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string) (*datamodel.KmsConfig, error) {
-	return s.dataStore.GetKmsConfigByKeyFullPath(ctx, keyFullPath)
+func (s *PersistenceStore) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string, accountID int64) (*datamodel.KmsConfig, error) {
+	return s.dataStore.GetKmsConfigByKeyFullPath(ctx, keyFullPath, accountID)
 }
 
 func (s *PersistenceStore) CreateKmsServiceAccount(ctx context.Context, serviceAccount *datamodel.ServiceAccount) (*datamodel.ServiceAccount, error) {

@@ -243,7 +243,7 @@ func _updateKmsConfigDetails(db *gorm.DB, uuid string, keyFullPath string, resou
 }
 
 // GetKmsConfigByKeyFullPath retrieves a KMS configuration by its full key path
-func (d *DataStoreRepository) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string) (*datamodel.KmsConfig, error) {
+func (d *DataStoreRepository) GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string, accountID int64) (*datamodel.KmsConfig, error) {
 	parsedKeyFullPath, err := utils.ParseKeyFullPathResource(keyFullPath)
 	if err != nil {
 		return nil, err
@@ -254,6 +254,7 @@ func (d *DataStoreRepository) GetKmsConfigByKeyFullPath(ctx context.Context, key
 		KeyRing:         parsedKeyFullPath.KeyRing,
 		KeyName:         parsedKeyFullPath.CryptoKey,
 		KeyProjectID:    parsedKeyFullPath.ProjectID,
+		AccountID:       accountID,
 	}).Error
 	if err != nil {
 		return nil, errors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "KMS Configuration", nil)

@@ -469,7 +469,7 @@ func TestUpdateKmsConfig(t *testing.T) {
 		updateSDEKmsConfiguration = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpserver.V1betaUpdateKmsConfigurationRes, error) {
 			// Verify that the kmsConfig passed has the correct SdeKmsConfigUUID
 			assert.Equal(tt, "sde-only-kms-config-id", kmsConfig.KmsAttributes.SdeKmsConfigUUID)
-			
+
 			// Return a comprehensive KmsConfigV1beta response using KeyFullPath
 			kmsConfigResponse := &gcpserver.KmsConfigV1beta{
 				UUID:            gcpserver.NewOptString("sde-only-kms-config-id"),
@@ -1289,7 +1289,7 @@ func TestGetKmsConfigByKeyFullPath(t *testing.T) {
 			return expectedAccount, nil
 		}
 		defer func() { getOrCreateAccount = _getOrCreateAccount }()
-		mockStorage.On("GetKmsConfigByKeyFullPath", ctx, params.KeyFullPath).Return(expectedKmsConfig, nil)
+		mockStorage.On("GetKmsConfigByKeyFullPath", ctx, params.KeyFullPath, int64(1)).Return(expectedKmsConfig, nil)
 
 		result, err := _getKmsConfigByKeyFullPath(ctx, mockStorage, params)
 		assert.NoError(t, err)
@@ -1318,7 +1318,7 @@ func TestGetKmsConfigByKeyFullPath(t *testing.T) {
 			return &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}}, nil
 		}
 		defer func() { getOrCreateAccount = _getOrCreateAccount }()
-		mockStorage.On("GetKmsConfigByKeyFullPath", ctx, params.KeyFullPath).Return(nil, errors.New("db error"))
+		mockStorage.On("GetKmsConfigByKeyFullPath", ctx, params.KeyFullPath, int64(1)).Return(nil, errors.New("db error"))
 
 		result, err := _getKmsConfigByKeyFullPath(ctx, mockStorage, params)
 		assert.Error(t, err)

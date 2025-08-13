@@ -248,6 +248,7 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 	}
 
 	getKmsConfigParams := &common.GetKmsConfigParams{
+		AccountName: params.ProjectNumber,
 		KeyFullPath: req.KeyFullPath,
 	}
 	kmsConfig, err := h.Orchestrator.GetKmsConfigByKeyFullPath(ctx, getKmsConfigParams)

@@ -274,7 +274,11 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
-		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("KMS configuration not found", nil))
+		getKmsConfigParams := &common.GetKmsConfigParams{
+			AccountName: params.ProjectNumber,
+			KeyFullPath: req.KeyFullPath,
+		}
+		mockOrchestrator.EXPECT().GetKmsConfigByKeyFullPath(mock.Anything, getKmsConfigParams).Return(nil, errors.NewNotFoundErr("KMS configuration not found", nil))
 		operationID := fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, "operation-id")
 		mockOrchestrator.EXPECT().CreateKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, "operation-id", nil)
 		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)

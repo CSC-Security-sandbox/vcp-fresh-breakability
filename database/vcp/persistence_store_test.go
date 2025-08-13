@@ -759,6 +759,25 @@ func TestGetKms_Persistence_Store(t *testing.T) {
 	assert.NotNil(t, found)
 }
 
+func TestGetKmsConfigByKeyFullPath_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	kms := datamodel.KmsConfig{
+		BaseModel:       datamodel.BaseModel{UUID: "kms-uuid"},
+		Account:         &datamodel.Account{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		KeyProjectID:    "project-id",
+		KeyRingLocation: "us-central1",
+		KeyRing:         "key-ring",
+		KeyName:         "key-name",
+	}
+	store.DB().Create(&kms)
+	found, err := store.GetKmsConfigByKeyFullPath(ctx, "projects/project-id/locations/us-central1/keyRings/key-ring/cryptoKeys/key-name", int64(1))
+	assert.NoError(t, err)
+	assert.NotNil(t, found)
+}
+
 func TestUpdateKmsConfig_Persistence_Store(t *testing.T) {
 	logger := log.NewLogger()
 	store, _ := SetupStorageForTest(logger)

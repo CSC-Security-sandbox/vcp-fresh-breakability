@@ -154,7 +154,7 @@ type (
 		UpdateKmsConfigAttributes(ctx context.Context, uuid string, attributes *datamodel.KmsAttributes) (*datamodel.KmsConfig, error)
 		GetJobByResourceUUID(ctx context.Context, resourceUUID string) (*datamodel.Job, error)
 		UpdateKmsConfigDetails(ctx context.Context, uuid string, fullKeyPath string, resourceID string) (*datamodel.KmsConfig, error)
-		GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string) (*datamodel.KmsConfig, error)
+		GetKmsConfigByKeyFullPath(ctx context.Context, keyFullPath string, accountID int64) (*datamodel.KmsConfig, error)
 		UpdateKmsConfig(ctx context.Context, kmsUUID string, updates map[string]interface{}) error
 		IsKmsConfigInUse(ctx context.Context, kmsConfigUUID string) (bool, error)
 
