@@ -83,6 +83,7 @@ type Provider interface {
 	SnapmirrorRelationshipDelete(UUID string) (*OntapAsyncResponse, error)
 	SnapmirrorObjectStoreEndpointDelete(objectStoreUUID, EndpointUUID string) (*OntapAsyncResponse, error)
 	SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID, EndpointUUID, snapshotUUID string) (*OntapAsyncResponse, error)
+	SnapmirrorObjectStoreSnapshotGet(objectStoreUUID, EndpointUUID, snapshotUUID string) (*SmObjectStoreEndpointSnapshot, error)
 	CreateSnapshotPolicy(sp *SnapshotPolicy) error
 	DeleteSnapshotPolicy(snapshotPolicyName string) error
 	CreateKmsConfig(params CreateKmsConfigParams) (*CreateKmsConfigResponse, error)

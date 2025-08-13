@@ -3556,6 +3556,66 @@ func (_c *MockProvider_SnapmirrorObjectStoreSnapshotDelete_Call) RunAndReturn(ru
 	return _c
 }
 
+// SnapmirrorObjectStoreSnapshotGet provides a mock function with given fields: objectStoreUUID, EndpointUUID, snapshotUUID
+func (_m *MockProvider) SnapmirrorObjectStoreSnapshotGet(objectStoreUUID string, EndpointUUID string, snapshotUUID string) (*SmObjectStoreEndpointSnapshot, error) {
+	ret := _m.Called(objectStoreUUID, EndpointUUID, snapshotUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SnapmirrorObjectStoreSnapshotGet")
+	}
+
+	var r0 *SmObjectStoreEndpointSnapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, string) (*SmObjectStoreEndpointSnapshot, error)); ok {
+		return rf(objectStoreUUID, EndpointUUID, snapshotUUID)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string) *SmObjectStoreEndpointSnapshot); ok {
+		r0 = rf(objectStoreUUID, EndpointUUID, snapshotUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*SmObjectStoreEndpointSnapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = rf(objectStoreUUID, EndpointUUID, snapshotUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_SnapmirrorObjectStoreSnapshotGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SnapmirrorObjectStoreSnapshotGet'
+type MockProvider_SnapmirrorObjectStoreSnapshotGet_Call struct {
+	*mock.Call
+}
+
+// SnapmirrorObjectStoreSnapshotGet is a helper method to define mock.On call
+//   - objectStoreUUID string
+//   - EndpointUUID string
+//   - snapshotUUID string
+func (_e *MockProvider_Expecter) SnapmirrorObjectStoreSnapshotGet(objectStoreUUID interface{}, EndpointUUID interface{}, snapshotUUID interface{}) *MockProvider_SnapmirrorObjectStoreSnapshotGet_Call {
+	return &MockProvider_SnapmirrorObjectStoreSnapshotGet_Call{Call: _e.mock.On("SnapmirrorObjectStoreSnapshotGet", objectStoreUUID, EndpointUUID, snapshotUUID)}
+}
+
+func (_c *MockProvider_SnapmirrorObjectStoreSnapshotGet_Call) Run(run func(objectStoreUUID string, EndpointUUID string, snapshotUUID string)) *MockProvider_SnapmirrorObjectStoreSnapshotGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_SnapmirrorObjectStoreSnapshotGet_Call) Return(_a0 *SmObjectStoreEndpointSnapshot, _a1 error) *MockProvider_SnapmirrorObjectStoreSnapshotGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_SnapmirrorObjectStoreSnapshotGet_Call) RunAndReturn(run func(string, string, string) (*SmObjectStoreEndpointSnapshot, error)) *MockProvider_SnapmirrorObjectStoreSnapshotGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SnapmirrorRelationshipCreate provides a mock function with given fields: params, smcToken
 func (_m *MockProvider) SnapmirrorRelationshipCreate(params *common.SnapmirrorRelationshipParams, smcToken *string) (*ontap_rest.SnapmirrorRelationship, error) {
 	ret := _m.Called(params, smcToken)

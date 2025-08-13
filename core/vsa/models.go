@@ -531,3 +531,20 @@ type ModifySVMWithQoSPolicyParams struct {
 	SvmUUID       string // UUID of the SVM to modify
 	QoSPolicyName string // Name of the QoS policy group to apply
 }
+
+type SmObjectStoreEndpointSnapshot struct {
+	// Indicates whether or not the snapshot has objects in the archival storage.
+	ArchivedObjects *bool
+	CreateTime      *strfmt.DateTime
+	// Indicates the group member count if the snapshot is from a FlexGroup object store endpoint.
+	GroupMemberCount *int64
+	// Logical size of the snapshot in bytes.
+	LogicalSize     *int64
+	Name            *string
+	SnapmirrorLabel *string
+	// ["not_locked","locked","cannot_be_locked","lock_expired"]
+	SnapshotLockState *string
+	// ["in_transfer","transferred","deleted","delete_cleanup","recyclable"]
+	SnapshotState *string
+	UUID          *strfmt.UUID
+}

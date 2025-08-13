@@ -113,3 +113,39 @@ func (rc *OntapRestProvider) SnapmirrorObjectStoreSnapshotDelete(objectStoreUUID
 	}
 	return nil, err
 }
+
+func (rc *OntapRestProvider) SnapmirrorObjectStoreSnapshotGet(objectStoreUUID, EndpointUUID, snapshotUUID string) (*SmObjectStoreEndpointSnapshot, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Snapmirror().SnapmirrorObjectStoreSnapshotGet(&ontapRest.SnapmirrorCloudSnapshotGetParams{
+		ObjectStoreUUID: objectStoreUUID,
+		EndpointUUID:    EndpointUUID,
+		SnapshotUUID:    snapshotUUID,
+	})
+	if err != nil {
+		if err.Error() == "snapshot not found" {
+			return nil, fmt.Errorf("snapshot %s not found in object store", snapshotUUID)
+		}
+		return nil, err
+	}
+	if resp != nil {
+		// Commenting this code as we are not checking the snapshot state for now, we can add it later if needed
+		// if resp.SnapshotState == nil || *resp.SnapshotState != transferredSnapshotState {
+		//	return nil, fmt.Errorf("snapshot %s is not in valid state, current state: %v", snapshotUUID, resp.SnapshotState)
+		// }
+		return &SmObjectStoreEndpointSnapshot{
+			UUID:              resp.UUID,
+			Name:              resp.Name,
+			ArchivedObjects:   resp.ArchivedObjects,
+			GroupMemberCount:  resp.GroupMemberCount,
+			LogicalSize:       resp.LogicalSize,
+			SnapshotLockState: resp.SnapshotLockState,
+			CreateTime:        resp.CreateTime,
+			SnapshotState:     resp.SnapshotState,
+			SnapmirrorLabel:   resp.SnapmirrorLabel,
+		}, nil
+	}
+	return nil, fmt.Errorf("snapshot %s not found in object store", snapshotUUID)
+}

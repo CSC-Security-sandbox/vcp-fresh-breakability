@@ -3184,3 +3184,175 @@ func TestCreateSnapshotActivity_CreateNewSnapshot_Failure(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }
+
+func TestGetSnapshotFromObjectStore(t *testing.T) {
+	t.Run("WhenProviderGetFails", func(tt *testing.T) {
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider get failed")
+		}
+
+		ctx := context.Background()
+		node := &models.Node{}
+
+		result, err := activity.GetSnapshotFromObjectStore(ctx, node, "obj-uuid", "endpoint-uuid", "snapshot-uuid")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "provider get failed")
+	})
+
+	t.Run("WhenProviderGetSucceeds", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		activity := activities.BackupActivity{}
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		expectedSnapshot := &vsa.SmObjectStoreEndpointSnapshot{
+			UUID: nillable.ToPointer(strfmt.UUID("snapshot-uuid")),
+		}
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("SnapmirrorObjectStoreSnapshotGet", "obj-uuid", "endpoint-uuid", "snapshot-uuid").Return(expectedSnapshot, nil)
+
+		ctx := context.Background()
+		node := &models.Node{}
+
+		result, err := activity.GetSnapshotFromObjectStore(ctx, node, "obj-uuid", "endpoint-uuid", "snapshot-uuid")
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, expectedSnapshot, result)
+		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestGetObjectStoreSnapshotActivity(t *testing.T) {
+	t.Run("WhenGetSnapshotFromObjectStoreFails", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("SnapmirrorObjectStoreSnapshotGet", "obj-uuid", "endpoint-uuid", "snapshot-uuid").Return(nil, errors.New("snapshot get failed"))
+
+		ctx := context.Background()
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &models.Node{},
+			ObjStore: &commonparams.CloudTarget{
+				UUID: "obj-uuid",
+			},
+			BackupWorkflowInit: &activities.BackupWorkflowInput{
+				Backup: &datamodel.Backup{
+					Attributes: &datamodel.BackupAttributes{
+						EndpointUUID: "endpoint-uuid",
+						SnapshotID:   "snapshot-uuid",
+					},
+				},
+			},
+		}
+
+		result, err := activity.GetObjectStoreSnapshotActivity(ctx, backupActivitiesContext)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "snapshot get failed")
+	})
+
+	t.Run("WhenGetSnapshotFromObjectStoreSucceedsWithLogicalSize", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		logicalSize := int64(1024)
+		expectedSnapshot := &vsa.SmObjectStoreEndpointSnapshot{
+			UUID:        nillable.ToPointer(strfmt.UUID("snapshot-uuid")),
+			LogicalSize: &logicalSize,
+		}
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("SnapmirrorObjectStoreSnapshotGet", "obj-uuid", "endpoint-uuid", "snapshot-uuid").Return(expectedSnapshot, nil)
+
+		ctx := context.Background()
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &models.Node{},
+			ObjStore: &commonparams.CloudTarget{
+				UUID: "obj-uuid",
+			},
+			BackupWorkflowInit: &activities.BackupWorkflowInput{
+				Backup: &datamodel.Backup{
+					Attributes: &datamodel.BackupAttributes{
+						EndpointUUID: "endpoint-uuid",
+						SnapshotID:   "snapshot-uuid",
+					},
+				},
+			},
+		}
+
+		result, err := activity.GetObjectStoreSnapshotActivity(ctx, backupActivitiesContext)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, backupActivitiesContext, result)
+		assert.Equal(tt, logicalSize, result.BackupWorkflowInit.Backup.SizeInBytes)
+		assert.Equal(tt, expectedSnapshot, result.ObjStoreSnapshot)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetSnapshotFromObjectStoreSucceedsWithoutLogicalSize", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupActivity{SE: mockStorage}
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		expectedSnapshot := &vsa.SmObjectStoreEndpointSnapshot{
+			UUID: nillable.ToPointer(strfmt.UUID("snapshot-uuid")),
+			// LogicalSize is nil
+		}
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("SnapmirrorObjectStoreSnapshotGet", "obj-uuid", "endpoint-uuid", "snapshot-uuid").Return(expectedSnapshot, nil)
+
+		ctx := context.Background()
+		backupActivitiesContext := &activities.BackupActivitiesContext{
+			Node: &models.Node{},
+			ObjStore: &commonparams.CloudTarget{
+				UUID: "obj-uuid",
+			},
+			BackupWorkflowInit: &activities.BackupWorkflowInput{
+				Backup: &datamodel.Backup{
+					Attributes: &datamodel.BackupAttributes{
+						EndpointUUID: "endpoint-uuid",
+						SnapshotID:   "snapshot-uuid",
+					},
+				},
+			},
+		}
+
+		result, err := activity.GetObjectStoreSnapshotActivity(ctx, backupActivitiesContext)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, backupActivitiesContext, result)
+		assert.Equal(tt, int64(0), result.BackupWorkflowInit.Backup.SizeInBytes)
+		assert.Equal(tt, expectedSnapshot, result.ObjStoreSnapshot)
+		mockProvider.AssertExpectations(tt)
+	})
+}

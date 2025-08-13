@@ -51,8 +51,7 @@ type BackupActivitiesContext struct {
 	SnapshotResponse       *vsa.SnapshotProviderResponse
 	TransferStatus         string
 	DbSnapshot             *datamodel.Snapshot
-	// need to add later MR #711
-	// ObjStoreSnapshot       *vsa.SmObjectStoreEndpointSnapshot
+	ObjStoreSnapshot       *vsa.SmObjectStoreEndpointSnapshot
 }
 
 func (a BackupActivity) CreateBackup(ctx context.Context, backup *datamodel.Backup) (*datamodel.Backup, error) {
@@ -286,17 +285,28 @@ func (b *BackupActivity) CheckTransferStatusActivity(ctx context.Context, backup
 	return backupActivitiesContext, nil
 }
 
-// need to add later MR #711
-//  GetObjectStoreSnapshotActivity gets snapshot from object store
-// func (b *BackupActivity) GetObjectStoreSnapshotActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
-//	objStoreSnapshot, err := b.GetSnapshotFromObjectStore(ctx, backupActivitiesContext.Backup)
-//	if err != nil {
-//		return nil, err
-//	}
-//	backupActivitiesContext.ObjStoreSnapshot = objStoreSnapshot
-//	backupActivitiesContext.Backup.SizeInBytes = *objStoreSnapshot.LogicalSize
-//	return backupActivitiesContext, nil
-// }
+func (a BackupActivity) GetSnapshotFromObjectStore(ctx context.Context, node *models.Node, objectStoreUUID, EndpointUUID, snapshotUUID string) (*vsa.SmObjectStoreEndpointSnapshot, error) {
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return provider.SnapmirrorObjectStoreSnapshotGet(objectStoreUUID, EndpointUUID, snapshotUUID)
+}
+
+// GetObjectStoreSnapshotActivity gets snapshot from object store
+func (b *BackupActivity) GetObjectStoreSnapshotActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	objStoreSnapshot, err := b.GetSnapshotFromObjectStore(ctx, backupActivitiesContext.Node, backupActivitiesContext.ObjStore.UUID, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.EndpointUUID, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotID)
+	if err != nil {
+		return nil, err
+	}
+	backupActivitiesContext.ObjStoreSnapshot = objStoreSnapshot
+	if objStoreSnapshot.LogicalSize != nil {
+		backupActivitiesContext.BackupWorkflowInit.Backup.SizeInBytes = *objStoreSnapshot.LogicalSize
+	} else {
+		backupActivitiesContext.BackupWorkflowInit.Backup.SizeInBytes = 0
+	}
+	return backupActivitiesContext, nil
+}
 
 // FinishBackupActivity finishes the backup
 func (b *BackupActivity) FinishBackupActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {

@@ -25,6 +25,7 @@ type SnapmirrorClient interface { // generate:mock
 	SnapmirrorRelationshipTransferGet(params *SnapmirrorRelationshipTransferGetParams) (*SnapmirrorTransfer, error)
 	SnapmirrorObjectStoreEndpointDelete(params *SnapmirrorCloudEndpointDeleteParams) (*JobAccepted, error)
 	SnapmirrorObjectStoreSnapshotDelete(params *SnapmirrorCloudSnapshotDeleteParams) (*JobAccepted, error)
+	SnapmirrorObjectStoreSnapshotGet(params *SnapmirrorCloudSnapshotGetParams) (*SnapmirrorEndpointSnapshot, error)
 
 	// Priv Client
 	SnapmirrorGetPriv(ctx context.Context, destinationPath, relationshipID string, relationshipGroupType *string) (*snapmirrorpriv.SnapmirrorGetOK, error)
@@ -264,6 +265,19 @@ func (c *snapmirrorClient) SnapmirrorObjectStoreSnapshotDelete(params *Snapmirro
 			JobUUID: accepted.Payload.Job.UUID.String(),
 		}
 		return job, nil
+	}
+	return nil, nil
+}
+
+func (c *snapmirrorClient) SnapmirrorObjectStoreSnapshotGet(params *SnapmirrorCloudSnapshotGetParams) (*SnapmirrorEndpointSnapshot, error) {
+	response, err := c.api.SnapmirrorObjectStoreEndpointSnapshotGet(snapmirrorCloudSnapshotGetParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+	if response != nil {
+		return &SnapmirrorEndpointSnapshot{
+			SnapmirrorObjectStoreEndpointSnapshot: *response.Payload,
+		}, nil
 	}
 	return nil, nil
 }

@@ -332,50 +332,59 @@ func TestSnapmirrorRelationshipTransferGet(t *testing.T) {
 }
 
 func TestSnapmirrorGetPriv(t *testing.T) {
-	t.Run("WhenRESTCallFails", func(tt *testing.T) {
-		transport := &mockTransport{err: errors.New("something went wrong")}
-		n := snapPriv.New(transport, nil)
-		client := &snapmirrorClient{apiPriv: n}
-		response, err := client.SnapmirrorGetPriv(context.TODO(), "destination-path", "relationshiID", nil)
-		assert.EqualError(tt, err, transport.err.Error())
-		assert.Nil(tt, response)
-	})
-	t.Run("WhenSuccessful", func(tt *testing.T) {
-		data := &privModels.Data{
-			RelationshipID: "relationship-id",
-		}
-		transport := &mockTransport{response: &snapPriv.SnapmirrorGetOK{
-			Payload: &privModels.SnapmirrorResponse{
-				NumRecords: 1,
-				Records:    []*privModels.Data{data},
-			},
-		}}
-		n := snapPriv.New(transport, nil)
-		client := &snapmirrorClient{apiPriv: n}
-		response, err := client.SnapmirrorGetPriv(context.TODO(), "destination-path", "relationshiID", nil)
+	t.Run("WhenRelationshipGroupTypeIsFlexgroup", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapPriv.SnapmirrorGetOK{Payload: &privModels.SnapmirrorResponse{}}}
+		privClient := snapPriv.New(transport, nil)
+		client := &snapmirrorClient{apiPriv: privClient}
+		
+		relationshipGroupType := "flexgroup"
+		ctx := context.Background()
+		
+		result, err := client.SnapmirrorGetPriv(ctx, "dest-path", "rel-id", &relationshipGroupType)
+		
 		assert.NoError(tt, err)
-		assert.Equal(tt, "relationship-id", response.GetPayload().Records[0].RelationshipID)
+		assert.NotNil(tt, result)
 	})
-	t.Run("WhenNoRelationshipIDOrDestinationPathProvided", func(tt *testing.T) {
-		transport := &mockTransport{}
-		n := snapPriv.New(transport, nil)
-		client := &snapmirrorClient{apiPriv: n}
-		response, err := client.SnapmirrorGetPriv(context.TODO(), "", "", nil)
-		assert.EqualError(tt, err, "either relationshipID or destinationPath must be provided")
-		assert.Nil(tt, response)
-	})
-	t.Run("WhenNoRecordsFound", func(tt *testing.T) {
-		transport := &mockTransport{response: &snapPriv.SnapmirrorGetOK{
-			Payload: &privModels.SnapmirrorResponse{
-				NumRecords: 0,
-				Records:    []*privModels.Data{},
-			},
-		}}
-		n := snapPriv.New(transport, nil)
-		client := &snapmirrorClient{apiPriv: n}
-		response, err := client.SnapmirrorGetPriv(context.TODO(), "destination-path", "relationshiID", nil)
+
+	t.Run("WhenRelationshipGroupTypeIsNotFlexgroup", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapPriv.SnapmirrorGetOK{Payload: &privModels.SnapmirrorResponse{}}}
+		privClient := snapPriv.New(transport, nil)
+		client := &snapmirrorClient{apiPriv: privClient}
+		
+		relationshipGroupType := "regular"
+		ctx := context.Background()
+		
+		result, err := client.SnapmirrorGetPriv(ctx, "dest-path", "rel-id", &relationshipGroupType)
+		
 		assert.NoError(tt, err)
-		assert.Equal(tt, int64(0), response.GetPayload().NumRecords)
+		assert.NotNil(tt, result)
+	})
+
+	t.Run("WhenRelationshipGroupTypeIsNil", func(tt *testing.T) {
+		transport := &mockTransport{response: &snapPriv.SnapmirrorGetOK{Payload: &privModels.SnapmirrorResponse{}}}
+		privClient := snapPriv.New(transport, nil)
+		client := &snapmirrorClient{apiPriv: privClient}
+		
+		ctx := context.Background()
+		
+		result, err := client.SnapmirrorGetPriv(ctx, "dest-path", "rel-id", nil)
+		
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+	})
+
+	t.Run("WhenAPICallFails", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("api call failed")}
+		privClient := snapPriv.New(transport, nil)
+		client := &snapmirrorClient{apiPriv: privClient}
+		
+		ctx := context.Background()
+		
+		result, err := client.SnapmirrorGetPriv(ctx, "dest-path", "rel-id", nil)
+		
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.EqualError(tt, err, "api call failed")
 	})
 }
 

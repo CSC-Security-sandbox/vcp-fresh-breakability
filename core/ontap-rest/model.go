@@ -3438,3 +3438,28 @@ func cifsServiceModifyParamsToONTAP(params *CifsServiceModifyParams) *nas.CifsSe
 	otParams.SetInfo(cifsInfo)
 	return otParams
 }
+
+// SnapmirrorCloudSnapshotGetParams describes the params to invoke Snapmirror Cloud Snapshot Get
+type SnapmirrorCloudSnapshotGetParams struct {
+	ObjectStoreUUID string
+	EndpointUUID    string
+	SnapshotUUID    string
+}
+
+type SnapmirrorEndpointSnapshot struct {
+	models.SnapmirrorObjectStoreEndpointSnapshot
+}
+
+func snapmirrorCloudSnapshotGetParamsToONTAP(params *SnapmirrorCloudSnapshotGetParams) *snapmirror.SnapmirrorObjectStoreEndpointSnapshotGetParams {
+	otParams := snapmirror.NewSnapmirrorObjectStoreEndpointSnapshotGetParams()
+	if params.ObjectStoreUUID != "" {
+		otParams.SetObjectStoreUUID(params.ObjectStoreUUID)
+	}
+	if params.EndpointUUID != "" {
+		otParams.SetEndpointUUID(params.EndpointUUID)
+	}
+	if params.SnapshotUUID != "" {
+		otParams.SetUUID(params.SnapshotUUID)
+	}
+	return otParams
+}

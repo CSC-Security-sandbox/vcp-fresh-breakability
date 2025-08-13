@@ -1360,3 +1360,60 @@ func TestCifsServiceModifyParamsToONTAP(t *testing.T) {
 		assert.False(tt, *otParams.Info.Enabled)
 	})
 }
+
+func TestSnapmirrorCloudSnapshotGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenAllParamsEmpty", func(tt *testing.T) {
+		params := &SnapmirrorCloudSnapshotGetParams{}
+		otParams := snapmirrorCloudSnapshotGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Empty(tt, otParams.ObjectStoreUUID)
+		assert.Empty(tt, otParams.EndpointUUID)
+		assert.Empty(tt, otParams.UUID)
+	})
+
+	t.Run("WhenAllParamsSet", func(tt *testing.T) {
+		params := &SnapmirrorCloudSnapshotGetParams{
+			ObjectStoreUUID: "obj-store-uuid",
+			EndpointUUID:    "endpoint-uuid",
+			SnapshotUUID:    "snapshot-uuid",
+		}
+		otParams := snapmirrorCloudSnapshotGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "obj-store-uuid", otParams.ObjectStoreUUID)
+		assert.Equal(tt, "endpoint-uuid", otParams.EndpointUUID)
+		assert.Equal(tt, "snapshot-uuid", otParams.UUID)
+	})
+
+	t.Run("WhenOnlyObjectStoreUUIDSet", func(tt *testing.T) {
+		params := &SnapmirrorCloudSnapshotGetParams{
+			ObjectStoreUUID: "obj-store-uuid",
+		}
+		otParams := snapmirrorCloudSnapshotGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "obj-store-uuid", otParams.ObjectStoreUUID)
+		assert.Empty(tt, otParams.EndpointUUID)
+		assert.Empty(tt, otParams.UUID)
+	})
+
+	t.Run("WhenOnlyEndpointUUIDSet", func(tt *testing.T) {
+		params := &SnapmirrorCloudSnapshotGetParams{
+			EndpointUUID: "endpoint-uuid",
+		}
+		otParams := snapmirrorCloudSnapshotGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Empty(tt, otParams.ObjectStoreUUID)
+		assert.Equal(tt, "endpoint-uuid", otParams.EndpointUUID)
+		assert.Empty(tt, otParams.UUID)
+	})
+
+	t.Run("WhenOnlySnapshotUUIDSet", func(tt *testing.T) {
+		params := &SnapmirrorCloudSnapshotGetParams{
+			SnapshotUUID: "snapshot-uuid",
+		}
+		otParams := snapmirrorCloudSnapshotGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Empty(tt, otParams.ObjectStoreUUID)
+		assert.Empty(tt, otParams.EndpointUUID)
+		assert.Equal(tt, "snapshot-uuid", otParams.UUID)
+	})
+}

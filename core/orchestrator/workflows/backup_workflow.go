@@ -205,12 +205,11 @@ func (wf *BackupCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 	}
 
-	// need to add later MR #711
 	// Get snapshot from object store
-	// err = workflow.ExecuteActivity(ctx, backupActivity.GetObjectStoreSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
-	// if err != nil {
-	//	return nil, err
-	// }
+	err = workflow.ExecuteActivity(ctx, backupActivity.GetObjectStoreSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
 
 	// Finish backup
 	err = workflow.ExecuteActivity(ctx, backupActivity.FinishBackupActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)

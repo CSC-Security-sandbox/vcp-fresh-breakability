@@ -74,6 +74,7 @@ func TestBackupWorkflow(t *testing.T) {
 	env.OnActivity("TransferSnapshotActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{}, nil)
 	env.OnActivity("CheckTransferStatusActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{TransferStatus: activities.SmStatusSuccess}, nil)
 	env.OnActivity("UpdateSnapshotActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{}, nil)
+	env.OnActivity("GetObjectStoreSnapshotActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{}, nil)
 	env.OnActivity("FinishBackupActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{}, nil)
 
 	// Execute workflow
@@ -326,6 +327,7 @@ func TestBackupWorkflowSnapmirrorTransferPolling(t *testing.T) {
 	env.OnActivity("CheckTransferStatusActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{TransferStatus: activities.SmStatusTransferring}, nil).Once()
 	env.OnActivity("CheckTransferStatusActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{TransferStatus: activities.SmStatusSuccess}, nil).Once()
 	env.OnActivity("UpdateSnapshotActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{}, nil)
+	env.OnActivity("GetObjectStoreSnapshotActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{}, nil)
 	env.OnActivity("FinishBackupActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{}, nil)
 
 	// Execute workflow
@@ -813,6 +815,65 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 	})
 }
 
+func TestGetBucketDetailsForBucket(t *testing.T) {
+	t.Run("WhenBucketFound", func(tt *testing.T) {
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-vault",
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:     "bucket1",
+					VendorSubnetID: "subnet1",
+				},
+				{
+					BucketName:     "bucket2",
+					VendorSubnetID: "subnet2",
+				},
+			},
+		}
+
+		result, err := getBucketDetailsForBucket(backupVault, "bucket1")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "bucket1", result.BucketName)
+		assert.Equal(tt, "subnet1", result.VendorSubnetID)
+	})
+
+	t.Run("WhenBucketNotFound", func(tt *testing.T) {
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-vault",
+			BucketDetails: []*datamodel.BucketDetails{
+				{
+					BucketName:     "bucket1",
+					VendorSubnetID: "subnet1",
+				},
+			},
+		}
+
+		result, err := getBucketDetailsForBucket(backupVault, "nonexistent-bucket")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "no matching bucket details found for bucket nonexistent-bucket in backup vault test-vault")
+	})
+
+	t.Run("WhenBackupVaultHasNoBuckets", func(tt *testing.T) {
+		backupVault := &datamodel.BackupVault{
+			BaseModel:     datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:          "test-vault",
+			BucketDetails: []*datamodel.BucketDetails{},
+		}
+
+		result, err := getBucketDetailsForBucket(backupVault, "any-bucket")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "no matching bucket details found for bucket any-bucket in backup vault test-vault")
+	})
+}
+
 func TestGetBucketDetailsForBucket_Success(t *testing.T) {
 	backupVault := &datamodel.BackupVault{
 		BucketDetails: datamodel.BucketDetailsArray{
@@ -997,6 +1058,7 @@ func TestCreateBackupWorkflowEdgeCases(t *testing.T) {
 		env.OnActivity("TransferSnapshotActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{}, nil)
 		env.OnActivity("CheckTransferStatusActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{TransferStatus: activities.SmStatusSuccess}, nil)
 		env.OnActivity("UpdateSnapshotActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{}, nil)
+		env.OnActivity("GetObjectStoreSnapshotActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{}, nil)
 		env.OnActivity("FinishBackupActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{}, nil)
 
 		// Execute workflow
