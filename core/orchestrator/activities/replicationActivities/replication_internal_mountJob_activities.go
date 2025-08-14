@@ -8,7 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -58,7 +58,7 @@ func (j *MountJobActivity) GetReplicationFromOntap(ctx context.Context, dbReplic
 	ontapRep, err := provider.GetReplicationDetails(ctx, replicationParams)
 	if err != nil {
 		logger.Errorf("Failed to get replication details from Ontap for replication %s: %v", dbReplication.UUID, err)
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGetSnapmirrorDetailsFromOntap, err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGetSnapmirrorDetailsFromOntapMountJob, err)
 	}
 	replication := addVsaModelReplicationDetailsToDatamodelReplication(ontapRep, dbReplication)
 	return replication, nil

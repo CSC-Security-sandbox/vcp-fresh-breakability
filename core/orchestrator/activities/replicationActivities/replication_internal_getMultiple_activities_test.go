@@ -13,7 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -505,7 +505,7 @@ func TestGetReplicationsFromOntap(t *testing.T) {
 			UpdatedReplications: nil,
 		}
 
-		expectedError := vsaerrors.NewVCPError(vsaerrors.ErrFailedToGetSnapmirrorDetailsFromOntap, errors.New("code cylinder malfunction"))
+		expectedError := vsaerrors.NewVCPError(vsaerrors.ErrFailedToGetSnapmirrorDetailsFromOntapGetMultiple, errors.New("code cylinder malfunction"))
 		mockProvider.On("GetReplicationDetails", mock.Anything, mock.Anything).Return(nil, errors.New("code cylinder malfunction"))
 		_, err := activity.GetReplicationsFromOntap(ctx, params)
 

@@ -13,7 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
@@ -58,7 +58,7 @@ func (ca CommonActivities) GetJob(ctx context.Context, jobUUID string) (*datamod
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	if job == nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDescribingJob, fmt.Errorf("job with UUID %s not found", jobUUID))
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDescribingJobNotFound, fmt.Errorf("job with UUID %s not found", jobUUID))
 	}
 	return job, nil
 }
@@ -79,7 +79,7 @@ func DescribeJob(ctx context.Context, jobId, basepath, jwtToken, projectNumber, 
 
 	res, err := googleProxyClient.Invoker.V1betaDescribeOperation(ctx, describeOperationParams)
 	if err != nil {
-		return vsaerrors.NewVCPError(vsaerrors.ErrDescribingJob, err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrDescribingJobAPI, err)
 	}
 	operation, ok := res.(*googleproxyclient.OperationV1beta)
 	if ok {

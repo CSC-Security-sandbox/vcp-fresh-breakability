@@ -16,6 +16,12 @@ fix-imports:
 generate-mocks:
 	go get github.com/vektra/mockery/v2@v2.53.4
 	mockery --config .mockery.yaml
+	mockery --config .monkeyMocks.yaml
+
+.PHONY: generate-monkey-mocks
+generate-monkey-mocks:
+	go get github.com/vektra/mockery/v2@v2.53.4
+	mockery --config .monkeyMocks.yaml
 
 .PHONY: generate-cvp-client
 generate-cvp-client:

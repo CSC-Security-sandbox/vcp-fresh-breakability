@@ -62,7 +62,7 @@ func (a *VolumeReplicationCreateActivity) GetDestinationPoolDetails(ctx context.
 
 	res, err := googleProxyClient.Invoker.V1betaInternalDescribePool(ctx, *describePoolParams)
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrInternalDescribePool, err)
+		return nil, errors.NewVCPError(errors.ErrInternalDescribePoolAPI, err)
 	}
 	pool, ok := res.(*googleproxyclient.PoolInternalV1beta)
 	if ok {
@@ -70,7 +70,7 @@ func (a *VolumeReplicationCreateActivity) GetDestinationPoolDetails(ctx context.
 		result.DstIps = pool.InterclusterLifs
 		return result, nil
 	}
-	return nil, errors.NewVCPError(errors.ErrInternalDescribePool, errors.New("Pool not found"))
+	return nil, errors.NewVCPError(errors.ErrInternalDescribePoolNotFound, errors.New("Pool not found"))
 }
 
 func (j *VolumeReplicationCreateActivity) CreateClusterPeering(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {
@@ -115,14 +115,14 @@ func (a *VolumeReplicationCreateActivity) AcceptClusterPeering(ctx context.Conte
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalAcceptClusterPeer(ctx, body, *accpetClusterPeerParams)
 	if err != nil {
-		return nil, errors.NewVCPError(errors.ErrInternalAcceptClusterPeer, err)
+		return nil, errors.NewVCPError(errors.ErrInternalAcceptClusterPeerAPI, err)
 	}
 	clusterPeer, ok := res.(*googleproxyclient.ClusterPeerV1)
 	if ok {
 		result.JobId = &clusterPeer.Jobs[0].JobId.Value
 		return result, nil
 	}
-	return nil, errors.NewVCPError(errors.ErrInternalAcceptClusterPeer, errors.New("Cluster peer not found"))
+	return nil, errors.NewVCPError(errors.ErrInternalAcceptClusterPeerNotFound, errors.New("Cluster peer not found"))
 }
 
 func (a *VolumeReplicationCreateActivity) CreateDestinationVolume(ctx context.Context, result *replication.CreateReplicationResult) (*replication.CreateReplicationResult, error) {

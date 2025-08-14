@@ -716,7 +716,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			Retriable:  false,
 			HttpCode:   nillable.GetIntPtr(500),
 		}
-		expError := errors2.NewVCPError(errors2.ErrRegionZoneParsingError, &expCustErr)
+		expError := errors2.NewVCPError(errors2.ErrRegionZoneParsingErrorCurrentRegion, &expCustErr)
 
 		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
 
@@ -767,7 +767,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			},
 		}
 
-		expError := errors2.NewVCPError(errors2.ErrRegionZoneParsingError, errors.New("SomeError"))
+		expError := errors2.NewVCPError(errors2.ErrRegionZoneParsingErrorDestinationRegion, errors.New("SomeError"))
 
 		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
 
@@ -818,7 +818,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			},
 		}
 
-		expError := errors2.NewVCPError(errors2.ErrRegionZoneParsingError, errors.New("SomeError"))
+		expError := errors2.NewVCPError(errors2.ErrRegionZoneParsingErrorSourceRegion, errors.New("SomeError"))
 
 		mockStorage.On("ListVolumeReplications", ctx, mock.Anything).Return(replications, nil)
 
@@ -1525,11 +1525,11 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
 		replicationsMap["us-e4"] = replications
 
-		expectedError := errors2.NewVCPError(errors2.ErrRegionZoneParsingError, errors.New("failed to get paired region URI"))
+		expectedError := errors2.NewVCPError(errors2.ErrRegionZoneParsingErrorPairedRegionURI, errors.New("failed to get paired region URI"))
 
 		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{})
 		assert.NotNil(tt, err)
-		assert.EqualError(tt, err, expectedError.Error())
+		assert.Equal(tt, err.Error(), expectedError.Error())
 	})
 	t.Run("WhenGetProjectNumberForRegionReturnsError", func(tt *testing.T) {
 		ctx := context.Background()
@@ -2048,7 +2048,7 @@ func TestGoogleProxyInternalGetMultipleReplications(t *testing.T) {
 		}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(ctx, &body, paramz).Return(&errResp, nil)
 
-		expectedError := errors2.NewVCPError(errors2.ErrGoogleProxyInternalGetMultipleReplications, errors.New("bad request error"))
+		expectedError := errors2.NewVCPError(errors2.ErrGoogleProxyInternalGetMultipleReplicationsBadRequest, errors.New("bad request error"))
 
 		res, err := _googleProxyInternalGetMultipleReplications(ctx, basePath, projectNumber, location, token, body, mockLogger, params)
 		assert.Nil(tt, res)
@@ -2093,7 +2093,7 @@ func TestGoogleProxyInternalGetMultipleReplications(t *testing.T) {
 		}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(ctx, &body, paramz).Return(&errResp, nil)
 
-		expectedError := errors2.NewVCPError(errors2.ErrGoogleProxyInternalGetMultipleReplications, errors.New("internal server error"))
+		expectedError := errors2.NewVCPError(errors2.ErrGoogleProxyInternalGetMultipleReplicationsInternalServerError, errors.New("internal server error"))
 
 		res, err := _googleProxyInternalGetMultipleReplications(ctx, basePath, projectNumber, location, token, body, mockLogger, params)
 		assert.Nil(tt, res)
@@ -2138,7 +2138,7 @@ func TestGoogleProxyInternalGetMultipleReplications(t *testing.T) {
 		}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(ctx, &body, paramz).Return(&errResp, nil)
 
-		expectedError := errors2.NewVCPError(errors2.ErrGoogleProxyInternalGetMultipleReplications, errors.New("unauthorized error"))
+		expectedError := errors2.NewVCPError(errors2.ErrGoogleProxyInternalGetMultipleReplicationsUnauthorized, errors.New("unauthorized error"))
 
 		res, err := _googleProxyInternalGetMultipleReplications(ctx, basePath, projectNumber, location, token, body, mockLogger, params)
 		assert.Nil(tt, res)
@@ -2183,7 +2183,7 @@ func TestGoogleProxyInternalGetMultipleReplications(t *testing.T) {
 		}
 		mockClient.EXPECT().V1betaGetMultipleReplicationsInternal(ctx, &body, paramz).Return(&errResp, nil)
 
-		expectedError := errors2.NewVCPError(errors2.ErrGoogleProxyInternalGetMultipleReplications, errors.New("not found error"))
+		expectedError := errors2.NewVCPError(errors2.ErrGoogleProxyInternalGetMultipleReplicationsNotFound, errors.New("not found error"))
 
 		res, err := _googleProxyInternalGetMultipleReplications(ctx, basePath, projectNumber, location, token, body, mockLogger, params)
 		assert.Nil(tt, res)

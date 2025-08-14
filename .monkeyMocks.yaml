@@ -1,0 +1,11 @@
+with-expecter: True
+tags: mocks
+packages:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator:
+    config:
+      inpackage: True
+      dir: "{{.InterfaceDir}}"
+      filename: "monkey_mocks_test.go"
+      mockname: "monkeyMock"
+      include-regex: "monkeyMethods"
+      recursive: True

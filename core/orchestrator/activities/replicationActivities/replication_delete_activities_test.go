@@ -3,16 +3,16 @@ package replicationActivities
 import (
 	"context"
 	"encoding/json"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -647,7 +647,9 @@ func TestDeHydrateDestinationVolumeReplication(t *testing.T) {
 		_, err := activity.DeHydrateDestinationVolumeReplication(ctx, inputResult)
 
 		assert.Error(t, err)
-		assert.True(t, strings.Contains(err.Error(), "hydration error"))
+		var customErr *errors2.CustomError
+		assert.True(t, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(t, customErr.OriginalErr, "hydration error")
 		mockStorage.AssertExpectations(tt)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	vsamodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -124,7 +124,7 @@ func (r *ReplicationInternalGetMultipleActivity) GetReplicationsFromOntap(ctx co
 					continue // Skip if replication not found in Ontap
 				}
 				logger.Errorf("Failed to get replication details from Ontap for replication %s: %v", replication.UUID, err)
-				return nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGetSnapmirrorDetailsFromOntap, err)
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGetSnapmirrorDetailsFromOntapGetMultiple, err)
 			}
 
 			replication = addVsaModelReplicationDetailsToDatamodelReplication(replFromOntap, replication)

@@ -584,7 +584,7 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 			Retriable:  false,
 			HttpCode:   nillable.GetIntPtr(500),
 		}
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingError, &custErr)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingErrorCurrentRegion, &custErr)
 	}
 	regionReplicationMap := make(map[string][]*datamodel.VolumeReplication)
 	emptyUUID := uuid.UUID{}
@@ -596,7 +596,7 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 			destRegion, _, err := utilParseRegionAndZone(replication.ReplicationAttributes.DestinationLocation)
 			if err != nil {
 				logger.Error("Failed to parse destination region", "error", err)
-				return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingError, err)
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingErrorDestinationRegion, err)
 			}
 			regionReplicationMap[destRegion] = append(regionReplicationMap[destRegion], replication)
 		}
@@ -606,7 +606,7 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 			srcRegion, _, err := utilParseRegionAndZone(replication.ReplicationAttributes.SourceLocation)
 			if err != nil {
 				logger.Error("Failed to parse source region", "error", err)
-				return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingError, err)
+				return nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingErrorSourceRegion, err)
 			}
 
 			// Add source region to map if not already present
@@ -653,7 +653,7 @@ func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string
 		basePath, err := utilsGetPairedRegionUri(region)
 		if err != nil {
 			logger.Error("Failed to get paired region URI", "region", region, "error", err)
-			return nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingError, err)
+			return nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingErrorPairedRegionURI, err)
 		}
 
 		emptyUUID := uuid.UUID{}

@@ -19,7 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -111,7 +111,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	sourceRegion, _, parseError := internalParseRegionAndZone(event.LocationID)
 	if parseError != nil {
 		logger.Error("Parse Source Location Error")
-		return nil, errors.NewVCPError(errors.ErrParseLocation, errors.New(parseError.Error()))
+		return nil, errors.NewVCPError(errors.ErrParseSourceLocation, errors.New(parseError.Error()))
 	}
 	srcBasePath, err := InternalUtilGetPairedRegionURI(sourceRegion)
 	if err != nil {
@@ -122,7 +122,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	destRegion, _, parseError := internalParseRegionAndZone(event.DestinationLocationID)
 	if parseError != nil {
 		logger.Error("Parse Destination Location Error", common.Error(errors.New(parseError.Error())))
-		return nil, errors.NewVCPError(errors.ErrParseLocation, errors.New(parseError.Error()))
+		return nil, errors.NewVCPError(errors.ErrParseDestinationLocation, errors.New(parseError.Error()))
 	}
 	destBasePath, err := InternalUtilGetPairedRegionURI(destRegion)
 	if err != nil {
@@ -239,17 +239,17 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	if err != nil {
 		if err.Error() != "volume not found" {
 			logger.Error("getDestinationVolume error", common.Error(err))
-			return nil, errors.NewVCPError(errors.ErrValidateGetVolume, err)
+			return nil, errors.NewVCPError(errors.ErrValidateGetVolumeReplicationCreation, err)
 		}
 	}
 	if destVolume.ResourceId != "" {
 		if destVolume.CreationToken.Value == destShareName {
-			typeErr := errors.NewVCPError(errors.ErrGetVolumeCreateTokenInUse, errors.New("RemoteShareName already Exists"))
+			typeErr := errors.NewVCPError(errors.ErrGetVolumeCreateTokenInUseRemoteShareName, errors.New("RemoteShareName already Exists"))
 			logger.Error("RemoteShareName already Exists", common.Error(typeErr))
 			return nil, typeErr
 		}
 
-		typeErr := errors.NewVCPError(errors.ErrGetVolumeCreateTokenInUse, errors.New("RemoteResourceID already Exists"))
+		typeErr := errors.NewVCPError(errors.ErrGetVolumeCreateTokenInUseRemoteResourceID, errors.New("RemoteResourceID already Exists"))
 		logger.Error("RemoteResourceID already Exists", common.Error(typeErr))
 		return nil, typeErr
 	}
@@ -463,28 +463,28 @@ func _createReplicationObjects(event *CreateReplicationEvent, remotelocation, re
 func _validateLabels(labels map[string]string) error {
 	_, err := json.Marshal(labels)
 	if err != nil {
-		return errors.NewVCPError(errors.ErrorValidateLabels, fmt.Errorf("unable to marshal labels"))
+		return errors.NewVCPError(errors.ErrLabelsMarshalFailure, fmt.Errorf("unable to marshal labels"))
 	}
 
 	if len(labels) > 64 {
-		return errors.NewVCPError(errors.ErrorValidateLabels, fmt.Errorf("invalid label count"))
+		return errors.NewVCPError(errors.ErrLabelsCountExceeded, fmt.Errorf("invalid label count"))
 	}
 
 	for k, v := range labels {
 		if len(k) == 0 {
-			return errors.NewVCPError(errors.ErrorValidateLabels, fmt.Errorf("key is required in label"))
+			return errors.NewVCPError(errors.ErrLabelsKeyRequired, fmt.Errorf("key is required in label"))
 		}
 		if len(strings.Split(k, "")) > maxRuneCount {
-			return errors.NewVCPError(errors.ErrorValidateLabels, fmt.Errorf("label key '%s' is too long (length can't exceed %d characters)", k, maxRuneCount))
+			return errors.NewVCPError(errors.ErrLabelsKeyTooLongCharacters, fmt.Errorf("label key '%s' is too long (length can't exceed %d characters)", k, maxRuneCount))
 		}
 		if len(k) > maxByteCount {
-			return errors.NewVCPError(errors.ErrorValidateLabels, fmt.Errorf("label key '%s' is too long (encoded length can't exceed %d bytes)", k, maxByteCount))
+			return errors.NewVCPError(errors.ErrLabelsKeyTooLongBytes, fmt.Errorf("label key '%s' is too long (encoded length can't exceed %d bytes)", k, maxByteCount))
 		}
 		if len(strings.Split(v, "")) > maxRuneCount {
-			return errors.NewVCPError(errors.ErrorValidateLabels, fmt.Errorf("label value '%s' is too long (length can't exceed %d characters)", v, maxRuneCount))
+			return errors.NewVCPError(errors.ErrLabelsValueTooLongCharacters, fmt.Errorf("label value '%s' is too long (length can't exceed %d characters)", v, maxRuneCount))
 		}
 		if len(v) > maxByteCount {
-			return errors.NewVCPError(errors.ErrorValidateLabels, fmt.Errorf("label value '%s' is too long (encoded length can't exceed %d bytes)", v, maxByteCount))
+			return errors.NewVCPError(errors.ErrLabelsValueTooLongBytes, fmt.Errorf("label value '%s' is too long (encoded length can't exceed %d bytes)", v, maxByteCount))
 		}
 	}
 	return nil
@@ -691,7 +691,7 @@ func _verifyDstVolume(ctx context.Context, event *ResumeReplicationEvent, srcBas
 	if err != nil {
 		if err.Error() != "volume not found" {
 			logger.Error("getSourceVolume error", common.Error(err))
-			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrValidateGetVolume, err)
+			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrValidateGetVolumeReplicationCreation, err)
 		}
 		return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
 	}
@@ -700,7 +700,7 @@ func _verifyDstVolume(ctx context.Context, event *ResumeReplicationEvent, srcBas
 	if err != nil {
 		if err.Error() != "volume not found" {
 			logger.Error("getDestinationVolume error", common.Error(err))
-			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrValidateGetVolume, err)
+			return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrValidateGetVolumeReplicationCreation, err)
 		}
 		return googleproxyclient.VolumeV1beta{}, googleproxyclient.VolumeV1beta{}, errors.New("volume not found")
 	}
@@ -745,7 +745,7 @@ func _describeVolume(ctx context.Context, basePath string, token string, locatio
 	}
 	volumeResponse := response.(*googleproxyclient.VolumeV1beta)
 	if volumeResponse == nil {
-		return googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrGetVolumeNotFound, nil)
+		return googleproxyclient.VolumeV1beta{}, errors.NewVCPError(errors.ErrVolumeNotFound, nil)
 	}
 
 	return *volumeResponse, nil

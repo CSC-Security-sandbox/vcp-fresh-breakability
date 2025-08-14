@@ -9,10 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -313,7 +314,9 @@ func TestSnapshotsDehydration_Error(t *testing.T) {
 
 	err := activity.DehydrateSnapshots(ctx, params)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "dehydration failed")
+	var customErr *errors2.CustomError
+	assert.True(t, errors2.As(err, &customErr), "Expected a CustomError")
+	assert.ErrorContains(t, customErr.OriginalErr, "dehydration failed")
 }
 
 func TestInternalSnapshotsDeleteActivity_ListSnapshotFromDB(t *testing.T) {

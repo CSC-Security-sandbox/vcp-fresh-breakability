@@ -556,5 +556,497 @@
     "message": "Error reverting volume - Cannot revert a Volume Replication Destination Volume",
     "retriable": true,
     "http_code": 409
+  },
+  "6100": {
+    "description": "Replication Schedule Unspecified",
+    "message": "Replication schedule must be specified",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6101": {
+    "description": "Labels Marshal Failure Error",
+    "message": "Failed to marshal labels",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6102": {
+    "description": "Labels Count Exceeded Error",
+    "message": "Label count exceeds the maximum limit of 64",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6103": {
+    "description": "Labels Key Required Error",
+    "message": "Label key is required",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6104": {
+    "description": "Labels Key Too Long Characters Error",
+    "message": "Label key exceeds the maximum length of 63 characters",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6105": {
+    "description": "Labels Key Too Long Bytes Error",
+    "message": "Label key exceeds the maximum encoded length of 128 bytes",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6106": {
+    "description": "Labels Value Too Long Characters Error",
+    "message": "Label value exceeds the maximum length of 63 characters",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6107": {
+    "description": "Labels Value Too Long Bytes Error",
+    "message": "Label value exceeds the maximum encoded length of 128 bytes",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6108": {
+    "description": "Get Signed Token Error",
+    "message": "Failed to get signed token",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6109": {
+    "description": "Parse Source Location Error",
+    "message": "Failed to parse source location",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6110": {
+    "description": "Parse Destination Location Error",
+    "message": "Failed to parse destination location",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6111": {
+    "description": "Get Source Base Path Error",
+    "message": "Failed to get source base path",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6112": {
+    "description": "Get Destination Base Path Error",
+    "message": "Failed to get destination base path",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6113": {
+    "description": "Validate Create Resource ID In Use Error",
+    "message": "Resource ID is already in use",
+    "retriable": false,
+    "http_code": 409
+  },
+  "6114": {
+    "description": "List Volumes Error",
+    "message": "Failed to list volumes",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6115": {
+    "description": "List Pools Error",
+    "message": "Failed to list pools",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6116": {
+    "description": "Get Pool Not Found Error",
+    "message": "Destination pool not found",
+    "retriable": false,
+    "http_code": 404
+  },
+  "6117": {
+    "description": "Internal Describe Pool API Error",
+    "message": "Failed to describe pool",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6118": {
+    "description": "Internal Describe Pool Not Found Error",
+    "message": "Internal pool not found",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6119": {
+    "description": "Internal Accept Cluster Peer API Error",
+    "message": "Failed to accept cluster peer",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6120": {
+    "description": "Internal Accept Cluster Peer Not Found Error",
+    "message": "Internal cluster peer not found",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6121": {
+    "description": "Describing Job Not Found Error",
+    "message": "Job not found",
+    "retriable": false,
+    "http_code": 404
+  },
+  "6122": {
+    "description": "Describing Job API Error",
+    "message": "Failed to describe job",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6123": {
+    "description": "Job Not Finished Error",
+    "message": "Job not finished",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6124": {
+    "description": "Creating Destination Volume Error",
+    "message": "Failed to create destination volume",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6125": {
+    "description": "Accept SVM Peer Error",
+    "message": "Failed to accept SVM peer",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6126": {
+    "description": "Failed To Marshal Model Error",
+    "message": "Failed to marshal model",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6127": {
+    "description": "Failed To Unmarshal Error",
+    "message": "Failed to unmarshal data",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6128": {
+    "description": "Validate Create Source Volume Is Flex Cache Volume Error",
+    "message": "Source cannot be a FlexCache volume",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6129": {
+    "description": "Validate Create Source Volume In Replication Group Error",
+    "message": "Source volume is already in a replication",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6130": {
+    "description": "Validate Create Source Volume Not Ready Error",
+    "message": "Source volume is not ready",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6131": {
+    "description": "Validate Storage Pool URI Error",
+    "message": "Invalid storage pool URI",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6132": {
+    "description": "Validate Destination Pool Transitioning Error",
+    "message": "Destination pool is transitioning",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6133": {
+    "description": "Validate Destination Storage Pool State Error",
+    "message": "Invalid destination storage pool state",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6134": {
+    "description": "Destination Pool Size Error",
+    "message": "Destination pool size is insufficient",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6135": {
+    "description": "Get Signed Callback Token Error",
+    "message": "Failed to get signed callback token", 
+    "retriable": false,
+    "http_code": 500
+  },
+  "6136": {
+    "description": "Get Replication Quota Limit Internal Error",
+    "message": "Failed to get replication quota limit",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6137": {
+    "description": "Describe Source Pool Error",
+    "message": "Failed to describe source pool",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6138": {
+    "description": "Hydrate Volume Create Error",
+    "message": "Failed to hydrate volume creation",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6139": {
+    "description": "Getting SVM Peer Error",
+    "message": "Failed to get SVM peer",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6140": {
+    "description": "Failed To Get Snapmirror Details From ONTAP Get Multiple Error",
+    "message": "Failed to get snapmirror details from ONTAP for get multiple operations",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6141": {
+    "description": "Failed To Get Snapmirror Details From ONTAP Mount Job Error",
+    "message": "Failed to get snapmirror details from ONTAP for mount job",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6142": {
+    "description": "Region Zone Parsing Error Current Region",
+    "message": "Failed to parse current region",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6143": {
+    "description": "Region Zone Parsing Error Destination Region",
+    "message": "Failed to parse destination region",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6144": {
+    "description": "Region Zone Parsing Error Source Region",
+    "message": "Failed to parse source region",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6145": {
+    "description": "Region Zone Parsing Error Paired Region URI",
+    "message": "Failed to get paired region URI",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6146": {
+    "description": "Project Parsing Error",
+    "message": "Failed to parse project",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6147": {
+    "description": "Google Proxy Internal Get Multiple Replications Error",
+    "message": "Failed to get multiple replications",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6148": {
+    "description": "Google Proxy Internal Get Multiple Replications Bad Request Error",
+    "message": "Bad request getting multiple replications",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6149": {
+    "description": "Google Proxy Internal Get Multiple Replications Not Found Error",
+    "message": "Internal server error getting multiple replications",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6150": {
+    "description": "Google Proxy Internal Get Multiple Replications Internal Server Error",
+    "message": "Internal server error getting multiple replications",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6151": {
+    "description": "Google Proxy Internal Get Multiple Replications Unauthorized Error",
+    "message": "Unauthorized to get multiple replications",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6152": {
+    "description": "Google Proxy Internal Get Multiple Replications Forbidden Error",
+    "message": "Forbidden to get multiple replications",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6153": {
+    "description": "Google Proxy Internal Get Multiple Replications Unknown Error",
+    "message": "Unknown error getting multiple replications",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6154": {
+    "description": "Get Remote Replication Jobs Error",
+    "message": "Failed to get remote replication jobs",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6155": {
+    "description": "Get Local Replication Jobs Error",
+    "message": "Failed to get local replication jobs",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6156": {
+    "description": "CVP Replication Job Already In Process Error",
+    "message": "Replication job is already in progress",
+    "retriable": false,
+    "http_code": 409
+  },
+  "6157": {
+    "description": "Mounting Volume Replication Error",
+    "message": "Failed to mount volume replication",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6158": {
+    "description": "Dehydrate Snapshots Error",
+    "message": "Failed to dehydrate snapshots",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6160": {
+    "description": "Dehydrate Volume Error",
+    "message": "Failed to dehydrate volume",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6161": {
+    "description": "Dehydrate Volume Replication Error",
+    "message": "Failed to dehydrate volume replication",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6163": {
+    "description": "Empty Update Replication Payload Error",
+    "message": "Update replication payload is empty",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6164": {
+    "description": "Replication Schedule Unspecified Error",
+    "message": "Replication schedule must be specified",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6165": {
+    "description": "Describe Volume Error",
+    "message": "Failed to describe volume",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6166": {
+    "description": "Replication Quota Limit Exceeded Error",
+    "message": "Replication quota limit exceeded",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6167": {
+    "description": "Get Volume Quota Limit Internal Error",
+    "message": "Failed to get volume quota limit",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6168": {
+    "description": "Validate Create Replication CVP Internal Get Volume Count Error",
+    "message": "Failed to get volume count for replication validation",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6169": {
+    "description": "Volume Quota Limit Exceeded Error",
+    "message": "Volume quota limit exceeded",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6170": {
+    "description": "Validate Get Volume Replication Creation Error",
+    "message": "Failed to validate volume during replication creation",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6171": {
+    "description": "Validate Get Volume Replication Creation Volume Not Found Error",
+    "message": "Volume not found",
+    "retriable": false,
+    "http_code": 404
+  },
+  "6172": {
+    "description": "Get Volume Create Token In Use Remote Share Name Error",
+    "message": "Remote share name already exists",
+    "retriable": false,
+    "http_code": 409
+  },
+  "6173": {
+    "description": "Get Volume Create Token In Use Remote Resource ID Error",
+    "message": "Remote resource ID already exists",
+    "retriable": false,
+    "http_code": 409
+  },
+  "6174": {
+    "description": "Validate Create Replication Error",
+    "message": "Failed to validate create replication",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6175": {
+    "description": "Service Level Mismatch Error",
+    "message": "Service level mismatch",
+    "retriable": false,
+    "http_code": 400
+  },
+  "6176": {
+    "description": "ONTAP Cluster Not Found Error",
+    "message": "ONTAP cluster not found",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6177": {
+    "description": "Validate Create Replication CVP Internal Get Replication Count Error",
+    "message": "Failed to get replication count",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6178": {
+    "description": "Google Proxy Internal Get Multiple Replications Get Active Replication Jobs Bad Request Error",
+    "message": "Bad request getting active replication jobs",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6179": {
+    "description": "Google Proxy Internal Get Multiple Replications Get Active Replication Jobs Internal Server Error",
+    "message": "Internal server error getting active replication jobs",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6180": {
+    "description": "Google Proxy Internal Get Multiple Replications Get Active Replication Jobs Unauthorized Error",
+    "message": "Unauthorized to get active replication jobs",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6181": {
+    "description": "Google Proxy Internal Get Multiple Replications Get Active Replication Jobs Forbidden Error",
+    "message": "Forbidden to get active replication jobs",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6182": {
+    "description": "Google Proxy Internal Get Multiple Replications Get Active Replication Jobs Not Found Error",
+    "message": "Active replication jobs not found",
+    "retriable": false,
+    "http_code": 500
+  },
+  "6183": {
+    "description": "Google Proxy Internal Get Multiple Replications Get Active Replication Jobs Unknown Error",
+    "message": "Unknown error getting active replication jobs",
+    "retriable": false,
+    "http_code": 500
   }
 }

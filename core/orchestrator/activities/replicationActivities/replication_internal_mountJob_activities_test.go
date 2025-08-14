@@ -226,7 +226,9 @@ func TestGetReplicationFromOntap(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Nil(tt, replication)
-		assert.Contains(tt, err.Error(), "failed to get replication details")
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "failed to get replication details")
 		mockProvider.AssertExpectations(tt)
 	})
 }

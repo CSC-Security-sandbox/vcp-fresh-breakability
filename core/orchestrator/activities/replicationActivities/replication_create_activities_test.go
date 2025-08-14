@@ -13,7 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -1089,7 +1089,9 @@ func TestVolumeReplicationCreateActivity_GetVolumeSVMNames(t *testing.T) {
 		// Assert
 		assert.Error(tt, err)
 		assert.Nil(tt, updatedResult)
-		assert.Contains(tt, err.Error(), "destination volume not found")
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "destination volume not found")
 
 		mockStorage.AssertExpectations(tt)
 	})
@@ -1636,7 +1638,9 @@ func TestVolumeReplicationCreateActivity_DescribeVolume(t *testing.T) {
 		// Assert
 		assert.Error(tt, err)
 		assert.Nil(tt, resultVolume)
-		assert.Contains(tt, err.Error(), "volume not found")
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "volume not found")
 	})
 
 	t.Run("Error_EmptyProjectNumber", func(tt *testing.T) {

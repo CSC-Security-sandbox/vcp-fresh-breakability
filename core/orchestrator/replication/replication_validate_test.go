@@ -3,6 +3,7 @@ package replication
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/pborman/uuid"
@@ -14,7 +15,7 @@ import (
 	vsaErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -320,26 +321,143 @@ func Test_createReplicationObjects_InvalidUUID(t *testing.T) {
 }
 
 func Test_validateLabels(t *testing.T) {
-	validLabels := map[string]string{
-		"env":    "prod",
-		"region": "us-central1",
-	}
+	t.Run("WhenValidLabels", func(t *testing.T) {
+		validLabels := map[string]string{
+			"env":    "prod",
+			"region": "us-central1",
+		}
+		err := _validateLabels(validLabels)
+		assert.NoError(t, err)
+	})
 
-	// Valid case
-	err := _validateLabels(validLabels)
-	assert.NoError(t, err)
+	t.Run("WhenEmptyMap", func(t *testing.T) {
+		err := _validateLabels(map[string]string{})
+		assert.NoError(t, err)
+	})
 
-	// Valid: empty map
-	err = _validateLabels(map[string]string{})
-	assert.NoError(t, err)
+	t.Run("WhenTooManyLabels", func(t *testing.T) {
+		tooMany := map[string]string{}
+		for i := 0; i < 65; i++ {
+			tooMany[fmt.Sprintf("k%d", i)] = "v"
+		}
+		err := _validateLabels(tooMany)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Label count exceeds the maximum limit of 64")
+	})
 
-	// Too many labels
-	tooMany := map[string]string{}
-	for i := 0; i < 65; i++ {
-		tooMany[fmt.Sprintf("k%d", i)] = "v"
-	}
-	err = _validateLabels(tooMany)
-	assert.Error(t, err)
+	t.Run("WhenEmptyKey", func(t *testing.T) {
+		labels := map[string]string{
+			"": "value",
+		}
+		err := _validateLabels(labels)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Label key is required")
+	})
+
+	t.Run("WhenKeyTooLongCharacters", func(t *testing.T) {
+		// Create a key of 64 runes (maxRuneCount is 63)
+		key := strings.Repeat("a", 64)
+		labels := map[string]string{
+			key: "value",
+		}
+		err := _validateLabels(labels)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Label key exceeds the maximum length of 63 characters")
+	})
+
+	t.Run("WhenKeyTooLongBytes", func(t *testing.T) {
+		// Create a key that has exactly 63 runes but > 128 bytes
+		// Use a 4-byte UTF-8 character like '𐀀' (U+10000) repeated to exceed byte limit
+		key := strings.Repeat("𐀀", 63) // 63 * 4 = 252 bytes, but only 63 runes
+		labels := map[string]string{
+			key: "value",
+		}
+		err := _validateLabels(labels)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Label key exceeds the maximum encoded length of 128 bytes")
+	})
+
+	t.Run("WhenValueTooLongCharacters", func(t *testing.T) {
+		// Create a value of 64 runes (maxRuneCount is 63)
+		value := strings.Repeat("b", 64)
+		labels := map[string]string{
+			"key": value,
+		}
+		err := _validateLabels(labels)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Label value exceeds the maximum length of 63 characters")
+	})
+
+	t.Run("WhenValueTooLongBytes", func(t *testing.T) {
+		// Create a value that has exactly 63 runes but > 128 bytes
+		// Use a 4-byte UTF-8 character like '𐀀' (U+10000) repeated to exceed byte limit
+		value := strings.Repeat("𐀀", 63) // 63 * 4 = 252 bytes, but only 63 runes
+		labels := map[string]string{
+			"key": value,
+		}
+		err := _validateLabels(labels)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Label value exceeds the maximum encoded length of 128 bytes")
+	})
+
+	t.Run("WhenMultipleValidationFailuresFirstKeyIssue", func(t *testing.T) {
+		labels := map[string]string{
+			"": "value",
+		}
+		err := _validateLabels(labels)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Label key is required")
+	})
+	t.Run("WhenMultipleValidationFailuresFirstValueIssue", func(t *testing.T) {
+		labels := map[string]string{
+			"key": "", // Empty value should pass key validation but fail value validation
+		}
+		err := _validateLabels(labels)
+		assert.NoError(t, err) // Empty value is valid
+	})
+	t.Run("WhenBoundaryValuesExactlyAtLimits", func(t *testing.T) {
+		// Key exactly at maxRuneCount (63)
+		key := strings.Repeat("a", 63)
+		// Value exactly at maxRuneCount (63) - not maxByteCount since function checks rune count
+		value := strings.Repeat("b", 63)
+
+		labels := map[string]string{
+			key: value,
+		}
+		err := _validateLabels(labels)
+		assert.NoError(t, err)
+	})
+
+	t.Run("WhenBoundaryValuesOneBelowLimits", func(t *testing.T) {
+		// Key one below maxRuneCount (62)
+		key := strings.Repeat("a", 62)
+		// Value one below maxRuneCount (62) - not maxByteCount since function checks rune count
+		value := strings.Repeat("b", 62)
+
+		labels := map[string]string{
+			key: value,
+		}
+		err := _validateLabels(labels)
+		assert.NoError(t, err)
+	})
+
+	t.Run("WhenUnicodeCharactersInKeyAndValue", func(t *testing.T) {
+		labels := map[string]string{
+			"env-测试": "prod-测试",
+		}
+		err := _validateLabels(labels)
+		assert.NoError(t, err)
+	})
+
+	t.Run("WhenSpecialCharactersInKeyAndValue", func(t *testing.T) {
+		labels := map[string]string{
+			"env-prod":  "prod-env",
+			"region_us": "us_region",
+			"zone-1":    "zone1",
+		}
+		err := _validateLabels(labels)
+		assert.NoError(t, err)
+	})
 }
 
 // Unit tests for _getDestinationPool
@@ -729,6 +847,955 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 	})
 
 	// More negative test cases can be added for each error path as needed
+	t.Run("WhenInternalUtilGetSignedTokenFailsForDestinationPool", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Test(t)
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("", errors.New("token error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenInternalParseRegionAndZoneFailsForSourceLocation", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Test(t)
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("", "", errors.New("parse error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenInternalUtilGetPairedRegionURIFailsForSourceLocation", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Test(t)
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("", errors.New("paired region uri error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenInternalParseRegionAndZoneFailsForDestinationLocation", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Test(t)
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("", "", errors.New("parse error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenInternalUtilGetPairedRegionURIFailsForDestinationLocation", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Test(t)
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("", errors.New("paired region uri error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenValidateReplicationResourceIdFails", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Test(t)
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(errors.New("validate replication resource id error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenVolumeIsDataProtectionVolume", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Test(t)
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+
+		event.SourceVolume.VolumeAttributes.IsDataProtection = true
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrValidateCreateSourceVolumeInReplicationGroup, errors.New("sourceVolume already in replication")), err)
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("WhenSourceVolumeNotReady", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Test(t)
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+
+		// Reset volume state to not ready
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateCREATING)
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrValidateCreateSourceVolumeNotReady, errors.New("sourceVolume is not in a READY state")), err)
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("WhenValidateStoragePoolUriFails", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Test(t)
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(errors.New("invalid storage pool URI format")).Once()
+
+		// Reset volume state
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrValidateStoragePoolUri, errors.New("invalid storage pool URI format")), err)
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetDestinationPoolFails", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(nil, errors.New("destination pool error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, errors.New("destination pool error"), err)
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("WhenDestinationPoolInTransitionState", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		transitioningPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateCREATING),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(transitioningPool, nil).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrValidateDestinationPoolTransitioning, errors.New("Destination pool is in transition state")), err)
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("WhenDestinationPoolUnhealthy", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		unhealthyPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateERROR),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(unhealthyPool, nil).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrValidateDestinationStoragePoolState, errors.New("Destination pool is in unhealthy state, Please try after some time")), err)
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("WhenDestinationPoolSizeExceeded", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		// Set a small destination pool that can't accommodate the volume
+		smallPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(50),
+			SizeInBytes:      100, // Smaller than source volume size (100) + allocated bytes (50)
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(smallPool, nil).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrDestPoolSize, errors.New("Volume exceeds destination pool size")), err)
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("WhenServiceLevelMismatch", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		// Set different service level for destination pool
+		differentServiceLevelPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelEXTREME, // Different from source (FLEX)
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(differentServiceLevelPool, nil).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrServiceLevelMismatch, errors.New("Service level on source volume and destination pool do not match")), err)
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("WhenReplicationJobInProcessFails", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(errors.New("replication job in process error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, errors.New("replication job in process error"), err)
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetCallbackTokenFails", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(nil).Once()
+
+		mm.On("InternalUtilGetCallbackToken").Return("", errors.New("callback token error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrGetSignedCallbackToken, errors.New("callback token error")), err)
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetReplicationQuotaLimitFails", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(nil).Once()
+
+		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(0, errors.New("quota limit error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrGetReplicationQuotaLimitInternal, errors.New("quota limit error")), err)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenGetReplicationCountFails", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(nil).Once()
+
+		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(5, nil).Once()
+
+		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, errors.New("replication count error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrValidateCreateReplicationCvpInternalGetReplicationCount, errors.New("replication count error")), err)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenReplicationQuotaLimitExceeded", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(nil).Once()
+
+		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(5, nil).Once()
+
+		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(5, nil).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrReplicationQuotaLimitExceeded, errors.New("Quota limit 'ReplicatedVolumesPerRegion' has been exceeded.")), err)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenGetVolumeQuotaLimitFails", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(nil).Once()
+
+		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+
+		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(0, errors.New("volume quota limit error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrGetVolumeQuotaLimitInternal, errors.New("volume quota limit error")), err)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenInternalGetVolumeCountFails", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(nil).Once()
+
+		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+
+		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(5, nil).Once()
+
+		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, errors.New("volume count error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrValidateCreateReplicationCvpInternalGetVolumeCount, errors.New("volume count error")), err)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenVolumeQuotaLimitExceeded", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(nil).Once()
+
+		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+
+		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(5, nil).Once()
+
+		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(5, nil).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrVolumeQuotaLimitExceeded, errors.New("Quota limit 'VolumesPerRegion' on destination region has been exceeded.")), err)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenGetVolumeFails", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(nil).Once()
+
+		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+
+		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+
+		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		// Mock destination volume already exists
+		existingVolume := googleproxyclient.VolumeV1beta{
+			ResourceId:    "vol-2",
+			CreationToken: googleproxyclient.OptString{Value: "share-2", Set: true},
+		}
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, "vol-2").Return(existingVolume, errors.New("get volume error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrValidateGetVolumeReplicationCreation, errors.New("get volume error")), err)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenDestinationVolumeAlreadyExists", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(nil).Once()
+
+		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+
+		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+
+		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		// Mock destination volume already exists
+		existingVolume := googleproxyclient.VolumeV1beta{
+			ResourceId:    "vol-2",
+			CreationToken: googleproxyclient.OptString{Value: "share-2", Set: true},
+		}
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, "vol-2").Return(existingVolume, nil).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrGetVolumeCreateTokenInUseRemoteShareName, errors.New("RemoteShareName already Exists")), err)
+		mm.AssertExpectations(t)
+	})
+	t.Run("WhenCreateReplicationObjectsFails", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(nil).Once()
+
+		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+
+		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+
+		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		// Mock destination volume not found (which is expected)
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, "vol-2").Return(googleproxyclient.VolumeV1beta{}, errors.New("volume not found")).Once()
+
+		mm.On("createReplicationObjects", event, event.DestinationLocationID, "region", "region").Return(nil, errors.New("create replication objects error")).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrValidateCreateDummyReplication, errors.New("create replication objects error")), err)
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("WhenDestinationVolumeShareNameConflict", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(nil).Once()
+
+		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+
+		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+
+		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		// Mock destination volume with conflicting share name
+		existingVolume := googleproxyclient.VolumeV1beta{
+			ResourceId:    "vol-2",
+			CreationToken: googleproxyclient.OptString{Value: "share-2", Set: true}, // Same as event.CreateReplicationParams.DestinationVolumeParameters.ShareName
+		}
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, "vol-2").Return(existingVolume, nil).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, vsaErrors.NewVCPError(vsaErrors.ErrGetVolumeCreateTokenInUseRemoteShareName, errors.New("RemoteShareName already Exists")), err)
+		mm.AssertExpectations(t)
+	})
+
+	t.Run("WhenDestinationVolumeUsesDefaultValues", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.SourceProjectNumber).Return("token", nil).Once()
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("internalParseRegionAndZone", event.LocationID).Return("region", "zone", nil).Once()
+		mm.On("internalParseRegionAndZone", event.DestinationLocationID).Return("region", "zone", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region").Return("basePath", nil).Times(2)
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		// Reset volume state and storage pool
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		// Clear destination volume parameters to test default values
+		event.CreateReplicationParams.DestinationVolumeParameters.VolumeID = ""
+		event.CreateReplicationParams.DestinationVolumeParameters.ShareName = ""
+
+		validPool := &googleproxyclient.PoolV1beta{
+			ResourceId:       destPoolID,
+			PoolId:           googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:   googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:      200,
+			ServiceLevel:     googleproxyclient.PoolV1betaServiceLevelFLEX,
+			StoragePoolState: googleproxyclient.NewOptPoolV1betaStoragePoolState(googleproxyclient.PoolV1betaStoragePoolStateREADY),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		mm.On("replicationJobInProcess", ctx, event.SourceProjectNumber, event.DestinationProjectNumber, "basePath", "basePath", event.LocationID, event.DestinationLocationID, "token", "token", mock.Anything, "", event.SourcePool.UUID, destPoolID, event.XCorrelationID).Return(nil).Once()
+
+		mm.On("InternalUtilGetCallbackToken").Return("callback-token", nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.LocationID, event.SourceProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+
+		mm.On("internalGetReplicationCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		mm.On("getQuotaLimit", ctx, mock.Anything, event.DestinationLocationID, event.DestinationProjectNumber, "callback-token", mock.Anything).Return(10, nil).Once()
+
+		mm.On("internalGetVolumeCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
+
+		// Mock destination volume not found (which is expected)
+		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.SourceVolume.Name).Return(googleproxyclient.VolumeV1beta{}, errors.New("volume not found")).Once()
+
+		mm.On("createReplicationObjects", event, event.DestinationLocationID, "region", "region").Return(&datamodel.VolumeReplication{Uri: "uri"}, nil).Once()
+
+		replication, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.NoError(t, err)
+		assert.NotNil(t, replication)
+		mm.AssertExpectations(t)
+	})
 }
 
 func TestValidateReplicationParams(t *testing.T) {
@@ -1040,7 +2107,9 @@ func TestVerifyDstReplicationStop(t *testing.T) {
 		replication, err := _verifyDstReplicationStop(context.Background(), event)
 		assert.Error(tt, err)
 		assert.Nil(tt, replication)
-		assert.Contains(tt, err.Error(), "replication not found")
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "replication not found")
 	})
 	t.Run("VerifyDstReplicationStopFailsWhenAlreadyStopped", func(tt *testing.T) {
 		mirrorState := "STOPPED"
@@ -1481,7 +2550,9 @@ func TestValidateReplicationUpdate(t *testing.T) {
 		}()
 		_, err := _validateReplicationUpdate(ctx, event)
 		assert.Error(tt, err)
-		assert.Equal(tt, "empty replication update payload", err.Error())
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "empty replication update payload")
 	})
 	t.Run("WhenReplicationScheduleUnspecified", func(tt *testing.T) {
 		ctx := context.Background()
@@ -1493,7 +2564,9 @@ func TestValidateReplicationUpdate(t *testing.T) {
 		event1.ReplicationSchedule = nillable.ToPointer("REPLICATION_SCHEDULE_UNSPECIFIED")
 		_, err := _validateReplicationUpdate(ctx, &event1)
 		assert.Error(tt, err)
-		assert.Equal(tt, "Invalid replication schedule provided.", err.Error())
+		var customErr *vsaErrors.CustomError
+		assert.True(tt, vsaErrors.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "Invalid replication schedule provided.")
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		ctx := context.Background()
