@@ -269,10 +269,12 @@ jobs:
         run: |
           for CHART in ./helm-packages/*.tgz; do
             if grep -q "temporal" <<< "${CHART}" ; then
+              echo "Excluding temporal chart push..."
               continue
             fi 
             helm push $CHART oci://ghcr.io/vcp-vsa-control-plane
           done
+        shell: bash -e {0}
 
       - name: Push Helm Charts to Artifact Registry
         run: |
@@ -283,6 +285,7 @@ jobs:
             fi
             helm push $CHART oci://${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{vars.AR_HELM_REPO}}
           done
+        shell: bash -e {0}
 
       - name: Create a release
         run: gh release create -R https://github.com/${{ github.repository }} --generate-notes ${{ inputs.pre_release && '--prerelease' || '' }} ${{ inputs.tag }} --target ${{inputs.pr_base_branch}}
