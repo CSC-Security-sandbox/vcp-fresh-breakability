@@ -1347,13 +1347,14 @@ func TestGetRegion(t *testing.T) {
 					PoolAttributes: &datamodel.PoolAttributes{
 						PrimaryZone:   "au-se1",
 						SecondaryZone: "us-east4-b",
+						IsRegionalHA:  true,
 					},
 				},
 			},
 		}
 
 		expectedName := "us-east4"
-		response := GetRegion(snapshot)
+		response := GetLocation(snapshot)
 		assert.Equal(tt, expectedName, response)
 	})
 
@@ -1364,13 +1365,14 @@ func TestGetRegion(t *testing.T) {
 					PoolAttributes: &datamodel.PoolAttributes{
 						PrimaryZone:   "au-se1",
 						SecondaryZone: "",
+						IsRegionalHA:  false,
 					},
 				},
 			},
 		}
 
 		expectedName := "au-se1"
-		response := GetRegion(snapshot)
+		response := GetLocation(snapshot)
 		assert.Equal(tt, expectedName, response)
 	})
 }

@@ -53,7 +53,7 @@ var (
 	jitterBase                     = time.Millisecond
 	generateRandomString           = _generateRandomString
 	ReplicationUriRegex            = "^projects\\/([^\\/]+)\\/locations/([^\\/]+)/volumes\\/([^\\/]+)\\/replications\\/([^\\/]+)$"
-	GetRegion                      = _getRegion
+	GetLocation                    = _getLocation
 	GenerateStrongPassword         = _generateStrongPassword
 	MinQuotaInBytesVolumeForVolume = env.GetUint64("MIN_QUOTA_IN_BYTES_VOLUME", 107374182400)    // 100 GiB
 	MaxQuotaInBytesVolumeForVolume = env.GetUint64("MAX_QUOTA_IN_BYTES_VOLUME", 109951162777605) // 102,400 GiB
@@ -761,24 +761,28 @@ func _checkForGcpNamingConvention(entry string) bool {
 	return matched
 }
 
-func _getRegion(snapshot datamodel.Snapshot) string {
-	var region string
+func _getLocation(snapshot datamodel.Snapshot) string {
+	var location string
 
 	if snapshot.Volume == nil || snapshot.Volume.Pool == nil || snapshot.Volume.Pool.PoolAttributes == nil {
 		return ""
 	}
 
-	zone := snapshot.Volume.Pool.PoolAttributes.SecondaryZone
-	if zone != "" {
+	isRegionalHA := snapshot.Volume.Pool.PoolAttributes.IsRegionalHA
+	if isRegionalHA {
+		zone := snapshot.Volume.Pool.PoolAttributes.SecondaryZone
+		if zone == "" {
+			zone = snapshot.Volume.Pool.PoolAttributes.PrimaryZone
+		}
 		parts := strings.Split(zone, "-")
 		if len(parts) < 3 {
 			return zone
 		}
-		region = strings.Join(parts[:len(parts)-1], "-")
+		location = strings.Join(parts[:len(parts)-1], "-")
 	} else {
-		region = snapshot.Volume.Pool.PoolAttributes.PrimaryZone
+		location = snapshot.Volume.Pool.PoolAttributes.PrimaryZone
 	}
-	return region
+	return location
 }
 
 func GetHgUUIDs(hgDetails []datamodel.HostGroupDetail) []string {

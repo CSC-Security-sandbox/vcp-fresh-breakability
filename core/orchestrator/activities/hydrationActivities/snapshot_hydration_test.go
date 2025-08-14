@@ -457,7 +457,9 @@ func TestValidateSnapshot(t *testing.T) {
 				Name: "volume-name",
 				Pool: &datamodel.Pool{
 					PoolAttributes: &datamodel.PoolAttributes{
-						SecondaryZone: "zone-name",
+						PrimaryZone:   "zone-name1",
+						SecondaryZone: "zone-name2",
+						IsRegionalHA:  true,
 					},
 				},
 			},
@@ -477,7 +479,9 @@ func TestValidateSnapshot(t *testing.T) {
 				Name: "",
 				Pool: &datamodel.Pool{
 					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone:   "zone-name1",
 						SecondaryZone: "zone-name",
+						IsRegionalHA:  true,
 					},
 				},
 			},
@@ -497,7 +501,9 @@ func TestValidateSnapshot(t *testing.T) {
 				Name: "volume-name",
 				Pool: &datamodel.Pool{
 					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone:   "zone-name1",
 						SecondaryZone: "zone-name",
+						IsRegionalHA:  true,
 					},
 				},
 			},
@@ -518,7 +524,9 @@ func TestValidateSnapshot(t *testing.T) {
 				Name: "volume-name",
 				Pool: &datamodel.Pool{
 					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone:   "zone-name1",
 						SecondaryZone: "zone-name",
+						IsRegionalHA:  true,
 					},
 				},
 			},
@@ -538,7 +546,9 @@ func TestValidateSnapshot(t *testing.T) {
 				Name: "volume-name",
 				Pool: &datamodel.Pool{
 					PoolAttributes: &datamodel.PoolAttributes{
+						PrimaryZone:   "zone-name1",
 						SecondaryZone: "zone-name",
+						IsRegionalHA:  true,
 					},
 				},
 			},

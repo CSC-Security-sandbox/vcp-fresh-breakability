@@ -118,7 +118,7 @@ func _convertBulkSnapshotToGCPSnapshotObject(snapshot datamodel.Snapshot) models
 
 // _validateSnapshot validates the snapshot's UUID, volume name, account name, and description length.
 func _validateSnapshot(ss datamodel.Snapshot) (string, error) {
-	region := utils.GetRegion(ss)
+	region := utils.GetLocation(ss)
 	if region == "" {
 		return region, errors.New("errorEmptyRegion")
 	}
