@@ -194,7 +194,7 @@ spec:
             - name: GIN_SERVICE_ATTACHMENT
               value: "projects/netapp-au-se1-autopush-sde-tst/regions/australia-southeast1/serviceAttachments/fluent-bit-psc"
             - name: GIN_LOGGING_FEATURE
-              value: "true"
+              value: "false"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
