@@ -235,6 +235,7 @@ jobs:
       - name: Helm Login to Artifact Registry
         run: |
           gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${{vars.AR_GCP_REGION}}-docker.pkg.dev
+          gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${{vars.AR_TEMPORAL_HELM_REGION}}-docker.pkg.dev
           helm registry login ghcr.io -u ${{github.actor}} --password ${{ secrets.GHVSA_PAT }}
 
       - name: Update Versions of helm charts
@@ -257,10 +258,12 @@ jobs:
 
       - name: Package Helm Charts
         run: |
-          helm package kubernetes/vsa-control-plane --destination ./helm-packages
-          helm package kubernetes/vcp-worker-chart --destination ./helm-packages
-          helm package kubernetes/vsa-harvest-otel --destination ./helm-packages
-          helm package kubernetes/vlm-worker --destination ./helm-packages
+          charts=( vsa-control-plane vcp-worker-chart vsa-harvest-otel vlm-worker temporal )
+          for chart in ${charts[*]}; do
+            echo "Package helm Chart for ${chart}"
+            helm package kubernetes/${chart} --destination ./helm-packages
+          done
+        shell: bash -e {0}
 
       - name: Push Helm Charts to GHCR
         run: |
@@ -271,6 +274,10 @@ jobs:
       - name: Push Helm Charts to Artifact Registry
         run: |
           for CHART in ./helm-packages/*.tgz; do
+            if grep -q "temporal" <<< "${CHART}" ; then
+              helm push $CHART oci://${{ vars.AR_TEMPORAL_HELM_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{vars.AR_TEMPORAL_HELM_REPO}}
+              continue
+            fi
             helm push $CHART oci://${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{vars.AR_HELM_REPO}}
           done
 
