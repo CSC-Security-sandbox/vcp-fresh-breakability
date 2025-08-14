@@ -2365,9 +2365,8 @@ func lunCreateParamsToONTAP(params *LunCreateParams) *san.LunCreateParams {
 	}
 
 	otParams.SetInfo(&models.Lun{
-		Svm:    &models.LunInlineSvm{Name: &params.SvmName},
-		Name:   constructLunName(&params.VolumeName, &params.Name),
-		OsType: &params.OsType,
+		Svm:  &models.LunInlineSvm{Name: &params.SvmName},
+		Name: constructLunName(&params.VolumeName, &params.Name),
 		Location: &models.LunInlineLocation{
 			Volume: &models.LunInlineLocationInlineVolume{Name: &params.VolumeName},
 		},
@@ -2376,6 +2375,16 @@ func lunCreateParamsToONTAP(params *LunCreateParams) *san.LunCreateParams {
 			ScsiThinProvisioningSupportEnabled: params.ThinProvisioningSupportEnabled,
 		},
 	})
+
+	customOSTypeMap := map[string]string{
+		"ESXI": "VMWARE",
+	}
+	if mappedType, exists := customOSTypeMap[params.OsType]; exists {
+		otParams.Info.OsType = nillable.ToPointer(mappedType)
+	} else {
+		otParams.Info.OsType = &params.OsType
+	}
+
 	otParams.SetReturnTimeout(&returnTimeout)
 	otParams.SetReturnRecords(nillable.ToPointer("true"))
 	return otParams
@@ -2538,6 +2547,15 @@ func igroupCreateParamsToONTAP(params *IgroupCreateParams) *san.IgroupCreatePara
 		Protocol:               nillable.ToPointer(models.IgroupProtocolIscsi),
 		Svm:                    &models.IgroupInlineSvm{Name: &params.SvmName},
 	})
+
+	customOSTypeMap := map[string]string{
+		"ESXI": "VMWARE",
+	}
+	if mappedType, exists := customOSTypeMap[params.OsType]; exists {
+		otParams.Info.OsType = nillable.ToPointer(mappedType)
+	} else {
+		otParams.Info.OsType = &params.OsType
+	}
 
 	otParams.SetReturnRecords(nillable.ToPointer("true"))
 	return otParams

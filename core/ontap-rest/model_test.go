@@ -1417,3 +1417,257 @@ func TestSnapmirrorCloudSnapshotGetParamsToONTAP(t *testing.T) {
 		assert.Equal(tt, "snapshot-uuid", otParams.UUID)
 	})
 }
+
+func TestLunCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
+		otParams := lunCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+		assert.Nil(tt, otParams.Info)
+	})
+
+	t.Run("WhenParamsSet_ThenFieldsAreSet", func(tt *testing.T) {
+		thinProvisioning := true
+		params := &LunCreateParams{
+			SvmName:                        "test-svm",
+			Name:                           "test-lun",
+			OsType:                         "LINUX",
+			VolumeName:                     "test-volume",
+			Size:                           1073741824, // 1GB
+			ThinProvisioningSupportEnabled: &thinProvisioning,
+		}
+
+		otParams := lunCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+
+		// Verify SVM
+		assert.NotNil(tt, otParams.Info.Svm)
+		assert.Equal(tt, "test-svm", *otParams.Info.Svm.Name)
+
+		// Verify Location
+		assert.NotNil(tt, otParams.Info.Location)
+		assert.NotNil(tt, otParams.Info.Location.Volume)
+		assert.Equal(tt, "test-volume", *otParams.Info.Location.Volume.Name)
+
+		// Verify Space
+		assert.NotNil(tt, otParams.Info.Space)
+		assert.Equal(tt, int64(1073741824), *otParams.Info.Space.Size)
+		assert.Equal(tt, &thinProvisioning, otParams.Info.Space.ScsiThinProvisioningSupportEnabled)
+
+		// Verify OS Type mapping
+		assert.Equal(tt, "LINUX", *otParams.Info.OsType)
+	})
+
+	t.Run("WhenOsTypeIsESXI_ThenMapsToVMWARE", func(tt *testing.T) {
+		params := &LunCreateParams{
+			SvmName:    "test-svm",
+			Name:       "test-lun",
+			OsType:     "ESXI",
+			VolumeName: "test-volume",
+			Size:       1073741824,
+		}
+
+		otParams := lunCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "VMWARE", *otParams.Info.OsType)
+	})
+
+	t.Run("WhenOsTypeIsWindows_ThenMapsToWINDOWS", func(tt *testing.T) {
+		params := &LunCreateParams{
+			SvmName:    "test-svm",
+			Name:       "test-lun",
+			OsType:     "WINDOWS",
+			VolumeName: "test-volume",
+			Size:       1073741824,
+		}
+
+		otParams := lunCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "WINDOWS", *otParams.Info.OsType)
+	})
+
+	t.Run("WhenOsTypeIsUnknown_ThenOsTypeNotSet", func(tt *testing.T) {
+		params := &LunCreateParams{
+			SvmName:    "test-svm",
+			Name:       "test-lun",
+			OsType:     "UNKNOWN",
+			VolumeName: "test-volume",
+			Size:       1073741824,
+		}
+
+		otParams := lunCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "UNKNOWN", *otParams.Info.OsType)
+	})
+
+	t.Run("WhenThinProvisioningIsNil_ThenFieldIsNil", func(tt *testing.T) {
+		params := &LunCreateParams{
+			SvmName:                        "test-svm",
+			Name:                           "test-lun",
+			OsType:                         "LINUX",
+			VolumeName:                     "test-volume",
+			Size:                           1073741824,
+			ThinProvisioningSupportEnabled: nil,
+		}
+
+		otParams := lunCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info.Space)
+		assert.Nil(tt, otParams.Info.Space.ScsiThinProvisioningSupportEnabled)
+	})
+
+	t.Run("WhenThinProvisioningIsFalse_ThenFieldIsFalse", func(tt *testing.T) {
+		thinProvisioning := false
+		params := &LunCreateParams{
+			SvmName:                        "test-svm",
+			Name:                           "test-lun",
+			OsType:                         "LINUX",
+			VolumeName:                     "test-volume",
+			Size:                           1073741824,
+			ThinProvisioningSupportEnabled: &thinProvisioning,
+		}
+
+		otParams := lunCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info.Space)
+		assert.Equal(tt, &thinProvisioning, otParams.Info.Space.ScsiThinProvisioningSupportEnabled)
+	})
+}
+
+func TestIgroupCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
+		otParams := igroupCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+		assert.Nil(tt, otParams.Info)
+	})
+
+	t.Run("WhenParamsSet_ThenFieldsAreSet", func(tt *testing.T) {
+		params := &IgroupCreateParams{
+			SvmName:    "test-svm",
+			Name:       "test-igroup",
+			OsType:     "LINUX",
+			Initiators: []string{"iqn.1993-08.org.debian:01:c9a5ccf7ca95", "iqn.1993-08.org.debian:01:d0b6dde8db06"},
+			JobID:      "test-job-123",
+		}
+
+		otParams := igroupCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+
+		// Verify SVM
+		assert.NotNil(tt, otParams.Info.Svm)
+		assert.Equal(tt, "test-svm", *otParams.Info.Svm.Name)
+
+		// Verify basic fields
+		assert.Equal(tt, "test-igroup", *otParams.Info.Name)
+		assert.Equal(tt, "LINUX", *otParams.Info.OsType)
+		assert.Equal(tt, "test-job-123", *otParams.Info.Comment)
+		assert.Equal(tt, models.IgroupProtocolIscsi, *otParams.Info.Protocol)
+
+		// Verify initiators
+		assert.Len(tt, otParams.Info.IgroupInlineInitiators, 2)
+		assert.Equal(tt, "iqn.1993-08.org.debian:01:c9a5ccf7ca95", *otParams.Info.IgroupInlineInitiators[0].Name)
+		assert.Equal(tt, "iqn.1993-08.org.debian:01:d0b6dde8db06", *otParams.Info.IgroupInlineInitiators[1].Name)
+	})
+
+	t.Run("WhenOsTypeIsESXI_ThenMapsToVMWARE", func(tt *testing.T) {
+		params := &IgroupCreateParams{
+			SvmName:    "test-svm",
+			Name:       "test-igroup",
+			OsType:     "ESXI",
+			Initiators: []string{"iqn.1998-01.com.vmware:esx001-0badb9cf"},
+			JobID:      "test-job-123",
+		}
+
+		otParams := igroupCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "VMWARE", *otParams.Info.OsType)
+	})
+
+	t.Run("WhenOsTypeIsLinux_ThenMapsToLINUX", func(tt *testing.T) {
+		params := &IgroupCreateParams{
+			SvmName:    "test-svm",
+			Name:       "test-igroup",
+			OsType:     "LINUX",
+			Initiators: []string{"iqn.1994-05.com.example:test1"},
+			JobID:      "test-job-123",
+		}
+
+		otParams := igroupCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "LINUX", *otParams.Info.OsType)
+	})
+
+	t.Run("WhenOsTypeIsWindows_ThenMapsToWINDOWS", func(tt *testing.T) {
+		params := &IgroupCreateParams{
+			SvmName:    "test-svm",
+			Name:       "test-igroup",
+			OsType:     "WINDOWS",
+			Initiators: []string{"iqn.1991-05.com.microsoft:wlm-sql-gcnv1-sql-server"},
+			JobID:      "test-job-123",
+		}
+
+		otParams := igroupCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "WINDOWS", *otParams.Info.OsType)
+	})
+
+	t.Run("WhenInitiatorsEmpty_ThenInitiatorsArrayIsEmpty", func(tt *testing.T) {
+		params := &IgroupCreateParams{
+			SvmName:    "test-svm",
+			Name:       "test-igroup",
+			OsType:     "LINUX",
+			Initiators: []string{},
+			JobID:      "test-job-123",
+		}
+
+		otParams := igroupCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info.IgroupInlineInitiators)
+		assert.Len(tt, otParams.Info.IgroupInlineInitiators, 0)
+	})
+
+	t.Run("WhenInitiatorsNil_ThenInitiatorsArrayIsEmpty", func(tt *testing.T) {
+		params := &IgroupCreateParams{
+			SvmName:    "test-svm",
+			Name:       "test-igroup",
+			OsType:     "LINUX",
+			Initiators: nil,
+			JobID:      "test-job-123",
+		}
+
+		otParams := igroupCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info.IgroupInlineInitiators)
+		assert.Len(tt, otParams.Info.IgroupInlineInitiators, 0)
+	})
+
+	t.Run("WhenSingleInitiator_ThenInitiatorsArrayHasOne", func(tt *testing.T) {
+		params := &IgroupCreateParams{
+			SvmName:    "test-svm",
+			Name:       "test-igroup",
+			OsType:     "LINUX",
+			Initiators: []string{"iqn.1993-08.org.debian:01:c9a5ccf7ca95"},
+			JobID:      "test-job-123",
+		}
+
+		otParams := igroupCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Len(tt, otParams.Info.IgroupInlineInitiators, 1)
+		assert.Equal(tt, "iqn.1993-08.org.debian:01:c9a5ccf7ca95", *otParams.Info.IgroupInlineInitiators[0].Name)
+	})
+
+	t.Run("WhenJobIDEmpty_ThenCommentIsEmpty", func(tt *testing.T) {
+		params := &IgroupCreateParams{
+			SvmName:    "test-svm",
+			Name:       "test-igroup",
+			OsType:     "LINUX",
+			Initiators: []string{"iqn.1993-08.org.debian:01:c9a5ccf7ca95"},
+			JobID:      "",
+		}
+
+		otParams := igroupCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, "", *otParams.Info.Comment)
+	})
+}
