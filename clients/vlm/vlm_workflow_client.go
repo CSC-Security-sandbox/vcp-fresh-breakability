@@ -108,7 +108,11 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAClusterDeployment(ctx workf
 
 	if err != nil {
 		logger.Error("Failed to create VSA cluster", "error", err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		// Handle VLM-specific errors and convert them to user-facing errors
+		vlmErrorHandler := NewVLMErrorHandlerWithLogger(logger)
+
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(handledErr)
 	}
 
 	return createVSAClusterDeploymentResponse, nil
@@ -160,7 +164,10 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSASVM(ctx workflow.Context, c
 		if strings.Contains(err.Error(), "already exists and is in use by a different VM") {
 			return nil, nil
 		}
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		// Handle VLM-specific errors and convert them to user-facing errors
+		vlmErrorHandler := NewVLMErrorHandler()
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(handledErr)
 	}
 
 	return createSVMResponse, nil
@@ -213,7 +220,10 @@ func (vlmManager *VSAClientWorkflowManager) DeleteVSAClusterDeployment(ctx workf
 	err = workflow.ExecuteChildWorkflow(childWorkflowContxt, DeleteVSAClusterDeploymentWorkflowName, deleteVSAClusterDeploymentRequest).Get(childWorkflowContxt, nil)
 	if err != nil {
 		logger.Error("Failed to delete VSA cluster", "error", err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		// Handle VLM-specific errors and convert them to user-facing errors
+		vlmErrorHandler := NewVLMErrorHandler()
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return vsaerrors.WrapAsTemporalApplicationError(handledErr)
 	}
 
 	return nil
@@ -260,7 +270,10 @@ func (vlmManager *VSAClientWorkflowManager) UpdateVSAClusterDeployment(ctx workf
 
 	if err != nil {
 		logger.Error("Failed to update VSA cluster", "error", err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		// Handle VLM-specific errors and convert them to user-facing errors
+		vlmErrorHandler := NewVLMErrorHandler()
+		handledErr := vlmErrorHandler.HandleVLMError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(handledErr)
 	}
 
 	return updateVSAClusterDeploymentResponse, nil

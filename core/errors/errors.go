@@ -56,6 +56,26 @@ const (
 	ErrGCPResourceAlreadyExistsError  = 3006
 	ErrGCPServiceAccountDeletionError = 3007
 
+	// VLM-specific GCP errors (9000-9999 range)
+	ErrVLMQuotaExceededRegional                = 9001
+	ErrVLMQuotaExceededZonal                   = 9002
+	ErrVLMQuotaExceededGeneral                 = 9003
+	ErrVLMResourceNotAvailableInZone           = 9004
+	ErrVLMZoneResourcePoolExhausted            = 9005
+	ErrVLMZoneResourcePoolExhaustedWithDetails = 9006
+	ErrVLMInsufficientResourcesInZone          = 9007
+	ErrVLMVMTypeUnavailableInZone              = 9008
+	ErrVLMVMTypeUnavailableWithReason          = 9009
+	ErrVLMRateLimitExceeded                    = 9010
+	ErrVLMDiskRateLimited                      = 9011
+	ErrVLMResourceNotReady                     = 9012
+	ErrVLMInsufficientPermissions              = 9013
+	ErrVLMProjectConstraintViolated            = 9014
+	ErrVLMCPUPlatformMismatch                  = 9015
+	ErrVLMServiceAccountAccessDenied           = 9016
+	ErrVLMInvalidMachineImageUpdate            = 9017
+	ErrVLMWorkflowError                        = 9018
+
 	ErrVSAClusterCreateError           = 4001
 	ErrCouldNotFetchVSAClusterDetails  = 4002
 	ErrVSAClusterDeleteError           = 4003

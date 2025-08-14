@@ -174,10 +174,16 @@
     "http_code": 500
   },
   "3007": {
-      "description": "GCP Service Account Deletion Error",
-      "message": "An internal error occurred.",
-      "retriable": true,
-      "http_code": 500
+    "description": "GCP Service Account Deletion Error",
+    "message": "An internal error occurred.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "3006": {
+    "description": "GCP Resource Already Exists Error",
+    "message": "The requested resource already exists",
+    "retriable": false,
+    "http_code": 409
   },
   "4001": {
     "description": "VSA Cluster Provisioning Error",
@@ -221,7 +227,7 @@
     "retriable": false,
     "http_code": 400
   },
-  "4010":{
+  "4010": {
     "description": "Cluster deletion error",
     "message": "An internal error occurred.",
     "retriable": false,
@@ -271,7 +277,7 @@
   },
   "6021": {
     "description": "Failed to parse projectNumber",
-    "message":"Failed to parse projectNumber",
+    "message": "Failed to parse projectNumber",
     "retriable": false,
     "http_code": 500
   },
@@ -313,25 +319,25 @@
   },
   "6028": {
     "description": "Failed to read quota value from CCFE response",
-    "message":  "Failed to read quota value from CCFE response",
+    "message": "Failed to read quota value from CCFE response",
     "retriable": false,
     "http_code": 500
   },
   "6029": {
     "description": "Failed to create NewIamCred",
-    "message":  "Failed to create NewIamCred",
+    "message": "Failed to create NewIamCred",
     "retriable": false,
     "http_code": 500
   },
   "6030": {
     "description": "Failed To Generate Access Token",
-    "message":  "Failed To Generate Access Token",
+    "message": "Failed To Generate Access Token",
     "retriable": false,
     "http_code": 500
   },
   "6057": {
     "description": "Error describing SDE Operation",
-    "message":  "Error describing SDE Operation",
+    "message": "Error describing SDE Operation",
     "retriable": false,
     "http_code": 500
   },
@@ -343,7 +349,7 @@
   },
   "6059": {
     "description": "Delete Kms Job Failed",
-    "message":  "Error while deleting KMS configuration",
+    "message": "Error while deleting KMS configuration",
     "retriable": false,
     "http_code": 500
   },
@@ -430,6 +436,114 @@
     "message": "Cannot delete volume while volume is in use",
     "retriable": false,
     "http_code": 400
+  },
+  "9001": {
+    "description": "VLM Regional Quota Exceeded",
+    "message": "Resource quota exceeded in the specified region. Please contact support to increase the quota limit or try a different region.",
+    "retriable": false,
+    "http_code": 507
+  },
+  "9002": {
+    "description": "VLM Zonal Quota Exceeded",
+    "message": "Resource quota exceeded in the specified zone. Please contact support to increase the quota limit or try a different zone.",
+    "retriable": false,
+    "http_code": 507
+  },
+  "9003": {
+    "description": "VLM General Quota Exceeded",
+    "message": "Resource quota exceeded. Please contact support to increase the quota limit.",
+    "retriable": false,
+    "http_code": 507
+  },
+  "9004": {
+    "description": "VLM Resource Not Available in Zone",
+    "message": "The requested resource is not available in the specified zone. Please try a different zone or resource type.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "9005": {
+    "description": "VLM Zone Resource Pool Exhausted",
+    "message": "The zone's resource pool is currently exhausted. Please try a different zone or try again later.",
+    "retriable": true,
+    "http_code": 503
+  },
+  "9006": {
+    "description": "VLM Zone Resource Pool Exhausted with Details",
+    "message": "The zone's resource pool is currently exhausted with specific constraints. Please try a different zone or resource configuration.",
+    "retriable": true,
+    "http_code": 503
+  },
+  "9007": {
+    "description": "VLM Insufficient Resources in Zone",
+    "message": "Insufficient resources available in the specified zone to fulfill the request. Please try a different zone or try again later.",
+    "retriable": true,
+    "http_code": 503
+  },
+  "9008": {
+    "description": "VLM VM Type Unavailable in Zone",
+    "message": "The requested VM type is currently unavailable in the specified zone. Please try a different zone or VM configuration.",
+    "retriable": true,
+    "http_code": 503
+  },
+  "9009": {
+    "description": "VLM VM Type Unavailable with Reason",
+    "message": "The requested VM type is currently unavailable in the specified zone due to specific constraints. Please try the suggested alternatives.",
+    "retriable": true,
+    "http_code": 503
+  },
+  "9010": {
+    "description": "VLM Rate Limit Exceeded",
+    "message": "Operation rate limit exceeded. Please wait before retrying the operation.",
+    "retriable": true,
+    "http_code": 429
+  },
+  "9011": {
+    "description": "VLM Disk Rate Limited",
+    "message": "Disk operation rate limited. Please wait before retrying the disk operation.",
+    "retriable": true,
+    "http_code": 429
+  },
+  "9012": {
+    "description": "VLM Resource Not Ready",
+    "message": "The requested resource is not ready for the operation. Please wait and try again.",
+    "retriable": true,
+    "http_code": 503
+  },
+  "9013": {
+    "description": "VLM Insufficient Permissions",
+    "message": "Insufficient permissions to perform the requested operation. Please contact support.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "9014": {
+    "description": "VLM Project Constraint Violated",
+    "message": "Project constraint violated. The operation is not allowed for this project.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "9015": {
+    "description": "VLM CPU Platform Mismatch",
+    "message": "CPU platform mismatch. The selected machine type requires a specific CPU platform that does not match the specified configuration.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "9016": {
+    "description": "VLM Service Account Access Denied",
+    "message": "Service account access denied. The service account does not have the required permissions.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "9017": {
+    "description": "VLM Invalid Machine Image Update",
+    "message": "Invalid machine image update. Updating the source machine image is not supported.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "9018": {
+    "description": "VLM Workflow Error",
+    "message": "An error occurred during VLM workflow execution. Please try again or contact support if the issue persists.",
+    "retriable": true,
+    "http_code": 500
   },
   "7006": {
     "description": "VolumeRevert failure",

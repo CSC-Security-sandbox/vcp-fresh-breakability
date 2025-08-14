@@ -2618,7 +2618,8 @@ func Test_CreateGCPBucket_Failure(t *testing.T) {
 	mockGcp.EXPECT().CreateBucketIfNotExists(ctx, projectId, bucketName, region).Return(errors.New("failed to create bucket"))
 	err := activities.CreateGCPBucket(ctx, projectId, bucketName, region, mockGcp)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to create bucket")
+	assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "failed to create bucket")
+	assert.Contains(t, err.Error(), "The requested resource already exists")
 }
 
 func Test_EnableAutoTiering_Failure(t *testing.T) {

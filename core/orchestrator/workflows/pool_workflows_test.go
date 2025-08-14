@@ -3899,7 +3899,7 @@ func TestPoolDataSubnetWorkFlow_RunError(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "default-test-workflow-id",
 		},
-		State:        "DONE",
+		State:        "ERROR",
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "activity error (type: GetCreateDataSubnetOp, scheduledEventID: 0, startedEventID: 0, identity: ): failed to fetch subnet",
 	}).Return(nil).Once()
@@ -3954,7 +3954,7 @@ func TestPoolDataSubnetWorkFlow_UpdateJobError(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "default-test-workflow-id",
 		},
-		State:        "DONE",
+		State:        "ERROR",
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "activity error (type: GetCreateDataSubnetOp, scheduledEventID: 0, startedEventID: 0, identity: ): failed to fetch subnet",
 	}).Return(errors.New("failed to update job status"))
@@ -4347,7 +4347,7 @@ func TestPoolDataSubnetWorkFlow_GetAvailableSubnetError1(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "default-test-workflow-id",
 		},
-		State:        "DONE",
+		State:        "ERROR",
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "activity error (type: GetAvailableSubnet, scheduledEventID: 0, startedEventID: 0, identity: ): subnet lookup failed",
 	}).Return(nil).Once()
@@ -4401,7 +4401,7 @@ func TestPoolDataSubnetWorkFlow_GetCreateDataSubnetOpError(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "default-test-workflow-id",
 		},
-		State:        "DONE",
+		State:        "ERROR",
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "activity error (type: GetCreateDataSubnetOp, scheduledEventID: 0, startedEventID: 0, identity: ): create subnet failed"}).Return(nil).Once()
 
@@ -4449,7 +4449,7 @@ func TestPoolDataSubnetWorkFlow_SuccessfulNewSubnetCreation1(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "default-test-workflow-id",
 		},
-		State:        "DONE",
+		State:        "ERROR",
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "failed to create subnet for tenant project: test-tenant-123, operation name is empty",
 	}).Return(nil).Once()
@@ -4507,7 +4507,7 @@ func TestPoolDataSubnetWorkFlow_WaitFails(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "default-test-workflow-id",
 		},
-		State:        "DONE",
+		State:        "ERROR",
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "failed to create subnet for tenant project while waiting to get operation status: test-tenant-123: wait for operation failed"}).Return(nil).Once()
 	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
@@ -4567,7 +4567,7 @@ func TestPoolDataSubnetWorkFlow_GetSubnet(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "default-test-workflow-id",
 		},
-		State:        "DONE",
+		State:        "ERROR",
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "failed to get subnet from operation for tenant project: test-tenant-123: activity error (type: GetSubnetFromOperation, scheduledEventID: 0, startedEventID: 0, identity: ): failed to get subnet from operation"}).Return(nil).Once()
 	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
@@ -4628,7 +4628,7 @@ func TestPoolDataSubnetWorkFlow_GetTenancyInfo(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "default-test-workflow-id",
 		},
-		State:        "DONE",
+		State:        "ERROR",
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "activity error (type: GetTenancyInfo, scheduledEventID: 0, startedEventID: 0, identity: ): failed to get tenancy info"}).Return(nil).Once()
 	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)
@@ -4690,7 +4690,7 @@ func TestPoolDataSubnetWorkFlow_UpdatePoolSubnet(t *testing.T) {
 		BaseModel: datamodel.BaseModel{
 			UUID: "default-test-workflow-id",
 		},
-		State:        "DONE",
+		State:        "ERROR",
 		TrackingID:   vsaerrors.ErrInternalServerError,
 		ErrorDetails: "activity error (type: UpdatePoolSubnet, scheduledEventID: 0, startedEventID: 0, identity: ): failed to update pool subnet"}).Return(nil).Once()
 	env.ExecuteWorkflow(PoolDataSubnetWorkFlow, params, "pool-uuid", tenantProjectNumber)

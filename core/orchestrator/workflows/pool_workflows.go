@@ -103,9 +103,9 @@ func CreatePoolWorkflow(ctx workflow.Context, params *common.CreatePoolParams, p
 	if errRun != nil {
 		log.Errorf("error in createPoolWorkflow: %v", errRun)
 		createPoolWF.Status = WorkflowStatusFailed
-		err2 := createPoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), errRun)
+		err2 := createPoolWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), errRun)
 		if err2 != nil {
-			log.Errorf("failed to update job with err and status to DONE: %v", err2)
+			log.Errorf("failed to update job with err and status to ERROR: %v", err2)
 			return err2
 		}
 		return errRun
@@ -475,7 +475,7 @@ func UpdatePoolWorkflow(ctx workflow.Context, params *common.UpdatePoolParams, p
 	_, err = updatePoolWF.Run(ctx, params, pool)
 	if e, ok := err.(*vsaerrors.CustomError); ok && e != nil {
 		updatePoolWF.Status = WorkflowStatusFailed
-		err = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		err = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -643,7 +643,7 @@ func DeletePoolWorkflow(ctx workflow.Context, params *common.DeletePoolParams, p
 	_, errRun := deletePoolWF.Run(ctx, params, pool)
 	if errRun != nil {
 		deletePoolWF.Status = WorkflowStatusFailed
-		err = deletePoolWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), errRun)
+		err = deletePoolWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), errRun)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -937,7 +937,7 @@ func PoolDataSubnetWorkFlow(ctx workflow.Context, params *common.CreatePoolParam
 	_, err = CreateOrGetSubnetworkWF.Run(ctx, params, poolUUID, tenantProjectNumber)
 	if e, ok := err.(*vsaerrors.CustomError); ok && e != nil {
 		CreateOrGetSubnetworkWF.Status = WorkflowStatusFailed
-		upErr := CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), err)
+		upErr := CreateOrGetSubnetworkWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), err)
 		if upErr != nil {
 			return nil, upErr
 		}
