@@ -47,6 +47,18 @@
     "retriable": false,
     "http_code": 500
   },
+  "1009": {
+    "description": "Input validation error",
+    "message": "Invalid input parameters provided",
+    "retriable": false,
+    "http_code": 400
+  },
+  "1010": {
+    "description": "Resource state conflict error",
+    "message": "Resource is in an invalid state for the requested operation",
+    "retriable": false,
+    "http_code": 409
+  },
   "1011": {
     "description": "Internal Server Error",
     "message": "An internal error occurred.",
@@ -186,10 +198,10 @@
     "http_code": 409
   },
   "3008": {
-      "description": "GCP Service Account Deletion Non-Retriable Error",
-      "message": "An internal error occurred.",
-      "retriable": false,
-      "http_code": 500
+    "description": "GCP Service Account Deletion Non-Retriable Error",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
   },
   "4001": {
     "description": "VSA Cluster Provisioning Error",
@@ -218,6 +230,24 @@
   "4005": {
     "description": "VSA Cluster - Node Not Found",
     "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "4006": {
+    "description": "VSA Cluster Node IP Address Not Found",
+    "message": "VSA cluster node IP address not found",
+    "retriable": false,
+    "http_code": 500
+  },
+  "4007": {
+    "description": "VSA Cluster Update Error",
+    "message": "Failed to update VSA cluster",
+    "retriable": true,
+    "http_code": 500
+  },
+  "4008": {
+    "description": "VLM Client Initialization Error",
+    "message": "Failed to initialize VLM client",
     "retriable": false,
     "http_code": 500
   },
@@ -266,6 +296,12 @@
   "5006": {
     "description": "Ontap Rest Error",
     "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "5007": {
+    "description": "ONTAP Inconsistent Resource Error",
+    "message": "ONTAP resource is in an inconsistent state",
     "retriable": false,
     "http_code": 500
   },
@@ -769,7 +805,7 @@
   },
   "6135": {
     "description": "Get Signed Callback Token Error",
-    "message": "Failed to get signed callback token", 
+    "message": "Failed to get signed callback token",
     "retriable": false,
     "http_code": 500
   },

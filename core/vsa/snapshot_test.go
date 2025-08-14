@@ -1924,7 +1924,8 @@ func TestGetSnapshot(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, resp)
-		assert.Contains(t, err.Error(), "missing required fields")
+		assert.Contains(t, err.Error(), "ONTAP resource is in an inconsistent state")
+		assert.Contains(t, err.(*vsaerrors.CustomError).OriginalErr.Error(), "missing required fields")
 		mockStorage.AssertExpectations(t)
 	})
 }

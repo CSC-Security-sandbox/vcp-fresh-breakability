@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/hydrationActivities"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
@@ -168,7 +169,8 @@ func TestCreateVolume(t *testing.T) {
 		}
 
 		createdVolume, err := store.CreateVolume(context.Background(), volume)
-		assert.EqualError(tt, err, "volume already exists", "Expected error 'volume already exists', got %v", err)
+		assert.EqualError(tt, err.(*vsaerrors.CustomError).OriginalErr, "volume already exists", "Expected error 'volume already exists', got %v", err)
+		assert.EqualError(tt, err, "Invalid input parameters provided", "Expected error 'Invalid input parameters provided', got %v", err)
 		assert.Nil(tt, createdVolume, "Expected nil volume, got %v", createdVolume)
 	})
 	t.Run("CreatesVolumeSuccessfullyWhenParamsAreProvided", func(tt *testing.T) {

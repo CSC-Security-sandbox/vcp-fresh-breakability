@@ -361,7 +361,8 @@ func TestCreatePool(t *testing.T) {
 		}
 
 		_, _, err := createPool(ctx, store, temporal, params)
-		assert.EqualError(tt, err, "pool already exists")
+		assert.EqualError(tt, err.(*vsaerrors.CustomError).OriginalErr, "pool already exists")
+		assert.EqualError(tt, err, "Invalid input parameters provided")
 	})
 	t.Run("WhenCreatePoolSucceeds", func(tt *testing.T) {
 		ctx, _, orch, temporal := setup(tt)

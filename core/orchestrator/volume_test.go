@@ -2177,7 +2177,8 @@ func TestCreateVolume(t *testing.T) {
 		createdVolume, err := store.CreateVolume(ctx, volume)
 		assert.Error(tt, err, "Expected error, got nil")
 		assert.Nil(tt, createdVolume, "Expected nil volume")
-		assert.Contains(tt, err.Error(), "volume already exists")
+		assert.Contains(tt, err.Error(), "Invalid input parameters provided")
+		assert.Contains(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "volume already exists")
 	})
 }
 
