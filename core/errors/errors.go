@@ -48,13 +48,14 @@ const (
 	ErrVolumeNotFound            = 2100
 	ErrAccountNotFound           = 2101
 
-	ErrGCPClientInitializationError   = 3001
-	ErrPSAPeeringNotFoundError        = 3002
-	ErrGCPResourceProvisionError      = 3003
-	ErrGCPResourceFetchError          = 3004
-	ErrGCPResourceDeprovisionError    = 3005
-	ErrGCPResourceAlreadyExistsError  = 3006
-	ErrGCPServiceAccountDeletionError = 3007
+	ErrGCPClientInitializationError               = 3001
+	ErrPSAPeeringNotFoundError                    = 3002
+	ErrGCPResourceProvisionError                  = 3003
+	ErrGCPResourceFetchError                      = 3004
+	ErrGCPResourceDeprovisionError                = 3005
+	ErrGCPResourceAlreadyExistsError              = 3006
+	ErrGCPServiceAccountDeletionError             = 3007
+	ErrGCPServiceAccountDeletionNonRetriableError = 3008
 
 	// VLM-specific GCP errors (9000-9999 range)
 	ErrVLMQuotaExceededRegional                = 9001

@@ -2830,24 +2830,24 @@ func Test_deleteGCPBucket(t *testing.T) {
 
 func Test_deleteServiceAccount(t *testing.T) {
 	ctx := context.Background()
-	projectID := "test-project"
+	projectNumber := "123456789"
 	saAccountID := "test-sa"
-	saEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", saAccountID, projectID)
+	saEmail := fmt.Sprintf("%s@%s.iam.gserviceaccount.com", saAccountID, projectNumber)
 	logger := util.GetLogger(ctx)
 
 	t.Run("success", func(t *testing.T) {
 		mockGcp := hyperscaler2.NewMockGoogleServices(t)
 		mockGcp.EXPECT().GetLogger().Return(logger)
-		mockGcp.EXPECT().DeleteServiceAccount(saEmail).Return(nil)
-		err := activities.DeleteSrvcAccount(ctx, projectID, saAccountID, mockGcp)
+		mockGcp.EXPECT().DeleteServiceAccount(projectNumber, saEmail).Return(nil)
+		err := activities.DeleteSrvcAccount(ctx, projectNumber, saAccountID, mockGcp)
 		assert.NoError(t, err)
 	})
 
 	t.Run("delete fails", func(t *testing.T) {
 		mockGcp := hyperscaler2.NewMockGoogleServices(t)
 		mockGcp.EXPECT().GetLogger().Return(logger)
-		mockGcp.EXPECT().DeleteServiceAccount(saEmail).Return(errors.New("delete failed"))
-		err := activities.DeleteSrvcAccount(ctx, projectID, saAccountID, mockGcp)
+		mockGcp.EXPECT().DeleteServiceAccount(projectNumber, saEmail).Return(errors.New("delete failed"))
+		err := activities.DeleteSrvcAccount(ctx, projectNumber, saAccountID, mockGcp)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "delete failed")
 	})
@@ -2856,7 +2856,7 @@ func Test_deleteServiceAccount(t *testing.T) {
 func TestPoolActivity_DeleteServiceAccount(t *testing.T) {
 	activity := activities.PoolActivity{}
 	ctx := context.Background()
-	projectID := "test-project"
+	projectNumber := "123456789"
 	saAccountID := "test-sa"
 
 	origDeleteSrvcAccount := activities.DeleteSrvcAccount
@@ -2867,42 +2867,42 @@ func TestPoolActivity_DeleteServiceAccount(t *testing.T) {
 	}()
 
 	t.Run("success", func(t *testing.T) {
-		activities.DeleteSrvcAccount = func(ctx context.Context, projectID, saAccountID string, gcpService hyperscaler2.GoogleServices) error {
+		activities.DeleteSrvcAccount = func(ctx context.Context, projectNumber, saAccountID string, gcpService hyperscaler2.GoogleServices) error {
 			return nil
 		}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		err := activity.DeleteServiceAccount(ctx, projectID, saAccountID)
+		err := activity.DeleteServiceAccount(ctx, projectNumber, saAccountID)
 		assert.NoError(t, err)
 	})
 
 	t.Run("failure", func(t *testing.T) {
-		activities.DeleteSrvcAccount = func(ctx context.Context, projectID, saAccountID string, gcpService hyperscaler2.GoogleServices) error {
+		activities.DeleteSrvcAccount = func(ctx context.Context, projectNumber, saAccountID string, gcpService hyperscaler2.GoogleServices) error {
 			return errors.New("delete error")
 		}
 		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		err := activity.DeleteServiceAccount(ctx, projectID, saAccountID)
+		err := activity.DeleteServiceAccount(ctx, projectNumber, saAccountID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "delete error")
 	})
 
 	t.Run("empty service account ID", func(t *testing.T) {
 		// Test the case where service account ID is empty - should log warning and return nil
-		err := activity.DeleteServiceAccount(ctx, projectID, "")
+		err := activity.DeleteServiceAccount(ctx, projectNumber, "")
 		assert.NoError(t, err)
 	})
 
-	t.Run("empty project ID", func(t *testing.T) {
-		// Test the case where project ID is empty - should log warning and return nil
+	t.Run("empty project number", func(t *testing.T) {
+		// Test the case where project number is empty - should log warning and return nil
 		err := activity.DeleteServiceAccount(ctx, "", saAccountID)
 		assert.NoError(t, err)
 	})
 
 	t.Run("both empty", func(t *testing.T) {
-		// Test the case where both project ID and service account ID are empty - should log warning and return nil
+		// Test the case where both project number and service account ID are empty - should log warning and return nil
 		err := activity.DeleteServiceAccount(ctx, "", "")
 		assert.NoError(t, err)
 	})
@@ -4261,37 +4261,6 @@ func TestPoolActivity_CreateServiceAccountWithStorageRole_Success(t *testing.T) 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, expectedServiceAccount.Email, result.Email)
-}
-
-func TestPoolActivity_DeleteServiceAccount_Success(t *testing.T) {
-	// Arrange
-	activity := activities.PoolActivity{}
-	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
-
-	projectID := "test-project"
-	saAccountID := "test-sa"
-
-	originalGetGCPService := hyperscaler2.GetGCPService
-	originalDeleteSrvcAccount := activities.DeleteSrvcAccount
-	defer func() {
-		hyperscaler2.GetGCPService = originalGetGCPService
-		activities.DeleteSrvcAccount = originalDeleteSrvcAccount
-	}()
-
-	mockGCPService := &google.GcpServices{}
-	hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
-		return mockGCPService, nil
-	}
-
-	activities.DeleteSrvcAccount = func(ctx context.Context, projectID string, saAccountID string, gcpService hyperscaler2.GoogleServices) error {
-		return nil
-	}
-
-	// Act
-	err := activity.DeleteServiceAccount(ctx, projectID, saAccountID)
-
-	// Assert
-	assert.NoError(t, err)
 }
 
 func TestCreateQoSPolicyAndApplyToSVM(t *testing.T) {

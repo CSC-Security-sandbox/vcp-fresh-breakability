@@ -34,7 +34,7 @@ type Services interface {
 	IsServiceAccountCreated(email string) (account *models.ServiceAccount, isSACreated bool, err error)
 	AttachOrUpdateRolesForServiceAccounts(roles []string, serviceAccountEmail, projectID string) error
 	RemoveRolesFromServiceAccounts(roles []string, serviceAccountEmail, projectID string) error
-	DeleteServiceAccount(email string) error
+	DeleteServiceAccount(project string, email string) error
 	GetServiceAccountByEmail(email string) (*models.ServiceAccount, error)
 
 	CreateHmacKey(projectID string, serviceAccount string) (accessKey *string, secretKey *string, err error)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,6 +13,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -415,7 +415,7 @@ func TestDeleteSA(t *testing.T) {
 
 		mockGCPService := new(hyperscaler.MockGoogleServices)
 		mockGCPService.On("GetLogger").Return(log.NewLogger())
-		mockGCPService.On("DeleteServiceAccount", saEmail).Return(nil)
+		mockGCPService.On("DeleteServiceAccount", projectID, saEmail).Return(nil)
 
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
 			return mockGCPService, nil
@@ -441,7 +441,7 @@ func TestDeleteSA(t *testing.T) {
 		ctx := context.Background()
 		mockGCPService := new(hyperscaler.MockGoogleServices)
 		mockGCPService.On("GetLogger").Return(log.NewLogger())
-		mockGCPService.On("DeleteServiceAccount", mock.Anything).Return(fmt.Errorf("failed to delete service account"))
+		mockGCPService.On("DeleteServiceAccount", mock.Anything, mock.Anything).Return(fmt.Errorf("failed to delete service account"))
 
 		activities.GetCloudService = func(ctx context.Context) (hyperscaler.Services, error) {
 			return mockGCPService, nil

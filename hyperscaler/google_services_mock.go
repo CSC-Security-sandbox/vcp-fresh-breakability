@@ -1075,17 +1075,17 @@ func (_c *MockGoogleServices_DeleteSecret_Call) RunAndReturn(run func(string, st
 	return _c
 }
 
-// DeleteServiceAccount provides a mock function with given fields: email
-func (_m *MockGoogleServices) DeleteServiceAccount(email string) error {
-	ret := _m.Called(email)
+// DeleteServiceAccount provides a mock function with given fields: project, email
+func (_m *MockGoogleServices) DeleteServiceAccount(project string, email string) error {
+	ret := _m.Called(project, email)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteServiceAccount")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(email)
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(project, email)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1099,14 +1099,15 @@ type MockGoogleServices_DeleteServiceAccount_Call struct {
 }
 
 // DeleteServiceAccount is a helper method to define mock.On call
+//   - project string
 //   - email string
-func (_e *MockGoogleServices_Expecter) DeleteServiceAccount(email interface{}) *MockGoogleServices_DeleteServiceAccount_Call {
-	return &MockGoogleServices_DeleteServiceAccount_Call{Call: _e.mock.On("DeleteServiceAccount", email)}
+func (_e *MockGoogleServices_Expecter) DeleteServiceAccount(project interface{}, email interface{}) *MockGoogleServices_DeleteServiceAccount_Call {
+	return &MockGoogleServices_DeleteServiceAccount_Call{Call: _e.mock.On("DeleteServiceAccount", project, email)}
 }
 
-func (_c *MockGoogleServices_DeleteServiceAccount_Call) Run(run func(email string)) *MockGoogleServices_DeleteServiceAccount_Call {
+func (_c *MockGoogleServices_DeleteServiceAccount_Call) Run(run func(project string, email string)) *MockGoogleServices_DeleteServiceAccount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		run(args[0].(string), args[1].(string))
 	})
 	return _c
 }
@@ -1116,7 +1117,7 @@ func (_c *MockGoogleServices_DeleteServiceAccount_Call) Return(_a0 error) *MockG
 	return _c
 }
 
-func (_c *MockGoogleServices_DeleteServiceAccount_Call) RunAndReturn(run func(string) error) *MockGoogleServices_DeleteServiceAccount_Call {
+func (_c *MockGoogleServices_DeleteServiceAccount_Call) RunAndReturn(run func(string, string) error) *MockGoogleServices_DeleteServiceAccount_Call {
 	_c.Call.Return(run)
 	return _c
 }

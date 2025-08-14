@@ -153,8 +153,8 @@ func (a *ADCActivity) DeleteSA(ctx context.Context, projectID string, saAccountI
 	}
 	logger := cloudService.GetLogger()
 	saEmail := utils.ConstructServiceAccountEmail(saAccountID, projectID)
-	logger.Infof("Deleting service account %s", saEmail)
-	err = cloudService.DeleteServiceAccount(saEmail)
+	logger.Infof("Deleting service account %s in project %s", saEmail, projectID)
+	err = cloudService.DeleteServiceAccount(projectID, saEmail)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}

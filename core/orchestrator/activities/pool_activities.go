@@ -1430,12 +1430,12 @@ func assignUniqueSerialNumber(ctx context.Context, se database.Storage, cfg *vlm
 	return nil
 }
 
-func _deleteServiceAccount(ctx context.Context, projectID string, saAccountID string, gcpService hyperscaler2.GoogleServices) error {
+func _deleteServiceAccount(ctx context.Context, projectNumber string, saAccountID string, gcpService hyperscaler2.GoogleServices) error {
 	logger := gcpService.GetLogger()
 
-	saEmail := utils.ConstructServiceAccountEmail(saAccountID, projectID)
-	logger.Infof("Deleting service account %s", saEmail)
-	err := gcpService.DeleteServiceAccount(saEmail)
+	saEmail := utils.ConstructServiceAccountEmail(saAccountID, projectNumber)
+	logger.Infof("Deleting service account %s in project %s", saEmail, projectNumber)
+	err := gcpService.DeleteServiceAccount(projectNumber, saEmail)
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}

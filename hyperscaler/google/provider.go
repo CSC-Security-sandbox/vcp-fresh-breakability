@@ -12,6 +12,7 @@ import (
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	logger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	retryutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudkms/v1"
@@ -740,17 +741,41 @@ func (gcpService *GcpServices) GetServiceAccountByEmail(email string) (*hypersca
 	return convertServiceAccountToHyperscalerServiceAccount(account), nil
 }
 
-func (gcpService *GcpServices) DeleteServiceAccount(saEmail string) error {
-	name := "projects/-/serviceAccounts/" + saEmail
-	_, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Delete(name).Do()
+func (gcpService *GcpServices) DeleteServiceAccount(projectNumber string, saEmail string) error {
+	// Convert project number to project ID for the IAM API call
+	projectID, err := getProjectIDFromNumber(gcpService, projectNumber)
+	if err != nil {
+		gcpService.GetLogger().Errorf("Failed to get project ID from project number %s: %v", projectNumber, err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, fmt.Errorf("failed to resolve project number %s to project ID: %v", projectNumber, err))
+	}
+
+	if strings.TrimSpace(projectID) == "" {
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, fmt.Errorf("resolved project ID is empty for project number: %s", projectNumber))
+	}
+
+	gcpService.GetLogger().Debugf("Resolved project number %s to project ID: %s", projectNumber, projectID)
+	name := "projects/" + projectID + "/serviceAccounts/" + saEmail
+	_, err = gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Delete(name).Do()
 	if err != nil {
 		if gerr, ok := err.(*googleapi.Error); ok && gerr.Code == http.StatusNotFound {
 			// Service account does not exist, treat as success
 			return nil
 		}
-		return vsaerrors.NewVCPError(vsaerrors.ErrGCPServiceAccountDeletionError, fmt.Errorf("Projects.ServiceAccounts.Delete: %v", err))
+		return gcpService.determineIsRetryableError(saEmail, err)
 	}
 	return nil
+}
+
+func (gcpService *GcpServices) determineIsRetryableError(saEmail string, err error) error {
+	if retryutils.ShouldRetry(err) {
+		gcpService.GetLogger().Debugf("Service account %s deletion failed with retriable error, returning for Temporal retry", saEmail)
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPServiceAccountDeletionError,
+			fmt.Errorf("Projects.ServiceAccounts.Delete: %v", err))
+	}
+
+	gcpService.GetLogger().Debugf("Service account %s deletion failed with non-retriable error, returning non-retriable error", saEmail)
+	return vsaerrors.NewVCPError(vsaerrors.ErrGCPServiceAccountDeletionNonRetriableError,
+		fmt.Errorf("Projects.ServiceAccounts.Delete: %v", err))
 }
 
 func (gcpService *GcpServices) CreateHmacKey(projectID string, serviceAccount string) (accessKey *string, secretKey *string, err error) {

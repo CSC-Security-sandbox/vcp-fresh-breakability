@@ -1680,6 +1680,7 @@ func TestGcpServices_DeleteServiceAccount(t *testing.T) {
 		statusCode   int
 		responseBody string
 		wantErr      bool
+		errorType    int
 	}{
 		{
 			name:       "service account not found",
@@ -1687,17 +1688,43 @@ func TestGcpServices_DeleteServiceAccount(t *testing.T) {
 			wantErr:    false,
 		},
 		{
-			name:       "delete fails with other error",
-			statusCode: http.StatusInternalServerError,
+			name:       "delete fails with retriable error",
+			statusCode: http.StatusTooManyRequests,
 			wantErr:    true,
+			errorType:  vsaerrors.ErrGCPServiceAccountDeletionError,
+		},
+		{
+			name:       "delete fails with non-retriable error",
+			statusCode: http.StatusForbidden,
+			wantErr:    true,
+			errorType:  vsaerrors.ErrGCPServiceAccountDeletionNonRetriableError,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			urlPath := "/v1/projects/-/serviceAccounts/test-sa@test-project.iam.gserviceaccount.com"
+			projectID := "test-project"
+			projectNumber := "534737369447"
+			saEmail := "test-sa@test-project.iam.gserviceaccount.com"
+
+			// Mock both compute and IAM services
+			urlPathCompute := "/projects/" + projectNumber
+			urlPathIAM := "/v1/projects/" + projectID + "/serviceAccounts/" + saEmail
+
 			server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-				if req.URL.Path == urlPath {
+				if req.URL.Path == urlPathCompute {
+					// Mock compute service response for project ID resolution
+					project := map[string]interface{}{
+						"name": projectID,
+					}
+					response, _ := json.Marshal(project)
+					rw.Header().Set("Content-Type", "application/json")
+					rw.WriteHeader(http.StatusOK)
+					_, _ = rw.Write(response)
+					return
+				}
+				if req.URL.Path == urlPathIAM {
+					// Mock IAM service response
 					rw.WriteHeader(tt.statusCode)
 					if tt.responseBody != "" {
 						_, _ = rw.Write([]byte(tt.responseBody))
@@ -1709,17 +1736,27 @@ func TestGcpServices_DeleteServiceAccount(t *testing.T) {
 			defer server.Close()
 
 			ctx := context.Background()
+
+			// Create compute and IAM services with mock server
+			computeSvc, err := compute.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+			assert.NoError(t, err)
+
 			iamSvc, err := iam.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
 			assert.NoError(t, err)
 
 			gcp := &GcpServices{
+				Ctx: ctx,
 				AdminGCPService: &AdminGCPService{
-					iamService: iamSvc,
+					iamService:     iamSvc,
+					computeService: computeSvc,
 				},
 			}
-			err = gcp.DeleteServiceAccount("test-sa@test-project.iam.gserviceaccount.com")
+
+			err = gcp.DeleteServiceAccount(projectNumber, saEmail)
 			if tt.wantErr {
-				assert.ErrorContains(t, err.(*vsaerrors.CustomError).OriginalErr, "Projects.ServiceAccounts.Delete: googleapi: got HTTP response code 500 with body: ")
+				assert.Error(t, err)
+				customErr := err.(*vsaerrors.CustomError)
+				assert.Equal(t, tt.errorType, customErr.TrackingID)
 			} else {
 				assert.NoError(t, err)
 			}

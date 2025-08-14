@@ -185,6 +185,12 @@
     "retriable": false,
     "http_code": 409
   },
+  "3008": {
+      "description": "GCP Service Account Deletion Non-Retriable Error",
+      "message": "An internal error occurred.",
+      "retriable": false,
+      "http_code": 500
+  },
   "4001": {
     "description": "VSA Cluster Provisioning Error",
     "message": "An internal error occurred.",
