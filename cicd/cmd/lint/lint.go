@@ -86,7 +86,7 @@ func checkGoFormat() int {
 		}
 
 		// Skip monkey mock test files
-		if strings.HasSuffix(path, "monkey_mock_test.go") {
+		if strings.HasSuffix(path, "monkey_mocks_test.go") {
 			return nil
 		}
 

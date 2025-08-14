@@ -129,7 +129,6 @@ const (
 	ErrGeneratingUniqueSerialNumber      = 6069
 	ErrCVPClientHandleResourceEventError = 6073
 	ErrCVPClientFinishProjectEventError  = 6074
-	ErrRevertingVolume                   = 6075
 
 	// Replication Error Codes 6100 - 6999
 	ErrReplicationScheduleUnspecified                                                        = 6100
