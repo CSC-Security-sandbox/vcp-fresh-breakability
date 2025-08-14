@@ -188,7 +188,7 @@ jobs:
             https://ghcr.io/v2/VCP-VSA-control-Plane/${IMAGE}/manifests/${{ inputs.tag }} | jq -r '.config.digest')
             echo "${IMAGE}-digest=$digest" >> $GITHUB_ENV
           done
-          shell: bash -e {0}
+        shell: bash -e {0}
 
       - name: Generate GCP Artifact URLs
         id: generate_artifact_urls
