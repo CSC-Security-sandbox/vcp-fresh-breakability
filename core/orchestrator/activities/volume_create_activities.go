@@ -702,6 +702,20 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	preSplitUpdateParams := &vsa.UpdateVolumeParams{
+		UUID:               volume.VolumeAttributes.ExternalUUID,
+		Size:               volume.SizeInBytes,
+		SnapshotPolicyName: volume.SnapshotPolicy.Name,
+		SnapReserve:        &volume.VolumeAttributes.SnapReserve,
+	}
+	err = updateVolume(ctx, provider, *preSplitUpdateParams)
+	if err != nil {
+		logger.Errorf("Failed to update cloned volume %s in ontap before split: %v", volume.Name, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Debugf("Cloned volume %s updated successfully in ontap", volume.Name)
+
 	updateVolumeParams := &vsa.UpdateVolumeParams{
 		UUID:          volume.VolumeAttributes.ExternalUUID,
 		InitiateSplit: true,

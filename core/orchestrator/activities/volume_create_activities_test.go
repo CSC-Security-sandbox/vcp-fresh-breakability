@@ -2082,8 +2082,11 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 	node := &models.Node{}
 	snapshot := &datamodel.Snapshot{BaseModel: datamodel.BaseModel{UUID: "snapshot-uuid"}}
 	volume := &datamodel.Volume{
+		Name:        "test-volume",
+		SizeInBytes: 107374182400, // 100 GiB
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "vol-uuid-1",
+			SnapReserve:  5,
 		},
 		SnapshotPolicy: &datamodel.SnapshotPolicy{
 			Name:      "policy1",
@@ -2123,9 +2126,71 @@ func TestInitiateSplitOnVolumeInONTAP(t *testing.T) {
 		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
-		mockProvider.On("UpdateVolume", mock.Anything).Return(nil)
+		// Mock the first UpdateVolume call for updating cloned volume before split
+		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+			return params.UUID == "vol-uuid-1" &&
+				params.Size == int64(107374182400) &&
+				params.SnapshotPolicyName == "policy1" &&
+				params.SnapReserve != nil &&
+				*params.SnapReserve == 5 &&
+				!params.InitiateSplit
+		})).Return(nil).Once()
+
+		// Mock the second UpdateVolume call for initiating split
+		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+			return params.UUID == "vol-uuid-1" &&
+				params.InitiateSplit == true &&
+				params.Size == 0 &&
+				params.SnapshotPolicyName == "" &&
+				params.SnapReserve == nil
+		})).Return(nil).Once()
 		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
 		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("FirstUpdateVolumeError", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Mock the first UpdateVolume call to return error
+		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+			return !params.InitiateSplit
+		})).Return(errors.New("failed to update cloned volume")).Once()
+
+		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to update cloned volume")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("SecondUpdateVolumeError", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		// Mock the first UpdateVolume call to succeed
+		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+			return !params.InitiateSplit
+		})).Return(nil).Once()
+
+		// Mock the second UpdateVolume call (split initiation) to fail
+		mockProvider.On("UpdateVolume", mock.MatchedBy(func(params vsa.UpdateVolumeParams) bool {
+			return params.InitiateSplit == true
+		})).Return(errors.New("failed to initiate split")).Once()
+
+		err := activity.InitiateSplitForVolume(ctx, volume, node, snapshot)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to initiate split")
 		mockProvider.AssertExpectations(tt)
 	})
 
