@@ -125,8 +125,7 @@ jobs:
         run: |
           skaffold config set default-repo ""
           make build-all-binaries-prod 
-          skaffold build 
-          make vcp-db-migrate-image imageVersion=${{ inputs.tag }}
+          skaffold build
 
       - name: Check if digest exists in the gcloud or not
         shell: bash -e {0}

@@ -1,6 +1,4 @@
-FROM alpine:3.21.0
-COPY core/build/linux/bin/vcp-db-migrate /vcp-db-migrate
+ARG BASE
+FROM $BASE
 
-
-
-
+COPY artifacts/vcp-db-migrate /vcp-db-migrate

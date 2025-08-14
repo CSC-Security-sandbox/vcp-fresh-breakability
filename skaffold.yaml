@@ -52,6 +52,15 @@ build:
       requires:
         - image: base
           alias: BASE
+    - image: vcp-db-migrate
+      context: .
+      docker:
+        dockerfile: core/migrate.Dockerfile 
+        buildArgs:
+          GHVSA_PAT: "{{.GHVSA_PAT}}"
+      requires:
+        - image: base
+          alias: BASE
 manifests:
   rawYaml:
     - skaffold/*

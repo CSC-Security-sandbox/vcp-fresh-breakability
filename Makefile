@@ -93,7 +93,8 @@ build-all-binaries-prod:
 		go build -o /src/artifacts/vcp-worker ./worker/ && \
 		go build -o /src/artifacts/google-proxy ./google-proxy/ && \
 		go build -o /src/artifacts/core ./core && \
-		go build -o /src/artifacts/telemetry ./telemetry/'
+		go build -o /src/artifacts/telemetry ./telemetry/ && \
+		go build -o /src/artifacts/vcp-db-migrate ./tools/migrate'
 	docker cp vsa-binaries-builder-run:/src/artifacts/. ./artifacts/
 	ls artifacts
 	docker rm vsa-binaries-builder-run
