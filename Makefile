@@ -147,6 +147,19 @@ worker-dev-image: build-worker base-image
 	@echo "Building vcp-worker development Docker image..."
 	docker build --build-arg BASE=base:dev --build-arg GHVSA_PAT=$(GHVSA_PAT) -f worker/Dockerfile.dev -t $(DEV_REGISTRY)/vcp-worker:$(IMAGE_TAG) .
 
+# Error Framework Validation
+.PHONY: validate-errors
+validate-errors:
+	@echo "🔍 Running error framework validation..."
+	@cd core/errors && ./validate.sh
+
+# Quick error framework status check
+.PHONY: error-status
+error-status:
+	@echo "📊 Error Framework Status"
+	@echo "========================"
+	@cd core/errors && ./validate.sh --status-only 2>/dev/null || echo "Status check not available"
+
 %:
 	@:
 

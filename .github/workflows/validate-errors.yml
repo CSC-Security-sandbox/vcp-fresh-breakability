@@ -1,0 +1,32 @@
+permissions:
+  contents: read
+name: Validate Error Framework
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'core/errors/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'core/errors/**'
+
+jobs:
+  validate-errors:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install jq
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq
+        
+    - name: Validate Error Framework
+      run: |
+        cd core/errors
+        chmod +x validate.sh
+        ./validate.sh 
