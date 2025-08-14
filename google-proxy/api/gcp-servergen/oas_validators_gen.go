@@ -5364,7 +5364,7 @@ func (s PoolInternalV1betaType) Validate() error {
 	switch s {
 	case "STORAGE_POOL_TYPE_UNSPECIFIED":
 		return nil
-	case "STANDARD":
+	case "FILE":
 		return nil
 	case "UNIFIED":
 		return nil
@@ -5987,7 +5987,7 @@ func (s PoolV1betaType) Validate() error {
 	switch s {
 	case "STORAGE_POOL_TYPE_UNSPECIFIED":
 		return nil
-	case "STANDARD":
+	case "FILE":
 		return nil
 	case "UNIFIED":
 		return nil

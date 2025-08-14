@@ -15666,8 +15666,8 @@ func (s *PoolInternalV1betaType) Decode(d *jx.Decoder) error {
 	switch PoolInternalV1betaType(v) {
 	case PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
 		*s = PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
-	case PoolInternalV1betaTypeSTANDARD:
-		*s = PoolInternalV1betaTypeSTANDARD
+	case PoolInternalV1betaTypeFILE:
+		*s = PoolInternalV1betaTypeFILE
 	case PoolInternalV1betaTypeUNIFIED:
 		*s = PoolInternalV1betaTypeUNIFIED
 	default:
@@ -17053,8 +17053,8 @@ func (s *PoolV1betaType) Decode(d *jx.Decoder) error {
 	switch PoolV1betaType(v) {
 	case PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
 		*s = PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
-	case PoolV1betaTypeSTANDARD:
-		*s = PoolV1betaTypeSTANDARD
+	case PoolV1betaTypeFILE:
+		*s = PoolV1betaTypeFILE
 	case PoolV1betaTypeUNIFIED:
 		*s = PoolV1betaTypeUNIFIED
 	default:

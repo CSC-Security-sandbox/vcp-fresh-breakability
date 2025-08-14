@@ -1555,7 +1555,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		}
 
 		req := &gcpgenserver.PoolV1beta{
-			Type: gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeSTANDARD),
+			Type: gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeFILE),
 		}
 
 		handler := Handler{
@@ -2837,6 +2837,127 @@ func TestValidateCreatePoolParams_AutoTieringValidation(t *testing.T) {
 	})
 }
 
+func TestValidateCreatePoolParams_SecondaryZoneValidation(t *testing.T) {
+	const (
+		validPoolSize = 2199023255552 // 2 TiB
+	)
+
+	// Save original state and restore after all tests
+	originalRegionalPoolEnabled := regionalPoolEnabled
+	defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
+
+	t.Run("Regional Pool Secondary Zone Validation", func(tt *testing.T) {
+		regionalPoolEnabled = true
+
+		t.Run("Secondary Zone cannot be empty for regional pool", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Type:          gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeUNIFIED),
+				SizeInBytes:   validPoolSize,
+				Zone:          gcpgenserver.NewOptString("us-east4-a"),
+				SecondaryZone: gcpgenserver.NewOptString(""), // Empty secondary zone
+			}
+			zone := "" // Empty zone indicates regional pool
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when secondary zone is empty for regional pool")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "Secondary Zone cannot be empty for regional pool.")
+		})
+
+		t.Run("Secondary Zone cannot be same as Primary Zone for regional pool", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Type:          gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeUNIFIED),
+				SizeInBytes:   validPoolSize,
+				Zone:          gcpgenserver.NewOptString("us-east4-a"),
+				SecondaryZone: gcpgenserver.NewOptString("us-east4-a"), // Same as primary zone
+			}
+			zone := "" // Empty zone indicates regional pool
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when secondary zone is same as primary zone for regional pool")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "Secondary Zone cannot be same as Primary Zone")
+		})
+
+		t.Run("Valid regional pool with different zones", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Type:          gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeUNIFIED),
+				SizeInBytes:   validPoolSize,
+				Zone:          gcpgenserver.NewOptString("us-east4-a"),
+				SecondaryZone: gcpgenserver.NewOptString("us-east4-b"), // Different from primary zone
+			}
+			zone := "" // Empty zone indicates regional pool
+
+			err := validateCreatePoolParams(req, zone)
+			assert.Nil(ttt, err, "Expected no error for valid regional pool with different zones")
+		})
+	})
+
+	t.Run("Zonal Pool Secondary Zone Validation", func(tt *testing.T) {
+		regionalPoolEnabled = true
+
+		t.Run("Secondary Zone cannot be same as Primary Zone for zonal pool", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Type:          gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeUNIFIED),
+				SizeInBytes:   validPoolSize,
+				Zone:          gcpgenserver.NewOptString("us-east4-a"),
+				SecondaryZone: gcpgenserver.NewOptString("us-east4-a"), // Same as primary zone
+			}
+			zone := "us-east4-a" // Non-empty zone indicates zonal pool
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when secondary zone is same as primary zone for zonal pool")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "Secondary Zone cannot be same as Primary Zone")
+		})
+
+		t.Run("Valid zonal pool with different secondary zone", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Type:          gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeUNIFIED),
+				SizeInBytes:   validPoolSize,
+				Zone:          gcpgenserver.NewOptString("us-east4-a"),
+				SecondaryZone: gcpgenserver.NewOptString("us-east4-b"), // Different from primary zone
+			}
+			zone := "us-east4-a" // Non-empty zone indicates zonal pool
+
+			err := validateCreatePoolParams(req, zone)
+			assert.Nil(ttt, err, "Expected no error for valid zonal pool with different secondary zone")
+		})
+
+		t.Run("Valid zonal pool without secondary zone", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Type:        gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeUNIFIED),
+				SizeInBytes: validPoolSize,
+				Zone:        gcpgenserver.NewOptString("us-east4-a"),
+				// SecondaryZone not set
+			}
+			zone := "us-east4-a" // Non-empty zone indicates zonal pool
+
+			err := validateCreatePoolParams(req, zone)
+			assert.Nil(ttt, err, "Expected no error for valid zonal pool without secondary zone")
+		})
+	})
+
+	t.Run("Regional Pool Support Disabled", func(tt *testing.T) {
+		regionalPoolEnabled = false
+
+		t.Run("Regional pool creation should fail when feature is disabled", func(ttt *testing.T) {
+			req := &gcpgenserver.PoolV1beta{
+				Type:          gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeUNIFIED),
+				SizeInBytes:   validPoolSize,
+				Zone:          gcpgenserver.NewOptString("us-east4-a"),
+				SecondaryZone: gcpgenserver.NewOptString("us-east4-b"),
+			}
+			zone := "" // Empty zone indicates regional pool
+
+			err := validateCreatePoolParams(req, zone)
+			assert.NotNil(ttt, err, "Expected error when regional pool support is disabled")
+			assert.Equal(ttt, float64(400), err.Code)
+			assert.Contains(ttt, err.Message, "Regional Pool Support is not enabled")
+		})
+	})
+}
+
 func TestConvertToPoolV1Beta(t *testing.T) {
 	t.Run("WhenPoolHasAllFields", func(tt *testing.T) {
 		createdAt := time.Now()
@@ -2930,7 +3051,7 @@ func TestConvertToPoolV1Beta(t *testing.T) {
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "test-pool-uuid", result.PoolId.Value)
 		assert.Equal(tt, float64(1099511627776), result.SizeInBytes)
-		assert.Equal(tt, gcpgenserver.PoolV1betaTypeSTANDARD, result.Type.Value, "Type should be set to STANDARD for CVP pools")
+		assert.Equal(tt, gcpgenserver.PoolV1betaTypeFILE, result.Type.Value, "Type should be set to FILE for CVP pools")
 		assert.False(tt, result.Unified.Value, "Unified should be false for CVP pools")
 		assert.False(tt, result.UnifiedPool.Value, "UnifiedPool should be false for CVP pools")
 	})

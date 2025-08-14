@@ -6931,7 +6931,7 @@ components:
           example: UNIFIED
           enum:
             - STORAGE_POOL_TYPE_UNSPECIFIED
-            - STANDARD
+            - FILE
             - UNIFIED
         unified:
           type: boolean

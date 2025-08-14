@@ -687,7 +687,7 @@ func convertToPoolV1beta(pool *cvpmodels.PoolV1beta) *gcpgenserver.PoolV1beta {
 		SatisfiesPzs:              utils.SafeBool(pool.SatisfiesPzs),
 		AssetLocationMetadata:     gcpgenserver.NewOptNilPoolV1betaAssetLocationMetadata(assetLocationMetadata),
 		// Unified Pool is set false for SDE pools
-		Type:        gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeSTANDARD),
+		Type:        gcpgenserver.NewOptPoolV1betaType(gcpgenserver.PoolV1betaTypeFILE),
 		UnifiedPool: gcpgenserver.NewOptBool(false),
 		Unified:     gcpgenserver.NewOptBool(false),
 	}
@@ -719,7 +719,7 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 		switch req.Type.Value {
 		case gcpgenserver.PoolV1betaTypeUNIFIED:
 			isUnified = true
-		case gcpgenserver.PoolV1betaTypeSTANDARD:
+		case gcpgenserver.PoolV1betaTypeFILE:
 			isUnified = false
 		case gcpgenserver.PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
 			// Default value, should not be used
@@ -766,17 +766,23 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 			}
 		}
 
-		if !req.Zone.IsSet() {
+		if !req.Zone.IsSet() || req.Zone.Value == "" {
 			return &gcpgenserver.Error{
 				Code:    http.StatusBadRequest,
 				Message: "Zone cannot be empty for regional pool.",
 			}
 		}
 
-		if !req.SecondaryZone.IsSet() {
+		if !req.SecondaryZone.IsSet() || req.SecondaryZone.Value == "" {
 			return &gcpgenserver.Error{
 				Code:    http.StatusBadRequest,
 				Message: "Secondary Zone cannot be empty for regional pool.",
+			}
+		}
+		if req.SecondaryZone.Value == req.Zone.Value {
+			return &gcpgenserver.Error{
+				Code:    http.StatusBadRequest,
+				Message: "Secondary Zone cannot be same as Primary Zone",
 			}
 		}
 	} else {
@@ -784,6 +790,12 @@ func validateCreatePoolParams(req *gcpgenserver.PoolV1beta, zone string) *gcpgen
 			return &gcpgenserver.Error{
 				Code:    http.StatusBadRequest,
 				Message: "Multiple Zone values cannot be passed for Zonal Pool Creation",
+			}
+		}
+		if req.SecondaryZone.IsSet() && req.SecondaryZone.Value != "" && req.SecondaryZone.Value == zone {
+			return &gcpgenserver.Error{
+				Code:    http.StatusBadRequest,
+				Message: "Secondary Zone cannot be same as Primary Zone",
 			}
 		}
 	}

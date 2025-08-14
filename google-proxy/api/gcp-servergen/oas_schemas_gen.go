@@ -12119,7 +12119,7 @@ type PoolInternalV1betaType string
 
 const (
 	PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED PoolInternalV1betaType = "STORAGE_POOL_TYPE_UNSPECIFIED"
-	PoolInternalV1betaTypeSTANDARD                   PoolInternalV1betaType = "STANDARD"
+	PoolInternalV1betaTypeFILE                       PoolInternalV1betaType = "FILE"
 	PoolInternalV1betaTypeUNIFIED                    PoolInternalV1betaType = "UNIFIED"
 )
 
@@ -12127,7 +12127,7 @@ const (
 func (PoolInternalV1betaType) AllValues() []PoolInternalV1betaType {
 	return []PoolInternalV1betaType{
 		PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED,
-		PoolInternalV1betaTypeSTANDARD,
+		PoolInternalV1betaTypeFILE,
 		PoolInternalV1betaTypeUNIFIED,
 	}
 }
@@ -12137,7 +12137,7 @@ func (s PoolInternalV1betaType) MarshalText() ([]byte, error) {
 	switch s {
 	case PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
 		return []byte(s), nil
-	case PoolInternalV1betaTypeSTANDARD:
+	case PoolInternalV1betaTypeFILE:
 		return []byte(s), nil
 	case PoolInternalV1betaTypeUNIFIED:
 		return []byte(s), nil
@@ -12152,8 +12152,8 @@ func (s *PoolInternalV1betaType) UnmarshalText(data []byte) error {
 	case PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
 		*s = PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
 		return nil
-	case PoolInternalV1betaTypeSTANDARD:
-		*s = PoolInternalV1betaTypeSTANDARD
+	case PoolInternalV1betaTypeFILE:
+		*s = PoolInternalV1betaTypeFILE
 		return nil
 	case PoolInternalV1betaTypeUNIFIED:
 		*s = PoolInternalV1betaTypeUNIFIED
@@ -13054,7 +13054,7 @@ type PoolV1betaType string
 
 const (
 	PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED PoolV1betaType = "STORAGE_POOL_TYPE_UNSPECIFIED"
-	PoolV1betaTypeSTANDARD                   PoolV1betaType = "STANDARD"
+	PoolV1betaTypeFILE                       PoolV1betaType = "FILE"
 	PoolV1betaTypeUNIFIED                    PoolV1betaType = "UNIFIED"
 )
 
@@ -13062,7 +13062,7 @@ const (
 func (PoolV1betaType) AllValues() []PoolV1betaType {
 	return []PoolV1betaType{
 		PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED,
-		PoolV1betaTypeSTANDARD,
+		PoolV1betaTypeFILE,
 		PoolV1betaTypeUNIFIED,
 	}
 }
@@ -13072,7 +13072,7 @@ func (s PoolV1betaType) MarshalText() ([]byte, error) {
 	switch s {
 	case PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
 		return []byte(s), nil
-	case PoolV1betaTypeSTANDARD:
+	case PoolV1betaTypeFILE:
 		return []byte(s), nil
 	case PoolV1betaTypeUNIFIED:
 		return []byte(s), nil
@@ -13087,8 +13087,8 @@ func (s *PoolV1betaType) UnmarshalText(data []byte) error {
 	case PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
 		*s = PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
 		return nil
-	case PoolV1betaTypeSTANDARD:
-		*s = PoolV1betaTypeSTANDARD
+	case PoolV1betaTypeFILE:
+		*s = PoolV1betaTypeFILE
 		return nil
 	case PoolV1betaTypeUNIFIED:
 		*s = PoolV1betaTypeUNIFIED
