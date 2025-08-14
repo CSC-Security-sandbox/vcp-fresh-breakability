@@ -59,12 +59,12 @@ jobs:
           
             # List all images and process them
             gcloud artifacts docker images list "$REPO/$IMAGE" --include-tags \
-              --format="value(IMAGE,DIGEST,TAGS,UPDATE_TIME)" | while read -r line; do
+              --format="value(IMAGE,DIGEST,UPDATE_TIME,TAGS)" | while read -r line; do
           
               image=$(echo "$line" | awk '{print $1}')
               digest=$(echo "$line" | awk '{print $2}')
-              tags_arr=$(echo "$line" | awk '{print $3}')
-              update_time=$(echo "$line" | awk '{print $4}')
+              tags_arr=$(echo "$line" | awk '{print $4}')
+              update_time=$(echo "$line" | awk '{print $3}')
               TAGS_EXIST=1
               if [[ -z "$update_time" ]]; then
                 TAGS_EXIST=0
@@ -72,7 +72,7 @@ jobs:
               fi   
               # Convert update_time to epoch
               update_time_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$update_time" +%s 2>/dev/null || date -d "$update_time" +%s)
-              age_days=$(( (current_date - update_time_epoch) / 86400 ))          
+              age_days=$(( (current_date - update_time_epoch) / 86400 ))      
               if [[ $TAGS_EXIST -eq 0 &&  $age_days -gt ${{ vars.AR_RETENTION_WINDOW_IN_DAYS }} && "$digest" != "$LATEST_DIGEST" ]]; then
                 gcloud artifacts docker images delete "$image@$digest"  --quiet
                 continue
@@ -123,12 +123,12 @@ jobs:
             echo "Latest digest for $CHART: $LATEST_DIGEST"
           
             gcloud artifacts docker images list "$REPO/$CHART" --include-tags \
-              --format="value(IMAGE,DIGEST,TAGS,UPDATE_TIME)" | while read -r line; do
+              --format="value(IMAGE,DIGEST,UPDATE_TIME,TAGS)" | while read -r line; do
           
               chart=$(echo "$line" | awk '{print $1}')
               digest=$(echo "$line" | awk '{print $2}')
-              tags_arr=$(echo "$line" | awk '{print $3}')
-              update_time=$(echo "$line" | awk '{print $4}')
+              tags_arr=$(echo "$line" | awk '{print $4}')
+              update_time=$(echo "$line" | awk '{print $3}')
               TAGS_EXIST=1
               if [[ -z "$update_time" ]]; then
                 TAGS_EXIST=0
@@ -148,7 +148,7 @@ jobs:
                 ALL_TAGS_DELETED=1
                 for tag in "${tags[@]}"; do
                   if [[ "$tag" == *DEV* || "$tag" == *RC* ]]; then
-                    gcloud artifacts tags delete "$tag" --location=${{vars.AR_GCP_REGION}} --package="$CHART" --repository=${{vars.AR_GCP_REPO}} --quiet
+                    gcloud artifacts tags delete "$tag" --location=${{vars.AR_GCP_REGION}} --package="$CHART" --repository=${{vars.AR_HELM_REPO}} --quiet
                     echo "Deleted tag: $tag for chart: $chart@$digest"
                   else
                     echo "Skipping tag: $tag for chart: $chart@$digest as it does not match DEV or RC"
