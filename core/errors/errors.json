@@ -401,18 +401,6 @@
     "retriable": true,
     "http_code": 500
   },
-  "6075": {
-    "description": "VolumeRevert failure",
-    "message": "Volume revert failed",
-    "retriable": true,
-    "http_code": 400
-  },
-  "6076": {
-    "description": "VolumeRevert failure",
-    "message": "Error reverting volume - Cannot revert a Volume Replication Destination Volume",
-    "retriable": true,
-    "http_code": 409
-  },
   "7001": {
     "description": "Snapshot Deletion Error",
     "message": "Cannot delete snapshot while snapshot is in use",
@@ -442,5 +430,11 @@
     "message": "Cannot delete volume while volume is in use",
     "retriable": false,
     "http_code": 400
+  },
+  "7006": {
+    "description": "VolumeRevert failure",
+    "message": "Error reverting volume - Cannot revert a Volume Replication Destination Volume",
+    "retriable": true,
+    "http_code": 409
   }
 }

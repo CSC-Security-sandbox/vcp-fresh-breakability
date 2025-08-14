@@ -72,7 +72,6 @@ const (
 	ErrCreatingSVM                    = 5002
 	ErrDeletingSVM                    = 5003
 	ErrSVMNotFound                    = 5004
-	ErrSnapshotAppConsistencyError    = 5005
 	ErrOntapRestAPIError              = 5006
 	ErrOntapInconsistentResourceError = 5007
 	ErrONTAPClientCreationError       = 5008
@@ -162,8 +161,6 @@ const (
 	ErrDescribingVolume                                              = 6072
 	ErrCVPClientHandleResourceEventError                             = 6073
 	ErrCVPClientFinishProjectEventError                              = 6074
-	ErrRevertingVolume                                               = 6075
-	ErrRevertReplicationDestinationVolume                            = 6076
 
 	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsBadRequest          = 6075
 	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsInternalServerError = 6076
@@ -172,11 +169,12 @@ const (
 	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsNotFound            = 6079
 	ErrGoogleProxyInternalGetMultipleReplicationsGetActiveReplicationJobsUnknown             = 6080
 
-	ErrDeleteSnapshot                   = 7001
-	ErrVolumeNotOnlineForSnapshotDelete = 7002
-	ErrSnapshotPolicyScheduleRequired   = 7003
-	ErrSnapshotPolicyScheduleTooMany    = 7004
-	ErrDeleteVolumeWhenInSplitState     = 7005
+	ErrDeleteSnapshot                     = 7001
+	ErrVolumeNotOnlineForSnapshotDelete   = 7002
+	ErrSnapshotPolicyScheduleRequired     = 7003
+	ErrSnapshotPolicyScheduleTooMany      = 7004
+	ErrDeleteVolumeWhenInSplitState       = 7005
+	ErrRevertReplicationDestinationVolume = 7006
 )
 
 type Error interface {
