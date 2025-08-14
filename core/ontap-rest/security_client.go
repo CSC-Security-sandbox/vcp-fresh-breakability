@@ -11,6 +11,10 @@ type SecurityClient interface { // generate:mock
 	GcpKmsCreate(params *GcpKmsCreateParams) ([]*GcpKms, error)
 	GcpKmsGet(params *GcpKmsGetParams) (*GcpKms, error)
 	GcpKmsDelete(params *GcpKmsDeleteParams) error
+	SecurityLogForwardingCreate(params *SecurityLogForwardingCreateParams) ([]*SecurityAuditLogForward, error)
+	SecurityLogForwardingGet(params *SecurityLogForwardingGetParams) (*SecurityAuditLogForward, error)
+	SecurityAuditUpdate(params *SecurityAuditUpdateParams) (*SecurityAudit, error)
+	SecurityAuditGet() (*SecurityAudit, error)
 }
 
 type securityClient struct {
@@ -42,6 +46,62 @@ func (sc *securityClient) GcpKmsGet(params *GcpKmsGetParams) (*GcpKms, error) {
 		return nil, err
 	}
 	resp := &GcpKms{GcpKms: *response.Payload}
+	return resp, err
+}
+
+func (sc *securityClient) SecurityLogForwardingCreate(params *SecurityLogForwardingCreateParams) ([]*SecurityAuditLogForward, error) {
+	response, err := (*sc.api).SecurityLogForwardingCreate(securityLogForwardingCreateParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if response == nil || response.Payload == nil {
+		return nil, errors.New("unexpected response from SecurityLogForwardingCreate")
+	}
+
+	resp := make([]*SecurityAuditLogForward, nillable.FromPointer(response.Payload.NumRecords))
+	for i, hyperscaler := range response.Payload.SecurityAuditLogForwardResponseInlineRecords {
+		resp[i] = &SecurityAuditLogForward{SecurityAuditLogForward: *hyperscaler}
+	}
+
+	return resp, err
+}
+
+func (sc *securityClient) SecurityLogForwardingGet(params *SecurityLogForwardingGetParams) (*SecurityAuditLogForward, error) {
+	response, err := (*sc.api).SecurityLogForwardingGet(securityLogForwardingGetParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &SecurityAuditLogForward{SecurityAuditLogForward: *response.Payload}
+
+	return resp, nil
+}
+
+func (sc *securityClient) SecurityAuditGet() (*SecurityAudit, error) {
+	params := security.SecurityAuditGetParams{}
+	response, err := (*sc.api).SecurityAuditGet(&params, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &SecurityAudit{SecurityAudit: *response.Payload}
+
+	return resp, nil
+}
+
+func (sc *securityClient) SecurityAuditUpdate(params *SecurityAuditUpdateParams) (*SecurityAudit, error) {
+	response, err := (*sc.api).SecurityAuditModify(securityAuditModifyParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if response == nil || response.Payload == nil {
+		return nil, errors.New("unexpected response from SecurityAuditUpdate")
+	}
+
+	resp := &SecurityAudit{SecurityAudit: *response.Payload}
+
 	return resp, err
 }
 

@@ -46,7 +46,9 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-
+	mockForwardingRuleIP := "127.0.0.1"
+	mockAddressURI := "test-address-uri"
+	ginLoggingFeatureFlag = true
 	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 	defer func() {
@@ -56,6 +58,7 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
@@ -110,6 +113,10 @@ func TestCreatePoolWorkflow(t *testing.T) {
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -123,6 +130,8 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -185,6 +194,7 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 	env.RegisterWorkflowWithOptions(
@@ -218,7 +228,8 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 		DeploymentName: "test-deployment",
 	}
 	svmName := "svmName"
-
+	mockForwardingRuleIP := "127.0.0.1"
+	mockAddressURI := "test-address-uri"
 	defer func() {
 		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
 	}()
@@ -243,6 +254,10 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -253,6 +268,8 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -540,7 +557,8 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-
+	mockForwardingRuleIP := "127.0.0.1"
+	mockAddressURI := "test-address-uri"
 	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 	defer func() {
@@ -550,6 +568,7 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
@@ -610,6 +629,10 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -636,6 +659,8 @@ func TestCreatePoolWorkflow_AllocateClusterSerialNumber(t *testing.T) {
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -678,7 +703,8 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -688,6 +714,7 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
@@ -755,6 +782,10 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 			Gateway:               "192.168.1.254",
 		}, nil)
 		subnetFirewallOperations := subnetOperations
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(&subnetFirewallOperations, nil)
 		subnetFirewallOperations = append(subnetFirewallOperations, firewallOperations...)
@@ -769,6 +800,8 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -1132,6 +1165,59 @@ func TestConfigureNetworkWorkflow_Success(t *testing.T) {
 	}
 
 	env.ExecuteWorkflow(ConfigureNetworkWorkflow, tenancyDetails)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestConfigurePSCEndpointWorkflow_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestWorkflowEnvironment()
+
+	// Mock activities
+	poolActivity := &activities.PoolActivity{}
+
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	mockOperationName := "op-1"
+	mockAddressURI := "test-address-uri"
+	mockForwardingRuleIP := "127.0.0.1"
+	pscEndpointName := "region-rg-fluent-bit-psc"
+	mockOperations := make([]common.Operations, 0)
+	mockOperations = append(mockOperations, common.Operations{
+		OperationName:      mockOperationName,
+		OperationType:      "vpc",
+		IsDone:             false,
+		IsRegionalResource: true,
+		Project:            "tenant-project",
+	})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	defer func() {
+		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+	}()
+
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+		return nil
+	}
+
+	env.OnActivity(poolActivity.CreateAddressForPSCEndpoint, mock.Anything, "tenant-project", "region", pscEndpointName).Return(&mockOperations, nil)
+	env.OnActivity(poolActivity.GetAddressURI, mock.Anything, "tenant-project", "region", pscEndpointName).Return(&mockAddressURI, nil)
+	env.OnActivity(poolActivity.CreateForwardingRuleForPSCEndpoint, mock.Anything, "tenant-project", "region", pscEndpointName, mockAddressURI, mock.Anything).Return(&mockOperations, nil)
+	env.OnActivity(poolActivity.GetForwardingRuleIPAddress, mock.Anything, "tenant-project", "region", pscEndpointName).Return(&mockForwardingRuleIP, nil)
+
+	env.ExecuteWorkflow(ConfigurePSCEndpointWorkflow, "tenant-project", "region")
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
@@ -1634,7 +1720,6 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-
 	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 	defer func() {
@@ -1644,6 +1729,7 @@ func Test_EnableAutoTier_Error_In_CreatePoolWorkflow(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 
@@ -1717,7 +1803,8 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -1727,6 +1814,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 		env.RegisterWorkflowWithOptions(
@@ -1772,6 +1860,10 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1784,6 +1876,8 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -1835,7 +1929,6 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -1843,6 +1936,7 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		}()
 
 		mockStorage := database.NewMockStorage(t)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
@@ -1966,7 +2060,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -1976,6 +2071,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2027,6 +2123,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2037,6 +2137,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -2095,7 +2197,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -2105,6 +2208,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2157,6 +2261,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2169,6 +2277,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -2230,7 +2340,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -2240,6 +2351,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2296,6 +2408,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2308,6 +2424,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -2362,7 +2480,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -2372,6 +2491,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2430,6 +2550,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2442,6 +2566,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -2495,7 +2621,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -2505,6 +2632,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2569,6 +2697,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2581,6 +2713,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -2633,7 +2767,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -2643,6 +2778,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2699,6 +2835,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2711,6 +2851,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -2762,7 +2904,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -2772,6 +2915,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2827,6 +2971,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2839,6 +2987,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -2889,7 +3039,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -2899,6 +3050,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -2954,6 +3106,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -2966,6 +3122,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -3017,7 +3175,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -3027,6 +3186,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -3083,6 +3243,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -3095,6 +3259,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -3149,7 +3315,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -3159,6 +3326,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -3215,6 +3383,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -3227,6 +3399,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -3281,7 +3455,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -3291,6 +3466,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -3347,6 +3523,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -3359,6 +3539,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -3413,7 +3595,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			},
 		}
 		env.SetHeader(mockHeader)
-
+		mockForwardingRuleIP := "127.0.0.1"
+		mockAddressURI := "test-address-uri"
 		mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 		newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 		defer func() {
@@ -3423,6 +3606,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		mockStorage := database.NewMockStorage(t)
 		env.RegisterActivity(&SubnetActivity{})
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
+		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
@@ -3478,6 +3662,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			SnHostProject:         "test-host-project",
 			Gateway:               "192.168.1.254",
 		}, nil)
+		env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+		env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 		env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -3490,6 +3678,8 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
@@ -3673,7 +3863,8 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-
+	mockForwardingRuleIP := "127.0.0.1"
+	mockAddressURI := "test-address-uri"
 	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 	defer func() {
@@ -3683,6 +3874,7 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 
@@ -3732,6 +3924,10 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 		SnHostProject:         "test-host-project",
 		Gateway:               "192.168.1.254",
 	}, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -3745,6 +3941,8 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		// Set the pool ID to simulate successful save
 		if pool, ok := args[0].(*datamodel.Pool); ok {
@@ -3789,6 +3987,938 @@ func TestCreatePoolWorkflow_FailureToUpdateFinalJobStatus(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
 	assert.Contains(t, env.GetWorkflowError().Error(), "failed to update job status")
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_CreatePSCEndpoint(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	mockForwardingRuleIP := "127.0.0.1"
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "password",
+			SecretID: "secret-id",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+		DeploymentName: "test-deployment",
+	}
+	svmName := "svmName"
+	mockAddressURI := "test-address-uri"
+
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+		return nil
+	}
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+		Gateway:               "192.168.1.254",
+	}, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		// Set the pool ID to simulate successful save
+		if pool, ok := args[0].(*datamodel.Pool); ok {
+			pool.ID = 1
+		}
+	}).Return(nil)
+	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
+	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
+	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
+	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		PrimaryZone:   "test-zone",
+		SecondaryZone: "test-secondary-zone",
+		Region:        "test-region",
+		MediatorZone:  "test-mediator-zone",
+	}, nil)
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+
+	oldEnableMetrics := enableMetrics
+	enableMetrics = true
+	defer func() { enableMetrics = oldEnableMetrics }()
+	// Mock child workflow execution
+	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.MatchedBy(func(input RegisterNodeToHarvestFarmWorkflowInput) bool {
+		return input.PoolID == 1 &&
+			input.CustomerProjectID == "test-account" &&
+			input.MaxNodesPerGroup == 200 &&
+			input.TenantProjectID == "test-project"
+	})).Return(nil)
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+	}
+	mockNoResponseString := ""
+	mockAddressURI := "test-address-uri"
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+		return nil
+	}
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+		Gateway:               "192.168.1.254",
+	}, nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		PrimaryZone:   "test-zone",
+		SecondaryZone: "test-secondary-zone",
+		Region:        "test-region",
+		MediatorZone:  "test-mediator-zone",
+	}, nil)
+	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockNoResponseString, errors.New("test-error"))
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	// Mock rollback activities
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	errorResponse := env.GetWorkflowError()
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Contains(t, errorResponse.Error(), "test-error")
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_Fail_GetAddressURI(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+	}
+	mockNoResponseString := ""
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+		return nil
+	}
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+		Gateway:               "192.168.1.254",
+	}, nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		PrimaryZone:   "test-zone",
+		SecondaryZone: "test-secondary-zone",
+		Region:        "test-region",
+		MediatorZone:  "test-mediator-zone",
+	}, nil)
+	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockNoResponseString, errors.New("test-error"))
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	// Mock rollback activities
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	errorResponse := env.GetWorkflowError()
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NotNil(t, errorResponse)
+	assert.Contains(t, errorResponse.Error(), "test-error")
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_Fail_CreateAddressForPSCEndpoint(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+	}
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+		return nil
+	}
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+		Gateway:               "192.168.1.254",
+	}, nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		PrimaryZone:   "test-zone",
+		SecondaryZone: "test-secondary-zone",
+		Region:        "test-region",
+		MediatorZone:  "test-mediator-zone",
+	}, nil)
+	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("test-error"))
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	// Mock rollback activities
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	errorResponse := env.GetWorkflowError()
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Contains(t, errorResponse.Error(), "test-error")
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_Fail_GetAddressURI_EmptyResponse(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+	}
+	mockNoResponseString := ""
+	mockOperationName := "op-1"
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+	mockOperations := make([]common.Operations, 0)
+	mockOperations = append(mockOperations, common.Operations{
+		OperationName:      mockOperationName,
+		OperationType:      "vpc",
+		IsDone:             false,
+		IsRegionalResource: true,
+		Project:            "tenant-project",
+	})
+
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+		return nil
+	}
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+		Gateway:               "192.168.1.254",
+	}, nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		PrimaryZone:   "test-zone",
+		SecondaryZone: "test-secondary-zone",
+		Region:        "test-region",
+		MediatorZone:  "test-mediator-zone",
+	}, nil)
+	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockOperations, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockNoResponseString, nil)
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	// Mock rollback activities
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	errorResponse := env.GetWorkflowError()
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Contains(t, errorResponse.Error(), "failed to get IP address of PSC endpoint from create address operation in tenant project: test-project")
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_Fail_CreateForwardingRuleForPSCEndpoint(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+	}
+	mockAddressURI := "test-address-uri"
+	mockOperationName := "op-1"
+	mockOperations := make([]common.Operations, 0)
+	mockOperations = append(mockOperations, common.Operations{
+		OperationName:      mockOperationName,
+		OperationType:      "vpc",
+		IsDone:             false,
+		IsRegionalResource: true,
+		Project:            "tenant-project",
+	})
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+		return nil
+	}
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+		Gateway:               "192.168.1.254",
+	}, nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		PrimaryZone:   "test-zone",
+		SecondaryZone: "test-secondary-zone",
+		Region:        "test-region",
+		MediatorZone:  "test-mediator-zone",
+	}, nil)
+	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockOperations, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("test-error"))
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	errorResponse := env.GetWorkflowError()
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Contains(t, errorResponse.Error(), "test-error")
+	env.AssertExpectations(t)
+}
+
+func TestCreatePoolWorkflow_Fail_GetForwardingRuleIPAddress_EmptyResponse(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
+	defer func() {
+		GetNewVSAClientWorkflowManager = newVSAClientWorkflowManager
+	}()
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+
+	// Set up test data
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024, // 1 TB
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: 1024},
+	}
+	pool := &datamodel.Pool{
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			Iops:            params.CustomPerformanceParams.Iops,
+			ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps,
+		},
+	}
+	mockAddressURI := "test-address-uri"
+	mockNoResponseString := ""
+	mockOperationName := "op-1"
+	mockOperations := make([]common.Operations, 0)
+	mockOperations = append(mockOperations, common.Operations{
+		OperationName:      mockOperationName,
+		OperationType:      "vpc",
+		IsDone:             false,
+		IsRegionalResource: true,
+		Project:            "tenant-project",
+	})
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+			return nil
+		},
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+	defer func() {
+		configureKmsConfigForSvmActivity = _configureKmsConfigForSvmActivity
+		WaitForGCPNetworkOperationStatus = _waitForGCPNetworkOperationStatus
+	}()
+	configureKmsConfigForSvmActivity = func(ctx workflow.Context, pool datamodel.Pool, node *models.Node, svm *datamodel.Svm, params *common.CreatePoolParams) error {
+		return nil
+	}
+
+	WaitForGCPNetworkOperationStatus = func(ctx workflow.Context, poolActivity *activities.PoolActivity, operations *[]common.Operations, timeout time.Duration) error {
+		return nil
+	}
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		RegionalTenantProject: "test-project",
+		SnHostProject:         "test-host-project",
+		Gateway:               "192.168.1.254",
+	}, nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		PrimaryZone:   "test-zone",
+		SecondaryZone: "test-secondary-zone",
+		Region:        "test-region",
+		MediatorZone:  "test-mediator-zone",
+	}, nil)
+	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything).Return(&vlm.CreateVSAClusterDeploymentResponse{}, nil)
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockOperations, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockOperations, nil)
+	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockNoResponseString, nil)
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
+		return mockVSAClientWorkflowManager
+	}
+	// Mock rollback activities
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ReleaseSubnet", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeletePoolResourcesOnRollback", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ErroredPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+	if err != nil {
+		t.Fatalf("Failed to query workflow: %v", err)
+	}
+
+	errorResponse := env.GetWorkflowError()
+	// Assert workflow execution
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Contains(t, errorResponse.Error(), "failed to get forwarding rule from operation for tenant project:")
 	env.AssertExpectations(t)
 }
 
@@ -5415,7 +6545,8 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 		},
 	}
 	env.SetHeader(mockHeader)
-
+	mockForwardingRuleIP := "127.0.0.1"
+	mockAddressURI := "test-address-uri"
 	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
 	newVSAClientWorkflowManager := GetNewVSAClientWorkflowManager
 	defer func() {
@@ -5427,6 +6558,7 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
@@ -5488,6 +6620,10 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
 
 	// Mock service account creation to fail with retries, then eventually succeed
 	serviceAccountError := temporal.NewApplicationError("service account creation failed", "ServiceAccountError")
@@ -5505,6 +6641,9 @@ func TestCreatePoolWorkflow_ServiceAccountCreationWithRetries(t *testing.T) {
 	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Mock SavePoolWithClusterDetails to return a pool with an ID
 	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		// Set the pool ID to simulate successful save
@@ -5586,10 +6725,10 @@ func TestCreatePoolWorkflow_ServiceAccountCreationMaxRetriesExceeded(t *testing.
 		},
 	}
 	env.SetHeader(mockHeader)
-
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
 	env.RegisterActivity(&activities.PoolActivity{})
 
@@ -5703,6 +6842,7 @@ func TestCreatePoolWorkflow_ServiceAccountRetryPolicyConfigError(t *testing.T) {
 
 	mockStorage := database.NewMockStorage(t)
 	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 	// Don't register ConfigureNetworkWorkflow if it's already registered
 	// Instead, mock it as a child workflow
 	env.OnWorkflow(ConfigureNetworkWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)

@@ -94,6 +94,10 @@ type Provider interface {
 	CreateQoSGroupPolicy(params CreateQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error)
 	ModifySVMWithQoSPolicy(params ModifySVMWithQoSPolicyParams) error
 	CreateExportPolicy(params *ExportPolicy) error
+	CreateSecurityLogForwarding(params CreateSecurityLogForwardingParams) (*CreateSecurityLogForwardingResponse, error)
+	GetSecurityLogForwarding(params GetSecurityLogForwardingParams) error
+	UpdateSecurityAudit(params UpdateSecurityAuditParams) (*SecurityAudit, error)
+	GetSecurityAudit() (*SecurityAudit, error)
 }
 
 type OntapRestProvider struct {

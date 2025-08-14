@@ -129,6 +129,62 @@ func (_c *MockGoogleServices_CheckOperationStatus_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// CreateAddressOperation provides a mock function with given fields: address
+func (_m *MockGoogleServices) CreateAddressOperation(address *models.Address) (string, error) {
+	ret := _m.Called(address)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateAddressOperation")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*models.Address) (string, error)); ok {
+		return rf(address)
+	}
+	if rf, ok := ret.Get(0).(func(*models.Address) string); ok {
+		r0 = rf(address)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(*models.Address) error); ok {
+		r1 = rf(address)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_CreateAddressOperation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateAddressOperation'
+type MockGoogleServices_CreateAddressOperation_Call struct {
+	*mock.Call
+}
+
+// CreateAddressOperation is a helper method to define mock.On call
+//   - address *models.Address
+func (_e *MockGoogleServices_Expecter) CreateAddressOperation(address interface{}) *MockGoogleServices_CreateAddressOperation_Call {
+	return &MockGoogleServices_CreateAddressOperation_Call{Call: _e.mock.On("CreateAddressOperation", address)}
+}
+
+func (_c *MockGoogleServices_CreateAddressOperation_Call) Run(run func(address *models.Address)) *MockGoogleServices_CreateAddressOperation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*models.Address))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateAddressOperation_Call) Return(_a0 string, _a1 error) *MockGoogleServices_CreateAddressOperation_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateAddressOperation_Call) RunAndReturn(run func(*models.Address) (string, error)) *MockGoogleServices_CreateAddressOperation_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateBucketIfNotExists provides a mock function with given fields: ctx, projectID, bucketName, region
 func (_m *MockGoogleServices) CreateBucketIfNotExists(ctx context.Context, projectID string, bucketName string, region string) error {
 	ret := _m.Called(ctx, projectID, bucketName, region)
@@ -291,6 +347,62 @@ func (_c *MockGoogleServices_CreateCloudRunService_Call) Return(_a0 *models.Clou
 }
 
 func (_c *MockGoogleServices_CreateCloudRunService_Call) RunAndReturn(run func(context.Context, *models.CloudRunServiceConfig) (*models.CloudRunOperationResponse, error)) *MockGoogleServices_CreateCloudRunService_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateForwardingRuleOperation provides a mock function with given fields: forwardingRule
+func (_m *MockGoogleServices) CreateForwardingRuleOperation(forwardingRule *models.ForwardingRule) (string, error) {
+	ret := _m.Called(forwardingRule)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateForwardingRuleOperation")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*models.ForwardingRule) (string, error)); ok {
+		return rf(forwardingRule)
+	}
+	if rf, ok := ret.Get(0).(func(*models.ForwardingRule) string); ok {
+		r0 = rf(forwardingRule)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(*models.ForwardingRule) error); ok {
+		r1 = rf(forwardingRule)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_CreateForwardingRuleOperation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateForwardingRuleOperation'
+type MockGoogleServices_CreateForwardingRuleOperation_Call struct {
+	*mock.Call
+}
+
+// CreateForwardingRuleOperation is a helper method to define mock.On call
+//   - forwardingRule *models.ForwardingRule
+func (_e *MockGoogleServices_Expecter) CreateForwardingRuleOperation(forwardingRule interface{}) *MockGoogleServices_CreateForwardingRuleOperation_Call {
+	return &MockGoogleServices_CreateForwardingRuleOperation_Call{Call: _e.mock.On("CreateForwardingRuleOperation", forwardingRule)}
+}
+
+func (_c *MockGoogleServices_CreateForwardingRuleOperation_Call) Run(run func(forwardingRule *models.ForwardingRule)) *MockGoogleServices_CreateForwardingRuleOperation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*models.ForwardingRule))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateForwardingRuleOperation_Call) Return(_a0 string, _a1 error) *MockGoogleServices_CreateForwardingRuleOperation_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_CreateForwardingRuleOperation_Call) RunAndReturn(run func(*models.ForwardingRule) (string, error)) *MockGoogleServices_CreateForwardingRuleOperation_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -932,6 +1044,64 @@ func (_c *MockGoogleServices_DeleteCloudRunService_Call) RunAndReturn(run func(c
 	return _c
 }
 
+// DeleteForwardingRule provides a mock function with given fields: region, projectNumber, addressName
+func (_m *MockGoogleServices) DeleteForwardingRule(region string, projectNumber string, addressName string) (string, error) {
+	ret := _m.Called(region, projectNumber, addressName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteForwardingRule")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, string) (string, error)); ok {
+		return rf(region, projectNumber, addressName)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string) string); ok {
+		r0 = rf(region, projectNumber, addressName)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = rf(region, projectNumber, addressName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_DeleteForwardingRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteForwardingRule'
+type MockGoogleServices_DeleteForwardingRule_Call struct {
+	*mock.Call
+}
+
+// DeleteForwardingRule is a helper method to define mock.On call
+//   - region string
+//   - projectNumber string
+//   - addressName string
+func (_e *MockGoogleServices_Expecter) DeleteForwardingRule(region interface{}, projectNumber interface{}, addressName interface{}) *MockGoogleServices_DeleteForwardingRule_Call {
+	return &MockGoogleServices_DeleteForwardingRule_Call{Call: _e.mock.On("DeleteForwardingRule", region, projectNumber, addressName)}
+}
+
+func (_c *MockGoogleServices_DeleteForwardingRule_Call) Run(run func(region string, projectNumber string, addressName string)) *MockGoogleServices_DeleteForwardingRule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteForwardingRule_Call) Return(_a0 string, _a1 error) *MockGoogleServices_DeleteForwardingRule_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteForwardingRule_Call) RunAndReturn(run func(string, string, string) (string, error)) *MockGoogleServices_DeleteForwardingRule_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteHmacKey provides a mock function with given fields: projectID, accessKey, ServiceAccount
 func (_m *MockGoogleServices) DeleteHmacKey(projectID string, accessKey string, ServiceAccount string) error {
 	ret := _m.Called(projectID, accessKey, ServiceAccount)
@@ -1118,6 +1288,66 @@ func (_c *MockGoogleServices_DeleteServiceAccount_Call) Return(_a0 error) *MockG
 }
 
 func (_c *MockGoogleServices_DeleteServiceAccount_Call) RunAndReturn(run func(string, string) error) *MockGoogleServices_DeleteServiceAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAddress provides a mock function with given fields: projectName, region, address
+func (_m *MockGoogleServices) GetAddress(projectName string, region string, address string) (*models.Address, error) {
+	ret := _m.Called(projectName, region, address)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAddress")
+	}
+
+	var r0 *models.Address
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, string) (*models.Address, error)); ok {
+		return rf(projectName, region, address)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string) *models.Address); ok {
+		r0 = rf(projectName, region, address)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.Address)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = rf(projectName, region, address)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetAddress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAddress'
+type MockGoogleServices_GetAddress_Call struct {
+	*mock.Call
+}
+
+// GetAddress is a helper method to define mock.On call
+//   - projectName string
+//   - region string
+//   - address string
+func (_e *MockGoogleServices_Expecter) GetAddress(projectName interface{}, region interface{}, address interface{}) *MockGoogleServices_GetAddress_Call {
+	return &MockGoogleServices_GetAddress_Call{Call: _e.mock.On("GetAddress", projectName, region, address)}
+}
+
+func (_c *MockGoogleServices_GetAddress_Call) Run(run func(projectName string, region string, address string)) *MockGoogleServices_GetAddress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetAddress_Call) Return(_a0 *models.Address, _a1 error) *MockGoogleServices_GetAddress_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetAddress_Call) RunAndReturn(run func(string, string, string) (*models.Address, error)) *MockGoogleServices_GetAddress_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1463,6 +1693,66 @@ func (_c *MockGoogleServices_GetFirewall_Call) Return(_a0 *models.Firewall, _a1 
 }
 
 func (_c *MockGoogleServices_GetFirewall_Call) RunAndReturn(run func(string, string) (*models.Firewall, error)) *MockGoogleServices_GetFirewall_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetForwardingRule provides a mock function with given fields: projectName, region, endpointName
+func (_m *MockGoogleServices) GetForwardingRule(projectName string, region string, endpointName string) (*models.ForwardingRule, error) {
+	ret := _m.Called(projectName, region, endpointName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetForwardingRule")
+	}
+
+	var r0 *models.ForwardingRule
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, string) (*models.ForwardingRule, error)); ok {
+		return rf(projectName, region, endpointName)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string) *models.ForwardingRule); ok {
+		r0 = rf(projectName, region, endpointName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.ForwardingRule)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = rf(projectName, region, endpointName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_GetForwardingRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetForwardingRule'
+type MockGoogleServices_GetForwardingRule_Call struct {
+	*mock.Call
+}
+
+// GetForwardingRule is a helper method to define mock.On call
+//   - projectName string
+//   - region string
+//   - endpointName string
+func (_e *MockGoogleServices_Expecter) GetForwardingRule(projectName interface{}, region interface{}, endpointName interface{}) *MockGoogleServices_GetForwardingRule_Call {
+	return &MockGoogleServices_GetForwardingRule_Call{Call: _e.mock.On("GetForwardingRule", projectName, region, endpointName)}
+}
+
+func (_c *MockGoogleServices_GetForwardingRule_Call) Run(run func(projectName string, region string, endpointName string)) *MockGoogleServices_GetForwardingRule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_GetForwardingRule_Call) Return(_a0 *models.ForwardingRule, _a1 error) *MockGoogleServices_GetForwardingRule_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_GetForwardingRule_Call) RunAndReturn(run func(string, string, string) (*models.ForwardingRule, error)) *MockGoogleServices_GetForwardingRule_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2539,6 +2829,64 @@ func (_c *MockGoogleServices_ListSubnetworks_Call) Return(_a0 *[]models.Subnet, 
 }
 
 func (_c *MockGoogleServices_ListSubnetworks_Call) RunAndReturn(run func(string, string) (*[]models.Subnet, error)) *MockGoogleServices_ListSubnetworks_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ReleaseAddress provides a mock function with given fields: region, projectNumber, addressName
+func (_m *MockGoogleServices) ReleaseAddress(region string, projectNumber string, addressName string) (string, error) {
+	ret := _m.Called(region, projectNumber, addressName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReleaseAddress")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, string) (string, error)); ok {
+		return rf(region, projectNumber, addressName)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, string) string); ok {
+		r0 = rf(region, projectNumber, addressName)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
+		r1 = rf(region, projectNumber, addressName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockGoogleServices_ReleaseAddress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReleaseAddress'
+type MockGoogleServices_ReleaseAddress_Call struct {
+	*mock.Call
+}
+
+// ReleaseAddress is a helper method to define mock.On call
+//   - region string
+//   - projectNumber string
+//   - addressName string
+func (_e *MockGoogleServices_Expecter) ReleaseAddress(region interface{}, projectNumber interface{}, addressName interface{}) *MockGoogleServices_ReleaseAddress_Call {
+	return &MockGoogleServices_ReleaseAddress_Call{Call: _e.mock.On("ReleaseAddress", region, projectNumber, addressName)}
+}
+
+func (_c *MockGoogleServices_ReleaseAddress_Call) Run(run func(region string, projectNumber string, addressName string)) *MockGoogleServices_ReleaseAddress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_ReleaseAddress_Call) Return(_a0 string, _a1 error) *MockGoogleServices_ReleaseAddress_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockGoogleServices_ReleaseAddress_Call) RunAndReturn(run func(string, string, string) (string, error)) *MockGoogleServices_ReleaseAddress_Call {
 	_c.Call.Return(run)
 	return _c
 }

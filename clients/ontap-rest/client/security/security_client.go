@@ -134,6 +134,10 @@ type ClientService interface {
 
 	RolePrivilegeModify(params *RolePrivilegeModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*RolePrivilegeModifyOK, error)
 
+	SecurityAuditGet(params *SecurityAuditGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityAuditGetOK, error)
+
+	SecurityAuditModify(params *SecurityAuditModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityAuditModifyOK, error)
+
 	SecurityCertificateCollectionGet(params *SecurityCertificateCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityCertificateCollectionGetOK, error)
 
 	SecurityCertificateCreate(params *SecurityCertificateCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityCertificateCreateCreated, error)
@@ -147,6 +151,14 @@ type ClientService interface {
 	SecurityKeystoreDelete(params *SecurityKeystoreDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityKeystoreDeleteOK, error)
 
 	SecurityKeystoreModify(params *SecurityKeystoreModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityKeystoreModifyOK, *SecurityKeystoreModifyAccepted, error)
+
+	SecurityLogForwardingCreate(params *SecurityLogForwardingCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityLogForwardingCreateAccepted, error)
+
+	SecurityLogForwardingDelete(params *SecurityLogForwardingDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityLogForwardingDeleteOK, error)
+
+	SecurityLogForwardingGet(params *SecurityLogForwardingGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityLogForwardingGetOK, error)
+
+	SecurityLogForwardingModify(params *SecurityLogForwardingModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityLogForwardingModifyOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -1025,6 +1037,84 @@ func (a *Client) RolePrivilegeModify(params *RolePrivilegeModifyParams, authInfo
 }
 
 /*
+SecurityAuditGet Retrieves administrative audit settings for GET requests.
+*/
+func (a *Client) SecurityAuditGet(params *SecurityAuditGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityAuditGetOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSecurityAuditGetParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "security_audit_get",
+		Method:             "GET",
+		PathPattern:        "/security/audit",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SecurityAuditGetReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*SecurityAuditGetOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SecurityAuditGetDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	SecurityAuditModify Updates administrative audit settings for GET requests.
+
+All of the fields are optional. An empty body will make no changes.
+*/
+func (a *Client) SecurityAuditModify(params *SecurityAuditModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityAuditModifyOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSecurityAuditModifyParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "security_audit_modify",
+		Method:             "PATCH",
+		PathPattern:        "/security/audit",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SecurityAuditModifyReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*SecurityAuditModifyOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SecurityAuditModifyDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
 	SecurityCertificateCollectionGet Retrieves security certificates.
 
 ### Related ONTAP commands
@@ -1366,6 +1456,169 @@ func (a *Client) SecurityKeystoreModify(params *SecurityKeystoreModifyParams, au
 	// unexpected success response
 	unexpectedSuccess := result.(*SecurityKeystoreModifyDefault)
 	return nil, nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	SecurityLogForwardingCreate Configures remote syslog/splunk server information.
+
+### Required properties
+All of the following fields are required for creating a remote syslog/splunk destination
+* `address`
+### Optional properties
+All of the following fields are optional for creating a remote syslog/splunk destination
+* `port`
+* `ipspace`
+* `protocol`
+* `facility`
+* `verify_server` (Can only be "true" when protocol is "tcp_encrypted")
+*/
+func (a *Client) SecurityLogForwardingCreate(params *SecurityLogForwardingCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityLogForwardingCreateAccepted, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSecurityLogForwardingCreateParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "security_log_forwarding_create",
+		Method:             "POST",
+		PathPattern:        "/security/audit/destinations",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SecurityLogForwardingCreateReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*SecurityLogForwardingCreateAccepted)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SecurityLogForwardingCreateDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+SecurityLogForwardingDelete Deletes remote syslog/splunk server information.
+*/
+func (a *Client) SecurityLogForwardingDelete(params *SecurityLogForwardingDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityLogForwardingDeleteOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSecurityLogForwardingDeleteParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "security_log_forwarding_delete",
+		Method:             "DELETE",
+		PathPattern:        "/security/audit/destinations/{address}/{port}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SecurityLogForwardingDeleteReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*SecurityLogForwardingDeleteOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SecurityLogForwardingDeleteDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+SecurityLogForwardingGet Defines a remote syslog/splunk server for sending audit information to.
+*/
+func (a *Client) SecurityLogForwardingGet(params *SecurityLogForwardingGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityLogForwardingGetOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSecurityLogForwardingGetParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "security_log_forwarding_get",
+		Method:             "GET",
+		PathPattern:        "/security/audit/destinations/{address}/{port}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SecurityLogForwardingGetReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*SecurityLogForwardingGetOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SecurityLogForwardingGetDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+SecurityLogForwardingModify Updates remote syslog/splunk server information.
+*/
+func (a *Client) SecurityLogForwardingModify(params *SecurityLogForwardingModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityLogForwardingModifyOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewSecurityLogForwardingModifyParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "security_log_forwarding_modify",
+		Method:             "PATCH",
+		PathPattern:        "/security/audit/destinations/{address}/{port}",
+		ProducesMediaTypes: []string{"application/json", "application/hal+json"},
+		ConsumesMediaTypes: []string{"application/json", "application/hal+json"},
+		Schemes:            []string{"https"},
+		Params:             params,
+		Reader:             &SecurityLogForwardingModifyReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*SecurityLogForwardingModifyOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*SecurityLogForwardingModifyDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
 // SetTransport changes the transport on the client

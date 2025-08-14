@@ -756,6 +756,83 @@ type GcpKmsCreateParams struct {
 	PrivilegedAccount      *string
 }
 
+type SecurityAuditUpdateParams struct {
+	Cli    bool
+	HTTP   bool
+	Ontapi bool
+}
+
+type SecurityAudit struct {
+	models.SecurityAudit
+}
+
+func securityAuditModifyParamsToONTAP(params *SecurityAuditUpdateParams) *security.SecurityAuditModifyParams {
+	otParams := security.NewSecurityAuditModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	audit := models.SecurityAudit{
+		Cli:    &params.Cli,
+		HTTP:   &params.HTTP,
+		Ontapi: &params.Ontapi,
+	}
+	otParams.SetInfo(&audit)
+
+	return otParams
+}
+
+type SecurityLogForwardingCreateParams struct {
+	BaseParams
+	Address      *string
+	Port         *int64
+	Protocol     *string
+	Facility     *string
+	VerifyServer *bool
+}
+
+type SecurityLogForwardingGetParams struct {
+	Address string
+	Port    int64
+}
+
+type SecurityAuditLogForward struct {
+	models.SecurityAuditLogForward
+}
+
+func securityLogForwardingGetParamsToONTAP(params *SecurityLogForwardingGetParams) *security.SecurityLogForwardingGetParams {
+	otParams := security.NewSecurityLogForwardingGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetAddress(params.Address)
+	otParams.SetPort(params.Port)
+
+	return otParams
+}
+
+func securityLogForwardingCreateParamsToONTAP(params *SecurityLogForwardingCreateParams) *security.SecurityLogForwardingCreateParams {
+	otParams := security.NewSecurityLogForwardingCreateParams()
+	if params == nil {
+		return otParams
+	}
+
+	rr := true
+
+	otParams.SetReturnRecords(&rr)
+	otParams.SetForce(&rr)
+	otParams.SetInfo(
+		&models.SecurityAuditLogForward{
+			Address:      params.Address,
+			Port:         params.Port,
+			Protocol:     params.Protocol,
+			Facility:     params.Facility,
+			VerifyServer: params.VerifyServer,
+		})
+	return otParams
+}
+
 func gcpKmsCreateParamsToONTAP(params *GcpKmsCreateParams) *security.GcpKmsCreateParams {
 	otParams := security.NewGcpKmsCreateParams()
 	if params == nil {

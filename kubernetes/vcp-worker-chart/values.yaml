@@ -96,6 +96,12 @@ workerConfig:
   
   metricsPort: "9090"
 
+  # Gin Logging configuration
+  ginServiceAttachment: "projects/netapp-au-se1-autopush-sde-tst/regions/australia-southeast1/serviceAttachments/fluent-bit-psc"
+  gitMetrics1pPort: "5140"
+  ginMetrics1pProtocol: "tcp-unencrypted"
+  ginLoggingFeature: "true"
+
   # Harvest Configuration
   serviceControlUrl: "https://servicecontrol.googleapis.com"
   serviceName: "autopush-netapp.sandbox.googleapis.com"

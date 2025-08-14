@@ -548,3 +548,15 @@ type SmObjectStoreEndpointSnapshot struct {
 	SnapshotState *string
 	UUID          *strfmt.UUID
 }
+
+type UpdateSecurityAuditParams struct {
+	Cli    bool
+	HTTP   bool
+	Ontapi bool
+}
+
+type SecurityAudit struct {
+	Cli    bool
+	HTTP   bool
+	Ontapi bool
+}

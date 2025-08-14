@@ -17,6 +17,7 @@ func convertComputeOpToComputeOp(op *compute.Operation) *models.ComputeOperation
 		Name:     op.Name,
 		Status:   op.Status,
 		Progress: op.Progress,
+		Done:     op.Status == "DONE",
 	}
 }
 
@@ -44,6 +45,7 @@ func convertGoogleSubnetToSubnet(subnet *compute.Subnetwork) *models.Subnet {
 		Network:        subnet.Network,
 		IpCidrRange:    subnet.IpCidrRange,
 		GatewayAddress: subnet.GatewayAddress,
+		SelfLink:       subnet.SelfLink,
 	}
 }
 
@@ -77,6 +79,7 @@ func convertGoogleVPCToVPC(vpc *compute.Network) *models.VPCNetwork {
 	return &models.VPCNetwork{
 		Name:        vpc.Name,
 		ProjectName: vpc.SelfLink,
+		SelfLink:    vpc.SelfLink,
 	}
 }
 
@@ -120,6 +123,55 @@ func convertGCPFirewallToFirewall(firewall *compute.Firewall) *models.Firewall {
 	}
 }
 
+func convertGCPAddressToAddress(address *compute.Address) *models.Address {
+	if address == nil {
+		return nil
+	}
+	return &models.Address{
+		AddressName: address.Name,
+		Region:      address.Region,
+		SelfLink:    address.SelfLink,
+	}
+}
+
+func convertAddressToGoogleAddress(address *models.Address) *compute.Address {
+	if address == nil {
+		return nil
+	}
+	return &compute.Address{
+		Name:        address.AddressName,
+		AddressType: address.Type,
+		Region:      address.Region,
+		Subnetwork:  address.SubnetURI,
+		SelfLink:    address.SelfLink,
+	}
+}
+
+func convertForwardingRuleToGoogleForwardingRule(forwardingRule *models.ForwardingRule) *compute.ForwardingRule {
+	if forwardingRule == nil {
+		return nil
+	}
+	return &compute.ForwardingRule{
+		Name:      forwardingRule.Name,
+		IPAddress: forwardingRule.IPAddress,
+		Network:   forwardingRule.Network,
+		Region:    forwardingRule.Region,
+		Target:    forwardingRule.Target,
+	}
+}
+func convertGCPForwardingRuleToForwardingRule(forwardingRule *compute.ForwardingRule) *models.ForwardingRule {
+	if forwardingRule == nil {
+		return nil
+	}
+	return &models.ForwardingRule{
+		IPAddress: forwardingRule.IPAddress,
+		Network:   forwardingRule.Network,
+		SelfLink:  forwardingRule.SelfLink,
+		Region:    forwardingRule.Region,
+		Target:    forwardingRule.Target,
+		Name:      forwardingRule.Name,
+	}
+}
 func getFirewallAllowedRulesGCP(allowedPortRules []string) []*compute.FirewallAllowed {
 	firewallAllowedPortRules := []*compute.FirewallAllowed{}
 	for _, rule := range allowedPortRules {

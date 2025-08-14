@@ -17,6 +17,7 @@ type VPCNetwork struct {
 	ProjectName string
 	Name        string
 	Subnetworks []string
+	SelfLink    string
 }
 
 type Subnet struct {
@@ -26,6 +27,7 @@ type Subnet struct {
 	Network        string
 	IpCidrRange    string
 	GatewayAddress string
+	SelfLink       string
 }
 
 type Firewall struct {
@@ -66,4 +68,23 @@ type ServiceAccountKey struct {
 	PublicKeyData   string `json:"publicKeyData,omitempty"`
 	ValidAfterTime  string `json:"validAfterTime,omitempty"`
 	ValidBeforeTime string `json:"validBeforeTime,omitempty"`
+}
+
+type Address struct {
+	ProjectId   string
+	SelfLink    string
+	Region      string
+	Type        string
+	SubnetURI   string
+	AddressName string
+}
+
+type ForwardingRule struct {
+	ProjectId string
+	IPAddress string
+	Network   string
+	Region    string
+	Target    string
+	Name      string
+	SelfLink  string
 }

@@ -26,6 +26,16 @@ type Services interface {
 	UpdateFirewall(firewallRule *models.Firewall) (string, error)
 	GetFirewall(projectName string, firewallName string) (*models.Firewall, error)
 
+	GetAddress(projectName string, region string, address string) (*models.Address, error)
+	CreateAddressOperation(address *models.Address) (string, error)
+	ReleaseAddress(region, projectNumber, addressName string) (string, error)
+
+	GetForwardingRule(projectName string, region string, endpointName string) (*models.ForwardingRule, error)
+	CreateForwardingRuleOperation(forwardingRule *models.ForwardingRule) (string, error)
+	DeleteForwardingRule(region, projectNumber, addressName string) (string, error)
+
+	GetComputeRegionalOpStatus(projectNumber, region, operationName string) (*models.ComputeOperation, error)
+
 	CreateBucketIfNotExists(ctx context.Context, projectID, bucketName, region string) error
 	DeleteBucket(ctx context.Context, bucketName string) error
 

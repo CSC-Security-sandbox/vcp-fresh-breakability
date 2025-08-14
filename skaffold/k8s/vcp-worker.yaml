@@ -187,6 +187,14 @@ spec:
               value: "gcnv-autopush-images"
             - name: VSA_INSTANCE_TYPE_OVERRIDE_LSSD
               value: "false"
+            - name: GIN_METRICS_PROTOCOL
+              value: "tcp-unencrypted"
+            - name: GIN_METRICS_PORT
+              value: "5140"
+            - name: GIN_SERVICE_ATTACHMENT
+              value: "projects/netapp-au-se1-autopush-sde-tst/regions/australia-southeast1/serviceAttachments/fluent-bit-psc"
+            - name: GIN_LOGGING_FEATURE
+              value: "true"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

@@ -179,6 +179,237 @@ func (_c *MockSecurityClient_GcpKmsGet_Call) RunAndReturn(run func(*GcpKmsGetPar
 	return _c
 }
 
+// SecurityAuditGet provides a mock function with no fields
+func (_m *MockSecurityClient) SecurityAuditGet() (*SecurityAudit, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for SecurityAuditGet")
+	}
+
+	var r0 *SecurityAudit
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (*SecurityAudit, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() *SecurityAudit); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*SecurityAudit)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSecurityClient_SecurityAuditGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SecurityAuditGet'
+type MockSecurityClient_SecurityAuditGet_Call struct {
+	*mock.Call
+}
+
+// SecurityAuditGet is a helper method to define mock.On call
+func (_e *MockSecurityClient_Expecter) SecurityAuditGet() *MockSecurityClient_SecurityAuditGet_Call {
+	return &MockSecurityClient_SecurityAuditGet_Call{Call: _e.mock.On("SecurityAuditGet")}
+}
+
+func (_c *MockSecurityClient_SecurityAuditGet_Call) Run(run func()) *MockSecurityClient_SecurityAuditGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_SecurityAuditGet_Call) Return(_a0 *SecurityAudit, _a1 error) *MockSecurityClient_SecurityAuditGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSecurityClient_SecurityAuditGet_Call) RunAndReturn(run func() (*SecurityAudit, error)) *MockSecurityClient_SecurityAuditGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SecurityAuditUpdate provides a mock function with given fields: params
+func (_m *MockSecurityClient) SecurityAuditUpdate(params *SecurityAuditUpdateParams) (*SecurityAudit, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SecurityAuditUpdate")
+	}
+
+	var r0 *SecurityAudit
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*SecurityAuditUpdateParams) (*SecurityAudit, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*SecurityAuditUpdateParams) *SecurityAudit); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*SecurityAudit)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*SecurityAuditUpdateParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSecurityClient_SecurityAuditUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SecurityAuditUpdate'
+type MockSecurityClient_SecurityAuditUpdate_Call struct {
+	*mock.Call
+}
+
+// SecurityAuditUpdate is a helper method to define mock.On call
+//   - params *SecurityAuditUpdateParams
+func (_e *MockSecurityClient_Expecter) SecurityAuditUpdate(params interface{}) *MockSecurityClient_SecurityAuditUpdate_Call {
+	return &MockSecurityClient_SecurityAuditUpdate_Call{Call: _e.mock.On("SecurityAuditUpdate", params)}
+}
+
+func (_c *MockSecurityClient_SecurityAuditUpdate_Call) Run(run func(params *SecurityAuditUpdateParams)) *MockSecurityClient_SecurityAuditUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*SecurityAuditUpdateParams))
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_SecurityAuditUpdate_Call) Return(_a0 *SecurityAudit, _a1 error) *MockSecurityClient_SecurityAuditUpdate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSecurityClient_SecurityAuditUpdate_Call) RunAndReturn(run func(*SecurityAuditUpdateParams) (*SecurityAudit, error)) *MockSecurityClient_SecurityAuditUpdate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SecurityLogForwardingCreate provides a mock function with given fields: params
+func (_m *MockSecurityClient) SecurityLogForwardingCreate(params *SecurityLogForwardingCreateParams) ([]*SecurityAuditLogForward, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SecurityLogForwardingCreate")
+	}
+
+	var r0 []*SecurityAuditLogForward
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*SecurityLogForwardingCreateParams) ([]*SecurityAuditLogForward, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*SecurityLogForwardingCreateParams) []*SecurityAuditLogForward); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*SecurityAuditLogForward)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*SecurityLogForwardingCreateParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSecurityClient_SecurityLogForwardingCreate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SecurityLogForwardingCreate'
+type MockSecurityClient_SecurityLogForwardingCreate_Call struct {
+	*mock.Call
+}
+
+// SecurityLogForwardingCreate is a helper method to define mock.On call
+//   - params *SecurityLogForwardingCreateParams
+func (_e *MockSecurityClient_Expecter) SecurityLogForwardingCreate(params interface{}) *MockSecurityClient_SecurityLogForwardingCreate_Call {
+	return &MockSecurityClient_SecurityLogForwardingCreate_Call{Call: _e.mock.On("SecurityLogForwardingCreate", params)}
+}
+
+func (_c *MockSecurityClient_SecurityLogForwardingCreate_Call) Run(run func(params *SecurityLogForwardingCreateParams)) *MockSecurityClient_SecurityLogForwardingCreate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*SecurityLogForwardingCreateParams))
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_SecurityLogForwardingCreate_Call) Return(_a0 []*SecurityAuditLogForward, _a1 error) *MockSecurityClient_SecurityLogForwardingCreate_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSecurityClient_SecurityLogForwardingCreate_Call) RunAndReturn(run func(*SecurityLogForwardingCreateParams) ([]*SecurityAuditLogForward, error)) *MockSecurityClient_SecurityLogForwardingCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SecurityLogForwardingGet provides a mock function with given fields: params
+func (_m *MockSecurityClient) SecurityLogForwardingGet(params *SecurityLogForwardingGetParams) (*SecurityAuditLogForward, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SecurityLogForwardingGet")
+	}
+
+	var r0 *SecurityAuditLogForward
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*SecurityLogForwardingGetParams) (*SecurityAuditLogForward, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*SecurityLogForwardingGetParams) *SecurityAuditLogForward); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*SecurityAuditLogForward)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*SecurityLogForwardingGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockSecurityClient_SecurityLogForwardingGet_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SecurityLogForwardingGet'
+type MockSecurityClient_SecurityLogForwardingGet_Call struct {
+	*mock.Call
+}
+
+// SecurityLogForwardingGet is a helper method to define mock.On call
+//   - params *SecurityLogForwardingGetParams
+func (_e *MockSecurityClient_Expecter) SecurityLogForwardingGet(params interface{}) *MockSecurityClient_SecurityLogForwardingGet_Call {
+	return &MockSecurityClient_SecurityLogForwardingGet_Call{Call: _e.mock.On("SecurityLogForwardingGet", params)}
+}
+
+func (_c *MockSecurityClient_SecurityLogForwardingGet_Call) Run(run func(params *SecurityLogForwardingGetParams)) *MockSecurityClient_SecurityLogForwardingGet_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*SecurityLogForwardingGetParams))
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_SecurityLogForwardingGet_Call) Return(_a0 *SecurityAuditLogForward, _a1 error) *MockSecurityClient_SecurityLogForwardingGet_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockSecurityClient_SecurityLogForwardingGet_Call) RunAndReturn(run func(*SecurityLogForwardingGetParams) (*SecurityAuditLogForward, error)) *MockSecurityClient_SecurityLogForwardingGet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockSecurityClient creates a new instance of MockSecurityClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockSecurityClient(t interface {

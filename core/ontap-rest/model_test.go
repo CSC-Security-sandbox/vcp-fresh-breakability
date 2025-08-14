@@ -1418,6 +1418,78 @@ func TestSnapmirrorCloudSnapshotGetParamsToONTAP(t *testing.T) {
 	})
 }
 
+func TestSecurityAuditModifyParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := securityAuditModifyParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &SecurityAuditUpdateParams{
+			Cli:    true,
+			HTTP:   true,
+			Ontapi: true,
+		}
+
+		otParams := securityAuditModifyParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.NotNil(tt, otParams.Info.Cli)
+		assert.True(tt, *otParams.Info.Cli)
+		assert.NotNil(tt, otParams.Info.HTTP)
+		assert.True(tt, *otParams.Info.HTTP)
+		assert.NotNil(tt, otParams.Info.Ontapi)
+		assert.True(tt, *otParams.Info.Ontapi)
+	})
+}
+
+func TestSecurityLogForwardingGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := securityLogForwardingGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &SecurityLogForwardingGetParams{
+			Address: "test-address",
+			Port:    int64(1234),
+		}
+
+		otParams := securityLogForwardingGetParamsToONTAP(params)
+		assert.Equal(tt, "test-address", otParams.Address)
+		assert.Equal(tt, int64(1234), otParams.Port)
+	})
+}
+
+func TestSecurityLogForwardingCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := securityLogForwardingCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &SecurityLogForwardingCreateParams{
+			BaseParams:   BaseParams{},
+			Address:      nillable.ToPointer("test-address"),
+			Port:         nillable.ToPointer(int64(1234)),
+			Protocol:     nillable.ToPointer("http"),
+			Facility:     nillable.ToPointer("test-facility"),
+			VerifyServer: nillable.ToPointer(true),
+		}
+
+		otParams := securityLogForwardingCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.NotNil(tt, otParams.Info.Address)
+		assert.Equal(tt, "test-address", *otParams.Info.Address)
+		assert.NotNil(tt, otParams.Info.Port)
+		assert.Equal(tt, int64(1234), *otParams.Info.Port)
+		assert.NotNil(tt, otParams.Info.Protocol)
+		assert.Equal(tt, "http", *otParams.Info.Protocol)
+		assert.NotNil(tt, otParams.Info.Facility)
+		assert.Equal(tt, "test-facility", *otParams.Info.Facility)
+		assert.NotNil(tt, otParams.Info.VerifyServer)
+		assert.True(tt, *otParams.Info.VerifyServer)
+	})
+}
+
 func TestLunCreateParamsToONTAP(t *testing.T) {
 	t.Run("WhenParamsNil_ThenReturnsDefault", func(tt *testing.T) {
 		otParams := lunCreateParamsToONTAP(nil)

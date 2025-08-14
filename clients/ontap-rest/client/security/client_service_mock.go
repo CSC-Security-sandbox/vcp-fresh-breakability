@@ -377,6 +377,32 @@ func (mock *MockClientService) AssertRolePrivilegeModify(params *RolePrivilegeMo
 	mock.returns <- []interface{}{&ret0, &ret1}
 }
 
+// SecurityAuditGet mocks a call to ClientService.SecurityAuditGet
+func (mock *MockClientService) SecurityAuditGet(params *SecurityAuditGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityAuditGetOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "SecurityAuditGet", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SecurityAuditGetOK), *ret[1].(*error)
+}
+
+// AssertSecurityAuditGet verifies that SecurityAuditGet has been invoked
+func (mock *MockClientService) AssertSecurityAuditGet(params *SecurityAuditGetParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SecurityAuditGetOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SecurityAuditGet", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
+// SecurityAuditModify mocks a call to ClientService.SecurityAuditModify
+func (mock *MockClientService) SecurityAuditModify(params *SecurityAuditModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityAuditModifyOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "SecurityAuditModify", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SecurityAuditModifyOK), *ret[1].(*error)
+}
+
+// AssertSecurityAuditModify verifies that SecurityAuditModify has been invoked
+func (mock *MockClientService) AssertSecurityAuditModify(params *SecurityAuditModifyParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SecurityAuditModifyOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SecurityAuditModify", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
 // SecurityCertificateCollectionGet mocks a call to ClientService.SecurityCertificateCollectionGet
 func (mock *MockClientService) SecurityCertificateCollectionGet(params *SecurityCertificateCollectionGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityCertificateCollectionGetOK, error) {
 	mock.calls <- &mockClientServiceCall{name: "SecurityCertificateCollectionGet", params: []interface{}{&params, &authInfo, &opts}}
@@ -466,4 +492,56 @@ func (mock *MockClientService) SecurityKeystoreModify(params *SecurityKeystoreMo
 func (mock *MockClientService) AssertSecurityKeystoreModify(params *SecurityKeystoreModifyParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SecurityKeystoreModifyOK, ret1 *SecurityKeystoreModifyAccepted, ret2 error) {
 	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SecurityKeystoreModify", params: []interface{}{&params, &authInfo, &opts}})
 	mock.returns <- []interface{}{&ret0, &ret1, &ret2}
+}
+
+// SecurityLogForwardingCreate mocks a call to ClientService.SecurityLogForwardingCreate
+func (mock *MockClientService) SecurityLogForwardingCreate(params *SecurityLogForwardingCreateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityLogForwardingCreateAccepted, error) {
+	mock.calls <- &mockClientServiceCall{name: "SecurityLogForwardingCreate", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SecurityLogForwardingCreateAccepted), *ret[1].(*error)
+}
+
+// AssertSecurityLogForwardingCreate verifies that SecurityLogForwardingCreate has been invoked
+func (mock *MockClientService) AssertSecurityLogForwardingCreate(params *SecurityLogForwardingCreateParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SecurityLogForwardingCreateAccepted, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SecurityLogForwardingCreate", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
+// SecurityLogForwardingDelete mocks a call to ClientService.SecurityLogForwardingDelete
+func (mock *MockClientService) SecurityLogForwardingDelete(params *SecurityLogForwardingDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityLogForwardingDeleteOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "SecurityLogForwardingDelete", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SecurityLogForwardingDeleteOK), *ret[1].(*error)
+}
+
+// AssertSecurityLogForwardingDelete verifies that SecurityLogForwardingDelete has been invoked
+func (mock *MockClientService) AssertSecurityLogForwardingDelete(params *SecurityLogForwardingDeleteParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SecurityLogForwardingDeleteOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SecurityLogForwardingDelete", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
+// SecurityLogForwardingGet mocks a call to ClientService.SecurityLogForwardingGet
+func (mock *MockClientService) SecurityLogForwardingGet(params *SecurityLogForwardingGetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityLogForwardingGetOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "SecurityLogForwardingGet", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SecurityLogForwardingGetOK), *ret[1].(*error)
+}
+
+// AssertSecurityLogForwardingGet verifies that SecurityLogForwardingGet has been invoked
+func (mock *MockClientService) AssertSecurityLogForwardingGet(params *SecurityLogForwardingGetParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SecurityLogForwardingGetOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SecurityLogForwardingGet", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
+}
+
+// SecurityLogForwardingModify mocks a call to ClientService.SecurityLogForwardingModify
+func (mock *MockClientService) SecurityLogForwardingModify(params *SecurityLogForwardingModifyParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*SecurityLogForwardingModifyOK, error) {
+	mock.calls <- &mockClientServiceCall{name: "SecurityLogForwardingModify", params: []interface{}{&params, &authInfo, &opts}}
+	ret := (<-mock.returns).([]interface{})
+	return *ret[0].(**SecurityLogForwardingModifyOK), *ret[1].(*error)
+}
+
+// AssertSecurityLogForwardingModify verifies that SecurityLogForwardingModify has been invoked
+func (mock *MockClientService) AssertSecurityLogForwardingModify(params *SecurityLogForwardingModifyParams, authInfo runtime.ClientAuthInfoWriter, opts []ClientOption, ret0 *SecurityLogForwardingModifyOK, ret1 error) {
+	mock.assertCall(<-mock.calls, &mockClientServiceCall{name: "SecurityLogForwardingModify", params: []interface{}{&params, &authInfo, &opts}})
+	mock.returns <- []interface{}{&ret0, &ret1}
 }

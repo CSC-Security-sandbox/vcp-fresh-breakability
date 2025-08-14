@@ -450,6 +450,284 @@ func TestGetONTAPProvider_Failure(t *testing.T) {
 	assert.Nil(t, res)
 }
 
+func TestCreateClusterLogForwardingProvider_Success(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	originalGetClusterLogForwarding := activities.GetClusterLogForwarding
+	defer func() {
+		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		activities.GetClusterLogForwarding = originalGetClusterLogForwarding
+	}() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	// Mock GetClusterLogForwarding to return record not found error.
+	activities.GetClusterLogForwarding = func(ctx context.Context, node *coremodel.Node, address string, port int64) error {
+		return errors.New("record not found")
+	}
+
+	activity := activities.PoolActivity{
+		SE: database.NewMockStorage(t),
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &coremodel.Node{}
+	mockProvider.On("CreateSecurityLogForwarding", mock.Anything).Return(nil, nil)
+
+	err := activity.CreateClusterLogForwarding(ctx, node, "test-address", 1009, "test-protocol")
+	assert.NoError(t, err)
+}
+
+func TestCreateClusterLogForwardingProvider_Failure(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	originalGetClusterLogForwarding := activities.GetClusterLogForwarding
+	defer func() {
+		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		activities.GetClusterLogForwarding = originalGetClusterLogForwarding
+	}() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	// Mock GetClusterLogForwarding to return record not found error.
+	activities.GetClusterLogForwarding = func(ctx context.Context, node *coremodel.Node, address string, port int64) error {
+		return errors.New("record not found")
+	}
+
+	activity := activities.PoolActivity{
+		SE: database.NewMockStorage(t),
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &coremodel.Node{}
+	mockProvider.On("CreateSecurityLogForwarding", mock.Anything).Return(nil, errors.New("failed to get create cluster log forwarding"))
+
+	err := activity.CreateClusterLogForwarding(ctx, node, "test-address", 1009, "test-protocol")
+	assert.Error(t, err)
+}
+
+func Test_getClusterLogForwarding_Success(t *testing.T) {
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &coremodel.Node{}
+	address := "test-address"
+	port := int64(1009)
+	mockProvider.On("GetSecurityLogForwarding", mock.Anything).Return(nil)
+
+	err := activities.GetClusterLogForwarding(ctx, node, address, port)
+
+	assert.NoError(t, err)
+}
+
+func Test_getClusterLogForwarding_Error(t *testing.T) {
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &coremodel.Node{}
+	address := "test-address"
+	port := int64(1009)
+	mockProvider.On("GetSecurityLogForwarding", mock.Anything).Return(errors.New("record not found"))
+
+	err := activities.GetClusterLogForwarding(ctx, node, address, port)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "record not found")
+}
+
+func Test_getClusterLogForwarding_ProviderError(t *testing.T) {
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return nil, errors.New("failed to get provider by node")
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &coremodel.Node{}
+	address := "test-address"
+	port := int64(1009)
+
+	err := activities.GetClusterLogForwarding(ctx, node, address, port)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get provider by node")
+}
+
+func Test_updateSecurityAudit_Success(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	originalGetSecurityAudit := activities.GetSecurityAudit
+	defer func() {
+		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		activities.GetSecurityAudit = originalGetSecurityAudit
+	}() // Restore original function after test
+	securityAudit := vsa.SecurityAudit{
+		HTTP:   false,
+		Cli:    false,
+		Ontapi: false,
+	}
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	// Mock GetClusterLogForwarding to return record not found error.
+	activities.GetSecurityAudit = func(ctx context.Context, node *coremodel.Node) (*vsa.SecurityAudit, error) {
+		return &securityAudit, nil
+	}
+
+	activity := activities.PoolActivity{
+		SE: database.NewMockStorage(t),
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &coremodel.Node{}
+	mockProvider.On("UpdateSecurityAudit", mock.Anything).Return(nil, nil)
+
+	err := activity.UpdateSecurityAudit(ctx, node)
+	assert.NoError(t, err)
+}
+
+func Test_updateSecurityAudit_Failure(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	originalGetSecurityAudit := activities.GetSecurityAudit
+	defer func() {
+		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		activities.GetSecurityAudit = originalGetSecurityAudit
+	}() // Restore original function after test
+	securityAudit := vsa.SecurityAudit{
+		HTTP:   false,
+		Cli:    false,
+		Ontapi: false,
+	}
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	// Mock GetClusterLogForwarding to return record not found error.
+	activities.GetSecurityAudit = func(ctx context.Context, node *coremodel.Node) (*vsa.SecurityAudit, error) {
+		return &securityAudit, nil
+	}
+
+	activity := activities.PoolActivity{
+		SE: database.NewMockStorage(t),
+	}
+
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &coremodel.Node{}
+	mockProvider.On("UpdateSecurityAudit", mock.Anything).Return(nil, errors.New("failed to update"))
+
+	err := activity.UpdateSecurityAudit(ctx, node)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update")
+}
+
+func Test_updateSecurityAudit_ProviderError(t *testing.T) {
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return nil, errors.New("failed to get provider by node")
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &coremodel.Node{}
+
+	activity := activities.PoolActivity{
+		SE: database.NewMockStorage(t),
+	}
+	err := activity.UpdateSecurityAudit(ctx, node)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get provider by node")
+}
+
+func Test_GetSecurityAudit_Success(t *testing.T) {
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &coremodel.Node{}
+	expectedResponse := &vsa.SecurityAudit{
+		Cli:    true,
+		HTTP:   true,
+		Ontapi: true,
+	}
+	mockProvider.On("GetSecurityAudit").Return(expectedResponse, nil)
+
+	resp, err := activities.GetSecurityAudit(ctx, node)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, expectedResponse.Cli, resp.Cli)
+}
+
+func Test_GetSecurityAudit_Error(t *testing.T) {
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &coremodel.Node{}
+
+	mockProvider.On("GetSecurityAudit").Return(nil, errors.New("record not found"))
+	mockProvider.On("GetSecurityAudit", mock.Anything).Return()
+
+	resp, err := activities.GetSecurityAudit(ctx, node)
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "record not found")
+}
+
+func Test_GetSecurityAudit_ProviderError(t *testing.T) {
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return nil, errors.New("failed to get provider by node")
+	}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	node := &coremodel.Node{}
+
+	resp, err := activities.GetSecurityAudit(ctx, node)
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "failed to get provider by node")
+}
+
 func Test_prepareVlmConfig_Success(t *testing.T) {
 	cfg := &vlm.VLMConfig{
 		Deployment: vlm.DeploymentConfig{
@@ -2189,6 +2467,214 @@ func TestPoolActivity_ReleaseSubnet(t *testing.T) {
 	})
 }
 
+func TestPoolActivity_ReleaseAddress(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	pool := datamodel.Pool{
+		AccountID: 1,
+		Network:   "test-network",
+		Account:   &datamodel.Account{Name: "test-account"},
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone: "test-zone",
+		},
+	}
+	poolView := &datamodel.PoolView{Pool: pool}
+
+	pool2 := datamodel.Pool{
+		AccountID: 1,
+		Network:   "test-network-2",
+		Account:   &datamodel.Account{Name: "test-account"},
+	}
+	poolView2 := &datamodel.PoolView{Pool: pool2}
+
+	t.Run("listPoolsFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("ListPools", ctx, mock.Anything).Return(nil, errors.New("list pools error"))
+		activity := activities.PoolActivity{SE: mockStorage}
+		err := activity.ReleaseAddress(ctx, &pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "list pools error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("multiplePoolsExist", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{poolView, poolView2}, nil)
+		activity := activities.PoolActivity{SE: mockStorage}
+		err := activity.ReleaseAddress(ctx, &pool)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("PoolHasNoPrimaryZone", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+		activity := activities.PoolActivity{SE: mockStorage}
+		err := activity.ReleaseAddress(ctx, &pool2)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "primary zone is not set in pool attributes")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("GetGCPServiceFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("initialisation of Google GCP service failed")
+		}
+		GetGCPService := hyperscaler2.GetGCPService
+		defer func() {
+			hyperscaler2.GetGCPService = GetGCPService
+		}()
+		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
+		activity := activities.PoolActivity{SE: mockStorage}
+		err := activity.ReleaseAddress(ctx, &pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "initialisation of Google GCP service failed")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("getAddressForConsumerProjectAndReleaseFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		GetGCPService := hyperscaler2.GetGCPService
+		GetSubnetForConsumerProjectAndRelease := activities.GetAddressForConsumerProjectAndRelease
+		defer func() {
+			hyperscaler2.GetGCPService = GetGCPService
+			activities.GetAddressForConsumerProjectAndRelease = GetSubnetForConsumerProjectAndRelease
+		}()
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
+		activities.GetAddressForConsumerProjectAndRelease = func(gcpService hyperscaler2.GoogleServices, consumerVpc, accountName, region, addressName string, clusterDetails datamodel.ClusterDetails) error {
+			return errors.New("release address error")
+		}
+		defer func() {}()
+
+		activity := activities.PoolActivity{SE: mockStorage}
+		err := activity.ReleaseAddress(ctx, &pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "release address error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("releasesAddress", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		GetGCPService := hyperscaler2.GetGCPService
+		GetAddressForConsumerProjectAndRelease := activities.GetAddressForConsumerProjectAndRelease
+		defer func() {
+			hyperscaler2.GetGCPService = GetGCPService
+			activities.GetAddressForConsumerProjectAndRelease = GetAddressForConsumerProjectAndRelease
+		}()
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		mockStorage.On("ListPools", ctx, mock.Anything).Return([]*datamodel.PoolView{{}}, nil)
+		activities.GetAddressForConsumerProjectAndRelease = func(gcpService hyperscaler2.GoogleServices, consumerVpc, accountName, region, addressName string, clusterDetails datamodel.ClusterDetails) error {
+			return nil
+		}
+		activity := activities.PoolActivity{SE: mockStorage}
+		err := activity.ReleaseAddress(ctx, &pool)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func Test_GetAddressForConsumerProjectAndRelease(t *testing.T) {
+	addressName := "test-address"
+	vpcName := "test-vpc"
+	accountName := "test-account"
+	localRegion := "test-region"
+	clusterDetails := datamodel.ClusterDetails{
+		RegionalTenantProject: "tst-project",
+		SnHostProject:         "tst-project",
+	}
+	ctx := context.TODO()
+	logger := util.GetLogger(ctx)
+	t.Run("releasesAddressSuccess", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetForwardingRule", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler3.ForwardingRule{}, nil)
+		mgs.On("DeleteForwardingRule", mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		mgs.On("GetAddress", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler3.Address{}, nil)
+		mgs.On("ReleaseAddress", mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+
+		GetAddressForConsumerProjectAndRelease := activities.GetAddressForConsumerProjectAndRelease
+		defer func() {
+			activities.GetAddressForConsumerProjectAndRelease = GetAddressForConsumerProjectAndRelease
+		}()
+
+		err := activities.GetAddressForConsumerProjectAndRelease(mgs, vpcName, accountName, localRegion, addressName, clusterDetails)
+		assert.NoError(tt, err)
+		mgs.AssertExpectations(tt)
+	})
+	t.Run("releasesAddressSuccessGetProjectAndHost", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetTenantProject", mock.Anything, mock.Anything, mock.Anything).Return("tenant-456", nil)
+		mgs.On("GetForwardingRule", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler3.ForwardingRule{}, nil)
+		mgs.On("DeleteForwardingRule", mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		mgs.On("GetAddress", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler3.Address{}, nil)
+		mgs.On("ReleaseAddress", mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+
+		GetAddressForConsumerProjectAndRelease := activities.GetAddressForConsumerProjectAndRelease
+		defer func() {
+			activities.GetAddressForConsumerProjectAndRelease = GetAddressForConsumerProjectAndRelease
+		}()
+
+		err := activities.GetAddressForConsumerProjectAndRelease(mgs, vpcName, accountName, localRegion, addressName, datamodel.ClusterDetails{})
+		assert.NoError(tt, err)
+		mgs.AssertExpectations(tt)
+	})
+	t.Run("releasesAddressSuccessDeleteForwardingRuleFails", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetForwardingRule", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("error deleting forwarding rule"))
+		mgs.On("GetAddress", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler3.Address{}, nil)
+		mgs.On("ReleaseAddress", mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+
+		GetAddressForConsumerProjectAndRelease := activities.GetAddressForConsumerProjectAndRelease
+		defer func() {
+			activities.GetAddressForConsumerProjectAndRelease = GetAddressForConsumerProjectAndRelease
+		}()
+
+		err := activities.GetAddressForConsumerProjectAndRelease(mgs, vpcName, accountName, localRegion, addressName, clusterDetails)
+		assert.NoError(tt, err)
+		mgs.AssertExpectations(tt)
+	})
+	t.Run("releasesAddressGetAddressFails", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetForwardingRule", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler3.ForwardingRule{}, nil)
+		mgs.On("DeleteForwardingRule", mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		mgs.On("GetAddress", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("error deleting address"))
+
+		GetAddressForConsumerProjectAndRelease := activities.GetAddressForConsumerProjectAndRelease
+		defer func() {
+			activities.GetAddressForConsumerProjectAndRelease = GetAddressForConsumerProjectAndRelease
+		}()
+
+		err := activities.GetAddressForConsumerProjectAndRelease(mgs, vpcName, accountName, localRegion, addressName, clusterDetails)
+		assert.Error(tt, errors.New("error deleting forwarding rule"), err)
+		mgs.AssertExpectations(tt)
+	})
+	t.Run("releasesAddressDeleteAddressFails", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetForwardingRule", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler3.ForwardingRule{}, nil)
+		mgs.On("DeleteForwardingRule", mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		mgs.On("GetAddress", mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler3.Address{}, nil)
+		mgs.On("ReleaseAddress", mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("error deleting address"))
+
+		GetAddressForConsumerProjectAndRelease := activities.GetAddressForConsumerProjectAndRelease
+		defer func() {
+			activities.GetAddressForConsumerProjectAndRelease = GetAddressForConsumerProjectAndRelease
+		}()
+
+		err := activities.GetAddressForConsumerProjectAndRelease(mgs, vpcName, accountName, localRegion, addressName, clusterDetails)
+		assert.Error(tt, errors.New("error deleting address"), err)
+		mgs.AssertExpectations(tt)
+	})
+}
+
 func Test_InsertFirewall(t *testing.T) {
 	projectName := "test-project"
 	vpcName := "test-vpc"
@@ -2392,6 +2878,309 @@ func Test_CreateVPC(t *testing.T) {
 
 		_, err := activities.CreateVPC(mgs, projectName, vpcName)
 		assert.NoError(tt, err)
+		mgs.AssertExpectations(tt)
+	})
+}
+
+func TestPoolActivity_CreateAddressForPSCEndpoint(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CreateAddressForPSCEndpoint)
+
+	region := "us-central1"
+	project := "test-project"
+	addressName := "test-address"
+	t.Run("WhenGetGCPServiceFails", func(tt *testing.T) {
+		originalGetGCPService := hyperscaler2.GetGCPService
+		defer func() {
+			hyperscaler2.GetGCPService = originalGetGCPService
+		}()
+
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("failed to get GCP service")
+		}
+		_, err := env.ExecuteActivity(activity.CreateAddressForPSCEndpoint, project, region, addressName)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get GCP service")
+	})
+}
+
+func TestPoolActivity_CreateAddress(t *testing.T) {
+	projectName := "test-project"
+	region := "us-central1"
+	subnetName := "test-subnet"
+	addressName := "test-address"
+	subnet := &hyperscaler3.Subnet{
+		SelfLink: "subnet-self-link",
+	}
+	subnet2 := &hyperscaler3.Subnet{}
+	ctx := context.TODO()
+	logger := util.GetLogger(ctx)
+
+	t.Run("WhenGetGetAddressReturnsNonNotFoundError", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+
+		CreateAddress := activities.CreateAddress
+		defer func() {
+			activities.CreateAddress = CreateAddress
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetAddress", projectName, region, addressName).Return(nil, errors.New("Other issues"))
+
+		_, err := activities.CreateAddress(mgs, projectName, region, subnetName, addressName)
+
+		assert.Error(tt, errors.New("Other issues"), err)
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetGetSubnetworkFails", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+		errString := "failed to get subnetwork"
+		CreateAddress := activities.CreateAddress
+		defer func() {
+			activities.CreateAddress = CreateAddress
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetAddress", projectName, region, addressName).Return(nil, errors.New("not found"))
+		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(nil, errors.New(errString))
+
+		_, err := activities.CreateAddress(mgs, projectName, region, subnetName, addressName)
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), fmt.Sprintf("Error getting subnet for project: %s, vpc name: , subnet name: %s. Error : %s", projectName, subnetName, errString))
+		} else {
+			tt.Fatalf("Expected a CustomError, got: %T", err)
+		}
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetSubnetworkReturnsNil", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+
+		CreateAddress := activities.CreateAddress
+		defer func() {
+			activities.CreateAddress = CreateAddress
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetAddress", projectName, region, addressName).Return(nil, errors.New("not found"))
+		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(nil, nil)
+
+		_, err := activities.CreateAddress(mgs, projectName, region, subnetName, addressName)
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), fmt.Sprintf("Error getting subnetwork for project : %s and subnetwork : %s. ", projectName, subnetName))
+		} else {
+			tt.Fatalf("Expected a CustomError, got: %T", err)
+		}
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetSubnetworkReturnsNilSelfLink", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+
+		CreateAddress := activities.CreateAddress
+		defer func() {
+			activities.CreateAddress = CreateAddress
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetAddress", projectName, region, addressName).Return(nil, errors.New("not found"))
+		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(subnet2, nil)
+
+		_, err := activities.CreateAddress(mgs, projectName, region, subnetName, addressName)
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), fmt.Sprintf("Error getting subnetwork for project : %s and subnetwork : %s. ", projectName, subnetName))
+		} else {
+			tt.Fatalf("Expected a CustomError, got: %T", err)
+		}
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCreateAddressFails", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+		CreateAddress := activities.CreateAddress
+		defer func() {
+			activities.CreateAddress = CreateAddress
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetAddress", projectName, region, addressName).Return(nil, errors.New("not found"))
+		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(subnet, nil)
+		mgs.On("CreateAddressOperation", mock.Anything).Return("", errors.New("address creation failed"))
+
+		_, err := activities.CreateAddress(mgs, projectName, region, subnetName, addressName)
+		assert.Error(tt, errors.New("address creation failed"), err)
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCreateAddressFails", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+		CreateAddress := activities.CreateAddress
+		defer func() {
+			activities.CreateAddress = CreateAddress
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetAddress", projectName, region, addressName).Return(nil, errors.New("not found"))
+		mgs.On("GetSubnetwork", projectName, region, subnetName).Return(subnet, nil)
+		mgs.On("CreateAddressOperation", mock.Anything).Return("address", nil)
+
+		response, err := activities.CreateAddress(mgs, projectName, region, subnetName, addressName)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.Equal(tt, "address", response)
+
+		mgs.AssertExpectations(tt)
+	})
+}
+
+func TestPoolActivity_CreateForwardingRuleForPSCEndpoint(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.CreateForwardingRuleForPSCEndpoint)
+
+	region := "us-central1"
+	project := "test-project"
+	addressName := "test-address"
+	serviceAttachment := "test-service-attachment"
+	addressURI := "test-address-uri"
+	t.Run("WhenGetGCPServiceFails", func(tt *testing.T) {
+		originalGetGCPService := hyperscaler2.GetGCPService
+		defer func() {
+			hyperscaler2.GetGCPService = originalGetGCPService
+		}()
+
+		hyperscaler2.GetGCPService = func(ctx context.Context) (*google.GcpServices, error) {
+			return nil, errors.New("failed to get GCP service")
+		}
+		_, err := env.ExecuteActivity(activity.CreateForwardingRuleForPSCEndpoint, project, region, addressName, addressURI, serviceAttachment)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get GCP service")
+	})
+}
+
+func TestPoolActivity_CreateForwardingRule(t *testing.T) {
+	projectName := "test-project"
+	region := "us-central1"
+	vpcName := "test-vpc"
+	addressName := "test-address"
+	serviceAttachment := "test-service-attachment"
+	addressURI := "test-address-uri"
+	vpcNetwork := &hyperscaler3.VPCNetwork{
+		SelfLink: "vpc-self-link",
+	}
+	vpcNetwork2 := &hyperscaler3.VPCNetwork{}
+	ctx := context.TODO()
+	logger := util.GetLogger(ctx)
+
+	t.Run("WhenGetForwardingRuleReturnsNonNotFoundError", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+
+		CreateForwardingRule := activities.CreateForwardingRule
+		defer func() {
+			activities.CreateForwardingRule = CreateForwardingRule
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetForwardingRule", projectName, region, addressName).Return(nil, errors.New("Other issues"))
+
+		_, err := activities.CreateForwardingRule(mgs, projectName, region, addressName, vpcName, addressURI, serviceAttachment)
+		assert.Error(tt, errors.New("Other issues"), err)
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetVPCNetworkFails", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+
+		CreateForwardingRule := activities.CreateForwardingRule
+		defer func() {
+			activities.CreateForwardingRule = CreateForwardingRule
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetForwardingRule", projectName, region, addressName).Return(nil, errors.New("not found"))
+		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, errors.New("not found"))
+
+		_, err := activities.CreateForwardingRule(mgs, projectName, region, addressName, vpcName, addressURI, serviceAttachment)
+		assert.Error(tt, errors.New("not found"), err)
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetVPCNetworkReturnsNil", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+
+		CreateForwardingRule := activities.CreateForwardingRule
+		defer func() {
+			activities.CreateForwardingRule = CreateForwardingRule
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetForwardingRule", projectName, region, addressName).Return(nil, errors.New("not found"))
+		mgs.On("GetVPCNetwork", projectName, vpcName).Return(nil, nil)
+
+		_, err := activities.CreateForwardingRule(mgs, projectName, region, addressName, vpcName, addressURI, serviceAttachment)
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), fmt.Sprintf("Failed to GetNetwork %v in region %s for project %s", vpcName, region, projectName))
+		} else {
+			tt.Fatalf("Expected a CustomError, got: %T", err)
+		}
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetVPCNetworkReturnsNilSelfLink", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+
+		CreateForwardingRule := activities.CreateForwardingRule
+		defer func() {
+			activities.CreateForwardingRule = CreateForwardingRule
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetForwardingRule", projectName, region, addressName).Return(nil, errors.New("not found"))
+		mgs.On("GetVPCNetwork", projectName, vpcName).Return(vpcNetwork2, nil)
+
+		_, err := activities.CreateForwardingRule(mgs, projectName, region, addressName, vpcName, addressURI, serviceAttachment)
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.EqualError(tt, customErr.Unwrap(), fmt.Sprintf("Failed to GetNetwork %v in region %s for project %s", vpcName, region, projectName))
+		} else {
+			tt.Fatalf("Expected a CustomError, got: %T", err)
+		}
+		mgs.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCreateCreateForwardingRuleOperationFails", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+
+		CreateForwardingRule := activities.CreateForwardingRule
+		defer func() {
+			activities.CreateForwardingRule = CreateForwardingRule
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetForwardingRule", projectName, region, addressName).Return(nil, errors.New("not found"))
+		mgs.On("GetVPCNetwork", projectName, vpcName).Return(vpcNetwork, nil)
+		mgs.On("CreateForwardingRuleOperation", mock.Anything).Return("", errors.New("Error creating forwarding rule"))
+
+		_, err := activities.CreateForwardingRule(mgs, projectName, region, addressName, vpcName, addressURI, serviceAttachment)
+		assert.Error(tt, errors.New("Error creating forwarding rule"), err)
+		mgs.AssertExpectations(tt)
+	})
+	t.Run("WhenCreateCreateForwardingRuleOperationSuccess", func(tt *testing.T) {
+		mgs := hyperscaler2.NewMockGoogleServices(tt)
+
+		CreateForwardingRule := activities.CreateForwardingRule
+		defer func() {
+			activities.CreateForwardingRule = CreateForwardingRule
+		}()
+		mgs.On("GetLogger").Return(logger)
+		mgs.On("GetForwardingRule", projectName, region, addressName).Return(nil, errors.New("not found"))
+		mgs.On("GetVPCNetwork", projectName, vpcName).Return(vpcNetwork, nil)
+		mgs.On("CreateForwardingRuleOperation", mock.Anything).Return("forwardingRule", nil)
+
+		response, err := activities.CreateForwardingRule(mgs, projectName, region, addressName, vpcName, addressURI, serviceAttachment)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, response)
+		assert.Equal(tt, "forwardingRule", response)
+
 		mgs.AssertExpectations(tt)
 	})
 }

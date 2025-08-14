@@ -1060,6 +1060,621 @@ func TestReleaseSubnetwork(t *testing.T) {
 	})
 }
 
+func Test_CreateAddress(t *testing.T) {
+	projectName := "test-project"
+	region := "us-central1"
+	addressRequest := &models.Address{
+		AddressName: "test-address",
+		Region:      region,
+		ProjectId:   projectName,
+	}
+	url := fmt.Sprintf("/projects/%s/regions/%s/addresses", projectName, region)
+	t.Run("WhenCreateAddressFails", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && req.URL.Path == url {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		op, err := createAddress(gService, addressRequest)
+		if err == nil {
+			tt.Error("Expected an error but got none")
+		}
+		if op != nil {
+			tt.Errorf("Expected nil operation but got: %+v", op)
+		}
+		createAddress = _createAddress
+	})
+
+	t.Run("WhenCreateAddressSucceeds", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		operationName := "test-operation"
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && req.URL.Path == url {
+				response, _ := json.Marshal(&compute.Operation{Name: operationName})
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		op, err := createAddress(gService, addressRequest)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+		if op == nil || op.Name != operationName {
+			tt.Errorf("Unexpected operation: %+v", op)
+		}
+		createAddress = _createAddress
+	})
+}
+
+func Test_GetAddress(t *testing.T) {
+	t.Run("WhenGetAddressFails", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		projectName := "1079058383248"
+		addressName := "test-address"
+		region := "US-East-4"
+		url := "/projects/project/regions/region/addresses/r"
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		_, err = gService.GetAddress(projectName, region, addressName)
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if !strings.Contains(err.Error(), "googleapi: got HTTP response code 400 with body") {
+				tt.Errorf("Unexpected error: %s", err.Error())
+			}
+		}
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		projectName := "1079058383248"
+		addressName := "test-address"
+		region := "US-East-4"
+		url := fmt.Sprintf("/projects/%s/regions/%s/addresses/%s", projectName, region, addressName)
+		resp := &compute.Address{Name: addressName}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		out, err := gService.GetAddress(projectName, region, addressName)
+		if err != nil {
+			tt.Errorf("Unexpected error: %s", err.Error())
+		} else {
+			if out == nil {
+				tt.Errorf("Output unexpectedly nil")
+			} else {
+				if out.AddressName != addressName {
+					tt.Errorf("Unexpected subnetwork name %s", out.AddressName)
+				}
+			}
+		}
+	})
+}
+
+func Test_CreateAddressWithOperation(t *testing.T) {
+	projectName := "test-project"
+	address := &models.Address{
+		AddressName: "test-address",
+		ProjectId:   projectName,
+	}
+	ctx := context.Background()
+	t.Run("WhenCreateAddressFails", func(tt *testing.T) {
+		gService := &GcpServices{
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+		origCreate := createAddress
+		createAddress = func(gcpService *GcpServices, request *models.Address) (*models.ComputeOperation, error) {
+			return nil, fmt.Errorf("create error")
+		}
+		defer func() { createAddress = origCreate }()
+		_, err := gService.CreateAddressOperation(address)
+		if err == nil || !strings.Contains(err.Error(), "create error") {
+			tt.Errorf("Expected create error, got: %v", err.Error())
+		}
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		gService := &GcpServices{
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+		origCreate := createAddress
+		createAddress = func(_ *GcpServices, _ *models.Address) (*models.ComputeOperation, error) {
+			return &models.ComputeOperation{Name: "op-1"}, nil
+		}
+		defer func() { createAddress = origCreate }()
+
+		_, err := gService.CreateAddressOperation(address)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+	})
+}
+
+func TestReleaseAddress(t *testing.T) {
+	ctx := context.Background()
+	region := "us-central1"
+	snhost := "test-project"
+	addressName := "test-address"
+	deleteUrl := "/projects/test-project/regions/us-central1/addresses/test-address"
+
+	operationName := "test-operation"
+	t.Run("WhenDeleteSucceeds", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodDelete && req.URL.Path == deleteUrl {
+				response, _ := json.Marshal(&compute.Operation{Name: operationName})
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+			}
+		}))
+		defer server.Close()
+
+		defer func() {}()
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+
+		resp, err := gService.ReleaseAddress(region, snhost, addressName)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+		assert.Equal(tt, operationName, resp)
+	})
+	t.Run("WhenDeleteReturnsOtherError", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			http.Error(rw, "internal error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+
+		resp, err := gService.ReleaseAddress(region, snhost, addressName)
+		if err == nil || !strings.Contains(err.Error(), "internal error") {
+			tt.Errorf("Expected internal error, got: %v", err)
+		}
+		assert.Equal(tt, "", resp)
+	})
+	t.Run("WhenDeleteReturnsNotFoundError", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			rw.WriteHeader(http.StatusNotFound)
+			_, _ = rw.Write([]byte(`{"error": {"message": "notFound"}}`))
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+		resp, err := gService.ReleaseAddress(region, snhost, addressName)
+		if err == nil || (!strings.Contains(err.Error(), "notFound") && !strings.Contains(err.Error(), "not found")) {
+			tt.Errorf("Expected notFound error, got: %v", err)
+		}
+		assert.Equal(tt, "", resp)
+	})
+}
+
+func Test_CreateForwardingRule(t *testing.T) {
+	projectName := "test-project"
+	region := "us-central1"
+	forwardingRuleRequest := &models.ForwardingRule{
+		Name:      "test-forwarding-rule",
+		Region:    region,
+		ProjectId: projectName,
+	}
+	url := fmt.Sprintf("/projects/%s/regions/%s/forwardingRules", projectName, region)
+	t.Run("WhenCreateForwardingRuleFails", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && req.URL.Path == url {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		op, err := createForwardingRule(gService, forwardingRuleRequest)
+		if err == nil {
+			tt.Error("Expected an error but got none")
+		}
+		if op != nil {
+			tt.Errorf("Expected nil operation but got: %+v", op)
+		}
+		createForwardingRule = _createForwardingRule
+	})
+
+	t.Run("WhenCreateForwardingRuleSucceeds", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		operationName := "test-operation"
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodPost && req.URL.Path == url {
+				response, _ := json.Marshal(&compute.Operation{Name: operationName})
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+
+		op, err := createForwardingRule(gService, forwardingRuleRequest)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+		if op == nil || op.Name != operationName {
+			tt.Errorf("Unexpected operation: %+v", op)
+		}
+		createForwardingRule = _createForwardingRule
+	})
+}
+
+func Test_GetForwardingRule(t *testing.T) {
+	t.Run("WhenGetForwardingRuleFails", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		projectName := "1079058383248"
+		forwardingRuleName := "test-forwarding-rule"
+		region := "US-East-4"
+		url := "/projects/project/regions/region/forwardingRules/r"
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				rw.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		_, err = gService.GetForwardingRule(projectName, region, forwardingRuleName)
+		if err == nil {
+			tt.Error("Expected an error but got nothing")
+		} else {
+			if !strings.Contains(err.Error(), "googleapi: got HTTP response code 400 with body") {
+				tt.Errorf("Unexpected error: %s", err.Error())
+			}
+		}
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		projectName := "1079058383248"
+		forwardingRuleName := "test-forwarding-rule"
+		region := "US-East-4"
+		url := fmt.Sprintf("/projects/%s/regions/%s/forwardingRules/%s", projectName, region, forwardingRuleName)
+		resp := &compute.ForwardingRule{Name: forwardingRuleName}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == url {
+				response, err := json.Marshal(resp)
+				if err != nil {
+					rw.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = rw.Write(response)
+				return
+			}
+			rw.WriteHeader(http.StatusBadRequest)
+		}))
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			t.Errorf("Error getting service up: '%s'", err.Error())
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+			Retry:  NewExponentialRetryStrategy(time.Millisecond, 3),
+		}
+		out, err := gService.GetForwardingRule(projectName, region, forwardingRuleName)
+		if err != nil {
+			tt.Errorf("Unexpected error: %s", err.Error())
+		} else {
+			if out == nil {
+				tt.Errorf("Output unexpectedly nil")
+			} else {
+				if out.Name != forwardingRuleName {
+					tt.Errorf("Unexpected subnetwork name %s", out.Name)
+				}
+			}
+		}
+	})
+}
+
+func Test_CreateForwardingRuleWithOperation(t *testing.T) {
+	projectName := "test-project"
+	forwardingRule := &models.ForwardingRule{
+		Name:      "test-forwarding-rule",
+		ProjectId: projectName,
+		Region:    "test-region",
+	}
+	ctx := context.Background()
+	t.Run("WhenCreateForwardingRuleFails", func(tt *testing.T) {
+		gService := &GcpServices{
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+		origCreate := createForwardingRule
+		createForwardingRule = func(_ *GcpServices, _ *models.ForwardingRule) (*models.ComputeOperation, error) {
+			return nil, fmt.Errorf("create error")
+		}
+		defer func() { createForwardingRule = origCreate }()
+		_, err := gService.CreateForwardingRuleOperation(forwardingRule)
+		if err == nil || !strings.Contains(err.Error(), "create error") {
+			tt.Errorf("Expected create error, got: %v", err)
+		}
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		gService := &GcpServices{
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+		origCreate := createForwardingRule
+		createForwardingRule = func(_ *GcpServices, _ *models.ForwardingRule) (*models.ComputeOperation, error) {
+			return &models.ComputeOperation{Name: "op-1"}, nil
+		}
+		defer func() { createForwardingRule = origCreate }()
+
+		_, err := gService.CreateForwardingRuleOperation(forwardingRule)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+	})
+}
+
+func TestDeleteForwardingRule(t *testing.T) {
+	ctx := context.Background()
+	region := "us-central1"
+	snhost := "test-project"
+	forwardingRuleName := "test-forwarding-rule"
+	deleteUrl := "/projects/test-project/regions/us-central1/forwardingRules/test-forwarding-rule"
+
+	operationName := "test-operation"
+	t.Run("WhenDeleteSucceeds", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodDelete && req.URL.Path == deleteUrl {
+				response, _ := json.Marshal(&compute.Operation{Name: operationName})
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+			}
+		}))
+		defer server.Close()
+
+		defer func() {}()
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+
+		resp, err := gService.DeleteForwardingRule(region, snhost, forwardingRuleName)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+		assert.Equal(tt, operationName, resp)
+	})
+	t.Run("WhenDeleteReturnsOtherError", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			http.Error(rw, "internal error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(
+			ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+
+		resp, err := gService.DeleteForwardingRule(region, snhost, forwardingRuleName)
+		if err == nil || !strings.Contains(err.Error(), "internal error") {
+			tt.Errorf("Expected internal error, got: %v", err)
+		}
+		assert.Equal(tt, "", resp)
+	})
+	t.Run("WhenDeleteReturnsNotFoundError", func(tt *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			rw.WriteHeader(http.StatusNotFound)
+			_, _ = rw.Write([]byte(`{"error": {"message": "notFound"}}`))
+		}))
+		defer server.Close()
+
+		computeSvc, err := compute.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		if err != nil {
+			tt.Fatalf("Failed to create compute service: %v", err)
+		}
+
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				computeService: computeSvc,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+		resp, err := gService.DeleteForwardingRule(region, snhost, forwardingRuleName)
+		if err == nil || (!strings.Contains(err.Error(), "notFound") && !strings.Contains(err.Error(), "not found")) {
+			tt.Errorf("Expected notFound error, got: %v", err)
+		}
+		assert.Equal(tt, "", resp)
+	})
+}
+
 // Unit tests for ListSubnetworks
 func Test_ListSubnetworks(t *testing.T) {
 	projectName := "test-project"

@@ -571,6 +571,38 @@ func TestMockClientServiceRolePrivilegeModify(t *testing.T) {
 	mockClientService.AssertMockClientServiceDone()
 }
 
+func TestMockClientServiceSecurityAuditGet(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SecurityAuditGetParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SecurityAuditGetOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.SecurityAuditGet(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSecurityAuditGet(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceSecurityAuditModify(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SecurityAuditModifyParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SecurityAuditModifyOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.SecurityAuditModify(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSecurityAuditModify(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
 func TestMockClientServiceSecurityCertificateCollectionGet(t *testing.T) {
 	mockClientService := NewMockClientService(t)
 	var params *SecurityCertificateCollectionGetParams
@@ -682,5 +714,69 @@ func TestMockClientServiceSecurityKeystoreModify(t *testing.T) {
 	}()
 
 	mockClientService.AssertSecurityKeystoreModify(params, authInfo, opts, ret0, ret1, ret2)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceSecurityLogForwardingCreate(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SecurityLogForwardingCreateParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SecurityLogForwardingCreateAccepted
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.SecurityLogForwardingCreate(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSecurityLogForwardingCreate(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceSecurityLogForwardingDelete(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SecurityLogForwardingDeleteParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SecurityLogForwardingDeleteOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.SecurityLogForwardingDelete(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSecurityLogForwardingDelete(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceSecurityLogForwardingGet(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SecurityLogForwardingGetParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SecurityLogForwardingGetOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.SecurityLogForwardingGet(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSecurityLogForwardingGet(params, authInfo, opts, ret0, ret1)
+	mockClientService.AssertMockClientServiceDone()
+}
+
+func TestMockClientServiceSecurityLogForwardingModify(t *testing.T) {
+	mockClientService := NewMockClientService(t)
+	var params *SecurityLogForwardingModifyParams
+	var authInfo runtime.ClientAuthInfoWriter
+	var opts []ClientOption
+	var ret0 *SecurityLogForwardingModifyOK
+	var ret1 error
+	go func() {
+		defer mockClientService.MockClientServiceDone()
+		_, _ = mockClientService.SecurityLogForwardingModify(params, authInfo, opts...)
+	}()
+
+	mockClientService.AssertSecurityLogForwardingModify(params, authInfo, opts, ret0, ret1)
 	mockClientService.AssertMockClientServiceDone()
 }

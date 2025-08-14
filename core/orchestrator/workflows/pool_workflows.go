@@ -60,6 +60,11 @@ var (
 	vsaFilesImageName            = env.GetString("VSA_FILES_IMAGE_NAME", "r9-18-1xn-250722-0000")
 	mediatorImage                = env.GetString("VSA_MEDIATOR_IMAGE_NAME", "r9-17-1xn-250807-0000-mediator-debian-12")
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
+
+	serviceAttachment         = env.GetString("GIN_SERVICE_ATTACHMENT", "")
+	ginLoggingMetricsProtocol = env.GetString("GIN_METRICS_PROTOCOL", "tcp-unencrypted")
+	ginLoggingMetricsPort     = env.GetInt64("GIN_METRICS_PORT", 5140)
+	ginLoggingFeatureFlag     = env.GetBool("GIN_LOGGING_FEATURE", false)
 )
 
 const (
@@ -366,6 +371,29 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	err = workflow.ExecuteActivity(ctx, poolActivity.GetInterClusterLifsFromVLMConfig, createVSAClusterDeploymentResponse.VLMConfig).Get(ctx, &interclusterLifIPs)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
+	}
+
+	if ginLoggingFeatureFlag {
+		// Add PSC Endpoint
+		var forwardingRuleIpAddress string
+
+		setupPSCEndpoint := workflow.WithHeartbeatTimeout(ctx, time.Duration(setupNwHeartbeatTimeout)*time.Second)
+		err = workflow.ExecuteChildWorkflow(setupPSCEndpoint, ConfigurePSCEndpointWorkflow, tenancyDetails.RegionalTenantProject, params.Region).Get(ctx, &forwardingRuleIpAddress)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		// Update audit log
+		err = workflow.ExecuteActivity(ctx, poolActivity.UpdateSecurityAudit, node).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
+		// forward ontap logging to PSC Endpoint
+		err = workflow.ExecuteActivity(ctx, poolActivity.CreateClusterLogForwarding, node, forwardingRuleIpAddress, ginLoggingMetricsPort, ginLoggingMetricsProtocol).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 	}
 
 	clusterDetails := &datamodel.ClusterDetails{
@@ -1225,6 +1253,73 @@ func _waitForServiceNetworkOperationStatus(ctx workflow.Context, poolActivity *a
 			return nil, vsaerror.Errorf("failed to sleep while waiting for GCP Operation %s: %w", op, err)
 		}
 	}
+}
+
+func ConfigurePSCEndpointWorkflow(ctx workflow.Context, projectName string, region string) (*string, error) {
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return nil, err
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:    retryPolicy.InitialInterval,
+			BackoffCoefficient: retryPolicy.BackoffCoefficient,
+			MaximumInterval:    retryPolicy.MaximumInterval,
+			MaximumAttempts:    int32(retryPolicy.MaximumAttempts),
+		},
+	}
+	poolActivity := &activities.PoolActivity{}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	rollbackManager := common.NewRollbackManager()
+
+	defer func() {
+		if err != nil {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
+	setupPscCtx := workflow.WithHeartbeatTimeout(ctx, time.Duration(setupNwHeartbeatTimeout)*time.Second)
+
+	var forwardingRuleIpAddress string
+	var addressURI string
+	pscEndpointName := region + "-rg-fluent-bit-psc"
+	createAddressOperation := make([]common.Operations, 0)
+	err = workflow.ExecuteActivity(setupPscCtx, poolActivity.CreateAddressForPSCEndpoint, projectName, region, pscEndpointName).Get(setupPscCtx, &createAddressOperation)
+	if err != nil {
+		return nil, err
+	}
+	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, &createAddressOperation, retryPolicy.StartToCloseTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create PSC endpoint for tenant project: %s: %w", projectName, err)
+	}
+	err = workflow.ExecuteActivity(setupPscCtx, poolActivity.GetAddressURI, projectName, region, pscEndpointName).Get(setupPscCtx, &addressURI)
+	if err != nil {
+		return nil, err
+	}
+	if addressURI == "" {
+		return nil, fmt.Errorf("failed to get IP address of PSC endpoint from create address operation in tenant project: %s: %w", projectName, err)
+	}
+
+	createForwardingRuleOperation := make([]common.Operations, 0)
+	err = workflow.ExecuteActivity(setupPscCtx, poolActivity.CreateForwardingRuleForPSCEndpoint, projectName, region, pscEndpointName, addressURI, serviceAttachment).Get(setupPscCtx, &createForwardingRuleOperation)
+	if err != nil {
+		return nil, err
+	}
+	err = WaitForGCPNetworkOperationStatus(ctx, poolActivity, &createForwardingRuleOperation, retryPolicy.StartToCloseTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create forwarding rule subnet for tenant project: %s: %w", projectName, err)
+	}
+	err = workflow.ExecuteActivity(setupPscCtx, poolActivity.GetForwardingRuleIPAddress, projectName, region, pscEndpointName).Get(setupPscCtx, &forwardingRuleIpAddress)
+	if err != nil {
+		return nil, err
+	}
+	if forwardingRuleIpAddress == "" {
+		return nil, fmt.Errorf("failed to get forwarding rule from operation for tenant project: %s: %w", projectName, err)
+	}
+
+	return &forwardingRuleIpAddress, nil
 }
 
 func ConfigureNetworkWorkflow(ctx workflow.Context, tenancyDetails *common.TenancyInfo) (interface{}, error) {

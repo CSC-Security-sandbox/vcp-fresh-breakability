@@ -26,6 +26,7 @@ func Test_convertComputeOpToComputeOp(t *testing.T) {
 			Name:     "test-operation",
 			Status:   "DONE",
 			Progress: 100,
+			Done:     true,
 		}
 
 		result := convertComputeOpToComputeOp(input)
@@ -84,12 +85,14 @@ func Test_convertGoogleSubnetToSubnet(t *testing.T) {
 			Name:        "test-subnet",
 			Network:     "test-network",
 			IpCidrRange: "10.0.0.0/24",
+			SelfLink:    "projects/test-project/regions/us-central1/subnetworks/test-subnet",
 		}
 
 		expected := &models.Subnet{
 			Name:        "test-subnet",
 			Network:     "test-network",
 			IpCidrRange: "10.0.0.0/24",
+			SelfLink:    "projects/test-project/regions/us-central1/subnetworks/test-subnet",
 		}
 
 		result := convertGoogleSubnetToSubnet(input)
@@ -137,6 +140,7 @@ func Test_convertGoogleVPCToVPC(t *testing.T) {
 		expected := &models.VPCNetwork{
 			Name:        "test-vpc",
 			ProjectName: "projects/test-project/global/networks/test-vpc",
+			SelfLink:    "projects/test-project/global/networks/test-vpc",
 		}
 
 		result := convertGoogleVPCToVPC(input)
@@ -222,6 +226,110 @@ func Test_convertGCPFirewallToFirewall(t *testing.T) {
 
 		result := convertGCPFirewallToFirewall(input)
 		assert.Equal(tt, expected, result, "Expected result to match the converted firewall")
+	})
+}
+
+func Test_convertGCPAddressToAddress(t *testing.T) {
+	t.Run("WhenAddressIsNil", func(tt *testing.T) {
+		result := convertGCPAddressToAddress(nil)
+		assert.Nil(tt, result, "Expected result to be nil when input address is nil")
+	})
+
+	t.Run("WhenAddressIsValid", func(tt *testing.T) {
+		input := &compute.Address{
+			Name:     "test-address",
+			Region:   "test-region",
+			SelfLink: "projects/test-project/regions/us-central1/addresses/test-address",
+		}
+
+		expected := &models.Address{
+			AddressName: "test-address",
+			Region:      "test-region",
+			SelfLink:    "projects/test-project/regions/us-central1/addresses/test-address",
+		}
+
+		result := convertGCPAddressToAddress(input)
+		assert.Equal(tt, expected, result, "Expected result to match the converted address")
+	})
+}
+
+func Test_convertAddressToGoogleAddress(t *testing.T) {
+	t.Run("WhenAddressIsNil", func(tt *testing.T) {
+		result := convertAddressToGoogleAddress(nil)
+		assert.Nil(tt, result, "Expected result to be nil when input address is nil")
+	})
+
+	t.Run("WhenAddressIsValid", func(tt *testing.T) {
+		input := &models.Address{
+			AddressName: "test-address",
+			Region:      "test-region",
+			SelfLink:    "projects/test-project/regions/us-central1/addresses/test-address",
+		}
+
+		expected := &compute.Address{
+			Name:     "test-address",
+			Region:   "test-region",
+			SelfLink: "projects/test-project/regions/us-central1/addresses/test-address",
+		}
+
+		result := convertAddressToGoogleAddress(input)
+		assert.Equal(tt, expected, result, "Expected result to match the converted address")
+	})
+}
+
+func Test_convertForwardingRuleToGoogleForwardingRule(t *testing.T) {
+	t.Run("WhenForwardingRuleIsNil", func(tt *testing.T) {
+		result := convertForwardingRuleToGoogleForwardingRule(nil)
+		assert.Nil(tt, result, "Expected result to be nil when input forwarding rule is nil")
+	})
+
+	t.Run("WhenForwardingRuleIsValid", func(tt *testing.T) {
+		input := &models.ForwardingRule{
+			Name:      "test-address",
+			IPAddress: "test-ip",
+			Network:   "test-region",
+			Region:    "test-region",
+			Target:    "test-target",
+		}
+
+		expected := &compute.ForwardingRule{
+			Name:      "test-address",
+			IPAddress: "test-ip",
+			Network:   "test-region",
+			Region:    "test-region",
+			Target:    "test-target",
+		}
+
+		result := convertForwardingRuleToGoogleForwardingRule(input)
+		assert.Equal(tt, expected, result, "Expected result to match the forwarding rule")
+	})
+}
+
+func Test_convertGCPForwardingRuleToForwardingRule(t *testing.T) {
+	t.Run("WhenForwardingRuleIsNil", func(tt *testing.T) {
+		result := convertGCPForwardingRuleToForwardingRule(nil)
+		assert.Nil(tt, result, "Expected result to be nil when input forwarding rule is nil")
+	})
+
+	t.Run("WhenForwardingRuleIsValid", func(tt *testing.T) {
+		input := &compute.ForwardingRule{
+			Name:      "test-address",
+			IPAddress: "test-ip",
+			Network:   "test-region",
+			Region:    "test-region",
+			Target:    "test-target",
+		}
+
+		expected := &models.ForwardingRule{
+			Name:      "test-address",
+			IPAddress: "test-ip",
+			Network:   "test-region",
+			Region:    "test-region",
+			Target:    "test-target",
+		}
+
+		result := convertGCPForwardingRuleToForwardingRule(input)
+		assert.Equal(tt, expected, result, "Expected result to match the converted forwarding rule")
 	})
 }
 

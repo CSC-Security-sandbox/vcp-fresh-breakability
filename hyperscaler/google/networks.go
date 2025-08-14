@@ -21,6 +21,8 @@ var (
 
 	CreateTPSubnetOp       = _createTPSubnetOp
 	getProjectIDFromNumber = _getProjectIDFromNumber
+	createAddress          = _createAddress
+	createForwardingRule   = _createForwardingRule
 )
 
 // GetTenantProject lists registered tenancy units for the customer project
@@ -206,6 +208,128 @@ func (gcpService *GcpServices) GetFirewall(projectName string, firewallName stri
 	}
 	gcpService.Logger.Debugf("Get firewall successful with response :  %s", firewall.Name)
 	return convertGCPFirewallToFirewall(firewall), nil
+}
+
+// getAddress retrieves an address for given project name, region and address name using compute API. Reference : https://cloud.google.com/compute/docs/reference/rest/v1/addresses/get
+func (gcpService *GcpServices) GetAddress(projectName string, region string, address string) (*models.Address, error) {
+	gcpService.Logger.Debugf("calling get address for project name : %s, address name : %s", projectName, address)
+
+	ipAddress, err := gcpService.AdminGCPService.computeService.Addresses.Get(projectName, region, address).Context(gcpService.Ctx).Do()
+	if err != nil {
+		gcpService.Logger.Errorf("Failed to get address for project name : %s, address name : %s with error : %v", projectName, address, err.Error())
+		return nil, err
+	}
+
+	gcpService.Logger.Debugf("Get address successful with response :  %s", ipAddress.Name)
+	return convertGCPAddressToAddress(ipAddress), nil
+}
+
+func (gcpService *GcpServices) CreateAddressOperation(address *models.Address) (string, error) {
+	projectName := address.ProjectId
+	addressName := address.AddressName
+
+	gcpService.Logger.Infof("Creating address %s for project %s ", addressName, projectName)
+
+	operation, err := createAddress(gcpService, address)
+	if err != nil {
+		gcpService.Logger.Errorf("Failed to create address %s for project %s. Error: %+v", addressName, projectName, err)
+		return "", err
+	}
+
+	return operation.Name, nil
+}
+
+func (gcpService *GcpServices) CreateForwardingRuleOperation(address *models.ForwardingRule) (string, error) {
+	projectName := address.ProjectId
+	addressName := address.Name
+	gcpService.Logger.Infof("Creating forwarding rule %s for project %s ", addressName, projectName)
+
+	operation, err := createForwardingRule(gcpService, address)
+	if err != nil {
+		return "", err
+	}
+
+	return operation.Name, nil
+}
+
+func (gcpService *GcpServices) ReleaseAddress(region, projectNumber, address string) (string, error) {
+	op, err := gcpService.AdminGCPService.computeService.Addresses.Delete(projectNumber, region, address).Do()
+	if err != nil {
+		if strings.Contains(err.Error(), "notFound") {
+			return "", vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.NewNotFoundErr("compute.Subnetwork", &address))
+		}
+		if strings.Contains(err.Error(), "resourceInUseByAnotherResource") {
+			gcpService.Logger.Warnf("Failed to delete address because it is in use by another resource: %s, error : %s", address, err.Error())
+			return "", nil
+		}
+		gcpService.Logger.Error("Failed to delete address...")
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
+	}
+
+	return op.Name, nil
+}
+
+// create address
+func _createAddress(gcpService *GcpServices, request *models.Address) (*models.ComputeOperation, error) {
+	addressName := request.AddressName
+	projectName := request.ProjectId
+	gcpService.Logger.Debugf("Calling create address for project name : %s, address name : %s", projectName, addressName)
+
+	op, err := gcpService.AdminGCPService.computeService.Addresses.Insert(projectName, request.Region, convertAddressToGoogleAddress(request)).Context(gcpService.Ctx).Do()
+
+	if err != nil {
+		gcpService.Logger.Errorf("Failed to create address for project name : %s, address name : %s with error : %v", projectName, addressName, err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
+	}
+
+	gcpService.Logger.Debugf("Operation to create address successful for project name : %s,address name : %s", projectName, addressName)
+	return convertComputeOpToComputeOp(op), nil
+}
+
+// getForwardingRules retrieves a forwarding rule for given project name, region and endpoint name using compute API. Reference : https://cloud.google.com/compute/docs/reference/rest/v1/forwardingRules/get
+func (gcpService *GcpServices) GetForwardingRule(projectName string, region string, endpointName string) (*models.ForwardingRule, error) {
+	gcpService.Logger.Debugf("calling get forwarding rules for project name : %s, forwarding rule name : %s", projectName, endpointName)
+
+	forwardingrule, err := gcpService.AdminGCPService.computeService.ForwardingRules.Get(projectName, region, endpointName).Context(gcpService.Ctx).Do()
+	if err != nil {
+		gcpService.Logger.Errorf("Failed to get forwarding rules for project name : %s, endpoint name : %s with error : %v", projectName, endpointName, err.Error())
+		return nil, err
+	}
+	gcpService.Logger.Debugf("Get forwarding rules successful with response :  %s", forwardingrule.Name)
+	return convertGCPForwardingRuleToForwardingRule(forwardingrule), nil
+}
+
+func _createForwardingRule(gcpService *GcpServices, request *models.ForwardingRule) (*models.ComputeOperation, error) {
+	addressName := request.Name
+	projectName := request.ProjectId
+	gcpService.Logger.Debugf("Calling create forwarding rule for project name : %s, forwarding rule : %s", projectName, addressName)
+
+	op, err := gcpService.AdminGCPService.computeService.ForwardingRules.Insert(projectName, request.Region, convertForwardingRuleToGoogleForwardingRule(request)).Context(gcpService.Ctx).Do()
+
+	if err != nil {
+		gcpService.Logger.Errorf("Failed to create forwarding rule for project name : %s, forwarding rule : %s with error : %v", projectName, addressName, err.Error())
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
+	}
+
+	gcpService.Logger.Debugf("Operation to create subnetwork successful for project name : %s,address name : %s", projectName, addressName)
+	return convertComputeOpToComputeOp(op), nil
+}
+
+func (gcpService *GcpServices) DeleteForwardingRule(region, projectNumber, forwardingRule string) (string, error) {
+	op, err := gcpService.AdminGCPService.computeService.ForwardingRules.Delete(projectNumber, region, forwardingRule).Do()
+	if err != nil {
+		if strings.Contains(err.Error(), "notFound") {
+			return "", vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.NewNotFoundErr("compute.Subnetwork", &forwardingRule))
+		}
+		if strings.Contains(err.Error(), "resourceInUseByAnotherResource") {
+			gcpService.Logger.Errorf("Failed to delete forwarding rule because it is in use by another resource: %s, error : %s", forwardingRule, err.Error())
+			return "", nil
+		}
+		gcpService.Logger.Error("Failed to delete forwardingRule...")
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceDeprovisionError, err)
+	}
+
+	return op.Name, nil
 }
 
 // InsertFirewall creates a firewall rule in a project using compute API. This function also waits until the operation concludes
