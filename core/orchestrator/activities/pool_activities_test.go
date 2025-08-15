@@ -5,6 +5,8 @@ import (
 	digitalCert "crypto/x509"
 	"encoding/json"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -19,7 +21,6 @@ import (
 	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
 	vmrs_decision "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs/decision"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -862,6 +863,67 @@ func Test_prepareVlmConfig_EmptyDeploymentName(t *testing.T) {
 	err := activities.PrepareVlmConfig(cfg, "", "test-region", "test-zone", "test-zone", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "test-tenant-project@xyz.com", "test-tenant-project")
 	assert.Error(t, err, "one or more required string parameters are empty")
 	assert.Equal(t, "", cfg.Deployment.DeploymentID)
+}
+
+func Test_prepareVlmConfig_IsIntegrationTest(t *testing.T) {
+	const mockOntapIp = "8.8.8.8"
+	cfg := &vlm.VLMConfig{
+		Cloud: vlm.CloudConfig{
+			HAPairs: []vlm.HAPair{
+				{
+					VM1: vlm.VMConfig{
+						SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{},
+					},
+					VM2: vlm.VMConfig{
+						SystemLIFs: map[vlm.VSALIFType]vlm.LIFConfig{},
+					},
+				},
+			},
+		},
+	}
+	cfg.Cloud.HAPairs[0].VM1.SystemLIFs[vlm.LIFTypeNodeMgmt] = vlm.LIFConfig{
+		IP: "",
+	}
+	cfg.Cloud.HAPairs[0].VM2.SystemLIFs[vlm.LIFTypeNodeMgmt] = vlm.LIFConfig{
+		IP: "",
+	}
+
+	originalReadFile := activities.ReadFile
+	defer func() { activities.ReadFile = originalReadFile }()
+	activities.ReadFile = func(filename string) ([]byte, error) {
+		return []byte("{}"), nil
+	}
+
+	dsc := &vmrs.Decision{
+		ChosenVMs: []string{"c4-standard-4"},
+		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
+			DesiredIOPS:             1024,
+			DesiredThroughputInMiBs: 64,
+			DesiredCapacityInGiB:    1024,
+		},
+	}
+
+	// Set the environment variable to true
+	originalEnv := env.GetBool("INTEGRATION_TEST", false)
+	// Restore the original value after the test
+	activities.IsIntegrationTest = true
+	defer func() { activities.IsIntegrationTest = originalEnv }()
+
+	err := os.Setenv("MOCK_ONTAP_IP", mockOntapIp)
+	if err != nil {
+		return
+	}
+	defer func() {
+		err := os.Setenv("MOCK_ONTAP_IP", "")
+		if err != nil {
+			return
+		}
+	}()
+
+	err = activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "test-tenant-project@xyz.com", "test-tenant-project")
+	assert.NoError(t, err)
+	assert.Equal(t, mockOntapIp, cfg.Cloud.HAPairs[0].VM1.SystemLIFs[vlm.LIFTypeNodeMgmt].IP)
+	assert.Equal(t, mockOntapIp, cfg.Cloud.HAPairs[0].VM2.SystemLIFs[vlm.LIFTypeNodeMgmt].IP)
 }
 
 func Test_validateVlmConfigInputs(t *testing.T) {

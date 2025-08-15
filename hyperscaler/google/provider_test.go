@@ -558,6 +558,24 @@ func TestInitializeManagementService(t *testing.T) {
 	})
 }
 
+func TestInitializeMockManagementService(t *testing.T) {
+	t.Run("whenOk", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+			VSAMockPath = env.GetString("GOOGLE_EMULATOR_PATH", "")
+		}()
+		MockMetaDataHost = "sample-server.com"
+		VSAMockPath = "emulator-path"
+		wi, err := initializeMockManagementService(context.Background())
+		if err != nil {
+			return
+		}
+		assert.Nil(t, err, "Unexpected error received")
+		assert.NotNil(t, wi)
+	})
+}
+
 func TestInitializeNetworkingService(t *testing.T) {
 	t.Run("whenOk", func(t *testing.T) {
 		defer func() {
@@ -594,6 +612,24 @@ func TestInitializeNetworkingService(t *testing.T) {
 	})
 }
 
+func TestInitializeMockNetworkingService(t *testing.T) {
+	t.Run("whenOk", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+			VSAMockPath = env.GetString("GOOGLE_EMULATOR_PATH", "")
+		}()
+		MockMetaDataHost = "sample-server.com"
+		VSAMockPath = "emulator-path"
+		wi, err := initializeMockNetworkingService(context.Background())
+		if err != nil {
+			return
+		}
+		assert.Nil(t, err, "Unexpected error received")
+		assert.NotNil(t, wi)
+	})
+}
+
 func TestInitializeComputeService(t *testing.T) {
 	t.Run("whenOk", func(t *testing.T) {
 		defer func() {
@@ -626,6 +662,24 @@ func TestInitializeComputeService(t *testing.T) {
 		}
 		assert.NotNil(t, err)
 		assert.Equal(t, "client creation failed", err.Error())
+		assert.NotNil(t, wi)
+	})
+}
+
+func TestInitializeMockComputeService(t *testing.T) {
+	t.Run("whenOk", func(t *testing.T) {
+		defer func() {
+			newClient = scopesHttp.NewClient
+			MockMetaDataHost = env.GetString("GCP_MOCK_METADATA_HOST", "")
+			VSAMockPath = env.GetString("GOOGLE_EMULATOR_PATH", "")
+		}()
+		MockMetaDataHost = "sample-server.com"
+		VSAMockPath = "emulator-path"
+		wi, err := initializeMockComputeService(context.Background())
+		if err != nil {
+			return
+		}
+		assert.Nil(t, err, "Unexpected error received")
 		assert.NotNil(t, wi)
 	})
 }

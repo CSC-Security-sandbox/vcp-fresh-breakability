@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/storage"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -33,6 +34,15 @@ import (
 
 const INACTIVE = "INACTIVE"
 
+func init() {
+	// Override initialization functions if mock path is set
+	if VSAMockPath != "" {
+		initializeManagementService = _initializeMockManagementService
+		initializeNetworkingService = _initializeMockNetworkingService
+		initializeComputeService = _initializeMockComputeService
+	}
+}
+
 var (
 	// serviceNetworkingEndpoint is the endpoint for the Service Networking API.
 	serviceNetworkingEndpoint = env.GetString("GCP_SERVICE_NETWORKING_ENDPOINT_URL", "")
@@ -40,21 +50,25 @@ var (
 	serviceConsumerManagementEndpoint = env.GetString("GCP_CONSUMER_MGMT_ENDPOINT_URL", "")
 	// MockMetaDataHost is the endpoint for the metadata server.
 	MockMetaDataHost = env.GetString("GCE_METADATA_HOST", "")
+	VSAMockPath      = env.GetString("GOOGLE_EMULATOR_PATH", "")
 
 	newClient       = _newClient
 	newClientScopes = scopesHttp.NewClient
 
-	newGoogleClient                = _newGoogleClient
-	initializeManagementService    = _initializeManagementService
-	initializeNetworkingService    = _initializeNetworkingService
-	initializeComputeService       = _initializeComputeService
-	initializeStorageService       = _initializeStorageService
-	initializeIamService           = _initializeIamService
-	initializeCloudProjectsService = _initializeCloudProjectsService
-	initializePrivateCaService     = _initializePrivateCaService
-	initializeSecretManagerService = _initializeSecretManagerService
-	initializeCloudDnsService      = _initializeCloudDnsService
-	initializeCloudRunService      = _initializeCloudRunService
+	newGoogleClient                 = _newGoogleClient
+	initializeManagementService     = _initializeManagementService
+	initializeNetworkingService     = _initializeNetworkingService
+	initializeComputeService        = _initializeComputeService
+	initializeStorageService        = _initializeStorageService
+	initializeIamService            = _initializeIamService
+	initializeCloudProjectsService  = _initializeCloudProjectsService
+	initializePrivateCaService      = _initializePrivateCaService
+	initializeSecretManagerService  = _initializeSecretManagerService
+	initializeCloudDnsService       = _initializeCloudDnsService
+	initializeCloudRunService       = _initializeCloudRunService
+	initializeMockManagementService = _initializeMockManagementService
+	initializeMockNetworkingService = _initializeMockNetworkingService
+	initializeMockComputeService    = _initializeMockComputeService
 )
 
 type GcpServices struct {
@@ -211,6 +225,7 @@ func _newGoogleClient(ctx context.Context) (*AdminGCPService, error) {
 // _initializeManagementService initializes the service consumer management API service
 func _initializeManagementService(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
 	logger := util.GetLogger(ctx)
+
 	scopesOption := option.WithScopes(serviceconsumermanagement.CloudPlatformScope)
 	opts := []option.ClientOption{scopesOption}
 
@@ -235,9 +250,24 @@ func _initializeManagementService(ctx context.Context) (*serviceconsumermanageme
 	return svc, nil
 }
 
+func _initializeMockManagementService(ctx context.Context) (*serviceconsumermanagement.APIService, error) {
+	logger := util.GetLogger(ctx)
+	client := &http.Client{Timeout: time.Second * 3}
+	logger.Info("#1 Using mock path for serviceconsumermanagement API: ", VSAMockPath)
+	// default path -> https://serviceconsumermanagement.googleapis.com/
+	svc, err := serviceconsumermanagement.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		return nil, err
+	}
+	logger.Info("#2 Using mock path for serviceconsumermanagement API: ", VSAMockPath)
+	svc.BasePath = fmt.Sprintf("http://%s/", VSAMockPath)
+	return svc, nil
+}
+
 // _initializeNetworkingService initializes the service networking API service
 func _initializeNetworkingService(ctx context.Context) (*servicenetworking.APIService, error) {
 	logger := util.GetLogger(ctx)
+
 	scopesOption := option.WithScopes(servicenetworking.CloudPlatformScope, servicenetworking.ServiceManagementScope)
 	opts := []option.ClientOption{scopesOption}
 	logger.Debug(fmt.Sprintf("opts: %#v", opts))
@@ -259,6 +289,20 @@ func _initializeNetworkingService(ctx context.Context) (*servicenetworking.APISe
 	if endpoint != "" {
 		svc.BasePath = endpoint
 	}
+	return svc, nil
+}
+
+func _initializeMockNetworkingService(ctx context.Context) (*servicenetworking.APIService, error) {
+	logger := util.GetLogger(ctx)
+
+	client := &http.Client{Timeout: time.Second * 3}
+	logger.Info("#1 Using mock path for servicenetworking API: ", VSAMockPath)
+	svc, err := servicenetworking.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		return nil, err
+	}
+	logger.Info("#2 Using mock path for servicenetworking API: ", VSAMockPath)
+	svc.BasePath = fmt.Sprintf("http://%s/", VSAMockPath)
 	return svc, nil
 }
 
@@ -323,6 +367,7 @@ func _initializeCloudProjectsService(ctx context.Context) (*projectsManagement.S
 // _initializeComputeService initializes the compute API service in GCP
 func _initializeComputeService(ctx context.Context) (*compute.Service, error) {
 	logger := util.GetLogger(ctx)
+
 	scopesOption := option.WithScopes(compute.ComputeReadonlyScope, compute.ComputeScope, compute.CloudPlatformScope)
 	opts := []option.ClientOption{scopesOption}
 	logger.Debug(fmt.Sprintf("opts: %#v", opts))
@@ -348,6 +393,20 @@ func _initializeComputeService(ctx context.Context) (*compute.Service, error) {
 		svc.BasePath = endpoint
 	}
 
+	return svc, nil
+}
+
+func _initializeMockComputeService(ctx context.Context) (*compute.Service, error) {
+	logger := util.GetLogger(ctx)
+	client := &http.Client{Timeout: time.Second * 3}
+	logger.Info("#1 Using mock path for compute API: ", VSAMockPath)
+	// default path -> https://serviceconsumermanagement.googleapis.com/
+	svc, err := compute.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		return nil, err
+	}
+	logger.Info("#2 Using mock path for compute API: ", VSAMockPath)
+	svc.BasePath = fmt.Sprintf("http://%s/", VSAMockPath)
 	return svc, nil
 }
 

@@ -81,6 +81,7 @@ var (
 	vsaImageProject         = env.GetString("VSA_IMAGE_PROJECT", "")
 	mediatorImageProject    = env.GetString("VSA_MEDIATOR_IMAGE_PROJECT", "")
 	VsaInstanceTypeOverride = env.GetBool("VSA_INSTANCE_TYPE_OVERRIDE_LSSD", false)
+	IsIntegrationTest       = env.GetBool("INTEGRATION_TEST", false)
 
 	GetAddressForConsumerProjectAndRelease = _getAddressForConsumerProjectAndRelease
 	CreateAddress                          = _createAddress
@@ -1007,6 +1008,20 @@ func _resolveZonesForCluster(gcpService hyperscaler2.GoogleServices, projectNumb
 	return secondaryZone, mediatorZone, nil
 }
 
+func _mockVlmConfig(vlmConfig *vlm.VLMConfig) (*vlm.VLMConfig, error) {
+	mockOntapIP := env.GetString("MOCK_ONTAP_IP", "")
+	if mockOntapIP == "" {
+		return vlmConfig, errors.New("MOCK_ONTAP_IP environment variable is not set for integration tests")
+	}
+	ogConfig := vlmConfig.Cloud.HAPairs[0].VM1.SystemLIFs[vlm.LIFTypeNodeMgmt]
+	ogConfig.IP = mockOntapIP
+	vlmConfig.Cloud.HAPairs[0].VM1.SystemLIFs[vlm.LIFTypeNodeMgmt] = ogConfig
+	ogConfig = vlmConfig.Cloud.HAPairs[0].VM2.SystemLIFs[vlm.LIFTypeNodeMgmt]
+	ogConfig.IP = mockOntapIP
+	vlmConfig.Cloud.HAPairs[0].VM2.SystemLIFs[vlm.LIFTypeNodeMgmt] = ogConfig
+	return vlmConfig, nil
+}
+
 func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZone, secondaryZone, network, subnet, regionalTenantProjectID, snHostProject string, decision *vmrs.Decision, vsaClusterSaEmail string, autoTierBucket string) error {
 	if err := ValidateVlmConfigInputs(vlmConfig, decision, deploymentID, region, primaryZone, network, subnet, regionalTenantProjectID, snHostProject, vsaClusterSaEmail); err != nil {
 		return err
@@ -1042,6 +1057,14 @@ func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZo
 	}
 
 	vlmConfig.Deployment.Region = region
+
+	// Mock ONTAP server if integration tests
+	if IsIntegrationTest {
+		vlmConfig, err = _mockVlmConfig(vlmConfig)
+		if err != nil {
+			return err
+		}
+	}
 
 	// Enforce minimum values for SPConfig throughput and IOPS if the feature flag is enabled.
 	// This ensures that the values do not fall below the required thresholds for VLM worker compatibility.

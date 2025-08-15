@@ -3,9 +3,6 @@ package vlm
 import (
 	"errors"
 	"fmt"
-	"go.temporal.io/api/enums/v1"
-	"go.temporal.io/sdk/temporal"
-	"go.temporal.io/sdk/workflow"
 	"strconv"
 	"strings"
 	"time"
@@ -16,9 +13,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	temporalUtils "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/workflow"
 )
 
 var NewVSAClientWorkflowManager = _newVSAClientWorkflowManager
+var NewVSAMockClientWorkflowManager = _newVSAMockClientWorkflowManager
 
 var (
 	VSALifecycleManagerQueuePrefix = env.GetString("VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX", "vsa-lifecycle-manager")
@@ -50,8 +51,12 @@ type VlmWorkflowClient interface {
 type VSAClientWorkflowManager struct {
 }
 
-func _newVSAClientWorkflowManager() *VSAClientWorkflowManager {
+func _newVSAClientWorkflowManager() VlmWorkflowClient {
 	return &VSAClientWorkflowManager{}
+}
+
+func _newVSAMockClientWorkflowManager() VlmWorkflowClient {
+	return &VSAClientWorkflowManagerMock{}
 }
 
 func getVLMWorkerQueue(logger log.Logger, account string) string {
