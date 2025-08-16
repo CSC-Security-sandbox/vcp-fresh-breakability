@@ -123,6 +123,7 @@ data:
 
   MOCK_ACCESS_TOKEN: {{ .Values.workerConfig.mockAccessToken | quote }}
   INTEGRATION_TEST: {{ .Values.workerConfig.integrationTest | quote }}
+  NKDEV_TEST: {{ .Values.workerConfig.nkdevTest | quote }}
 
   GIN_SERVICE_ATTACHMENT: {{ .Values.workerConfig.ginServiceAttachment | quote }}
   GIN_METRICS_PORT: {{ .Values.workerConfig.gitMetrics1pPort | quote }}

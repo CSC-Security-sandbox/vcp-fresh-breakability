@@ -70,12 +70,12 @@ func TestGetSignedJwtToken(t *testing.T) {
 		projectNumber := "123"
 		privateKeyPath = ""
 		mockAccessToken = ""
-		err := os.Setenv("INTEGRATION_TEST", "true")
+		err := os.Setenv("NKDEV_TEST", "true")
 		if err != nil {
 			tt.Fatalf("Failed to set environment variable: %v", err)
 		}
 		defer func() {
-			err := os.Unsetenv("INTEGRATION_TEST")
+			err := os.Unsetenv("NKDEV_TEST")
 			if err != nil {
 				tt.Fatalf("Failed to unset environment variable: %v", err)
 			}
@@ -363,12 +363,12 @@ func TestGetSignedJwtToken(t *testing.T) {
 		projectNumber := "123"
 		privateKeyPath = ""
 		mockAccessToken = "my token is mocked buddy!!"
-		err := os.Setenv("INTEGRATION_TEST", "true")
+		err := os.Setenv("NKDEV_TEST", "true")
 		if err != nil {
 			tt.Fatalf("Failed to set environment variable: %v", err)
 		}
 		defer func() {
-			err := os.Unsetenv("INTEGRATION_TEST")
+			err := os.Unsetenv("NKDEV_TEST")
 			if err != nil {
 				tt.Fatalf("Failed to unset environment variable: %v", err)
 			}

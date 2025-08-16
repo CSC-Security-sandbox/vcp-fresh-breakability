@@ -42,10 +42,12 @@ func _getSignedJwtToken(projectNumber string) (string, error) {
 	serviceAccount := env.GetString("GCP_AUTH_SERVICE_ACCOUNT", "")
 	serviceUrl := env.GetString("GCP_SERVICE_URL", "")
 	isIntegrationTest := env.GetString("INTEGRATION_TEST", "")
+	nkdevTest := env.GetBool("NKDEV_TEST", false)
 	logger := LogGetLogger(ctx)
 	var c credentialsClientWrapper
 	var err error
-	if isIntegrationTest == "true" {
+
+	if nkdevTest || isIntegrationTest == "true" {
 		if mockAccessToken != "" {
 			logger.Info(fmt.Sprintf("using mock access token: %s", mockAccessToken))
 			return mockAccessToken, nil
