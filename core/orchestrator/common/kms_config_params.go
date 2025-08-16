@@ -84,3 +84,9 @@ type UpdateKmsConfigParams struct {
 	XCorrelationID  string
 	KeyUri          string
 }
+
+type RotateKmsConfigParams struct {
+	KmsConfigID    string
+	AccountName    string
+	XCorrelationID string
+}

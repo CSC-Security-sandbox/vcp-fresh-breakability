@@ -59,6 +59,7 @@ data:
   FINISH_PROJECT_CVP_CLIENT_RETRY_MAX_ATTEMPTS: "{{ index .Values "finishProjectCvpMaxRetries" }}"
   FINISH_PROJECT_CVP_CLIENT_RETRY_INTERVAL: "{{ index .Values "finishProjectCvpRetryInterval" }}"
   FINISH_PROJECT_CVP_CLIENT_BACKOFF_COEFFICIENT: "{{ index .Values "finishProjectBackoffCoefficient" }}"
+  GCP_KMS_KEY_ROTATION_ENABLED: "{{ index .Values "gcpKmsKeyRotationEnabled" }}"
   config.yaml: |
     DB_HOST: {{ index .Values "database" "host" }}
     DB_NAME: {{ index .Values "database" "name"  }}

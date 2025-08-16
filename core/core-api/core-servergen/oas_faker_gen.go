@@ -61,6 +61,170 @@ func (s *Error) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *GcpKmsConfigV1) SetFake() {
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+	{
+		{
+			s.Network.SetFake()
+		}
+	}
+	{
+		{
+			s.ServiceAccountEmail.SetFake()
+		}
+	}
+	{
+		{
+			s.KeyRing.SetFake()
+		}
+	}
+	{
+		{
+			s.KeyRingLocation.SetFake()
+		}
+	}
+	{
+		{
+			s.KeyName.SetFake()
+		}
+	}
+	{
+		{
+			s.KeyProjectID.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.StateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.Instructions.SetFake()
+		}
+	}
+	{
+		{
+			s.Jobs = nil
+			for i := 0; i < 0; i++ {
+				var elem JobV1
+				{
+					elem.SetFake()
+				}
+				s.Jobs = append(s.Jobs, elem)
+			}
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.CreatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.UpdatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.DeletedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *GcpKmsConfigV1State) SetFake() {
+	*s = GcpKmsConfigV1StateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *GcpKmsKeyRotateV1) SetFake() {
+	{
+		{
+			s.OwnerID = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *JobV1) SetFake() {
+	{
+		{
+			s.JobId.SetFake()
+		}
+	}
+	{
+		{
+			s.Created.SetFake()
+		}
+	}
+	{
+		{
+			s.WorkerId.SetFake()
+		}
+	}
+	{
+		{
+			s.ObjectId.SetFake()
+		}
+	}
+	{
+		{
+			s.ObjectType.SetFake()
+		}
+	}
+	{
+		{
+			s.Action.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.StateDetails.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *JobV1Action) SetFake() {
+	*s = JobV1ActionCreate
+}
+
+// SetFake set fake values.
+func (s *JobV1ObjectType) SetFake() {
+	*s = JobV1ObjectTypeVolume
+}
+
+// SetFake set fake values.
+func (s *JobV1State) SetFake() {
+	*s = JobV1StateOngoing
+}
+
+// SetFake set fake values.
 func (s *OperationV1) SetFake() {
 	{
 		{
@@ -125,6 +289,42 @@ func (s *OptFloat64) SetFake() {
 	var elem float64
 	{
 		elem = float64(0)
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptGcpKmsConfigV1State) SetFake() {
+	var elem GcpKmsConfigV1State
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptJobV1Action) SetFake() {
+	var elem JobV1Action
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptJobV1ObjectType) SetFake() {
+	var elem JobV1ObjectType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptJobV1State) SetFake() {
+	var elem JobV1State
+	{
+		elem.SetFake()
 	}
 	s.SetTo(elem)
 }
@@ -848,6 +1048,78 @@ func (s *V1ListPoolsUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1ListPoolsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1RotateGcpKmsConfigBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RotateGcpKmsConfigBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1RotateGcpKmsConfigConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RotateGcpKmsConfigConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1RotateGcpKmsConfigForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RotateGcpKmsConfigForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1RotateGcpKmsConfigInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RotateGcpKmsConfigInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1RotateGcpKmsConfigNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RotateGcpKmsConfigNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1RotateGcpKmsConfigTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RotateGcpKmsConfigTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1RotateGcpKmsConfigUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RotateGcpKmsConfigUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1RotateGcpKmsConfigUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1RotateGcpKmsConfigUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

@@ -591,6 +591,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1/Storage/GcpKmsConfig/{uuid}/RotateServiceAccountKey:
+    post:
+      operationId: v1_rotateGcpKmsConfig
+      summary: Rotate gcp kms config service account key
+      description: Rotates service account key of a gcp kms config.
+      tags:
+        - storage
+      parameters:
+        - $ref: '#/components/parameters/uuidPathParameter'
+      requestBody:
+        description: The required parameters to rotate service account key for a GCP KMS config.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GcpKmsKeyRotate_v1'
+        required: true
+      responses:
+        "201":
+          description: Created migration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GcpKmsConfig_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Error:
@@ -1199,6 +1244,233 @@ components:
           description: Details about the current job state
           readOnly: true
           example: Error creating snapshot - operation timed out
+    GcpKmsKeyRotate_v1:
+      type: object
+      title: GcpKms Key Rotate
+      required:
+        - ownerID
+      properties:
+        ownerID:
+          title: ownerID
+          type: string
+          description: UUID v4 used to identify the account
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 8342acf5-8939-0900-9bdb-a45b2f3423ac
+    GcpKmsConfig_v1:
+      type: object
+      title: GcpKmsConfig_v2
+      description: Gcp customer managed encryption key configuration
+      properties:
+        uuid:
+          title: UUID
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify the gcp kms configuration
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        network:
+          title: network
+          readOnly: true
+          type: string
+          pattern: ^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$
+          example: projects/1079058383248/global/networks/network-to-netapp2
+        serviceAccountEmail:
+          title: service account email.
+          type: string
+          readOnly: true
+          description: service account email which will have access to key throgh google iam policy.
+          example: service-account@example.com
+        keyRing:
+          title: keyRing
+          type: string
+          readOnly: true
+          description: Location where volumes would be encrypted using this key config
+          example: sample-key-ring
+        keyRingLocation:
+          title: keyRingLocation
+          type: string
+          readOnly: true
+          description: Location of the key ring.
+          example: westus
+        keyName:
+          title: keyName
+          type: string
+          readOnly: true
+          description: Name of the kms key.
+          example: sample-encryption-key-name
+        keyProjectID:
+          title: keyProjectID
+          type: string
+          readOnly: true
+          description: Project ID of project where the key to be used for encryption is residing.
+          example: p-roject12
+        state:
+          title: state
+          type: string
+          readOnly: true
+          description: The state of the config.
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - IN_USE
+            - DELETING
+            - ERROR
+            - KEY_STATE_UNSPECIFIED
+            - KEY_CHECK_PENDING
+            - KEY_NOT_REACHABLE
+            - DISABLING
+            - DISABLED
+            - DELETED
+            - MIGRATING
+          example: READY
+        stateDetails:
+          title: stateDetails
+          type: string
+          readOnly: true
+          description: Error creating service account.
+        instructions:
+          title: instructions
+          type: string
+          readOnly: true
+          description: Instructions to provide the access to encryption key.
+          example: Please run below gcloud commands into gcloud shell so that cloud volumes can access the encryption key.## CREATE ROLE ##\ngcloud iam roles create cmekCustomCVSRole \n--project=customerProjectId --title=\"cmekCustomCVSRole\"\n--description=\"custom cmek cvs role\"\n--permissions=cloudkms.cryptoKeyVersions.get,cloudkms.cryptoKeyVersions.list,cloudkms.cryptoKeyVersions.useToDecrypt,cloudkms.cryptoKeyVersions.useToEncrypt,cloudkms.cryptoKeys.get,cloudkms.keyRings.get,cloudkms.locations.get,cloudkms.locations.list,resourcemanager.projects.get\n--stage=GA\n\n## ASSIGN Custom role to SA ##\ngcloud kms keys add-iam-policy-binding \ntest-key\n--keyring test-key-ring\n--location westus\n--member serviceAccount:service-account-email\n--role projects/customerProjectId/roles/cmekCustomCVSRole
+        jobs:
+          title: jobs
+          readOnly: true
+          x-omitempty: true
+          description: Jobs currently ongoing for this config
+          type: array
+          items:
+            $ref: '#/components/schemas/Job_v1'
+        description:
+          title: description
+          type: string
+          description: Description of the gcpKmsConfig
+          maxLength: 2048
+          example: kmsConfig description
+          x-nullable: true
+        createdAt:
+          title: createdAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Creation date of the resource
+          example: '2016-11-28T19:30:23.123Z'
+        updatedAt:
+          title: updatedAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date of last update of the resource
+          example: '2016-11-29T20:32:50.459Z'
+        deletedAt:
+          title: deletedAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date the resource was deleted
+          example: '2016-11-30T23:59:59.999Z'
+          x-nullable: true
+        resourceId:
+          title: resourceId
+          type: string
+          description: Resource ID for kms config
+          example: 'myResourceId'
+          x-nullable: true
+    Job_v2:
+      title: Job
+      properties:
+        jobId:
+          title: jobId
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify the Job
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca3333
+        created:
+          title: created
+          type: string
+          format: date-time
+          readOnly: true
+          description: Creation date of the resource
+          example: '2016-11-30T20:32:50.459Z'
+        workerId:
+          title: workerId
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify the worker performing the job
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca3333
+        objectId:
+          title: objectId
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify the object to which the job relates
+          pattern: >-
+            ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca3333
+        objectType:
+          title: objectType
+          type: string
+          readOnly: true
+          description: The type of the object to which the job relates
+          example: Volume
+        action:
+          title: action
+          type: string
+          readOnly: true
+          description: The type of action that the job is performing
+          enum:
+            - create
+            - update
+            - delete
+            - restore
+            - initialize
+            - break
+            - resync
+            - mount
+            - authorize
+            - release
+            - migrate
+            - revert
+            - deleteBaseSnapshot
+            - breakFileLocks
+            - replace_vault
+            - splitClone
+            - resizeCloneVolume
+          example: delete
+        state:
+          title: state
+          type: string
+          readOnly: true
+          description: The state of the job
+          enum:
+            - ongoing
+            - done
+            - error
+          example: ongoing
+        stateDetails:
+          title: stateDetails
+          type: string
+          readOnly: true
+          description: Details about the current job state
+          example: Error creating snapshot - operation timed out
   responses:
     StandardError-400:
       description: Bad request
@@ -1343,6 +1615,16 @@ components:
         minLength: 36
         pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
         type: string
+    uuidPathParameter:
+        name: uuid
+        in: path
+        description: UUID v4 used to identify the kmsConfig
+        required: true
+        schema:
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
     xCorrelationIdHeader:
       name: x-correlation-id
       in: header

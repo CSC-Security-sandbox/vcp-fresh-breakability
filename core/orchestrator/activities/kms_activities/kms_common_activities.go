@@ -29,7 +29,8 @@ import (
 var (
 	pollCvpOperationForWorkflow       = _pollCvpOperationForWorkflow
 	getGcpService                     = hyperscaler.GetGCPService
-	gcpServiceCreateServiceAccountKey = _gcpServiceCreateServiceAccountKey
+	GcpServiceCreateServiceAccountKey = _gcpServiceCreateServiceAccountKey
+	DeleteServiceAccountKeysExcludingKey = _deleteServiceAccountKeysExcludingKey
 	gcpGrantServiceAccountRole        = _gcpGrantServiceAccountRole
 	retryDo                           = retry.RetryDoWithTimeout
 	AccessCryptoKey                   = _accessCryptoKey
@@ -123,7 +124,7 @@ func (j *KmsConfigActivity) CreateVSAKmsConfigSAKeyActivity(ctx context.Context,
 	if err != nil && !errors.IsNotFoundErr(err) {
 		return nil, err
 	} else if errors.IsNotFoundErr(err) {
-		serviceAccountKey, err := gcpServiceCreateServiceAccountKey(gcpService, ctx, vsaEmail)
+		serviceAccountKey, err := GcpServiceCreateServiceAccountKey(gcpService, ctx, vsaEmail)
 		if err != nil {
 			return nil, err
 		}
@@ -173,6 +174,10 @@ func (j *KmsConfigActivity) CreateVSAKmsConfigSAKeyActivity(ctx context.Context,
 func _gcpServiceCreateServiceAccountKey(gcpService hyperscaler.GoogleServices, ctx context.Context, email string) (*hyperscalermodels.ServiceAccountKey, error) {
 	// Create a service account key for the given service account email
 	return gcpService.CreateServiceAccountKey(ctx, email)
+}
+
+func _deleteServiceAccountKeysExcludingKey(ctx context.Context, gcpService *google.GcpServices, email, keyToExclude string) error {
+	return gcpService.DeleteServiceAccountKeysExcludingKey(ctx, email, keyToExclude)
 }
 
 func _gcpGrantServiceAccountRole(ctx context.Context, gcpService *google.GcpServices, serviceAccountEmail, member, role string) error {
@@ -255,18 +260,18 @@ func (j *KmsConfigActivity) UpdatePoolWithKmsConfigActivity(ctx context.Context,
 }
 
 func (j *KmsConfigActivity) AccessCryptoKeyWithImpersonationActivity(ctx context.Context, kmsConfig *datamodel.KmsConfig) error {
-	err := AccessCryptoKey(ctx, kmsConfig)
+	err := AccessCryptoKey(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func _accessCryptoKey(ctx context.Context, kmsConfig *datamodel.KmsConfig) error {
+func _accessCryptoKey(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 	logger := util.GetLogger(ctx)
 
 	// Process the service account credentials to get the scope credentials
-	scopeCreds, err := utils.ProcessCredentials(ctx, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+	scopeCreds, err := utils.ProcessCredentials(ctx, secretPassword)
 	if err != nil {
 		return err
 	}
@@ -328,7 +333,7 @@ func (j *KmsConfigActivity) VerifyVsaKmsReachabilityActivity(ctx context.Context
 	}
 
 	// Access a Crypto key
-	err = AccessCryptoKey(ctx, kmsConfig)
+	err = AccessCryptoKey(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
 
 	// Prepare KmsConfig check model based on the access check
 	kmsConfigCheck := &models.KmsConfigCheck{}

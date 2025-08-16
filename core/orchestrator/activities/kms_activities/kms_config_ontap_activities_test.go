@@ -3,13 +3,13 @@ package kms_activities
 import (
 	"context"
 	"encoding/base64"
+	"gorm.io/gorm"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -328,11 +328,11 @@ func TestGetOntapRestProviderForPoolActivity(t *testing.T) {
 		ctx := context.Background()
 		pool := &datamodel.Pool{}
 
-		origGetOntapRestProviderForPool := backgroundactivities.GetOntapRestProviderForPool
-		backgroundactivities.GetOntapRestProviderForPool = func(_ context.Context, _ database.Storage, _ *datamodel.Pool) (vsa.Provider, error) {
+		origGetOntapRestProviderForPool := _getOntapRestProviderForPool
+		getOntapRestProviderForPool = func(_ context.Context, _ database.Storage, _ *datamodel.Pool) (vsa.Provider, error) {
 			return nil, errors.New("Unable to provision provider")
 		}
-		defer func() { backgroundactivities.GetOntapRestProviderForPool = origGetOntapRestProviderForPool }()
+		defer func() { getOntapRestProviderForPool = origGetOntapRestProviderForPool }()
 
 		provider, err := mockActivity.GetOntapRestProviderForPoolActivity(ctx, pool)
 		assert.Error(t, err)
@@ -345,11 +345,10 @@ func TestGetOntapRestProviderForPoolActivity(t *testing.T) {
 		pool := &datamodel.Pool{}
 		providerVSA := vsa.NewProvider(ctx, vsa.ProviderDetails{})
 
-		origGetOntapRestProviderForPool := backgroundactivities.GetOntapRestProviderForPool
-		backgroundactivities.GetOntapRestProviderForPool = func(_ context.Context, _ database.Storage, _ *datamodel.Pool) (vsa.Provider, error) {
+		getOntapRestProviderForPool = func(_ context.Context, _ database.Storage, _ *datamodel.Pool) (vsa.Provider, error) {
 			return providerVSA, nil
 		}
-		defer func() { backgroundactivities.GetOntapRestProviderForPool = origGetOntapRestProviderForPool }()
+		defer func() { getOntapRestProviderForPool = _getOntapRestProviderForPool }()
 
 		provider, err := mockActivity.GetOntapRestProviderForPoolActivity(ctx, pool)
 		assert.NoError(t, err)
@@ -427,5 +426,56 @@ func TestDeleteEkmConfigActivity(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.Nil(tt, err)
+	})
+}
+
+func TestGetOntapRestProviderForPool(t *testing.T) {
+	ctx := context.TODO()
+
+	t.Run("GetOntapRestProviderForPool_Success", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "abcd",
+			},
+		}
+		node := &datamodel.Node{
+			EndpointAddress: "1.2.3.4",
+		}
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{node}, nil)
+
+		// Patch activities.GetProviderByNode to return a mock provider
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		mockProvider := new(vsa.MockProvider)
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *coreModels.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		provider, err := getOntapRestProviderForPool(ctx, mockStorage, pool)
+		assert.NoError(t, err)
+		assert.Equal(t, mockProvider, provider)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("GetOntapRestProviderForPool_PoolNotFoundError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nil, gorm.ErrRecordNotFound)
+		provider, err := getOntapRestProviderForPool(ctx, mockStorage, pool)
+		assert.Nil(t, provider)
+		assert.Error(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("GetOntapRestProviderForPool_CouldNotGetNodes", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+
+		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return(nil, errors.New("could not get nodes"))
+		provider, err := getOntapRestProviderForPool(ctx, mockStorage, pool)
+		assert.Nil(t, provider)
+		assert.Error(t, err)
+		mockStorage.AssertExpectations(t)
 	})
 }

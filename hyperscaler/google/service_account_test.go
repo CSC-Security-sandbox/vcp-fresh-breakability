@@ -263,3 +263,76 @@ func Test_CreateServiceAccountKey(t *testing.T) {
 		assert.Equal(tt, "2024-01-01T00:00:00Z", key.ValidBeforeTime)
 	})
 }
+
+func Test_DeleteServiceAccountKeysExcludingKey(t *testing.T) {
+	ctx := context.Background()
+	email := "test@example.com"
+	keyToExclude := "key2"
+
+	t.Run("WhenListServiceAccountsKeysFails", func(tt *testing.T) {
+		origList := listServiceAccountsKeysWithRetry
+		listServiceAccountsKeysWithRetry = func(ctx context.Context, c *GcpServices, email string) (*iam.ListServiceAccountKeysResponse, error) {
+			return nil, fmt.Errorf("list error")
+		}
+		defer func() { listServiceAccountsKeysWithRetry = origList }()
+		err := (&GcpServices{}).DeleteServiceAccountKeysExcludingKey(ctx, email, keyToExclude)
+		if err == nil || err.Error() != "Projects.ServiceAccounts.Keys.List: list error" {
+			tt.Errorf("expected list error, got %v", err)
+		}
+	})
+
+	t.Run("WhenDeleteServiceAccountKeyFails", func(tt *testing.T) {
+		origList := listServiceAccountsKeysWithRetry
+		origDelete := deleteServiceAccountKeyWithRetry
+		keys := []*iam.ServiceAccountKey{
+			{Name: "key1", KeyType: "USER_MANAGED"},
+			{Name: "key2", KeyType: "USER_MANAGED"},
+		}
+		listServiceAccountsKeysWithRetry = func(ctx context.Context, c *GcpServices, email string) (*iam.ListServiceAccountKeysResponse, error) {
+			return &iam.ListServiceAccountKeysResponse{Keys: keys}, nil
+		}
+		deleteServiceAccountKeyWithRetry = func(_ context.Context, _ *GcpServices, keyName string) error {
+			if keyName == "key1" {
+				return fmt.Errorf("delete error")
+			}
+			return nil
+		}
+		defer func() {
+			listServiceAccountsKeysWithRetry = origList
+			deleteServiceAccountKeyWithRetry = origDelete
+		}()
+		err := (&GcpServices{}).DeleteServiceAccountKeysExcludingKey(ctx, email, keyToExclude)
+		if err == nil || err.Error() != "Projects.ServiceAccounts.Keys.Delete: delete error" {
+			tt.Errorf("expected delete error, got %v", err)
+		}
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		origList := listServiceAccountsKeysWithRetry
+		origDelete := deleteServiceAccountKeyWithRetry
+		keys := []*iam.ServiceAccountKey{
+			{Name: "key1", KeyType: "USER_MANAGED"},
+			{Name: "key2", KeyType: "USER_MANAGED"},
+			{Name: "key3", KeyType: "SYSTEM_MANAGED"},
+		}
+		var deletedKeys []string
+		listServiceAccountsKeysWithRetry = func(ctx context.Context, c *GcpServices, email string) (*iam.ListServiceAccountKeysResponse, error) {
+			return &iam.ListServiceAccountKeysResponse{Keys: keys}, nil
+		}
+		deleteServiceAccountKeyWithRetry = func(_ context.Context, _ *GcpServices, keyName string) error {
+			deletedKeys = append(deletedKeys, keyName)
+			return nil
+		}
+		defer func() {
+			listServiceAccountsKeysWithRetry = origList
+			deleteServiceAccountKeyWithRetry = origDelete
+		}()
+		err := (&GcpServices{}).DeleteServiceAccountKeysExcludingKey(ctx, email, keyToExclude)
+		if err != nil {
+			tt.Errorf("expected no error, got %v", err)
+		}
+		if len(deletedKeys) != 1 || deletedKeys[0] != "key1" {
+			tt.Errorf("expected only key1 to be deleted, got %v", deletedKeys)
+		}
+	})
+}

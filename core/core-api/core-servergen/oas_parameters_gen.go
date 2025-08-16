@@ -625,6 +625,88 @@ func decodeV1ListPoolsParams(args [0]string, argsEscaped bool, r *http.Request) 
 	return params, nil
 }
 
+// V1RotateGcpKmsConfigParams is parameters of v1_rotateGcpKmsConfig operation.
+type V1RotateGcpKmsConfigParams struct {
+	// UUID v4 used to identify the kmsConfig.
+	UUID string
+}
+
+func unpackV1RotateGcpKmsConfigParams(packed middleware.Parameters) (params V1RotateGcpKmsConfigParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "uuid",
+			In:   "path",
+		}
+		params.UUID = packed[key].(string)
+	}
+	return params
+}
+
+func decodeV1RotateGcpKmsConfigParams(args [1]string, argsEscaped bool, r *http.Request) (params V1RotateGcpKmsConfigParams, _ error) {
+	// Decode path: uuid.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "uuid",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.UUID = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(params.UUID)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "uuid",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // V1UpdatePoolParams is parameters of v1_updatePool operation.
 type V1UpdatePoolParams struct {
 	// UUID v4 used to identify the pool.

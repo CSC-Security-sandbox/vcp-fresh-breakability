@@ -6,9 +6,10 @@ package coreapiserver
 type OperationName = string
 
 const (
-	V1CreatePoolOperation OperationName = "V1CreatePool"
-	V1DeletePoolOperation OperationName = "V1DeletePool"
-	V1GetPoolOperation    OperationName = "V1GetPool"
-	V1ListPoolsOperation  OperationName = "V1ListPools"
-	V1UpdatePoolOperation OperationName = "V1UpdatePool"
+	V1CreatePoolOperation         OperationName = "V1CreatePool"
+	V1DeletePoolOperation         OperationName = "V1DeletePool"
+	V1GetPoolOperation            OperationName = "V1GetPool"
+	V1ListPoolsOperation          OperationName = "V1ListPools"
+	V1RotateGcpKmsConfigOperation OperationName = "V1RotateGcpKmsConfig"
+	V1UpdatePoolOperation         OperationName = "V1UpdatePool"
 )

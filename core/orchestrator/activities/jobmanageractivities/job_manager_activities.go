@@ -14,12 +14,14 @@ import (
 )
 
 const (
-	SyncVsaSnapshots = "SYNC_VSA_SNAPSHOTS"
+	SyncVsaSnapshots         = "SYNC_VSA_SNAPSHOTS"
+	RotateKmsServiceAccounts = "ROTATE_KMS_SERVICE_ACCOUNTS"
 )
 
 // JobTypeToWorkflow maps job types to their corresponding workflow functions.
 var JobTypeToWorkflow = map[string]interface{}{
-	SyncVsaSnapshots: backgroundworkflows.SyncVSASnapshotsWorkflow,
+	SyncVsaSnapshots:         backgroundworkflows.SyncVSASnapshotsWorkflow,
+	RotateKmsServiceAccounts: backgroundworkflows.RotateKmsSAKeyWorkflow,
 }
 
 type JobManagerActivity struct {

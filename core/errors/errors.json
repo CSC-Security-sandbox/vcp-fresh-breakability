@@ -1084,5 +1084,17 @@
     "message": "Unknown error getting active replication jobs",
     "retriable": false,
     "http_code": 500
+  },
+  "8001": {
+    "description": "Kms key rotation failure",
+    "message": "Error rotating kms key",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8002": {
+    "description": "Service Account not found for kms configuration",
+    "message": "Error rotating kms key - Cannot find service account for kms configuration",
+    "retriable": false,
+    "http_code": 500
   }
 }

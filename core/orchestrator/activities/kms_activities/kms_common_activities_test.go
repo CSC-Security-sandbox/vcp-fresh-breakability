@@ -295,12 +295,13 @@ func TestCreateVSAKmsConfigSAKeyActivity(t *testing.T) {
 		}
 		defer func() {
 			getGcpService = hyperscaler2.GetGCPService
-			gcpServiceCreateServiceAccountKey = _gcpServiceCreateServiceAccountKey
+			GcpServiceCreateServiceAccountKey = _gcpServiceCreateServiceAccountKey
+			getGcpService = hyperscaler2.GetGCPService
 		}()
 		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
-		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler2.GoogleServices, ctx context.Context, email string) (*hyperscaler.ServiceAccountKey, error) {
+		GcpServiceCreateServiceAccountKey = func(gcpService hyperscaler2.GoogleServices, ctx context.Context, email string) (*hyperscaler.ServiceAccountKey, error) {
 			return &hyperscaler.ServiceAccountKey{PrivateKeyData: "keydata"}, nil
 		}
 		pass := "enc"
@@ -334,9 +335,9 @@ func TestCreateVSAKmsConfigSAKeyActivity(t *testing.T) {
 			return &google.GcpServices{}, nil
 		}
 		defer func() {
-			gcpServiceCreateServiceAccountKey = _gcpServiceCreateServiceAccountKey
+			GcpServiceCreateServiceAccountKey = _gcpServiceCreateServiceAccountKey
 		}()
-		gcpServiceCreateServiceAccountKey = func(gcpService hyperscaler2.GoogleServices, ctx context.Context, email string) (*hyperscaler.ServiceAccountKey, error) {
+		GcpServiceCreateServiceAccountKey = func(gcpService hyperscaler2.GoogleServices, ctx context.Context, email string) (*hyperscaler.ServiceAccountKey, error) {
 			return &hyperscaler.ServiceAccountKey{PrivateKeyData: "keydata"}, nil
 		}
 		mockSE.On("GetServiceAccountFromEmail", mock.Anything, "test@project.iam.gserviceaccount.com").Return(nil, errors.NewNotFoundErr("service account", nil))
@@ -647,10 +648,10 @@ func TestAccessCryptoKeyActivity(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
 		ctx := context.Background()
-		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccount: &datamodel.ServiceAccount{}}
 		origAccessCryptoKey := AccessCryptoKey
 		defer func() { AccessCryptoKey = origAccessCryptoKey }()
-		AccessCryptoKey = func(ctx context.Context, dbKmsConfig *datamodel.KmsConfig) error {
+		AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return nil
 		}
 		err := activity.AccessCryptoKeyWithImpersonationActivity(ctx, kmsConfig)
@@ -660,10 +661,10 @@ func TestAccessCryptoKeyActivity(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
 		ctx := context.Background()
-		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccount: &datamodel.ServiceAccount{}}
 		origAccessCryptoKey := AccessCryptoKey
 		defer func() { AccessCryptoKey = origAccessCryptoKey }()
-		AccessCryptoKey = func(ctx context.Context, dbKmsConfig *datamodel.KmsConfig) error {
+		AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return errors.New("access error")
 		}
 		err := activity.AccessCryptoKeyWithImpersonationActivity(ctx, kmsConfig)
@@ -701,7 +702,7 @@ func Test_accessCryptoKey(t *testing.T) {
 			_, err := fn(1)
 			return err
 		}
-		err := _accessCryptoKey(ctx, kmsConfig)
+		err := _accessCryptoKey(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
 		assert.Error(t, err)
 	})
 	t.Run("ReturnsErrorWhenProcessCredentialsFails", func(t *testing.T) {
@@ -720,7 +721,7 @@ func Test_accessCryptoKey(t *testing.T) {
 		utils.ProcessCredentials = func(ctx context.Context, secretPassword string) (*googleOauth2.Credentials, error) {
 			return nil, errors.New("decrypt error")
 		}
-		err := _accessCryptoKey(ctx, kmsConfig)
+		err := _accessCryptoKey(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "decrypt error")
 	})
@@ -759,7 +760,7 @@ func Test_accessCryptoKey(t *testing.T) {
 		retryDo = func(ctx context.Context, timeout, wait time.Duration, caller string, fn retry.Retriable) error {
 			return errors.New("retry error")
 		}
-		err := _accessCryptoKey(ctx, kmsConfig)
+		err := _accessCryptoKey(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "retry error")
 	})
@@ -795,7 +796,7 @@ func Test_accessCryptoKey(t *testing.T) {
 			return nil, errors.New("cloudkms error")
 		}
 
-		err := _accessCryptoKey(ctx, kmsConfig)
+		err := _accessCryptoKey(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "cloudkms error")
 	})
@@ -999,14 +1000,14 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 	t.Run("ReturnsNoErrorWhenAccessCryptoKeySucceeds", func(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
-		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccount: &datamodel.ServiceAccount{}}
 		origAccessCryptoKey := AccessCryptoKey
 
 		defer func() {
 			AccessCryptoKey = origAccessCryptoKey
 			UpdateKmsConfigHealth = _updateKmsConfigHealth
 		}()
-		AccessCryptoKey = func(ctx context.Context, dbKmsConfig *datamodel.KmsConfig) error {
+		AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return nil
 		}
 		UpdateKmsConfigHealth = func(ctx context.Context, se database.Storage, configCheck *models.KmsConfigCheck) (*datamodel.KmsConfig, error) {
@@ -1019,13 +1020,13 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 	t.Run("WhenUpdateKmsConfigHealthFails", func(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
-		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccount: &datamodel.ServiceAccount{}}
 		origAccessCryptoKey := AccessCryptoKey
 		defer func() {
 			AccessCryptoKey = origAccessCryptoKey
 			UpdateKmsConfigHealth = _updateKmsConfigHealth
 		}()
-		AccessCryptoKey = func(ctx context.Context, dbKmsConfig *datamodel.KmsConfig) error {
+		AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return nil
 		}
 		UpdateKmsConfigHealth = func(ctx context.Context, se database.Storage, configCheck *models.KmsConfigCheck) (*datamodel.KmsConfig, error) {
@@ -1038,13 +1039,13 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 	t.Run("ReturnsErrorWhenAccessCryptoKeyFails", func(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
-		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccount: &datamodel.ServiceAccount{}}
 		origAccessCryptoKey := AccessCryptoKey
 		defer func() {
 			AccessCryptoKey = origAccessCryptoKey
 			UpdateKmsConfigHealth = _updateKmsConfigHealth
 		}()
-		AccessCryptoKey = func(ctx context.Context, dbKmsConfig *datamodel.KmsConfig) error {
+		AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return errors.New("unreachable")
 		}
 		UpdateKmsConfigHealth = func(ctx context.Context, se database.Storage, configCheck *models.KmsConfigCheck) (*datamodel.KmsConfig, error) {
@@ -1057,14 +1058,14 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 	t.Run("WhenGetKmsConfigByUUIDFails", func(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
-		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccount: &datamodel.ServiceAccount{}}
 		origAccessCryptoKey := AccessCryptoKey
 
 		defer func() {
 			AccessCryptoKey = origAccessCryptoKey
 			UpdateKmsConfigHealth = _updateKmsConfigHealth
 		}()
-		AccessCryptoKey = func(ctx context.Context, dbKmsConfig *datamodel.KmsConfig) error {
+		AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return nil
 		}
 		UpdateKmsConfigHealth = func(ctx context.Context, se database.Storage, configCheck *models.KmsConfigCheck) (*datamodel.KmsConfig, error) {
@@ -1077,14 +1078,14 @@ func TestVerifyVsaKmsReachabilityActivity(t *testing.T) {
 	t.Run("WhenGetKmsConfigByUUIDFailsNonRetriableError", func(t *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
-		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}}
+		kmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccount: &datamodel.ServiceAccount{}}
 		origAccessCryptoKey := AccessCryptoKey
 
 		defer func() {
 			AccessCryptoKey = origAccessCryptoKey
 			UpdateKmsConfigHealth = _updateKmsConfigHealth
 		}()
-		AccessCryptoKey = func(ctx context.Context, dbKmsConfig *datamodel.KmsConfig) error {
+		AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return nil
 		}
 		UpdateKmsConfigHealth = func(ctx context.Context, se database.Storage, configCheck *models.KmsConfigCheck) (*datamodel.KmsConfig, error) {

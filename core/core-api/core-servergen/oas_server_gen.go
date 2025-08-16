@@ -34,6 +34,12 @@ type Handler interface {
 	//
 	// GET /v1/pools
 	V1ListPools(ctx context.Context, params V1ListPoolsParams) (V1ListPoolsRes, error)
+	// V1RotateGcpKmsConfig implements v1_rotateGcpKmsConfig operation.
+	//
+	// Rotates service account key of a gcp kms config.
+	//
+	// POST /v1/Storage/GcpKmsConfig/{uuid}/RotateServiceAccountKey
+	V1RotateGcpKmsConfig(ctx context.Context, req *GcpKmsKeyRotateV1, params V1RotateGcpKmsConfigParams) (V1RotateGcpKmsConfigRes, error)
 	// V1UpdatePool implements v1_updatePool operation.
 	//
 	// Update the pool.

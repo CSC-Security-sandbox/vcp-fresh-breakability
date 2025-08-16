@@ -380,6 +380,815 @@ func (s *Error) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *GcpKmsConfigV1) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *GcpKmsConfigV1) encodeFields(e *jx.Encoder) {
+	{
+		if s.UUID.Set {
+			e.FieldStart("uuid")
+			s.UUID.Encode(e)
+		}
+	}
+	{
+		if s.Network.Set {
+			e.FieldStart("network")
+			s.Network.Encode(e)
+		}
+	}
+	{
+		if s.ServiceAccountEmail.Set {
+			e.FieldStart("serviceAccountEmail")
+			s.ServiceAccountEmail.Encode(e)
+		}
+	}
+	{
+		if s.KeyRing.Set {
+			e.FieldStart("keyRing")
+			s.KeyRing.Encode(e)
+		}
+	}
+	{
+		if s.KeyRingLocation.Set {
+			e.FieldStart("keyRingLocation")
+			s.KeyRingLocation.Encode(e)
+		}
+	}
+	{
+		if s.KeyName.Set {
+			e.FieldStart("keyName")
+			s.KeyName.Encode(e)
+		}
+	}
+	{
+		if s.KeyProjectID.Set {
+			e.FieldStart("keyProjectID")
+			s.KeyProjectID.Encode(e)
+		}
+	}
+	{
+		if s.State.Set {
+			e.FieldStart("state")
+			s.State.Encode(e)
+		}
+	}
+	{
+		if s.StateDetails.Set {
+			e.FieldStart("stateDetails")
+			s.StateDetails.Encode(e)
+		}
+	}
+	{
+		if s.Instructions.Set {
+			e.FieldStart("instructions")
+			s.Instructions.Encode(e)
+		}
+	}
+	{
+		if s.Jobs != nil {
+			e.FieldStart("jobs")
+			e.ArrStart()
+			for _, elem := range s.Jobs {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.CreatedAt.Set {
+			e.FieldStart("createdAt")
+			s.CreatedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.UpdatedAt.Set {
+			e.FieldStart("updatedAt")
+			s.UpdatedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.DeletedAt.Set {
+			e.FieldStart("deletedAt")
+			s.DeletedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.ResourceId.Set {
+			e.FieldStart("resourceId")
+			s.ResourceId.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfGcpKmsConfigV1 = [16]string{
+	0:  "uuid",
+	1:  "network",
+	2:  "serviceAccountEmail",
+	3:  "keyRing",
+	4:  "keyRingLocation",
+	5:  "keyName",
+	6:  "keyProjectID",
+	7:  "state",
+	8:  "stateDetails",
+	9:  "instructions",
+	10: "jobs",
+	11: "description",
+	12: "createdAt",
+	13: "updatedAt",
+	14: "deletedAt",
+	15: "resourceId",
+}
+
+// Decode decodes GcpKmsConfigV1 from json.
+func (s *GcpKmsConfigV1) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GcpKmsConfigV1 to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "uuid":
+			if err := func() error {
+				s.UUID.Reset()
+				if err := s.UUID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"uuid\"")
+			}
+		case "network":
+			if err := func() error {
+				s.Network.Reset()
+				if err := s.Network.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"network\"")
+			}
+		case "serviceAccountEmail":
+			if err := func() error {
+				s.ServiceAccountEmail.Reset()
+				if err := s.ServiceAccountEmail.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"serviceAccountEmail\"")
+			}
+		case "keyRing":
+			if err := func() error {
+				s.KeyRing.Reset()
+				if err := s.KeyRing.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"keyRing\"")
+			}
+		case "keyRingLocation":
+			if err := func() error {
+				s.KeyRingLocation.Reset()
+				if err := s.KeyRingLocation.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"keyRingLocation\"")
+			}
+		case "keyName":
+			if err := func() error {
+				s.KeyName.Reset()
+				if err := s.KeyName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"keyName\"")
+			}
+		case "keyProjectID":
+			if err := func() error {
+				s.KeyProjectID.Reset()
+				if err := s.KeyProjectID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"keyProjectID\"")
+			}
+		case "state":
+			if err := func() error {
+				s.State.Reset()
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "stateDetails":
+			if err := func() error {
+				s.StateDetails.Reset()
+				if err := s.StateDetails.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stateDetails\"")
+			}
+		case "instructions":
+			if err := func() error {
+				s.Instructions.Reset()
+				if err := s.Instructions.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"instructions\"")
+			}
+		case "jobs":
+			if err := func() error {
+				s.Jobs = make([]JobV1, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem JobV1
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Jobs = append(s.Jobs, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"jobs\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "createdAt":
+			if err := func() error {
+				s.CreatedAt.Reset()
+				if err := s.CreatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"createdAt\"")
+			}
+		case "updatedAt":
+			if err := func() error {
+				s.UpdatedAt.Reset()
+				if err := s.UpdatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"updatedAt\"")
+			}
+		case "deletedAt":
+			if err := func() error {
+				s.DeletedAt.Reset()
+				if err := s.DeletedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"deletedAt\"")
+			}
+		case "resourceId":
+			if err := func() error {
+				s.ResourceId.Reset()
+				if err := s.ResourceId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resourceId\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode GcpKmsConfigV1")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GcpKmsConfigV1) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GcpKmsConfigV1) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes GcpKmsConfigV1State as json.
+func (s GcpKmsConfigV1State) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes GcpKmsConfigV1State from json.
+func (s *GcpKmsConfigV1State) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GcpKmsConfigV1State to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch GcpKmsConfigV1State(v) {
+	case GcpKmsConfigV1StateSTATEUNSPECIFIED:
+		*s = GcpKmsConfigV1StateSTATEUNSPECIFIED
+	case GcpKmsConfigV1StateCREATING:
+		*s = GcpKmsConfigV1StateCREATING
+	case GcpKmsConfigV1StateREADY:
+		*s = GcpKmsConfigV1StateREADY
+	case GcpKmsConfigV1StateUPDATING:
+		*s = GcpKmsConfigV1StateUPDATING
+	case GcpKmsConfigV1StateINUSE:
+		*s = GcpKmsConfigV1StateINUSE
+	case GcpKmsConfigV1StateDELETING:
+		*s = GcpKmsConfigV1StateDELETING
+	case GcpKmsConfigV1StateERROR:
+		*s = GcpKmsConfigV1StateERROR
+	case GcpKmsConfigV1StateKEYSTATEUNSPECIFIED:
+		*s = GcpKmsConfigV1StateKEYSTATEUNSPECIFIED
+	case GcpKmsConfigV1StateKEYCHECKPENDING:
+		*s = GcpKmsConfigV1StateKEYCHECKPENDING
+	case GcpKmsConfigV1StateKEYNOTREACHABLE:
+		*s = GcpKmsConfigV1StateKEYNOTREACHABLE
+	case GcpKmsConfigV1StateDISABLING:
+		*s = GcpKmsConfigV1StateDISABLING
+	case GcpKmsConfigV1StateDISABLED:
+		*s = GcpKmsConfigV1StateDISABLED
+	case GcpKmsConfigV1StateDELETED:
+		*s = GcpKmsConfigV1StateDELETED
+	case GcpKmsConfigV1StateMIGRATING:
+		*s = GcpKmsConfigV1StateMIGRATING
+	default:
+		*s = GcpKmsConfigV1State(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s GcpKmsConfigV1State) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GcpKmsConfigV1State) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *GcpKmsKeyRotateV1) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *GcpKmsKeyRotateV1) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("ownerID")
+		e.Str(s.OwnerID)
+	}
+}
+
+var jsonFieldsNameOfGcpKmsKeyRotateV1 = [1]string{
+	0: "ownerID",
+}
+
+// Decode decodes GcpKmsKeyRotateV1 from json.
+func (s *GcpKmsKeyRotateV1) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GcpKmsKeyRotateV1 to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "ownerID":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.OwnerID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ownerID\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode GcpKmsKeyRotateV1")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGcpKmsKeyRotateV1) {
+					name = jsonFieldsNameOfGcpKmsKeyRotateV1[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GcpKmsKeyRotateV1) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GcpKmsKeyRotateV1) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *JobV1) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *JobV1) encodeFields(e *jx.Encoder) {
+	{
+		if s.JobId.Set {
+			e.FieldStart("jobId")
+			s.JobId.Encode(e)
+		}
+	}
+	{
+		if s.Created.Set {
+			e.FieldStart("created")
+			s.Created.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.WorkerId.Set {
+			e.FieldStart("workerId")
+			s.WorkerId.Encode(e)
+		}
+	}
+	{
+		if s.ObjectId.Set {
+			e.FieldStart("objectId")
+			s.ObjectId.Encode(e)
+		}
+	}
+	{
+		if s.ObjectType.Set {
+			e.FieldStart("objectType")
+			s.ObjectType.Encode(e)
+		}
+	}
+	{
+		if s.Action.Set {
+			e.FieldStart("action")
+			s.Action.Encode(e)
+		}
+	}
+	{
+		if s.State.Set {
+			e.FieldStart("state")
+			s.State.Encode(e)
+		}
+	}
+	{
+		if s.StateDetails.Set {
+			e.FieldStart("stateDetails")
+			s.StateDetails.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfJobV1 = [8]string{
+	0: "jobId",
+	1: "created",
+	2: "workerId",
+	3: "objectId",
+	4: "objectType",
+	5: "action",
+	6: "state",
+	7: "stateDetails",
+}
+
+// Decode decodes JobV1 from json.
+func (s *JobV1) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode JobV1 to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "jobId":
+			if err := func() error {
+				s.JobId.Reset()
+				if err := s.JobId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"jobId\"")
+			}
+		case "created":
+			if err := func() error {
+				s.Created.Reset()
+				if err := s.Created.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"created\"")
+			}
+		case "workerId":
+			if err := func() error {
+				s.WorkerId.Reset()
+				if err := s.WorkerId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"workerId\"")
+			}
+		case "objectId":
+			if err := func() error {
+				s.ObjectId.Reset()
+				if err := s.ObjectId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"objectId\"")
+			}
+		case "objectType":
+			if err := func() error {
+				s.ObjectType.Reset()
+				if err := s.ObjectType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"objectType\"")
+			}
+		case "action":
+			if err := func() error {
+				s.Action.Reset()
+				if err := s.Action.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "state":
+			if err := func() error {
+				s.State.Reset()
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "stateDetails":
+			if err := func() error {
+				s.StateDetails.Reset()
+				if err := s.StateDetails.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stateDetails\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode JobV1")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *JobV1) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *JobV1) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes JobV1Action as json.
+func (s JobV1Action) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes JobV1Action from json.
+func (s *JobV1Action) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode JobV1Action to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch JobV1Action(v) {
+	case JobV1ActionCreate:
+		*s = JobV1ActionCreate
+	case JobV1ActionUpdate:
+		*s = JobV1ActionUpdate
+	case JobV1ActionDelete:
+		*s = JobV1ActionDelete
+	case JobV1ActionRestore:
+		*s = JobV1ActionRestore
+	case JobV1ActionInitialize:
+		*s = JobV1ActionInitialize
+	case JobV1ActionBreak:
+		*s = JobV1ActionBreak
+	case JobV1ActionResync:
+		*s = JobV1ActionResync
+	case JobV1ActionMount:
+		*s = JobV1ActionMount
+	default:
+		*s = JobV1Action(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s JobV1Action) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *JobV1Action) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes JobV1ObjectType as json.
+func (s JobV1ObjectType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes JobV1ObjectType from json.
+func (s *JobV1ObjectType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode JobV1ObjectType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch JobV1ObjectType(v) {
+	case JobV1ObjectTypeVolume:
+		*s = JobV1ObjectTypeVolume
+	case JobV1ObjectTypeSnapshot:
+		*s = JobV1ObjectTypeSnapshot
+	case JobV1ObjectTypeMountTarget:
+		*s = JobV1ObjectTypeMountTarget
+	case JobV1ObjectTypeBackup:
+		*s = JobV1ObjectTypeBackup
+	default:
+		*s = JobV1ObjectType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s JobV1ObjectType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *JobV1ObjectType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes JobV1State as json.
+func (s JobV1State) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes JobV1State from json.
+func (s *JobV1State) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode JobV1State to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch JobV1State(v) {
+	case JobV1StateOngoing:
+		*s = JobV1StateOngoing
+	case JobV1StateDone:
+		*s = JobV1StateDone
+	case JobV1StateError:
+		*s = JobV1StateError
+	default:
+		*s = JobV1State(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s JobV1State) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *JobV1State) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *OperationV1) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -691,6 +1500,138 @@ func (s OptFloat64) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptFloat64) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes GcpKmsConfigV1State as json.
+func (o OptGcpKmsConfigV1State) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes GcpKmsConfigV1State from json.
+func (o *OptGcpKmsConfigV1State) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptGcpKmsConfigV1State to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptGcpKmsConfigV1State) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptGcpKmsConfigV1State) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes JobV1Action as json.
+func (o OptJobV1Action) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes JobV1Action from json.
+func (o *OptJobV1Action) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptJobV1Action to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptJobV1Action) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptJobV1Action) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes JobV1ObjectType as json.
+func (o OptJobV1ObjectType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes JobV1ObjectType from json.
+func (o *OptJobV1ObjectType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptJobV1ObjectType to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptJobV1ObjectType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptJobV1ObjectType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes JobV1State as json.
+func (o OptJobV1State) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes JobV1State from json.
+func (o *OptJobV1State) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptJobV1State to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptJobV1State) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptJobV1State) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -4010,6 +4951,310 @@ func (s *V1ListPoolsUnauthorized) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1ListPoolsUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1RotateGcpKmsConfigBadRequest as json.
+func (s *V1RotateGcpKmsConfigBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1RotateGcpKmsConfigBadRequest from json.
+func (s *V1RotateGcpKmsConfigBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1RotateGcpKmsConfigBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1RotateGcpKmsConfigBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1RotateGcpKmsConfigBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1RotateGcpKmsConfigBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1RotateGcpKmsConfigConflict as json.
+func (s *V1RotateGcpKmsConfigConflict) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1RotateGcpKmsConfigConflict from json.
+func (s *V1RotateGcpKmsConfigConflict) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1RotateGcpKmsConfigConflict to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1RotateGcpKmsConfigConflict(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1RotateGcpKmsConfigConflict) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1RotateGcpKmsConfigConflict) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1RotateGcpKmsConfigForbidden as json.
+func (s *V1RotateGcpKmsConfigForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1RotateGcpKmsConfigForbidden from json.
+func (s *V1RotateGcpKmsConfigForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1RotateGcpKmsConfigForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1RotateGcpKmsConfigForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1RotateGcpKmsConfigForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1RotateGcpKmsConfigForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1RotateGcpKmsConfigInternalServerError as json.
+func (s *V1RotateGcpKmsConfigInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1RotateGcpKmsConfigInternalServerError from json.
+func (s *V1RotateGcpKmsConfigInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1RotateGcpKmsConfigInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1RotateGcpKmsConfigInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1RotateGcpKmsConfigInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1RotateGcpKmsConfigInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1RotateGcpKmsConfigNotFound as json.
+func (s *V1RotateGcpKmsConfigNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1RotateGcpKmsConfigNotFound from json.
+func (s *V1RotateGcpKmsConfigNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1RotateGcpKmsConfigNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1RotateGcpKmsConfigNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1RotateGcpKmsConfigNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1RotateGcpKmsConfigNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1RotateGcpKmsConfigTooManyRequests as json.
+func (s *V1RotateGcpKmsConfigTooManyRequests) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1RotateGcpKmsConfigTooManyRequests from json.
+func (s *V1RotateGcpKmsConfigTooManyRequests) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1RotateGcpKmsConfigTooManyRequests to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1RotateGcpKmsConfigTooManyRequests(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1RotateGcpKmsConfigTooManyRequests) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1RotateGcpKmsConfigTooManyRequests) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1RotateGcpKmsConfigUnauthorized as json.
+func (s *V1RotateGcpKmsConfigUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1RotateGcpKmsConfigUnauthorized from json.
+func (s *V1RotateGcpKmsConfigUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1RotateGcpKmsConfigUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1RotateGcpKmsConfigUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1RotateGcpKmsConfigUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1RotateGcpKmsConfigUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1RotateGcpKmsConfigUnprocessableEntity as json.
+func (s *V1RotateGcpKmsConfigUnprocessableEntity) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1RotateGcpKmsConfigUnprocessableEntity from json.
+func (s *V1RotateGcpKmsConfigUnprocessableEntity) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1RotateGcpKmsConfigUnprocessableEntity to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1RotateGcpKmsConfigUnprocessableEntity(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1RotateGcpKmsConfigUnprocessableEntity) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1RotateGcpKmsConfigUnprocessableEntity) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

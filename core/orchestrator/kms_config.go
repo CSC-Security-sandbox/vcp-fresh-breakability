@@ -7,6 +7,7 @@ import (
 	"time"
 
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
@@ -46,6 +47,7 @@ type KmsConfigInterface interface {
 	AccessCryptoKeyWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error
 	DeleteKmsConfig(ctx context.Context, params *common.DeleteKmsConfigParams) (*models.KmsConfig, string, error)
 	MigrateKmsConfig(ctx context.Context, params *common.MigrateKmsConfigParams) (string, error)
+	RotateKmsConfig(ctx context.Context, params *common.RotateKmsConfigParams) (*models.KmsConfig, *models.Job, error)
 }
 
 // CreateKmsConfig creates a new KMS configuration.
@@ -389,6 +391,75 @@ func migrateKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	return createdJob.UUID, nil
 }
 
+// RotateKmsConfig rotates the service account key for a KMS configuration.
+func (o *Orchestrator) RotateKmsConfig(ctx context.Context, params *common.RotateKmsConfigParams) (*models.KmsConfig, *models.Job, error) {
+	return rotateKmsConfig(ctx, o.storage, o.temporal, params)
+}
+
+func rotateKmsConfig(ctx context.Context, se database.Storage, temporal client.Client, params *common.RotateKmsConfigParams) (*models.KmsConfig, *models.Job, error) {
+	logger := util.GetLogger(ctx)
+
+	// Validate the KMS config exists
+	kmsConfig, err := se.GetKmsConfig(ctx, params.KmsConfigID)
+	if err != nil {
+		logger.Error("Failed to get KMS config", "KmsConfigID", params.KmsConfigID, "Error", err)
+		return nil, nil, err
+	}
+
+	// Get account info using UUID instead of name
+	// Using AccountName as UUID for now - this may need to be adjusted based on your actual requirement
+	account, err := getAccountFromUUID(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if kmsConfig.State != models2.KmsConfigV1betaKmsStateINUSE && kmsConfig.State != models2.KmsConfigV1betaKmsStateREADY {
+		return nil, nil, errors.New("Concerned GCP KMS config is not in a state(ready/in use) to rotate the service account key")
+	}
+
+	// Create a new job for the rotation
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeRotateKmsConfig),
+		State:        string(models.JobsStateNEW),
+		ResourceName: kmsConfig.Name,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: params.KmsConfigID,
+		},
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create rotation job", "Error", err)
+		return nil, nil, err
+	}
+
+	// Start the rotation workflow
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		},
+		kms_workflows.RotateKmsConfigWorkflow,
+		params,
+	)
+	if err != nil {
+		logger.Error("Failed to start rotation workflow", "Error", err)
+		return nil, nil, err
+	}
+
+	logger.Info("Started KMS config rotation workflow",
+		"WorkflowID", createdJob.WorkflowID,
+		"KmsConfigID", params.KmsConfigID,
+		"JobID", createdJob.UUID)
+
+	// Convert the KMS config to model and return it along with job model
+	kmsConfigModel := convertDataStoreKmsConfigToModel(kmsConfig)
+	jobModel := convertDatastoreJobToModel(createdJob)
+	return kmsConfigModel, jobModel, nil
+}
+
 func convertDataStoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.KmsConfig {
 	if kmsConfig == nil || kmsConfig.UUID == "" {
 		return nil
@@ -482,7 +553,7 @@ func (o *Orchestrator) AccessCryptoKeyWithImpersonation(ctx context.Context, kms
 	if err != nil {
 		return err
 	}
-	return kms_activities.AccessCryptoKey(ctx, dbKmsConfig)
+	return kms_activities.AccessCryptoKey(ctx, dbKmsConfig, dbKmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
 }
 
 func (o *Orchestrator) GetKmsConfigByKeyFullPath(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
@@ -549,6 +620,43 @@ func convertDatastoreServiceAccountToModel(sa *datamodel.ServiceAccount) *models
 		ServiceAccountEmail:            sa.ServiceAccountEmail,
 		ServiceAccountPasswordLocation: sa.ServiceAccountPasswordLocation,
 	}
+}
+
+// convertDatastoreJobToModel converts a datastore Job to a model Job
+func convertDatastoreJobToModel(job *datamodel.Job) *models.Job {
+	if job == nil {
+		return nil
+	}
+	
+	modelJob := &models.Job{
+		BaseModel: models.BaseModel{
+			UUID:      job.UUID,
+			CreatedAt: job.CreatedAt,
+			UpdatedAt: job.UpdatedAt,
+			DeletedAt: DeletedAtOrNil(job.DeletedAt),
+		},
+		CorrelationID: job.CorrelationID,
+		RequestID:     job.RequestID,
+		Type:          models.JobType(job.Type),
+		State:         models.JobState(job.State),
+		StateDetails:  "", // datamodel.Job doesn't have StateDetails field
+		TrackingID:    job.TrackingID,
+		ErrorDetails:  []byte(job.ErrorDetails),
+		AccountID:     job.AccountID,
+		IsAdminJob:    job.IsAdminJob,
+		WorkflowID:    job.WorkflowID,
+		ScheduledAt:   job.ScheduledAt,
+		ResourceName:  job.ResourceName,
+	}
+	
+	if job.JobAttributes != nil {
+		modelJob.JobAttributes = &models.JobAttributes{
+			ResourceUUID: job.JobAttributes.ResourceUUID,
+			PoolUUID:     job.JobAttributes.PoolUUID,
+		}
+	}
+	
+	return modelJob
 }
 
 func validateKmsConfigState(ctx context.Context, se database.Storage, kmsConfigState string, accountId int64, localEntry bool) (string, error) {

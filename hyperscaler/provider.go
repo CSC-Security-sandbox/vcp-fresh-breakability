@@ -60,6 +60,7 @@ type Services interface {
 	CreateServiceAccountKey(ctx context.Context, email string) (*models.ServiceAccountKey, error)
 	DeleteAllServiceAccountKeys(ctx context.Context, email string) error
 	GetSecretWithCustomVersion(projectID, secretID string, versionID string) (*models.CustomSecret, error)
+	DeleteServiceAccountKeysExcludingKey(ctx context.Context, email, keyToExclude string) error
 
 	GetZones(projectName, region string) ([]string, error)
 	IsMachineTypeAvailable(projectNumber, zone, machineType string) (bool, error)

@@ -54,6 +54,7 @@ workerConfig:
   gcpSmcSecretName: ""
   gcpSmcSecretVersionName: ""
   vcpPairedRegions: ""
+  gcpKmsKeyRotationEnabled: "false"
   gcpAuthServiceAccount: ""
   gcpServiceUrl: "https://cloudvolumesgcp-api.netapp.com"
   loggerLevel: "info"

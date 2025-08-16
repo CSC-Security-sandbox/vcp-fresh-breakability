@@ -5,7 +5,13 @@ import (
 
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/temporal"
+)
+
+const (
+	ErrTypeKmsConfigNotReachableVsaCluster = "KmsConfigNotReachableVsaCluster"
 )
 
 func (rc *OntapRestProvider) CreateKmsConfig(params CreateKmsConfigParams) (*CreateKmsConfigResponse, error) {
@@ -54,7 +60,15 @@ func (rc *OntapRestProvider) IsGcpKmsReachable(params GetKmsConfigParams) (bool,
 	}
 	gcpKmsResponse, err := client.Security().GcpKmsGet(getKmsConfigParams)
 	if err != nil {
-		return false, err
+		// Return original reachability error
+		if strings.Contains(err.Error(), "permission_denied") {
+			return false, errors.New("GCP KMS key is not reachable from ONTAP - Service account lacks permission, retrying again")
+		}
+		if strings.Contains(err.Error(), "Invalid JWT Signature") || strings.Contains(err.Error(), "InvalidJWTSignature") {
+			return false, errors.New("GCP KMS key is not reachable from ONTAP - Failed to establish connectivity" +
+				" with the cloud key management service, retrying again")
+		}
+		return false, temporal.NewNonRetryableApplicationError("GCP KMS key is not reachable from VSA Clusters", ErrTypeKmsConfigNotReachableVsaCluster, err)
 	}
 
 	if gcpKmsResponse.GoogleReachability != nil && !nillable.GetBool(gcpKmsResponse.GoogleReachability.Reachable, false) {
@@ -69,4 +83,24 @@ func (rc *OntapRestProvider) IsGcpKmsReachable(params GetKmsConfigParams) (bool,
 		}
 	}
 	return true, nil
+}
+
+func (rc *OntapRestProvider) ModifyGcpKms(externalUUID string, credentials *log.Secret) (*ontapRest.GcpKms, *string, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, nil, err
+	}
+	gcpKmsModifyParams := &ontapRest.GcpKmsModifyParams{
+		UUID:                   externalUUID,
+		ApplicationCredentials: credentials,
+	}
+
+	gcpKms, ontapJob, err := client.Security().GcpKmsModify(gcpKmsModifyParams)
+	if err != nil {
+		return nil, nil, errors.New("Failed to establish connectivity with the cloud key management service while updating GCP KMS")
+	}
+	if gcpKms != nil {
+		return gcpKms, nil, nil
+	}
+	return nil, &ontapJob.JobUUID, nil
 }

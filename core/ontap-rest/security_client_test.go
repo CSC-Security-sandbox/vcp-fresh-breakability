@@ -271,3 +271,25 @@ func TestGcpKmsDelete(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 }
+
+func TestGcpKmsModify(t *testing.T) {
+	t.Run("WhenRESTCallFails_ThenReturnError", func(tt *testing.T) {
+		transport := &mockTransport{err: errors.New("rest call failed")}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		gcpKms, job, err := client.GcpKmsModify(&GcpKmsModifyParams{})
+		assert.EqualError(tt, err, transport.err.Error())
+		assert.Nil(tt, gcpKms)
+		assert.Nil(tt, job)
+	})
+
+	t.Run("WhenResponseOKIsNotNil_ThenReturnEmptyGcpKms", func(tt *testing.T) {
+		transport := &mockTransport{response: &security.GcpKmsModifyOK{}}
+		securityAPI := security.New(transport, nil)
+		client := &securityClient{api: &securityAPI}
+		gcpKms, job, err := client.GcpKmsModify(&GcpKmsModifyParams{})
+		assert.NoError(tt, err)
+		assert.NotNil(tt, gcpKms)
+		assert.Nil(tt, job)
+	})
+}

@@ -83,6 +83,7 @@ type (
 
 		GetAccount(ctx context.Context, name string) (*datamodel.Account, error)
 		CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error)
+		GetAccountByUUID(ctx context.Context, uuid string) (*datamodel.Account, error)
 
 		CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error)
 		DeleteJob(ctx context.Context, id, errorDetails string) error
@@ -162,6 +163,7 @@ type (
 		UpdateServiceAccountEmailAndKey(ctx context.Context, uuid string, email string, key string) (*datamodel.ServiceAccount, error)
 		UpdateServiceAccountState(ctx context.Context, uuid string, state string, stateDetails string) (*datamodel.ServiceAccount, error)
 		GetServiceAccountFromEmail(ctx context.Context, email string) (*datamodel.ServiceAccount, error)
+		ListKmsServiceAccounts(ctx context.Context, filter *dbutils.Filter) ([]*datamodel.ServiceAccount, error)
 
 		GetBackupVaultByNameAndOwnerID(ctx context.Context, backupVaultName, ownerID string) (*datamodel.BackupVault, error)
 		CreatingBackupVault(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error)

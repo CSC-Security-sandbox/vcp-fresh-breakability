@@ -16,6 +16,11 @@ func (d *DataStoreRepository) GetAccount(ctx context.Context, name string) (*dat
 	return getAccount(d.db.GORM().WithContext(ctx), &datamodel.Account{Name: name})
 }
 
+// GetAccount retrieves an account by its uuid
+func (d *DataStoreRepository) GetAccountByUUID(ctx context.Context, uuid string) (*datamodel.Account, error) {
+	return getAccount(d.db.GORM().WithContext(ctx), &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: uuid}})
+}
+
 // CreateAccount creates a new account in the database
 func (d *DataStoreRepository) CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error) {
 	return createAccount(d.db.GORM().WithContext(ctx), account)

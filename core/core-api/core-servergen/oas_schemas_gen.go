@@ -121,6 +121,635 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
 
+// Gcp customer managed encryption key configuration.
+// Ref: #/components/schemas/GcpKmsConfig_v1
+type GcpKmsConfigV1 struct {
+	// UUID v4 used to identify the gcp kms configuration.
+	UUID    OptString `json:"uuid"`
+	Network OptString `json:"network"`
+	// Service account email which will have access to key throgh google iam policy.
+	ServiceAccountEmail OptString `json:"serviceAccountEmail"`
+	// Location where volumes would be encrypted using this key config.
+	KeyRing OptString `json:"keyRing"`
+	// Location of the key ring.
+	KeyRingLocation OptString `json:"keyRingLocation"`
+	// Name of the kms key.
+	KeyName OptString `json:"keyName"`
+	// Project ID of project where the key to be used for encryption is residing.
+	KeyProjectID OptString `json:"keyProjectID"`
+	// The state of the config.
+	State OptGcpKmsConfigV1State `json:"state"`
+	// Error creating service account.
+	StateDetails OptString `json:"stateDetails"`
+	// Instructions to provide the access to encryption key.
+	Instructions OptString `json:"instructions"`
+	// Jobs currently ongoing for this config.
+	Jobs []JobV1 `json:"jobs"`
+	// Description of the gcpKmsConfig.
+	Description OptString `json:"description"`
+	// Creation date of the resource.
+	CreatedAt OptDateTime `json:"createdAt"`
+	// Date of last update of the resource.
+	UpdatedAt OptDateTime `json:"updatedAt"`
+	// Date the resource was deleted.
+	DeletedAt OptDateTime `json:"deletedAt"`
+	// Resource ID for kms config.
+	ResourceId OptString `json:"resourceId"`
+}
+
+// GetUUID returns the value of UUID.
+func (s *GcpKmsConfigV1) GetUUID() OptString {
+	return s.UUID
+}
+
+// GetNetwork returns the value of Network.
+func (s *GcpKmsConfigV1) GetNetwork() OptString {
+	return s.Network
+}
+
+// GetServiceAccountEmail returns the value of ServiceAccountEmail.
+func (s *GcpKmsConfigV1) GetServiceAccountEmail() OptString {
+	return s.ServiceAccountEmail
+}
+
+// GetKeyRing returns the value of KeyRing.
+func (s *GcpKmsConfigV1) GetKeyRing() OptString {
+	return s.KeyRing
+}
+
+// GetKeyRingLocation returns the value of KeyRingLocation.
+func (s *GcpKmsConfigV1) GetKeyRingLocation() OptString {
+	return s.KeyRingLocation
+}
+
+// GetKeyName returns the value of KeyName.
+func (s *GcpKmsConfigV1) GetKeyName() OptString {
+	return s.KeyName
+}
+
+// GetKeyProjectID returns the value of KeyProjectID.
+func (s *GcpKmsConfigV1) GetKeyProjectID() OptString {
+	return s.KeyProjectID
+}
+
+// GetState returns the value of State.
+func (s *GcpKmsConfigV1) GetState() OptGcpKmsConfigV1State {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *GcpKmsConfigV1) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// GetInstructions returns the value of Instructions.
+func (s *GcpKmsConfigV1) GetInstructions() OptString {
+	return s.Instructions
+}
+
+// GetJobs returns the value of Jobs.
+func (s *GcpKmsConfigV1) GetJobs() []JobV1 {
+	return s.Jobs
+}
+
+// GetDescription returns the value of Description.
+func (s *GcpKmsConfigV1) GetDescription() OptString {
+	return s.Description
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *GcpKmsConfigV1) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *GcpKmsConfigV1) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetDeletedAt returns the value of DeletedAt.
+func (s *GcpKmsConfigV1) GetDeletedAt() OptDateTime {
+	return s.DeletedAt
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *GcpKmsConfigV1) GetResourceId() OptString {
+	return s.ResourceId
+}
+
+// SetUUID sets the value of UUID.
+func (s *GcpKmsConfigV1) SetUUID(val OptString) {
+	s.UUID = val
+}
+
+// SetNetwork sets the value of Network.
+func (s *GcpKmsConfigV1) SetNetwork(val OptString) {
+	s.Network = val
+}
+
+// SetServiceAccountEmail sets the value of ServiceAccountEmail.
+func (s *GcpKmsConfigV1) SetServiceAccountEmail(val OptString) {
+	s.ServiceAccountEmail = val
+}
+
+// SetKeyRing sets the value of KeyRing.
+func (s *GcpKmsConfigV1) SetKeyRing(val OptString) {
+	s.KeyRing = val
+}
+
+// SetKeyRingLocation sets the value of KeyRingLocation.
+func (s *GcpKmsConfigV1) SetKeyRingLocation(val OptString) {
+	s.KeyRingLocation = val
+}
+
+// SetKeyName sets the value of KeyName.
+func (s *GcpKmsConfigV1) SetKeyName(val OptString) {
+	s.KeyName = val
+}
+
+// SetKeyProjectID sets the value of KeyProjectID.
+func (s *GcpKmsConfigV1) SetKeyProjectID(val OptString) {
+	s.KeyProjectID = val
+}
+
+// SetState sets the value of State.
+func (s *GcpKmsConfigV1) SetState(val OptGcpKmsConfigV1State) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *GcpKmsConfigV1) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+// SetInstructions sets the value of Instructions.
+func (s *GcpKmsConfigV1) SetInstructions(val OptString) {
+	s.Instructions = val
+}
+
+// SetJobs sets the value of Jobs.
+func (s *GcpKmsConfigV1) SetJobs(val []JobV1) {
+	s.Jobs = val
+}
+
+// SetDescription sets the value of Description.
+func (s *GcpKmsConfigV1) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *GcpKmsConfigV1) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *GcpKmsConfigV1) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetDeletedAt sets the value of DeletedAt.
+func (s *GcpKmsConfigV1) SetDeletedAt(val OptDateTime) {
+	s.DeletedAt = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *GcpKmsConfigV1) SetResourceId(val OptString) {
+	s.ResourceId = val
+}
+
+func (*GcpKmsConfigV1) v1RotateGcpKmsConfigRes() {}
+
+// The state of the config.
+type GcpKmsConfigV1State string
+
+const (
+	GcpKmsConfigV1StateSTATEUNSPECIFIED    GcpKmsConfigV1State = "STATE_UNSPECIFIED"
+	GcpKmsConfigV1StateCREATING            GcpKmsConfigV1State = "CREATING"
+	GcpKmsConfigV1StateREADY               GcpKmsConfigV1State = "READY"
+	GcpKmsConfigV1StateUPDATING            GcpKmsConfigV1State = "UPDATING"
+	GcpKmsConfigV1StateINUSE               GcpKmsConfigV1State = "IN_USE"
+	GcpKmsConfigV1StateDELETING            GcpKmsConfigV1State = "DELETING"
+	GcpKmsConfigV1StateERROR               GcpKmsConfigV1State = "ERROR"
+	GcpKmsConfigV1StateKEYSTATEUNSPECIFIED GcpKmsConfigV1State = "KEY_STATE_UNSPECIFIED"
+	GcpKmsConfigV1StateKEYCHECKPENDING     GcpKmsConfigV1State = "KEY_CHECK_PENDING"
+	GcpKmsConfigV1StateKEYNOTREACHABLE     GcpKmsConfigV1State = "KEY_NOT_REACHABLE"
+	GcpKmsConfigV1StateDISABLING           GcpKmsConfigV1State = "DISABLING"
+	GcpKmsConfigV1StateDISABLED            GcpKmsConfigV1State = "DISABLED"
+	GcpKmsConfigV1StateDELETED             GcpKmsConfigV1State = "DELETED"
+	GcpKmsConfigV1StateMIGRATING           GcpKmsConfigV1State = "MIGRATING"
+)
+
+// AllValues returns all GcpKmsConfigV1State values.
+func (GcpKmsConfigV1State) AllValues() []GcpKmsConfigV1State {
+	return []GcpKmsConfigV1State{
+		GcpKmsConfigV1StateSTATEUNSPECIFIED,
+		GcpKmsConfigV1StateCREATING,
+		GcpKmsConfigV1StateREADY,
+		GcpKmsConfigV1StateUPDATING,
+		GcpKmsConfigV1StateINUSE,
+		GcpKmsConfigV1StateDELETING,
+		GcpKmsConfigV1StateERROR,
+		GcpKmsConfigV1StateKEYSTATEUNSPECIFIED,
+		GcpKmsConfigV1StateKEYCHECKPENDING,
+		GcpKmsConfigV1StateKEYNOTREACHABLE,
+		GcpKmsConfigV1StateDISABLING,
+		GcpKmsConfigV1StateDISABLED,
+		GcpKmsConfigV1StateDELETED,
+		GcpKmsConfigV1StateMIGRATING,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s GcpKmsConfigV1State) MarshalText() ([]byte, error) {
+	switch s {
+	case GcpKmsConfigV1StateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case GcpKmsConfigV1StateCREATING:
+		return []byte(s), nil
+	case GcpKmsConfigV1StateREADY:
+		return []byte(s), nil
+	case GcpKmsConfigV1StateUPDATING:
+		return []byte(s), nil
+	case GcpKmsConfigV1StateINUSE:
+		return []byte(s), nil
+	case GcpKmsConfigV1StateDELETING:
+		return []byte(s), nil
+	case GcpKmsConfigV1StateERROR:
+		return []byte(s), nil
+	case GcpKmsConfigV1StateKEYSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case GcpKmsConfigV1StateKEYCHECKPENDING:
+		return []byte(s), nil
+	case GcpKmsConfigV1StateKEYNOTREACHABLE:
+		return []byte(s), nil
+	case GcpKmsConfigV1StateDISABLING:
+		return []byte(s), nil
+	case GcpKmsConfigV1StateDISABLED:
+		return []byte(s), nil
+	case GcpKmsConfigV1StateDELETED:
+		return []byte(s), nil
+	case GcpKmsConfigV1StateMIGRATING:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *GcpKmsConfigV1State) UnmarshalText(data []byte) error {
+	switch GcpKmsConfigV1State(data) {
+	case GcpKmsConfigV1StateSTATEUNSPECIFIED:
+		*s = GcpKmsConfigV1StateSTATEUNSPECIFIED
+		return nil
+	case GcpKmsConfigV1StateCREATING:
+		*s = GcpKmsConfigV1StateCREATING
+		return nil
+	case GcpKmsConfigV1StateREADY:
+		*s = GcpKmsConfigV1StateREADY
+		return nil
+	case GcpKmsConfigV1StateUPDATING:
+		*s = GcpKmsConfigV1StateUPDATING
+		return nil
+	case GcpKmsConfigV1StateINUSE:
+		*s = GcpKmsConfigV1StateINUSE
+		return nil
+	case GcpKmsConfigV1StateDELETING:
+		*s = GcpKmsConfigV1StateDELETING
+		return nil
+	case GcpKmsConfigV1StateERROR:
+		*s = GcpKmsConfigV1StateERROR
+		return nil
+	case GcpKmsConfigV1StateKEYSTATEUNSPECIFIED:
+		*s = GcpKmsConfigV1StateKEYSTATEUNSPECIFIED
+		return nil
+	case GcpKmsConfigV1StateKEYCHECKPENDING:
+		*s = GcpKmsConfigV1StateKEYCHECKPENDING
+		return nil
+	case GcpKmsConfigV1StateKEYNOTREACHABLE:
+		*s = GcpKmsConfigV1StateKEYNOTREACHABLE
+		return nil
+	case GcpKmsConfigV1StateDISABLING:
+		*s = GcpKmsConfigV1StateDISABLING
+		return nil
+	case GcpKmsConfigV1StateDISABLED:
+		*s = GcpKmsConfigV1StateDISABLED
+		return nil
+	case GcpKmsConfigV1StateDELETED:
+		*s = GcpKmsConfigV1StateDELETED
+		return nil
+	case GcpKmsConfigV1StateMIGRATING:
+		*s = GcpKmsConfigV1StateMIGRATING
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/GcpKmsKeyRotate_v1
+type GcpKmsKeyRotateV1 struct {
+	// UUID v4 used to identify the account.
+	OwnerID string `json:"ownerID"`
+}
+
+// GetOwnerID returns the value of OwnerID.
+func (s *GcpKmsKeyRotateV1) GetOwnerID() string {
+	return s.OwnerID
+}
+
+// SetOwnerID sets the value of OwnerID.
+func (s *GcpKmsKeyRotateV1) SetOwnerID(val string) {
+	s.OwnerID = val
+}
+
+// Ref: #/components/schemas/Job_v1
+type JobV1 struct {
+	// UUID v4 used to identify the job.
+	JobId OptString `json:"jobId"`
+	// Creation date of the resource.
+	Created OptDateTime `json:"created"`
+	// UUID v4 used to identify the worker performing the job.
+	WorkerId OptString `json:"workerId"`
+	// UUID v4 used to identify the object to which the job relates.
+	ObjectId OptString `json:"objectId"`
+	// The type of the object to which the job relates.
+	ObjectType OptJobV1ObjectType `json:"objectType"`
+	// The type of action that the job is performing.
+	Action OptJobV1Action `json:"action"`
+	// The state of the job.
+	State OptJobV1State `json:"state"`
+	// Details about the current job state.
+	StateDetails OptString `json:"stateDetails"`
+}
+
+// GetJobId returns the value of JobId.
+func (s *JobV1) GetJobId() OptString {
+	return s.JobId
+}
+
+// GetCreated returns the value of Created.
+func (s *JobV1) GetCreated() OptDateTime {
+	return s.Created
+}
+
+// GetWorkerId returns the value of WorkerId.
+func (s *JobV1) GetWorkerId() OptString {
+	return s.WorkerId
+}
+
+// GetObjectId returns the value of ObjectId.
+func (s *JobV1) GetObjectId() OptString {
+	return s.ObjectId
+}
+
+// GetObjectType returns the value of ObjectType.
+func (s *JobV1) GetObjectType() OptJobV1ObjectType {
+	return s.ObjectType
+}
+
+// GetAction returns the value of Action.
+func (s *JobV1) GetAction() OptJobV1Action {
+	return s.Action
+}
+
+// GetState returns the value of State.
+func (s *JobV1) GetState() OptJobV1State {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *JobV1) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// SetJobId sets the value of JobId.
+func (s *JobV1) SetJobId(val OptString) {
+	s.JobId = val
+}
+
+// SetCreated sets the value of Created.
+func (s *JobV1) SetCreated(val OptDateTime) {
+	s.Created = val
+}
+
+// SetWorkerId sets the value of WorkerId.
+func (s *JobV1) SetWorkerId(val OptString) {
+	s.WorkerId = val
+}
+
+// SetObjectId sets the value of ObjectId.
+func (s *JobV1) SetObjectId(val OptString) {
+	s.ObjectId = val
+}
+
+// SetObjectType sets the value of ObjectType.
+func (s *JobV1) SetObjectType(val OptJobV1ObjectType) {
+	s.ObjectType = val
+}
+
+// SetAction sets the value of Action.
+func (s *JobV1) SetAction(val OptJobV1Action) {
+	s.Action = val
+}
+
+// SetState sets the value of State.
+func (s *JobV1) SetState(val OptJobV1State) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *JobV1) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+// The type of action that the job is performing.
+type JobV1Action string
+
+const (
+	JobV1ActionCreate     JobV1Action = "create"
+	JobV1ActionUpdate     JobV1Action = "update"
+	JobV1ActionDelete     JobV1Action = "delete"
+	JobV1ActionRestore    JobV1Action = "restore"
+	JobV1ActionInitialize JobV1Action = "initialize"
+	JobV1ActionBreak      JobV1Action = "break"
+	JobV1ActionResync     JobV1Action = "resync"
+	JobV1ActionMount      JobV1Action = "mount"
+)
+
+// AllValues returns all JobV1Action values.
+func (JobV1Action) AllValues() []JobV1Action {
+	return []JobV1Action{
+		JobV1ActionCreate,
+		JobV1ActionUpdate,
+		JobV1ActionDelete,
+		JobV1ActionRestore,
+		JobV1ActionInitialize,
+		JobV1ActionBreak,
+		JobV1ActionResync,
+		JobV1ActionMount,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s JobV1Action) MarshalText() ([]byte, error) {
+	switch s {
+	case JobV1ActionCreate:
+		return []byte(s), nil
+	case JobV1ActionUpdate:
+		return []byte(s), nil
+	case JobV1ActionDelete:
+		return []byte(s), nil
+	case JobV1ActionRestore:
+		return []byte(s), nil
+	case JobV1ActionInitialize:
+		return []byte(s), nil
+	case JobV1ActionBreak:
+		return []byte(s), nil
+	case JobV1ActionResync:
+		return []byte(s), nil
+	case JobV1ActionMount:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *JobV1Action) UnmarshalText(data []byte) error {
+	switch JobV1Action(data) {
+	case JobV1ActionCreate:
+		*s = JobV1ActionCreate
+		return nil
+	case JobV1ActionUpdate:
+		*s = JobV1ActionUpdate
+		return nil
+	case JobV1ActionDelete:
+		*s = JobV1ActionDelete
+		return nil
+	case JobV1ActionRestore:
+		*s = JobV1ActionRestore
+		return nil
+	case JobV1ActionInitialize:
+		*s = JobV1ActionInitialize
+		return nil
+	case JobV1ActionBreak:
+		*s = JobV1ActionBreak
+		return nil
+	case JobV1ActionResync:
+		*s = JobV1ActionResync
+		return nil
+	case JobV1ActionMount:
+		*s = JobV1ActionMount
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The type of the object to which the job relates.
+type JobV1ObjectType string
+
+const (
+	JobV1ObjectTypeVolume      JobV1ObjectType = "Volume"
+	JobV1ObjectTypeSnapshot    JobV1ObjectType = "Snapshot"
+	JobV1ObjectTypeMountTarget JobV1ObjectType = "MountTarget"
+	JobV1ObjectTypeBackup      JobV1ObjectType = "Backup"
+)
+
+// AllValues returns all JobV1ObjectType values.
+func (JobV1ObjectType) AllValues() []JobV1ObjectType {
+	return []JobV1ObjectType{
+		JobV1ObjectTypeVolume,
+		JobV1ObjectTypeSnapshot,
+		JobV1ObjectTypeMountTarget,
+		JobV1ObjectTypeBackup,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s JobV1ObjectType) MarshalText() ([]byte, error) {
+	switch s {
+	case JobV1ObjectTypeVolume:
+		return []byte(s), nil
+	case JobV1ObjectTypeSnapshot:
+		return []byte(s), nil
+	case JobV1ObjectTypeMountTarget:
+		return []byte(s), nil
+	case JobV1ObjectTypeBackup:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *JobV1ObjectType) UnmarshalText(data []byte) error {
+	switch JobV1ObjectType(data) {
+	case JobV1ObjectTypeVolume:
+		*s = JobV1ObjectTypeVolume
+		return nil
+	case JobV1ObjectTypeSnapshot:
+		*s = JobV1ObjectTypeSnapshot
+		return nil
+	case JobV1ObjectTypeMountTarget:
+		*s = JobV1ObjectTypeMountTarget
+		return nil
+	case JobV1ObjectTypeBackup:
+		*s = JobV1ObjectTypeBackup
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The state of the job.
+type JobV1State string
+
+const (
+	JobV1StateOngoing JobV1State = "ongoing"
+	JobV1StateDone    JobV1State = "done"
+	JobV1StateError   JobV1State = "error"
+)
+
+// AllValues returns all JobV1State values.
+func (JobV1State) AllValues() []JobV1State {
+	return []JobV1State{
+		JobV1StateOngoing,
+		JobV1StateDone,
+		JobV1StateError,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s JobV1State) MarshalText() ([]byte, error) {
+	switch s {
+	case JobV1StateOngoing:
+		return []byte(s), nil
+	case JobV1StateDone:
+		return []byte(s), nil
+	case JobV1StateError:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *JobV1State) UnmarshalText(data []byte) error {
+	switch JobV1State(data) {
+	case JobV1StateOngoing:
+		*s = JobV1StateOngoing
+		return nil
+	case JobV1StateDone:
+		*s = JobV1StateDone
+		return nil
+	case JobV1StateError:
+		*s = JobV1StateError
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/Operation_v1
 type OperationV1 struct {
 	// The full resource name of the operation.
@@ -366,6 +995,190 @@ func (o OptFloat64) Get() (v float64, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFloat64) Or(d float64) float64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptGcpKmsConfigV1State returns new OptGcpKmsConfigV1State with value set to v.
+func NewOptGcpKmsConfigV1State(v GcpKmsConfigV1State) OptGcpKmsConfigV1State {
+	return OptGcpKmsConfigV1State{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptGcpKmsConfigV1State is optional GcpKmsConfigV1State.
+type OptGcpKmsConfigV1State struct {
+	Value GcpKmsConfigV1State
+	Set   bool
+}
+
+// IsSet returns true if OptGcpKmsConfigV1State was set.
+func (o OptGcpKmsConfigV1State) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptGcpKmsConfigV1State) Reset() {
+	var v GcpKmsConfigV1State
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptGcpKmsConfigV1State) SetTo(v GcpKmsConfigV1State) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptGcpKmsConfigV1State) Get() (v GcpKmsConfigV1State, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptGcpKmsConfigV1State) Or(d GcpKmsConfigV1State) GcpKmsConfigV1State {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptJobV1Action returns new OptJobV1Action with value set to v.
+func NewOptJobV1Action(v JobV1Action) OptJobV1Action {
+	return OptJobV1Action{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptJobV1Action is optional JobV1Action.
+type OptJobV1Action struct {
+	Value JobV1Action
+	Set   bool
+}
+
+// IsSet returns true if OptJobV1Action was set.
+func (o OptJobV1Action) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptJobV1Action) Reset() {
+	var v JobV1Action
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptJobV1Action) SetTo(v JobV1Action) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptJobV1Action) Get() (v JobV1Action, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptJobV1Action) Or(d JobV1Action) JobV1Action {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptJobV1ObjectType returns new OptJobV1ObjectType with value set to v.
+func NewOptJobV1ObjectType(v JobV1ObjectType) OptJobV1ObjectType {
+	return OptJobV1ObjectType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptJobV1ObjectType is optional JobV1ObjectType.
+type OptJobV1ObjectType struct {
+	Value JobV1ObjectType
+	Set   bool
+}
+
+// IsSet returns true if OptJobV1ObjectType was set.
+func (o OptJobV1ObjectType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptJobV1ObjectType) Reset() {
+	var v JobV1ObjectType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptJobV1ObjectType) SetTo(v JobV1ObjectType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptJobV1ObjectType) Get() (v JobV1ObjectType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptJobV1ObjectType) Or(d JobV1ObjectType) JobV1ObjectType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptJobV1State returns new OptJobV1State with value set to v.
+func NewOptJobV1State(v JobV1State) OptJobV1State {
+	return OptJobV1State{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptJobV1State is optional JobV1State.
+type OptJobV1State struct {
+	Value JobV1State
+	Set   bool
+}
+
+// IsSet returns true if OptJobV1State was set.
+func (o OptJobV1State) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptJobV1State) Reset() {
+	var v JobV1State
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptJobV1State) SetTo(v JobV1State) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptJobV1State) Get() (v JobV1State, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptJobV1State) Or(d JobV1State) JobV1State {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -2401,6 +3214,38 @@ func (*V1ListPoolsTooManyRequests) v1ListPoolsRes() {}
 type V1ListPoolsUnauthorized Error
 
 func (*V1ListPoolsUnauthorized) v1ListPoolsRes() {}
+
+type V1RotateGcpKmsConfigBadRequest Error
+
+func (*V1RotateGcpKmsConfigBadRequest) v1RotateGcpKmsConfigRes() {}
+
+type V1RotateGcpKmsConfigConflict Error
+
+func (*V1RotateGcpKmsConfigConflict) v1RotateGcpKmsConfigRes() {}
+
+type V1RotateGcpKmsConfigForbidden Error
+
+func (*V1RotateGcpKmsConfigForbidden) v1RotateGcpKmsConfigRes() {}
+
+type V1RotateGcpKmsConfigInternalServerError Error
+
+func (*V1RotateGcpKmsConfigInternalServerError) v1RotateGcpKmsConfigRes() {}
+
+type V1RotateGcpKmsConfigNotFound Error
+
+func (*V1RotateGcpKmsConfigNotFound) v1RotateGcpKmsConfigRes() {}
+
+type V1RotateGcpKmsConfigTooManyRequests Error
+
+func (*V1RotateGcpKmsConfigTooManyRequests) v1RotateGcpKmsConfigRes() {}
+
+type V1RotateGcpKmsConfigUnauthorized Error
+
+func (*V1RotateGcpKmsConfigUnauthorized) v1RotateGcpKmsConfigRes() {}
+
+type V1RotateGcpKmsConfigUnprocessableEntity Error
+
+func (*V1RotateGcpKmsConfigUnprocessableEntity) v1RotateGcpKmsConfigRes() {}
 
 type V1UpdatePoolBadRequest Error
 

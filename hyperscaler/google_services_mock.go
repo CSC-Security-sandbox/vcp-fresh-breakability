@@ -1292,6 +1292,54 @@ func (_c *MockGoogleServices_DeleteServiceAccount_Call) RunAndReturn(run func(st
 	return _c
 }
 
+// DeleteServiceAccountKeysExcludingKey provides a mock function with given fields: ctx, email, keyToExclude
+func (_m *MockGoogleServices) DeleteServiceAccountKeysExcludingKey(ctx context.Context, email string, keyToExclude string) error {
+	ret := _m.Called(ctx, email, keyToExclude)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteServiceAccountKeysExcludingKey")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, email, keyToExclude)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockGoogleServices_DeleteServiceAccountKeysExcludingKey_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteServiceAccountKeysExcludingKey'
+type MockGoogleServices_DeleteServiceAccountKeysExcludingKey_Call struct {
+	*mock.Call
+}
+
+// DeleteServiceAccountKeysExcludingKey is a helper method to define mock.On call
+//   - ctx context.Context
+//   - email string
+//   - keyToExclude string
+func (_e *MockGoogleServices_Expecter) DeleteServiceAccountKeysExcludingKey(ctx interface{}, email interface{}, keyToExclude interface{}) *MockGoogleServices_DeleteServiceAccountKeysExcludingKey_Call {
+	return &MockGoogleServices_DeleteServiceAccountKeysExcludingKey_Call{Call: _e.mock.On("DeleteServiceAccountKeysExcludingKey", ctx, email, keyToExclude)}
+}
+
+func (_c *MockGoogleServices_DeleteServiceAccountKeysExcludingKey_Call) Run(run func(ctx context.Context, email string, keyToExclude string)) *MockGoogleServices_DeleteServiceAccountKeysExcludingKey_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteServiceAccountKeysExcludingKey_Call) Return(_a0 error) *MockGoogleServices_DeleteServiceAccountKeysExcludingKey_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockGoogleServices_DeleteServiceAccountKeysExcludingKey_Call) RunAndReturn(run func(context.Context, string, string) error) *MockGoogleServices_DeleteServiceAccountKeysExcludingKey_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAddress provides a mock function with given fields: projectName, region, address
 func (_m *MockGoogleServices) GetAddress(projectName string, region string, address string) (*models.Address, error) {
 	ret := _m.Called(projectName, region, address)

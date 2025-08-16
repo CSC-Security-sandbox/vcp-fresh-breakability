@@ -169,6 +169,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(backgroundworkflows.CreateScheduledBackupWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.DeleteScheduledBackupWorkflow)
 	worker.RegisterWorkflow(workflows.VolumeRefreshWorkflow)
+	worker.RegisterWorkflow(backgroundworkflows.RotateKmsSAKeyWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})
@@ -178,6 +179,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterActivity(&activities.BackupActivity{SE: conn})
 	worker.RegisterActivity(&backgroundactivities.ScheduledBackupActivity{SE: conn})
 	worker.RegisterActivity(&backgroundworkflows.SyncSnapshotWFRunningCheck{})
+	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: conn})
 }
 
 // initializeTemporalClient initializes and returns a TemporalWorkflowEngine client.
@@ -217,6 +219,7 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterWorkflow(kms_workflows.DeleteKmsConfigWorkflow)
 	worker.RegisterWorkflow(kms_workflows.CreateKmsConfigWorkflow)
 	worker.RegisterWorkflow(kms_workflows.MigrateKmsConfigWorkflow)
+	worker.RegisterWorkflow(kms_workflows.RotateKmsConfigWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.CreateInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.UpdateInternalVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.CreateVolumeReplicationWorkflow)
@@ -291,5 +294,6 @@ func RegisterWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.St
 	worker.RegisterActivity(&activities.BackupPolicyActivity{SE: dbcon, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&resource_events_activities.ResourceEventsActivity{SE: dbcon})
 	worker.RegisterActivity(&resource_events_activities.FinishProjectEventActivity{SE: dbcon})
+	worker.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{SE: dbcon})
 	worker.RegisterActivity(ontaprest.PollOntapJobActivity)
 }

@@ -2,21 +2,26 @@ package kms_activities
 
 import (
 	"context"
+	"gorm.io/gorm"
 	"strings"
 
 	"github.com/go-openapi/strfmt"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
+)
+
+var (
+	getOntapRestProviderForPool = _getOntapRestProviderForPool
 )
 
 func (j *KmsConfigActivity) ConfigureKmsForSvmActivity(ctx context.Context, svm *datamodel.Svm, node *coreModels.Node, params commonparams.CreatePoolParams) (*datamodel.Svm, error) {
@@ -103,7 +108,7 @@ func (j *KmsConfigActivity) GetOntapRestProviderForPoolActivity(ctx context.Cont
 	logger := util.GetLogger(ctx)
 	se := j.SE
 
-	provider, errGetProvider := backgroundactivities.GetOntapRestProviderForPool(ctx, se, pool)
+	provider, errGetProvider := getOntapRestProviderForPool(ctx, se, pool)
 	if errGetProvider != nil {
 		logger.Errorf("Failed to get provider for pool with UUID %s in VSA: %v", pool.UUID, errGetProvider)
 		return nil, errGetProvider
@@ -134,4 +139,29 @@ func (j *KmsConfigActivity) DeleteEkmConfigActivity(ctx context.Context, node *c
 		return errDelete
 	}
 	return nil
+}
+
+func _getOntapRestProviderForPool(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+	nodes, err := se.GetNodesByPoolID(ctx, pool.ID)
+	if err != nil {
+		if vsaerrors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, err)
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		Nodes:          nodes,
+		Password:       pool.PoolCredentials.Password,
+		SecretID:       pool.PoolCredentials.SecretID,
+		CertificateID:  pool.PoolCredentials.CertificateID,
+		DeploymentName: pool.DeploymentName,
+		AuthType:       pool.PoolCredentials.AuthType,
+	})
+
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return provider, nil
 }

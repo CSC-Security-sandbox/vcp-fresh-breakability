@@ -49,64 +49,123 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/v1/pools"
+		case '/': // Prefix: "/v1/"
 
-			if l := len("/v1/pools"); len(elem) >= l && elem[0:l] == "/v1/pools" {
+			if l := len("/v1/"); len(elem) >= l && elem[0:l] == "/v1/" {
 				elem = elem[l:]
 			} else {
 				break
 			}
 
 			if len(elem) == 0 {
-				switch r.Method {
-				case "GET":
-					s.handleV1ListPoolsRequest([0]string{}, elemIsEscaped, w, r)
-				case "POST":
-					s.handleV1CreatePoolRequest([0]string{}, elemIsEscaped, w, r)
-				default:
-					s.notAllowed(w, r, "GET,POST")
-				}
-
-				return
+				break
 			}
 			switch elem[0] {
-			case '/': // Prefix: "/"
+			case 'S': // Prefix: "Storage/GcpKmsConfig/"
 
-				if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+				if l := len("Storage/GcpKmsConfig/"); len(elem) >= l && elem[0:l] == "Storage/GcpKmsConfig/" {
 					elem = elem[l:]
 				} else {
 					break
 				}
 
-				// Param: "poolId"
-				// Leaf parameter, slashes are prohibited
+				// Param: "uuid"
+				// Match until "/"
 				idx := strings.IndexByte(elem, '/')
-				if idx >= 0 {
-					break
+				if idx < 0 {
+					idx = len(elem)
 				}
-				args[0] = elem
-				elem = ""
+				args[0] = elem[:idx]
+				elem = elem[idx:]
 
 				if len(elem) == 0 {
-					// Leaf node.
+					break
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/RotateServiceAccountKey"
+
+					if l := len("/RotateServiceAccountKey"); len(elem) >= l && elem[0:l] == "/RotateServiceAccountKey" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "POST":
+							s.handleV1RotateGcpKmsConfigRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, "POST")
+						}
+
+						return
+					}
+
+				}
+
+			case 'p': // Prefix: "pools"
+
+				if l := len("pools"); len(elem) >= l && elem[0:l] == "pools" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
 					switch r.Method {
-					case "DELETE":
-						s.handleV1DeletePoolRequest([1]string{
-							args[0],
-						}, elemIsEscaped, w, r)
 					case "GET":
-						s.handleV1GetPoolRequest([1]string{
-							args[0],
-						}, elemIsEscaped, w, r)
-					case "PUT":
-						s.handleV1UpdatePoolRequest([1]string{
-							args[0],
-						}, elemIsEscaped, w, r)
+						s.handleV1ListPoolsRequest([0]string{}, elemIsEscaped, w, r)
+					case "POST":
+						s.handleV1CreatePoolRequest([0]string{}, elemIsEscaped, w, r)
 					default:
-						s.notAllowed(w, r, "DELETE,GET,PUT")
+						s.notAllowed(w, r, "GET,POST")
 					}
 
 					return
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/"
+
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "poolId"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
+						break
+					}
+					args[0] = elem
+					elem = ""
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch r.Method {
+						case "DELETE":
+							s.handleV1DeletePoolRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						case "GET":
+							s.handleV1GetPoolRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						case "PUT":
+							s.handleV1UpdatePoolRequest([1]string{
+								args[0],
+							}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, "DELETE,GET,PUT")
+						}
+
+						return
+					}
+
 				}
 
 			}
@@ -191,84 +250,145 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 			break
 		}
 		switch elem[0] {
-		case '/': // Prefix: "/v1/pools"
+		case '/': // Prefix: "/v1/"
 
-			if l := len("/v1/pools"); len(elem) >= l && elem[0:l] == "/v1/pools" {
+			if l := len("/v1/"); len(elem) >= l && elem[0:l] == "/v1/" {
 				elem = elem[l:]
 			} else {
 				break
 			}
 
 			if len(elem) == 0 {
-				switch method {
-				case "GET":
-					r.name = V1ListPoolsOperation
-					r.summary = "List all pools"
-					r.operationID = "v1_listPools"
-					r.pathPattern = "/v1/pools"
-					r.args = args
-					r.count = 0
-					return r, true
-				case "POST":
-					r.name = V1CreatePoolOperation
-					r.summary = "Create a new pool"
-					r.operationID = "v1_createPool"
-					r.pathPattern = "/v1/pools"
-					r.args = args
-					r.count = 0
-					return r, true
-				default:
-					return
-				}
+				break
 			}
 			switch elem[0] {
-			case '/': // Prefix: "/"
+			case 'S': // Prefix: "Storage/GcpKmsConfig/"
 
-				if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+				if l := len("Storage/GcpKmsConfig/"); len(elem) >= l && elem[0:l] == "Storage/GcpKmsConfig/" {
 					elem = elem[l:]
 				} else {
 					break
 				}
 
-				// Param: "poolId"
-				// Leaf parameter, slashes are prohibited
+				// Param: "uuid"
+				// Match until "/"
 				idx := strings.IndexByte(elem, '/')
-				if idx >= 0 {
-					break
+				if idx < 0 {
+					idx = len(elem)
 				}
-				args[0] = elem
-				elem = ""
+				args[0] = elem[:idx]
+				elem = elem[idx:]
 
 				if len(elem) == 0 {
-					// Leaf node.
+					break
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/RotateServiceAccountKey"
+
+					if l := len("/RotateServiceAccountKey"); len(elem) >= l && elem[0:l] == "/RotateServiceAccountKey" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "POST":
+							r.name = V1RotateGcpKmsConfigOperation
+							r.summary = "Rotate gcp kms config service account key"
+							r.operationID = "v1_rotateGcpKmsConfig"
+							r.pathPattern = "/v1/Storage/GcpKmsConfig/{uuid}/RotateServiceAccountKey"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+
+				}
+
+			case 'p': // Prefix: "pools"
+
+				if l := len("pools"); len(elem) >= l && elem[0:l] == "pools" {
+					elem = elem[l:]
+				} else {
+					break
+				}
+
+				if len(elem) == 0 {
 					switch method {
-					case "DELETE":
-						r.name = V1DeletePoolOperation
-						r.summary = "Delete a storage pool"
-						r.operationID = "v1_deletePool"
-						r.pathPattern = "/v1/pools/{poolId}"
-						r.args = args
-						r.count = 1
-						return r, true
 					case "GET":
-						r.name = V1GetPoolOperation
-						r.summary = "Describe a pool"
-						r.operationID = "v1_getPool"
-						r.pathPattern = "/v1/pools/{poolId}"
+						r.name = V1ListPoolsOperation
+						r.summary = "List all pools"
+						r.operationID = "v1_listPools"
+						r.pathPattern = "/v1/pools"
 						r.args = args
-						r.count = 1
+						r.count = 0
 						return r, true
-					case "PUT":
-						r.name = V1UpdatePoolOperation
-						r.summary = "Update a pool"
-						r.operationID = "v1_updatePool"
-						r.pathPattern = "/v1/pools/{poolId}"
+					case "POST":
+						r.name = V1CreatePoolOperation
+						r.summary = "Create a new pool"
+						r.operationID = "v1_createPool"
+						r.pathPattern = "/v1/pools"
 						r.args = args
-						r.count = 1
+						r.count = 0
 						return r, true
 					default:
 						return
 					}
+				}
+				switch elem[0] {
+				case '/': // Prefix: "/"
+
+					if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "poolId"
+					// Leaf parameter, slashes are prohibited
+					idx := strings.IndexByte(elem, '/')
+					if idx >= 0 {
+						break
+					}
+					args[0] = elem
+					elem = ""
+
+					if len(elem) == 0 {
+						// Leaf node.
+						switch method {
+						case "DELETE":
+							r.name = V1DeletePoolOperation
+							r.summary = "Delete a storage pool"
+							r.operationID = "v1_deletePool"
+							r.pathPattern = "/v1/pools/{poolId}"
+							r.args = args
+							r.count = 1
+							return r, true
+						case "GET":
+							r.name = V1GetPoolOperation
+							r.summary = "Describe a pool"
+							r.operationID = "v1_getPool"
+							r.pathPattern = "/v1/pools/{poolId}"
+							r.args = args
+							r.count = 1
+							return r, true
+						case "PUT":
+							r.name = V1UpdatePoolOperation
+							r.summary = "Update a pool"
+							r.operationID = "v1_updatePool"
+							r.pathPattern = "/v1/pools/{poolId}"
+							r.args = args
+							r.count = 1
+							return r, true
+						default:
+							return
+						}
+					}
+
 				}
 
 			}

@@ -17,6 +17,10 @@ type V1ListPoolsRes interface {
 	v1ListPoolsRes()
 }
 
+type V1RotateGcpKmsConfigRes interface {
+	v1RotateGcpKmsConfigRes()
+}
+
 type V1UpdatePoolRes interface {
 	v1UpdatePoolRes()
 }

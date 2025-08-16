@@ -924,6 +924,26 @@ func (re *retryEngine) CreateAccount(ctx context.Context, account *datamodel.Acc
 	return var0, err
 }
 
+func (re *retryEngine) GetAccountByUUID(ctx context.Context, uuid string) (*datamodel.Account, error) {
+	var var0 *datamodel.Account
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetAccountByUUID(ctx, uuid)
+		if err != nil {
+			re.logError("GetAccountByUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
 func (re *retryEngine) CreateJob(ctx context.Context, job *datamodel.Job) (*datamodel.Job, error) {
 	var var0 *datamodel.Job
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -2276,6 +2296,26 @@ func (re *retryEngine) GetServiceAccountFromEmail(ctx context.Context, email str
 		var0, err = re.dataStore.GetServiceAccountFromEmail(ctx, email)
 		if err != nil {
 			re.logError("GetServiceAccountFromEmail", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	if dbutils.IsTransientErr(err) {
+		err = errors.NewTransientErr("Internal error. Please try again later.")
+	}
+
+	return var0, err
+}
+
+func (re *retryEngine) ListKmsServiceAccounts(ctx context.Context, filter *dbutils.Filter) ([]*datamodel.ServiceAccount, error) {
+	var var0 []*datamodel.ServiceAccount
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListKmsServiceAccounts(ctx, filter)
+		if err != nil {
+			re.logError("ListKmsServiceAccounts", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

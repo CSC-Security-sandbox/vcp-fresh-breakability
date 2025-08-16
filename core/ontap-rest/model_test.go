@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/snapmirror"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
@@ -1089,6 +1090,23 @@ func TestDnsCreateParamsToONTAP(t *testing.T) {
 		}
 		result := dnsCreateParamsToONTAP(params)
 		assert.NotNil(t, result)
+	})
+}
+
+func TestGcpKmsModifyParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := gcpKmsModifyParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenParamsSet", func(tt *testing.T) {
+		params := &GcpKmsModifyParams{
+			UUID:                   "uuid",
+			ApplicationCredentials: nillable.ToPointer(log.Secret("app cred")),
+		}
+
+		otParams := gcpKmsModifyParamsToONTAP(params)
+		assert.Equal(tt, "uuid", otParams.UUID)
+		assert.Equal(tt, "app cred", otParams.Info.ApplicationCredentials.String())
 	})
 }
 

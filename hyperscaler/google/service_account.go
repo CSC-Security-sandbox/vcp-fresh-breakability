@@ -140,3 +140,19 @@ func DeleteServiceAccountKeyWithRetry(ctx context.Context, c *GcpServices, keyNa
 	}
 	return nil
 }
+
+func (c *GcpServices) DeleteServiceAccountKeysExcludingKey(ctx context.Context, email, keyToExclude string) error {
+	keyList, err := listServiceAccountsKeysWithRetry(ctx, c, keyResourceUrlPrefix+email)
+	if err != nil {
+		return fmt.Errorf("Projects.ServiceAccounts.Keys.List: %v", err)
+	}
+	for _, key := range keyList.Keys {
+		if key.Name != keyToExclude && key.KeyType == "USER_MANAGED" {
+			err := deleteServiceAccountKeyWithRetry(ctx, c, key.Name)
+			if err != nil {
+				return fmt.Errorf("Projects.ServiceAccounts.Keys.Delete: %v", err)
+			}
+		}
+	}
+	return nil
+}

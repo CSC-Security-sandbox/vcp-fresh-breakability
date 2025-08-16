@@ -3158,6 +3158,21 @@ func dnsCreateParamsToONTAP(params *DNSCreateParams) *name_services.DNSCreatePar
 	return otParams
 }
 
+func gcpKmsModifyParamsToONTAP(params *GcpKmsModifyParams) *security.GcpKmsModifyParams {
+	otParams := security.NewGcpKmsModifyParams()
+	if params == nil {
+		return otParams
+	}
+
+	if params.ApplicationCredentials != nil {
+		otParams.SetInfo(&models.GcpKms{
+			ApplicationCredentials: nillable.ToPointer(strfmt.Password(*params.ApplicationCredentials)),
+		})
+	}
+	otParams.SetUUID(params.UUID)
+	return otParams
+}
+
 // =============================================================================
 // NAS Client Models and Parameters
 // =============================================================================

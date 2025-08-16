@@ -7,6 +7,8 @@ import (
 
 	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 
+	log "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+
 	mock "github.com/stretchr/testify/mock"
 
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
@@ -3327,6 +3329,74 @@ func (_c *MockProvider_LunUpdate_Call) Return(_a0 error) *MockProvider_LunUpdate
 }
 
 func (_c *MockProvider_LunUpdate_Call) RunAndReturn(run func(LunUpdateParams) error) *MockProvider_LunUpdate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ModifyGcpKms provides a mock function with given fields: externalUUID, credentials
+func (_m *MockProvider) ModifyGcpKms(externalUUID string, credentials *log.Secret) (*ontap_rest.GcpKms, *string, error) {
+	ret := _m.Called(externalUUID, credentials)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ModifyGcpKms")
+	}
+
+	var r0 *ontap_rest.GcpKms
+	var r1 *string
+	var r2 error
+	if rf, ok := ret.Get(0).(func(string, *log.Secret) (*ontap_rest.GcpKms, *string, error)); ok {
+		return rf(externalUUID, credentials)
+	}
+	if rf, ok := ret.Get(0).(func(string, *log.Secret) *ontap_rest.GcpKms); ok {
+		r0 = rf(externalUUID, credentials)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ontap_rest.GcpKms)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, *log.Secret) *string); ok {
+		r1 = rf(externalUUID, credentials)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*string)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(string, *log.Secret) error); ok {
+		r2 = rf(externalUUID, credentials)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockProvider_ModifyGcpKms_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ModifyGcpKms'
+type MockProvider_ModifyGcpKms_Call struct {
+	*mock.Call
+}
+
+// ModifyGcpKms is a helper method to define mock.On call
+//   - externalUUID string
+//   - credentials *log.Secret
+func (_e *MockProvider_Expecter) ModifyGcpKms(externalUUID interface{}, credentials interface{}) *MockProvider_ModifyGcpKms_Call {
+	return &MockProvider_ModifyGcpKms_Call{Call: _e.mock.On("ModifyGcpKms", externalUUID, credentials)}
+}
+
+func (_c *MockProvider_ModifyGcpKms_Call) Run(run func(externalUUID string, credentials *log.Secret)) *MockProvider_ModifyGcpKms_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(*log.Secret))
+	})
+	return _c
+}
+
+func (_c *MockProvider_ModifyGcpKms_Call) Return(_a0 *ontap_rest.GcpKms, _a1 *string, _a2 error) *MockProvider_ModifyGcpKms_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockProvider_ModifyGcpKms_Call) RunAndReturn(run func(string, *log.Secret) (*ontap_rest.GcpKms, *string, error)) *MockProvider_ModifyGcpKms_Call {
 	_c.Call.Return(run)
 	return _c
 }

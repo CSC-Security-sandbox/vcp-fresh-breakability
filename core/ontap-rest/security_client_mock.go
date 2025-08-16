@@ -179,6 +179,73 @@ func (_c *MockSecurityClient_GcpKmsGet_Call) RunAndReturn(run func(*GcpKmsGetPar
 	return _c
 }
 
+// GcpKmsModify provides a mock function with given fields: params
+func (_m *MockSecurityClient) GcpKmsModify(params *GcpKmsModifyParams) (*GcpKms, *JobAccepted, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GcpKmsModify")
+	}
+
+	var r0 *GcpKms
+	var r1 *JobAccepted
+	var r2 error
+	if rf, ok := ret.Get(0).(func(*GcpKmsModifyParams) (*GcpKms, *JobAccepted, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(*GcpKmsModifyParams) *GcpKms); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*GcpKms)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(*GcpKmsModifyParams) *JobAccepted); ok {
+		r1 = rf(params)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*JobAccepted)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(*GcpKmsModifyParams) error); ok {
+		r2 = rf(params)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockSecurityClient_GcpKmsModify_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GcpKmsModify'
+type MockSecurityClient_GcpKmsModify_Call struct {
+	*mock.Call
+}
+
+// GcpKmsModify is a helper method to define mock.On call
+//   - params *GcpKmsModifyParams
+func (_e *MockSecurityClient_Expecter) GcpKmsModify(params interface{}) *MockSecurityClient_GcpKmsModify_Call {
+	return &MockSecurityClient_GcpKmsModify_Call{Call: _e.mock.On("GcpKmsModify", params)}
+}
+
+func (_c *MockSecurityClient_GcpKmsModify_Call) Run(run func(params *GcpKmsModifyParams)) *MockSecurityClient_GcpKmsModify_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*GcpKmsModifyParams))
+	})
+	return _c
+}
+
+func (_c *MockSecurityClient_GcpKmsModify_Call) Return(_a0 *GcpKms, _a1 *JobAccepted, _a2 error) *MockSecurityClient_GcpKmsModify_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockSecurityClient_GcpKmsModify_Call) RunAndReturn(run func(*GcpKmsModifyParams) (*GcpKms, *JobAccepted, error)) *MockSecurityClient_GcpKmsModify_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SecurityAuditGet provides a mock function with no fields
 func (_m *MockSecurityClient) SecurityAuditGet() (*SecurityAudit, error) {
 	ret := _m.Called()

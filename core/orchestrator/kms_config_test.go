@@ -1231,12 +1231,12 @@ func TestAccessKmsCryptoKey(t *testing.T) {
 		orch := Orchestrator{storage: mockStorage}
 		ctx := context.Background()
 		kmsConfig := &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}}
-		dbKmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "test-uuid"}}
+		dbKmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "test-uuid"}, ServiceAccount: &datamodel.ServiceAccount{ServiceAccountEmail: ""}}
 
 		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(dbKmsConfig, nil)
 		origAccessCryptoKey := kms_activities.AccessCryptoKey
 		defer func() { kms_activities.AccessCryptoKey = origAccessCryptoKey }()
-		kms_activities.AccessCryptoKey = func(ctx context.Context, dbKmsConfig *datamodel.KmsConfig) error {
+		kms_activities.AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return nil
 		}
 
@@ -1262,12 +1262,12 @@ func TestAccessKmsCryptoKey(t *testing.T) {
 		orch := Orchestrator{storage: mockStorage}
 		ctx := context.Background()
 		kmsConfig := &models.KmsConfig{BaseModel: models.BaseModel{UUID: "test-uuid"}}
-		dbKmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "test-uuid"}}
+		dbKmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "test-uuid"}, ServiceAccount: &datamodel.ServiceAccount{ServiceAccountEmail: "sa.com"}}
 
 		mockStorage.On("GetKmsConfig", ctx, "test-uuid").Return(dbKmsConfig, nil)
 		origAccessCryptoKey := kms_activities.AccessCryptoKey
 		defer func() { kms_activities.AccessCryptoKey = origAccessCryptoKey }()
-		kms_activities.AccessCryptoKey = func(ctx context.Context, dbKmsConfig *datamodel.KmsConfig) error {
+		kms_activities.AccessCryptoKey = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, secretPassword string) error {
 			return errors.New("access error")
 		}
 
@@ -1815,4 +1815,140 @@ func TestConvertKmsConfigStateV1beta(t *testing.T) {
 		assert.Equal(t, "unknown_state", state)
 		assert.Equal(t, "", details)
 	})
+}
+
+func TestRotateKmsConfig_Success(t *testing.T) {
+	// Setup mocks
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+	// Test data
+	params := &common.RotateKmsConfigParams{
+		KmsConfigID:    "test-kms-config-uuid",
+		AccountName:    "test-account",
+		XCorrelationID: "test-correlation-id",
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-account",
+	}
+
+	kmsConfig := &datamodel.KmsConfig{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "test-kms-config-uuid",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		Name:              "test-kms-config",
+		Description:       "Test KMS config",
+		State:             string(cvpModels.KmsConfigV1betaKmsStateREADY),
+		StateDetails:      "Ready for use",
+		KeyRing:           "test-keyring",
+		KeyRingLocation:   "us-central1",
+		KeyName:           "test-key",
+		AccountID:         1,
+		CustomerProjectID: "customer-project",
+		KeyProjectID:      "key-project",
+		ServiceAccountID:  &[]int64{1}[0],
+		ResourceID:        "test-resource-id",
+	}
+
+	createdJob := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "test-job-uuid"},
+		WorkflowID: "test-workflow-id",
+		Type:       string(models.JobTypeRotateKmsConfig),
+		State:      string(models.JobsStateNEW),
+	}
+
+	// Mock the getAccountFromUUID function
+	originalGetAccountFromUUID := getAccountFromUUID
+	getAccountFromUUID = func(ctx context.Context, se database.Storage, accountUUID string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getAccountFromUUID = originalGetAccountFromUUID }()
+
+	// Set up expectations
+	mockStorage.On("GetKmsConfig", context.Background(), "test-kms-config-uuid").Return(kmsConfig, nil)
+	mockStorage.On("CreateJob", context.Background(), mock.Anything).Return(createdJob, nil)
+
+	mockTemporal.On("ExecuteWorkflow",
+		mock.Anything,
+		mock.Anything,
+		mock.AnythingOfType("func(internal.Context, *common.RotateKmsConfigParams) (interface {}, error)"),
+		mock.Anything,
+	).Return(nil, nil)
+
+	// Execute
+	result, job, err := rotateKmsConfig(context.Background(), mockStorage, mockTemporal, params)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.NotNil(t, job)
+	assert.Equal(t, "test-job-uuid", job.UUID)
+	
+	// Verify returned Job model
+	assert.Equal(t, models.JobTypeRotateKmsConfig, job.Type)
+	assert.Equal(t, models.JobsStateNEW, job.State)
+	assert.Equal(t, "test-workflow-id", job.WorkflowID)
+
+	// Verify returned KMS config model
+	assert.Equal(t, "test-kms-config-uuid", result.UUID)
+	assert.Equal(t, "test-kms-config", result.Name)
+	assert.Equal(t, "Test KMS config", result.Description)
+	assert.Equal(t, string(cvpModels.KmsConfigV1betaKmsStateREADY), result.State)
+	assert.Equal(t, "Kms config is ready for use", result.StateDetails)
+	assert.Equal(t, "test-keyring", result.KeyRing)
+	assert.Equal(t, "us-central1", result.KeyRingLocation)
+	assert.Equal(t, "test-key", result.KeyName)
+	assert.Equal(t, "customer-project", result.CustomerProjectID)
+	assert.Equal(t, "key-project", result.KeyProjectID)
+	assert.Equal(t, "test-resource-id", result.ResourceID)
+
+	// Verify expectations
+	mockStorage.AssertExpectations(t)
+	mockTemporal.AssertExpectations(t)
+}
+
+func TestRotateKmsConfig_AccountNotFound(t *testing.T) {
+	// Setup mocks
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+	// Test data
+	params := &common.RotateKmsConfigParams{
+		KmsConfigID: "test-kms-config-uuid",
+		AccountName: "non-existent-account",
+	}
+
+	kmsConfig := &datamodel.KmsConfig{
+		BaseModel: datamodel.BaseModel{
+			UUID: "test-kms-config-uuid",
+		},
+		State: string(cvpModels.KmsConfigV1betaKmsStateREADY),
+	}
+
+	// Set up expectations - GetKmsConfig is called first
+	mockStorage.On("GetKmsConfig", context.Background(), "test-kms-config-uuid").Return(kmsConfig, nil)
+
+	// Mock the getAccountFromUUID function to return error
+	originalGetAccountFromUUID := getAccountFromUUID
+	getAccountFromUUID = func(ctx context.Context, se database.Storage, accountUUID string) (*datamodel.Account, error) {
+		return nil, errors.NewNotFoundErr("account not found", nil)
+	}
+	defer func() { getAccountFromUUID = originalGetAccountFromUUID }()
+
+	// Execute
+	result, job, err := rotateKmsConfig(context.Background(), mockStorage, mockTemporal, params)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Nil(t, job)
+	assert.True(t, errors.IsNotFoundErr(err))
+
+	// Verify expectations
+	mockStorage.AssertExpectations(t)
+	mockTemporal.AssertExpectations(t)
 }

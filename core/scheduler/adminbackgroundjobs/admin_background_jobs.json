@@ -3,5 +3,10 @@
     "jobType": "SYNC_VSA_SNAPSHOTS",
     "cronExpression": "*/5 * * * *",
     "state": "CREATING"
+  },
+  "ROTATE_KMS_SERVICE_ACCOUNTS": {
+    "jobType": "ROTATE_KMS_SERVICE_ACCOUNTS",
+    "cronExpression": "0 0 * * *",
+    "state": "CREATING"
   }
 }

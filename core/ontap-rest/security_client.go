@@ -15,6 +15,7 @@ type SecurityClient interface { // generate:mock
 	SecurityLogForwardingGet(params *SecurityLogForwardingGetParams) (*SecurityAuditLogForward, error)
 	SecurityAuditUpdate(params *SecurityAuditUpdateParams) (*SecurityAudit, error)
 	SecurityAuditGet() (*SecurityAudit, error)
+	GcpKmsModify(params *GcpKmsModifyParams) (*GcpKms, *JobAccepted, error)
 }
 
 type securityClient struct {
@@ -103,6 +104,19 @@ func (sc *securityClient) SecurityAuditUpdate(params *SecurityAuditUpdateParams)
 	resp := &SecurityAudit{SecurityAudit: *response.Payload}
 
 	return resp, err
+}
+
+// GcpKmsModify invokes pkg/ontap-rest/client/security/Client.GcpKmsModify
+func (sc *securityClient) GcpKmsModify(params *GcpKmsModifyParams) (*GcpKms, *JobAccepted, error) {
+	responseOK, _, err := (*sc.api).GcpKmsModify(gcpKmsModifyParamsToONTAP(params), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	if responseOK != nil {
+		// TODO garpur 2023-03-01 Missing return object in the swagger
+		return &GcpKms{}, nil, nil
+	}
+	return nil, nil, nil
 }
 
 // GcpKmsDelete invokes pkg/ontap-rest/client/security/Client.GcpKmsDelete

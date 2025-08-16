@@ -521,6 +521,10 @@ func (s *PersistenceStore) GetAccount(ctx context.Context, name string) (*datamo
 	return s.dataStore.GetAccount(ctx, name)
 }
 
+func (s *PersistenceStore) GetAccountByUUID(ctx context.Context, uuid string) (*datamodel.Account, error) {
+	return s.dataStore.GetAccountByUUID(ctx, uuid)
+}
+
 func (s *PersistenceStore) CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error) {
 	return s.dataStore.CreateAccount(ctx, account)
 }
@@ -790,6 +794,10 @@ func (s *PersistenceStore) UpdateServiceAccountState(ctx context.Context, uuid s
 
 func (s *PersistenceStore) GetServiceAccountFromEmail(ctx context.Context, email string) (*datamodel.ServiceAccount, error) {
 	return s.dataStore.GetServiceAccountFromEmail(ctx, email)
+}
+
+func (s *PersistenceStore) ListKmsServiceAccounts(ctx context.Context, filter *dbutils.Filter) ([]*datamodel.ServiceAccount, error) {
+	return s.dataStore.ListKmsServiceAccounts(ctx, filter)
 }
 
 func (s *PersistenceStore) GetBackupVaultByNameAndOwnerID(ctx context.Context, backupVaultId string, account_id string) (*datamodel.BackupVault, error) {

@@ -3284,6 +3284,65 @@ func (_c *MockStorage_GetAccount_Call) RunAndReturn(run func(context.Context, st
 	return _c
 }
 
+// GetAccountByUUID provides a mock function with given fields: ctx, uuid
+func (_m *MockStorage) GetAccountByUUID(ctx context.Context, uuid string) (*datamodel.Account, error) {
+	ret := _m.Called(ctx, uuid)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAccountByUUID")
+	}
+
+	var r0 *datamodel.Account
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Account, error)); ok {
+		return rf(ctx, uuid)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Account); ok {
+		r0 = rf(ctx, uuid)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Account)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, uuid)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetAccountByUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAccountByUUID'
+type MockStorage_GetAccountByUUID_Call struct {
+	*mock.Call
+}
+
+// GetAccountByUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - uuid string
+func (_e *MockStorage_Expecter) GetAccountByUUID(ctx interface{}, uuid interface{}) *MockStorage_GetAccountByUUID_Call {
+	return &MockStorage_GetAccountByUUID_Call{Call: _e.mock.On("GetAccountByUUID", ctx, uuid)}
+}
+
+func (_c *MockStorage_GetAccountByUUID_Call) Run(run func(ctx context.Context, uuid string)) *MockStorage_GetAccountByUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetAccountByUUID_Call) Return(_a0 *datamodel.Account, _a1 error) *MockStorage_GetAccountByUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetAccountByUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Account, error)) *MockStorage_GetAccountByUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAdminJobSpecByJobType provides a mock function with given fields: ctx, jobType
 func (_m *MockStorage) GetAdminJobSpecByJobType(ctx context.Context, jobType string) (*datamodel.AdminJobSpec, error) {
 	ret := _m.Called(ctx, jobType)
@@ -7520,6 +7579,65 @@ func (_c *MockStorage_ListBackupVaults_Call) Return(_a0 []*datamodel.BackupVault
 }
 
 func (_c *MockStorage_ListBackupVaults_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.BackupVault, error)) *MockStorage_ListBackupVaults_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListKmsServiceAccounts provides a mock function with given fields: ctx, filter
+func (_m *MockStorage) ListKmsServiceAccounts(ctx context.Context, filter *utils.Filter) ([]*datamodel.ServiceAccount, error) {
+	ret := _m.Called(ctx, filter)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListKmsServiceAccounts")
+	}
+
+	var r0 []*datamodel.ServiceAccount
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter) ([]*datamodel.ServiceAccount, error)); ok {
+		return rf(ctx, filter)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter) []*datamodel.ServiceAccount); ok {
+		r0 = rf(ctx, filter)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.ServiceAccount)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *utils.Filter) error); ok {
+		r1 = rf(ctx, filter)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListKmsServiceAccounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListKmsServiceAccounts'
+type MockStorage_ListKmsServiceAccounts_Call struct {
+	*mock.Call
+}
+
+// ListKmsServiceAccounts is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter *utils.Filter
+func (_e *MockStorage_Expecter) ListKmsServiceAccounts(ctx interface{}, filter interface{}) *MockStorage_ListKmsServiceAccounts_Call {
+	return &MockStorage_ListKmsServiceAccounts_Call{Call: _e.mock.On("ListKmsServiceAccounts", ctx, filter)}
+}
+
+func (_c *MockStorage_ListKmsServiceAccounts_Call) Run(run func(ctx context.Context, filter *utils.Filter)) *MockStorage_ListKmsServiceAccounts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*utils.Filter))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListKmsServiceAccounts_Call) Return(_a0 []*datamodel.ServiceAccount, _a1 error) *MockStorage_ListKmsServiceAccounts_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListKmsServiceAccounts_Call) RunAndReturn(run func(context.Context, *utils.Filter) ([]*datamodel.ServiceAccount, error)) *MockStorage_ListKmsServiceAccounts_Call {
 	_c.Call.Return(run)
 	return _c
 }

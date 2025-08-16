@@ -51,6 +51,15 @@ func (UnimplementedHandler) V1ListPools(ctx context.Context, params V1ListPoolsP
 	return r, ht.ErrNotImplemented
 }
 
+// V1RotateGcpKmsConfig implements v1_rotateGcpKmsConfig operation.
+//
+// Rotates service account key of a gcp kms config.
+//
+// POST /v1/Storage/GcpKmsConfig/{uuid}/RotateServiceAccountKey
+func (UnimplementedHandler) V1RotateGcpKmsConfig(ctx context.Context, req *GcpKmsKeyRotateV1, params V1RotateGcpKmsConfigParams) (r V1RotateGcpKmsConfigRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1UpdatePool implements v1_updatePool operation.
 //
 // Update the pool.

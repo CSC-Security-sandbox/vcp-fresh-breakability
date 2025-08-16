@@ -89,6 +89,7 @@ type Provider interface {
 	CreateKmsConfig(params CreateKmsConfigParams) (*CreateKmsConfigResponse, error)
 	DeleteEkmConfig(params DeleteKmsConfigParams) error
 	IsGcpKmsReachable(params GetKmsConfigParams) (bool, error)
+	ModifyGcpKms(externalUUID string, credentials *log.Secret) (*ontapRest.GcpKms, *string, error)
 	PostClusterLicenseAccessToken(ctx context.Context, clientSecret string) (*string, error)
 	CreateDns(params CreateDnsParams) error
 	CreateQoSGroupPolicy(params CreateQoSGroupPolicyParams) (*QoSGroupPolicyResponse, error)

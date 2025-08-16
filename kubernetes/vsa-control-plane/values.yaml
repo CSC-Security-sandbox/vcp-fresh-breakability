@@ -71,6 +71,7 @@ global:
     temporalTlsCert: ""
     temporalTlsKey: ""
     vcpPairedRegions: ""
+    gcpKmsKeyRotationEnabled: "false"
     vsaDeploymentPollInterval: "15s"
     vsaDeploymentTimeout: "10m"
     vsaNodeHomePort: "443"
