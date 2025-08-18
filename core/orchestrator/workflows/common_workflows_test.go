@@ -407,6 +407,28 @@ func TestWaitForDBJob_JobWithErrorDetails(t *testing.T) {
 	assert.Contains(t, err.Error(), "job completed with error")
 }
 
+func TestWaitForDBJob_JobErrorWithErrorDetails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	commonActivity := activities.CommonActivities{}
+
+	jobUUID := "job-uuid"
+	job := &datamodel.Job{
+		State:        "ERROR",
+		ErrorDetails: "some error",
+	}
+
+	env.OnActivity(commonActivity.GetJob, mock.Anything, jobUUID).Return(job, nil)
+
+	env.RegisterActivity(commonActivity.GetJob)
+	env.ExecuteWorkflow(WfTest, jobUUID, 1*time.Minute)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "job job-uuid failed with error: some error")
+}
+
 func TestWaitForDBJob_Timeout(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
