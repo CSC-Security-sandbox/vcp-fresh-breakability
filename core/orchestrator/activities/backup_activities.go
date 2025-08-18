@@ -93,8 +93,8 @@ func (a BackupActivity) UpdateBackupError(ctx context.Context, backup *datamodel
 		return errors.New("invalid input")
 	}
 	se := a.SE
-	backup.State = models.LifeCycleStateAvailable
-	backup.StateDetails = models.LifeCycleStateAvailableDetails
+	backup.State = models.LifeCycleStateError
+	backup.StateDetails = models.LifeCycleStateCreationErrorDetails
 	_, err := se.UpdateBackupState(ctx, backup)
 	return err
 }
@@ -348,7 +348,7 @@ func (a BackupActivity) GetOrCreateObjectStore(ctx context.Context, node *models
 	objectStore, err = provider.CloudTargetCreate(name, containerName)
 	if err == nil {
 		// If no error, return the existing object store
-		return &commonparams.CloudTarget{Name: *objectStore.Name}, nil
+		return &commonparams.CloudTarget{Name: *objectStore.Name, UUID: *objectStore.UUID}, nil
 	}
 
 	return nil, errors.New("failed to get or create object store")

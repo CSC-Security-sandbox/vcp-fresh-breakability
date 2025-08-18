@@ -178,8 +178,8 @@ func TestUpdateBackupError_Success(t *testing.T) {
 	err := activity.UpdateBackupError(ctx, backup, errorString)
 
 	assert.NoError(t, err)
-	assert.Equal(t, models.LifeCycleStateAvailable, backup.State)
-	assert.Equal(t, models.LifeCycleStateAvailableDetails, backup.StateDetails)
+	assert.Equal(t, models.LifeCycleStateError, backup.State)
+	assert.Equal(t, models.LifeCycleStateCreationErrorDetails, backup.StateDetails)
 	mockStorage.AssertExpectations(t)
 }
 
@@ -521,7 +521,7 @@ func TestGetOrCreateObjectStore_CreateNew(t *testing.T) {
 	node := &models.Node{}
 	objStoreName := "test-objstore"
 	bucketName := "test-bucket"
-	expectedResponse := &ontap_rest.CloudTarget{CloudTarget: oModels.CloudTarget{Name: nillable.ToPointer(objStoreName), Container: nillable.ToPointer(bucketName)}}
+	expectedResponse := &ontap_rest.CloudTarget{CloudTarget: oModels.CloudTarget{Name: nillable.ToPointer(objStoreName), Container: nillable.ToPointer(bucketName), UUID: nillable.ToPointer("123e4567-e89b-12d3-a456-426614174000")}}
 
 	mockProvider.On("CloudTargetGet", &objStoreName).Return(nil, errors.New("not found"))
 	mockProvider.On("CloudTargetCreate", objStoreName, bucketName).Return(expectedResponse, nil)
@@ -532,6 +532,8 @@ func TestGetOrCreateObjectStore_CreateNew(t *testing.T) {
 	// Assert
 	assert.NoError(t, err)
 	assert.Equal(t, *expectedResponse.Name, result.Name)
+	assert.Equal(t, *expectedResponse.UUID, result.UUID)
+
 	mockProvider.AssertExpectations(t)
 }
 

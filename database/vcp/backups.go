@@ -214,6 +214,7 @@ func (d *DataStoreRepository) FinishBackup(ctx context.Context, backup *datamode
 		State:        models.LifeCycleStateAvailable,
 		StateDetails: models.LifeCycleStateAvailableDetails,
 		Attributes:   backup.Attributes,
+		SizeInBytes:  backup.SizeInBytes,
 	}).Error
 	if err != nil {
 		return nil, err

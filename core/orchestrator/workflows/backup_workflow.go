@@ -65,7 +65,7 @@ func CreateBackupWorkflow(ctx workflow.Context, params *commonparams.CreateBacku
 			backupWf.Logger.Errorf("Failed to execute rollback for workflow %s: %v", backupWf.ID, err2)
 		}
 		backupWf.Status = WorkflowStatusFailed
-		err2 = backupWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), customErr)
+		err2 = backupWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		if err2 != nil {
 			backupWf.Logger.Errorf("Failed to update job status for workflow %s: %v", backupWf.ID, err2)
 		}
@@ -538,7 +538,7 @@ func UpdateBackupWorkflow(ctx workflow.Context, backup *datamodel.Backup) (gcpge
 
 	if customErr != nil {
 		backupWf.Status = WorkflowStatusFailed
-		err2 := backupWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), customErr)
+		err2 := backupWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		if err2 != nil {
 			backupWf.Logger.Errorf("Failed to update job status: %v", err2)
 		}

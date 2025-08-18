@@ -657,18 +657,20 @@ func TestFinishBackup(t *testing.T) {
 			Attributes:   &datamodel.BackupAttributes{},
 			State:        models.LifeCycleStateCreating,
 			StateDetails: models.LifeCycleStateCreatingDetails,
+			SizeInBytes:  1024,
 		}
 		err = store.db.Create(backup).Error()
 		assert.NoError(tt, err)
 
 		backup.Description = "Updated description"
-		backup.Attributes = &datamodel.BackupAttributes{}
-
+		backup.Attributes = &datamodel.BackupAttributes{SnapshotID: "test-snapshot-id"}
 		finishedBackup, err := store.FinishBackup(context.Background(), backup)
 		assert.NoError(tt, err)
 		assert.Equal(tt, models.LifeCycleStateAvailable, finishedBackup.State)
 		assert.Equal(tt, models.LifeCycleStateAvailableDetails, finishedBackup.StateDetails)
 		assert.Equal(tt, "Updated description", finishedBackup.Description)
+		assert.Equal(tt, backup.Attributes, finishedBackup.Attributes)
+		assert.Equal(tt, int64(1024), finishedBackup.SizeInBytes)
 	})
 
 	t.Run("ReturnsErrorWhenBackupNotFound", func(tt *testing.T) {
