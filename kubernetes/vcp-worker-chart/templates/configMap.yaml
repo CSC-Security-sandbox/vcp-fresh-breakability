@@ -9,7 +9,6 @@ metadata:
     app: {{ .Values.app.name }}
 data:
   TEMPORAL_ADDRESS: {{ .Values.workerConfig.temporalAddress | quote }}
-  ENV: {{ .Values.workerConfig.env | quote }}
   GCP_PROXY_PORT: {{ .Values.workerConfig.gcpProxyPort | quote }}
   DB_TYPE: {{ .Values.workerConfig.database.type | quote }}
   DB_HOST: {{ .Values.workerConfig.database.host | quote }}
@@ -23,7 +22,6 @@ data:
   DB_MAX_IDLE_CONNS: {{ .Values.workerConfig.database.maxIdleConns | quote }}
   DB_CONN_MAX_LIFETIME: {{ .Values.workerConfig.database.maxConnLifetime | quote }}
   RUN_MIGRATION_ON_START: {{ .Values.workerConfig.database.runMigrationOnStart | quote }}
-  GCE_METADATA_HOST: {{ .Values.workerConfig.gceMetadataHost | quote }}
   GCP_CONSUMER_MGMT_ENDPOINT_URL: {{ .Values.workerConfig.gcpConsumerMgmtEndpointUrl | quote }}
   GCP_SERVICE_NETWORKING_ENDPOINT_URL: {{ .Values.workerConfig.gcpServiceNetworkingEndpointUrl | quote }}
   LOCAL_REGION: {{ .Values.workerConfig.localRegion | quote }}

@@ -14,7 +14,6 @@ data:
   # TODO: Remove these fields after application code fix
   DB_HOST: "{{ index .Values "database" "host" }}"
   DB_NAME: "{{ index .Values "database" "name" }}"
-  ENV: "{{ index .Values "env" }}"
   GCP_AUTH_ACCEPTED_SERVICE_ACCOUNTS: "{{ index .Values "acceptedSAs" }}"
   GCP_CONSUMER_MGMT_ENDPOINT_URL: "{{ index .Values "gcpConsumerMgmtEndpointUrl" }}"
   GCP_SERVICE_NETWORKING_ENDPOINT_URL: "{{ index .Values "gcpServiceNetworkingEndpointUrl" }}"

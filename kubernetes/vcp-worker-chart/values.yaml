@@ -34,9 +34,7 @@ images:
 # Worker configuration
 workerConfig:
   temporalAddress: "temporal-frontend.temporal.svc.cluster.local:7233"
-  env: ""
   gcpProxyPort: "8090"
-  gceMetadataHost: ""
   gcpConsumerMgmtEndpointUrl: "autopush-netapp.sandbox.googleapis.com"
   gcpServiceNetworkingEndpointUrl: "netapp-tst-autopush-endpoint.appspot.com"
   localRegion: "australia-southeast1"
@@ -73,7 +71,7 @@ workerConfig:
   cloudDnsCacheTtl: 300
   vsaLifecycleManagerQueuePrefix: "vsa-lifecycle-manager"
   ontapVersion: "9.18.1"
-  enforceMinSpConfig: "true"
+  enforceMinSpConfig: "false"
   maxNodesPerGroup: 200
   filesProtocolSupport: "false"
   fileProtocolAllowlistedAccounts: "" # Comma-separated list of account IDs that are allowlisted for file protocol support
