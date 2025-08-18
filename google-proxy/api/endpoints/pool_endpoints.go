@@ -219,7 +219,19 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 			return &gcpgenserver.V1betaDeletePoolInternalServerError{}, err
 		}
 	}
-	if existingPool.DeletedAt != nil {
+
+	if existingPool != nil {
+		switch existingPool.State {
+		case models.LifeCycleStateDeleting, models.LifeCycleStateCreating, models.LifeCycleStateUpdating:
+			msg := "Error deleting pool - Pool is already transitioning between states"
+			return &gcpgenserver.V1betaDeletePoolConflict{
+				Code:    409,
+				Message: msg,
+			}, nil
+		}
+	}
+
+	if existingPool != nil && existingPool.DeletedAt != nil {
 		return &gcpgenserver.OperationV1beta{
 			Name: gcpgenserver.NewOptString(fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, utils.RandomUUID())),
 			Done: gcpgenserver.NewOptBool(true),
@@ -227,7 +239,7 @@ func (h Handler) V1betaDeletePool(ctx context.Context, params gcpgenserver.V1bet
 	}
 	deletePoolParams := &common.DeletePoolParams{
 		AccountName: params.ProjectNumber,
-		PoolID:      existingPool.UUID,
+		PoolID:      params.PoolId,
 	}
 	// Delete the pool
 	deleted, operationID, err := h.Orchestrator.DeletePool(ctx, deletePoolParams)
