@@ -391,6 +391,7 @@ func (h Handler) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params 
 
 func (h Handler) V1betaDescribeBackup(ctx context.Context, params gcpgenserver.V1betaDescribeBackupParams) (gcpgenserver.V1betaDescribeBackupRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := utilParseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaDescribeBackupInternalServerError{
@@ -419,6 +420,7 @@ func (h Handler) V1betaDescribeBackup(ctx context.Context, params gcpgenserver.V
 
 func (h Handler) V1betaUpdateBackup(ctx context.Context, req *gcpgenserver.BackupUpdateV1beta, params gcpgenserver.V1betaUpdateBackupParams) (gcpgenserver.V1betaUpdateBackupRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	if !backupEnabled {
 		return &gcpgenserver.V1betaUpdateBackupBadRequest{
 			Code:    400,

@@ -676,7 +676,7 @@ func (h Handler) V1betaUpdateKmsConfiguration(ctx context.Context, req *gcpgense
 
 func (h Handler) V1betaGetMultipleKmsConfigs(ctx context.Context, req *gcpgenserver.KmsConfigIdListV1beta, params gcpgenserver.V1betaGetMultipleKmsConfigsParams) (gcpgenserver.V1betaGetMultipleKmsConfigsRes, error) {
 	logger := util.GetLogger(ctx)
-
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	kmsConfigUUIDList := req.KmsConfigIds
 	kmsConfigVSAList, vsaErr := h.Orchestrator.GetMultipleKMSConfigs(ctx, kmsConfigUUIDList)
 

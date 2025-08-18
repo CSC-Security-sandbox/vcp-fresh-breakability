@@ -431,6 +431,7 @@ func _prepareRevertVolumeParams(req *gcpgenserver.VolumeRevertV1beta, params gcp
 
 func (h Handler) V1betaUpdateVolume(ctx context.Context, req *gcpgenserver.VolumeUpdateV1beta, params gcpgenserver.V1betaUpdateVolumeParams) (gcpgenserver.V1betaUpdateVolumeRes, error) {
 	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	region, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaUpdateVolumeBadRequest{
@@ -1006,7 +1007,7 @@ complete the setup.`
 
 func (h Handler) V1betaGetMultipleVolumes(ctx context.Context, req *gcpgenserver.VolumeIdListV1beta, params gcpgenserver.V1betaGetMultipleVolumesParams) (gcpgenserver.V1betaGetMultipleVolumesRes, error) {
 	logger := util.GetLogger(ctx)
-
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	// Validate the location first
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
