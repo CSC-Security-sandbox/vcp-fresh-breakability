@@ -11,6 +11,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	retry2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 )
@@ -21,6 +25,9 @@ func TestGrantServiceAccountRole(t *testing.T) {
 		mockGcp := &GcpServices{}
 		calledSet := false
 
+		isMemberInPolicy = func(log log.Logger, policy *iam.Policy, member, role string) bool {
+			return true
+		}
 		getServiceAccountIamPolicy = func(ctx context.Context, gcpService *GcpServices, resource string) (*iam.Policy, error) {
 			return &iam.Policy{Bindings: []*iam.Binding{}}, nil
 		}
@@ -86,6 +93,73 @@ func TestGrantServiceAccountRole(t *testing.T) {
 		err := mockGcp.GrantServiceAccountRole(ctx, "target@project.iam.gserviceaccount.com", "member@project.iam.gserviceaccount.com", "roles/viewer")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "set policy error")
+	})
+	t.Run("TestGrantServiceAccountRoleFailsRetryDo", func(t *testing.T) {
+		ctx := context.Background()
+		mockGcp := &GcpServices{}
+		calledSet := false
+
+		isMemberInPolicy = func(log log.Logger, policy *iam.Policy, member, role string) bool {
+			return false
+		}
+		retryDo = func(ctx context.Context, timeout, wait time.Duration, caller string, fn retry2.Retriable) error {
+			return errors.New("some error")
+		}
+		getServiceAccountIamPolicy = func(ctx context.Context, gcpService *GcpServices, resource string) (*iam.Policy, error) {
+			return &iam.Policy{Bindings: []*iam.Binding{}}, nil
+		}
+		setServiceAccountIamPolicy = func(ctx context.Context, gcpService *GcpServices, resource string, policy *iam.Policy) (*iam.Policy, error) {
+			calledSet = true
+			if len(policy.Bindings) != 1 {
+				t.Errorf("expected 1 binding, got %d", len(policy.Bindings))
+			}
+			return policy, nil
+		}
+		defer func() {
+			isMemberInPolicy = _isMemberInPolicy
+			getServiceAccountIamPolicy = _getServiceAccountIamPolicy
+			setServiceAccountIamPolicy = _setServiceAccountIamPolicy
+			retryDo = retry2.RetryDoWithTimeout
+		}()
+
+		err := mockGcp.GrantServiceAccountRole(ctx, "target@project.iam.gserviceaccount.com", "member@project.iam.gserviceaccount.com", "roles/viewer")
+		assert.Error(t, err)
+		assert.True(t, calledSet)
+	})
+	t.Run("TestGrantServiceAccountIsMemberInPolicyReturnsFalse", func(t *testing.T) {
+		ctx := context.Background()
+		mockGcp := &GcpServices{}
+		calledSet := false
+
+		isMemberInPolicy = func(log log.Logger, policy *iam.Policy, member, role string) bool {
+			return false
+		}
+
+		getServiceAccountIamPolicy = func(ctx context.Context, gcpService *GcpServices, resource string) (*iam.Policy, error) {
+			return &iam.Policy{Bindings: []*iam.Binding{}}, nil
+		}
+		setServiceAccountIamPolicy = func(ctx context.Context, gcpService *GcpServices, resource string, policy *iam.Policy) (*iam.Policy, error) {
+			calledSet = true
+			if len(policy.Bindings) != 1 {
+				t.Errorf("expected 1 binding, got %d", len(policy.Bindings))
+			}
+			return policy, nil
+		}
+		orig := retry2.ShouldRetry
+		retry2.ShouldRetry = func(err error) bool {
+			return false
+		}
+		defer func() {
+			isMemberInPolicy = _isMemberInPolicy
+			getServiceAccountIamPolicy = _getServiceAccountIamPolicy
+			setServiceAccountIamPolicy = _setServiceAccountIamPolicy
+			retryDo = retry2.RetryDoWithTimeout
+			retry2.ShouldRetry = orig
+		}()
+
+		err := mockGcp.GrantServiceAccountRole(ctx, "target@project.iam.gserviceaccount.com", "member@project.iam.gserviceaccount.com", "roles/viewer")
+		assert.Error(t, err)
+		assert.True(t, calledSet)
 	})
 }
 
@@ -334,5 +408,43 @@ func Test_DeleteServiceAccountKeysExcludingKey(t *testing.T) {
 		if len(deletedKeys) != 1 || deletedKeys[0] != "key1" {
 			tt.Errorf("expected only key1 to be deleted, got %v", deletedKeys)
 		}
+	})
+}
+
+func Test__isMemberInPolicy(t *testing.T) {
+	t.Run("ReturnsTrueWhenMemberHasRole", func(t *testing.T) {
+		policy := &iam.Policy{
+			Bindings: []*iam.Binding{
+				{Role: "roles/viewer", Members: []string{"serviceAccount:member@project.iam.gserviceaccount.com"}},
+			},
+		}
+		result := _isMemberInPolicy(util.GetLogger(context.Background()), policy, "serviceAccount:member@project.iam.gserviceaccount.com", "roles/viewer")
+		assert.True(t, result)
+	})
+
+	t.Run("ReturnsFalseWhenRoleNotPresent", func(t *testing.T) {
+		policy := &iam.Policy{
+			Bindings: []*iam.Binding{
+				{Role: "roles/editor", Members: []string{"serviceAccount:member@project.iam.gserviceaccount.com"}},
+			},
+		}
+		result := _isMemberInPolicy(util.GetLogger(context.Background()), policy, "serviceAccount:member@project.iam.gserviceaccount.com", "roles/viewer")
+		assert.False(t, result)
+	})
+
+	t.Run("ReturnsFalseWhenMemberNotPresent", func(t *testing.T) {
+		policy := &iam.Policy{
+			Bindings: []*iam.Binding{
+				{Role: "roles/viewer", Members: []string{"serviceAccount:other@project.iam.gserviceaccount.com"}},
+			},
+		}
+		result := _isMemberInPolicy(util.GetLogger(context.Background()), policy, "serviceAccount:member@project.iam.gserviceaccount.com", "roles/viewer")
+		assert.False(t, result)
+	})
+
+	t.Run("ReturnsFalseWhenBindingsAreEmpty", func(t *testing.T) {
+		policy := &iam.Policy{Bindings: []*iam.Binding{}}
+		result := _isMemberInPolicy(util.GetLogger(context.Background()), policy, "serviceAccount:member@project.iam.gserviceaccount.com", "roles/viewer")
+		assert.False(t, result)
 	})
 }

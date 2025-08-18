@@ -6,6 +6,7 @@ import (
 	"time"
 
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	retry2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"google.golang.org/api/iam/v1"
@@ -22,6 +23,12 @@ var (
 	deleteAllServiceAccountKeys      = _deleteAllServiceAccountKeys
 	retryDo                          = retry2.RetryDoWithTimeout
 	keyResourceUrlPrefix             = "projects/-/serviceAccounts/"
+	isMemberInPolicy                 = _isMemberInPolicy
+)
+
+const (
+	RetryTimeOutForGetIamPolicy  = 1 * time.Minute
+	RetryIntervalForGetIamPolicy = 5 * time.Second
 )
 
 func (gcpService *GcpServices) CreateServiceAccountKey(ctx context.Context, email string) (*models.ServiceAccountKey, error) {
@@ -48,6 +55,9 @@ func _createServiceAccountKey(gcpService *GcpServices, ctx context.Context, serv
 		util.GetLogger(ctx).Errorf("Failed to create service account key: %v", err)
 		return nil, fmt.Errorf("failed to create service account key for %s: %w", serviceAccountEmail, err)
 	}
+	if key == nil {
+		return nil, fmt.Errorf("received empty key when creating service account key for %s", serviceAccountEmail)
+	}
 	return convertServiceAccountKeyToModel(key), nil
 }
 
@@ -61,15 +71,26 @@ func _setServiceAccountIamPolicy(ctx context.Context, gcpService *GcpServices, r
 	}).Context(ctx).Do()
 }
 
-func (gcpService *GcpServices) GrantServiceAccountRole(ctx context.Context, email string, memberEmail string, role string) error {
-	// Get the current IAM policy for the target service account
-	log := util.GetLogger(ctx)
-	resource := fmt.Sprintf("projects/-/serviceAccounts/%s", email)
-	policy, err := getServiceAccountIamPolicy(ctx, gcpService, resource)
-	if err != nil {
-		log.Errorf("Failed to get IAM policy: %v", err)
-		return err
+func _isMemberInPolicy(log log.Logger, policy *iam.Policy, member, role string) bool {
+	if policy != nil {
+		for _, binding := range policy.Bindings {
+			if binding.Role == role {
+				for _, m := range binding.Members {
+					if m == member {
+						log.Infof("Role %s successfully granted to %s", role, member)
+						return true
+					}
+				}
+			}
+		}
 	}
+	return false
+}
+
+func (gcpService *GcpServices) GrantServiceAccountRole(ctx context.Context, email string, memberEmail string, role string) error {
+	logger := util.GetLogger(ctx)
+	policy := &iam.Policy{}
+	resource := fmt.Sprintf("projects/-/serviceAccounts/%s", email)
 
 	// Add the new binding for the initial service account
 	member := fmt.Sprintf("serviceAccount:%s", memberEmail)
@@ -79,13 +100,30 @@ func (gcpService *GcpServices) GrantServiceAccountRole(ctx context.Context, emai
 	})
 
 	// Set the updated IAM policy
-	_, err = setServiceAccountIamPolicy(ctx, gcpService, resource, policy)
+	_, err := setServiceAccountIamPolicy(ctx, gcpService, resource, policy)
 	if err != nil {
-		log.Errorf("Failed to set IAM policy: %v", err)
+		logger.Errorf("Failed to set IAM policy: %v", err)
 		return err
 	}
 
-	log.Infof("Successfully granted role %s to %s", role, email)
+	// Verify that the role has been granted
+	err = retryDo(ctx, RetryTimeOutForGetIamPolicy, RetryIntervalForGetIamPolicy, "getServiceAccountIamPolicy", func(attempt int) (bool, error) {
+		updatedPolicy, err := getServiceAccountIamPolicy(ctx, gcpService, resource)
+		if err != nil {
+			return true, err
+		}
+		if !isMemberInPolicy(logger, updatedPolicy, member, role) {
+			logger.Warnf("Member %s not found in IAM policy after attempt %d", member, attempt)
+			return true, retry2.NewRetriableErr(fmt.Sprintf("Member %s not found in IAM policy", member))
+		}
+		return false, nil
+	})
+	if err != nil {
+		logger.Errorf("Failed to get updated IAM policy after retries: %v", err)
+		return err
+	}
+
+	logger.Infof("Successfully granted role %s to %s", role, email)
 	return nil
 }
 
