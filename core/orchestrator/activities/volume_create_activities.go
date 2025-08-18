@@ -142,7 +142,7 @@ func (a VolumeCreateActivity) UpdateLunName(ctx context.Context, volume *datamod
 		LunName:    lunName,
 		VolumeName: volume.Name,
 		SvmName:    volume.Svm.Name,
-		Size:       lun.Size,
+		Size:       volume.SizeInBytes,
 	})
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)

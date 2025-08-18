@@ -9,6 +9,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
@@ -433,9 +434,17 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		return nil, "", err
 	}
 
+	if volume.State == models.LifeCycleStateDeleting {
+		return nil, "", customerrors.NewConflictErr("Volume of the snapshot is being deleted")
+	}
+
 	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID, volume.Account.ID, volume.ID)
 	if err != nil {
 		return nil, "", err
+	}
+
+	if snapshot.Type == activities.SnapshotTypeBackupAdhoc {
+		return nil, "", customerrors.NewConflictErr("Cannot delete a snapshot that was generated for backups. This snapshot will be automatically deleted when the next backup is created.")
 	}
 
 	snapshot.Volume = volume
