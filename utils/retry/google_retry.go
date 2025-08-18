@@ -27,6 +27,21 @@ const (
 	ExponentialBackoffFactor = 0.33333
 )
 
+// RetriableErr defines an error for when there is an error that should be retried
+type RetriableErr struct {
+	error
+}
+
+func NewRetriableErr(reason string) error {
+	return &RetriableErr{error: errors.New(reason)}
+}
+
+// IsRetriableErr checks whether the specified error is a IsConflictErr
+func IsRetriableErr(err error) bool {
+	_, is := err.(*RetriableErr)
+	return is
+}
+
 // RetryDoWithTimeout retries the provided function until it returns nil or the timeout is reached.
 func RetryDoWithTimeout(ctx context.Context, timeout, wait time.Duration, caller string, fn Retriable) error {
 	log := util.GetLogger(ctx)
@@ -94,6 +109,8 @@ func shouldRetry(err error) bool {
 			}
 			return false
 		}
+	} else if IsRetriableErr(err) {
+		return true
 	}
 	return false
 }

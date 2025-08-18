@@ -293,7 +293,7 @@ func _accessCryptoKey(ctx context.Context, kmsConfig *datamodel.KmsConfig, secre
 	err = retryDo(ctx, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey, "AccessCryptoKeyWithImpersonation", func(attempt int) (bool, error) {
 		cryptoKey, err := kmsService.Projects.Locations.KeyRings.CryptoKeys.Get(cryptoKeyPath).Context(ctx).Do()
 		if err != nil {
-			return true, fmt.Errorf("Projects.Locations.KeyRings.CryptoKeys.Get: %v", err)
+			return true, retry.NewRetriableErr(fmt.Sprintf("Projects.Locations.KeyRings.CryptoKeys.Get: %v", err))
 		}
 		logger.Debugf("Successfully got crypto key %s", cryptoKey.Name)
 		return false, nil

@@ -882,7 +882,7 @@ func (h Handler) V1betaDeleteKmsConfiguration(ctx context.Context, params gcpgen
 	return &gcpgenserver.OperationV1beta{
 		Name:     gcpgenserver.NewOptString(operationID),
 		Response: resp,
-		Done:     gcpgenserver.NewOptBool(true),
+		Done:     gcpgenserver.NewOptBool(false),
 	}, nil
 }
 

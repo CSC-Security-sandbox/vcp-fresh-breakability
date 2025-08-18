@@ -173,4 +173,10 @@ func TestShouldRetry(t *testing.T) {
 			t.Error("Expected false for generic error")
 		}
 	})
+	t.Run("ShouldRetryWhenRetriableError", func(tt *testing.T) {
+		err := NewRetriableErr("RetriableError")
+		if !shouldRetry(err) {
+			t.Error("Expected true for too many requests")
+		}
+	})
 }

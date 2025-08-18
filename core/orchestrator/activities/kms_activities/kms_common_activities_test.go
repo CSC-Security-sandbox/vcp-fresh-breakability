@@ -800,6 +800,92 @@ func Test_accessCryptoKey(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "cloudkms error")
 	})
+	t.Run("RetryBehaviorWithMultipleAttempts", func(t *testing.T) {
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountPasswordLocation: "encrypted-location",
+			},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeServiceAccountEmail: "svc@project.iam.gserviceaccount.com",
+			},
+			KeyProjectID:    "project",
+			KeyRingLocation: "location",
+			KeyRing:         "keyring",
+			KeyName:         "keyname",
+		}
+		origProcessCredentials := utils.ProcessCredentials
+		origRetryDo := retryDo
+		defer func() {
+			utils.ProcessCredentials = origProcessCredentials
+			retryDo = origRetryDo
+		}()
+
+		utils.ProcessCredentials = func(ctx context.Context, secretPassword string) (*googleOauth2.Credentials, error) {
+			return &googleOauth2.Credentials{}, nil
+		}
+
+		// Track how many times the retry function calls the inner function
+		attemptCount := 0
+		retryDo = func(ctx context.Context, timeout, wait time.Duration, caller string, fn retry.Retriable) error {
+			// Simulate multiple retry attempts
+			for i := 1; i <= 3; i++ {
+				attemptCount++
+				shouldRetry, err := fn(i)
+				// If the function indicates it should not retry, return the error
+				if !shouldRetry {
+					return err
+				}
+			}
+			// After max attempts, return the last error
+			_, err := fn(4)
+			attemptCount++
+			return err
+		}
+
+		err := _accessCryptoKey(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+		assert.Error(t, err) // Should eventually fail after retries
+		assert.Equal(t, 4, attemptCount, "Expected 4 retry attempts")
+		assert.Contains(t, err.Error(), "failed to access crypto key")
+	})
+	t.Run("RetryCallerNameIsCorrect", func(t *testing.T) {
+		ctx := context.Background()
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountPasswordLocation: "encrypted-location",
+			},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeServiceAccountEmail: "svc@project.iam.gserviceaccount.com",
+			},
+			KeyProjectID:    "project",
+			KeyRingLocation: "location",
+			KeyRing:         "keyring",
+			KeyName:         "keyname",
+		}
+		origProcessCredentials := utils.ProcessCredentials
+		origRetryDo := retryDo
+		defer func() {
+			utils.ProcessCredentials = origProcessCredentials
+			retryDo = origRetryDo
+		}()
+
+		utils.ProcessCredentials = func(ctx context.Context, secretPassword string) (*googleOauth2.Credentials, error) {
+			return &googleOauth2.Credentials{}, nil
+		}
+
+		var receivedCaller string
+		retryDo = func(ctx context.Context, timeout, wait time.Duration, caller string, fn retry.Retriable) error {
+			receivedCaller = caller
+			_, err := fn(1)
+			return err
+		}
+
+		err := _accessCryptoKey(ctx, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation)
+		assert.Error(t, err) // Expected to fail due to nil KMS service
+		assert.Equal(t, "AccessCryptoKeyWithImpersonation", receivedCaller, "Expected correct caller name in retry function")
+	})
 }
 
 func Test_synchronizeServiceAccountKeys(t *testing.T) {
