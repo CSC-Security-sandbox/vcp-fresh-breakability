@@ -33,6 +33,7 @@ images:
 
 # Worker configuration
 workerConfig:
+  gceMetadataHost: ""
   temporalAddress: "temporal-frontend.temporal.svc.cluster.local:7233"
   gcpProxyPort: "8090"
   gcpConsumerMgmtEndpointUrl: "autopush-netapp.sandbox.googleapis.com"

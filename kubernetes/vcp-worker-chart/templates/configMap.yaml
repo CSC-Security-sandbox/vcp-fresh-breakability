@@ -84,6 +84,7 @@ data:
   VLM_CREATE_VSA_SVM_WF_TIMEOUT_MINUTES: {{ .Values.workerConfig.vlmCreateVSASVMWorkflowTimeoutMinutes | quote }}
   VLM_DELETE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{ .Values.workerConfig.vlmDeleteVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
   VLM_UPDATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{ .Values.workerConfig.vlmUpdateVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
+  GCE_METADATA_HOST: {{ .Values.workerConfig.gceMetadataHost | quote }}
 
   MGMT_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.mgmtFirewallSourceRanges | quote }}
   RSM_FIREWALL_SOURCE_RANGES: {{ .Values.workerConfig.rsmFirewallSourceRanges | quote }}
