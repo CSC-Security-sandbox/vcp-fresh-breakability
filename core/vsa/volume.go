@@ -195,7 +195,9 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 		volumeModifyParams.SplitInitiated = &params.InitiateSplit
 		volumeModifyParams.MatchParentStorageTier = false // TODO: add this `params.TieringPolicy == "auto"`, when autotier is supported
 	} else {
-		volumeModifyParams.Size = nillable.ToPointer(uint64(params.Size))
+		if params.Size != 0 {
+			volumeModifyParams.Size = nillable.ToPointer(uint64(params.Size))
+		}
 		volumeModifyParams.SnapshotPolicyName = nillable.GetStringPtr(params.SnapshotPolicyName)
 	}
 	success, job, err := client.Storage().VolumeModify(volumeModifyParams)
