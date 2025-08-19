@@ -5604,9 +5604,9 @@ func (s *FlexCacheConfigV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.AtimeScrubMinutes.Set {
-			e.FieldStart("atimeScrubMinutes")
-			s.AtimeScrubMinutes.Encode(e)
+		if s.AtimeScrubDays.Set {
+			e.FieldStart("atimeScrubDays")
+			s.AtimeScrubDays.Encode(e)
 		}
 	}
 	{
@@ -5621,7 +5621,7 @@ var jsonFieldsNameOfFlexCacheConfigV1beta = [5]string{
 	0: "prePopulate",
 	1: "writebackEnabled",
 	2: "atimeScrubEnabled",
-	3: "atimeScrubMinutes",
+	3: "atimeScrubDays",
 	4: "cifsChangeNotifyEnabled",
 }
 
@@ -5663,15 +5663,15 @@ func (s *FlexCacheConfigV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"atimeScrubEnabled\"")
 			}
-		case "atimeScrubMinutes":
+		case "atimeScrubDays":
 			if err := func() error {
-				s.AtimeScrubMinutes.Reset()
-				if err := s.AtimeScrubMinutes.Decode(d); err != nil {
+				s.AtimeScrubDays.Reset()
+				if err := s.AtimeScrubDays.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"atimeScrubMinutes\"")
+				return errors.Wrap(err, "decode field \"atimeScrubDays\"")
 			}
 		case "cifsChangeNotifyEnabled":
 			if err := func() error {
@@ -5860,6 +5860,18 @@ func (s *FlexCacheV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.StateDetails.Set {
+			e.FieldStart("stateDetails")
+			s.StateDetails.Encode(e)
+		}
+	}
+	{
+		if s.StateDetailsCode.Set {
+			e.FieldStart("stateDetailsCode")
+			s.StateDetailsCode.Encode(e)
+		}
+	}
+	{
 		if s.PreviousCacheState.Set {
 			e.FieldStart("previousCacheState")
 			s.PreviousCacheState.Encode(e)
@@ -5872,9 +5884,9 @@ func (s *FlexCacheV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		if s.CommandExpiryTime.Set {
-			e.FieldStart("commandExpiryTime")
-			s.CommandExpiryTime.Encode(e, json.EncodeDateTime)
+		if s.PeeringCommandExpiryTime.Set {
+			e.FieldStart("peeringCommandExpiryTime")
+			s.PeeringCommandExpiryTime.Encode(e, json.EncodeDateTime)
 		}
 	}
 	{
@@ -5885,7 +5897,7 @@ func (s *FlexCacheV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFlexCacheV1beta = [11]string{
+var jsonFieldsNameOfFlexCacheV1beta = [13]string{
 	0:  "peerVolumeName",
 	1:  "peerClusterName",
 	2:  "peerSvmName",
@@ -5893,10 +5905,12 @@ var jsonFieldsNameOfFlexCacheV1beta = [11]string{
 	4:  "enableGlobalFileLock",
 	5:  "cacheConfig",
 	6:  "cacheState",
-	7:  "previousCacheState",
-	8:  "command",
-	9:  "commandExpiryTime",
-	10: "passphrase",
+	7:  "stateDetails",
+	8:  "stateDetailsCode",
+	9:  "previousCacheState",
+	10: "command",
+	11: "peeringCommandExpiryTime",
+	12: "passphrase",
 }
 
 // Decode decodes FlexCacheV1beta from json.
@@ -5987,6 +6001,26 @@ func (s *FlexCacheV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"cacheState\"")
 			}
+		case "stateDetails":
+			if err := func() error {
+				s.StateDetails.Reset()
+				if err := s.StateDetails.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stateDetails\"")
+			}
+		case "stateDetailsCode":
+			if err := func() error {
+				s.StateDetailsCode.Reset()
+				if err := s.StateDetailsCode.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stateDetailsCode\"")
+			}
 		case "previousCacheState":
 			if err := func() error {
 				s.PreviousCacheState.Reset()
@@ -6007,15 +6041,15 @@ func (s *FlexCacheV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"command\"")
 			}
-		case "commandExpiryTime":
+		case "peeringCommandExpiryTime":
 			if err := func() error {
-				s.CommandExpiryTime.Reset()
-				if err := s.CommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
+				s.PeeringCommandExpiryTime.Reset()
+				if err := s.PeeringCommandExpiryTime.Decode(d, json.DecodeDateTime); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"commandExpiryTime\"")
+				return errors.Wrap(err, "decode field \"peeringCommandExpiryTime\"")
 			}
 		case "passphrase":
 			if err := func() error {
@@ -15666,8 +15700,8 @@ func (s *PoolInternalV1betaType) Decode(d *jx.Decoder) error {
 	switch PoolInternalV1betaType(v) {
 	case PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
 		*s = PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
-	case PoolInternalV1betaTypeSTANDARD:
-		*s = PoolInternalV1betaTypeSTANDARD
+	case PoolInternalV1betaTypeFILE:
+		*s = PoolInternalV1betaTypeFILE
 	case PoolInternalV1betaTypeUNIFIED:
 		*s = PoolInternalV1betaTypeUNIFIED
 	default:
@@ -17053,8 +17087,8 @@ func (s *PoolV1betaType) Decode(d *jx.Decoder) error {
 	switch PoolV1betaType(v) {
 	case PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
 		*s = PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
-	case PoolV1betaTypeSTANDARD:
-		*s = PoolV1betaTypeSTANDARD
+	case PoolV1betaTypeFILE:
+		*s = PoolV1betaTypeFILE
 	case PoolV1betaTypeUNIFIED:
 		*s = PoolV1betaTypeUNIFIED
 	default:
@@ -26718,6 +26752,44 @@ func (s *V1betaDeleteVolumeInternalServerError) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaDeleteVolumeInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaDeleteVolumeNotFound as json.
+func (s *V1betaDeleteVolumeNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaDeleteVolumeNotFound from json.
+func (s *V1betaDeleteVolumeNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaDeleteVolumeNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaDeleteVolumeNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaDeleteVolumeNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaDeleteVolumeNotFound) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

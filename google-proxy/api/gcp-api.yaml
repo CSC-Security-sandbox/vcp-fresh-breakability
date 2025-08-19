@@ -8121,20 +8121,21 @@ components:
           description: Name of origin volume's SVM for FlexCache
           example: svm_87654321463811e79bdb123456789012_a1b2c3d4
         peerIpAddresses:
-          minItems: 1
           type: array
+          x-omitempty: true
+          minItems: 1
           items:
-            pattern: "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}$"
             type: string
             description: String list of node IP addresses to be peered with
+            pattern: "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}$"
             example: 105.106.16.1
         enableGlobalFileLock:
           type: boolean
-          description: Specify whether this FlexCache volume has global file lock
-            enabled
+          description: Specify whether this FlexCache volume has global file lock enabled
           nullable: true
           default: false
         cacheConfig:
+          nullable: true
           $ref: '#/components/schemas/FlexCacheConfig_v1beta'
         cacheState:
           type: string
@@ -8147,6 +8148,18 @@ components:
             - PENDING_SVM_PEERING
             - PEERED
             - ERROR
+        stateDetails:
+          title: stateDetails
+          type: string
+          description: Details about the current lifecycle state
+          readOnly: true
+          example: Available for use
+        stateDetailsCode:
+          type: integer
+          description: Numeric representation of current state details
+          format: int32
+          readOnly: true
+          example: 100001
         previousCacheState:
           type: string
           description: Previous state of the FlexCache
@@ -8159,12 +8172,14 @@ components:
             - PEERED
             - ERROR
         command:
+          title: command
           type: string
           description: Command used to establish peering for the FlexCache
           readOnly: true
           example: cluster peer create -peer-addrs 10.196.0.1 -initial-allowed-vserver-peers
             svm_87654321463811e79bdb123456789012_a1b2c3d4
-        commandExpiryTime:
+        peeringCommandExpiryTime:
+          title: peeringCommandExpiryTime
           type: string
           description: DateTime value for when cluster peering command should expire.
           format: date-time
@@ -8183,6 +8198,8 @@ components:
       description: FlexCache volume configuration options.
       properties:
         prePopulate:
+          description: Prepopulate FlexCache volume
+          nullable: true
           $ref: '#/components/schemas/FlexCachePrePopulate_v1beta'
         writebackEnabled:
           type: boolean
@@ -8194,11 +8211,12 @@ components:
           description: Flag indicating whether the atime based scrub is enabled for
             the FlexCache volume.
           nullable: true
-        atimeScrubMinutes:
+        atimeScrubDays:
           maximum: 1000
           minimum: 1
           type: integer
-          description: Duration in days after which inactive files can be scrubbed from FlexCache volume.
+          description: Duration in days after which inactive files can be scrubbed
+            from FlexCache volume.
           format: int16
           nullable: true
         cifsChangeNotifyEnabled:

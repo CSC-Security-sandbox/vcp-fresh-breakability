@@ -2953,13 +2953,14 @@ func (s *ExportPolicyV1beta) SetRules(val []SimpleExportPolicyRuleV1beta) {
 // FlexCache volume configuration options.
 // Ref: #/components/schemas/FlexCacheConfig_v1beta
 type FlexCacheConfigV1beta struct {
+	// Prepopulate FlexCache volume.
 	PrePopulate OptFlexCachePrePopulateV1beta `json:"prePopulate"`
 	// Flag indicating whether writeback is enabled for the FlexCache volume.
 	WritebackEnabled OptNilBool `json:"writebackEnabled"`
 	// Flag indicating whether the atime based scrub is enabled for the FlexCache volume.
 	AtimeScrubEnabled OptNilBool `json:"atimeScrubEnabled"`
 	// Duration in days after which inactive files can be scrubbed from FlexCache volume.
-	AtimeScrubMinutes OptNilInt16 `json:"atimeScrubMinutes"`
+	AtimeScrubDays OptNilInt16 `json:"atimeScrubDays"`
 	// Flag indicating whether a CIFS change notification is enabled for the FlexCache volume.
 	CifsChangeNotifyEnabled OptNilBool `json:"cifsChangeNotifyEnabled"`
 }
@@ -2979,9 +2980,9 @@ func (s *FlexCacheConfigV1beta) GetAtimeScrubEnabled() OptNilBool {
 	return s.AtimeScrubEnabled
 }
 
-// GetAtimeScrubMinutes returns the value of AtimeScrubMinutes.
-func (s *FlexCacheConfigV1beta) GetAtimeScrubMinutes() OptNilInt16 {
-	return s.AtimeScrubMinutes
+// GetAtimeScrubDays returns the value of AtimeScrubDays.
+func (s *FlexCacheConfigV1beta) GetAtimeScrubDays() OptNilInt16 {
+	return s.AtimeScrubDays
 }
 
 // GetCifsChangeNotifyEnabled returns the value of CifsChangeNotifyEnabled.
@@ -3004,9 +3005,9 @@ func (s *FlexCacheConfigV1beta) SetAtimeScrubEnabled(val OptNilBool) {
 	s.AtimeScrubEnabled = val
 }
 
-// SetAtimeScrubMinutes sets the value of AtimeScrubMinutes.
-func (s *FlexCacheConfigV1beta) SetAtimeScrubMinutes(val OptNilInt16) {
-	s.AtimeScrubMinutes = val
+// SetAtimeScrubDays sets the value of AtimeScrubDays.
+func (s *FlexCacheConfigV1beta) SetAtimeScrubDays(val OptNilInt16) {
+	s.AtimeScrubDays = val
 }
 
 // SetCifsChangeNotifyEnabled sets the value of CifsChangeNotifyEnabled.
@@ -3071,12 +3072,16 @@ type FlexCacheV1beta struct {
 	CacheConfig          OptFlexCacheConfigV1beta `json:"cacheConfig"`
 	// Current state of the FlexCache.
 	CacheState OptFlexCacheV1betaCacheState `json:"cacheState"`
+	// Details about the current lifecycle state.
+	StateDetails OptString `json:"stateDetails"`
+	// Numeric representation of current state details.
+	StateDetailsCode OptInt32 `json:"stateDetailsCode"`
 	// Previous state of the FlexCache.
 	PreviousCacheState OptFlexCacheV1betaPreviousCacheState `json:"previousCacheState"`
 	// Command used to establish peering for the FlexCache.
 	Command OptString `json:"command"`
 	// DateTime value for when cluster peering command should expire.
-	CommandExpiryTime OptNilDateTime `json:"commandExpiryTime"`
+	PeeringCommandExpiryTime OptNilDateTime `json:"peeringCommandExpiryTime"`
 	// Temporary passphrase generated to accept cluster peering command.
 	Passphrase OptNilString `json:"passphrase"`
 }
@@ -3116,6 +3121,16 @@ func (s *FlexCacheV1beta) GetCacheState() OptFlexCacheV1betaCacheState {
 	return s.CacheState
 }
 
+// GetStateDetails returns the value of StateDetails.
+func (s *FlexCacheV1beta) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// GetStateDetailsCode returns the value of StateDetailsCode.
+func (s *FlexCacheV1beta) GetStateDetailsCode() OptInt32 {
+	return s.StateDetailsCode
+}
+
 // GetPreviousCacheState returns the value of PreviousCacheState.
 func (s *FlexCacheV1beta) GetPreviousCacheState() OptFlexCacheV1betaPreviousCacheState {
 	return s.PreviousCacheState
@@ -3126,9 +3141,9 @@ func (s *FlexCacheV1beta) GetCommand() OptString {
 	return s.Command
 }
 
-// GetCommandExpiryTime returns the value of CommandExpiryTime.
-func (s *FlexCacheV1beta) GetCommandExpiryTime() OptNilDateTime {
-	return s.CommandExpiryTime
+// GetPeeringCommandExpiryTime returns the value of PeeringCommandExpiryTime.
+func (s *FlexCacheV1beta) GetPeeringCommandExpiryTime() OptNilDateTime {
+	return s.PeeringCommandExpiryTime
 }
 
 // GetPassphrase returns the value of Passphrase.
@@ -3171,6 +3186,16 @@ func (s *FlexCacheV1beta) SetCacheState(val OptFlexCacheV1betaCacheState) {
 	s.CacheState = val
 }
 
+// SetStateDetails sets the value of StateDetails.
+func (s *FlexCacheV1beta) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+// SetStateDetailsCode sets the value of StateDetailsCode.
+func (s *FlexCacheV1beta) SetStateDetailsCode(val OptInt32) {
+	s.StateDetailsCode = val
+}
+
 // SetPreviousCacheState sets the value of PreviousCacheState.
 func (s *FlexCacheV1beta) SetPreviousCacheState(val OptFlexCacheV1betaPreviousCacheState) {
 	s.PreviousCacheState = val
@@ -3181,9 +3206,9 @@ func (s *FlexCacheV1beta) SetCommand(val OptString) {
 	s.Command = val
 }
 
-// SetCommandExpiryTime sets the value of CommandExpiryTime.
-func (s *FlexCacheV1beta) SetCommandExpiryTime(val OptNilDateTime) {
-	s.CommandExpiryTime = val
+// SetPeeringCommandExpiryTime sets the value of PeeringCommandExpiryTime.
+func (s *FlexCacheV1beta) SetPeeringCommandExpiryTime(val OptNilDateTime) {
+	s.PeeringCommandExpiryTime = val
 }
 
 // SetPassphrase sets the value of Passphrase.
@@ -4255,8 +4280,9 @@ func (*InternalJobV1beta) v1betaInternalMountVolumeReplicationRes() {}
 
 // Ref: #/components/schemas/InternalVolume_v1beta
 type InternalVolumeV1beta struct {
-	// A human readable label for the resource which is restricted to letters, numbers, and underscore,
-	// with the first character a letter, the last a letter or a number, and a 63 character maximum.
+	// A human readable label for the resource which is restricted to letters, numbers, hyphen and
+	// underscore, with the first character a letter, the last a letter or a number, and a 63 character
+	// maximum.
 	ResourceId OptString `json:"resourceId"`
 	// Uuid v4 of the volume.
 	VolumeId OptString `json:"volumeId"`
@@ -12118,7 +12144,7 @@ type PoolInternalV1betaType string
 
 const (
 	PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED PoolInternalV1betaType = "STORAGE_POOL_TYPE_UNSPECIFIED"
-	PoolInternalV1betaTypeSTANDARD                   PoolInternalV1betaType = "STANDARD"
+	PoolInternalV1betaTypeFILE                       PoolInternalV1betaType = "FILE"
 	PoolInternalV1betaTypeUNIFIED                    PoolInternalV1betaType = "UNIFIED"
 )
 
@@ -12126,7 +12152,7 @@ const (
 func (PoolInternalV1betaType) AllValues() []PoolInternalV1betaType {
 	return []PoolInternalV1betaType{
 		PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED,
-		PoolInternalV1betaTypeSTANDARD,
+		PoolInternalV1betaTypeFILE,
 		PoolInternalV1betaTypeUNIFIED,
 	}
 }
@@ -12136,7 +12162,7 @@ func (s PoolInternalV1betaType) MarshalText() ([]byte, error) {
 	switch s {
 	case PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
 		return []byte(s), nil
-	case PoolInternalV1betaTypeSTANDARD:
+	case PoolInternalV1betaTypeFILE:
 		return []byte(s), nil
 	case PoolInternalV1betaTypeUNIFIED:
 		return []byte(s), nil
@@ -12151,8 +12177,8 @@ func (s *PoolInternalV1betaType) UnmarshalText(data []byte) error {
 	case PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
 		*s = PoolInternalV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
 		return nil
-	case PoolInternalV1betaTypeSTANDARD:
-		*s = PoolInternalV1betaTypeSTANDARD
+	case PoolInternalV1betaTypeFILE:
+		*s = PoolInternalV1betaTypeFILE
 		return nil
 	case PoolInternalV1betaTypeUNIFIED:
 		*s = PoolInternalV1betaTypeUNIFIED
@@ -13053,7 +13079,7 @@ type PoolV1betaType string
 
 const (
 	PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED PoolV1betaType = "STORAGE_POOL_TYPE_UNSPECIFIED"
-	PoolV1betaTypeSTANDARD                   PoolV1betaType = "STANDARD"
+	PoolV1betaTypeFILE                       PoolV1betaType = "FILE"
 	PoolV1betaTypeUNIFIED                    PoolV1betaType = "UNIFIED"
 )
 
@@ -13061,7 +13087,7 @@ const (
 func (PoolV1betaType) AllValues() []PoolV1betaType {
 	return []PoolV1betaType{
 		PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED,
-		PoolV1betaTypeSTANDARD,
+		PoolV1betaTypeFILE,
 		PoolV1betaTypeUNIFIED,
 	}
 }
@@ -13071,7 +13097,7 @@ func (s PoolV1betaType) MarshalText() ([]byte, error) {
 	switch s {
 	case PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
 		return []byte(s), nil
-	case PoolV1betaTypeSTANDARD:
+	case PoolV1betaTypeFILE:
 		return []byte(s), nil
 	case PoolV1betaTypeUNIFIED:
 		return []byte(s), nil
@@ -13086,8 +13112,8 @@ func (s *PoolV1betaType) UnmarshalText(data []byte) error {
 	case PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED:
 		*s = PoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
 		return nil
-	case PoolV1betaTypeSTANDARD:
-		*s = PoolV1betaTypeSTANDARD
+	case PoolV1betaTypeFILE:
+		*s = PoolV1betaTypeFILE
 		return nil
 	case PoolV1betaTypeUNIFIED:
 		*s = PoolV1betaTypeUNIFIED
@@ -16144,6 +16170,10 @@ func (*V1betaDeleteVolumeInternalServerError) v1betaDeleteVolumeRes() {}
 type V1betaDeleteVolumeNoContent struct{}
 
 func (*V1betaDeleteVolumeNoContent) v1betaDeleteVolumeRes() {}
+
+type V1betaDeleteVolumeNotFound Error
+
+func (*V1betaDeleteVolumeNotFound) v1betaDeleteVolumeRes() {}
 
 type V1betaDeleteVolumeReq struct {
 	// Delete all the associated backups for the given volume Id or not.
@@ -21206,8 +21236,9 @@ func (s *VolumeUpdateV1betaLabels) init() VolumeUpdateV1betaLabels {
 
 // Ref: #/components/schemas/Volume_v1beta
 type VolumeV1beta struct {
-	// A human readable label for the resource which is restricted to letters, numbers, and underscore,
-	// with the first character a letter, the last a letter or a number, and a 63 character maximum.
+	// A human readable label for the resource which is restricted to letters, numbers, hyphen and
+	// underscore, with the first character a letter, the last a letter or a number, and a 63 character
+	// maximum.
 	ResourceId string `json:"resourceId"`
 	// Uuid v4 of the volume.
 	VolumeId OptString `json:"volumeId"`

@@ -1193,7 +1193,7 @@ func (s *FlexCacheConfigV1beta) SetFake() {
 	}
 	{
 		{
-			s.AtimeScrubMinutes.SetFake()
+			s.AtimeScrubDays.SetFake()
 		}
 	}
 	{
@@ -1268,6 +1268,16 @@ func (s *FlexCacheV1beta) SetFake() {
 	}
 	{
 		{
+			s.StateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.StateDetailsCode.SetFake()
+		}
+	}
+	{
+		{
 			s.PreviousCacheState.SetFake()
 		}
 	}
@@ -1278,7 +1288,7 @@ func (s *FlexCacheV1beta) SetFake() {
 	}
 	{
 		{
-			s.CommandExpiryTime.SetFake()
+			s.PeeringCommandExpiryTime.SetFake()
 		}
 	}
 	{
@@ -5865,6 +5875,15 @@ func (s *V1betaDeleteVolumeInternalServerError) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaDeleteVolumeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteVolumeNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteVolumeNotFound(unwrapped)
 }
 
 // SetFake set fake values.

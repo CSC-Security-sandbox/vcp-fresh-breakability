@@ -5428,6 +5428,18 @@ func TestV1betaDeleteVolumeInternalServerError_EncodeDecode(t *testing.T) {
 	var typ2 V1betaDeleteVolumeInternalServerError
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaDeleteVolumeNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteVolumeNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteVolumeNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaDeleteVolumeReq_EncodeDecode(t *testing.T) {
 	var typ V1betaDeleteVolumeReq
 	typ.SetFake()

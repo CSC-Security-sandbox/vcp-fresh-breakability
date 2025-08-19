@@ -3016,7 +3016,7 @@ func (s *FlexCacheConfigV1beta) Validate() error {
 		})
 	}
 	if err := func() error {
-		if value, ok := s.AtimeScrubMinutes.Get(); ok {
+		if value, ok := s.AtimeScrubDays.Get(); ok {
 			if err := func() error {
 				if err := (validate.Int{
 					MinSet:        true,
@@ -3038,7 +3038,7 @@ func (s *FlexCacheConfigV1beta) Validate() error {
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "atimeScrubMinutes",
+			Name:  "atimeScrubDays",
 			Error: err,
 		})
 	}
@@ -3762,7 +3762,7 @@ func (s *InternalVolumeV1beta) Validate() error {
 					MaxLengthSet: true,
 					Email:        false,
 					Hostname:     false,
-					Regex:        regexMap["^[a-zA-Z][a-zA-Z0-9_]{0,62}$"],
+					Regex:        regexMap["^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"],
 				}).Validate(string(value)); err != nil {
 					return errors.Wrap(err, "string")
 				}
@@ -5364,7 +5364,7 @@ func (s PoolInternalV1betaType) Validate() error {
 	switch s {
 	case "STORAGE_POOL_TYPE_UNSPECIFIED":
 		return nil
-	case "STANDARD":
+	case "FILE":
 		return nil
 	case "UNIFIED":
 		return nil
@@ -5987,7 +5987,7 @@ func (s PoolV1betaType) Validate() error {
 	switch s {
 	case "STORAGE_POOL_TYPE_UNSPECIFIED":
 		return nil
-	case "STANDARD":
+	case "FILE":
 		return nil
 	case "UNIFIED":
 		return nil
@@ -8840,6 +8840,14 @@ func (s *V1betaDeleteVolumeForbidden) Validate() error {
 }
 
 func (s *V1betaDeleteVolumeInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteVolumeNotFound) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -15428,7 +15436,7 @@ func (s *VolumeV1beta) Validate() error {
 			MaxLengthSet: true,
 			Email:        false,
 			Hostname:     false,
-			Regex:        regexMap["^[a-zA-Z][a-zA-Z0-9_]{0,62}$"],
+			Regex:        regexMap["^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"],
 		}).Validate(string(s.ResourceId)); err != nil {
 			return errors.Wrap(err, "string")
 		}
