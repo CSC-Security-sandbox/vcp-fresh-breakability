@@ -628,7 +628,7 @@ func convertDatastoreJobToModel(job *datamodel.Job) *models.Job {
 	if job == nil {
 		return nil
 	}
-	
+
 	modelJob := &models.Job{
 		BaseModel: models.BaseModel{
 			UUID:      job.UUID,
@@ -649,14 +649,14 @@ func convertDatastoreJobToModel(job *datamodel.Job) *models.Job {
 		ScheduledAt:   job.ScheduledAt,
 		ResourceName:  job.ResourceName,
 	}
-	
+
 	if job.JobAttributes != nil {
 		modelJob.JobAttributes = &models.JobAttributes{
 			ResourceUUID: job.JobAttributes.ResourceUUID,
 			PoolUUID:     job.JobAttributes.PoolUUID,
 		}
 	}
-	
+
 	return modelJob
 }
 
@@ -735,6 +735,8 @@ func convertSDEResponseToKmsConfig(kmsConfig *gcpserver.KmsConfigV1beta) *models
 		switch kmsConfig.KmsState.Value {
 		case gcpserver.KmsConfigV1betaKmsStateREADY:
 			modelKmsConfig.State = models.LifeCycleStateREADY
+		case gcpserver.KmsConfigV1betaKmsStateKEYCHECKPENDING:
+			modelKmsConfig.State = models.LifeCycleStateKeyCheckPending
 		case gcpserver.KmsConfigV1betaKmsStateUPDATING:
 			modelKmsConfig.State = models.LifeCycleStateUpdating
 		case gcpserver.KmsConfigV1betaKmsStateINUSE:
@@ -742,10 +744,10 @@ func convertSDEResponseToKmsConfig(kmsConfig *gcpserver.KmsConfigV1beta) *models
 		case gcpserver.KmsConfigV1betaKmsStateERROR:
 			modelKmsConfig.State = models.LifeCycleStateError
 		default:
-			modelKmsConfig.State = models.LifeCycleStateAvailable
+			modelKmsConfig.State = models.KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED
 		}
 	} else {
-		modelKmsConfig.State = models.LifeCycleStateAvailable
+		modelKmsConfig.State = models.KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED
 	}
 
 	if kmsConfig.KmsStateDetails.IsSet() {

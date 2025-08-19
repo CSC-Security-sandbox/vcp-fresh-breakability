@@ -1887,7 +1887,7 @@ func TestRotateKmsConfig_Success(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.NotNil(t, job)
 	assert.Equal(t, "test-job-uuid", job.UUID)
-	
+
 	// Verify returned Job model
 	assert.Equal(t, models.JobTypeRotateKmsConfig, job.Type)
 	assert.Equal(t, models.JobsStateNEW, job.State)
@@ -1951,4 +1951,41 @@ func TestRotateKmsConfig_AccountNotFound(t *testing.T) {
 	// Verify expectations
 	mockStorage.AssertExpectations(t)
 	mockTemporal.AssertExpectations(t)
+}
+
+func TestConvertSDEResponseToKmsConfig(t *testing.T) {
+	t.Run("HandlesAllKmsStates", func(t *testing.T) {
+		testCases := []struct {
+			state         string
+			expectedState string
+		}{
+			{cvpModels.KmsConfigV1betaKmsStateKEYCHECKPENDING, cvpModels.KmsConfigV1betaKmsStateKEYCHECKPENDING},
+			{cvpModels.KmsConfigV1betaKmsStateINUSE, cvpModels.KmsConfigV1betaKmsStateINUSE},
+			{cvpModels.KmsConfigV1betaKmsStateREADY, cvpModels.KmsConfigV1betaKmsStateREADY},
+			{cvpModels.KmsConfigV1betaKmsStateUPDATING, cvpModels.KmsConfigV1betaKmsStateUPDATING},
+			{cvpModels.KmsConfigV1betaKmsStateERROR, cvpModels.KmsConfigV1betaKmsStateERROR},
+			{cvpModels.KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED, cvpModels.KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.state, func(t *testing.T) {
+				sdeResponse := &gcpserver.KmsConfigV1beta{
+					KmsState: gcpserver.NewOptKmsConfigV1betaKmsState(gcpserver.KmsConfigV1betaKmsState(tc.state)),
+				}
+
+				result := convertSDEResponseToKmsConfig(sdeResponse)
+
+				assert.NotNil(t, result)
+				assert.Equal(t, tc.expectedState, result.State)
+			})
+		}
+	})
+	t.Run("HandlesNilStates", func(t *testing.T) {
+		sdeResponse := &gcpserver.KmsConfigV1beta{}
+
+		result := convertSDEResponseToKmsConfig(sdeResponse)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, cvpModels.KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED, result.State)
+	})
 }
